@@ -1,11 +1,21 @@
 import * as React from "react";
-import { DAYS, TClassicalContextOverload, THourPeriod } from "../utils/types";
+import {
+  DAYS,
+  TClassicalContextOverload,
+  THourPeriod,
+  ValuedFeature,
+} from "../utils/types";
 import Select from "react-select";
 import CreatableSelect from "react-select/creatable";
 import { customStyles } from "../styles/reactSelect";
 import { Strategy } from "./FeatureTable";
 import { useEffect } from "react";
-import { useFieldArray, Controller, useFormContext } from "react-hook-form";
+import {
+  useFieldArray,
+  Controller,
+  useFormContext,
+  FieldErrors,
+} from "react-hook-form";
 import { format, parse, startOfDay } from "date-fns";
 import { DEFAULT_TIMEZONE, TimeZoneSelect } from "./TimeZoneSelect";
 import { ErrorDisplay } from "./FeatureForm";
@@ -52,13 +62,27 @@ export function ConditionsInput() {
           type="button"
           onClick={() => append({})}
         >
-          {fields.length > 0 ? "Add condition (OR)" : "Add condition"}
+          {resultType === "boolean"
+            ? fields.length > 0
+              ? "Add condition (OR)"
+              : "Add condition"
+            : "Add alternative value"}
         </button>
         <label>
           <Tooltip id="add-condition">
-            Add another activation condition.
-            <br />
-            One active condition is sufficient to activate the feature.
+            {resultType === "boolean" ? (
+              <>
+                Add an activation condition.
+                <br />
+                One active condition is sufficient to activate the feature.
+              </>
+            ) : (
+              <>
+                Add an alterative value
+                <br />
+                Feature value will be its firts matching alternative value.
+              </>
+            )}
           </Tooltip>
         </label>
       </div>
@@ -107,8 +131,8 @@ function ConditionInput(props: { index: number }) {
             <legend>
               <h6>Result value</h6>
             </legend>
-            <label>Value for this strategy</label>
-            <div className="mb-4">
+            <label className="mb-4">
+              Alternative value
               {resultType === "string" ? (
                 <input
                   type="text"
@@ -123,8 +147,13 @@ function ConditionInput(props: { index: number }) {
                   {...register(`conditions.${index}.value`)}
                 />
               )}
-              <ErrorDisplay error={errors?.conditions?.[index]?.value as any} />
-            </div>
+              <ErrorDisplay
+                error={
+                  (errors as FieldErrors<ValuedFeature>)?.conditions?.[index]
+                    ?.value as any
+                }
+              />
+            </label>
           </>
         )}
         <legend>

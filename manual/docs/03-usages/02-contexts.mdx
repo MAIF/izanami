@@ -5,14 +5,14 @@ title: Contexts
 import { Note } from "@site/src/components/Note";
 import ContextTreeSchema from "@site/static/img/context tree.excalidraw.svg";
 
-Izanami allows to define finely when a feature should or should not be active, but sometimes this is not enough.
+Izanami allows to define finely feature activation (or value for string/number features), but sometimes this is not enough.
 
-For instance, you may want to have different activation conditions for dev and prod environment.
+For instance, you may want to have different activation conditions or values for dev and prod environment.
 
 There is two way to make it work, however they both have their drawback:
 
 - You could use a user list activation condition and pass your environment as a user. This is a bit hacky, but would work as long as you don't need to add another activation condition to this feature.
-- You could use a script activation condition, and pass your environment as payload for your feature activation request. This works, however it's better to avoid using script feature when possible, since this kind of activation strategy is impossible to cache client side.
+- You could use a script feature, and pass your environment as payload for your feature activation request. This works, however it's better to avoid using script feature when possible, since this kind of activation strategy is impossible to cache client side.
 
 Since this kind of use case is very common, Izanami provides **contexts**.
 
@@ -23,7 +23,7 @@ Since this kind of use case is very common, Izanami provides **contexts**.
   env, device, ...
 </Note>
 
-You can **redefine activation conditions** for your feature in a given context.
+You can **redefine activation conditions or alternative values** for your feature in a given context.
 
 Caller can specify a context or subcontext when checking for feature activation status.
 

@@ -78,11 +78,8 @@ header .nav-link {
 }
 
 .custom-badge {
-  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-blue);
-  fill: var(--color-blue);
-  width: 18px;
+  width: 24px;
 }

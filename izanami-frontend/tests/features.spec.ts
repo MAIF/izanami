@@ -307,3 +307,85 @@ test.describe("Project screen should", () => {
     await expect(page.getByRole("row", { name: "test" })).toHaveCount(0);
   });
 });
+
+test.describe("Multi type features", () => {
+  test("should be creatable", async ({ page, tenantName }) => {
+    const situation = await testBuilder()
+      .withTenant(testTenant(tenantName).withProject(testproject("project")))
+      .build(page);
+
+    await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.getByRole("button", { name: "Create new feature" }).click();
+    await page.getByLabel("Name*").fill("str feature");
+    await page.getByLabel("Enabled").check();
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByText("string").click();
+    await page.getByLabel("Base value*").fill("foo");
+    await page.getByRole("button", { name: "Test feature" }).click();
+
+    await expect(
+      page.getByText("str feature value would be foo")
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Save" }).click();
+
+    await featureAction(page, "Test feature");
+    await page.getByRole("button", { name: "Test feature" }).click();
+    await expect(
+      page.getByText("str feature value would be foo")
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: "Global contexts" }).click();
+    await page.getByRole("button", { name: "Create new context" }).click();
+    await page.getByPlaceholder("Context name").fill("globalctx");
+    await page.getByPlaceholder("Context name").press("Enter");
+
+    await page.goto(`/tenants/${tenantName}/projects/project`);
+    await featureAction(page, "Overloads");
+    await page.getByRole("button", { name: "Create new overload" }).click();
+    await page.getByRole("combobox", { name: "Context" }).click();
+    await page.getByText("globalctx").click();
+    await page.getByLabel("Base value*").fill("bar");
+    await page.getByRole("button", { name: "Save" }).click();
+
+    await featureAction(page, "Test feature");
+    await page.getByRole("button", { name: "Test feature" }).click();
+    await expect(
+      page.getByText("str feature value would be foo")
+    ).toBeVisible();
+    await page.getByRole("combobox", { name: "Context" }).click();
+    await page.getByText("globalctx").click();
+    await page.getByRole("button", { name: "Test feature" }).click();
+    await expect(
+      page.getByText("str feature value would be bar")
+    ).toBeVisible();
+
+    await featureAction(page, "Edit");
+    await page.getByRole("button", { name: "Add alternative value" }).click();
+    await page.getByLabel("Alternative value").fill("bobv");
+    await page.getByRole("combobox", { name: "Strategy to use" }).click();
+    await page.getByText("User list").click();
+    await page
+      .getByRole("combobox", { name: "Users that should activate feature" })
+      .fill("bob");
+    await page.getByText(`Create "bob"`).click();
+    await page.getByRole("button", { name: "Save" }).click();
+
+    await page.getByRole("link", { name: "Query builder" }).click();
+    await page.getByRole("combobox", { name: "Features" }).click();
+    await page.getByText("str feature").click();
+    await page.getByRole("button", { name: "Test it!" }).click();
+    await expect(page.getByRole("cell", { name: "foo" })).toBeVisible();
+    await page.getByText("Context Select...").click();
+    await page.getByRole("option", { name: "/globalctx" }).click();
+
+    await page.getByRole("button", { name: "Test it!" }).click();
+    await expect(page.getByRole("cell", { name: "bar" })).toBeVisible();
+    await page.getByLabel("User", { exact: true }).fill("bob");
+    await page.getByRole("button", { name: "Test it!" }).click();
+    await expect(page.getByRole("cell", { name: "bar" })).toBeVisible();
+    await page.getByRole("combobox", { name: "Context" }).click();
+    await page.keyboard.press("Backspace");
+    await page.getByRole("button", { name: "Test it!" }).click();
+    await page.getByRole("cell", { name: "bobv" }).click();
+  });
+});

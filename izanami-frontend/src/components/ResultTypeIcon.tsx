@@ -1,12 +1,14 @@
 import * as React from "react";
 import { FeatureTypeName } from "../utils/types";
+import { StringIcon } from "../utils/icons";
 
 const NumberTypeIcon = () => (
   <svg
     xmlns=" http://www.w3.org/2000/svg"
     viewBox="0 0 301.95 240.38"
-    width="12"
-    height="12"
+    width="18"
+    height="18"
+    style={{ marginTop: "-2px" }}
   >
     <g id="Calque_2" data-name="Calque 2">
       <g id="Calque_1-2" data-name="Calque 1">
@@ -71,14 +73,22 @@ const NumberTypeIcon = () => (
   </svg>
 );
 
-export const ResultTypeIcon = (props: { resultType: FeatureTypeName }) => {
+export const ResultTypeIcon = (props: {
+  resultType: FeatureTypeName;
+  fontWeight?: "lighter" | "bold";
+  color?: string;
+}) => {
   const rs = props.resultType;
+  const color = props.color ?? "var(--color_level3)";
   return (
-    <div className="custom-badge" aria-hidden>
+    <div className="custom-badge" style={{ fill: color }} aria-hidden>
       {rs === "boolean" ? (
-        <i className="fa-solid fa-toggle-off"></i>
+        <i
+          style={{ fontSize: "18px", color: color }}
+          className="fa-solid fa-toggle-off"
+        ></i>
       ) : rs === "string" ? (
-        <em>“a”</em>
+        <StringIcon />
       ) : rs === "number" ? (
         <NumberTypeIcon></NumberTypeIcon>
       ) : (

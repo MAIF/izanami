@@ -2,8 +2,13 @@ import * as React from "react";
 import { customStyles } from "../styles/reactSelect";
 import Select from "react-select";
 import { useQuery } from "react-query";
-import { Controller, useFormContext, useWatch } from "react-hook-form";
-import { TContextOverload } from "../utils/types";
+import {
+  Controller,
+  FieldErrors,
+  useFormContext,
+  useWatch,
+} from "react-hook-form";
+import { TContextOverload, WasmFeature } from "../utils/types";
 import { useParams } from "react-router-dom";
 import { ErrorDisplay } from "./FeatureForm";
 import { FEATURE_NAME_REGEXP } from "../utils/patterns";
@@ -39,7 +44,7 @@ export function WasmInput() {
       <fieldset className="sub_container mt-2">
         <legend>WASM script parameters</legend>
         <div className="row">
-          <label className="col-9">
+          <label className="col-7">
             Wasm function name
             <Tooltip id="function-name">
               Function to call inside your script.
@@ -51,7 +56,7 @@ export function WasmInput() {
             />
           </label>
           <ErrorDisplay error={(errors?.wasmConfig as any)?.functionName} />
-          <div className="d-flex col-3">
+          <div className="d-flex col-5">
             <label className="d-flex  flex-column">
               <span>
                 Open Policy Agent
@@ -111,7 +116,11 @@ function KindOptions() {
                 )}
               />
             </label>
-            <ErrorDisplay error={errors?.wasmConfig?.source?.path} />
+            <ErrorDisplay
+              error={
+                (errors as FieldErrors<WasmFeature>)?.wasmConfig?.source?.path
+              }
+            />
           </>
         );
       } else {
@@ -216,7 +225,11 @@ function KindOptions() {
               {...register("wasmConfig.source.path")}
             />
           </label>
-          <ErrorDisplay error={errors?.wasmConfig?.source?.path} />
+          <ErrorDisplay
+            error={
+              (errors as FieldErrors<WasmFeature>)?.wasmConfig?.source?.path
+            }
+          />
         </>
       );
   }
@@ -263,7 +276,9 @@ function KindOptions() {
             )}
           />
         </label>
-        <ErrorDisplay error={errors?.wasmConfig?.source?.kind} />
+        <ErrorDisplay
+          error={(errors as FieldErrors<WasmFeature>)?.wasmConfig?.source?.kind}
+        />
         <div className="col-6">{opts}</div>
       </div>
     </>
@@ -432,7 +447,9 @@ export function ExistingScript() {
             )}
           />
         </label>
-        <ErrorDisplay error={errors?.wasmConfig?.name} />
+        <ErrorDisplay
+          error={(errors as FieldErrors<WasmFeature>)?.wasmConfig?.name}
+        />
       </>
     );
   } else {

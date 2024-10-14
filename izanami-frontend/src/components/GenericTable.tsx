@@ -130,7 +130,9 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
     id: "actions",
     enableSorting: false,
     minSize: 47,
-    header: () => <div className="d-flex flex-column">Actions</div>,
+    header: () => (
+      <div className="d-flex flex-column align-items-end">Actions</div>
+    ),
     cell: function (props: { row: Row<any> }) {
       const element: T = props.row.original!;
       const actionList = [
@@ -172,7 +174,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
           {actionList.length > 0 && (
             <div className="dropdown">
               <button
-                className="btn btn-secondary dropdown-toggle"
+                className="btn btn-sm btn-secondary dropdown-toggle"
                 type="button"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"

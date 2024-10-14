@@ -56,7 +56,7 @@ export function WasmScripts(props: { tenant: string }) {
             {
               id: "source",
               accessorFn: (s) => s.config.source.kind,
-              header: () => "Feature kind",
+              header: () => "Script type",
               minSize: 200,
               size: 10,
 

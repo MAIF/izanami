@@ -66,3 +66,13 @@ Experiment flags allows to try some features on a given proportion of your users
 This could be used to test a new idea on a very small portion of your users.
 
 Izanami implement this using percentage feature.
+
+### String / number flags
+
+As we've seen in previous sections, flags can indicate whether a feature should be active or not. These flags are boolean flags: they can "only" be active or inactive.
+
+Flags can also allow more values, such as strings or numbers. This allows a few more patterns:
+
+- **A/B testing**: you can use a string flag to indicate which version of a feature should be active. This can be used to test different versions of a feature on different users.
+- **Configuration**: you can use a string flag to store some configuration value. This can be used to store some configuration value that can be changed at runtime.
+- **Dynamic application customisation**: you can use a string flag to allow wide modification of your application at runtime. For instance string flag could be used to store css stylesheet, or js script to be executed.

@@ -36,7 +36,7 @@ export interface ProjectType extends TenantProjectType {
 }
 
 export interface UserType {
-  admin : boolean;
+  admin: boolean;
   username: string;
 }
 
@@ -175,26 +175,31 @@ export function isSingleNoStrategyConditionFeature(
 export type FeatureType = boolean | number | string;
 export type FeatureTypeName = "number" | "string" | "boolean";
 
-interface ClassicalFeatureBase<
-  Type extends FeatureType,
-  TypeName extends FeatureTypeName
-> {
+interface ClassicalFeatureBase<TypeName extends FeatureTypeName> {
   id?: string;
   name: string;
   description: string;
   enabled: boolean;
   tags: string[];
   project?: string;
-  conditions: TCondition<Type>[];
-  defaultResult: Type;
+  conditions: TClassicalCondition[];
   resultType: TypeName;
 }
 
+interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> {}
+interface ClassicalStringFeature extends ClassicalFeatureBase<"string"> {
+  value: string;
+  conditions: TValuedCondition<string>[];
+}
+interface ClassicalNumberFeature extends ClassicalFeatureBase<"number"> {
+  value: number;
+  conditions: TValuedCondition<number>[];
+}
+
 // There is probablyt a better way, but I suck a Typescript ;)
-export type ClassicalFeature =
-  | ClassicalFeatureBase<number, "number">
-  | ClassicalFeatureBase<string, "string">
-  | ClassicalFeatureBase<boolean, "boolean">;
+export type ClassicalFeature = ClassicalBooleanFeature | ValuedFeature;
+
+export type ValuedFeature = ClassicalStringFeature | ClassicalNumberFeature;
 
 export interface WasmFeature {
   id?: string;
@@ -237,9 +242,12 @@ export interface TWasmConfigSource {
   opts?: { [x: string]: any };
 }
 
-export interface TCondition<T extends FeatureType> {
+export interface TClassicalCondition {
   rule?: TFeatureRule;
   period?: TFeaturePeriod;
+}
+
+export interface TValuedCondition<T> extends TClassicalCondition {
   value: T;
 }
 
@@ -430,30 +438,40 @@ export type MailerConfiguration =
   | SMTPConfigurationDetails
   | Record<string, never>;
 
-export interface TContextOverloadBase {
+export interface TContextOverloadBase<FeatureTypeName> {
   name: string;
   enabled: boolean;
   id: string;
   path: string;
   project?: string;
+  conditions: TClassicalCondition[];
   resultType: FeatureTypeName;
 }
 
-export interface TClassicalContextOverloadBase<
-  N extends FeatureTypeName,
-  T extends FeatureType
-> extends TContextOverloadBase {
-  conditions: TCondition<T>[];
-  resultType: N;
-  value: T;
+export interface TBooleanContextOverload
+  extends TContextOverloadBase<"boolean"> {}
+
+export interface TNumberContextOverload extends TContextOverloadBase<"number"> {
+  conditions: TValuedCondition<number>[];
+  value: number;
+}
+
+export interface TStringContextOverload extends TContextOverloadBase<"string"> {
+  conditions: TValuedCondition<string>[];
+  value: string;
 }
 
 export type TClassicalContextOverload =
-  | TClassicalContextOverloadBase<"number", number>
-  | TClassicalContextOverloadBase<"boolean", boolean>
-  | TClassicalContextOverloadBase<"string", string>;
+  | TBooleanContextOverload
+  | TNumberContextOverload
+  | TStringContextOverload;
 
-export interface TWasmContextOverload extends TContextOverloadBase {
+export interface TWasmContextOverload {
+  name: string;
+  enabled: boolean;
+  id: string;
+  path: string;
+  project?: string;
   wasmConfig: TWasmConfig;
   resultType: FeatureTypeName;
 }

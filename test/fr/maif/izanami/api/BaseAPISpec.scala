@@ -2607,6 +2607,28 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
     }
 
+    def importV2(
+        tenant: String,
+        conflictStrategy: String = "fail",
+        data: Seq[String] = Seq()
+                ): RequestResult = {
+      val dataFile = writeTemporaryFile("export", "ndjson", data)
+
+      val response = await(
+        ws.url(
+            s"${ADMIN_BASE_URL}/tenants/${tenant}/_import?version=2&conflict=${conflictStrategy}"
+          ).withCookies(cookies: _*)
+          .post(
+            Source(
+              Seq(
+                FilePart("export", "export.ndjson", Option("text/plain"), FileIO.fromPath(dataFile.toPath))
+              )
+            )
+          )
+      )
+      RequestResult(json = Try { response.json }, status = response.status)
+    }
+
     def importAndWaitTermination(
         tenant: String,
         timezone: String = "Europe/Paris",

@@ -506,6 +506,7 @@ class TestFeature {
 class TestOverload {
   contextPath: string;
   enabled = false;
+  resultType: string = "boolean";
 
   constructor(contextPath: string, enabled = false) {
     this.contextPath = contextPath;
