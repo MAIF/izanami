@@ -8,7 +8,13 @@ import StrategyConditionRule from "@site/static/img/strategy-condition-rule.exca
 
 In Izanami, feature flags are just called "features" for the sake of simplicity.
 
-## Feature activation
+## Boolean features
+
+Boolean features can only take two values: `true` or `false` (active or inactive).
+
+In this section, we'll see how Izanami allows to define flexible boolean features, that can be activated based on time, user or both.
+
+### Feature activation
 
 Two elements are used to decide if a feature is active:
 
@@ -50,9 +56,9 @@ Conditions are used here to progressively activate feature for all users, while 
   <figcaption>Multi condition feature example</figcaption>
 </figure>
 
-## Activation rules
+### Activation rules
 
-### Time rules
+#### Time rules
 
 With this kind of rules, Izanami will activate feature when current time is in provided range.
 
@@ -81,7 +87,7 @@ There is several variation for this catrgory of feature, that can be composed to
 
 </Note>
 
-### User based rules
+#### User based rules
 
 With user based rules, activation conditions are based on provided user.
 
@@ -90,9 +96,38 @@ Three is two types of user based conditions:
 - user list: define a list of user for which feature will be active. This rule is used to implement permission flags.
 - percentage: feature will be active only for given percentage of users. Percentage is based on user hash (using [murmum3](https://en.wikipedia.org/wiki/MurmurHash)), this means that activation is consistent for a given user (if feature is active once, it'll remain active). This rule is used to implement canary flags.
 
+## String / number features
+
+Sometimes a fature that can only be active or inactive is not enough.
+
+For such cases, Izanami allows to define features that can take any string or number value.
+
+### Feature value
+
+String and number features have a base value.
+The feature will take this value if feature is active and if there is no active alternative values.
+
+When a string or number feature is inactive, it has null value.
+
+### Alternative values
+
+A string or number feature can define alternative values.
+Feature will take first alternative value whose conditions are satisfied.
+
+Alternative values conditions are the same as [activation rules](#activation-rules) listed above, therefore you can think of alternatives values as activation conditions with a value.
+
+<Note>
+  For boolean, features, activation conditions order is not important: one
+  matching condition is enough to make the feature active.
+  <br />
+  For string an number features,{" "}
+  <strong>order of alternative values matters</strong>: feature value will be
+  the first active alternative value.
+</Note>
+
 ## Scripted feature
 
-Sometimes above rules are not enough. For instance feature activation decision may depend on more than "just" the user.
+Sometimes above rules are not enough. For instance feature activation (or value) may depend on more than "just" the user.
 
 In such a case, Izanami offers (with the help of [WASMO](https://github.com/MAIF/wasmo)) the possibility to define "script feature".
 

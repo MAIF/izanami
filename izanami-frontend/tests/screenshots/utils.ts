@@ -30,6 +30,24 @@ export async function openActions(page: Page, rowHeader?: string) {
   }
 }
 
+export async function featureAction(page: Page, name: string) {
+  const dropdownLocator = page.getByLabel("actions");
+  const locator = page.getByRole("link", { name: name, exact: true });
+
+  await dropdownLocator.click();
+  try {
+    await locator.waitFor();
+  } catch {
+    try {
+      await dropdownLocator.click();
+      await locator.waitFor();
+    } catch {
+      await dropdownLocator.click();
+    }
+  }
+  await locator.click({ force: true });
+}
+
 export async function setup(shouldLogin) {
   await cleanup();
   const browser = await chromium.launch({ headless: false });

@@ -1,7 +1,7 @@
 package fr.maif.izanami.wasm
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{IzanamiError, WasmError}
+import fr.maif.izanami.errors.{IzanamiError, WasmError, WasmResultParsingError}
 import io.otoroshi.wasm4s.scaladsl._
 import fr.maif.izanami.models.RequestContext
 import fr.maif.izanami.models.features.ResultType
@@ -196,13 +196,6 @@ object WasmUtils {
               env.logger.error(s"Failed to parse wasm result (OPA), result is $result")
               WasmError()
             }
-            /* (result.value.head \ "result")
-              .asOpt[Boolean]
-              .orElse((result.value.head \ "result").asOpt[String].flatMap(s => s.toBooleanOption))
-              .toRight {
-                env.logger.error(s"Failed to parse wasm result (OPA), result is $result")
-                WasmError()
-              }*/
           }
         }
       } else {
@@ -218,20 +211,22 @@ object WasmUtils {
                   env.logger.error(s"Failed to parse wasm result, result is $response")
                   WasmError()
                 }
-              /*(response \ "active")
-                .asOpt[Boolean]
-                .orElse((response \ "active").asOpt[String].flatMap(s => s.toBooleanOption))
-                .toRight {
-                  env.logger.error(s"Failed to parse wasm result, result is $response")
-                  WasmError()
-                }*/
+                .flatMap(json => {
+                  expectedType
+                    .parse(json)
+                    .toRight(WasmResultParsingError(expected = expectedType.toDatabaseName, found = json))
+                })
             } else {
-              //rawResult.toBooleanOption.toRight {
-              //}
-              Try{Json.parse(rawResult)}.toEither.left.map(ex => {
-                env.logger.error(s"Failed to parse wasm result, result is $rawResult")
-                WasmError()
-              })
+              Try { Json.parse(rawResult) }.toEither.left
+                .map(ex => {
+                  env.logger.error(s"Failed to parse wasm result, result is $rawResult")
+                  WasmError()
+                })
+                .flatMap(json => {
+                  expectedType
+                    .parse(json)
+                    .toRight(WasmResultParsingError(expected = expectedType.toDatabaseName, found = json))
+                })
             }
           }
         }

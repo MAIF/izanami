@@ -4,8 +4,8 @@ import akka.util.ByteString
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, PartialImportFailure}
 import fr.maif.izanami.models.ExportedType.parseExportedType
-import fr.maif.izanami.models.features.BooleanResultDescriptor
-import fr.maif.izanami.models.{AbstractFeature, ApiKey, CompleteFeature, CompleteWasmFeature, Feature, RightLevels, UserWithRights}
+import fr.maif.izanami.models.features.{BooleanResult, BooleanResultDescriptor}
+import fr.maif.izanami.models.{AbstractFeature, ApiKey, CompleteFeature, CompleteWasmFeature, ExportedType, Feature, FeatureType, OverloadType, RightLevels, UserWithRights}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldKey.{oldKeyReads, toNewKey}
 import fr.maif.izanami.v1.OldScripts.doesUseHttp
@@ -234,6 +234,7 @@ class ImportController(
             .mapValues(v => v.map(_._2))
             .toMap
         })
+        .map(m => fixImportDataIfNeeded(m))
         .map(m => env.datastores.exportDatastore.importTenantData(tenant, m, conflictStrategy))
         .map(f =>
           f.map {
@@ -246,6 +247,27 @@ class ImportController(
           }
         )
     }).toRight(Future.successful(BadRequest(Json.obj("message" -> "Missing export file")))).flatten.fold(r => r, r => r)
+  }
+
+  def fixImportDataIfNeeded(data: Map[ExportedType, Seq[JsObject]]): Map[ExportedType, Seq[JsObject]] = {
+    var features = data.getOrElse(FeatureType, Seq())
+    features = features.map {
+      case obj if !obj.keys.contains("result_type") => {
+        val res: JsObject = obj + ("result_type" -> JsString(BooleanResult.toDatabaseName))
+        res
+      }
+      case obj                                     => obj
+    }
+    var overloads = data.getOrElse(OverloadType, Seq())
+    overloads = overloads.map {
+      case obj if !obj.keys.contains("result_type") => {
+        val res: JsObject = obj + ("result_type" -> JsString(BooleanResult.toDatabaseName))
+        res
+      }
+      case obj                                     => obj
+    }
+
+    data + (FeatureType -> features, OverloadType -> overloads)
   }
 
   def importV1Data(

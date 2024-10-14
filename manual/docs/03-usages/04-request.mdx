@@ -48,13 +48,13 @@ GET `<izanami-root>/api/v2/features/<id>`: fetches activation status for feature
 
 ```json
 {
-  "active": true/false,
+  "active": either true/false (for boolean feature), a string value (for string feature) or a number (for number feature),
   "name": "<feature name>",
   "project": "<feature's project name>"
 }
 ```
 
-where `active` indicates whether feature is active.
+where `active` indicates whether feature is active (for boolean feature) or the feature value (for string/number feature).
 
 ### Multiple feature endpoints
 
@@ -73,12 +73,12 @@ Additionally to previously specified query parameters, this endpoints accept spe
     "project": "<feature's project name>"
   },
   "<id2>": {
-    "active": false,
+    "active": 1,
     "name": "<feature name>",
     "project": "<feature's project name>"
   },
   "<id3>": {
-    "active": false,
+    "active": "foo",
     "name": "<feature name>",
     "project": "<feature's project name>"
   }

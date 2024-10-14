@@ -2,12 +2,12 @@ import * as React from "react";
 import {
   ClassicalFeature,
   DAYS,
-  FeatureType,
   FeatureTypeName,
   SingleConditionFeature,
+  TClassicalCondition,
   TCompleteFeature,
-  TCondition,
   TLightFeature,
+  ValuedFeature,
   isPercentageRule,
   isSingleConditionFeature,
   isSingleCustomerConditionFeature,
@@ -236,7 +236,14 @@ function toSingleConditionFeatureFormat(
   feature: LegacyFeature
 ): SingleConditionFeature {
   const { id, name, description, enabled, tags, project } = feature;
-  const base = { id, name, description, enabled, tags, project };
+  const base = {
+    id,
+    name,
+    description,
+    enabled,
+    tags,
+    project,
+  };
   if (feature.activationStrategy === "CUSTOMERS_LIST") {
     return {
       ...base,
@@ -244,6 +251,7 @@ function toSingleConditionFeatureFormat(
       conditions: {
         users: feature.parameters.customers,
       },
+      resultType: "boolean",
     };
   } else if (feature.activationStrategy === "PERCENTAGE") {
     return {
@@ -252,6 +260,7 @@ function toSingleConditionFeatureFormat(
       conditions: {
         percentage: feature.parameters.percentage,
       },
+      resultType: "boolean",
     };
   } else if (feature.activationStrategy === "RELEASE_DATE") {
     return {
@@ -261,6 +270,7 @@ function toSingleConditionFeatureFormat(
         begin: feature.parameters.date,
         timezone: feature.parameters.timezone,
       },
+      resultType: "boolean",
     };
   } else if (feature.activationStrategy === "DATE_RANGE") {
     return {
@@ -271,6 +281,7 @@ function toSingleConditionFeatureFormat(
         end: feature.parameters.to,
         timezone: feature.parameters.timezone,
       },
+      resultType: "boolean",
     };
   } else if (feature.activationStrategy === "HOUR_RANGE") {
     return {
@@ -281,12 +292,14 @@ function toSingleConditionFeatureFormat(
         endTime: feature.parameters.endAt,
         timezone: feature.parameters.timezone,
       },
+      resultType: "boolean",
     };
   } else if (feature.activationStrategy === "NO_STRATEGY") {
     return {
       ...base,
       tags: tags ?? [],
       conditions: {},
+      resultType: "boolean",
     };
   }
   throw new Error("TODO");
@@ -906,7 +919,7 @@ const resultTypeOptions = [
   {
     label: (
       <div className="d-flex">
-        <ResultTypeIcon resultType="string" />
+        <ResultTypeIcon resultType="string" fontWeight="bold" />
         <span className="ps-1">string</span>
       </div>
     ),
@@ -967,20 +980,22 @@ export function V2FeatureForm(props: {
               let error = false;
 
               if (!isWasmFeature(data) && !isSingleConditionFeature(data)) {
-                const { resultType, value } = data;
-
-                // TODO improve typing
-                if (!isValueValid(resultType, value as string)) {
+                if (
+                  "value" in data &&
+                  !isValueValid(data.resultType, data.value as string)
+                ) {
                   setError("value", {
                     type: "custom",
                     message: "Base value is mandatory for non boolean type",
                   });
                   error = error || true;
                 }
-                data.conditions.forEach((cond, index) => {
-                  const value = cond.value;
 
-                  if (!isValueValid(resultType, value as string)) {
+                data.conditions.forEach((cond, index) => {
+                  if (
+                    "value" in cond &&
+                    !isValueValid(resultType, cond.value as string)
+                  ) {
                     setError(`conditions.${index}.value`, {
                       type: "custom",
                       message: "Base value is mandatory for non boolean type",
@@ -1005,7 +1020,7 @@ export function V2FeatureForm(props: {
                   }
                 });
                 data.conditions.forEach(
-                  (cond: TCondition<any>, index: number) => {
+                  (cond: TClassicalCondition, index: number) => {
                     if (
                       cond?.period?.begin &&
                       cond?.period?.end &&
@@ -1075,40 +1090,38 @@ export function V2FeatureForm(props: {
             className="d-flex flex-column col-8 flex-shrink-1"
             style={{ marginRight: "32px" }}
           >
-            <div className="row">
-              <label className="col-9">
-                Name*
-                <Tooltip id="modern-name">
-                  Feature name, use something meaningfull, it can be modified
-                  later without impacts.
-                </Tooltip>
-                <input
-                  autoFocus={true}
-                  className="form-control"
-                  type="text"
-                  {...register("name", {
-                    required: "Feature name can't be empty",
-                    pattern: {
-                      value: FEATURE_NAME_REGEXP,
-                      message: `Feature name must match ${FEATURE_NAME_REGEXP}`,
-                    },
-                  })}
-                />
-                <ErrorDisplay error={errors.name} />
-              </label>
-              <label className="col-3">
-                Enabled
-                <Tooltip id="modern-enabled">
-                  Whether feature is enabled or disabled. The disabled feature
-                  is an inactive event if its conditions match.
-                </Tooltip>
-                <input
-                  type="checkbox"
-                  className="izanami-checkbox"
-                  {...register("enabled")}
-                />
-              </label>
-            </div>
+            <label>
+              Name*
+              <Tooltip id="modern-name">
+                Feature name, use something meaningfull, it can be modified
+                later without impacts.
+              </Tooltip>
+              <input
+                autoFocus={true}
+                className="form-control"
+                type="text"
+                {...register("name", {
+                  required: "Feature name can't be empty",
+                  pattern: {
+                    value: FEATURE_NAME_REGEXP,
+                    message: `Feature name must match ${FEATURE_NAME_REGEXP}`,
+                  },
+                })}
+              />
+              <ErrorDisplay error={errors.name} />
+            </label>
+            <label className="mt-3">
+              Enabled
+              <Tooltip id="modern-enabled">
+                Whether feature is enabled or disabled. The disabled feature is
+                an inactive event if its conditions match.
+              </Tooltip>
+              <input
+                type="checkbox"
+                className="izanami-checkbox"
+                {...register("enabled")}
+              />
+            </label>
             {additionalFields && additionalFields()}
             <div className="row">
               <label className="mt-3 col-6">
@@ -1152,7 +1165,7 @@ export function V2FeatureForm(props: {
                     />
                   )}
                   <ErrorDisplay
-                    error={(errors as FieldErrors<ClassicalFeature>).value}
+                    error={(errors as FieldErrors<ValuedFeature>).value}
                   />
                 </label>
               )}
@@ -1220,8 +1233,11 @@ export function V2FeatureForm(props: {
                   setValue("wasmConfig", undefined as any);
                   setType(e?.value || "");
                   if (e?.value === "Existing WASM script") {
-                    setValue("value", undefined);
                     setValue("wasmConfig.source.kind", "Local");
+                  }
+
+                  if (e?.value !== "Classic") {
+                    setValue("value", "");
                   }
                 }}
               />

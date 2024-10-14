@@ -4,6 +4,7 @@ import {
   FeatureTypeName,
   TContextOverload,
   TContextOverloadBase,
+  TStringContextOverload,
 } from "../utils/types";
 import {
   useForm,
@@ -48,7 +49,7 @@ export function OverloadCreationForm(props: {
   const isWasm = defaultValue && "wasmConfig" in defaultValue;
   const [type, setType] = useState(isWasm ? "Existing WASM script" : "Classic");
   const [featureResultType, setFeatureResultType] = useState<
-    FeatureType | undefined
+    FeatureTypeName | undefined
   >(props.resultType);
   React.useEffect(() => {
     if (type === "Existing WASM script") {
@@ -74,48 +75,49 @@ export function OverloadCreationForm(props: {
       <FormProvider {...methods}>
         <form
           onSubmit={handleSubmit((data) =>
-            submit({ ...data, resultType: featureResultType })
+            submit({
+              ...data,
+              resultType: featureResultType,
+            } as TContextOverload)
           )}
           className="d-flex flex-column anim__rightToLeft p-3 sub_container"
         >
-          <div className="row">
-            <label className="col-9 col-lg-5 col-xl-4 col-xxl-3">
-              Name
-              <Controller
-                name="name"
-                control={control}
-                render={({ field: { onChange, value } }) => (
-                  <Select
-                    isDisabled={noName}
-                    value={{ value, label: value }}
-                    onChange={(e) => {
-                      const selectedFeature = projectQuery.data.features.find(
-                        (f) => f.name === e?.value
-                      );
-                      setFeatureResultType(selectedFeature?.resultType);
-                      onChange(e?.value);
-                    }}
-                    styles={customStyles}
-                    options={projectQuery.data.features
-                      .filter((f) => !excluded || !excluded.includes(f.name))
-                      .map((f) => ({
-                        label: f.name,
-                        value: f.name,
-                      }))}
-                  />
-                )}
-              />
-              {errors.name && <p className="error-message">name is required</p>}
-            </label>
-            <label className="col-3">
-              Enabled
-              <input
-                type="checkbox"
-                className="izanami-checkbox ms-2"
-                {...register("enabled")}
-              />
-            </label>
-          </div>
+          <label>
+            Name
+            <Controller
+              name="name"
+              control={control}
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  isDisabled={noName}
+                  value={{ value, label: value }}
+                  onChange={(e) => {
+                    const selectedFeature = projectQuery.data.features.find(
+                      (f) => f.name === e?.value
+                    );
+                    setFeatureResultType(selectedFeature?.resultType);
+                    onChange(e?.value);
+                  }}
+                  styles={customStyles}
+                  options={projectQuery.data.features
+                    .filter((f) => !excluded || !excluded.includes(f.name))
+                    .map((f) => ({
+                      label: f.name,
+                      value: f.name,
+                    }))}
+                />
+              )}
+            />
+            {errors.name && <p className="error-message">name is required</p>}
+          </label>
+          <label className="mt-3">
+            Enabled
+            <input
+              type="checkbox"
+              className="izanami-checkbox ms-2"
+              {...register("enabled")}
+            />
+          </label>
           {additionalFields?.()}
           <div className="row mt-3">
             <label className="col-6 col-lg-5 col-xl-4 col-xxl-3">
@@ -133,7 +135,11 @@ export function OverloadCreationForm(props: {
                     ? {
                         label: (
                           <div className="d-flex">
-                            <ResultTypeIcon resultType={featureResultType} />
+                            <ResultTypeIcon
+                              resultType={featureResultType}
+                              fontWeight="bold"
+                              color="var(--color_level1)"
+                            />
                             <span className="ps-1">{featureResultType}</span>
                           </div>
                         ),
@@ -145,28 +151,32 @@ export function OverloadCreationForm(props: {
                 styles={customStyles}
               />
             </label>
-            {featureResultType && featureResultType !== "boolean" && (
-              <label className="col-6 col-lg-7 col-xl-8 col-xxl-9">
-                Base value*
-                {featureResultType === "string" ? (
-                  <input
-                    type="text"
-                    className="form-control"
-                    {...register("value")}
+            {featureResultType &&
+              featureResultType !== "boolean" &&
+              type === "Classic" && (
+                <label className="col-6 col-lg-7 col-xl-8 col-xxl-9">
+                  Base value*
+                  {featureResultType === "string" ? (
+                    <input
+                      type="text"
+                      className="form-control"
+                      {...register("value")}
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      className="form-control"
+                      step="any"
+                      {...register("value")}
+                    />
+                  )}
+                  <ErrorDisplay
+                    error={
+                      (errors as FieldErrors<TStringContextOverload>).value
+                    }
                   />
-                ) : (
-                  <input
-                    type="number"
-                    className="form-control"
-                    step="any"
-                    {...register("value")}
-                  />
-                )}
-                <ErrorDisplay
-                  error={(errors as FieldErrors<TContextOverloadBase>).value}
-                />
-              </label>
-            )}
+                </label>
+              )}
           </div>
           <label className="mt-3">
             Feature type
@@ -183,10 +193,14 @@ export function OverloadCreationForm(props: {
               value={{ label: type, value: type }}
               onChange={(e) => {
                 setValue("conditions", []);
-                setValue("wasmConfig", undefined);
+                setValue("wasmConfig", undefined as any);
                 setType(e?.value || "");
                 if (e?.value === "Existing WASM script") {
                   setValue("wasmConfig.source.kind", "Local");
+                }
+
+                if (e?.value !== "Classic") {
+                  setValue("value", "");
                 }
               }}
             />

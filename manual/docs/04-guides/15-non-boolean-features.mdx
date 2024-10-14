@@ -1,0 +1,118 @@
+---
+title: Non boolean features
+---
+
+import { Note } from "@site/src/components/Note";
+import resultTypeMenu from "@site/static/img/screenshots/non-boolean-feature/result-type-menu.png";
+import alternativeValue from "@site/static/img/screenshots/non-boolean-feature/alternative-value.png";
+import featureForm from "@site/static/img/screenshots/non-boolean-feature/feature-form.png";
+import overloadForm from "@site/static/img/screenshots/non-boolean-feature/overload-form.png";
+import overloadInProject from "@site/static/img/screenshots/non-boolean-feature/overload-in-project.png";
+import stringFeatureInProject from "@site/static/img/screenshots/non-boolean-feature/string-feature-in-project.png";
+
+Boolean features (features that can only respond true or false)
+are great for many cases, but sometimes it's not enough.
+
+<Note>String and number features are available from Izanami 2.6.0.</Note>
+
+# Why use non boolean features
+
+## Preventing impossible states
+
+Let's say you want to add a comment feature on your e-commerce website.
+
+This feature should allow users to leave comments on products.
+We would also like to allow users to rate other comments to upvote the most usefull ones.
+
+A simple approach would be to define two features: `comments` and `comments-vote`.
+
+However defining these as two separate features introduces what we could call an "impossible state".
+
+Indeed, it doesn't make sense to activate `comments-vote` feature while `comments` is disabled,
+since users can't vote on comments that doesn't exist.
+With some luck, client application handles such cases correctly, but it can also lead to bugs
+if such state haven't been anticipated.
+
+As we can see, multiplying boolean features for concomitant features can leads to a
+combinatorial explosion, with some cases leading to "impossible states".
+
+In such cases, it's always a good idea to make impossible states unrepresentable.
+
+**To prevent impossible states, you could use multi valued string or number features.**
+
+For instance, you could define a single `comments` string feature, that could take several values:
+
+- `"disabled"`: both comments and votes are disabled
+- `"comments"`: comment are enabled
+- `"votes"`: comments and votes are enabled
+
+This make things both simpler in Izanami and in your client code.
+
+## Configuration
+
+String features can also be used to store configuration values.
+
+This may prove usefull if you've got some configuration to change at
+runtime or if you don't have any dedicated configuration server.
+
+However, it's not a good idea to store sensitive (such as database passwords) data in Izanami,
+since it does not have any secret handling mechanisms for feature values.
+
+## Make your app more flexible by moving some logic to Izanami
+
+Sometimes you can't predict everything you want to to with a new feature,
+and it may be usefull to allow updating application code without having ton redeploy it.
+
+For such cases, you can leave yourself "escape hatches", for instance by creating a string feature
+that contains a css stylesheet.
+
+This way, you can update your application look and feel without having to redeploy it.
+
+<Note>
+  Be carefull with this kind of flag, as it introduces code that is not present
+  during build, code analysis, automated tests, ...
+</Note>
+
+# Using non boolean features with Izanami
+
+## Non boolean feature creation
+
+Define non boolean feature is a lot like defining boolean features, it's basically
+just a select value to change at feature creation.
+
+<img src={resultTypeMenu} />
+
+Instead of leaving "Result type" field to "boolean" when creating a feature, you can set it to "string" or "number".
+
+You'll have to indicate the "Base value" for your feature, this value will be used as feature
+value is feature is enabled and if there is no active alternative value / overload.
+
+<img src={featureForm} />
+
+You can then define alternative values, that will be used if their conditions are satisfied.
+
+<img src={alternativeValue} />
+
+<Note>
+  For boolean features, activation conditions order is not important: one
+  matching condition is enough to make the feature active.
+  <br />
+  For string an number features,{" "}
+  <strong>order of alternative values matters</strong>: feature value will be
+  the first active alternative value.
+</Note>
+
+In project view, Izanami displays an icon next to the feature name to indicate
+its type (here it displays an `"a"` indicating a string feature).
+
+<img src={stringFeatureInProject} />
+
+## Non boolean feature overload
+
+Just like boolean features, you can overload non boolean features in a project.
+There is a very important rule for overload, that stands for both boolean and non boolean features:
+**an overload must have the same result type that the base feature**.
+
+This ensure that client code always handle feature result with the same logic, independently of the context.
+
+<img src={overloadInProject} />

@@ -163,6 +163,13 @@
             "href": "/izanami/docs/guides/transfer-data",
             "docId": "guides/transfer-data",
             "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Non boolean features",
+            "href": "/izanami/docs/guides/non-boolean-features",
+            "docId": "guides/non-boolean-features",
+            "unlisted": false
           }
         ],
         "href": "/izanami/docs/guides/"
@@ -324,6 +331,12 @@
       "description": "Sometimes you need specific conditions for feature activation, for instance to open a feature only to some users or to activate a feature only after a given date.",
       "sidebar": "tutorialSidebar"
     },
+    "guides/non-boolean-features": {
+      "id": "guides/non-boolean-features",
+      "title": "Non boolean features",
+      "description": "Boolean features (features that can only respond true or false)",
+      "sidebar": "tutorialSidebar"
+    },
     "guides/query-builder": {
       "id": "guides/query-builder",
       "title": "Requesting multiple features",
@@ -357,7 +370,7 @@
     "usages/contexts": {
       "id": "usages/contexts",
       "title": "Contexts",
-      "description": "Izanami allows to define finely when a feature should or should not be active, but sometimes this is not enough.",
+      "description": "Izanami allows to define finely feature activation (or value for string/number features), but sometimes this is not enough.",
       "sidebar": "tutorialSidebar"
     },
     "usages/features": {

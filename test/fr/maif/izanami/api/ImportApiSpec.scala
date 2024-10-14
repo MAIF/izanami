@@ -7,6 +7,41 @@ import play.api.libs.json.{JsNull, JsObject}
 import java.util.UUID
 
 class ImportApiSpec extends BaseAPISpec {
+  "V2 feature import" should {
+    "allow to import typeless features" in {
+      val situation = TestSituationBuilder()
+        .withTenantNames("testtenant")
+        .loggedInWithAdminRights()
+        .build()
+      val data      = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"simple feature","enabled":true,"project":"test-project","metadata":{},"conditions":[],"description":"","script_config":null},"_type":"feature"}"""
+      )
+
+      val res = situation.importV2("testtenant", data = data)
+
+      res.status mustEqual OK
+    }
+
+    "allow to import typeless features & overloads" in {
+      val data = Seq(
+        """{"row":{"id":"a28977e3-bd8f-4d18-8e1f-2c4847105521","name":"proj","description":""},"_type":"project"}""",
+        """{"row":{"id":"e8898fb8-9de3-42dd-9874-b0619ccc1048","name":"feat","enabled":false,"project":"proj","metadata":{},"conditions":[],"description":"","script_config":null},"_type":"feature"}""",
+        """{"row":{"id":"foo_prod","name":"prod","parent":null},"_type":"global_context"}""",
+        """{"row":{"enabled":true,"feature":"feat","project":"proj","conditions":[],"local_context":null,"script_config":null,"global_context":"foo_prod"},"_type":"overload"}"""
+      )
+
+      val situation = TestSituationBuilder()
+        .withTenantNames("testtenant")
+        .loggedInWithAdminRights()
+        .build()
+
+      val res = situation.importV2("testtenant", data = data)
+
+      res.status mustEqual OK
+    }
+  }
+
   "Feature import" should {
     "import 'basic' feature" in {
       val situation = TestSituationBuilder()
@@ -215,7 +250,11 @@ class ImportApiSpec extends BaseAPISpec {
       (first \ "wasmConfig").as[String] mustEqual s"project:foo:script-feature${uuid}_script"
 
       var testResponse =
-        situation.testExistingFeature(tenant = "testtenant", featureId = s"project:foo:script-feature$uuid", user = "foo")
+        situation.testExistingFeature(
+          tenant = "testtenant",
+          featureId = s"project:foo:script-feature$uuid",
+          user = "foo"
+        )
       testResponse.status mustBe OK
       (testResponse.json.get \ "active").as[Boolean] mustBe false
 
@@ -693,7 +732,7 @@ class ImportApiSpec extends BaseAPISpec {
         .withTenantNames("testtenant")
         .loggedInWithAdminRights()
         .build()
-      val uuid = UUID.randomUUID()
+      val uuid      = UUID.randomUUID()
 
       val response = situation.importAndWaitTermination(
         tenant = "testtenant",
@@ -710,7 +749,11 @@ class ImportApiSpec extends BaseAPISpec {
       (first \ "wasmConfig").as[String] mustEqual s"project:foo:script-feature${uuid}_script"
 
       var testResponse =
-        situation.testExistingFeature(tenant = "testtenant", featureId = s"project:foo:script-feature$uuid", user = "foo")
+        situation.testExistingFeature(
+          tenant = "testtenant",
+          featureId = s"project:foo:script-feature$uuid",
+          user = "foo"
+        )
       testResponse.status mustBe OK
       (testResponse.json.get \ "active").as[Boolean] mustBe false
 
@@ -746,7 +789,11 @@ class ImportApiSpec extends BaseAPISpec {
       (first \ "wasmConfig").as[String] mustEqual s"project:foo:script-feature${uuid}_script"
 
       var testResponse =
-        situation.testExistingFeature(tenant = "testtenant", featureId = s"project:foo:script-feature$uuid", user = "foo")
+        situation.testExistingFeature(
+          tenant = "testtenant",
+          featureId = s"project:foo:script-feature$uuid",
+          user = "foo"
+        )
       testResponse.status mustBe OK
       (testResponse.json.get \ "active").as[Boolean] mustBe false
 
