@@ -481,7 +481,7 @@ export function QueryBuilder() {
                         cell: (info: any) => {
                           return info.getValue() ? (
                             <span className="activation-status">
-                              {info.getValue()}
+                              {"" + info.getValue()}
                             </span>
                           ) : (
                             <span className="activation-status disabled-status">
