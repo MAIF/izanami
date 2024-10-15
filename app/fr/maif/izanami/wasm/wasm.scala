@@ -214,6 +214,7 @@ object WasmUtils {
               val response = Json.parse(rawResult)
               (response \ "active")
                 .asOpt[JsValue]
+                .flatMap(json => expectedType.parse(json))
                 .toRight {
                   env.logger.error(s"Failed to parse wasm result, result is $response")
                   WasmError()
@@ -228,7 +229,7 @@ object WasmUtils {
             } else {
               //rawResult.toBooleanOption.toRight {
               //}
-              Try{Json.parse(rawResult)}.toEither.left.map(ex => {
+              Try { Json.parse(rawResult) }.toOption.flatMap(json => expectedType.parse(json)) toRight ({
                 env.logger.error(s"Failed to parse wasm result, result is $rawResult")
                 WasmError()
               })

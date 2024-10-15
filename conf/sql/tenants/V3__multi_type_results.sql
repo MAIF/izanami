@@ -11,9 +11,9 @@ ALTER table features
 ALTER TABLE features
     ADD CONSTRAINT value_script_config CHECK (value is null or script_config is null),
     ADD CONSTRAINT feature_result_type_value_check CHECK (
-        (result_type = 'number' AND value ~ '^\d*\.?\d+$') OR
+        (result_type = 'number' AND (script_config IS NOT NULL or value ~ '^\d*\.?\d+$')) OR
         (result_type = 'boolean' AND VALUE IS NULL) OR
-        (result_type = 'string' AND value IS NOT NULL)
+        (result_type = 'string' AND (script_config IS NOT NULL or value IS NOT NULL))
         ),
     ADD CONSTRAINT feature_project_name_result_type_unique UNIQUE (project, name, result_type);
 

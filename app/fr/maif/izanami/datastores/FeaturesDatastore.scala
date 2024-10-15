@@ -1730,7 +1730,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           case CompleteWasmFeature(_, name, project, enabled, wasmConfig, _, _, description, resultType)   =>
             (
               s"""update features
-                 |SET name=$$1, enabled=$$2, script_config=$$4, conditions=NULL, description=$$5, project=$$6, result_type=$$7  WHERE id=$$3 returning id""".stripMargin,
+                 |SET name=$$1, enabled=$$2, script_config=$$4, conditions=NULL, description=$$5, project=$$6, result_type=$$7, value=null  WHERE id=$$3 returning id""".stripMargin,
               List(
                 name,
                 java.lang.Boolean.valueOf(enabled),

@@ -1,11 +1,21 @@
 import * as React from "react";
-import { DAYS, TClassicalContextOverload, THourPeriod } from "../utils/types";
+import {
+  DAYS,
+  TClassicalContextOverload,
+  THourPeriod,
+  ValuedFeature,
+} from "../utils/types";
 import Select from "react-select";
 import CreatableSelect from "react-select/creatable";
 import { customStyles } from "../styles/reactSelect";
 import { Strategy } from "./FeatureTable";
 import { useEffect } from "react";
-import { useFieldArray, Controller, useFormContext } from "react-hook-form";
+import {
+  useFieldArray,
+  Controller,
+  useFormContext,
+  FieldErrors,
+} from "react-hook-form";
 import { format, parse, startOfDay } from "date-fns";
 import { DEFAULT_TIMEZONE, TimeZoneSelect } from "./TimeZoneSelect";
 import { ErrorDisplay } from "./FeatureForm";
@@ -123,7 +133,12 @@ function ConditionInput(props: { index: number }) {
                   {...register(`conditions.${index}.value`)}
                 />
               )}
-              <ErrorDisplay error={errors?.conditions?.[index]?.value as any} />
+              <ErrorDisplay
+                error={
+                  (errors as FieldErrors<ValuedFeature>)?.conditions?.[index]
+                    ?.value as any
+                }
+              />
             </div>
           </>
         )}

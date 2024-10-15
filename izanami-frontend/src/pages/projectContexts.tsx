@@ -13,7 +13,7 @@ import {
 import queryClient from "../queryClient";
 import {
   FeatureTypeName,
-  TCondition,
+  TClassicalCondition,
   TContext,
   TContextOverload,
   TLevel,
@@ -113,9 +113,9 @@ function ProjectOverloadTable({
       project: string;
       name: string;
       enabled: boolean;
-      conditions: TCondition<string | number | boolean>[];
-      wasm: TWasmConfig;
-      value: string | number | boolean;
+      conditions: TClassicalCondition[];
+      wasm?: TWasmConfig;
+      value?: string | number | boolean;
       resultType: FeatureTypeName;
     }) => {
       const { project, name, enabled, conditions, wasm, value, resultType } =
@@ -157,24 +157,16 @@ function ProjectOverloadTable({
             excluded={overloads.map((o) => o.name)}
             project={project!}
             cancel={() => setCreating(false)}
-            submit={({
-              name,
-              enabled,
-              conditions,
-              wasmConfig,
-              value,
-              resultType,
-            }) => {
-              console.log("resultType", resultType);
+            submit={(datum) => {
               updateOverload.mutateAsync(
                 {
                   project: project!,
-                  name,
-                  enabled,
-                  conditions: conditions ?? [],
-                  wasm: wasmConfig!,
-                  value: value,
-                  resultType,
+                  name: datum.name,
+                  enabled: datum.enabled,
+                  conditions: "conditions" in datum ? datum.conditions : [],
+                  wasm: "wasmConfig" in datum ? datum.wasmConfig : undefined,
+                  value: "value" in datum ? datum.value : undefined,
+                  resultType: datum.resultType,
                 },
                 {
                   onSuccess: () => {
@@ -216,7 +208,8 @@ function ProjectOverloadTable({
                   {
                     name: "default",
                     id: "default",
-                    overloads: projectQuery.data.features as TContextOverload[],
+                    overloads: projectQuery.data
+                      .features as unknown as TContextOverload[],
                     children: [],
                   } as any, // FIXME TS
                   ...parents,

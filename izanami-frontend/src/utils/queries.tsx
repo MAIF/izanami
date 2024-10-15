@@ -12,7 +12,6 @@ import {
   ProjectType,
   TagType,
   TCompleteFeature,
-  TCondition,
   TContext,
   TenantInCreationType,
   TenantType,
@@ -28,6 +27,7 @@ import {
   Webhook,
   SearchResult,
   FeatureTypeName,
+  TClassicalCondition,
 } from "./types";
 import { isArray } from "lodash";
 import toast from "react-hot-toast";
@@ -403,7 +403,7 @@ export function updateFeatureActivationForContext(
   feature: string,
   enabled: boolean,
   resultType: FeatureTypeName,
-  conditions?: TCondition<string | boolean | number>[],
+  conditions?: TClassicalCondition[],
   wasmConfig?: TWasmConfig,
   value?: string | boolean | number
 ) {
@@ -508,7 +508,6 @@ export function createFeature(
   project: string,
   feature: any
 ): Promise<TCompleteFeature> {
-  console.log("creating", feature);
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/projects/${project}/features`, {
       method: "POST",

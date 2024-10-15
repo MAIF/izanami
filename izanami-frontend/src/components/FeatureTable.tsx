@@ -7,7 +7,6 @@ import {
   isPercentageRule,
   isSingleConditionFeature,
   isUserListRule,
-  TCondition,
   TContext,
   TContextOverload,
   TDayOfWeepPeriod,
@@ -18,7 +17,9 @@ import {
   TLightFeature,
   TUser,
   TCompleteFeature,
-  FeatureTypeName,
+  isLightWasmFeature,
+  TValuedCondition,
+  TClassicalCondition,
 } from "../utils/types";
 import { format, parse } from "date-fns";
 import { useMutation, useQueries, useQuery } from "react-query";
@@ -60,7 +61,7 @@ import { Tooltip } from "react-tooltip";
 import { Form } from "./Form";
 import { Loader } from "./Loader";
 import MultiSelect, { Option } from "./MultiSelect";
-import { constraints, type } from "@maif/react-forms";
+import { constraints } from "@maif/react-forms";
 import { ResultTypeIcon } from "./ResultTypeIcon";
 
 type FeatureFields =
@@ -232,13 +233,13 @@ function NonBooleanConditionsDetails({
   conditions,
   resultDetail,
 }: {
-  conditions: TCondition<number | string>[];
+  conditions: TValuedCondition<string | number>[];
   resultDetail: {
     resultType: "number" | "string";
     value: number | string;
   };
 }) {
-  const { value, resultType } = resultDetail;
+  const { value } = resultDetail;
   return (
     <>
       <span className="fw-semibold">Base value is</span>&nbsp;
@@ -253,7 +254,7 @@ function NonBooleanConditionsDetails({
 function NonBooleanConditionDetails({
   condition,
 }: {
-  condition: TCondition<number | string>;
+  condition: TValuedCondition<string | number>;
 }) {
   return (
     <div>
@@ -270,7 +271,7 @@ function ConditionDetails({
   conditions,
   resultDetail,
 }: {
-  conditions: TCondition<number | string | boolean>[];
+  conditions: TClassicalCondition[];
   resultDetail:
     | {
         resultType: "boolean";
@@ -285,7 +286,7 @@ function ConditionDetails({
   } else {
     return (
       <NonBooleanConditionsDetails
-        conditions={conditions}
+        conditions={conditions as TValuedCondition<any>[]}
         resultDetail={resultDetail}
       />
     );
@@ -295,7 +296,7 @@ function ConditionDetails({
 function BooleanConditionsDetails({
   conditions,
 }: {
-  conditions: TCondition<number | string | boolean>[];
+  conditions: TClassicalCondition[];
 }) {
   if (conditions.length === 0) {
     return (
@@ -906,7 +907,7 @@ function OverloadDetails(props: {
         data.resultType,
         "conditions" in data ? data.conditions : undefined,
         "wasmConfig" in data ? data.wasmConfig : undefined,
-        "conditions" in data ? data.value : undefined
+        "value" in data ? data.value : undefined
       );
     },
     {
@@ -1156,7 +1157,7 @@ export function OverloadTable(props: {
         data.resultType,
         "conditions" in data ? data.conditions : undefined,
         "wasmConfig" in data ? data.wasmConfig : undefined,
-        "conditions" in data ? data.value : undefined
+        "value" in data ? data.value : undefined
       );
     },
     {
@@ -1454,7 +1455,7 @@ export function FeatureTestForm(props: {
   );
 }
 export function FeatureDetails({ feature }: { feature: TLightFeature }) {
-  if ("wasmConfig" in feature && feature.wasmConfig !== undefined) {
+  if (isLightWasmFeature(feature)) {
     return (
       <>
         {feature.description && <div>{feature.description}</div>}
@@ -1472,15 +1473,16 @@ export function FeatureDetails({ feature }: { feature: TLightFeature }) {
       </>
     );
   } else {
+    const resultDetail =
+      feature.resultType === "boolean"
+        ? { resultType: "boolean" }
+        : { resultType: feature.resultType, value: feature.value };
     return (
       <>
         {feature.description && <div>{feature.description}</div>}
         <ConditionDetails
           conditions={(feature as ClassicalFeature).conditions}
-          resultDetail={{
-            resultType: (feature as ClassicalFeature).resultType,
-            value: feature.value,
-          }}
+          resultDetail={resultDetail as any}
         />
       </>
     );
@@ -1954,42 +1956,5 @@ export function FeatureTable(props: {
         }
       />
     </div>
-  );
-}
-
-function OverloadTypeUpdateModalContent(props: {
-  oldResultType: FeatureTypeName;
-  newResultType: FeatureTypeName;
-  contextToUpdate: string[];
-  close: () => void;
-  submit: (newContextValues: object) => Promise<void>;
-}) {
-  const { newResultType } = props;
-  const schema = props.contextToUpdate.reduce((acc, next) => {
-    acc[next] = {
-      type: newResultType === "string" ? type.string : type.number,
-      constraints: [constraints.required("Value is required")],
-      label: `${next} new value`,
-    };
-
-    return acc;
-  }, {});
-
-  return (
-    <>
-      <h2>Overload update needed</h2>
-      This feature has {props.contextToUpdate.length} overloads with former
-      result type ({props.oldResultType}).
-      <br />
-      In order to update to the new result type ({props.newResultType}), you
-      have to provide a value of this result type for each of these overloads.
-      <Form
-        schema={schema}
-        onClose={() => props.close()}
-        onSubmit={(updatedOverloadValues) =>
-          props.submit(updatedOverloadValues)
-        }
-      />
-    </>
   );
 }
