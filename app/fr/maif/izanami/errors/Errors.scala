@@ -2,7 +2,7 @@ package fr.maif.izanami.errors
 
 import fr.maif.izanami.models.ExportedType
 import play.api.http.Status.{BAD_REQUEST, FORBIDDEN, INTERNAL_SERVER_ERROR, NOT_FOUND, UNAUTHORIZED}
-import play.api.libs.json.{JsObject, Json, Writes}
+import play.api.libs.json.{JsObject, JsValue, Json, Writes}
 import play.api.mvc.{Result, Results}
 
 import java.util.Objects
@@ -50,8 +50,10 @@ case class FeatureContextDoesNotExist(context: String)
     extends IzanamiError(message = s"Context ${context} does not exist", status = NOT_FOUND)
 
 case class NoFeatureMatchingOverloadDefinition(tenant: String, project: String, feature: String, resultType: String)
-  extends IzanamiError(message = s"No feature $feature for project $project, tenant $tenant and resultType $resultType found", status = BAD_REQUEST)
-
+    extends IzanamiError(
+      message = s"No feature $feature for project $project, tenant $tenant and resultType $resultType found",
+      status = BAD_REQUEST
+    )
 
 case class ConflictWithSameNameGlobalContext(name: String, parentCtx: String = null)
     extends IzanamiError(
@@ -112,6 +114,11 @@ case class MissingOIDCConfigurationError()
       status = INTERNAL_SERVER_ERROR
     )
 case class WasmError()                extends IzanamiError(message = "Failed to parse wasm response", status = INTERNAL_SERVER_ERROR)
+case class WasmResultParsingError(expected: String, found: JsValue)
+    extends IzanamiError(
+      message = s"""Declared feature result type ($expected) does not match script result $found""",
+      status = BAD_REQUEST
+    )
 case class MissingProjectRight(projects: Set[String])
     extends IzanamiError(message = s"""You're not allowed for projects ${projects.mkString(",")}""", status = FORBIDDEN)
 case class MissingFeatureRight(features: Set[String])
@@ -147,7 +154,8 @@ case class ConflictingName(tenant: String, entityTpe: String, row: JsObject)
       status = 400
     )
 case class GenericBadRequest(override val message: String) extends IzanamiError(message = message, status = 400)
-case class PartialImportFailure(failedElements: Map[ExportedType, Seq[JsObject]]) extends IzanamiError(message= s"Some element couldn't be imported", status = 400)
+case class PartialImportFailure(failedElements: Map[ExportedType, Seq[JsObject]])
+    extends IzanamiError(message = s"Some element couldn't be imported", status = 400)
 case class ImportError(table: String, json: String, errorMessage: String)
     extends IzanamiError(
       message = s"Error key while inserting into table $table with error $errorMessage values $json : ",

@@ -130,7 +130,9 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
     id: "actions",
     enableSorting: false,
     minSize: 47,
-    header: () => <div className="d-flex flex-column">Actions</div>,
+    header: () => (
+      <div className="d-flex flex-column align-items-end">Actions</div>
+    ),
     cell: function (props: { row: Row<any> }) {
       const element: T = props.row.original!;
       const actionList = [
