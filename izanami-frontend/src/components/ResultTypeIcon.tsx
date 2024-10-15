@@ -71,14 +71,24 @@ const NumberTypeIcon = () => (
   </svg>
 );
 
-export const ResultTypeIcon = (props: { resultType: FeatureTypeName }) => {
+export const ResultTypeIcon = (props: {
+  resultType: FeatureTypeName;
+  fontWeight?: "lighter" | "bold";
+}) => {
   const rs = props.resultType;
   return (
     <div className="custom-badge" aria-hidden>
       {rs === "boolean" ? (
-        <i style={{ fontSize: "20px" }} className="fa-solid fa-toggle-off"></i>
+        <i style={{ fontSize: "18px" }} className="fa-solid fa-toggle-off"></i>
       ) : rs === "string" ? (
-        <em style={{ fontSize: "16px", fontWeight: "lighter" }}>“a”</em>
+        <em
+          style={{
+            fontSize: "16px",
+            fontWeight: props.fontWeight ?? "lighter",
+          }}
+        >
+          “a”
+        </em>
       ) : rs === "number" ? (
         <NumberTypeIcon></NumberTypeIcon>
       ) : (

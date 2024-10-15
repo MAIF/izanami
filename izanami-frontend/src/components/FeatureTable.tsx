@@ -1755,8 +1755,8 @@ export function FeatureTable(props: {
                 ) {
                   return askConfirmation(
                     <>
-                      This feature has ${contextsWithOverload.length}{" "}
-                      overload(s) with ${datum.resultType} result type.
+                      This feature has {contextsWithOverload.length} overload(s)
+                      with {datum.resultType} result type.
                       <br />
                       Updating result type to ${feature.resultType} will delete
                       all overloads, are you sure that it is what you want ?

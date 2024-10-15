@@ -919,7 +919,7 @@ const resultTypeOptions = [
   {
     label: (
       <div className="d-flex">
-        <ResultTypeIcon resultType="string" />
+        <ResultTypeIcon resultType="string" fontWeight="bold" />
         <span className="ps-1">string</span>
       </div>
     ),
