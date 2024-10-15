@@ -10,7 +10,28 @@ interface ISearchProps {
   tenant?: string;
   onClose: () => void;
 }
-
+const SEARCH_TYPES_LABEL = {
+  TENANT: "Tenants",
+  PROJECT: "Projects",
+  FEATURE: "Features",
+  KEY: "Keys",
+  GLOBAL_CONTEXT: "Global Contexts",
+  LOCAL_CONTEXT: "Local Contexts",
+  TAG: "Tags",
+  WEBHOOK: "WebHooks",
+  SCRIPT: "WASM scripts",
+};
+const SEARCH_TYPES_VALUE = {
+  TENANT: "tenant",
+  PROJECT: "project",
+  FEATURE: "feature",
+  KEY: "key",
+  GLOBAL_CONTEXT: "global_context",
+  LOCAL_CONTEXT: "local_context",
+  TAG: "tag",
+  WEBHOOK: "webhook",
+  SCRIPT: "script",
+};
 const typeDisplayInformation = new Map<
   string,
   {
@@ -19,70 +40,70 @@ const typeDisplayInformation = new Map<
   }
 >([
   [
-    "tenant",
+    SEARCH_TYPES_VALUE.TENANT,
     {
       icon: () => <i className="fas fa-cloud me-2" aria-hidden="true" />,
-      displayName: "Tenants",
+      displayName: SEARCH_TYPES_LABEL.TENANT,
     },
   ],
   [
-    "feature",
+    SEARCH_TYPES_VALUE.FEATURE,
     {
       icon: () => <i className="fas fa-rocket me-2" aria-hidden="true" />,
-      displayName: "Features",
+      displayName: SEARCH_TYPES_LABEL.FEATURE,
     },
   ],
   [
-    "project",
+    SEARCH_TYPES_VALUE.PROJECT,
     {
       icon: () => <i className="fas fa-building me-2" aria-hidden="true" />,
-      displayName: "Projects",
+      displayName: SEARCH_TYPES_LABEL.PROJECT,
     },
   ],
   [
-    "key",
+    SEARCH_TYPES_VALUE.KEY,
     {
       icon: () => <i className="fas fa-key me-2" aria-hidden="true" />,
-      displayName: "Keys",
+      displayName: SEARCH_TYPES_LABEL.KEY,
     },
   ],
   [
-    "tag",
+    SEARCH_TYPES_VALUE.TAG,
     {
       icon: () => <i className="fas fa-tag me-2" aria-hidden="true" />,
-      displayName: "Tags",
+      displayName: SEARCH_TYPES_LABEL.TAG,
     },
   ],
   [
-    "script",
+    SEARCH_TYPES_VALUE.SCRIPT,
     {
       icon: () => <i className="fas fa-code me-2" aria-hidden="true" />,
-      displayName: "WASM scripts",
+      displayName: SEARCH_TYPES_LABEL.SCRIPT,
     },
   ],
   [
-    "global_context",
+    SEARCH_TYPES_VALUE.GLOBAL_CONTEXT,
     {
       icon: () => (
         <span aria-hidden="true" className="me-2">
           <GlobalContextIcon />
         </span>
       ),
-      displayName: "Global contexts",
+      displayName: SEARCH_TYPES_LABEL.GLOBAL_CONTEXT,
     },
   ],
   [
-    "local_context",
+    SEARCH_TYPES_VALUE.LOCAL_CONTEXT,
     {
       icon: () => <i className="fas fa-filter me-2" aria-hidden="true" />,
-      displayName: "Local contexts",
+      displayName: SEARCH_TYPES_LABEL.LOCAL_CONTEXT,
     },
   ],
   [
-    "webhook",
+    SEARCH_TYPES_VALUE.WEBHOOK,
     {
       icon: () => <i className="fas fa-plug me-2" aria-hidden="true" />,
-      displayName: "Webhooks",
+      displayName: SEARCH_TYPES_LABEL.WEBHOOK,
     },
   ],
 ]);
@@ -90,37 +111,43 @@ const typeDisplayInformation = new Map<
 const getLinkPath = (item: SearchResult) => {
   const { tenant } = item;
   switch (item.type) {
-    case "feature": {
-      const projectName = item.path.find((p) => p.type === "project")?.name;
+    case SEARCH_TYPES_VALUE.FEATURE: {
+      const projectName = item.path.find(
+        (p) => p.type === SEARCH_TYPES_VALUE.PROJECT
+      )?.name;
       return `/tenants/${tenant}/projects/${projectName}?filter=${item.name}`;
     }
-    case "project":
+    case SEARCH_TYPES_VALUE.PROJECT:
       return `/tenants/${tenant}/projects/${item.name}`;
-    case "key":
+    case SEARCH_TYPES_VALUE.KEY:
       return `/tenants/${tenant}/keys?filter=${item.name}`;
-    case "tag":
+    case SEARCH_TYPES_VALUE.TAG:
       return `/tenants/${tenant}/tags/${item.name}`;
-    case "script":
+    case SEARCH_TYPES_VALUE.SCRIPT:
       return `/tenants/${tenant}/scripts?filter=${item.name}`;
-    case "global_context": {
+    case SEARCH_TYPES_VALUE.GLOBAL_CONTEXT: {
       const maybeOpen = item.path
-        .filter((p) => p.type === "global_context")
+        .filter((p) => p.type === SEARCH_TYPES_VALUE.GLOBAL_CONTEXT)
         .map((p) => p.name);
       const open = [...maybeOpen, item.name].join("/");
       return `/tenants/${tenant}/contexts?open=["${open}"]`;
     }
-    case "local_context": {
-      const projectName = item.path.find((p) => p.type === "project")?.name;
+    case SEARCH_TYPES_VALUE.LOCAL_CONTEXT: {
+      const projectName = item.path.find(
+        (p) => p.type === SEARCH_TYPES_VALUE.PROJECT
+      )?.name;
       const maybeOpen = item.path
         .filter(
-          (p) => p.type === "global_context" || p.type === "local_context"
+          (p) =>
+            p.type === SEARCH_TYPES_VALUE.GLOBAL_CONTEXT ||
+            p.type === SEARCH_TYPES_VALUE.LOCAL_CONTEXT
         )
         .map((p) => p.name);
       const open = [...maybeOpen, item.name].join("/");
 
       return `/tenants/${tenant}/projects/${projectName}/contexts?open=["${open}"]`;
     }
-    case "webhook":
+    case SEARCH_TYPES_VALUE.WEBHOOK:
       return `/tenants/${tenant}/webhooks`;
   }
 };
@@ -165,14 +192,20 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
   const [filters, setFilters] = React.useState<Option[]>([]);
 
   const filterOptions = [
-    { value: "Projects", label: "Projects" },
-    { value: "Tags", label: "Tags" },
-    { value: "Webhooks", label: "Webhooks" },
-    { value: "keys", label: "keys" },
-    { value: "Global Contexts", label: "Global Contexts" },
-    { value: "Local Contexts", label: "Local Contexts" },
-    { value: "WASM scripts", label: "WASM scripts" },
-    { value: "Features", label: "Features" },
+    { value: SEARCH_TYPES_VALUE.PROJECT, label: SEARCH_TYPES_LABEL.PROJECT },
+    { value: SEARCH_TYPES_VALUE.FEATURE, label: SEARCH_TYPES_LABEL.FEATURE },
+    { value: SEARCH_TYPES_VALUE.KEY, label: SEARCH_TYPES_LABEL.KEY },
+    {
+      value: SEARCH_TYPES_VALUE.GLOBAL_CONTEXT,
+      label: SEARCH_TYPES_LABEL.GLOBAL_CONTEXT,
+    },
+    {
+      value: SEARCH_TYPES_VALUE.LOCAL_CONTEXT,
+      label: SEARCH_TYPES_LABEL.LOCAL_CONTEXT,
+    },
+    { value: SEARCH_TYPES_VALUE.TAG, label: SEARCH_TYPES_LABEL.TAG },
+    { value: SEARCH_TYPES_VALUE.WEBHOOK, label: SEARCH_TYPES_LABEL.WEBHOOK },
+    { value: SEARCH_TYPES_VALUE.SCRIPT, label: SEARCH_TYPES_LABEL.SCRIPT },
   ];
   return (
     <>
@@ -313,7 +346,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                         >
                           <li className="search-ul-item">
                             <Link
-                              to={getLinkPath(item)}
+                              to={getLinkPath(item) || "#"}
                               onClick={() => onClose()}
                             >
                               <ul
