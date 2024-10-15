@@ -3,7 +3,8 @@ package fr.maif.izanami.datastores
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.utils.Datastore
-import play.api.libs.json.JsObject
+import play.api.libs.json.{JsObject, Json}
+import play.api.mvc.Results.Forbidden
 
 import scala.concurrent.Future
 
@@ -14,13 +15,20 @@ class SearchDatastore(val env: Env) extends Datastore {
       query: String,
       filter: List[String]
   ): Future[List[(String, JsObject, Double)]] = {
-
-    val searchQuery = new StringBuilder()
+    if (query.isEmpty) {
+      return Future.successful(List())
+    }
+    val validFilters =
+      List("project", "feature", "key", "tag", "script", "global_context", "local_context", "webhook")
+    if (filter.nonEmpty && !filter.exists(f => validFilters.contains(f))) {
+      return Future.successful(List())
+    }
+    val searchQuery  = new StringBuilder()
     searchQuery.append("WITH ")
 
     var scoredQueries = List[String]()
     var unionQueries  = List[String]()
-    if (filter.isEmpty || filter.headOption.contains("") || filter.contains("Projects")) {
+    if (filter.isEmpty || filter.contains("project")) {
       scoredQueries :+=
         s"""
       scored_projects AS (
@@ -44,7 +52,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       WHERE p.name_score > 0.2 OR p.description_score > 0.2"""
     }
 
-    if (filter.isEmpty || filter.headOption.contains("") || filter.contains("Features")) {
+    if (filter.isEmpty || filter.contains("feature")) {
       scoredQueries :+=
         s"""
       scored_features AS (
@@ -65,7 +73,7 @@ class SearchDatastore(val env: Env) extends Datastore {
 
     }
 
-    if (filter.isEmpty || filter.headOption.contains("") || filter.contains("Keys")) {
+    if (filter.isEmpty || filter.contains("key")) {
       scoredQueries :+=
         s"""
       scored_keys AS (
@@ -89,7 +97,7 @@ class SearchDatastore(val env: Env) extends Datastore {
          WHERE k.name_score > 0.2 OR k.description_score > 0.2"""
     }
 
-    if (filter.isEmpty || filter.headOption.contains("") || filter.contains("Tags")) {
+    if (filter.isEmpty || filter.contains("tag")) {
       scoredQueries :+=
         s"""
       scored_tags AS (
@@ -111,7 +119,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       WHERE t.name_score > 0.2 OR t.description_score > 0.2"""
     }
 
-    if (filter.isEmpty || filter.headOption.contains("") || filter.contains("Scripts")) {
+    if (filter.isEmpty || filter.contains("script")) {
       scoredQueries :+=
         s"""
       scored_scripts AS (
@@ -130,7 +138,7 @@ class SearchDatastore(val env: Env) extends Datastore {
         FROM scored_scripts s
         WHERE s.name_score > 0.2"""
     }
-    if (filter.isEmpty || filter.headOption.contains("") || filter.contains("Global Contexts")) {
+    if (filter.isEmpty || filter.contains("global_context")) {
       scoredQueries :+=
         s"""
       scored_global_contexts AS (
@@ -150,7 +158,7 @@ class SearchDatastore(val env: Env) extends Datastore {
          FROM scored_global_contexts gc
          WHERE gc.name_score > 0.2 """
     }
-    if (filter.isEmpty || filter.headOption.contains("") || filter.contains("Local Contexts")) {
+    if (filter.isEmpty || filter.contains("local_context")) {
       scoredQueries :+=
         s"""
           scored_local_contexts AS (
@@ -171,7 +179,7 @@ class SearchDatastore(val env: Env) extends Datastore {
           FROM scored_local_contexts lc
           WHERE lc.name_score > 0.2 """
     }
-    if (filter.isEmpty || filter.headOption.contains("") || filter.contains("Webhooks")) {
+    if (filter.isEmpty || filter.contains("webhook")) {
       scoredQueries :+=
         s"""
           scored_webhooks AS (
