@@ -1546,7 +1546,7 @@ export function FeatureTable(props: {
       accessorKey: "name",
       header: () => "Feature name",
       minSize: 150,
-      size: 15,
+      size: 20,
       cell: (props: { row: Row<any> }) => {
         const feature = props.row.original;
 
@@ -1564,32 +1564,38 @@ export function FeatureTable(props: {
             return (
               <div className="d-flex justify-start align-items-center">
                 <ResultTypeIcon resultType={feature.resultType} />
-                <span className="px-1">{feature.name}</span>
+                <span style={{ paddingLeft: "0.75rem" }}>{feature.name}</span>
               </div>
             );
           } else {
             return (
-              <div className="d-flex">
+              <div className="d-flex align-items-center">
                 <ResultTypeIcon resultType={feature.resultType} />
-                <span className="px-1">{feature.name}</span>
-                <button
-                  className="top-10 translate-middle-y badge rounded-pill bg-primary-outline"
-                  role="button"
-                  aria-label={`${maybeContexts.length} Overload${
-                    maybeContexts.length > 1 ? "s" : ""
-                  }`}
-                  data-tooltip-id="paste_url"
-                  data-tooltip-content="Overloads"
-                  data-tooltip-place="top"
-                  onClick={() =>
-                    document
-                      .getElementById(`overload-action-icon-${feature.id}`)
-                      ?.click()
-                  }
-                >
-                  <Tooltip id="paste_url" />
-                  {maybeContexts.length}
-                </button>
+                <div className="d-flex py-2">
+                  <span style={{ paddingLeft: "0.75rem" }}>{feature.name}</span>
+                  <button
+                    className="top-10 align-self-start badge rounded-pill bg-primary-outline"
+                    role="button"
+                    aria-label={`${maybeContexts.length} Overload${
+                      maybeContexts.length > 1 ? "s" : ""
+                    }`}
+                    style={{
+                      color: "var(--color-level-3)",
+                      marginTop: "-0.5rem",
+                    }}
+                    data-tooltip-id="paste_url"
+                    data-tooltip-content="Overloads"
+                    data-tooltip-place="top"
+                    onClick={() =>
+                      document
+                        .getElementById(`overload-action-icon-${feature.id}`)
+                        ?.click()
+                    }
+                  >
+                    <Tooltip id="paste_url" />
+                    {maybeContexts.length}
+                  </button>
+                </div>
               </div>
             );
           }
@@ -1612,7 +1618,7 @@ export function FeatureTable(props: {
         );
       },
       minSize: 150,
-      size: 15,
+      size: 20,
     });
   }
   if (fields.includes("enabled")) {

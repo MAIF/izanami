@@ -1090,40 +1090,38 @@ export function V2FeatureForm(props: {
             className="d-flex flex-column col-8 flex-shrink-1"
             style={{ marginRight: "32px" }}
           >
-            <div className="row">
-              <label className="col-9">
-                Name*
-                <Tooltip id="modern-name">
-                  Feature name, use something meaningfull, it can be modified
-                  later without impacts.
-                </Tooltip>
-                <input
-                  autoFocus={true}
-                  className="form-control"
-                  type="text"
-                  {...register("name", {
-                    required: "Feature name can't be empty",
-                    pattern: {
-                      value: FEATURE_NAME_REGEXP,
-                      message: `Feature name must match ${FEATURE_NAME_REGEXP}`,
-                    },
-                  })}
-                />
-                <ErrorDisplay error={errors.name} />
-              </label>
-              <label className="col-3">
-                Enabled
-                <Tooltip id="modern-enabled">
-                  Whether feature is enabled or disabled. The disabled feature
-                  is an inactive event if its conditions match.
-                </Tooltip>
-                <input
-                  type="checkbox"
-                  className="izanami-checkbox"
-                  {...register("enabled")}
-                />
-              </label>
-            </div>
+            <label>
+              Name*
+              <Tooltip id="modern-name">
+                Feature name, use something meaningfull, it can be modified
+                later without impacts.
+              </Tooltip>
+              <input
+                autoFocus={true}
+                className="form-control"
+                type="text"
+                {...register("name", {
+                  required: "Feature name can't be empty",
+                  pattern: {
+                    value: FEATURE_NAME_REGEXP,
+                    message: `Feature name must match ${FEATURE_NAME_REGEXP}`,
+                  },
+                })}
+              />
+              <ErrorDisplay error={errors.name} />
+            </label>
+            <label className="mt-3">
+              Enabled
+              <Tooltip id="modern-enabled">
+                Whether feature is enabled or disabled. The disabled feature is
+                an inactive event if its conditions match.
+              </Tooltip>
+              <input
+                type="checkbox"
+                className="izanami-checkbox"
+                {...register("enabled")}
+              />
+            </label>
             {additionalFields && additionalFields()}
             <div className="row">
               <label className="mt-3 col-6">
