@@ -74,15 +74,21 @@ const NumberTypeIcon = () => (
 export const ResultTypeIcon = (props: {
   resultType: FeatureTypeName;
   fontWeight?: "lighter" | "bold";
+  color?: string;
 }) => {
   const rs = props.resultType;
+  const color = props.color ?? "var(--color_level3)";
   return (
-    <div className="custom-badge" aria-hidden>
+    <div className="custom-badge" style={{ fill: color }} aria-hidden>
       {rs === "boolean" ? (
-        <i style={{ fontSize: "18px" }} className="fa-solid fa-toggle-off"></i>
+        <i
+          style={{ fontSize: "18px", color: color }}
+          className="fa-solid fa-toggle-off"
+        ></i>
       ) : rs === "string" ? (
         <em
           style={{
+            color: color,
             fontSize: "16px",
             fontWeight: props.fontWeight ?? "lighter",
           }}

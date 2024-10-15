@@ -137,7 +137,11 @@ export function OverloadCreationForm(props: {
                     ? {
                         label: (
                           <div className="d-flex">
-                            <ResultTypeIcon resultType={featureResultType} />
+                            <ResultTypeIcon
+                              resultType={featureResultType}
+                              fontWeight="bold"
+                              color="var(--color_level1)"
+                            />
                             <span className="ps-1">{featureResultType}</span>
                           </div>
                         ),

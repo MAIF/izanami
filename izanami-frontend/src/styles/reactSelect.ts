@@ -41,13 +41,35 @@ export const customStyles: object = {
       };
     }
   },
+  indicatorSeparator: (styles: object, { isDisabled }) => {
+    if (isDisabled) {
+      return {
+        ...styles,
+        backgroundColor: "var(--bg-color_level3) !important",
+      };
+    } else {
+      return styles;
+    }
+  },
+  dropdownIndicator: (styles: object, { isDisabled }) => {
+    if (isDisabled) {
+      return {
+        ...styles,
+        color: "var(--bg-color_level3) !important",
+      };
+    } else {
+      return styles;
+    }
+  },
   menuList: (styles: object) => ({ ...styles }),
   container: (styles: object) => ({ ...styles }),
-  control: (styles: object) => ({
+  control: (styles: object, { isDisabled }) => ({
     ...styles,
-    backgroundColor: "var(--bg-color_level3) !important",
+    backgroundColor: isDisabled
+      ? "var(--bg-color_level2) !important"
+      : "var(--bg-color_level3) !important",
     color: "var(--color_level3) !important",
-    border: "none",
+    border: isDisabled ? "1px solid var(--bg-color_level3)" : "none",
   }),
   menu: (styles: object) => ({
     ...styles,
@@ -64,9 +86,11 @@ export const customStyles: object = {
     ...styles,
     color: "var(--color_level3) !important",
   }),
-  singleValue: (provided: object) => ({
+  singleValue: (provided: object, { isDisabled }) => ({
     ...provided,
-    color: "var(--color_level3) !important",
+    color: isDisabled
+      ? "var(--color_level1) !important"
+      : "var(--color_level3) !important",
     backgroundColor: null,
   }),
   multiValue: (styles: object) => {
