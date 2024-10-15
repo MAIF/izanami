@@ -504,7 +504,16 @@ export function RightSelector(props: {
           ) && (
             <button
               className="btn btn-primary mt-2"
-              onClick={() => setCreating(true)}
+              onClick={() => {
+                setCreating(true);
+                if (props.tenant) {
+                  setCreating(false);
+                  dispatch({
+                    type: EventType.SelectTenant,
+                    name: props.tenant,
+                  });
+                }
+              }}
             >
               {props.tenant
                 ? `Add specific ${props.tenant} right`
