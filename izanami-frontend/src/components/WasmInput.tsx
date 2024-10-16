@@ -44,7 +44,7 @@ export function WasmInput() {
       <fieldset className="sub_container mt-2">
         <legend>WASM script parameters</legend>
         <div className="row">
-          <label className="col-9">
+          <label className="col-7">
             Wasm function name
             <Tooltip id="function-name">
               Function to call inside your script.
@@ -56,7 +56,7 @@ export function WasmInput() {
             />
           </label>
           <ErrorDisplay error={(errors?.wasmConfig as any)?.functionName} />
-          <div className="d-flex col-3">
+          <div className="d-flex col-5">
             <label className="d-flex  flex-column">
               <span>
                 Open Policy Agent
