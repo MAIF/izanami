@@ -4,7 +4,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{FeatureNotFound, IncorrectKey, IzanamiError, TagDoesNotExists}
 import fr.maif.izanami.models.Feature._
 import fr.maif.izanami.models._
-import fr.maif.izanami.models.features.{FeaturePatch, ProjectFeaturePatch}
+import fr.maif.izanami.models.features.{BooleanResult, FeaturePatch, ProjectFeaturePatch}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldFeature
 import fr.maif.izanami.web.FeatureController.queryFeatures
@@ -316,8 +316,10 @@ class FeatureController(
   def createFeature(tenant: String, project: String): Action[JsValue] =
     projectAuthAction(tenant, project, RightLevels.Write).async(parse.json) { implicit request =>
       Feature.readCompleteFeature(request.body, project) match {
-        case JsError(e)            => BadRequest(Json.obj("message" -> "bad body format")).future
-        case JsSuccess(feature, _) => {
+        case JsError(e)                                                                                => BadRequest(Json.obj("message" -> "bad body format")).future
+        case JsSuccess(f: CompleteWasmFeature, _) if f.resultType != BooleanResult && f.wasmConfig.opa =>
+          BadRequest(Json.obj("message" -> "OPA feature must have boolean result type")).future
+        case JsSuccess(feature, _)                                                                     => {
           env.datastores.tags
             .readTags(tenant, feature.tags)
             .flatMap {
@@ -360,44 +362,56 @@ class FeatureController(
   def updateFeature(tenant: String, id: String): Action[JsValue] =
     detailledRightForTenanFactory(tenant).async(parse.json) { implicit request =>
       Feature.readCompleteFeature(request.body) match {
-        case JsError(e)            => BadRequest(Json.obj("message" -> "bad body format")).future
-        case JsSuccess(feature, _) => {
-          env.postgresql.executeInTransaction(conn => {
-            env.datastores.tags
-              .readTags(tenant, feature.tags)
-              .flatMap {
-                case tags if tags.size < feature.tags.size => {
-                  val tagsToCreate = feature.tags.diff(tags.map(t => t.name).toSet)
-                  env.datastores.tags.createTags(tagsToCreate.map(name => TagCreationRequest(name = name)).toList, tenant, Some(conn))
-                }
-                case tags                                  => Right(tags).toFuture
-              }
-              .flatMap(_ =>
-                env.datastores.features
-                  .findById(tenant, id)
-                  .flatMap {
-                    case Left(err)                                                                      => err.toHttpResponse.future
-                    case Right(None)                                                                    => NotFound("").toFuture
-                    case Right(Some(oldFeature)) if !canCreateOrModifyFeature(oldFeature, request.user) =>
-                      Forbidden("Your are not allowed to modify this feature").toFuture
-                    case Right(Some(oldFeature))                                                        => {
-                      env.datastores.features
-                        .update(tenant = tenant, id = id, feature = feature, user = request.user.username, conn=Some(conn))
-                        .flatMap {
-                          case Right(id) => env.datastores.features.findById(tenant, id, conn=Some(conn))
-                          case Left(err) => Future.successful(Left(err))
-                        }
-                        .map(maybeFeature =>
-                          convertReadResult(
-                            maybeFeature,
-                            callback = feature => Ok(Json.toJson(feature)(featureWrite)),
-                            id = id.toString
-                          )
-                        )
-                    }
+        case JsError(e)                                                                                => BadRequest(Json.obj("message" -> "bad body format")).future
+        case JsSuccess(f: CompleteWasmFeature, _) if f.resultType != BooleanResult && f.wasmConfig.opa =>
+          BadRequest(Json.obj("message" -> "OPA feature must have boolean result type")).future
+        case JsSuccess(feature, _)                                                                     => {
+          env.postgresql.executeInTransaction(
+            conn => {
+              env.datastores.tags
+                .readTags(tenant, feature.tags)
+                .flatMap {
+                  case tags if tags.size < feature.tags.size => {
+                    val tagsToCreate = feature.tags.diff(tags.map(t => t.name).toSet)
+                    env.datastores.tags
+                      .createTags(tagsToCreate.map(name => TagCreationRequest(name = name)).toList, tenant, Some(conn))
                   }
-              )
-          }, schemas=Set(tenant))
+                  case tags                                  => Right(tags).toFuture
+                }
+                .flatMap(_ =>
+                  env.datastores.features
+                    .findById(tenant, id)
+                    .flatMap {
+                      case Left(err)                                                                      => err.toHttpResponse.future
+                      case Right(None)                                                                    => NotFound("").toFuture
+                      case Right(Some(oldFeature)) if !canCreateOrModifyFeature(oldFeature, request.user) =>
+                        Forbidden("Your are not allowed to modify this feature").toFuture
+                      case Right(Some(oldFeature))                                                        => {
+                        env.datastores.features
+                          .update(
+                            tenant = tenant,
+                            id = id,
+                            feature = feature,
+                            user = request.user.username,
+                            conn = Some(conn)
+                          )
+                          .flatMap {
+                            case Right(id) => env.datastores.features.findById(tenant, id, conn = Some(conn))
+                            case Left(err) => Future.successful(Left(err))
+                          }
+                          .map(maybeFeature =>
+                            convertReadResult(
+                              maybeFeature,
+                              callback = feature => Ok(Json.toJson(feature)(featureWrite)),
+                              id = id.toString
+                            )
+                          )
+                      }
+                    }
+                )
+            },
+            schemas = Set(tenant)
+          )
 
         }
       }
