@@ -244,7 +244,6 @@ class WebhookAPISpec extends BaseAPISpec {
   "Webhook DELETE endpoint" should {
     "delete webhook" in {
       val situation = TestSituationBuilder()
-        .loggedInWithAdminRights()
         .withTenants(
           TestTenant("tenant")
             .withProjects(
@@ -254,6 +253,7 @@ class WebhookAPISpec extends BaseAPISpec {
             )
         )
         .withUsers(TestUser(username = "admin", admin = true, password = "barfoofoo"))
+        .loggedAs("admin")
         .build()
 
       val response = situation.createWebhook(
@@ -295,9 +295,8 @@ class WebhookAPISpec extends BaseAPISpec {
       )
 
       val id = (response.json.get \ "id").as[String]
-
       val deleteResponse = situation.deleteWebhook("tenant", id, "foobarbar")
-      deleteResponse.status mustBe BAD_REQUEST
+      deleteResponse.status mustBe UNAUTHORIZED
 
     }
     "prevent deleting webhook if user has not enough rights" in {

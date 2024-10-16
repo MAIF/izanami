@@ -118,7 +118,7 @@ class ProjectAPISpec extends BaseAPISpec {
         .withTenants(
           TestTenant("my-tenant").withProjectNames("my-project")
         )
-        .withUsers(TestUser("foo").withTenantReadRight("my-tenant").withProjectReadWriteRight("my-project", "my-tenant"))
+        .withUsers(TestUser("foo").withTenantAdminRight("my-tenant").withProjectAdminRight("my-project", "my-tenant"))
         .loggedAs("foo")
         .build()
 
@@ -126,7 +126,7 @@ class ProjectAPISpec extends BaseAPISpec {
 
       situation.fetchProject("my-tenant", "my-project").status mustBe OK
 
-      response.status mustBe FORBIDDEN
+      response.status mustBe UNAUTHORIZED
     }
 
     "Return 404 if project does not exist" in {

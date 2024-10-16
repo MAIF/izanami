@@ -6,6 +6,7 @@ import fr.maif.izanami.models.{LightWebhook, RightLevels, Webhook}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Json, Reads, Writes}
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
+import fr.maif.izanami.utils.ControllerHelpers
 
 import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future}
@@ -62,9 +63,9 @@ class WebhookController(
 
   def deleteWebhook(tenant: String, id: String): Action[JsValue] =
     webhookAuthAction(tenant = tenant, webhook = id, minimumLevel = RightLevels.Admin).async(parse.json) { implicit request =>
-      (request.body \ "password").asOpt[String] match {
-        case None => Future.successful(BadRequest(Json.obj("message" -> "Missing password")))
-        case Some(password) =>
+      ControllerHelpers.checkPassword(request.body).flatMap {
+        case Left(error) => Future.successful(error)
+        case Right(password) =>
           env.datastores.users
             .isUserValid(request.user, password)
             .flatMap {
@@ -75,7 +76,7 @@ class WebhookController(
                     case Left(err) => err.toHttpResponse
                     case Right(_) => NoContent
                   }
-              case None => Future.successful(BadRequest(Json.obj("message" -> "Your password is invalid.")))
+              case None =>Future.successful(Unauthorized(Json.obj("message" -> "Your password is invalid.")))
             }
       }
     }
