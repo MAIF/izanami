@@ -237,7 +237,7 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
 
       val response = situation.deleteAPIKey("my-tenant", "key1", "barbar123")
 
-      response.status mustBe  BAD_REQUEST
+      response.status mustBe  UNAUTHORIZED
     }
 
     "allow key suppression from key creator (since it should be made admin by creation)" in {

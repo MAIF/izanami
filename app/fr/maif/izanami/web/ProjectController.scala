@@ -3,11 +3,12 @@ package fr.maif.izanami.web
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.models.RightLevels.RightLevel
 import fr.maif.izanami.models.{Project, RightLevels}
+import fr.maif.izanami.utils.ControllerHelpers
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc._
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 class ProjectController(
     val env: Env,
@@ -72,8 +73,9 @@ class ProjectController(
 
   def deleteProject(tenant: String, project: String): Action[JsValue] = projectAuthAction(tenant, project, RightLevels.Admin).async(parse.json) {
     implicit request =>
-      (request.body \ "password").asOpt[String] match {
-        case Some(password) =>
+      ControllerHelpers.checkPassword(request.body).flatMap {
+        case Left(error) => Future.successful(error)
+        case Right(password) =>
           env.datastores.users
             .isUserValid(request.user, password)
             .flatMap {
@@ -83,10 +85,8 @@ class ProjectController(
                     case Left(err) => err.toHttpResponse
                     case Right(value) => NoContent
                   }
-              case None => BadRequest(Json.obj("message" -> "Your password is invalid.")).future
-
+              case None =>Future.successful(Unauthorized(Json.obj("message" -> "Your password is invalid.")))
             }
-          case None => BadRequest(Json.obj("message" -> "Missing password.")).future
       }
   }
 }

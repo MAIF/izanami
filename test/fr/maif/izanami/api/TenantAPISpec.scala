@@ -45,12 +45,13 @@ class TenantAPISpec extends BaseAPISpec {
     }
     "prevent tenant suppression if user password in not valid" in {
       val testSituation = TestSituationBuilder()
-        .withUsers(TestUser(username="test-user", password="barbar123"))
+        .withTenantNames("foo")
+        .withUsers(TestUser(username="test-user", password="barbar123").withTenantAdminRight("foo"))
         .loggedAs("test-user")
         .build()
 
       val response = testSituation.deleteTenant("foo", "barbar")
-      response.status mustBe FORBIDDEN
+      response.status mustBe UNAUTHORIZED
     }
   }
 
