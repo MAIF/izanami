@@ -37,8 +37,7 @@ import { WebhookTransformationEditor } from "../components/Editor";
 import Handlebars from "handlebars";
 import { Row } from "@tanstack/react-table";
 import { ObjectInput } from "../components/ObjectInput";
-import { PasswordModal } from "../components/PasswordModal";
-import { error } from "console";
+import { askPasswordConfirmation } from "../components/PasswordModal";
 
 export function WebHooks(props: { tenant: string }) {
   const [searchParams] = useSearchParams();
@@ -66,16 +65,12 @@ export function WebHooks(props: { tenant: string }) {
     }
   );
 
-  const [isModalOpen, setModalOpen] = React.useState(false);
-  const [selectedWebhook, setSelectedWebhook] = React.useState<Webhook>();
-
   const webhookDeletion = useMutation(
     (data: { id: string; password: string }) =>
       deleteWebhook(tenant!, data.id, data.password),
     {
       onSuccess: () => {
         queryClient.invalidateQueries(webhookQueryKey(tenant));
-        setModalOpen(false);
       },
     }
   );
@@ -315,8 +310,20 @@ export function WebHooks(props: { tenant: string }) {
                   </>
                 ),
                 action: (webhook: Webhook) => {
-                  setModalOpen(true);
-                  setSelectedWebhook(webhook);
+                  askPasswordConfirmation(
+                    `Are you sure you want to delete webhook ${webhook.name}?`,
+                    async (password: string) => {
+                      try {
+                        await webhookDeletion.mutateAsync({
+                          id: webhook.id,
+                          password: password,
+                        });
+                      } catch (error) {
+                        console.error("Error deleting:", error);
+                        throw error;
+                      }
+                    }
+                  );
                 },
 
                 hasRight: (user, webhook) =>
@@ -324,25 +331,6 @@ export function WebHooks(props: { tenant: string }) {
               },
             }}
           />
-        )}
-        {isModalOpen && selectedWebhook && (
-          <PasswordModal
-            isOpenModal={isModalOpen}
-            onClose={() => {
-              setModalOpen(false);
-            }}
-            onConfirm={(password: string) => {
-              webhookDeletion.mutateAsync({
-                id: selectedWebhook.id,
-                password: password,
-              });
-            }}
-          >
-            <>
-              Are you sure you want to delete webhook {selectedWebhook.name} ?
-            </>
-            <br />
-          </PasswordModal>
         )}
       </>
     );

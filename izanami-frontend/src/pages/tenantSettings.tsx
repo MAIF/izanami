@@ -1,6 +1,6 @@
 import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
-import { PasswordModal } from "../components/PasswordModal";
+import { askPasswordConfirmation } from "../components/PasswordModal";
 import * as React from "react";
 import { useMutation, useQuery } from "react-query";
 import { useNavigate, useParams } from "react-router-dom";
@@ -66,7 +66,6 @@ export function TenantSettings(props: { tenant: string }) {
     {
       onSuccess: () => {
         queryClient.invalidateQueries(MutationNames.TENANTS);
-        setModalOpen(false);
         navigate("/home");
       },
     }
@@ -84,7 +83,6 @@ export function TenantSettings(props: { tenant: string }) {
     }
   );
 
-  const [isModalOpen, setModalOpen] = React.useState(false);
   const navigate = useNavigate();
   const formTitleRef = React.useRef<HTMLHeadingElement | null>(null);
   const [modification, setModification] = React.useState(false);
@@ -145,24 +143,23 @@ export function TenantSettings(props: { tenant: string }) {
           <span>Delete this tenant</span>
           <button
             className="btn btn-danger m-2 btn-sm"
-            onClick={() => setModalOpen(true)}
+            onClick={() =>
+              askPasswordConfirmation(
+                `All projects and keys will be deleted. This cannot be undone.`,
+                async (password: string) => {
+                  try {
+                    await deleteMutation.mutateAsync(password);
+                  } catch (error) {
+                    console.error("Error deleting:", error);
+                    throw error;
+                  }
+                },
+                `Delete Tenant / ${tenant}`
+              )
+            }
           >
             Delete Tenant
           </button>
-          <PasswordModal
-            isOpenModal={isModalOpen}
-            onClose={() => setModalOpen(false)}
-            onConfirm={(password: string) => {
-              deleteMutation.mutate(password);
-            }}
-            title={`Delete Tenant / ${tenant}`}
-          >
-            <>
-              <p>
-                All projects and keys will be deleted. This cannot be undone.
-              </p>
-            </>
-          </PasswordModal>
         </div>
         <hr />
         <h2 ref={formTitleRef}>Export / import data</h2>
