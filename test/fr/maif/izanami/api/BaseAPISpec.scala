@@ -15,16 +15,7 @@ import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.core.{Container, WireMockConfiguration}
 import com.github.tomakehurst.wiremock.http.{HttpHeaders, Request}
-import fr.maif.izanami.api.BaseAPISpec.{
-  cleanUpDB,
-  eventKillSwitch,
-  login,
-  shouldCleanUpEvents,
-  shouldCleanUpMails,
-  shouldCleanUpWasmServer,
-  webhookServers,
-  ws
-}
+import fr.maif.izanami.api.BaseAPISpec.{cleanUpDB, eventKillSwitch, login, shouldCleanUpEvents, shouldCleanUpMails, shouldCleanUpWasmServer, webhookServers, ws}
 import fr.maif.izanami.utils.{WasmManagerClient, WiremockResponseDefinitionTransformer}
 import org.awaitility.scala.AwaitilitySupport
 import org.postgresql.util.PSQLException
@@ -33,11 +24,12 @@ import org.scalatestplus.play.PlaySpec
 import play.api.libs.json._
 import play.api.libs.ws.ahc.{AhcWSClient, StandaloneAhcWSClient}
 import play.api.libs.ws.{WSAuthScheme, WSClient, WSCookie, WSResponse}
-import play.api.test.Helpers.{await, OK}
+import play.api.test.Helpers.{OK, await}
 import play.api.mvc.MultipartFormData.FilePart
 import play.api.test.DefaultAwaitTimeout
 
 import java.io.{BufferedWriter, File, FileWriter}
+import java.net.URLEncoder
 import java.nio.file.{Files, Paths}
 import java.sql.DriverManager
 import java.time._
@@ -501,6 +493,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
   def fetchSearchEntities(searchQuery: String, cookies: Seq[WSCookie] = Seq()): RequestResult = {
     val response = await(ws.url(s"${ADMIN_BASE_URL}/search?query=${searchQuery}").withCookies(cookies: _*).get())
+    RequestResult(json = Try { response.json }, status = response.status)
+  }
+  def fetchSearchEntitiesWithFilters(searchQuery: String, filter: List[String], cookies: Seq[WSCookie] = Seq()): RequestResult = {
+    val filterString = filter.map(f => s"filter=${URLEncoder.encode(f, "UTF-8")}").mkString("&")
+    val response = await(ws.url(s"${ADMIN_BASE_URL}/search?query=${searchQuery}&${filterString}").withCookies(cookies: _*).get())
     RequestResult(json = Try { response.json }, status = response.status)
   }
 
@@ -2087,6 +2084,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
     def fetchSearchEntities(searchQuery: String): RequestResult = {
       BaseAPISpec.this.fetchSearchEntities(searchQuery, cookies)
+    }
+    def fetchSearchEntitiesWithFilters(searchQuery: String, filters: List[String]): RequestResult = {
+      BaseAPISpec.this.fetchSearchEntitiesWithFilters(searchQuery, filters, cookies)
     }
 
     def evaluateFeaturesAsLoggedInUser(
