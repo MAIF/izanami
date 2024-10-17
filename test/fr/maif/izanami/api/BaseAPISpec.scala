@@ -613,9 +613,12 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     RequestResult(json = jsonTry, status = response.status)
   }
 
-  def deleteAPIKey(tenant: String, name: String, cookies: Seq[WSCookie] = Seq()): RequestResult = {
+  def deleteAPIKey(tenant: String, name: String, cookies: Seq[WSCookie] = Seq(), password: String): RequestResult = {
     val response = await(
-      ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/keys/${name}").withCookies(cookies: _*).delete()
+      ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/keys/${name}")
+        .withCookies(cookies: _*)
+        .withBody(Json.obj("password" -> password))
+        .delete()
     )
 
     val jsonTry = Try {
@@ -1569,10 +1572,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
     }
 
-    def deleteWebhook(tenant: String, webhook: String): RequestResult = {
+    def deleteWebhook(tenant: String, webhook: String, password: String): RequestResult = {
       val response = await(
         ws.url(s"${ADMIN_BASE_URL}/tenants/$tenant/webhooks/$webhook")
           .withCookies(cookies: _*)
+          .withBody(Json.obj("password" -> password))
           .delete()
       )
 
@@ -1908,8 +1912,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       BaseAPISpec.this.updateAPIKey(tenant, currentName, newName, description, projects, enabled, admin, cookies)
     }
 
-    def deleteAPIKey(tenant: String, name: String): RequestResult = {
-      BaseAPISpec.this.deleteAPIKey(tenant, name, cookies)
+    def deleteAPIKey(tenant: String, name: String, password: String): RequestResult = {
+      BaseAPISpec.this.deleteAPIKey(tenant, name, cookies, password)
     }
 
     def fetchWasmManagerScripts(): RequestResult = {
@@ -2473,19 +2477,21 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       RequestResult(json = Try { response.json }, status = response.status)
     }
 
-    def deleteTenant(tenant: String): RequestResult = {
+    def deleteTenant(tenant: String, password: String): RequestResult = {
       val response = await(
         ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}")
           .withCookies(cookies: _*)
+          .withBody(Json.obj("password" -> password))
           .delete()
       )
       RequestResult(json = Try { response.json }, status = response.status)
     }
 
-    def deleteProject(project: String, tenant: String): RequestResult = {
+    def deleteProject(project: String, tenant: String, password: String): RequestResult = {
       val response = await(
         ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}")
           .withCookies(cookies: _*)
+          .withBody(Json.obj("password" -> password))
           .delete()
       )
       RequestResult(json = Try { response.json }, status = response.status)

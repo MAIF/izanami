@@ -90,7 +90,7 @@ class ProjectAPISpec extends BaseAPISpec {
         .loggedAs("foo")
         .build()
 
-      val response = situation.deleteProject("my-project", "my-tenant")
+      val response = situation.deleteProject("my-project", "my-tenant", "barbar123")
 
       situation.fetchProject("my-tenant", "my-project").status mustBe FORBIDDEN
 
@@ -107,11 +107,26 @@ class ProjectAPISpec extends BaseAPISpec {
         .loggedAs("foo")
         .build()
 
-      val response = situation.deleteProject("my-project", "my-tenant")
+      val response = situation.deleteProject("my-project", "my-tenant", "barbar123")
 
       situation.fetchProject("my-tenant", "my-project").status mustBe OK
 
       response.status mustBe FORBIDDEN
+    }
+    "Prevent project suppression if user password is not valid" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("my-tenant").withProjectNames("my-project")
+        )
+        .withUsers(TestUser("foo").withTenantAdminRight("my-tenant").withProjectAdminRight("my-project", "my-tenant"))
+        .loggedAs("foo")
+        .build()
+
+      val response = situation.deleteProject("my-project", "my-tenant", "barbar")
+
+      situation.fetchProject("my-tenant", "my-project").status mustBe OK
+
+      response.status mustBe UNAUTHORIZED
     }
 
     "Return 404 if project does not exist" in {
@@ -123,7 +138,7 @@ class ProjectAPISpec extends BaseAPISpec {
         .loggedAs("foo")
         .build()
 
-      val response = situation.deleteProject("my-project", "my-tenant")
+      val response = situation.deleteProject("my-project", "my-tenant", "barbar123")
 
       response.status mustBe NOT_FOUND
     }

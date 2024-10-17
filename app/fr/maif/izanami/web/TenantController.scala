@@ -1,8 +1,9 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.models.RightLevels.{superiorOrEqualLevels, RightLevel}
+import fr.maif.izanami.models.RightLevels.{RightLevel, superiorOrEqualLevels}
 import fr.maif.izanami.models._
+import fr.maif.izanami.utils.ControllerHelpers
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.WasmManagerClient
 import play.api.libs.json._
@@ -75,11 +76,20 @@ class TenantController(
     }
   }
 
-  def deleteTenant(name: String): Action[AnyContent] = tenantAuthAction(name, RightLevels.Admin).async {
+  def deleteTenant(name: String): Action[JsValue] = tenantAuthAction(name, RightLevels.Admin).async(parse.json) {
     implicit request =>
-      env.datastores.tenants.deleteTenant(name, request.user).map {
-        case Left(err)    => err.toHttpResponse
-        case Right(value) => NoContent
+      ControllerHelpers.checkPassword(request.body).flatMap {
+        case Left(error) => Future.successful(error)
+        case Right(password) =>
+          env.datastores.users
+            .isUserValid(request.user, password)
+            .flatMap {
+              case Some(_) => env.datastores.tenants.deleteTenant(name, request.user).map {
+                case Left(err) => err.toHttpResponse
+                case Right(_) => NoContent
+              }
+              case None =>Future.successful(Unauthorized(Json.obj("message" -> "Your password is invalid.")))
+            }
       }
   }
 

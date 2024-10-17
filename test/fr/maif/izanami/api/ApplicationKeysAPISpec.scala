@@ -164,7 +164,7 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
   "API key DELETE endpoint" should {
     "delete given API key" in {
       val situation = TestSituationBuilder()
-        .loggedInWithAdminRights()
+        .withUsers(TestUser(username = "admin", admin = true, password = "barfoofoo"))
         .withTenants(
           TestTenant("my-tenant")
             .withProjectNames("project1")
@@ -173,9 +173,10 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
               TestApiKey(name = "key2", projects = Seq("project1"), description = "foo")
             )
         )
+        .loggedAs("admin")
         .build()
 
-      val response    = situation.deleteAPIKey("my-tenant", "key1")
+      val response    = situation.deleteAPIKey("my-tenant", "key1", "barfoofoo")
       val keyResponse = situation.fetchAPIKeys("my-tenant")
 
       response.status mustBe NO_CONTENT
@@ -186,7 +187,7 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
 
     "return 404 on non existing key" in {
       val situation = TestSituationBuilder()
-        .loggedInWithAdminRights()
+        .withUsers(TestUser(username = "admin", admin = true, password = "barfoofoo"))
         .withTenants(
           TestTenant("my-tenant")
             .withProjectNames("project1")
@@ -194,9 +195,10 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
               TestApiKey(name = "key1", projects = Seq("project1"), description = "foo")
             )
         )
+        .loggedAs("admin")
         .build()
 
-      val response = situation.deleteAPIKey("my-tenant", "key2")
+      val response = situation.deleteAPIKey("my-tenant", "key2", "barfoofoo" )
 
       response.status mustBe NOT_FOUND
     }
@@ -214,9 +216,28 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .loggedAs("test-u")
         .build()
 
-      val response = situation.deleteAPIKey("my-tenant", "key1")
+      val response = situation.deleteAPIKey("my-tenant", "key1", "barbar123")
 
       response.status mustBe FORBIDDEN
+    }
+
+    "prevent key suppression if user password is not valid" in {
+
+      val situation = TestSituationBuilder()
+        .withUsers(TestUser(username = "admin", admin = true, password = "barfoofoo"))
+        .withTenants(
+          TestTenant("my-tenant")
+            .withProjectNames("project1")
+            .withApiKeys(
+              TestApiKey(name = "key1", projects = Seq("project1"))
+            )
+        )
+        .loggedAs("admin")
+        .build()
+
+      val response = situation.deleteAPIKey("my-tenant", "key1", "barbar123")
+
+      response.status mustBe  UNAUTHORIZED
     }
 
     "allow key suppression from key creator (since it should be made admin by creation)" in {
@@ -230,7 +251,7 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .build()
 
       situation.createAPIKey("my-tenant", "key1", projects = Seq("project1"))
-      val response = situation.deleteAPIKey("my-tenant", "key1")
+      val response = situation.deleteAPIKey("my-tenant", "key1", "barbar123")
 
       response.status mustBe NO_CONTENT
     }
