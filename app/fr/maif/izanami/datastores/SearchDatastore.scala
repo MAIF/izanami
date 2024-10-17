@@ -15,20 +15,12 @@ class SearchDatastore(val env: Env) extends Datastore {
       query: String,
       filter: List[String]
   ): Future[List[(String, JsObject, Double)]] = {
-    if (query.isEmpty) {
-      return Future.successful(List())
-    }
-    val validFilters =
-      List("project", "feature", "key", "tag", "script", "global_context", "local_context", "webhook")
-    if (filter.nonEmpty && !filter.exists(f => validFilters.contains(f))) {
-      return Future.successful(List())
-    }
     val searchQuery  = new StringBuilder()
     searchQuery.append("WITH ")
 
     var scoredQueries = List[String]()
     var unionQueries  = List[String]()
-    if (filter.isEmpty || filter.contains("project")) {
+    if (filter.isEmpty || filter.contains("project")|| filter.contains("feature")) {
       scoredQueries :+=
         s"""
       scored_projects AS (
@@ -46,6 +38,8 @@ class SearchDatastore(val env: Env) extends Datastore {
         OR u.admin=true
       )
     """
+    }
+    if (filter.isEmpty || filter.contains("project")) {
       unionQueries :+= s"""
       SELECT row_to_json(p.*) as json, GREATEST(p.name_score, p.description_score) AS match_score, 'project' as _type, $$3 as tenant
       FROM scored_projects p
