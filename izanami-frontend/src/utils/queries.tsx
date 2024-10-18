@@ -1349,12 +1349,17 @@ export function searchEntities(
   query: string,
   filter: string[] = []
 ): Promise<SearchResult[]> {
-  const filterString = filter.map(encodeURIComponent).join("&filter=");
-  const url = `/api/admin/search?query=${encodeURIComponent(
-    query
-  )}&filter=${filterString}`;
+  if (filter.length > 0) {
+    const filterString = filter.map(encodeURIComponent).join("&filter=");
+    const url = `/api/admin/search?query=${encodeURIComponent(
+      query
+    )}&filter=${filterString}`;
 
-  return handleFetchJsonResponse(fetch(url));
+    return handleFetchJsonResponse(fetch(url));
+  }
+  return handleFetchJsonResponse(
+    fetch(`/api/admin/search?query=${encodeURIComponent(query)}`)
+  );
 }
 export function searchEntitiesByTenant(
   tenant: string,
