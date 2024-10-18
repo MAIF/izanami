@@ -395,10 +395,14 @@ export function RightSelector(props: {
   if (tenantQuery.isLoading) {
     return <Loader message="Loading tenants.." />;
   } else if (tenantQuery.data) {
-    const tenants = tenantQuery.data.map((t) => t.name);
-    const selectorChoices = tenants.filter((item) => {
-      return !selectedTenants.includes(item);
-    });
+    const tenants = props.tenant
+      ? [props.tenant]
+      : tenantQuery.data.map((t) => t.name);
+    const selectorChoices = props.tenant
+      ? [props.tenant]
+      : tenants.filter((item) => {
+          return !selectedTenants.includes(item);
+        });
 
     return (
       <div>
@@ -491,14 +495,30 @@ export function RightSelector(props: {
             </>
           )}
         </>
-        {!props.tenant &&
-          !creating &&
-          selectedTenants.length < tenantQuery.data.length && (
+        {!creating &&
+          selectedTenants.length < tenants.length &&
+          !(
+            props.tenant &&
+            defaultValue?.tenants &&
+            props.tenant in defaultValue.tenants
+          ) && (
             <button
               className="btn btn-primary mt-2"
-              onClick={() => setCreating(true)}
+              onClick={() => {
+                if (props.tenant) {
+                  setCreating(false);
+                  dispatch({
+                    type: EventType.SelectTenant,
+                    name: props.tenant,
+                  });
+                } else {
+                  setCreating(true);
+                }
+              }}
             >
-              Add another tenant
+              {props.tenant
+                ? `Add specific ${props.tenant} right`
+                : "Add another tenant"}
             </button>
           )}
       </div>
