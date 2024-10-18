@@ -63,11 +63,10 @@ case class UserInformationUpdateRequest(
     defaultTenant: Option[String]
 )
 
-case class UserPasswordUpdateRequest(
+case class  UserPasswordUpdateRequest(
     password: String,
     oldPassword: String
 )
-
 sealed trait UserType
 case object INTERNAL extends UserType
 case object OTOROSHI extends UserType

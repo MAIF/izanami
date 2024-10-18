@@ -65,6 +65,7 @@ import { Loader } from "./components/Loader";
 import Logo from "../izanami.png";
 import { SearchModal } from "./components/SearchComponant/SearchModal";
 import { WebHooks } from "./pages/webhooks";
+import { PasswordModal } from "./components/PasswordModal";
 
 function Wrapper({
   element,
@@ -531,7 +532,7 @@ function Layout() {
                       id="btnSearch"
                       type="button"
                       onClick={() => setIsOpenModal(true)}
-                      style={{opacity:"0.7"}}
+                      style={{ opacity: "0.7" }}
                     >
                       <span className="fa fa-search"></span>
                       <span className="text-searchbutton d-none d-md-inline">
@@ -624,6 +625,11 @@ export class App extends Component {
       onCancel?: () => Promise<any>;
       closeButtonText?: string;
       confirmButtonText?: string;
+    };
+    passwordConfirmation?: {
+      message: JSX.Element | JSX.Element[] | string;
+      callback: (password: string) => Promise<void>;
+      title?: string;
     };
   };
   constructor(props: any) {
@@ -727,6 +733,22 @@ export class App extends Component {
           });
         });
       },
+      askPasswordConfirmation: (
+        message: JSX.Element | JSX.Element[] | string,
+        onConfirm: (password: string) => Promise<void>,
+        title?: string
+      ) => {
+        return new Promise((resolve) => {
+          this.setState({
+            passwordConfirmation: {
+              message,
+              callback: (password: string) =>
+                onConfirm(password).finally(() => resolve()),
+              title,
+            },
+          });
+        });
+      },
       setExpositionUrl: (url) => {
         this.setState({ expositionUrl: url });
       },
@@ -767,7 +789,9 @@ export class App extends Component {
       visible: !!this.state.confirmation,
       onClose: () => {
         this.state.confirmation?.onCancel?.();
-        this.setState({ confirmation: undefined });
+        this.setState({
+          confirmation: undefined,
+        });
       },
       ...(callback
         ? {
@@ -785,14 +809,37 @@ export class App extends Component {
       closeButtonText: this.state.confirmation?.closeButtonText,
       confirmButtonText: this.state.confirmation?.confirmButtonText,
     };
+    const modalPasswordProps = {
+      title: this.state.passwordConfirmation?.title,
+      isOpenModal: !!this.state.passwordConfirmation,
+      onClose: () => {
+        this.setState({
+          passwordConfirmation: undefined,
+        });
+      },
+      onConfirm: (password: string) => {
+        if (this.state.passwordConfirmation?.callback) {
+          this.state.passwordConfirmation
+            ?.callback(password)
+            .then(() => this.setState({ passwordConfirmation: undefined }));
+        } else {
+          this.setState({ passwordConfirmation: undefined });
+        }
+      },
+    };
     return (
       <>
         <IzanamiContext.Provider value={this.state}>
           <QueryClientProvider client={queryClient}>
             <RouterProvider router={router} />
-            <Modal {...modalProps}>
-              {this.state.confirmation ? this.state?.confirmation!.message : ""}
-            </Modal>
+            {this.state.confirmation && (
+              <Modal {...modalProps}>{this.state?.confirmation!.message}</Modal>
+            )}
+            {this.state.passwordConfirmation && (
+              <PasswordModal {...modalPasswordProps}>
+                {this.state.passwordConfirmation.message}
+              </PasswordModal>
+            )}
           </QueryClientProvider>
         </IzanamiContext.Provider>
       </>

@@ -584,19 +584,31 @@ export function deleteFeature(tenant: string, id: string): Promise<undefined> {
 
 export function deleteProject(
   tenant: string,
-  name: string
+  name: string,
+  password: string
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/projects/${name}`, {
       method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password }),
     })
   );
 }
 
-export function deleteTenant(name: string): Promise<undefined> {
+export function deleteTenant(
+  password: string,
+  name: string
+): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${name}`, {
       method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password }),
     })
   );
 }
@@ -690,10 +702,18 @@ export function queryKeys(tenant: string): Promise<TKey[]> {
   return handleFetchJsonResponse(fetch(`/api/admin/tenants/${tenant}/keys`));
 }
 
-export function deleteKey(tenant: string, name: string): Promise<undefined> {
+export function deleteKey(
+  tenant: string,
+  name: string,
+  password: string
+): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/keys/${name}`, {
       method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password }),
     })
   );
 }
@@ -1061,10 +1081,18 @@ export function fetchWebhooks(tenant: string): Promise<Webhook[]> {
   );
 }
 
-export function deleteWebhook(tenant: string, id: string): Promise<undefined> {
+export function deleteWebhook(
+  tenant: string,
+  id: string,
+  password: string
+): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/webhooks/${id}`, {
       method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password }),
     })
   );
 }

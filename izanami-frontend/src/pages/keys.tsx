@@ -91,10 +91,13 @@ export default function Keys(props: { tenant: string }) {
   const keyQuery = useQuery(tenantKeyQueryKey(tenant), () => queryKeys(tenant));
   const hasTenantWriteRight = useTenantRight(tenant, TLevel.Write);
   const [creating, setCreating] = React.useState(false);
-  const { askConfirmation, refreshUser } = React.useContext(IzanamiContext);
+  const { refreshUser, askPasswordConfirmation } =
+    React.useContext(IzanamiContext);
+
   const keyDeleteMutation = useMutation(
     tenantKeyQueryKey(tenant),
-    (name: string) => deleteKey(tenant, name),
+    (params: { name: string; password: string }) =>
+      deleteKey(tenant, params.name, params.password),
     {
       onSuccess: () => {
         queryClient.invalidateQueries(tenantKeyQueryKey(tenant));
@@ -348,16 +351,20 @@ export default function Keys(props: { tenant: string }) {
                   </>
                 ),
                 action: (key: TKey) => {
-                  return new Promise((resolve, reject) => {
-                    askConfirmation(
-                      `Are you sure you want to delete key ${key.name} ?`,
-                      () =>
-                        keyDeleteMutation
-                          .mutateAsync(key.name)
-                          .then((res) => resolve(res))
-                          .catch((err) => reject(err))
-                    );
-                  });
+                  askPasswordConfirmation(
+                    `Are you sure you want to delete key ${key.name}?`,
+                    async (password: string) => {
+                      try {
+                        await keyDeleteMutation.mutateAsync({
+                          name: key.name,
+                          password: password,
+                        });
+                      } catch (error) {
+                        console.error("Error deleting:", error);
+                        throw error;
+                      }
+                    }
+                  );
                 },
               },
             }}
