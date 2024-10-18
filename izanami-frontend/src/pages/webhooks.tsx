@@ -37,14 +37,14 @@ import { WebhookTransformationEditor } from "../components/Editor";
 import Handlebars from "handlebars";
 import { Row } from "@tanstack/react-table";
 import { ObjectInput } from "../components/ObjectInput";
-import { askPasswordConfirmation } from "../components/PasswordModal";
 
 export function WebHooks(props: { tenant: string }) {
   const [searchParams] = useSearchParams();
   const selectedSearchRow = searchParams.get("filter");
   const tenant = props.tenant;
   const [creating, setCreating] = React.useState(false);
-  const { refreshUser } = React.useContext(IzanamiContext);
+  const { refreshUser, askPasswordConfirmation } =
+    React.useContext(IzanamiContext);
   const hasTenantWriteLevel = useTenantRight(tenant, TLevel.Write);
 
   const webhookCreationMutation = useMutation(

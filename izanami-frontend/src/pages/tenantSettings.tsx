@@ -1,7 +1,6 @@
+import * as React from "react";
 import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
-import { askPasswordConfirmation } from "../components/PasswordModal";
-import * as React from "react";
 import { useMutation, useQuery } from "react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { GenericTable } from "../components/GenericTable";
@@ -49,7 +48,8 @@ import { Loader } from "../components/Loader";
 
 export function TenantSettings(props: { tenant: string }) {
   const { tenant } = props;
-  const { askConfirmation } = React.useContext(IzanamiContext);
+  const { askConfirmation, askPasswordConfirmation } =
+    React.useContext(IzanamiContext);
   const [inviting, setInviting] = React.useState(false);
   const [v1ImportDisplayed, setV1ImportDisplayed] = React.useState(false);
   const [exportDisplayed, setExportDisplayed] = React.useState(false);

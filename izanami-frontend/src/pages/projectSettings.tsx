@@ -23,10 +23,11 @@ import { customStyles } from "../styles/reactSelect";
 import { InvitationForm } from "../components/InvitationForm";
 import { PROJECT_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
-import { askPasswordConfirmation } from "../components/PasswordModal";
+import { IzanamiContext } from "../securityContext";
 
 export function ProjectSettings(props: { project: string; tenant: string }) {
   const { project, tenant } = props;
+  const { askPasswordConfirmation } = React.useContext(IzanamiContext);
   const queryKey = projectQueryKey(tenant, project);
   const projectQuery = useQuery(queryKey, () => queryProject(tenant, project));
   const usersQuery = useQuery(projectUserQueryKey(tenant, project), () =>

@@ -1,13 +1,12 @@
-import React, { ReactElement, useState } from "react";
+import React, { ReactElement } from "react";
 import { useForm, FormProvider, useFormContext } from "react-hook-form";
-import { createRoot } from "react-dom/client";
 import { Modal } from "./Modal";
 import { PASSWORD_REGEXP } from "../utils/patterns";
 
 interface PasswordModalForm {
   password: string;
 }
-const PasswordInput = () => {
+export const PasswordInput = () => {
   const {
     register,
     formState: { errors },
@@ -78,46 +77,4 @@ export function PasswordModal(props: {
       </Modal>
     </FormProvider>
   );
-}
-
-export function askPasswordConfirmation(
-  message: string,
-  onConfirm: (password: string) => Promise<void>,
-  title?: string
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const ModalWrapper = () => {
-      const [isOpen, setIsOpen] = useState(true);
-
-      const handleConfirm = async (password: string) => {
-        try {
-          await onConfirm(password);
-          setIsOpen(false);
-          resolve(password);
-        } catch (error) {
-          reject(error);
-        }
-      };
-
-      const handleClose = () => {
-        setIsOpen(false);
-      };
-
-      return (
-        <PasswordModal
-          isOpenModal={isOpen}
-          onClose={handleClose}
-          onConfirm={handleConfirm}
-          title={title}
-        >
-          {message}
-        </PasswordModal>
-      );
-    };
-    const modalContainer = document.createElement("div");
-    document.body.appendChild(modalContainer);
-
-    const root = createRoot(modalContainer);
-    root.render(<ModalWrapper />);
-  });
 }

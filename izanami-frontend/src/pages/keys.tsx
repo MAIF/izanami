@@ -28,7 +28,6 @@ import { Loader } from "../components/Loader";
 import { useSearchParams } from "react-router-dom";
 import { InvitationForm } from "../components/InvitationForm";
 import { RightTable } from "../components/RightTable";
-import { askPasswordConfirmation } from "../components/PasswordModal";
 
 function editionSchema(tenant: string, key?: TKey) {
   return {
@@ -92,7 +91,8 @@ export default function Keys(props: { tenant: string }) {
   const keyQuery = useQuery(tenantKeyQueryKey(tenant), () => queryKeys(tenant));
   const hasTenantWriteRight = useTenantRight(tenant, TLevel.Write);
   const [creating, setCreating] = React.useState(false);
-  const { refreshUser } = React.useContext(IzanamiContext);
+  const { refreshUser, askPasswordConfirmation } =
+    React.useContext(IzanamiContext);
 
   const keyDeleteMutation = useMutation(
     tenantKeyQueryKey(tenant),
