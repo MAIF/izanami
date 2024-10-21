@@ -2,7 +2,6 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.models.{ApiKey, RightLevels, RightTypes, RightUnit}
-import fr.maif.izanami.utils.ControllerHelpers
 import play.api.libs.json.JsError.toJson
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
@@ -12,6 +11,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class ApiKeyController(
     val controllerComponents: ControllerComponents,
     val tenantAuthAction: TenantAuthActionFactory,
+    val validatePasswordAction: ValidatePasswordActionFactory,
     val keyAuthAction: KeyAuthActionFactory
 )(implicit val env: Env)
     extends BaseController {
@@ -100,20 +100,13 @@ class ApiKeyController(
         .map(keys => Ok(Json.toJson(keys)))
   }
 
-  def deleteApiKey(tenant: String, name: String): Action[JsValue] = keyAuthAction(tenant, name, RightLevels.Admin).async(parse.json) {
+  def deleteApiKey(tenant: String, name: String): Action[JsValue] = (keyAuthAction(tenant, name, RightLevels.Admin) andThen validatePasswordAction()).async(parse.json) {
     implicit request =>
-      ControllerHelpers.checkPassword(request.body).flatMap {
-        case Left(error) => Future.successful(error)
-        case Right(password) =>
-          env.datastores.users
-            .isUserValid(request.user, password)
-            .flatMap {
-              case Some(_) =>
-                env.datastores.apiKeys
-                  .deleteApiKey(tenant, name)
-                  .map(either => either.fold(err => Results.Status(err.status)(Json.toJson(err)), key => NoContent))
-              case None =>Future.successful(Unauthorized(Json.obj("message" -> "Your password is invalid.")))
-            }
-      }
+
+      env.datastores.apiKeys
+        .deleteApiKey(tenant, name)
+        .map(either => either.fold(err => Results.Status(err.status)(Json.toJson(err)), key => NoContent))
+
+
   }
 }

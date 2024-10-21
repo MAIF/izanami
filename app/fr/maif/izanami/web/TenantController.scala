@@ -3,7 +3,6 @@ package fr.maif.izanami.web
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.models.RightLevels.{RightLevel, superiorOrEqualLevels}
 import fr.maif.izanami.models._
-import fr.maif.izanami.utils.ControllerHelpers
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.WasmManagerClient
 import play.api.libs.json._
@@ -21,6 +20,7 @@ class TenantController(
     val tenantAuthAction: TenantAuthActionFactory,
     val adminAuthAction: AdminAuthAction,
     val tenantRightsAuthAction: TenantRightsAction,
+    val validatePasswordAction: ValidatePasswordActionFactory,
     val wasmManagerClient: WasmManagerClient,
     val eventController: EventController
 ) extends BaseController {
@@ -76,21 +76,11 @@ class TenantController(
     }
   }
 
-  def deleteTenant(name: String): Action[JsValue] = tenantAuthAction(name, RightLevels.Admin).async(parse.json) {
-    implicit request =>
-      ControllerHelpers.checkPassword(request.body).flatMap {
-        case Left(error) => Future.successful(error)
-        case Right(password) =>
-          env.datastores.users
-            .isUserValid(request.user, password)
-            .flatMap {
-              case Some(_) => env.datastores.tenants.deleteTenant(name, request.user).map {
-                case Left(err) => err.toHttpResponse
-                case Right(_) => NoContent
-              }
-              case None =>Future.successful(Unauthorized(Json.obj("message" -> "Your password is invalid.")))
-            }
-      }
+  def deleteTenant(name: String): Action[JsValue] = (tenantAuthAction(name, RightLevels.Admin) andThen validatePasswordAction()).async(parse.json) { implicit request =>
+    env.datastores.tenants.deleteTenant(name, request.user).map {
+      case Left(err) => err.toHttpResponse
+      case Right(_) => NoContent
+    }
   }
 
   def readTenant(name: String): Action[AnyContent] = tenantAuthAction(name, RightLevels.Read).async {
