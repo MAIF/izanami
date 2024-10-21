@@ -1,4 +1,4 @@
-import React, { ReactElement, useRef, useState } from "react";
+import React, { ReactElement, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { searchEntitiesByTenant, searchEntities } from "../../utils/queries";
 import { GlobalContextIcon } from "../../utils/icons";
@@ -207,6 +207,44 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
     { value: SEARCH_TYPES_VALUE.WEBHOOK, label: SEARCH_TYPES_LABEL.WEBHOOK },
     { value: SEARCH_TYPES_VALUE.SCRIPT, label: SEARCH_TYPES_LABEL.SCRIPT },
   ];
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    if (searchTerm) {
+      performSearch(searchTerm);
+    }
+  }, [modalStatus, filters]);
+
+  const performSearch = (term: string) => {
+    setResultStatus({ state: "PENDING" });
+    if (modalStatus.all) {
+      searchEntities(
+        term,
+        filters?.map((v) => v.value)
+      )
+        .then((r) => setResultStatus({ state: "SUCCESS", results: r }))
+        .catch(() => {
+          setResultStatus({
+            state: "ERROR",
+            error: "There was an error fetching data",
+          });
+        });
+    } else {
+      searchEntitiesByTenant(
+        modalStatus.tenant,
+        term,
+        filters?.map((v) => v.value)
+      )
+        .then((r) => setResultStatus({ state: "SUCCESS", results: r }))
+        .catch(() =>
+          setResultStatus({
+            state: "ERROR",
+            error: "There was an error fetching data",
+          })
+        );
+    }
+  };
+
   return (
     <>
       {tenant && tenant !== "all" && (
@@ -260,38 +298,10 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
             name="search-form"
             title="Search in tenants"
             onChange={debounce((event) => {
-              if (event.target.value) {
-                setResultStatus({ state: "PENDING" });
-                if (modalStatus.all) {
-                  searchEntities(
-                    event.target.value,
-                    filters?.map((v) => v.value)
-                  )
-                    .then((r) =>
-                      setResultStatus({ state: "SUCCESS", results: r })
-                    )
-                    .catch(() => {
-                      setResultStatus({
-                        state: "ERROR",
-                        error: "There was an error fetching data",
-                      });
-                    });
-                } else {
-                  searchEntitiesByTenant(
-                    modalStatus.tenant,
-                    event.target.value,
-                    filters?.map((v) => v.value)
-                  )
-                    .then((r) =>
-                      setResultStatus({ state: "SUCCESS", results: r })
-                    )
-                    .catch(() =>
-                      setResultStatus({
-                        state: "ERROR",
-                        error: "There was an error fetching data",
-                      })
-                    );
-                }
+              const term = event.target.value;
+              setSearchTerm(term);
+              if (term) {
+                performSearch(term);
               } else {
                 clearInput();
               }
@@ -351,7 +361,10 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                             >
                               <ul
                                 className="breadcrumb"
-                                style={{ marginBottom: "0rem" }}
+                                style={{
+                                  marginBottom: "0rem",
+                                  overflowY: "scroll",
+                                }}
                               >
                                 {item.path.map((pathElement, index) => (
                                   <li
