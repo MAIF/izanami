@@ -11,6 +11,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class ApiKeyController(
     val controllerComponents: ControllerComponents,
     val tenantAuthAction: TenantAuthActionFactory,
+    val validatePasswordAction: ValidatePasswordActionFactory,
     val keyAuthAction: KeyAuthActionFactory
 )(implicit val env: Env)
     extends BaseController {
@@ -99,10 +100,13 @@ class ApiKeyController(
         .map(keys => Ok(Json.toJson(keys)))
   }
 
-  def deleteApiKey(tenant: String, name: String): Action[AnyContent] = keyAuthAction(tenant, name, RightLevels.Admin).async {
-    implicit request: Request[AnyContent] =>
+  def deleteApiKey(tenant: String, name: String): Action[JsValue] = (keyAuthAction(tenant, name, RightLevels.Admin) andThen validatePasswordAction()).async(parse.json) {
+    implicit request =>
+
       env.datastores.apiKeys
         .deleteApiKey(tenant, name)
         .map(either => either.fold(err => Results.Status(err.status)(Json.toJson(err)), key => NoContent))
+
+
   }
 }

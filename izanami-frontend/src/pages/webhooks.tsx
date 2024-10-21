@@ -43,7 +43,8 @@ export function WebHooks(props: { tenant: string }) {
   const selectedSearchRow = searchParams.get("filter");
   const tenant = props.tenant;
   const [creating, setCreating] = React.useState(false);
-  const { askConfirmation, refreshUser } = React.useContext(IzanamiContext);
+  const { refreshUser, askPasswordConfirmation } =
+    React.useContext(IzanamiContext);
   const hasTenantWriteLevel = useTenantRight(tenant, TLevel.Write);
 
   const webhookCreationMutation = useMutation(
@@ -65,9 +66,12 @@ export function WebHooks(props: { tenant: string }) {
   );
 
   const webhookDeletion = useMutation(
-    (data: { id: string }) => deleteWebhook(tenant!, data.id),
+    (data: { id: string; password: string }) =>
+      deleteWebhook(tenant!, data.id, data.password),
     {
-      onSuccess: () => queryClient.invalidateQueries(webhookQueryKey(tenant)),
+      onSuccess: () => {
+        queryClient.invalidateQueries(webhookQueryKey(tenant));
+      },
     }
   );
 
@@ -305,11 +309,23 @@ export function WebHooks(props: { tenant: string }) {
                     <i className="bi bi-trash" aria-hidden></i>&nbsp;Delete
                   </>
                 ),
-                action: (webhook: Webhook) =>
-                  askConfirmation(
-                    `Are you sure you want to delete webhook ${webhook.name} ?`,
-                    () => webhookDeletion.mutateAsync({ id: webhook.id })
-                  ),
+                action: (webhook: Webhook) => {
+                  askPasswordConfirmation(
+                    `Are you sure you want to delete webhook ${webhook.name}?`,
+                    async (password: string) => {
+                      try {
+                        await webhookDeletion.mutateAsync({
+                          id: webhook.id,
+                          password: password,
+                        });
+                      } catch (error) {
+                        console.error("Error deleting:", error);
+                        throw error;
+                      }
+                    }
+                  );
+                },
+
                 hasRight: (user, webhook) =>
                   hasRightForWebhook(user, TLevel.Admin, webhook.name, tenant),
               },

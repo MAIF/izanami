@@ -1,6 +1,6 @@
+import * as React from "react";
 import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
-import * as React from "react";
 import { useMutation, useQuery } from "react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { GenericTable } from "../components/GenericTable";
@@ -48,22 +48,28 @@ import { Loader } from "../components/Loader";
 
 export function TenantSettings(props: { tenant: string }) {
   const { tenant } = props;
+  const { askConfirmation, askPasswordConfirmation } =
+    React.useContext(IzanamiContext);
   const [inviting, setInviting] = React.useState(false);
   const [v1ImportDisplayed, setV1ImportDisplayed] = React.useState(false);
   const [exportDisplayed, setExportDisplayed] = React.useState(false);
   const [importDisplayed, setImportDisplayed] = React.useState(false);
-
   const tenantQuery = useQuery(tenantQueryKey(tenant), () =>
     queryTenant(tenant)
   );
   const usersQuery = useQuery(tenantUserQueryKey(tenant), () =>
     queryTenantUsers(tenant)
   );
-  const deleteMutation = useMutation(() => deleteTenant(tenant), {
-    onSuccess: () => {
-      queryClient.invalidateQueries(MutationNames.TENANTS);
-    },
-  });
+
+  const deleteMutation = useMutation(
+    (password: string) => deleteTenant(password, props.tenant),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(MutationNames.TENANTS);
+        navigate("/home");
+      },
+    }
+  );
 
   const inviteUsers = useMutation(
     (data: { users: string[]; level: TLevel }) => {
@@ -77,10 +83,8 @@ export function TenantSettings(props: { tenant: string }) {
     }
   );
 
-  const { askConfirmation } = React.useContext(IzanamiContext);
-  const formTitleRef = React.useRef<HTMLHeadingElement | null>(null);
   const navigate = useNavigate();
-
+  const formTitleRef = React.useRef<HTMLHeadingElement | null>(null);
   const [modification, setModification] = React.useState(false);
 
   if (tenantQuery.isLoading || usersQuery.isLoading) {
@@ -138,20 +142,23 @@ export function TenantSettings(props: { tenant: string }) {
         <div className="d-flex align-items-center justify-content-between p-2">
           <span>Delete this tenant</span>
           <button
-            type="button"
             className="btn btn-danger m-2 btn-sm"
             onClick={() =>
-              askConfirmation(
-                <>
-                  Are you sure you wan't to delete tenant {props.tenant} ?
-                  <br />
-                  All projects and keys will be deleted, this cannot be undone.
-                </>,
-                () => deleteMutation.mutateAsync().then(() => navigate("/home"))
+              askPasswordConfirmation(
+                `All projects and keys will be deleted. This cannot be undone.`,
+                async (password: string) => {
+                  try {
+                    await deleteMutation.mutateAsync(password);
+                  } catch (error) {
+                    console.error("Error deleting:", error);
+                    throw error;
+                  }
+                },
+                `Delete Tenant / ${tenant}`
               )
             }
           >
-            Delete tenant
+            Delete Tenant
           </button>
         </div>
         <hr />

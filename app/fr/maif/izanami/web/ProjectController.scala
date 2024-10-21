@@ -7,13 +7,14 @@ import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc._
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 class ProjectController(
     val env: Env,
     val controllerComponents: ControllerComponents,
     val tenantAuthAction: TenantAuthActionFactory,
     val projectAuthAction: ProjectAuthActionFactory,
+    val validatePasswordAction: ValidatePasswordActionFactory,
     val detailledRightForTenanFactory: DetailledRightForTenantFactory
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
@@ -70,12 +71,13 @@ class ProjectController(
         })
   }
 
-  def deleteProject(tenant: String, project: String): Action[AnyContent] = projectAuthAction(tenant, project, RightLevels.Admin).async {
+  def deleteProject(tenant: String, project: String): Action[JsValue] = (projectAuthAction(tenant, project, RightLevels.Admin) andThen validatePasswordAction()).async(parse.json) {
     implicit request =>
       env.datastores.projects
         .deleteProject(tenant, project, request.user).map {
-        case Left(err) => err.toHttpResponse
-        case Right(value) => NoContent
-      }
+          case Left(err) => err.toHttpResponse
+          case Right(value) => NoContent
+        }
+
   }
 }

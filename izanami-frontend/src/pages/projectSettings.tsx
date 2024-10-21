@@ -11,7 +11,7 @@ import {
   updateUserRightsForProject,
 } from "../utils/queries";
 import { useNavigate } from "react-router-dom";
-import { IzanamiContext, useProjectRight } from "../securityContext";
+import { useProjectRight } from "../securityContext";
 import queryClient from "../queryClient";
 import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
@@ -23,9 +23,11 @@ import { customStyles } from "../styles/reactSelect";
 import { InvitationForm } from "../components/InvitationForm";
 import { PROJECT_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
+import { IzanamiContext } from "../securityContext";
 
 export function ProjectSettings(props: { project: string; tenant: string }) {
   const { project, tenant } = props;
+  const { askPasswordConfirmation } = React.useContext(IzanamiContext);
   const queryKey = projectQueryKey(tenant, project);
   const projectQuery = useQuery(queryKey, () => queryProject(tenant, project));
   const usersQuery = useQuery(projectUserQueryKey(tenant, project), () =>
@@ -33,13 +35,15 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
   );
 
   const [modification, setModification] = useState(false);
-  const { askConfirmation } = React.useContext(IzanamiContext);
   const navigate = useNavigate();
 
   const projectDelete = useMutation(
-    (data: { tenant: string; project: string }) => {
-      const { tenant, project } = data;
-      return deleteProject(tenant, project);
+    (data: { tenant: string; project: string; password: string }) =>
+      deleteProject(data.tenant, data.project, data.password),
+    {
+      onSuccess: () => {
+        navigate(`/tenants/${tenant}`);
+      },
     }
   );
 
@@ -121,16 +125,21 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
               type="button"
               className="btn btn-sm btn-danger"
               onClick={() =>
-                askConfirmation(
-                  <>
-                    Are you sure you wan't to delete project {project} ?
-                    <br />
-                    All features will be deleted, this cannot be undone.
-                  </>,
-                  () =>
-                    projectDelete
-                      .mutateAsync({ project, tenant })
-                      .then(() => navigate(`/tenants/${tenant}`))
+                askPasswordConfirmation(
+                  `All features will be deleted, this cannot be undone.`,
+                  async (password: string) => {
+                    try {
+                      await projectDelete.mutateAsync({
+                        project,
+                        tenant,
+                        password,
+                      });
+                    } catch (error) {
+                      console.error("Error deleting:", error);
+                      throw error;
+                    }
+                  },
+                  `Delete project / ${project}`
                 )
               }
             >
