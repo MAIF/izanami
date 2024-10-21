@@ -74,6 +74,7 @@ class IzanamiComponentsInstances(
   lazy val wasmManagerClient              = wire[WasmManagerClient]
   lazy val clientApiKeyAction             = wire[ClientApiKeyAction]
   lazy val webhookAuthAction              = wire[WebhookAuthActionFactory]
+  lazy val validatePasswordAction         = wire[ValidatePasswordActionFactory]
 
   lazy val featureController        = wire[FeatureController]
   lazy val tenantController         = wire[TenantController]

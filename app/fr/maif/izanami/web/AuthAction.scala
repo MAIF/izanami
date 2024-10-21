@@ -8,8 +8,8 @@ import fr.maif.izanami.security.JwtService.decodeJWT
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.AuthAction.extractClaims
 import pdi.jwt.JwtClaim
-import play.api.libs.json.Json
-import play.api.mvc.Results.{Forbidden, Unauthorized}
+import play.api.libs.json._
+import play.api.mvc.Results.{BadRequest, Forbidden, Unauthorized}
 import play.api.mvc._
 
 import javax.crypto.spec.SecretKeySpec
@@ -193,6 +193,43 @@ class TenantAuthAction(bodyParser: BodyParser[AnyContent], env: Env, tenant: Str
   }
 }
 
+class ValidatePasswordAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
+    ec: ExecutionContext
+) extends ActionBuilder[UserNameRequest, AnyContent] {
+  override protected def executionContext: ExecutionContext = ec
+  override def parser: BodyParser[AnyContent]               = bodyParser
+
+
+  override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
+    request.body match {
+      case json: JsObject =>
+        (json \ "password").asOpt[String] match {
+          case None =>
+            Future.successful(BadRequest(Json.obj("message" -> "Missing password")))
+          case Some(password) =>
+            val userRequest = request match {
+              case r: HookAndUserNameRequest[A] => Some(r.user)
+              case r: UserNameRequest[A] => Some(r.user)
+              case r: UserRequestWithCompleteRights[A] => Some(r.user.username)
+              case r: UserRequestWithTenantRights[A] => Some(r.user.username)
+              case _ => None
+            }
+            userRequest match {
+              case Some(user) => env.datastores.users.isUserValid(user, password).flatMap {
+                case Some(_) => block(UserNameRequest(request,user))
+                case None => Future.successful(Unauthorized(Json.obj("message" -> "Your password is invalid.")))
+              }
+              case _ => Future.successful(BadRequest(Json.obj("message" -> "Invalid request")))
+
+            }
+
+        }
+      case _ =>
+        Future.successful(BadRequest(Json.obj("message" -> "Invalid request body")))
+    }
+  }
+}
+
 class ProjectAuthAction(
     bodyParser: BodyParser[AnyContent],
     env: Env,
@@ -312,6 +349,10 @@ class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(imp
 class TenantAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
   def apply(tenant: String, minimumLevel: RightLevel): TenantAuthAction =
     new TenantAuthAction(bodyParser, env, tenant, minimumLevel)
+}
+
+class ValidatePasswordActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
+  def apply(): ValidatePasswordAction = new ValidatePasswordAction(bodyParser, env)
 }
 
 object AuthAction {
