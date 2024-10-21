@@ -1,20 +1,7 @@
 package fr.maif.izanami.api
 
 import akka.http.scaladsl.model.sse.ServerSentEvent
-import fr.maif.izanami.api.BaseAPISpec.{
-  TestApiKey,
-  TestCondition,
-  TestDateTimePeriod,
-  TestDayPeriod,
-  TestFeature,
-  TestFeatureContext,
-  TestHourPeriod,
-  TestPercentageRule,
-  TestProject,
-  TestSituationBuilder,
-  TestTenant,
-  TestUserListRule
-}
+import fr.maif.izanami.api.BaseAPISpec.{ALL_RIGHTS_USERNAME_PASSWORD, TestApiKey, TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestHourPeriod, TestPercentageRule, TestProject, TestSituationBuilder, TestTenant, TestUserListRule}
 import org.awaitility.Awaitility.await
 import play.api.libs.json.{JsArray, JsObject, Json}
 
@@ -550,7 +537,7 @@ class EventsAPISpec extends BaseAPISpec {
       )
       Thread.sleep(2000)
 
-      situation.deleteProject(project = "project", tenant = tenant)
+      situation.deleteProject(project = "project", tenant = tenant, ALL_RIGHTS_USERNAME_PASSWORD)
       await atMost (10, SECONDS) until {
         evts.exists(s => s.eventType.get == "FEATURE_DELETED")
       }

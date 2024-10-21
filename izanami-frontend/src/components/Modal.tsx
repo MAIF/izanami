@@ -37,7 +37,11 @@ export function Modal(props: {
         className="modal"
         tabIndex={-1}
         aria-hidden={visible ? "false" : "true"}
-        style={visible ? { display: "block", backgroundColor: "#0008" } : {}}
+        style={
+          visible
+            ? { display: "block", backgroundColor: "#0008", width: "100%" }
+            : {}
+        }
       >
         <div
           className={`modal-dialog ${
@@ -54,7 +58,12 @@ export function Modal(props: {
             <div className="modal-footer">
               <button
                 type="button"
-                className={`btn ${!closeButtonText && !onConfirm ? 'btn-danger' : 'btn-danger-light'}`}
+                aria-label="Cancel"
+                className={`btn ${
+                  !closeButtonText && !onConfirm
+                    ? "btn-danger"
+                    : "btn-danger-light"
+                }`}
                 data-bs-dismiss="modal"
                 onClick={() => onClose()}
               >
@@ -69,6 +78,7 @@ export function Modal(props: {
                   type="button"
                   className="btn btn-primary"
                   onClick={onConfirm}
+                  aria-label="Confirm"
                 >
                   {confirmButtonText ? confirmButtonText : "Confirm"}
                 </button>

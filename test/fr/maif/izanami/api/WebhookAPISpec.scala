@@ -244,6 +244,36 @@ class WebhookAPISpec extends BaseAPISpec {
   "Webhook DELETE endpoint" should {
     "delete webhook" in {
       val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false)
+              )
+            )
+        )
+        .withUsers(TestUser(username = "admin", admin = true, password = "barfoofoo"))
+        .loggedAs("admin")
+        .build()
+
+      val response = situation.createWebhook(
+        "tenant",
+        TestWebhook(
+          name = "my-hook",
+          url = "http://localhost:3000",
+          features = Set(situation.findFeatureId("tenant", "project", "f1").get)
+        )
+      )
+
+      val id = (response.json.get \ "id").as[String]
+
+      val deleteResponse = situation.deleteWebhook("tenant", id, "barfoofoo")
+      deleteResponse.status mustBe NO_CONTENT
+
+      situation.listWebhook("tenant").json.get.as[JsArray].value mustBe empty
+    }
+    "prevent deleting webhook if user password is not valid" in {
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant("tenant")
@@ -265,13 +295,10 @@ class WebhookAPISpec extends BaseAPISpec {
       )
 
       val id = (response.json.get \ "id").as[String]
+      val deleteResponse = situation.deleteWebhook("tenant", id, "foobarbar")
+      deleteResponse.status mustBe UNAUTHORIZED
 
-      val deleteResponse = situation.deleteWebhook("tenant", id)
-      deleteResponse.status mustBe NO_CONTENT
-
-      situation.listWebhook("tenant").json.get.as[JsArray].value mustBe empty
     }
-
     "prevent deleting webhook if user has not enough rights" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -306,7 +333,7 @@ class WebhookAPISpec extends BaseAPISpec {
       situation.logout()
       val newSituation = situation.loggedAs("testu", "foofoo123")
 
-      val deleteResponse = newSituation.deleteWebhook("tenant", id)
+      val deleteResponse = newSituation.deleteWebhook("tenant", id, "foofoo123")
 
       deleteResponse.status mustBe UNAUTHORIZED
     }
