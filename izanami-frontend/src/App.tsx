@@ -531,7 +531,7 @@ function Layout() {
                       id="btnSearch"
                       type="button"
                       onClick={() => setIsOpenModal(true)}
-                      style={{opacity:"0.7"}}
+                      style={{ opacity: "0.7" }}
                     >
                       <span className="fa fa-search"></span>
                       <span className="text-searchbutton d-none d-md-inline">
@@ -606,7 +606,8 @@ function Layout() {
             user?.admin ||
             Object.keys(user?.rights.tenants || {}).length > 0) && (
             <SearchModal
-              tenant={tenant}
+              currentTenant={tenant}
+              availableTenants={Object.keys(user?.rights.tenants || {})}
               isOpenModal={isOpenModal}
               onClose={() => setIsOpenModal(false)}
             />

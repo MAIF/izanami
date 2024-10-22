@@ -8,6 +8,7 @@ import Select from "react-select";
 import { customStyles } from "../../styles/reactSelect";
 interface ISearchProps {
   tenant?: string;
+  allTenants?: string[];
   onClose: () => void;
 }
 const SEARCH_TYPES_LABEL = {
@@ -159,7 +160,11 @@ type SearchResultStatus =
   | { state: "PENDING" }
   | { state: "INITIAL" };
 
-export function SearchModalContent({ tenant, onClose }: ISearchProps) {
+export function SearchModalContent({
+  tenant,
+  allTenants,
+  onClose,
+}: ISearchProps) {
   const [modalStatus, setModalStatus] = useState<SearchModalStatus>(
     tenant ? { all: false, tenant } : { all: true }
   );
@@ -247,12 +252,12 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
 
   return (
     <>
-      {tenant && tenant !== "all" && (
-        <div
-          className="d-flex flex-row align-items-start my-1"
-          role="group"
-          aria-label="Tenant selection"
-        >
+      <div
+        className="d-flex flex-row align-items-start my-1 gap-1"
+        role="group"
+        aria-label="Tenant selection"
+      >
+        <div className="d-flex flex-row gap-1 mb-2 mb-md-0">
           <button
             onClick={() => setModalStatus({ all: true })}
             className={`btn btn-secondary${
@@ -264,20 +269,41 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
           >
             All tenants
           </button>
+          {tenant && tenant !== "all" && (
+            <>
+              <button
+                onClick={() => setModalStatus({ all: false, tenant })}
+                className={`btn btn-secondary${
+                  !modalStatus.all && modalStatus.tenant === tenant
+                    ? " search-form-button-selected"
+                    : ""
+                }`}
+                value={tenant}
+                aria-pressed={!modalStatus.all && modalStatus.tenant === tenant}
+              >
+                <span className="fas fa-cloud" aria-hidden></span>
+                <span> {tenant}</span>
+              </button>
+            </>
+          )}
+        </div>
+        <div className="d-flex flex-column flex-md-row gap-2 flex-grow-1">
+          {!tenant && (
+            <Select
+              options={allTenants?.map((te) => ({ label: te, value: te }))}
+              onChange={(selectedTenant) => {
+                if (selectedTenant) {
+                  setModalStatus({ all: false, tenant: selectedTenant.value });
+                } else {
+                  setModalStatus({ all: true });
+                }
+              }}
+              styles={customStyles}
+              isClearable
+              placeholder="Select Tenant"
+            />
+          )}
 
-          <button
-            onClick={() => setModalStatus({ all: false, tenant })}
-            className={`btn btn-secondary${
-              !modalStatus.all && modalStatus.tenant === tenant
-                ? " search-form-button-selected"
-                : ""
-            }`}
-            value={tenant}
-            aria-pressed={!modalStatus.all && modalStatus.tenant === tenant}
-          >
-            <span className="fas fa-cloud" aria-hidden></span>
-            <span> {tenant}</span>
-          </button>
           <Select
             options={filterOptions}
             onChange={(e) => setFilters(e as Option[])}
@@ -287,7 +313,7 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
             placeholder="Apply filter"
           />
         </div>
-      )}
+      </div>
       <div className="search-container">
         <div className="search-container-input">
           <i className="fas fa-search search-icon" aria-hidden="true" />
@@ -363,7 +389,6 @@ export function SearchModalContent({ tenant, onClose }: ISearchProps) {
                                 className="breadcrumb"
                                 style={{
                                   marginBottom: "0rem",
-                                  overflowY: "scroll",
                                 }}
                               >
                                 {item.path.map((pathElement, index) => (
