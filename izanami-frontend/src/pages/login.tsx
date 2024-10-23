@@ -53,27 +53,28 @@ function TokenWaitScreen({ code }: { code: string }) {
   }
 }
 
-
 function LoginForm(props: { req?: string }) {
   const navigate = useNavigate();
   const req = props.req;
   const { setUser, integrations, expositionUrl } = useContext(IzanamiContext);
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-  const [lightMode, setLightMode] = useState<boolean>(false)  
-  
+  const [lightMode, setLightMode] = useState<boolean>(false);
+
   React.useEffect(() => {
     let mode = window.localStorage.getItem("izanami-dark-light-mode");
     setLightMode(mode !== "dark");
-    if (mode === "light") {document.documentElement.setAttribute("data-theme", "light")}
-  },[])
+    if (mode === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  }, []);
 
   const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setLightMode(event.target.checked);
     if (lightMode) {
-      document.documentElement.setAttribute("data-theme", "dark")
+      document.documentElement.setAttribute("data-theme", "dark");
       window.localStorage.setItem("izanami-dark-light-mode", "dark");
-    }else{
+    } else {
       document.documentElement.setAttribute("data-theme", "light");
       window.localStorage.setItem("izanami-dark-light-mode", "light");
     }
@@ -186,6 +187,7 @@ function LoginForm(props: { req?: string }) {
                 <div className="openid-separator my-3">OR</div>
 
                 <button
+                  type="button"
                   className="btn btn-secondary"
                   onClick={() => {
                     window.location.href = `${expositionUrl}/api/admin/openid-connect`;
@@ -209,10 +211,9 @@ function LoginForm(props: { req?: string }) {
                 <label
                   className="form-check-label"
                   htmlFor="flexSwitchCheckChecked"
-                >
-                </label>
+                ></label>
               </div>
-                  <i className="fa fa-lightbulb" />
+              <i className="fa fa-lightbulb" />
             </div>
           </>
         )}

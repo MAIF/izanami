@@ -2,6 +2,99 @@
 version: '3.1'
 
 services:
+  oidc-server-mock:
+    container_name: oidc-server-mock
+    image: ghcr.io/soluto/oidc-server-mock:latest
+    ports:
+      - '9001:8080'
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      SERVER_OPTIONS_INLINE: |
+        {
+          "AccessTokenJwtType": "JWT",
+          "Discovery": {
+            "ShowKeySet": true
+          },
+          "Authentication": {
+            "CookieSameSiteMode": "Lax",
+            "CheckSessionCookieSameSiteMode": "Lax"
+          }
+        }
+      LOGIN_OPTIONS_INLINE: |
+        {
+          "AllowRememberLogin": false
+        }
+      LOGOUT_OPTIONS_INLINE: |
+        {
+          "AutomaticRedirectAfterSignOut": true
+        }
+      API_SCOPES_INLINE: |
+        - Name: some-app-scope-1
+        - Name: some-app-scope-2
+      API_RESOURCES_INLINE: |
+        - Name: some-app
+          Scopes:
+            - some-app-scope-1
+            - some-app-scope-2
+      USERS_CONFIGURATION_INLINE: |
+        [
+          {
+            "SubjectId":"1",
+            "Username":"User1",
+            "Password":"pwd",
+            "Claims": [
+              {
+                "Type": "name",
+                "Value": "Sam Tailor",
+                "ValueType": "string"
+              },
+              {
+                "Type": "email",
+                "Value": "sam.tailor@gmail.com",
+                "ValueType": "string"
+              },
+              {
+                "Type": "some-api-resource-claim",
+                "Value": "Sam's Api Resource Custom Claim",
+                "ValueType": "string"
+              },
+              {
+                "Type": "some-api-scope-claim",
+                "Value": "Sam's Api Scope Custom Claim",
+                "ValueType": "string"
+              },
+              {
+                "Type": "some-identity-resource-claim",
+                "Value": "Sam's Identity Resource Custom Claim",
+                "ValueType": "string"
+              }
+            ]
+          }
+        ]
+      CLIENTS_CONFIGURATION_INLINE: |
+        [
+          {
+            "ClientId": "foo",
+            "ClientSecrets": ["bar"],
+            "Description": "Client for implicit flow",
+            "AllowedGrantTypes": ["authorization_code"],
+            "RequirePkce": false,
+            "AllowAccessTokensViaBrowser": true,
+            "RedirectUris": ["http://localhost:3000/login"],
+            "AllowedScopes": ["openid", "profile", "email"],
+            "IdentityTokenLifetime": 3600,
+            "AccessTokenLifetime": 3600,
+            "AlwaysIncludeUserClaimsInIdToken": true
+        }
+        ]
+      ASPNET_SERVICES_OPTIONS_INLINE: |
+        { 
+          "ForwardedHeadersOptions": { 
+            "ForwardedHeaders" : "All"
+          }
+        }
+    volumes:
+      - .:/tmp/config:ro
   db:
     image: postgres
     restart: always
@@ -12,12 +105,12 @@ services:
 #      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
     ports:
       - 5432:5432
-  openid:
-    image: qlik/simple-oidc-provider
-    environment:
-      REDIRECTS: http://localhost:3000/login
-    ports:
-      - 9001:9000
+  #openid:
+  #  image: qlik/simple-oidc-provider
+  #  environment:
+  #    REDIRECTS: http://localhost:3000/login
+  #  ports:
+  #    - 9001:9000
   fake-smtp:
     image: reachfive/fake-smtp-server
     ports:
