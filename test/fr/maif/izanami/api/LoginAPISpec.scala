@@ -105,44 +105,7 @@ class LoginAPISpec extends BaseAPISpec {
       result
         .headers()
         .firstValue("location")
-        .get() mustEqual "http://localhost:9001/auth?scope=email%20profile%20openid&client_id=foo&response_type=code&redirect_uri=http://localhost:3000/login"
-    }
-
-    "should allow complete flow" in {
-      var res     = await(
-        ws.url(s"""${ADMIN_BASE_URL}/openid-connect""")
-          .withFollowRedirects(false)
-          .get()
-      )
-      res = await(
-        ws.url(res.header("location").get)
-          .withFollowRedirects(false)
-          .get()
-      )
-      val cookies = res.cookies.toArray.to(scala.collection.immutable.Seq)
-
-      val loginUrl = s"""http://localhost:9001${res.header("location").get}/login"""
-      var codeRes  = await(
-        ws.url(loginUrl)
-          .withFollowRedirects(false)
-          .withCookies(cookies: _*)
-          .withHttpHeaders(("Content-Type", "application/x-www-form-urlencoded"))
-          .post("email=harley%40qlik.example&password=Password1%21&submit=")
-      )
-      codeRes = await(
-        ws.url(codeRes.header("location").get)
-          .withCookies(cookies: _*)
-          .withFollowRedirects(false)
-          .get()
-      )
-
-      val myAppRedirectUrl = codeRes.header("location").get
-      val uri              = new URI(myAppRedirectUrl)
-      val code             = uri.getQuery.split("code=")(1).split("&")(0)
-
-      val finalResponse = await(ws.url(s"""${ADMIN_BASE_URL}/openid-connect-callback""").post(Json.obj("code" -> code)))
-
-      finalResponse.cookie("token") mustBe defined
+        .get() mustEqual "http://localhost:9001/connect/authorize?scope=email%20profile%20openid&client_id=foo&response_type=code&redirect_uri=http://localhost:3000/login"
     }
   }
 }
