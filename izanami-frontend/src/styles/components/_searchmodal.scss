@@ -44,7 +44,9 @@
     color: #fff;
   }
 }
-
+.selected-search-item {
+  background-color: var(--bg-color_level2);
+}
 .search-ul a {
   color: var(--color_level1);
   text-decoration: none;
