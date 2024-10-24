@@ -117,8 +117,8 @@ function ConditionInput(props: { index: number }) {
             <legend>
               <h6>Result value</h6>
             </legend>
-            <label>Value for this strategy</label>
-            <div className="mb-4">
+            <label className="mb-4">
+              Alternative value
               {resultType === "string" ? (
                 <input
                   type="text"
@@ -139,7 +139,7 @@ function ConditionInput(props: { index: number }) {
                     ?.value as any
                 }
               />
-            </div>
+            </label>
           </>
         )}
         <legend>
