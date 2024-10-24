@@ -82,44 +82,42 @@ export function OverloadCreationForm(props: {
           )}
           className="d-flex flex-column anim__rightToLeft p-3 sub_container"
         >
-          <div className="row">
-            <label className="col-9 col-lg-5 col-xl-4 col-xxl-3">
-              Name
-              <Controller
-                name="name"
-                control={control}
-                render={({ field: { onChange, value } }) => (
-                  <Select
-                    isDisabled={noName}
-                    value={{ value, label: value }}
-                    onChange={(e) => {
-                      const selectedFeature = projectQuery.data.features.find(
-                        (f) => f.name === e?.value
-                      );
-                      setFeatureResultType(selectedFeature?.resultType);
-                      onChange(e?.value);
-                    }}
-                    styles={customStyles}
-                    options={projectQuery.data.features
-                      .filter((f) => !excluded || !excluded.includes(f.name))
-                      .map((f) => ({
-                        label: f.name,
-                        value: f.name,
-                      }))}
-                  />
-                )}
-              />
-              {errors.name && <p className="error-message">name is required</p>}
-            </label>
-            <label className="col-3">
-              Enabled
-              <input
-                type="checkbox"
-                className="izanami-checkbox ms-2"
-                {...register("enabled")}
-              />
-            </label>
-          </div>
+          <label>
+            Name
+            <Controller
+              name="name"
+              control={control}
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  isDisabled={noName}
+                  value={{ value, label: value }}
+                  onChange={(e) => {
+                    const selectedFeature = projectQuery.data.features.find(
+                      (f) => f.name === e?.value
+                    );
+                    setFeatureResultType(selectedFeature?.resultType);
+                    onChange(e?.value);
+                  }}
+                  styles={customStyles}
+                  options={projectQuery.data.features
+                    .filter((f) => !excluded || !excluded.includes(f.name))
+                    .map((f) => ({
+                      label: f.name,
+                      value: f.name,
+                    }))}
+                />
+              )}
+            />
+            {errors.name && <p className="error-message">name is required</p>}
+          </label>
+          <label className="mt-3">
+            Enabled
+            <input
+              type="checkbox"
+              className="izanami-checkbox ms-2"
+              {...register("enabled")}
+            />
+          </label>
           {additionalFields?.()}
           <div className="row mt-3">
             <label className="col-6 col-lg-5 col-xl-4 col-xxl-3">
