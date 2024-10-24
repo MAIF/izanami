@@ -1,5 +1,6 @@
 import * as React from "react";
 import { FeatureTypeName } from "../utils/types";
+import { StringIcon } from "../utils/icons";
 
 const NumberTypeIcon = () => (
   <svg
@@ -7,6 +8,7 @@ const NumberTypeIcon = () => (
     viewBox="0 0 301.95 240.38"
     width="18"
     height="18"
+    style={{ marginTop: "-2px" }}
   >
     <g id="Calque_2" data-name="Calque 2">
       <g id="Calque_1-2" data-name="Calque 1">
@@ -86,15 +88,7 @@ export const ResultTypeIcon = (props: {
           className="fa-solid fa-toggle-off"
         ></i>
       ) : rs === "string" ? (
-        <em
-          style={{
-            color: color,
-            fontSize: "16px",
-            fontWeight: props.fontWeight ?? "lighter",
-          }}
-        >
-          “a”
-        </em>
+        <StringIcon />
       ) : rs === "number" ? (
         <NumberTypeIcon></NumberTypeIcon>
       ) : (

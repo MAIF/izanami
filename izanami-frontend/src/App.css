@@ -81,4 +81,5 @@ header .nav-link {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 24px;
 }
