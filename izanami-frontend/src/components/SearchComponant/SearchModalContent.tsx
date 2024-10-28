@@ -97,6 +97,7 @@ export function SearchModalContent({
       />
       {resultStatus.state !== "INITIAL" && (
         <SearchResults
+          modalStatus={modalStatus}
           resultStatus={resultStatus}
           groupedItems={groupedItems}
           onClose={onClose}

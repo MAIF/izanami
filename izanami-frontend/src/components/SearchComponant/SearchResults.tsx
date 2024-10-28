@@ -1,57 +1,86 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { Link } from "react-router-dom";
 import { SearchResult } from "../../utils/types";
 import {
   getLinkPath,
   typeDisplayInformation,
   SearchResultStatus,
+  SearchModalStatus,
 } from "../../utils/searchUtils";
+import { IzanamiContext } from "../../securityContext";
 
 interface SearchResultsProps {
+  modalStatus: SearchModalStatus;
   groupedItems: Map<string, SearchResult[]>;
   resultStatus: SearchResultStatus;
   onClose: () => void;
 }
 
 export function SearchResults({
+  modalStatus,
   groupedItems,
   resultStatus,
   onClose,
 }: SearchResultsProps) {
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const { user } = useContext(IzanamiContext);
+  const username = user?.username ?? "";
+  const [searchHistory, setSearchHistory] = useState<
+    { type: string; tenant: string; name: string }[]
+  >([]);
   useEffect(() => {
-    const oldHistory = localStorage.getItem("searchHistory");
-    if (oldHistory) {
-      setSearchHistory(JSON.parse(oldHistory));
+    const allHistory = JSON.parse(
+      localStorage.getItem("userSearchHistory") || "{}"
+    );
+    if (allHistory[username]) {
+      setSearchHistory(allHistory[username]);
     }
   }, []);
 
   const handleItemClick = (item: SearchResult) => {
-    setSearchHistory((prevHistory: string[]) => {
-      const oldSearchHistory = localStorage.getItem("searchHistory");
-      const parsedOldHistory: string[] = oldSearchHistory
-        ? JSON.parse(oldSearchHistory)
-        : [];
-
+    setSearchHistory((prevHistory) => {
+      const allHistory = JSON.parse(
+        localStorage.getItem("userSearchHistory") || "{}"
+      );
+      const userHistory = allHistory[username] || [];
       const updatedHistory = Array.from(
-        new Set([item.name, ...prevHistory, ...parsedOldHistory])
-      ).slice(0, 10);
-      localStorage.setItem("searchHistory", JSON.stringify(updatedHistory));
+        new Map(
+          [...userHistory, ...prevHistory, item].map((item) => [
+            item.name,
+            item,
+          ])
+        ).values()
+      ).slice(0, 5);
+      allHistory[username] = updatedHistory;
+      localStorage.setItem("userSearchHistory", JSON.stringify(allHistory));
+
       return updatedHistory;
     });
     onClose();
   };
+  const filteredHistory = searchHistory.filter(
+    (item) => modalStatus.all || item.tenant === modalStatus.tenant
+  );
 
   return (
     <div className="search-container">
       <div className="search-result">
-        <span>Recent</span>
-        <ul>
-          {searchHistory.map((term, index) => (
-            <li key={index}>{term}</li>
-          ))}
-        </ul>
-
+        {filteredHistory.length > 0 && (
+          <>
+            <span>Recent</span>
+            <ul className="search-ul nav flex-column">
+              {filteredHistory.map((term, index) => (
+                <li className="search-ul-item" key={index}>
+                  <i className="fas fa-search me-2" aria-hidden="true" />
+                  {term.type}:{" "}
+                  {modalStatus.all
+                    ? `${term.tenant} / ${term.name}`
+                    : term.name}
+                </li>
+              ))}
+            </ul>
+            <hr />
+          </>
+        )}
         {resultStatus.state === "ERROR" ? (
           <div>{resultStatus.error}</div>
         ) : resultStatus.state === "PENDING" ? (
