@@ -1,6 +1,7 @@
 import { Page } from "@playwright/test";
 import { test, expect } from "./izanami-test";
 import { testBuilder, testTenant, testproject } from "./testBuilder";
+import { PASSWORD } from "./global.setup";
 
 test.use({
   headless: true,
@@ -54,6 +55,7 @@ test.describe("Project setting screen should", () => {
     await page.goto(`/tenants/${tenantName}/projects/project`);
     await page.getByLabel("Project settings").click();
     await page.getByRole("button", { name: "Delete project" }).click();
+    await page.getByLabel("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Confirm" }).click();
     await expect(page).toHaveURL(`/tenants/${tenantName}`);
     await expect(page.getByRole("link", { name: "foo" })).toHaveCount(0);
