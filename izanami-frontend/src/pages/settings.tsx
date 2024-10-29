@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, ReactNode } from "react";
 import { useMutation, useQuery } from "react-query";
 import queryClient from "../queryClient";
 import { string } from "yup";
+import { JsonViewer } from "@textea/json-viewer";
 
 import {
   mailerQueryKey,
   MutationNames,
+  queryStats,
   queryConfiguration,
   queryMailerConfiguration,
   updateConfiguration,
@@ -44,13 +46,39 @@ export function yupValidationToStringError(
     return error;
   }
 }
-
+const LabelDescriptionContent = ({ stats }: { stats: any }) => (
+  <div>
+    This feature allows Izanami to send us periodical reports. It won’t send
+    sensitive or personal data, only a set of usage statistics related to
+    Izanami. See details of the data sent below:
+    <br />
+    <JsonViewer
+      rootName={false}
+      value={stats}
+      displayDataTypes={false}
+      displaySize={false}
+      defaultInspectDepth={0}
+      theme="dark"
+    />
+  </div>
+);
 export function Settings() {
   const [selectedMailer, setSelectedMailer] = useState();
 
   const configurationQuery = useQuery(MutationNames.CONFIGURATION, () =>
     queryConfiguration()
   );
+  const [labelDescription, setLabelDescription] = useState<ReactNode>(null);
+
+  useEffect(() => {
+    queryStats()
+      .then((stats) => {
+        setLabelDescription(<LabelDescriptionContent stats={stats} />);
+      })
+      .catch(() => (
+        <LabelDescriptionContent stats={"Error loading statistics"} />
+      ));
+  }, []);
 
   const configurationMutationQuery = useMutation(
     (data: Omit<Configuration, "version">) => updateConfiguration(data)
@@ -128,8 +156,15 @@ export function Settings() {
                   ],
                 },
                 anonymousReporting: {
+                  label: () => (
+                    <>
+                      <div>
+                        <span>Anonymous reporting</span>
+                        {labelDescription}
+                      </div>
+                    </>
+                  ),
                   type: "bool",
-                  label: "Anonymous reporting",
                   defaultValue: configuration.anonymousReporting,
                 },
               }}
