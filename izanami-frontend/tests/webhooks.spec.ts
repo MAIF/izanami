@@ -7,6 +7,7 @@ import {
   testWebhook,
   testproject,
 } from "./testBuilder";
+import { PASSWORD } from "./global.setup";
 
 test.use({
   headless: true,
@@ -124,6 +125,7 @@ test.describe("Webhook screen should", () => {
     await page.goto(`/tenants/${tenantName}/webhooks`);
     await webhookAction(page, "Delete");
 
+    await page.getByLabel("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Confirm" }).click();
 
     await expect(
