@@ -6,6 +6,7 @@ import queryClient from "../queryClient";
 import { IzanamiContext, useAdmin } from "../securityContext";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
+import AsyncSelect from "react-select/async";
 
 import {
   createInvitation,
@@ -87,6 +88,20 @@ export function Users() {
     (data: { email: string; admin: boolean; rights: TRights }) =>
       createInvitation(data.email, data.admin, data.rights)
   );
+  const loadOptions = (
+    inputValue: string,
+    callback: (options: string[]) => void
+  ) => {
+    fetch(`/api/admin/users/search?query=${inputValue}&count=20`)
+      .then((resp) => resp.json())
+      .then((data) => {
+        callback(data.map((d: string) => ({ label: d, value: d })));
+      })
+      .catch((error) => {
+        console.error("Error loading options", error);
+        callback([]);
+      });
+  };
 
   function OperationToggleForm(props: {
     bulkOperation: string;
@@ -293,10 +308,34 @@ export function Users() {
                     props: {
                       autoFocus: true,
                     },
+                    defaultValue: "",
                   },
                   admin: {
                     label: "Admin",
                     type: "bool",
+                  },
+                  users: {
+                    label: "Copy User Rights",
+                    type: "object",
+                    render: ({ onChange }) => (
+                      <AsyncSelect
+                        defaultValue={""}
+                        loadOptions={loadOptions}
+                        filterOption={(option: any) =>
+                          !users?.includes(option.data.value)
+                        }
+                        isClearable
+                        styles={customStyles}
+                        cacheOptions
+                        noOptionsMessage={({ inputValue }) =>
+                          inputValue && inputValue.length > 0
+                            ? "No user found for this search"
+                            : "Start typing to search a user"
+                        }
+                        placeholder="Start typing to search a user"
+                        onChange={(selected) => onChange?.(selected)}
+                      />
+                    ),
                   },
                   rights: {
                     label: () => "",
@@ -313,6 +352,7 @@ export function Users() {
                   },
                 }}
                 onSubmit={(ctx) => {
+                  console.log("on Submit data", ctx);
                   const backendRights = rightStateArrayToBackendMap(ctx.rights);
 
                   const payload = {
