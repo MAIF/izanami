@@ -48,7 +48,8 @@ case class UserInvitation(
     email: String,
     rights: Rights = Rights.EMPTY,
     admin: Boolean = false,
-    id: String = null
+    id: String = null,
+    userToCopy : Option[String] = None,
 )
 
 case class UserRightsUpdateRequest(
@@ -485,8 +486,8 @@ object User {
 
   implicit val userInvitationReads: Reads[UserInvitation] = ((__ \ "email").read[String] and
     (__ \ "rights").readWithDefault[Rights](Rights.EMPTY) and
-    (__ \ "admin").readWithDefault[Boolean](false))((email, rights, admin) =>
-    UserInvitation(email = email, rights = rights, admin = admin)
+    (__ \ "admin").readWithDefault[Boolean](false) and (__ \ "userToCopy").readNullable[String])((email, rights, admin, userToCopy) =>
+    UserInvitation(email = email, rights = rights, admin = admin, userToCopy= userToCopy)
   )
 
   implicit val userRightsUpdateReads: Reads[UserRightsUpdateRequest] = ((__ \ "rights").read[Rights] and
