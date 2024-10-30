@@ -6,7 +6,6 @@ import queryClient from "../queryClient";
 import { IzanamiContext, useAdmin } from "../securityContext";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
-import AsyncSelect from "react-select/async";
 
 import {
   createInvitation,
@@ -85,23 +84,13 @@ export function Users() {
   );
 
   const inviteUserMutation = useMutation(
-    (data: { email: string; admin: boolean; rights: TRights }) =>
-      createInvitation(data.email, data.admin, data.rights)
+    (data: {
+      email: string;
+      admin: boolean;
+      rights: TRights;
+      userToCopy: string;
+    }) => createInvitation(data.email, data.admin, data.rights, data.userToCopy)
   );
-  const loadOptions = (
-    inputValue: string,
-    callback: (options: string[]) => void
-  ) => {
-    fetch(`/api/admin/users/search?query=${inputValue}&count=20`)
-      .then((resp) => resp.json())
-      .then((data) => {
-        callback(data.map((d: string) => ({ label: d, value: d })));
-      })
-      .catch((error) => {
-        console.error("Error loading options", error);
-        callback([]);
-      });
-  };
 
   function OperationToggleForm(props: {
     bulkOperation: string;
@@ -216,6 +205,7 @@ export function Users() {
     return <Loader message="Loading users..." />;
   } else if (userQuery.isSuccess) {
     const users = userQuery.data;
+
     const columns: ColumnDef<TUser>[] = [
       {
         accessorKey: "username",
@@ -315,15 +305,13 @@ export function Users() {
                     type: "bool",
                   },
                   users: {
-                    label: "Copy User Rights",
+                    label: "Copy user rights",
                     type: "object",
                     render: ({ onChange }) => (
-                      <AsyncSelect
-                        defaultValue={""}
-                        loadOptions={loadOptions}
+                      <Select
+                        defaultValue={null}
                         isClearable
                         styles={customStyles}
-                        cacheOptions
                         noOptionsMessage={({ inputValue }) =>
                           inputValue && inputValue.length > 0
                             ? "No user found for this search"
@@ -331,6 +319,10 @@ export function Users() {
                         }
                         placeholder="Start typing to search a user"
                         onChange={(selected) => onChange?.(selected)}
+                        options={users.map(({ username }) => ({
+                          value: username,
+                          label: username,
+                        }))}
                       />
                     ),
                   },
@@ -349,15 +341,13 @@ export function Users() {
                   },
                 }}
                 onSubmit={(ctx) => {
-                  console.log("on Submit data", ctx);
                   const backendRights = rightStateArrayToBackendMap(ctx.rights);
-
                   const payload = {
                     rights: backendRights,
                     admin: ctx.admin,
                     email: ctx.email,
+                    userToCopy: ctx.users && ctx.users?.value,
                   };
-
                   return inviteUserMutation
                     .mutateAsync(payload)
                     .then((response) => {
