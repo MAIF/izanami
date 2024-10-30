@@ -109,6 +109,7 @@ export function Users() {
     cancel: () => void;
   }) {
     const { bulkOperation, selectedRows, cancel } = props;
+
     switch (bulkOperation) {
       case "Toggle Admin Role": {
         const adminOptions = [
@@ -211,7 +212,6 @@ export function Users() {
         );
     }
   }
-
   if (userQuery.isLoading) {
     return <Loader message="Loading users..." />;
   } else if (userQuery.isSuccess) {
@@ -321,9 +321,6 @@ export function Users() {
                       <AsyncSelect
                         defaultValue={""}
                         loadOptions={loadOptions}
-                        filterOption={(option: any) =>
-                          !users?.includes(option.data.value)
-                        }
                         isClearable
                         styles={customStyles}
                         cacheOptions
@@ -367,9 +364,11 @@ export function Users() {
                       if (response && response.invitationUrl) {
                         setCreationUrl(response.invitationUrl);
                       }
-                      return response;
+                      setCreating(false);
                     })
-                    .then(() => setCreating(false));
+                    .catch((error) => {
+                      throw new Error(error);
+                    });
                 }}
                 onClose={() => setCreating(false)}
                 submitText="Send invitation"

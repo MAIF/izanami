@@ -73,7 +73,7 @@ case class UserAlreadyExist(user: String, email: String)
       status = BAD_REQUEST
     )
 case class EmailAlreadyUsed(email: String)
-    extends IzanamiError(message = s"Email ${email} is already used by another user)", status = BAD_REQUEST)
+    extends IzanamiError(message = s"Email ${email} is already used by another user", status = BAD_REQUEST)
 case class InternalServerError(msg: String = "")
     extends IzanamiError(message = s"Something went wrong $msg", status = INTERNAL_SERVER_ERROR)
 case class MailSendingError(err: String, override val status: Int = INTERNAL_SERVER_ERROR)
