@@ -24,9 +24,7 @@ export function SearchResults({
 }: SearchResultsProps) {
   const { user } = useContext(IzanamiContext);
   const username = user?.username ?? "";
-  const [searchHistory, setSearchHistory] = useState<
-    { type: string; tenant: string; name: string }[]
-  >([]);
+  const [searchHistory, setSearchHistory] = useState<SearchResult[]>([]);
   useEffect(() => {
     const allHistory = JSON.parse(
       localStorage.getItem("userSearchHistory") || "{}"
@@ -45,11 +43,11 @@ export function SearchResults({
       const updatedHistory = Array.from(
         new Map(
           [...userHistory, ...prevHistory, item].map((item) => [
-            item.name,
+            item.name + item.type + item.tenant, // better to have item id
             item,
           ])
         ).values()
-      ).slice(0, 5);
+      ).slice(-5);
       allHistory[username] = updatedHistory;
       localStorage.setItem("userSearchHistory", JSON.stringify(allHistory));
 
@@ -70,11 +68,16 @@ export function SearchResults({
             <ul className="search-ul nav flex-column">
               {filteredHistory.map((term, index) => (
                 <li className="search-ul-item" key={index}>
-                  <i className="fas fa-search me-2" aria-hidden="true" />
-                  {term.type}:{" "}
-                  {modalStatus.all
-                    ? `${term.tenant} / ${term.name}`
-                    : term.name}
+                  <Link
+                    to={getLinkPath(term) || "#"}
+                    onClick={() => handleItemClick(term)}
+                  >
+                    <i className="fas fa-search me-2" aria-hidden="true" />
+                    {term.type}:{" "}
+                    {modalStatus.all
+                      ? `${term.tenant} / ${term.name}`
+                      : term.name}
+                  </Link>
                 </li>
               ))}
             </ul>

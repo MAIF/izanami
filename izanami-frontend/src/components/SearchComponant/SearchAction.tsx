@@ -1,8 +1,7 @@
 import * as React from "react";
-import Select from "react-select";
+import Select, { components } from "react-select";
 import { customStyles } from "../../styles/reactSelect";
 import { SearchModalStatus, Option } from "../../utils/searchUtils";
-
 interface SearchActionProps {
   tenant?: string;
   allTenants?: string[];
@@ -11,6 +10,16 @@ interface SearchActionProps {
   filterOptions: { value: string; label: string }[];
   setFilters: (filters: { value: string; label: string }[]) => void;
 }
+
+const CustomOption = (props: any) => {
+  return (
+    <components.Option {...props}>
+      <span style={{ marginRight: 1 }}>{props.data.icon}</span>
+      {props.data.label}
+    </components.Option>
+  );
+};
+
 export function SearchAction({
   tenant,
   allTenants,
@@ -75,6 +84,7 @@ export function SearchAction({
         <Select
           options={filterOptions}
           onChange={(e) => setFilters(e as Option[])}
+          components={{ Option: CustomOption }}
           styles={customStyles}
           isMulti
           isClearable
