@@ -8,6 +8,7 @@
   "/izanami/docs-e80": {
     "__comp": "5e95c892",
     "__context": {
+<<<<<<< HEAD
       "plugin": "1ad66b9e"
     }
   },
@@ -17,6 +18,60 @@
   },
   "/izanami/docs-c95": {
     "__comp": "a94703ab"
+=======
+      "plugin": "plugin---izanami-docusaurus-debugf-75-018"
+    }
+  },
+  "/izanami/__docusaurus/debug/content-7bd": {
+    "__comp": "__comp---theme-debug-contentba-8-ce7",
+    "__context": {
+      "plugin": "plugin---izanami-docusaurus-debugf-75-018"
+    },
+    "allContent": "allContent---izanami-docusaurus-debug-content-246-c61"
+  },
+  "/izanami/__docusaurus/debug/globalData-1a4": {
+    "__comp": "__comp---theme-debug-global-dataede-0fa",
+    "__context": {
+      "plugin": "plugin---izanami-docusaurus-debugf-75-018"
+    }
+  },
+  "/izanami/__docusaurus/debug/metadata-d94": {
+    "__comp": "__comp---theme-debug-site-metadata-68-e-3d4",
+    "__context": {
+      "plugin": "plugin---izanami-docusaurus-debugf-75-018"
+    }
+  },
+  "/izanami/__docusaurus/debug/registry-49c": {
+    "__comp": "__comp---theme-debug-registry-679-501",
+    "__context": {
+      "plugin": "plugin---izanami-docusaurus-debugf-75-018"
+    }
+  },
+  "/izanami/__docusaurus/debug/routes-108": {
+    "__comp": "__comp---theme-debug-routes-946-699",
+    "__context": {
+      "plugin": "plugin---izanami-docusaurus-debugf-75-018"
+    }
+  },
+  "/izanami/search-b82": {
+    "__comp": "__comp---theme-search-page-1-a-4-d6f",
+    "__context": {
+      "plugin": "plugin---izanami-searchaaf-832"
+    }
+  },
+  "/izanami/docs-99f": {
+    "__comp": "__comp---theme-docs-root-5-e-9-0b6",
+    "__context": {
+      "plugin": "plugin---izanami-docs-18-d-414"
+    }
+  },
+  "/izanami/docs-36d": {
+    "__comp": "__comp---theme-doc-version-roota-7-b-5de",
+    "version": "version---izanami-docs-935-49b"
+  },
+  "/izanami/docs-f8a": {
+    "__comp": "__comp---theme-doc-roota-94-67a"
+>>>>>>> ca712e86 (feat: personnal access tokens)
   },
   "/izanami/docs/clients/-7b7": {
     "__comp": "17896441",
@@ -93,6 +148,10 @@
   "/izanami/docs/guides/non-boolean-features-c1a": {
     "__comp": "17896441",
     "content": "a566eca2"
+  },
+  "/izanami/docs/guides/personnal-access-tokens-5b1": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-personnal-access-tokens-743-08a"
   },
   "/izanami/docs/guides/query-builder-b4b": {
     "__comp": "17896441",

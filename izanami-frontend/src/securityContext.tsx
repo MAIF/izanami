@@ -8,6 +8,7 @@ export interface TIzanamiContext {
   setUser: (user: TUser) => void;
   setExpositionUrl: (url: string) => void;
   logout: () => void;
+  displayModal: (content: React.FC<{ close: () => void }>) => Promise<void>;
   askConfirmation: (
     msg: JSX.Element | JSX.Element[] | string,
     onSubmit?: () => Promise<any>,
@@ -38,6 +39,7 @@ export const IzanamiContext = React.createContext<TIzanamiContext>({
   askConfirmation: () => {
     return Promise.resolve();
   },
+  displayModal: () => Promise.resolve(),
   askPasswordConfirmation: () => {
     return Promise.resolve();
   },

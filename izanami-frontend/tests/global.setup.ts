@@ -1,8 +1,6 @@
 import { test as setup, expect } from "@playwright/test";
 import { STORAGE_STATE } from "../playwright.config";
-import { cleanup } from "./utils";
-
-export const PASSWORD = "ADMIN_DEFAULT_PASSWORD";
+import { cleanup, PASSWORD } from "./utils";
 
 setup("do login", async ({ page }) => {
   await cleanup();

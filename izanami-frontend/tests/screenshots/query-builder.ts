@@ -4,7 +4,7 @@ import {
   testFeature,
   testGlobalContext,
   testTenant,
-  testproject,
+  testProject,
 } from "../testBuilder";
 
 export async function generate() {
@@ -16,12 +16,12 @@ export async function generate() {
     .withTenant(
       testTenant("bookstore")
         .withProject(
-          testproject("website")
+          testProject("website")
             .withFeature(testFeature("comments").withEnableStatus())
             .withFeature(testFeature("summer-sales"))
         )
         .withProject(
-          testproject("suppliers").withFeature(testFeature("advises"))
+          testProject("suppliers").withFeature(testFeature("advises"))
         )
         .withContext(testGlobalContext("QA"))
     )

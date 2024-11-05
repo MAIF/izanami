@@ -4,10 +4,10 @@ title: Cache
 
 import { Note } from "@site/src/components/Note";
 
-Client put features in cache with their activation conditions.
+Client put features in cache with their activation conditions (or alternative values for string/number features).
 
-This means that (except for script features) client can **compute feature activation locally**, without the need to perform an http call to remote Izanami.
-In this mode, feature activation conditions are **updated periodically in background**.
+This means that (except for script features) client can **compute feature value locally**, without the need to perform an http call to remote Izanami.
+In this mode, feature activation conditions/alternative values are **updated periodically in background**.
 
 <Note>
   Script features can't be evaluated locally, since client does not embed a WASM
@@ -34,12 +34,12 @@ By default, cache is disabled and a query is sent to remote Izanami for each req
 When cache is active, it's always possible to skip it for some queries :
 
 ```java
-CompletableFuture<Boolean> result = client.checkFeatureActivation(
+CompletableFuture<Boolean> result = client.booleanValue(
     newSingleFeatureRequest(id)
     .ignoreCache(true) // Ignore cache and perform request for this query
 );
 
-CompletableFuture<Boolean> another = client.checkFeatureActivations(
+CompletableFuture<Boolean> another = client.booleanValue(
   newFeatureRequest()
     .withFeatures(<FEATURE_IDS>)
     .ignoreCache(true) // Ignore cache and perform request for this query

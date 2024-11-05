@@ -5,7 +5,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, PartialImportFailure}
 import fr.maif.izanami.models.ExportedType.parseExportedType
 import fr.maif.izanami.models.features.{BooleanResult, BooleanResultDescriptor}
-import fr.maif.izanami.models.{AbstractFeature, ApiKey, CompleteFeature, CompleteWasmFeature, ExportedType, Feature, FeatureType, OverloadType, RightLevels, UserWithRights}
+import fr.maif.izanami.models.{AbstractFeature, ApiKey, CompleteFeature, CompleteWasmFeature, ExportedType, Feature, FeatureType, Import, OverloadType, RightLevels, UserWithRights}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldKey.{oldKeyReads, toNewKey}
 import fr.maif.izanami.v1.OldScripts.doesUseHttp
@@ -147,20 +147,21 @@ class ImportController(
     val env: Env,
     val controllerComponents: ControllerComponents,
     val tenantAuthAction: TenantAuthActionFactory,
-    val wasmManagerClient: WasmManagerClient
+    val wasmManagerClient: WasmManagerClient,
+    val maybeTokenAuthAction: PersonnalAccessTokenTenantAuthActionFactory
 ) extends BaseController {
 
   implicit val ec: ExecutionContext = env.executionContext;
 
   def deleteImportStatus(tenant: String, id: String): Action[AnyContent] =
-    tenantAuthAction(tenant, RightLevels.Admin).async { implicit request =>
+    maybeTokenAuthAction(tenant, RightLevels.Admin, Import).async { implicit request =>
       {
         env.datastores.tenants.deleteImportStatus(UUID.fromString(id)).map(_ => NoContent)
       }
     }
 
   def readImportStatus(tenant: String, id: String): Action[AnyContent] =
-    tenantAuthAction(tenant, RightLevels.Admin).async { implicit request =>
+    maybeTokenAuthAction(tenant, RightLevels.Admin, Import).async { implicit request =>
       {
         env.datastores.tenants.readImportStatus(UUID.fromString(id)).map {
           case Some(importResult) => Ok(Json.toJson(importResult)(importResultWrites))
@@ -180,7 +181,7 @@ class ImportController(
       projectPartSize: Option[Int],
       inlineScript: Option[Boolean]
   ): Action[MultipartFormData[Files.TemporaryFile]] =
-    tenantAuthAction(tenant, RightLevels.Admin).async(parse.multipartFormData) { implicit request =>
+    maybeTokenAuthAction(tenant, RightLevels.Admin, Import).async(parse.multipartFormData) { implicit request =>
       if (version == 1) {
         timezone
           .map(tz => {

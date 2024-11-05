@@ -5,9 +5,9 @@ import {
   testFeature,
   testTenant,
   testWebhook,
-  testproject,
+  testProject,
 } from "./testBuilder";
-import { PASSWORD } from "./global.setup";
+import { PASSWORD } from "./utils";
 
 test.use({
   headless: true,
@@ -36,7 +36,7 @@ test.describe("Webhook screen should", () => {
     await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testproject("project")
+          testProject("project")
             .withFeature(testFeature("f1"))
             .withFeature(testFeature("f2"))
         )
@@ -64,7 +64,7 @@ test.describe("Webhook screen should", () => {
       .withTenant(
         testTenant(tenantName)
           .withProject(
-            testproject("project")
+            testProject("project")
               .withFeature(testFeature("f1"))
               .withFeature(testFeature("f2"))
           )
@@ -91,7 +91,7 @@ test.describe("Webhook screen should", () => {
       .withTenant(
         testTenant(tenantName)
           .withProject(
-            testproject("project")
+            testProject("project")
               .withFeature(testFeature("f1"))
               .withFeature(testFeature("f2"))
           )
@@ -114,7 +114,7 @@ test.describe("Webhook screen should", () => {
       .withTenant(
         testTenant(tenantName)
           .withProject(
-            testproject("project")
+            testProject("project")
               .withFeature(testFeature("f1"))
               .withFeature(testFeature("f2"))
           )

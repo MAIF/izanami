@@ -1,0 +1,144 @@
+---
+title: Access tokens
+---
+
+import simpleForm from "@site/static/img/screenshots/personnal-access-tokens/simple-filled-form.png";
+import secretModal from "@site/static/img/screenshots/personnal-access-tokens/secret-modal.png";
+import moreRightForm from "@site/static/img/screenshots/personnal-access-tokens/more-right-form.png";
+import tokenTable from "@site/static/img/screenshots/personnal-access-tokens/token-table.png";
+import otherUserTokens from "@site/static/img/screenshots/personnal-access-tokens/other-user-tokens.png";
+import createTokenButton from "@site/static/img/screenshots/personnal-access-tokens/create-token-button.png";
+import { Note } from "@site/src/components/Note";
+
+Izanami UI is the main channel to manage your features. However sometimes you need to automatize some operations.
+For such needs, Izanami allows to call some Izanami admin endpoints with **personnal access tokens**.
+
+<Note>Personnal acces tokens are available from Izanami 2.6.0.</Note>
+
+# What should I use personnal access token for ?
+
+A personnal acess token allows to call some Izanami admin endpoints from code.
+
+For instance you may want to automatically synchronize two Izanami instances using import/export endpoints.
+
+## How does personnal access token works
+
+Personnal access tokens perform operation **in their owner name** and **with their owner rights**.
+
+Tokens can have either all their owner rights or a subset of their rights.
+
+In all cases, a token can **never have more rights than its owner**. This means that if a user lost some rights, tokens previously generated with these rights will loose them as well.
+
+<Note>
+  Personnal access tokens should be considered as **passwords**.
+  <br /> Therefore Izanami will display them once (at creation) and store them encrypted
+  in database.
+  <br />
+  <strong>This means that there is no way to recover a lost token.</strong>
+</Note>
+
+They can have an expiration date, and don't work once they're expired.
+
+You can have multiple access tokens.
+
+<Note>
+  It's recommended to have a token for each use case, this way if a token leaks,
+  you'll have less places to update.
+</Note>
+
+## How to use access tokens
+
+Right now, access tokens can be used on two endpoints:
+
+- `/api/admin/tenants/<YOUR_TENANT>/_export`
+- `/api/admin/tenants/<YOUR_TENANT>/_import`
+
+Tokens may be used on more endpoints in the future, please [open an issue](https://github.com/MAIF/izanami/issues) if you encounter such need.
+
+Access tokens must be used as password in a Basic auth header, where username is username of token owners.
+
+### Export endpoint
+
+Here is an example of export endpoint call using an access token:
+
+```sh
+curl -H "Content-Type: application/json" \
+  -u "<USERNAME>:<ACCESS TOKEN>" \
+  --data '{
+    "allProjects": true,
+    "allKeys": true,
+    "allWebhooks": true,
+    "userRights": false,
+    "webhooks": [],
+    "projects": [],
+    "keys": []
+  }' \
+"<IZANAMI_URL>/api/admin/tenants/<TENANT>/_export"
+```
+
+where:
+
+- allProjects: indicates whether or not all tenants projects should be exported
+- allKeys: indicates whether or not all tenants keys should be exported
+- allWebhooks: indicates whether or not all tenants webhooks should be exported
+- userRights: indicate whether or not user rights should be exported
+- webhooks: if `allWebhooks` is false, list webhooks ids to export
+- projects: if `allProjects` is false, list webhooks ids to export
+- keys: if `allKeys` is false, list key ids to export
+
+### Import endpoint
+
+Here is an example of import endpoint call using an access token (where file to import is named `import.ndjson`).
+
+```sh
+curl -F "export=@import.ndjson" \
+ -u "<USERNAME>:<ACCESS TOKEN>" \
+ "<IZANAMI_URL>/api/admin/tenants/<TENANT>/_import?version=2&conflict=skip"
+```
+
+where:
+
+- `import.ndjson` should contain previously exported data
+- version can be 1 or 2, depending on where exported data are from (Izanami v1 or v2)
+- conflict can be `skip`, `overwrite` or `fail` (see [this page foe details](./transfer-data))
+
+# Example
+
+To create personnal acess token you'll need to go to your profile page (click on your username in the top right corner, then "Profile").
+
+At the bottom on this page, click the "Create token" button to open token creation form.
+
+<img src={createTokenButton} />
+
+This form allows to define:
+
+- token name
+- token expiration (tokens will have no expiration if field is empty, which is not recommended)
+- token rights (either all user rights, or a subset)
+
+Let's create a simple token with all current user rights.
+
+<img src={simpleForm} />
+
+Once you save your token, a modal will appear with token secret.
+**Make sure to copy the secret before closing the modal**, it won't be displayed again.
+
+<img src={secretModal} />
+
+It's also possible to customize token rights, to limit them to given tenant and/or actions.
+
+<img src={moreRightForm} />
+
+All your tokens are visible in your profile page.
+
+<img src={tokenTable} />
+
+<Note>
+Secret associated with a personnal access token is composed of two parts: `<ID>_<crypted-stuff>`.<br/>
+`ID` can be used to identify a token in case of need. To do so, just paste your ID in search field of the ID column.
+</Note>
+
+Moreover, admin users (admin of the whole Izanami instance) can see, update or delete tokens for any users.
+These tokens visible in the users page.
+
+<img src={otherUserTokens} />

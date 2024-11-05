@@ -4,7 +4,7 @@ import {
   testGlobalContext,
   testKey,
   testOverload,
-  testproject,
+  testProject,
   testTenant,
 } from "../testBuilder";
 import { screenshotBuilder, setup } from "./utils";
@@ -18,7 +18,7 @@ export async function generate() {
       testTenant("bookstore")
         .withContext(testGlobalContext("prod"))
         .withProject(
-          testproject("webstore")
+          testProject("webstore")
             .withFeature(
               testFeature("comments")
                 .withEnableStatus()

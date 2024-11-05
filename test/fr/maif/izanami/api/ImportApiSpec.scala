@@ -1,13 +1,131 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{TestFeature, TestProject, TestSituationBuilder, TestTenant, TestUser}
-import play.api.http.Status.{ACCEPTED, FORBIDDEN, NOT_FOUND, NO_CONTENT, OK}
+import fr.maif.izanami.api.BaseAPISpec.{
+  importWithToken,
+  TestFeature,
+  TestPersonnalAccessToken,
+  TestProject,
+  TestRights,
+  TestSituationBuilder,
+  TestTenant,
+  TestUser
+}
+import play.api.http.Status.{ACCEPTED, CREATED, FORBIDDEN, NOT_FOUND, NO_CONTENT, OK, UNAUTHORIZED}
 import play.api.libs.json.{JsNull, JsObject}
 
 import java.util.UUID
 
 class ImportApiSpec extends BaseAPISpec {
   "V2 feature import" should {
+    "allow to import features with all rights token" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("testtenant"))
+        .withPersonnalAccessToken(TestPersonnalAccessToken("foo", allRights = true))
+        .loggedInWithAdminRights()
+        .build()
+
+      val data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"simple feature","enabled":true,"project":"test-project","metadata":{},"conditions":[],"description":"","script_config":null},"_type":"feature"}"""
+      )
+
+      val secret = situation.findTokenSecret(situation.user, "foo");
+
+      val res = importWithToken("testtenant", situation.user, secret, data = data)
+      res.status mustBe OK
+    }
+
+    "allow to import features with import only token" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("testtenant"))
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken("foo", allRights = false, rights = Map("testtenant" -> Set("IMPORT")))
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"simple feature","enabled":true,"project":"test-project","metadata":{},"conditions":[],"description":"","script_config":null},"_type":"feature"}"""
+      )
+
+      val secret = situation.findTokenSecret(situation.user, "foo");
+
+      val res = importWithToken("testtenant", situation.user, secret, data = data)
+      res.status mustBe OK
+    }
+
+    "prevent to import features with export only token" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("testtenant"))
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken("foo", allRights = false, rights = Map("testtenant" -> Set("EXPORT")))
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"simple feature","enabled":true,"project":"test-project","metadata":{},"conditions":[],"description":"","script_config":null},"_type":"feature"}"""
+      )
+
+      val secret = situation.findTokenSecret(situation.user, "foo");
+
+      val res = importWithToken("testtenant", situation.user, secret, data = data)
+      res.status mustBe UNAUTHORIZED
+    }
+
+    "prevent to import features if user is not tenant admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("testtenant"))
+        .withUsers(TestUser("testu", "testutestu").withTenantReadWriteRight("testtenant"))
+        .loggedInWithAdminRights()
+        .loggedAs("testu")
+        .build()
+
+      val resp   = situation.createPersonnalAccessToken(TestPersonnalAccessToken("foo", allRights = true))
+      resp.status mustBe CREATED
+      val secret = (resp.json.get \ "token").as[String]
+
+      val data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"simple feature","enabled":true,"project":"test-project","metadata":{},"conditions":[],"description":"","script_config":null},"_type":"feature"}"""
+      )
+
+      val res = importWithToken("testtenant", "testu", secret, data = data)
+      res.status mustBe FORBIDDEN
+    }
+
+    "prevent to import features if user is not tenant admin, even if token has import rights" in {
+      val user      = TestUser(
+        username = "testu",
+        admin = true,
+        rights = TestRights().addTenantRight("testtenant", level = "Write")
+      )
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("testtenant"))
+        .withUsers(user)
+        .loggedAs(user.username)
+        .build()
+
+      val resp               = situation.createPersonnalAccessToken(
+        TestPersonnalAccessToken("foo", allRights = false, rights = Map("testtenant" -> Set("IMPORT")))
+      )
+      resp.status mustBe CREATED
+      val userUpdateResponse = situation.updateUserRights(user.username, false, user.rights)
+      userUpdateResponse.status mustEqual NO_CONTENT
+
+      val secret = (resp.json.get \ "token").as[String]
+
+      val data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"simple feature","enabled":true,"project":"test-project","metadata":{},"conditions":[],"description":"","script_config":null},"_type":"feature"}"""
+      )
+
+      val res = importWithToken("testtenant", "testu", secret, data = data)
+      res.status mustBe FORBIDDEN
+    }
+
     "allow to import typeless features" in {
       val situation = TestSituationBuilder()
         .withTenantNames("testtenant")
@@ -413,7 +531,7 @@ class ImportApiSpec extends BaseAPISpec {
           """{"id":"baz:lalala","enabled":false,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
         )
       )
-      response.status mustBe FORBIDDEN
+      response.status mustBe UNAUTHORIZED
     }
 
     "allow feature import tenant admin user" in {

@@ -17,7 +17,7 @@ import org.flywaydb.core.Flyway
 import play.api.libs.json.{JsArray, JsObject, Json}
 import play.api.{Configuration, Logger}
 
-import java.time.{Instant, OffsetDateTime, ZoneId}
+import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -384,6 +384,10 @@ object pgimplicits {
         val instant = Instant.ofEpochMilli(d.toInstant.toEpochMilli)
         OffsetDateTime.ofInstant(instant, ZoneId.of(id))
       }
+    }
+
+    def optLocalDateTime(name: String): Option[LocalDateTime] = {
+      opt(name, "LocalDateTime", (a, b) => a.getLocalDateTime(b))
     }
 
     def optOffsetDatetime(name: String): Option[OffsetDateTime] =

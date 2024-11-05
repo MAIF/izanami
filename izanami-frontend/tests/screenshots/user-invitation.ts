@@ -3,7 +3,7 @@ import {
   testBuilder,
   testFeature,
   testTenant,
-  testproject,
+  testProject,
 } from "../testBuilder";
 
 export async function generate() {
@@ -15,7 +15,7 @@ export async function generate() {
   await testBuilder()
     .withTenant(
       testTenant("bookstore").withProject(
-        testproject("website")
+        testProject("website")
           .withFeature(testFeature("comments"))
           .withFeature(testFeature("summer-sales"))
           .withFeature(testFeature("phone-support"))

@@ -30,8 +30,57 @@ export function Modal(props: {
       }
     };
     window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
+    return () => {
+      window.removeEventListener("keydown", close);
+    };
   }, []);
+
+  return (
+    <RawModal visible={visible} position={position}>
+      <>
+        {title && (
+          <div className="modal-header">
+            <h5 className="modal-title">{title}</h5>
+          </div>
+        )}
+        <div className="modal-body" style={style}>
+          {children}
+        </div>
+
+        <div className="modal-footer">
+          <button
+            type="button"
+            aria-label="Cancel"
+            className={`btn ${
+              !closeButtonText && !onConfirm ? "btn-danger" : "btn-danger-light"
+            }`}
+            data-bs-dismiss="modal"
+            onClick={() => onClose()}
+          >
+            {closeButtonText ? closeButtonText : onConfirm ? "Cancel" : "Close"}
+          </button>
+          {onConfirm && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={onConfirm}
+              aria-label="Confirm"
+            >
+              {confirmButtonText ? confirmButtonText : "Confirm"}
+            </button>
+          )}
+        </div>
+      </>
+    </RawModal>
+  );
+}
+
+export function RawModal(props: {
+  visible: boolean;
+  children: ReactElement | ReactElement[] | string;
+  position?: "top" | "center";
+}) {
+  const { visible, position, children } = props;
 
   return (
     <>
@@ -50,45 +99,7 @@ export function Modal(props: {
             position === "top" ? "modal-dialog-start" : "modal-dialog-centered"
           } modal-lg ${visible ? "anim__upToBottom" : ""}`}
         >
-          <div className="modal-content">
-            {title && (
-              <div className="modal-header">
-                <h5 className="modal-title">{title}</h5>
-              </div>
-            )}
-            <div className="modal-body" style={style}>
-              {children}
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                aria-label="Cancel"
-                className={`btn ${
-                  !closeButtonText && !onConfirm
-                    ? "btn-danger"
-                    : "btn-danger-light"
-                }`}
-                data-bs-dismiss="modal"
-                onClick={() => onClose()}
-              >
-                {closeButtonText
-                  ? closeButtonText
-                  : onConfirm
-                  ? "Cancel"
-                  : "Close"}
-              </button>
-              {onConfirm && (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={onConfirm}
-                  aria-label="Confirm"
-                >
-                  {confirmButtonText ? confirmButtonText : "Confirm"}
-                </button>
-              )}
-            </div>
-          </div>
+          <div className="modal-content">{children}</div>
         </div>
       </div>
     </>

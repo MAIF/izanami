@@ -170,6 +170,13 @@
             "href": "/izanami/docs/guides/non-boolean-features",
             "docId": "guides/non-boolean-features",
             "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Access tokens",
+            "href": "/izanami/docs/guides/personnal-access-tokens",
+            "docId": "guides/personnal-access-tokens",
+            "unlisted": false
           }
         ],
         "href": "/izanami/docs/guides/"
@@ -232,7 +239,7 @@
     "clients/java/cache": {
       "id": "clients/java/cache",
       "title": "Cache",
-      "description": "Client put features in cache with their activation conditions.",
+      "description": "Client put features in cache with their activation conditions (or alternative values for string/number features).",
       "sidebar": "tutorialSidebar"
     },
     "clients/java/error-handling": {
@@ -335,6 +342,12 @@
       "id": "guides/non-boolean-features",
       "title": "Non boolean features",
       "description": "Boolean features (features that can only respond true or false)",
+      "sidebar": "tutorialSidebar"
+    },
+    "guides/personnal-access-tokens": {
+      "id": "guides/personnal-access-tokens",
+      "title": "Access tokens",
+      "description": "Izanami UI is the main channel to manage your features. However sometimes you need to automatize some operations.",
       "sidebar": "tutorialSidebar"
     },
     "guides/query-builder": {

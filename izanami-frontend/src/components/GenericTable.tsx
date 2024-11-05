@@ -144,7 +144,8 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
             return (
               <li
                 key={`${props.row.id}-${key}`}
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   if (isCustomActionWithoutForm(action)) {
                     action.action(props.row.original);
                   } else {

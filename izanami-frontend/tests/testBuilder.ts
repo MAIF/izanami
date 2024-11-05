@@ -8,8 +8,14 @@ type featureIdByName = [string, string];
 
 export class TestSituationBuilder {
   tenants: TestTenant[] = [];
+  users: TestUser[] = [];
   static newBuilder(): TestSituationBuilder {
     return new TestSituationBuilder();
+  }
+
+  withUser(user: TestUser): TestSituationBuilder {
+    this.users.push(user);
+    return this;
   }
 
   withTenant(tenant: TestTenant): TestSituationBuilder {
@@ -52,6 +58,35 @@ export class TestSituationBuilder {
         )
       )
     );
+  }
+
+  async createUser(page: Page, user: TestUser): Promise<any> {
+    const cookie = await this.cookie(page);
+    const email = `${user.name}@imaginarymail.com`;
+    return fetch(`http://localhost:9000/api/admin/invitation`, {
+      body: JSON.stringify({ email, admin: user.admin }),
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        cookie: cookie,
+      },
+    })
+      .then((userResponse) => userResponse.json())
+      .then((json) => {
+        const url = json.invitationUrl;
+        const token = url.split("token=")[1];
+        fetch(`http://localhost:9000/api/admin/users`, {
+          body: JSON.stringify({
+            username: user.name,
+            password: "notARealPassword",
+            token,
+          }),
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+      });
   }
 
   async buildContextHierarchy(
@@ -279,6 +314,11 @@ export class TestSituationBuilder {
           )
       )
     )
+      .then((pairs) => {
+        return Promise.all(
+          this.users.map((user) => this.createUser(page, user))
+        ).then(() => pairs);
+      })
       .then((pairs) => new Map(pairs.flat().flat()))
       .then((m) => new TestSituation(m))
       .catch((err) => {
@@ -304,7 +344,7 @@ export function testTenant(name: string): TestTenant {
   return new TestTenant(name);
 }
 
-export function testproject(name: string): TestProject {
+export function testProject(name: string): TestProject {
   return new TestProject(name);
 }
 
@@ -330,6 +370,10 @@ export function testTag(name: string, description?: string): TestTag {
 
 export function testKey(data: Partial<TestKey> & { name: string }): TestKey {
   return new TestKey(data);
+}
+
+export function testUser(name: string, admin: boolean = false) {
+  return new TestUser(name, admin);
 }
 
 export function testOverload(
@@ -361,6 +405,16 @@ class TestKey {
     this.enabled = data.enabled || true;
     this.admin = data.admin || false;
     this.projects = data.projects || [];
+  }
+}
+
+class TestUser {
+  name: string;
+  admin: boolean;
+
+  constructor(name: string, admin: boolean) {
+    this.name = name;
+    this.admin = admin;
   }
 }
 
