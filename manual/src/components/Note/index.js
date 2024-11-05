@@ -1,5 +1,5 @@
 import styles from "./styles.module.css";
-import IzanamiLogo from "@site/static/img/izanami.png";
+import IzanamiLogo from "@site/static/img/izanami_compressed.webp";
 
 export function Note({ children }) {
   return (

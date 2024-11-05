@@ -30,7 +30,7 @@ IzanamiClient.newBuilder(
 
 ## Error strategies
 
-If fallback on last known strategy is disabled or if it can't be done (for script feature or never requested features), client will use an error strategy to decide what should be returned.
+If fallback on last known strategy is disabled or if it can't be done (for script features or never requested features), client will use an error strategy to decide what should be returned.
 
 There are 4 built-in error strategies :
 
@@ -38,7 +38,7 @@ There are 4 built-in error strategies :
 
 ```java
 CompletableFuture<Boolean> futureActivation = client
-  .checkFeatureActivation(newSingleFeatureRequest("<YOUR_FEATURE_ID>")
+  .booleanValue(newSingleFeatureRequest("<YOUR_FEATURE_ID>")
   .withErrorStrategy(nullValueStrategy()));
 
 futureActivation.thenAccept(System.out::println); // null
@@ -54,7 +54,7 @@ futureActivation.thenAccept(System.out::println); // null
 
 ```java
 CompletableFuture<Boolean> futureActivation = client
-  .checkFeatureActivation(newSingleFeatureRequest("<YOUR_FEATURE_ID>")
+  .booleanValue(newSingleFeatureRequest("<YOUR_FEATURE_ID>")
   .withErrorStrategy(failStrategy()));
 
 futureActivation.join(); // Will throw
@@ -64,8 +64,8 @@ futureActivation.join(); // Will throw
 
 ```java
 CompletableFuture<Boolean> futureActivation = client
-  .checkFeatureActivation(newSingleFeatureRequest("<YOUR_FEATURE_ID>")
-  .withErrorStrategy(defaultValueStrategy(true)));
+  .booleanValue(newSingleFeatureRequest("<YOUR_FEATURE_ID>")
+  .withErrorStrategy(defaultValueStrategy(true /* default value for number features*/, "default_value°for_string_features", BigDecimal.TEN /* default value for number features*/)));
 
 futureActivation.thenAccept(System.out::println); // true
 ```
@@ -74,11 +74,22 @@ futureActivation.thenAccept(System.out::println); // true
 
 ```java
 CompletableFuture<Boolean> futureActivation = client
-  .checkFeatureActivation(newSingleFeatureRequest("<YOUR_FEATURE_ID>")
-  .withErrorStrategy(callbackStrategy(err -> {
+  .booleanValue(newSingleFeatureRequest("<YOUR_FEATURE_ID>")
+  .withErrorStrategy(callbackStrategy(
+    err -> {
       // You can do anything you want here
+      // You'll need to provide one callback by feature type
       return CompletableFuture.completedFuture(true);
-  })));
+    },
+    err -> {
+      // this callback will be used for string features
+      return CompletableFuture.completedFuture("foo");
+    },
+    err -> {
+      // this callback will be used for number features
+      return CompletableFuture.completedFuture(BigDecimal.TEN);
+    }
+  ));
 futureActivation.thenAccept(System.out::println);
 ```
 
@@ -103,7 +114,7 @@ IzanamiClient.newBuilder(
 - **At query level**, for every feature of the query
 
 ```java
-client.checkFeatureActivations(
+client.featureValues(
   newFeatureRequest()
     .withFeatures("<ID_1>", "<ID_2>")
     .withErrorStrategy(failStrategy()) // This will apply for each features of this query
@@ -113,10 +124,10 @@ client.checkFeatureActivations(
 - **At query's feature level**, allowing a different error strategy for each feature
 
 ```java
-client.checkFeatureActivations(
+client.featureValues(
   newFeatureRequest().withFeatures(
-    SpecificFeatureRequest.feature("<ID_1>").withErrorStrategy(defaultValueStrategy(true)),
-    SpecificFeatureRequest.feature("<ID_2>").withErrorStrategy(defaultValueStrategy(false))
+    SpecificFeatureRequest.feature("<ID_1>").withErrorStrategy(defaultValueStrategy(true, "foo", null)),
+    SpecificFeatureRequest.feature("<ID_2>").withErrorStrategy(defaultValueStrategy(false, "bar", BigDecimal.TEN))
   )
 )
 ```

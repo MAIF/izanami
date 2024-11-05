@@ -36,6 +36,17 @@ case class OneProjectDoesNotExists(names: Iterable[String])
         s"""One or more of the following project does not exist : [${names.map(n => s""""${n}"""").mkString(",")}]""",
       status = BAD_REQUEST
     )
+case class TokenWithThisNameAlreadyExists(name: String)
+    extends IzanamiError(
+      message = s"""A personnal access token with name $name already exists for this user""",
+      status = BAD_REQUEST
+    )
+
+case class TokenDoesNotExist(id: String, name: String)
+  extends IzanamiError(
+    message = s"""Token with id $id does not exist for user $name""",
+    status = NOT_FOUND
+  )
 case class MissingFeatureFields()
     extends IzanamiError(message = "Some fields are missing for feature object", status = BAD_REQUEST)
 case class FeatureNotFound(id: String)

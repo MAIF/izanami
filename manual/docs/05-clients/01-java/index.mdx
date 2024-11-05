@@ -52,8 +52,18 @@ IzanamiClient client = IzanamiClient.newBuilder(
 The client can be used to query a single feature...
 
 ```java
-CompletableFuture<Boolean> res = client.checkFeatureActivation(
+CompletableFuture<Boolean> res = client.booleanValue(
   newSingleFeatureRequest("<YOUR_FEATURE_ID>")
+);
+
+// For features that returns a String value
+CompletableFuture<String> futureString = client.stringValue(
+  newSingleFeatureRequest("<YOUR_STRING_FEATURE_ID>")
+);
+
+// For features that returns a number (BigDecimal) value
+CompletableFuture<BigDecimal> res = client.numberValue(
+  newSingleFeatureRequest("<YOUR_NUMBER_FEATURE_ID>")
 );
 ```
 
@@ -61,16 +71,18 @@ CompletableFuture<Boolean> res = client.checkFeatureActivation(
 
 ```java
 // Resulting map associates feature id to its activation
-CompletableFuture<Map<String, Boolean>> results = client.checkFeatureActivations(
+CompletableFuture<IzanamiResult> results = client.featureValues(
     newFeatureRequest()
-      .withFeatures("<YOUR_ID_1>", "<YOUR_ID_2>")
+      .withFeatures("<BOOLEAN_FEATURE_ID>", "<STRING_FEATURE_ID>")
   );
+results.join().booleanValue("<BOOLEAN_FEATURE_ID>");
+results.join().stringValue("<STRING_FEATURE_ID>");
 ```
 
 With these queries, you can specify user, context or payload :
 
 ```java
-CompletableFuture<Map<String, Boolean>> results = client.checkFeatureActivations(
+CompletableFuture<IzanamiResult> results = client.checkFeatureActivations(
     newFeatureRequest()
       .withFeatures("<YOUR_ID_1>", "<YOUR_ID_2>")
       .withUser("<YOUR_USER>")

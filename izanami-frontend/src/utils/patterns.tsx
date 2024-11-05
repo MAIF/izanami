@@ -7,3 +7,4 @@ export const TAG_NAME_REGEXP = /^[a-zA-Z0-9-_]+$/;
 export const WEBHOOK_NAME_REGEXP = /^[a-zA-Z0-9-_]+$/;
 export const PROJECT_NAME_REGEXP = /^[a-zA-Z0-9-_]+$/;
 export const LEGACY_ID_REGEXP = /^(([\w@.0-9-]+)(:?))+$/;
+export const TOKEN_NAME_REGEXP = /^[ a-zA-Z0-9_\-:]+$/;

@@ -8,7 +8,7 @@ import {
   testOverload,
   testTag,
   testTenant,
-  testproject,
+  testProject,
 } from "./testBuilder";
 import { tenantFromTitleAndBrowser } from "./izanami-test";
 
@@ -22,7 +22,7 @@ test.describe("Export / import should", () => {
       .withTenant(
         testTenant(tenantName)
           .withProject(
-            testproject("testproject")
+            testProject("testProject")
               .withFeature(
                 testFeature("f1").withOverload(
                   testOverload("testcontext", true)
@@ -61,8 +61,8 @@ test.describe("Export / import should", () => {
     await expect(page.getByLabel("Exported file (ndjson)")).not.toBeVisible();
 
     await page.getByRole("link", { name: "Projects" }).click();
-    await expect(page.getByRole("link", { name: "testproject" })).toBeVisible();
-    await page.getByRole("link", { name: "testproject" }).click();
+    await expect(page.getByRole("link", { name: "testProject" })).toBeVisible();
+    await page.getByRole("link", { name: "testProject" }).click();
 
     await expect(page.getByRole("rowheader", { name: "f1" })).toBeVisible();
 

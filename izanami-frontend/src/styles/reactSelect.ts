@@ -41,7 +41,10 @@ export const customStyles: object = {
       };
     }
   },
-  indicatorSeparator: (styles: object, { isDisabled }) => {
+  indicatorSeparator: (
+    styles: object,
+    { isDisabled }: { isDisabled: boolean }
+  ) => {
     if (isDisabled) {
       return {
         ...styles,
@@ -51,7 +54,10 @@ export const customStyles: object = {
       return styles;
     }
   },
-  dropdownIndicator: (styles: object, { isDisabled }) => {
+  dropdownIndicator: (
+    styles: object,
+    { isDisabled }: { isDisabled: boolean }
+  ) => {
     if (isDisabled) {
       return {
         ...styles,
@@ -63,7 +69,7 @@ export const customStyles: object = {
   },
   menuList: (styles: object) => ({ ...styles }),
   container: (styles: object) => ({ ...styles }),
-  control: (styles: object, { isDisabled }) => ({
+  control: (styles: object, { isDisabled }: { isDisabled: boolean }) => ({
     ...styles,
     backgroundColor: isDisabled
       ? "var(--bg-color_level2) !important"
@@ -86,7 +92,7 @@ export const customStyles: object = {
     ...styles,
     color: "var(--color_level3) !important",
   }),
-  singleValue: (provided: object, { isDisabled }) => ({
+  singleValue: (provided: object, { isDisabled }: { isDisabled: boolean }) => ({
     ...provided,
     color: isDisabled
       ? "var(--color_level1) !important"

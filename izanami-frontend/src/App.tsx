@@ -40,7 +40,7 @@ import { Invitation } from "./pages/invitation";
 import { Profile } from "./pages/profile";
 import { ForgottenPassword } from "./pages/forgottenPassword";
 import { FormReset } from "./pages/formReset";
-import { Modal } from "./components/Modal";
+import { Modal, RawModal } from "./components/Modal";
 import {
   MutationNames,
   queryConfiguration,
@@ -620,7 +620,7 @@ function Layout() {
 export class App extends Component {
   state: TIzanamiContext & {
     confirmation?: {
-      message: JSX.Element | JSX.Element[];
+      message: JSX.Element | JSX.Element[] | React.FC;
       callback?: () => Promise<any>;
       onCancel?: () => Promise<any>;
       closeButtonText?: string;
@@ -727,9 +727,32 @@ export class App extends Component {
             confirmation: {
               message: msg,
               callback: () => callback?.().finally(() => resolve()),
-              onCancel: () => onCancel?.().finally(() => resolve()),
+              onCancel: () => {
+                return onCancel?.().finally(() => resolve());
+              },
               closeButtonText,
               confirmButtonText,
+            },
+          });
+        });
+      },
+      displayModal: (
+        Content: React.FC<{
+          close: () => void;
+        }>
+      ) => {
+        return new Promise((resolve) => {
+          this.setState({
+            confirmation: {
+              noFooter: true,
+              message: () => (
+                <Content
+                  close={() => {
+                    this.setState({ confirmation: undefined });
+                    resolve();
+                  }}
+                />
+              ),
             },
           });
         });
@@ -829,14 +852,29 @@ export class App extends Component {
         }
       },
     };
+
+    let modalPart = <></>;
+    if (this.state.confirmation) {
+      if (typeof this.state.confirmation?.message === "function") {
+        const ModalChild = this.state.confirmation.message;
+        modalPart = (
+          <RawModal {...modalProps}>
+            <ModalChild />
+          </RawModal>
+        );
+      } else {
+        modalPart = (
+          <Modal {...modalProps}>{this.state?.confirmation!.message}</Modal>
+        );
+      }
+    }
+
     return (
       <>
         <IzanamiContext.Provider value={this.state}>
           <QueryClientProvider client={queryClient}>
             <RouterProvider router={router} />
-            {this.state.confirmation && (
-              <Modal {...modalProps}>{this.state?.confirmation!.message}</Modal>
-            )}
+            {modalPart}
             {this.state.passwordConfirmation && (
               <PasswordModal {...modalPasswordProps}>
                 {this.state.passwordConfirmation.message}

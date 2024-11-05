@@ -30,6 +30,7 @@ import { Modal } from "../components/Modal";
 import { constraints } from "@maif/react-forms";
 import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
+import { TokensTable } from "../components/TokensTable";
 
 export function Users() {
   const [creationUrl, setCreationUrl] = useState<string | undefined>(undefined);
@@ -421,6 +422,32 @@ export function Users() {
                     }}
                     cancel={cancel}
                   />
+                );
+              },
+            },
+            tokens: {
+              hasRight: (user, rowUser) =>
+                isAdmin && rowUser.username !== user.username,
+              icon: (
+                <>
+                  <i className="fas fa-key" aria-hidden></i> Tokens
+                </>
+              ),
+              customForm: (data, cancel) => {
+                return (
+                  <div>
+                    <h4>Personnal access tokens for {data.username}</h4>
+                    <TokensTable user={data.username} />
+                    <div className="d-flex justify-content-end">
+                      <button
+                        type="button"
+                        className="btn btn-danger m-2"
+                        onClick={() => cancel()}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
                 );
               },
             },

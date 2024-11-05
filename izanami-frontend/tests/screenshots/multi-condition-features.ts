@@ -1,5 +1,5 @@
 import { screenshotBuilder, setup, openActions } from "./utils";
-import { testBuilder, testTenant, testproject } from "../testBuilder";
+import { testBuilder, testTenant, testProject } from "../testBuilder";
 
 export async function generate() {
   const { page, browser } = await setup(true);
@@ -7,7 +7,7 @@ export async function generate() {
   const screenshot = screenshotBuilder("multi-condition-feature")(page);
 
   await testBuilder()
-    .withTenant(testTenant("bookstore").withProject(testproject("website")))
+    .withTenant(testTenant("bookstore").withProject(testProject("website")))
     .build(page);
 
   await page.goto("http://localhost:3000/tenants/bookstore/projects/website");

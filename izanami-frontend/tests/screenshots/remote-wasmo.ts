@@ -2,7 +2,7 @@ import { openActions, screenshotBuilder, setup } from "./utils";
 import {
   testBuilder,
   testTenant,
-  testproject,
+  testProject,
   testGlobalContext,
 } from "../testBuilder";
 
@@ -14,7 +14,7 @@ export async function generate() {
   await testBuilder()
     .withTenant(
       testTenant("bookstore")
-        .withProject(testproject("website"))
+        .withProject(testProject("website"))
         .withContext(
           testGlobalContext("prod").withSubContext(testGlobalContext("mobile"))
         )

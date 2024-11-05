@@ -3,7 +3,7 @@ import {
   testBuilder,
   testFeature,
   testTenant,
-  testproject,
+  testProject,
 } from "./testBuilder";
 
 test.use({
@@ -13,7 +13,7 @@ test.use({
 test.describe("Project context screen should", () => {
   test("allow to create root context", async ({ page, tenantName }) => {
     const situation = await testBuilder()
-      .withTenant(testTenant(tenantName).withProject(testproject("project")))
+      .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
     await page.getByRole("link", { name: "Contexts", exact: true }).click();
@@ -25,7 +25,7 @@ test.describe("Project context screen should", () => {
 
   test("allow to create subcontext", async ({ page, tenantName }) => {
     const situation = await testBuilder()
-      .withTenant(testTenant(tenantName).withProject(testproject("project")))
+      .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
     await page.getByRole("link", { name: "Contexts", exact: true }).click();
@@ -43,7 +43,7 @@ test.describe("Project context screen should", () => {
     const situation = await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testproject("project").withFeature(testFeature("testfeature"))
+          testProject("project").withFeature(testFeature("testfeature"))
         )
       )
       .build(page);
@@ -74,7 +74,7 @@ test.describe("Project context screen should", () => {
     const situation = await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testproject("project")
+          testProject("project")
             .withFeature(testFeature("testfeature"))
             .withFeature(testFeature("anotherfeature"))
         )

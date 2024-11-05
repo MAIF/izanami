@@ -1,5 +1,31 @@
 import { isArray } from "lodash";
 
+export const POSSIBLE_TOKEN_RIGHTS = ["EXPORT", "IMPORT"] as const;
+export type TokenTenantRight = typeof POSSIBLE_TOKEN_RIGHTS[number];
+
+export type TokenTenantRightsArray = [string | null, TokenTenantRight[]][];
+export type TokenTenantRights = { [tenant: string]: TokenTenantRight[] };
+
+export type PersonnalAccessToken =
+  | {
+      id: string;
+      name: string;
+      expiresAt: Date;
+      expirationTimezone: string;
+      createdAt: Date;
+      username: string;
+      allRights: boolean;
+      rights: TokenTenantRights;
+    }
+  | {
+      id: string;
+      name: string;
+      createdAt: Date;
+      username: string;
+      allRights: boolean;
+      rights: TokenTenantRights;
+    };
+
 export interface TenantInCreationType {
   name: string;
   description?: string;

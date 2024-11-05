@@ -1,7 +1,7 @@
 import { Page } from "@playwright/test";
 import { test, expect } from "./izanami-test";
-import { testBuilder, testTenant, testproject } from "./testBuilder";
-import { PASSWORD } from "./global.setup";
+import { testBuilder, testTenant, testProject } from "./testBuilder";
+import { PASSWORD } from "./utils";
 
 test.use({
   headless: true,
@@ -50,7 +50,7 @@ test.describe("Tenant screen should", () => {
 test.describe("Project setting screen should", () => {
   test("allow to delete project", async ({ page, tenantName }) => {
     const situation = await testBuilder()
-      .withTenant(testTenant(tenantName).withProject(testproject("project")))
+      .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
     await page.getByLabel("Project settings").click();

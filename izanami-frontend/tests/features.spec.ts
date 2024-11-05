@@ -4,7 +4,7 @@ import {
   testBuilder,
   testFeature,
   testTenant,
-  testproject,
+  testProject,
 } from "./testBuilder";
 
 test.use({
@@ -32,7 +32,7 @@ async function featureAction(page: Page, name: string) {
 test.describe("Project screen should", () => {
   test("allow to create features", async ({ page, tenantName }) => {
     const situation = await testBuilder()
-      .withTenant(testTenant(tenantName).withProject(testproject("project")))
+      .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
 
@@ -50,7 +50,7 @@ test.describe("Project screen should", () => {
     const situation = await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testproject("project").withFeature(testFeature("feature"))
+          testProject("project").withFeature(testFeature("feature"))
         )
       )
       .build(page);
@@ -69,7 +69,7 @@ test.describe("Project screen should", () => {
     tenantName,
   }) => {
     const situation = await testBuilder()
-      .withTenant(testTenant(tenantName).withProject(testproject("project")))
+      .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
 
@@ -84,7 +84,7 @@ test.describe("Project screen should", () => {
 
   test("allow to create dated features", async ({ page, tenantName }) => {
     const situation = await testBuilder()
-      .withTenant(testTenant(tenantName).withProject(testproject("project")))
+      .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
 
@@ -110,7 +110,7 @@ test.describe("Project screen should", () => {
 
   test("allow to create user group features", async ({ page, tenantName }) => {
     const situation = await testBuilder()
-      .withTenant(testTenant(tenantName).withProject(testproject("project")))
+      .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
 
@@ -165,7 +165,7 @@ test.describe("Project screen should", () => {
     const situation = await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testproject("project").withFeature(
+          testProject("project").withFeature(
             testFeature("myname").withDisableStatus()
           )
         )
@@ -184,7 +184,7 @@ test.describe("Project screen should", () => {
 
   test("allow to update time conditions", async ({ page, tenantName }) => {
     const situation = await testBuilder()
-      .withTenant(testTenant(tenantName).withProject(testproject("project")))
+      .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
 
@@ -224,7 +224,7 @@ test.describe("Project screen should", () => {
     const situation = await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testproject("project")
+          testProject("project")
             .withFeature(testFeature("test"))
             .withFeature(testFeature("test2").withEnableStatus())
             .withFeature(testFeature("test3"))
@@ -256,7 +256,7 @@ test.describe("Project screen should", () => {
     const situation = await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testproject("project")
+          testProject("project")
             .withFeature(testFeature("test"))
             .withFeature(testFeature("test2").withEnableStatus())
             .withFeature(testFeature("test3"))
@@ -280,7 +280,7 @@ test.describe("Project screen should", () => {
     const situation = await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testproject("project").withFeature(testFeature("test"))
+          testProject("project").withFeature(testFeature("test"))
         )
       )
       .build(page);
@@ -296,7 +296,7 @@ test.describe("Project screen should", () => {
     const situation = await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testproject("project").withFeature(testFeature("test"))
+          testProject("project").withFeature(testFeature("test"))
         )
       )
       .build(page);
@@ -311,7 +311,7 @@ test.describe("Project screen should", () => {
 test.describe("Multi type features", () => {
   test("should be creatable", async ({ page, tenantName }) => {
     const situation = await testBuilder()
-      .withTenant(testTenant(tenantName).withProject(testproject("project")))
+      .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
 
     await page.goto(`/tenants/${tenantName}/projects/project`);

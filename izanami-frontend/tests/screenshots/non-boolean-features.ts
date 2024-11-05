@@ -3,7 +3,7 @@ import {
   testBuilder,
   testGlobalContext,
   testTenant,
-  testproject,
+  testProject,
 } from "../testBuilder";
 
 export async function generate() {
@@ -14,7 +14,7 @@ export async function generate() {
   await testBuilder()
     .withTenant(
       testTenant("bookstore")
-        .withProject(testproject("website"))
+        .withProject(testProject("website"))
         .withContext(testGlobalContext("dev"))
     )
     .build(page);

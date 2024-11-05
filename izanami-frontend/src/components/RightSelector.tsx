@@ -848,7 +848,11 @@ function ItemSelector(props: {
         }}
         isDisabled={!name}
       />
-      <button className="btn btn-danger" onClick={() => onClear?.()}>
+      <button
+        type="button"
+        className="btn btn-danger"
+        onClick={() => onClear?.()}
+      >
         Delete
       </button>
     </div>

@@ -2,6 +2,26 @@ import { Page } from "@playwright/test";
 import { Client } from "pg";
 import { expect } from "./izanami-test";
 
+export const PASSWORD = "ADMIN_DEFAULT_PASSWORD";
+
+export async function clickAction(page: Page, name: string) {
+  const dropdownLocator = page.getByLabel("actions");
+  const locator = page.getByRole("link", { name: name, exact: true });
+
+  await dropdownLocator.click();
+  try {
+    await locator.waitFor();
+  } catch {
+    try {
+      await dropdownLocator.click();
+      await locator.waitFor();
+    } catch {
+      await dropdownLocator.click();
+    }
+  }
+  await locator.click({ force: true });
+}
+
 const SCHEMAS_TO_KEEP = [
   "public",
   "izanami",
@@ -54,12 +74,15 @@ export const cleanup = async () => {
   );
   promises.push(client.query("DELETE FROM izanami.tenants CASCADE"));
   promises.push(
-    client.query(
-      "DELETE FROM izanami.users WHERE username != 'RESERVED_ADMIN_USER'"
-    )
+    client.query("TRUNCATE TABLE izanami.users_tenants_rights CASCADE")
   );
   promises.push(
-    client.query("TRUNCATE TABLE izanami.users_tenants_rights CASCADE")
+    client.query("TRUNCATE TABLE izanami.personnal_access_tokens CASCADE")
+  );
+  promises.push(
+    client.query(
+      "DELETE FROM izanami.users WHERE username <> 'RESERVED_ADMIN_USER'"
+    )
   );
   promises.push(client.query("TRUNCATE TABLE izanami.invitations CASCADE"));
   promises.push(client.query("TRUNCATE TABLE izanami.sessions CASCADE"));

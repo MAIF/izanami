@@ -2,7 +2,7 @@ import {
   testBuilder,
   testFeature,
   testTenant,
-  testproject,
+  testProject,
 } from "../testBuilder";
 import { screenshotBuilder, setup } from "./utils";
 
@@ -14,12 +14,12 @@ export async function generate() {
     .withTenant(
       testTenant("bookstore")
         .withProject(
-          testproject("website")
+          testProject("website")
             .withFeature(testFeature("comments"))
             .withFeature(testFeature("summer-sales"))
         )
         .withProject(
-          testproject("stock").withFeature(testFeature("new-store-ui"))
+          testProject("stock").withFeature(testFeature("new-store-ui"))
         )
     )
     .build(page);

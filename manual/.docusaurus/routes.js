@@ -9,15 +9,19 @@ export default [
   },
   {
     path: '/izanami/docs',
+<<<<<<< HEAD
     component: ComponentCreator('/izanami/docs', 'e80'),
+=======
+    component: ComponentCreator('/izanami/docs', '99f'),
+>>>>>>> ca712e86 (feat: personnal access tokens)
     routes: [
       {
         path: '/izanami/docs',
-        component: ComponentCreator('/izanami/docs', '7e2'),
+        component: ComponentCreator('/izanami/docs', '36d'),
         routes: [
           {
             path: '/izanami/docs',
-            component: ComponentCreator('/izanami/docs', 'c95'),
+            component: ComponentCreator('/izanami/docs', 'f8a'),
             routes: [
               {
                 path: '/izanami/docs/clients/',
@@ -130,6 +134,12 @@ export default [
               {
                 path: '/izanami/docs/guides/non-boolean-features',
                 component: ComponentCreator('/izanami/docs/guides/non-boolean-features', 'c1a'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/izanami/docs/guides/personnal-access-tokens',
+                component: ComponentCreator('/izanami/docs/guides/personnal-access-tokens', '5b1'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

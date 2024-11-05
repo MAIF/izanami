@@ -4,7 +4,9 @@ import { useMutation, useQuery } from "react-query";
 import { Link } from "react-router-dom";
 import { IzanamiContext } from "../securityContext";
 import {
+  createPersonnalAccessToken,
   MutationNames,
+  personnalAccessTokenKey,
   queryTenants,
   updateUserInformation,
   updateUserPassword,
@@ -14,6 +16,9 @@ import { Form } from "../components/Form";
 import { customStyles } from "../styles/reactSelect";
 import { PASSWORD_REGEXP, USERNAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
+import queryClient from "../queryClient";
+import { TokensTable } from "../components/TokensTable";
+import { TokenForm, tokenRightsToObject } from "../components/TokenForm";
 
 export function Profile() {
   const ctx = React.useContext(IzanamiContext);
@@ -125,6 +130,8 @@ export function Profile() {
 
       <h2 className="mt-4">Rights</h2>
       <Rights />
+
+      {user.admin && <Tokens />}
     </div>
   );
 }
@@ -400,6 +407,156 @@ function Rights(): JSX.Element {
           );
         }
       })}
+    </>
+  );
+}
+
+function Tokens() {
+  const { user, displayModal } = React.useContext(IzanamiContext);
+  const [creating, setCreating] = useState(false);
+  const formTitleRef = React.useRef<HTMLHeadingElement | null>(null);
+
+  const creationQuery = useMutation(
+    (data: {
+      name: string;
+      expiresAt: Date;
+      expirationTimezone: string;
+      allRights: boolean;
+      rights: { [key: string]: TokenTenantRight[] };
+    }) =>
+      createPersonnalAccessToken(
+        user!.username,
+        data.name,
+        data.expiresAt,
+        data.expirationTimezone,
+        data.allRights,
+        data.rights
+      ),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(personnalAccessTokenKey(user!.username!));
+      },
+    }
+  );
+
+  return (
+    <>
+      <h2 className="mt-4 d-flex align-items-center">
+        Tokens&nbsp;
+        {!creating && (
+          <button
+            className="btn btn-secondary btn-sm"
+            type="button"
+            onClick={() => {
+              formTitleRef?.current?.scrollIntoView(true);
+              setCreating(true);
+            }}
+          >
+            Create new token
+          </button>
+        )}
+      </h2>
+      {creating && (
+        <>
+          <h3 ref={formTitleRef}>New token</h3>
+          <TokenForm
+            onSubmit={(token) => {
+              return creationQuery
+                .mutateAsync({
+                  name: token.name,
+                  expiresAt: token.expiresAt,
+                  expirationTimezone: token.expirationTimezone,
+                  allRights: token.allRights,
+                  rights: token.allRights
+                    ? {}
+                    : tokenRightsToObject(token.rights),
+                })
+                .then((t) =>
+                  displayModal(({ close }) => (
+                    <OneTimeSecretModalContent
+                      message="This is your personnal acess token, make sure to save it somewhere safe."
+                      secret={t.token}
+                      title="Access token created"
+                      onClose={close}
+                    />
+                  ))
+                )
+                .then(() => setCreating(false));
+            }}
+            onCancel={() => setCreating(false)}
+          />
+        </>
+      )}
+      <TokensTable user={user!.username} />
+    </>
+  );
+}
+
+type OneTimeSecretState = "Initial" | "Copied" | "Warning";
+
+function OneTimeSecretModalContent(props: {
+  message: string;
+  secret: string;
+  title: string;
+  onClose: () => void;
+}) {
+  const { message, secret, onClose, title } = props;
+  const [state, setState] = useState<OneTimeSecretState>("Initial");
+  return (
+    <>
+      <div className="modal-header">
+        <h5 className="modal-title">{title}</h5>
+      </div>
+      <div className="modal-body">
+        <label htmlFor="secret">{message}</label>
+        <p className="text-warning">It won't be displayed again</p>
+        <div className="input-group mb-3">
+          <input
+            id="secret"
+            name="secret"
+            type="text"
+            className="form-control"
+            aria-label="secret"
+            value={secret}
+            onFocus={() => setState("Copied")}
+          />
+          <div className="ms-2 input-group-append">
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(secret);
+                setState("Copied");
+              }}
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+        {state === "Warning" && (
+          <span style={{ color: "#D5443F" }}>
+            Please make sure you copied above value before closing this dialog,
+            this value won't be displayed again.
+          </span>
+        )}
+      </div>
+      <div className="modal-footer">
+        <button
+          type="button"
+          aria-label="Cancel"
+          className={"btn btn-danger"}
+          data-bs-dismiss="modal"
+          onClick={() => {
+            if (state === "Initial") {
+              setState("Warning");
+            } else {
+              onClose();
+            }
+          }}
+        >
+          Close
+        </button>
+      </div>
     </>
   );
 }

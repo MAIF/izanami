@@ -30,11 +30,12 @@ import play.api.mvc.MultipartFormData.FilePart
 import play.api.test.DefaultAwaitTimeout
 
 import java.io.{BufferedWriter, File, FileWriter}
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.sql.DriverManager
 import java.time._
 import java.time.format.DateTimeFormatter
-import java.util.{Objects, TimeZone}
+import java.util.{Base64, Objects, TimeZone}
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -237,6 +238,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           conn.createStatement().execute("TRUNCATE TABLE izanami.pending_imports CASCADE")
           conn.createStatement().execute("TRUNCATE TABLE izanami.key_tenant CASCADE")
           conn.createStatement().execute("TRUNCATE TABLE izanami.global_events CASCADE")
+          conn.createStatement().execute("TRUNCATE TABLE izanami.personnal_access_tokens CASCADE")
           conn.createStatement().execute("UPDATE izanami.mailers SET configuration='{}'::JSONB")
           conn
             .createStatement()
@@ -264,6 +266,12 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/webhooks")
       .withCookies(cookies: _*)
       .post(webhook.toJson)
+  }
+
+  def createPersonnalAccessToken(token: TestPersonnalAccessToken, user: String, cookies: Seq[WSCookie] = Seq()) = {
+    ws.url(s"${ADMIN_BASE_URL}/users/${user}/tokens")
+      .withCookies(cookies: _*)
+      .post(token.toJson)
   }
 
   def createFeature(
@@ -884,7 +892,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
             |"enabled": ${feature.enabled},
             |"resultType": "${feature.resultType}",
             |${if (feature.value != null) {
-          if (feature.resultType == "number") s""" "value": ${feature.value}, """ else s""" "value": "${feature.value}", """
+          if (feature.resultType == "number") s""" "value": ${feature.value}, """
+          else s""" "value": "${feature.value}", """
         } else ""}
             |"conditions": ${Json.toJson(feature.conditions.map(c => c.json))}
             |${if (Objects.nonNull(feature.wasmConfig)) s""" ,"wasmConfig": ${feature.wasmConfig.json} """ else ""}
@@ -1082,7 +1091,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                |{
                | "enabled": ${enabled},
                | "resultType": "${resultType}",
-               | ${if(value != null){ if(resultType == "number") s""" "value": $value, """ else s""" "value": "$value", """ } else ""}
+               | ${if (value != null) {
+          if (resultType == "number") s""" "value": $value, """ else s""" "value": "$value", """
+        } else ""}
                | "enabled": ${enabled},
                | "conditions": [${conditions.map(c => c.json).mkString(",")}]
                | ${if (Objects.nonNull(wasmConfig)) s""" ,"wasmConfig": ${Json.stringify(wasmConfig.json)}"""
@@ -1090,6 +1101,39 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                |}
                |""".stripMargin)
       )
+  }
+
+  private def writeTemporaryFile(prefix: String, suffix: String, content: Seq[String]): File = {
+    val file   = File.createTempFile(prefix, suffix)
+    val writer = new BufferedWriter(new FileWriter(file))
+    writer.write(content.mkString("\n"))
+    writer.close();
+
+    file
+  }
+
+  def importWithToken(
+      tenant: String,
+      username: String,
+      token: String,
+      conflictStrategy: String = "fail",
+      data: Seq[String] = Seq()
+  ): RequestResult = {
+    val dataFile = writeTemporaryFile("export", "ndjson", data)
+    val auth = Base64.getEncoder.encodeToString(s"${username}:$token".getBytes(StandardCharsets.UTF_8))
+    val response = await(
+      ws.url(
+        s"${ADMIN_BASE_URL}/tenants/${tenant}/_import?version=2&conflict=${conflictStrategy}"
+      ).addHttpHeaders("Authorization" -> s"Basic $auth")
+        .post(
+          Source(
+            Seq(
+              FilePart("export", "export.ndjson", Option("text/plain"), FileIO.fromPath(dataFile.toPath))
+            )
+          )
+        )
+    )
+    RequestResult(json = Try { response.json }, status = response.status)
   }
 
   def updateMailerConfiguration(
@@ -1244,10 +1288,12 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       period: TestPeriod = null,
       value: String = null
   ) {
-    def json: JsObject = Json.obj(
-      "rule"   -> Option(rule).map(r => r.json),
-      "period" -> Option(period).map(p => p.json)
-    ).applyOnWithOpt(Option(value))((json, value) => json ++ Json.obj("value" -> value))
+    def json: JsObject = Json
+      .obj(
+        "rule"   -> Option(rule).map(r => r.json),
+        "period" -> Option(period).map(p => p.json)
+      )
+      .applyOnWithOpt(Option(value))((json, value) => json ++ Json.obj("value" -> value))
   }
 
   case class TestDateTimePeriod(
@@ -1415,6 +1461,29 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     )
   }
 
+  case class TestPersonnalAccessToken(
+      name: String,
+      allRights: Boolean,
+      rights: Map[String, Set[String]] = Map(),
+      expiresAt: Option[LocalDateTime] = None,
+      expirationTimezone: Option[ZoneId] = None,
+      id: String = null
+  ) {
+    def toJson: JsObject = {
+      Json
+        .obj("name" -> name, "allRights" -> allRights, "rights" -> rights)
+        .applyOnWithOpt(expiresAt)((obj, expiration) => {
+          obj + ("expiresAt" -> Json.toJson(expiration))
+        })
+        .applyOnWithOpt(expirationTimezone)((obj, expirationTimezone) => {
+          obj + ("expirationTimezone" -> Json.toJson(expirationTimezone))
+        })
+        .applyOnWithOpt(Option(id))((obj, id) => {
+          obj + ("id" -> Json.toJson(id))
+        })
+    }
+  }
+
   case class TestWebhook(
       name: String,
       url: String,
@@ -1471,7 +1540,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       projects: Map[String, Map[String, String]] = Map(),
       tags: Map[String, Map[String, String]] = Map(),
       scripts: Map[String, String] = Map(),
-      webhooks: Map[String, Map[String, String]] = Map()
+      webhooks: Map[String, Map[String, String]] = Map(),
+      user: String,
+      tokenData: Map[String, Map[String, (String, String)]]
   ) {
 
     def shutdownEventSources(tenant: String) = {
@@ -1630,6 +1701,80 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
     }
 
+    def createPersonnalAccessToken(token: TestPersonnalAccessToken, user: Option[String] = None): RequestResult = {
+      val response = await(
+        BaseAPISpec.this.createPersonnalAccessToken(
+          token,
+          user = user.getOrElse(this.user),
+          cookies = cookies
+        )
+      )
+
+      RequestResult(
+        json = Try {
+          response.json
+        },
+        status = response.status
+      )
+    }
+
+    def updatePersonnalAccessToken(id: String, token: TestPersonnalAccessToken): RequestResult = {
+      updatePersonnalAccessToken(id, token, user)
+    }
+
+    def updatePersonnalAccessToken(id: String, token: TestPersonnalAccessToken, user: String): RequestResult = {
+      val response = await(
+        ws.url(s"${ADMIN_BASE_URL}/users/${user}/tokens/${id}")
+          .withCookies(cookies: _*)
+          .put(token.toJson)
+      )
+
+      RequestResult(
+        json = Try {
+          response.json
+        },
+        status = response.status
+      )
+    }
+
+    def deletePersonnalAccessToken(id: String): RequestResult = {
+      deletePersonnalAccessToken(id, this.user)
+    }
+
+    def deletePersonnalAccessToken(id: String, user: String): RequestResult = {
+      val response = await(
+        ws.url(s"${ADMIN_BASE_URL}/users/${user}/tokens/$id")
+          .withCookies(cookies: _*)
+          .delete
+      )
+
+      RequestResult(
+        json = Try {
+          response.json
+        },
+        status = response.status
+      )
+    }
+
+    def fetchPersonnalAccessTokens(user: String): RequestResult = {
+      val response = await(
+        ws.url(s"${ADMIN_BASE_URL}/users/${user}/tokens")
+          .withCookies(cookies: _*)
+          .get
+      )
+
+      RequestResult(
+        json = Try {
+          response.json
+        },
+        status = response.status
+      )
+    }
+
+    def fetchPersonnalAccessTokens(): RequestResult = {
+      fetchPersonnalAccessTokens(this.user)
+    }
+
     def patchFeatures(tenant: String, patches: Seq[TestFeaturePatch]) = {
       val response = await(
         ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/features")
@@ -1646,12 +1791,12 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     }
 
     def logout(): TestSituation = {
-      copy(cookies = Seq())
+      copy(cookies = Seq(), user = null)
     }
 
     def loggedAs(user: String, password: String): TestSituation = {
       val res = BaseAPISpec.this.login(user, password)
-      copy(cookies = res.cookies)
+      copy(cookies = res.cookies, user = user)
     }
 
     def loggedAsAdmin(): TestSituation = {
@@ -1729,6 +1874,14 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         tenantContent <- tags.get(tenant);
         tagContent    <- tenantContent.get(tag)
       ) yield tagContent
+    }
+
+    def findTokenId(user: String, token: String): String = {
+      tokenData(user)(token)._1
+    }
+
+    def findTokenSecret(user: String, token: String): String = {
+      tokenData(user)(token)._2
     }
 
     def createTenant(name: String, description: String = null): RequestResult = {
@@ -2583,15 +2736,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       RequestResult(json = Try { response.json }, status = response.status)
     }
 
-    private def writeTemporaryFile(prefix: String, suffix: String, content: Seq[String]): File = {
-      val file   = File.createTempFile(prefix, suffix)
-      val writer = new BufferedWriter(new FileWriter(file))
-      writer.write(content.mkString("\n"))
-      writer.close();
-
-      file
-    }
-
     def deleteImportResult(tenant: String, id: String): RequestResult = {
       val response = await(
         ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/_import/$id")
@@ -2611,13 +2755,13 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         tenant: String,
         conflictStrategy: String = "fail",
         data: Seq[String] = Seq()
-                ): RequestResult = {
+    ): RequestResult = {
       val dataFile = writeTemporaryFile("export", "ndjson", data)
 
       val response = await(
         ws.url(
-            s"${ADMIN_BASE_URL}/tenants/${tenant}/_import?version=2&conflict=${conflictStrategy}"
-          ).withCookies(cookies: _*)
+          s"${ADMIN_BASE_URL}/tenants/${tenant}/_import?version=2&conflict=${conflictStrategy}"
+        ).withCookies(cookies: _*)
           .post(
             Source(
               Seq(
@@ -2786,7 +2930,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         TestConfiguration(mailer = "Console", invitationMode = "Response", originEmail = null),
       mailerConfigurations: Map[String, JsObject] = Map(),
       wasmScripts: Seq[TestWasmScript] = Seq(),
-      webhookServers: Map[Int, (Int, String)] = Map()
+      webhookServers: Map[Int, (Int, String)] = Map(),
+      personnalAccessTokens: Set[TestPersonnalAccessToken] = Set()
   ) {
 
     def withWebhookServer(port: Int, responseCode: Int = OK, path: String = "/"): TestSituationBuilder = {
@@ -2864,6 +3009,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       copy(users = this.users ++ users)
     }
 
+    def withPersonnalAccessToken(tokens: TestPersonnalAccessToken*): TestSituationBuilder = {
+      copy(personnalAccessTokens = this.personnalAccessTokens ++ tokens)
+    }
+
     def withTenants(tenants: TestTenant*): TestSituationBuilder = {
       copy(tenants = this.tenants ++ tenants)
     }
@@ -2874,18 +3023,19 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
     def build(): TestSituation = {
 
-      var scriptIds: Map[String, String]                         = Map()
-      var keyData: Map[String, TestSituationKey]                 = Map()
+      var scriptIds: Map[String, String]                                              = Map()
+      var keyData: Map[String, TestSituationKey]                                      = Map()
       val featuresData: TrieMap[String, TrieMap[
         String,
         TrieMap[String, String]
-      ]]                                                         = scala.collection.concurrent.TrieMap()
-      val projectsData: TrieMap[String, TrieMap[String, String]] =
+      ]]                                                                              = scala.collection.concurrent.TrieMap()
+      val projectsData: TrieMap[String, TrieMap[String, String]]                      =
         TrieMap()
-      val webhooksData: TrieMap[String, TrieMap[String, String]] =
+      val webhooksData: TrieMap[String, TrieMap[String, String]]                      =
         TrieMap()
-      val tagsData: TrieMap[String, TrieMap[String, String]]     =
+      val tagsData: TrieMap[String, TrieMap[String, String]]                          =
         TrieMap()
+      val tokenIdAndSecretsByUser: TrieMap[String, TrieMap[String, (String, String)]] = TrieMap()
 
       webhookServers.foreach { case (port, (status, path)) =>
         setupWebhookServer(port = port, path = path, responseCode = status)
@@ -3111,6 +3261,32 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                       .foreach(key => keyData = keyData + (key.name -> key))
                   })
               })
+              .flatMap(_ => {
+                Future
+                  .sequence(
+                    personnalAccessTokens
+                      .map(token => {
+                        createPersonnalAccessToken(
+                          token,
+                          user = loggedInUser.get,
+                          cookies = buildCookies
+                        ).map(resp => {
+                          val secret = (resp.json \ "token").as[String]
+                          val id     = (resp.json \ "id").as[String]
+                          tokenIdAndSecretsByUser
+                            .getOrElse(
+                              loggedInUser.get, {
+                                val newMap = TrieMap[String, (String, String)]()
+                                tokenIdAndSecretsByUser.update(loggedInUser.get, newMap)
+                                newMap
+                              }
+                            )
+                            .update(token.name, (id, secret))
+                          resp
+                        })
+                      })
+                  )
+              })
           })
       }))
       futures.addOne(tenantFuture)
@@ -3182,6 +3358,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       val immutableProjectData = projectsData.view.mapValues(v => v.toMap).toMap
       val immutableTagData     = tagsData.view.mapValues(v => v.toMap).toMap
       val immutableWebhookData = webhooksData.view.mapValues(v => v.toMap).toMap
+      val immutableTokenData   = tokenIdAndSecretsByUser.view.mapValues(v => v.toMap).toMap
 
       TestSituation(
         keys = keyData,
@@ -3190,7 +3367,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         projects = immutableProjectData,
         tags = immutableTagData,
         scripts = scriptIds,
-        webhooks = immutableWebhookData
+        webhooks = immutableWebhookData,
+        user = loggedInUser.getOrElse(null),
+        tokenData = immutableTokenData
       )
     }
   }

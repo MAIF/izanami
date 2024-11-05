@@ -35,6 +35,7 @@ class Datastores(env: Env) {
   val stats: StatsDatastore   = new StatsDatastore(env)
   val exportDatastore: ImportExportDatastore = new ImportExportDatastore(env)
   val search : SearchDatastore = new SearchDatastore(env)
+  val personnalAccessToken : PersonnalAccessTokenDatastore = new PersonnalAccessTokenDatastore(env)
 
   def onStart(): Future[Unit] = {
     for {
