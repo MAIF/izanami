@@ -129,8 +129,10 @@ export const typeDisplayInformation = new Map<
     },
   ])
 );
-export const FilterOptions = Object.values(SearchTypeEnum).map((type) => ({
-  value: type.value,
-  label: type.label,
-  icon: type.icon,
-}));
+export const FilterOptions = Object.values(SearchTypeEnum)
+  .filter((type) => type.value !== "tenant")
+  .map((type) => ({
+    value: type.value,
+    label: type.label,
+    icon: type.icon,
+  }));

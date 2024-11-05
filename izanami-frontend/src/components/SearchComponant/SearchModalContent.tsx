@@ -70,14 +70,16 @@ export function SearchModalContent({
   };
 
   useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (searchTerm) {
-        performSearch(searchTerm);
-      }
-    }, 500);
+    if (searchTerm.length > 0) {
+      const delayDebounceFn = setTimeout(() => {
+        if (searchTerm) {
+          performSearch(searchTerm);
+        }
+      }, 500);
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm, modalStatus, filters]);
+      return () => clearTimeout(delayDebounceFn);
+    }
+  }, [searchTerm, filters, modalStatus]);
 
   return (
     <>
@@ -95,14 +97,13 @@ export function SearchModalContent({
         performSearch={performSearch}
         setResultStatus={setResultStatus}
       />
-      {resultStatus.state !== "INITIAL" && (
-        <SearchResults
-          modalStatus={modalStatus}
-          resultStatus={resultStatus}
-          groupedItems={groupedItems}
-          onClose={onClose}
-        />
-      )}
+
+      <SearchResults
+        modalStatus={modalStatus}
+        resultStatus={resultStatus}
+        groupedItems={groupedItems}
+        onClose={onClose}
+      />
     </>
   );
 }
