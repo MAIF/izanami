@@ -6,7 +6,6 @@ import queryClient from "../queryClient";
 import { IzanamiContext, useAdmin } from "../securityContext";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
-import AsyncSelect from "react-select/async";
 
 import {
   createInvitation,
@@ -315,24 +314,57 @@ export function Users() {
                     type: "bool",
                   },
                   users: {
-                    label: "Copy User Rights",
+                    label: "Copy user rights",
                     type: "object",
-                    render: ({ onChange }) => (
-                      <AsyncSelect
-                        defaultValue={""}
-                        loadOptions={loadOptions}
-                        isClearable
-                        styles={customStyles}
-                        cacheOptions
-                        noOptionsMessage={({ inputValue }) =>
-                          inputValue && inputValue.length > 0
-                            ? "No user found for this search"
-                            : "Start typing to search a user"
-                        }
-                        placeholder="Start typing to search a user"
-                        onChange={(selected) => onChange?.(selected)}
-                      />
-                    ),
+                    array: true,
+                    render: ({ onChange }) => {
+                      const [selectedUser, setSelectedUser] =
+                        useState<any>(null);
+                      const userRightsQuery = useQuery(
+                        userQueryKey(selectedUser?.value),
+                        () => {
+                          if (isAdmin) {
+                            return queryUser(selectedUser?.value);
+                          }
+                        },
+                        { enabled: !!selectedUser }
+                      );
+
+                      return (
+                        <>
+                          <Select
+                            defaultValue={null}
+                            isClearable
+                            styles={customStyles}
+                            noOptionsMessage={({ inputValue }) =>
+                              inputValue && inputValue.length > 0
+                                ? "No user found for this search"
+                                : "Start typing to search a user"
+                            }
+                            placeholder="Start typing to search a user"
+                            onChange={(selected) => {
+                              setSelectedUser(selected);
+                              onChange?.(selected);
+                            }}
+                            options={users.map(({ username }) => ({
+                              value: username,
+                              label: username,
+                            }))}
+                          />
+                          {userRightsQuery.isLoading && (
+                            <Loader message="Loading user rights..." />
+                          )}
+                          {userRightsQuery.isSuccess && selectedUser && (
+                            <div>
+                              <RightSelector
+                                defaultValue={userRightsQuery.data?.rights}
+                                onChange={(v) => onChange?.(v)}
+                              />
+                            </div>
+                          )}
+                        </>
+                      );
+                    },
                   },
                   rights: {
                     label: () => "",
@@ -349,15 +381,18 @@ export function Users() {
                   },
                 }}
                 onSubmit={(ctx) => {
-                  console.log("on Submit data", ctx);
                   const backendRights = rightStateArrayToBackendMap(ctx.rights);
-
+                  const backendUserRights = rightStateArrayToBackendMap(
+                    ctx.users
+                  );
                   const payload = {
-                    rights: backendRights,
+                    rights:
+                      Object.keys(backendRights.tenants || {}).length > 0
+                        ? backendRights
+                        : backendUserRights,
                     admin: ctx.admin,
                     email: ctx.email,
                   };
-
                   return inviteUserMutation
                     .mutateAsync(payload)
                     .then((response) => {
