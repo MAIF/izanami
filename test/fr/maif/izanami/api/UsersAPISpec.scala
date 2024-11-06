@@ -319,25 +319,6 @@ class UsersAPISpec extends BaseAPISpec {
     }
   }
 
-
-  "allow inviting user with another user rights if user is tenant admin" in {
-    val situation = TestSituationBuilder()
-      .withUsers(TestUser("testu").withTenantAdminRight("my-tenant"))
-      .withTenants(TestTenant("my-tenant").withProjectNames("my-project"))
-      .loggedAs("testu")
-      .build()
-
-    situation.createUser("anotheruser", "barbar123",  rights = TestRights().addTenantRight("my-tenant", "Read").addProjectRight("my-project", "my-tenant", "Admin"))
-
-    val result = situation.sendInvitation(
-      "usercopyanotheruser@imaginaryemail.afezrfr",
-      admin = false,
-      null,
-      "anotheruser"
-    )
-    result.status mustBe CREATED
-  }
-
   "Complete user invitation / creation flow" should {
     "allow to create a new user with mail invitation via mailjet" in {
       val situation = TestSituationBuilder()

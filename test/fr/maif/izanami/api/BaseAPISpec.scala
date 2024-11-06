@@ -912,7 +912,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       cookies: Seq[WSCookie] = Seq()
   ): Future[RequestResult] = {
     val realEmail = Option(email).getOrElse(s"${user}@imaginarymail.frfrfezfezrf")
-    sendInvitationAsync(realEmail, admin, rights, null ,cookies).flatMap(result => {
+    sendInvitationAsync(realEmail, admin, rights, cookies).flatMap(result => {
       val url   = (result.json \ "invitationUrl").as[String]
       val token = url.split("token=")(1)
       createUserWithTokenAsync(user, password, token).map(response => {
@@ -985,10 +985,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       email: String,
       admin: Boolean = false,
       rights: TestRights = null,
-      userToCopy: String = null,
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
-    val response = await(sendInvitationAsync(email, admin, rights, userToCopy, cookies))
+    val response = await(sendInvitationAsync(email, admin, rights, cookies))
 
     val jsonTry = Try {
       response.json
@@ -1000,7 +999,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       email: String,
       admin: Boolean = false,
       rights: TestRights = null,
-      userToCopy: String = null,
       cookies: Seq[WSCookie] = Seq()
   ): Future[WSResponse] = {
     val jsonRights = Option(rights).map(r => r.json).getOrElse(Json.obj())
@@ -1010,7 +1008,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         Json.obj(
           "email"  -> email,
           "admin"  -> admin,
-          "userToCopy" -> userToCopy,
           "rights" -> jsonRights
         )
       )
@@ -2356,8 +2353,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       RequestResult(json = Try { response.json }, status = response.status)
     }
 
-    def sendInvitation(email: String, admin: Boolean = false, rights: TestRights = null, userToCopy: String = null): RequestResult = {
-      BaseAPISpec.this.sendInvitation(email = email, admin = admin, rights = rights, userToCopy = userToCopy, cookies = cookies)
+    def sendInvitation(email: String, admin: Boolean = false, rights: TestRights = null): RequestResult = {
+      BaseAPISpec.this.sendInvitation(email = email, admin = admin, rights = rights, cookies = cookies)
     }
 
     def fetchUserRights(): RequestResult = {
