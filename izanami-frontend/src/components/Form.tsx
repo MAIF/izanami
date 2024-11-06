@@ -18,7 +18,7 @@ type FormProps<DataType> = {
       | SchemaEntry
       | (Omit<SchemaEntry, "label"> & {
           required: true;
-          label?: string | (() => string);
+          label?: string | (() => string) | (() => React.ReactNode);
           tooltip?: () => React.ReactNode;
         });
   };
@@ -47,7 +47,7 @@ export function Form<T extends TBaseObject>(props: FormProps<T>) {
       if ("required" in value && value.required) {
         let newLabel: string;
         if (typeof value.label === "function") {
-          newLabel = value.label();
+          newLabel = String(value.label());
         } else {
           newLabel = value.label ?? key;
         }

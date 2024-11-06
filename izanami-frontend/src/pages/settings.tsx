@@ -2,10 +2,13 @@ import React, { useState } from "react";
 import { useMutation, useQuery } from "react-query";
 import queryClient from "../queryClient";
 import { string } from "yup";
+import { JsonViewer } from "@textea/json-viewer";
+import { Modal } from "../components/Modal";
 
 import {
   mailerQueryKey,
   MutationNames,
+  queryStats,
   queryConfiguration,
   queryMailerConfiguration,
   updateConfiguration,
@@ -44,14 +47,21 @@ export function yupValidationToStringError(
     return error;
   }
 }
+type StatsResultStatus =
+  | { state: "SUCCESS"; results: any }
+  | { state: "ERROR"; error: string }
+  | { state: "PENDING" }
+  | { state: "INITIAL" };
 
 export function Settings() {
   const [selectedMailer, setSelectedMailer] = useState();
+  const [resultStats, setResultStats] = useState<StatsResultStatus>({
+    state: "INITIAL",
+  });
 
   const configurationQuery = useQuery(MutationNames.CONFIGURATION, () =>
     queryConfiguration()
   );
-
   const configurationMutationQuery = useMutation(
     (data: Omit<Configuration, "version">) => updateConfiguration(data)
   );
@@ -128,8 +138,41 @@ export function Settings() {
                   ],
                 },
                 anonymousReporting: {
+                  label: () => (
+                    <>
+                      <div>
+                        <span>Anonymous reporting</span>
+                        <div>
+                          This feature allows Izanami to send us periodical
+                          reports. It won’t send sensitive or personal data,
+                          only a set of usage statistics related to Izanami:
+                          <button
+                            id="stats-button"
+                            className="btn btn-secondary btn-sm ms-2"
+                            type="button"
+                            onClick={() => {
+                              queryStats()
+                                .then((r) =>
+                                  setResultStats({
+                                    state: "SUCCESS",
+                                    results: r,
+                                  })
+                                )
+                                .catch(() => {
+                                  setResultStats({
+                                    state: "ERROR",
+                                    error: "There was an error fetching data",
+                                  });
+                                });
+                            }}
+                          >
+                            See what is sent
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  ),
                   type: "bool",
-                  label: "Anonymous reporting",
                   defaultValue: configuration.anonymousReporting,
                 },
               }}
@@ -157,7 +200,30 @@ export function Settings() {
               }}
               submitText="Update settings"
             />
+            {resultStats.state !== "INITIAL" && (
+              <Modal
+                title={"Anonymous reporting statistics"}
+                visible={true}
+                onClose={() => setResultStats({ state: "INITIAL" })}
+                style={{ maxHeight: "50vh", overflowY: "auto" }}
+              >
+                {resultStats.state === "PENDING" ? (
+                  <Loader message="Loading Statistics" />
+                ) : resultStats.state === "ERROR" ? (
+                  <div>{resultStats.error}</div>
+                ) : (
+                  <JsonViewer
+                    rootName={false}
+                    value={resultStats.results}
+                    displayDataTypes={false}
+                    displaySize={false}
+                    theme="dark"
+                  />
+                )}
+              </Modal>
+            )}
           </div>
+
           <div className="col">
             <MailerDetail mailer={selectedMailer ?? configuration.mailer} />
           </div>

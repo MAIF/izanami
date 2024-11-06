@@ -9,6 +9,7 @@ export function Modal(props: {
   confirmButtonText?: string;
   children: ReactElement | ReactElement[] | string;
   position?: "top" | "center";
+  style?: React.CSSProperties;
 }) {
   const {
     visible,
@@ -19,6 +20,7 @@ export function Modal(props: {
     closeButtonText,
     confirmButtonText,
     position,
+    style,
   } = props;
 
   React.useEffect(() => {
@@ -37,11 +39,11 @@ export function Modal(props: {
         className="modal"
         tabIndex={-1}
         aria-hidden={visible ? "false" : "true"}
-        style={
-          visible
-            ? { display: "block", backgroundColor: "#0008", width: "100%" }
-            : {}
-        }
+        style={{
+          display: visible ? "block" : "none",
+          backgroundColor: "#0008",
+          width: "100%",
+        }}
       >
         <div
           className={`modal-dialog ${
@@ -54,7 +56,9 @@ export function Modal(props: {
                 <h5 className="modal-title">{title}</h5>
               </div>
             )}
-            <div className="modal-body">{children}</div>
+            <div className="modal-body" style={style}>
+              {children}
+            </div>
             <div className="modal-footer">
               <button
                 type="button"
