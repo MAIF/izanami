@@ -43,74 +43,61 @@ class UserController(
     }
   }
 
-  def sendInvitation(): Action[JsValue] = tenantRightsAction.async(parse.json) { implicit request => {
-    def handleInvitation(email: String, id: String) = {
-      val token = env.jwtService.generateToken(
-        id,
-        Json.obj("invitation" -> id)
-      )
+  def sendInvitation(): Action[JsValue] = tenantRightsAction.async(parse.json) { implicit request =>
+    {
+      def handleInvitation(email: String, id: String) = {
+        val token = env.jwtService.generateToken(
+          id,
+          Json.obj("invitation" -> id)
+        )
 
-      env.datastores.configuration
-        .readConfiguration()
-        .flatMap {
-          case Left(err) => err.toHttpResponse.future
-          case Right(configuration) if configuration.invitationMode == InvitationMode.Response => {
-            Created(Json.obj("invitationUrl" -> s"""${env.expositionUrl}/invitation?token=${token}""")).future
-          }
-          case Right(configuration) if configuration.invitationMode == InvitationMode.Mail => {
-            env.mails
-              .sendInvitationMail(email, token)
-              .map(futureResult =>
-                futureResult.fold(err => InternalServerError(Json.obj("message" -> err.message)), _ => NoContent)
-              )
-          }
-          case Right(c) => throw new RuntimeException("Unknown invitation mode " + c.invitationMode)
-        }
-
-    }
-
-    User.userInvitationReads
-      .reads(request.body)
-      .fold(
-        _ => Future.successful(Left(BadRequest("Invalid Payload"))),
-        invitation =>
-          env.datastores.users
-            .findUserByMail(invitation.email)
-            .map(maybeUser =>
-              maybeUser.map(_ => EmailAlreadyUsed(invitation.email).toHttpResponse).toLeft(invitation)
-            )
-      )
-      .map {
-        case Right(invitation) if hasRight(request.user, invitation.admin, invitation.rights) => Right(invitation)
-        case Right(_) => Left(Forbidden(Json.obj("message" -> "Not enough rights")))
-        case left => left
-      }
-      .flatMap {
-        case Left(result) => Future.successful(result)
-        case Right(invitation) =>
-          invitation.userToCopy match {
-            case Some(value) => env.datastores.users.findUserWithCompleteRights(value).flatMap {
-              case Some(user) =>
-                val mergedTenants = user.rights.tenants ++ invitation.rights.tenants
-                val mergedRights = Rights(mergedTenants)
-                env.datastores.users
-                  .createInvitation(invitation.email, invitation.admin, mergedRights, request.user.username)
-                  .flatMap {
-                    case Left(err) => Future.successful(err.toHttpResponse)
-                    case Right(id) => handleInvitation(invitation.email, id)
-                  }
-              case None => Future.successful(NotFound(Json.obj("message" -> "User to copy rights not found.")))
+        env.datastores.configuration
+          .readConfiguration()
+          .flatMap {
+            case Left(err)                                                                       => err.toHttpResponse.future
+            case Right(configuration) if configuration.invitationMode == InvitationMode.Response => {
+              Created(Json.obj("invitationUrl" -> s"""${env.expositionUrl}/invitation?token=${token}""")).future
             }
-            case _ =>
+            case Right(configuration) if configuration.invitationMode == InvitationMode.Mail     => {
+              env.mails
+                .sendInvitationMail(email, token)
+                .map(futureResult =>
+                  futureResult.fold(err => InternalServerError(Json.obj("message" -> err.message)), _ => NoContent)
+                )
+            }
+            case Right(c)                                                                        => throw new RuntimeException("Unknown invitation mode " + c.invitationMode)
+          }
+
+      }
+
+      User.userInvitationReads
+        .reads(request.body)
+        .fold(
+          _ => Future.successful(Left(BadRequest("Invalid Payload"))),
+          invitation =>
+            env.datastores.users
+              .findUserByMail(invitation.email)
+              .map(maybeUser =>
+                maybeUser.map(_ => EmailAlreadyUsed(invitation.email).toHttpResponse).toLeft(invitation)
+              )
+        )
+        .map {
+          case Right(invitation) if hasRight(request.user, invitation.admin, invitation.rights) => Right(invitation)
+          case Right(_)                                                                         => Left(Forbidden(Json.obj("message" -> "Not enough rights")))
+          case left                                                                             => left
+        }
+        .flatMap(e => {
+          e.fold(
+            r => r.future,
+            invitation =>
               env.datastores.users
                 .createInvitation(invitation.email, invitation.admin, invitation.rights, request.user.username)
-                .flatMap {
-                  case Left(err) => Future.successful(err.toHttpResponse)
-                  case Right(id) => handleInvitation(invitation.email, id)
-                }
-          }
-      }
-  }
+                .flatMap(either =>
+                  either.fold(err => err.toHttpResponse.future, id => handleInvitation(invitation.email, id))
+                )
+          )
+        })
+    }
   }
 
   def updateUser(user: String): Action[JsValue] = authAction.async(parse.json) { implicit request =>

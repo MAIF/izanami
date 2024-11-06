@@ -1058,15 +1058,12 @@ export function deleteUser(user: string): Promise<undefined> {
 export function createInvitation(
   email: string,
   admin: boolean,
-  rights: TRights,
-  userToCopy: string
+  rights: TRights
 ): Promise<{ invitationUrl?: string } | null> {
-  console.log({ email, admin, rights, userToCopy });
-
   return handleFetchJsonResponse(
     fetch(`/api/admin/invitation`, {
       method: "POST",
-      body: JSON.stringify({ email, admin, rights, userToCopy }),
+      body: JSON.stringify({ email, admin, rights }),
       headers: {
         "Content-Type": "application/json",
       },
