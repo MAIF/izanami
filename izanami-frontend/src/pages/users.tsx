@@ -58,6 +58,7 @@ export function Users() {
       },
     }
   );
+
   const userUpdateMutation = useMutation(
     (user: { username: string; admin: boolean; rights: TRights }) => {
       const { username, ...rest } = user;
@@ -82,25 +83,24 @@ export function Users() {
       },
     }
   );
-
-  const inviteUserMutation = useMutation(
-    (data: { email: string; admin: boolean; rights: TRights }) =>
-      createInvitation(data.email, data.admin, data.rights)
-  );
-  const loadOptions = (
-    inputValue: string,
-    callback: (options: string[]) => void
-  ) => {
-    fetch(`/api/admin/users/search?query=${inputValue}&count=20`)
-      .then((resp) => resp.json())
-      .then((data) => {
-        callback(data.map((d: string) => ({ label: d, value: d })));
-      })
-      .catch((error) => {
-        console.error("Error loading options", error);
-        callback([]);
-      });
-  };
+  const inviteUserMutation = useMutation<
+    { invitationUrl?: string } | null,
+    Error,
+    { admin: boolean; email: string; rights: TRights; userToCopy: string }
+  >((data) => {
+    if (data.userToCopy) {
+      return queryUser(data.userToCopy)
+        .then((res) => {
+          data.rights = res.rights;
+          return createInvitation(data.email, data.admin, data.rights);
+        })
+        .catch((error) => {
+          throw new Error(error);
+        });
+    } else {
+      return createInvitation(data.email, data.admin, data.rights);
+    }
+  });
 
   function OperationToggleForm(props: {
     bulkOperation: string;
@@ -276,6 +276,7 @@ export function Users() {
         size: 15,
       },
     ];
+
     return (
       <>
         <div className="d-flex align-items-center">
@@ -313,85 +314,50 @@ export function Users() {
                     label: "Admin",
                     type: "bool",
                   },
-                  users: {
-                    label: "Copy user rights",
-                    type: "object",
-                    array: true,
-                    render: ({ onChange }) => {
-                      const [selectedUser, setSelectedUser] =
-                        useState<any>(null);
-                      const userRightsQuery = useQuery(
-                        userQueryKey(selectedUser?.value),
-                        () => {
-                          if (isAdmin) {
-                            return queryUser(selectedUser?.value);
-                          }
-                        },
-                        { enabled: !!selectedUser }
-                      );
-
-                      return (
-                        <>
-                          <Select
-                            defaultValue={null}
-                            isClearable
-                            styles={customStyles}
-                            noOptionsMessage={({ inputValue }) =>
-                              inputValue && inputValue.length > 0
-                                ? "No user found for this search"
-                                : "Start typing to search a user"
-                            }
-                            placeholder="Start typing to search a user"
-                            onChange={(selected) => {
-                              setSelectedUser(selected);
-                              onChange?.(selected);
-                            }}
-                            options={users.map(({ username }) => ({
-                              value: username,
-                              label: username,
-                            }))}
-                          />
-                          {userRightsQuery.isLoading && (
-                            <Loader message="Loading user rights..." />
-                          )}
-                          {userRightsQuery.isSuccess && selectedUser && (
-                            <div>
-                              <RightSelector
-                                defaultValue={userRightsQuery.data?.rights}
-                                onChange={(v) => onChange?.(v)}
-                              />
-                            </div>
-                          )}
-                        </>
-                      );
-                    },
+                  useCopyUserRights: {
+                    label: "Copy rights from another user",
+                    type: "bool",
                   },
                   rights: {
-                    label: () => "",
+                    label: "",
                     type: "object",
                     array: true,
-                    render: ({ onChange }) => {
-                      return (
-                        <RightSelector
-                          tenantLevelFilter="Admin"
-                          onChange={(v) => onChange?.(v)}
-                        />
-                      );
-                    },
+                    visible: ({ rawValues }) => !rawValues.useCopyUserRights,
+                    render: ({ onChange }) => (
+                      <RightSelector
+                        tenantLevelFilter="Admin"
+                        onChange={(v) => {
+                          onChange?.(v);
+                        }}
+                      />
+                    ),
+                  },
+                  userToCopy: {
+                    label: "User to copy",
+                    type: "object",
+                    visible: ({ rawValues }) => rawValues.useCopyUserRights,
+                    render: ({ onChange }) => (
+                      <Select
+                        isClearable
+                        styles={customStyles}
+                        options={userQuery.data.map(({ username }) => ({
+                          label: username,
+                          value: username,
+                        }))}
+                        onChange={(v) => {
+                          onChange?.(v);
+                        }}
+                      />
+                    ),
                   },
                 }}
-                onSubmit={(ctx) => {
+                onSubmit={async (ctx) => {
                   const backendRights = rightStateArrayToBackendMap(ctx.rights);
-                  const backendUserRights = rightStateArrayToBackendMap(
-                    ctx.users
-                  );
                   const payload = {
-                    rights:
-                      Object.keys(backendRights.tenants || {}).length > 0
-                        ? backendRights
-                        : backendUserRights,
+                    rights: backendRights,
                     admin: ctx.admin,
                     email: ctx.email,
+                    userToCopy: ctx.userToCopy?.value,
                   };
                   return inviteUserMutation
                     .mutateAsync(payload)
