@@ -1060,15 +1060,19 @@ export function createInvitation(
   admin: boolean,
   rights: TRights
 ): Promise<{ invitationUrl?: string } | null> {
-  return handleFetchJsonResponse(
-    fetch(`/api/admin/invitation`, {
-      method: "POST",
-      body: JSON.stringify({ email, admin, rights }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-  );
+  return fetch(`/api/admin/invitation`, {
+    method: "POST",
+    body: JSON.stringify({ email, admin, rights }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+  }).then((response) => {
+    if (response.status === 201) {
+      return response.json();
+    } else if (response.status === 204) {
+      return null;
+    }
+  });
 }
 
 export function fetchWebhooks(tenant: string): Promise<Webhook[]> {
