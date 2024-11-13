@@ -83,24 +83,12 @@ export function Users() {
       },
     }
   );
-  const inviteUserMutation = useMutation<
-    { invitationUrl?: string } | null,
-    Error,
-    { admin: boolean; email: string; rights: TRights; userToCopy: string }
-  >((data) => {
-    if (data.userToCopy) {
-      return queryUser(data.userToCopy)
-        .then((res) => {
-          data.rights = res.rights;
-          return createInvitation(data.email, data.admin, data.rights);
-        })
-        .catch((error) => {
-          throw new Error(error);
-        });
-    } else {
-      return createInvitation(data.email, data.admin, data.rights);
-    }
-  });
+  const inviteUserMutation = useMutation(
+    (data: { email: string; admin: boolean; rights: TRights }) =>
+      createInvitation(data.email, data.admin, data.rights)
+  );
+
+  const readUser = useMutation((user: string) => queryUser(user));
 
   function OperationToggleForm(props: {
     bulkOperation: string;
@@ -319,7 +307,7 @@ export function Users() {
                     type: "bool",
                   },
                   rights: {
-                    label: "",
+                    label: () => "",
                     type: "object",
                     array: true,
                     visible: ({ rawValues }) => !rawValues.useCopyUserRights,
@@ -351,14 +339,34 @@ export function Users() {
                     ),
                   },
                 }}
-                onSubmit={async (ctx) => {
+                onSubmit={(ctx) => {
                   const backendRights = rightStateArrayToBackendMap(ctx.rights);
-                  const payload = {
+                  let payload = {
                     rights: backendRights,
                     admin: ctx.admin,
                     email: ctx.email,
-                    userToCopy: ctx.userToCopy?.value,
                   };
+                  if (ctx.userToCopy) {
+                    readUser
+                      .mutateAsync(ctx.userToCopy.value)
+                      .then((res: TUser) => {
+                        payload = { ...payload, rights: res.rights };
+                        return inviteUserMutation
+                          .mutateAsync(payload)
+                          .then((response) => {
+                            if (response && response.invitationUrl) {
+                              setCreationUrl(response.invitationUrl);
+                            }
+                            setCreating(false);
+                          })
+                          .catch((error) => {
+                            throw new Error(error);
+                          });
+                      })
+                      .catch((error: any) => {
+                        throw new Error(error);
+                      });
+                  }
                   return inviteUserMutation
                     .mutateAsync(payload)
                     .then((response) => {
