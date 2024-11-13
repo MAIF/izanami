@@ -1,36 +1,28 @@
 import React, { useRef, useState } from "react";
-import { debounce } from "lodash";
 import { SearchResultStatus } from "../../utils/searchUtils";
 
 interface SearchInputProps {
   modalStatus: { all: boolean; tenant?: string };
   setSearchTerm: (term: string) => void;
-  performSearch: (term: string) => void;
   setResultStatus: (result: SearchResultStatus) => void;
 }
 
 const SearchInput: React.FC<SearchInputProps> = ({
   modalStatus,
   setSearchTerm,
-  performSearch,
   setResultStatus,
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [searchTerm, setLocalSearchTerm] = useState("");
 
-  const handleSearchChange = debounce(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const term = event.target.value;
-      setSearchTerm(term);
-      setLocalSearchTerm(term);
-      if (term) {
-        performSearch(term);
-      } else {
-        clearInput();
-      }
-    },
-    200
-  );
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const term = event.target.value;
+    setSearchTerm(term);
+    setLocalSearchTerm(term);
+    if (!term) {
+      clearInput();
+    }
+  };
   const clearInput = () => {
     if (inputRef.current) {
       inputRef.current.value = "";
