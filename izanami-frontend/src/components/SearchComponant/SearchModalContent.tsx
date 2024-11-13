@@ -94,7 +94,6 @@ export function SearchModalContent({
       <SearchInput
         modalStatus={modalStatus}
         setSearchTerm={setSearchTerm}
-        performSearch={performSearch}
         setResultStatus={setResultStatus}
       />
 
@@ -102,6 +101,7 @@ export function SearchModalContent({
         modalStatus={modalStatus}
         resultStatus={resultStatus}
         groupedItems={groupedItems}
+        filterOptions={filters.map((option) => option.value)}
         onClose={onClose}
       />
     </>

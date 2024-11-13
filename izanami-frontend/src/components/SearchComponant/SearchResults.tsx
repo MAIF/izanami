@@ -13,6 +13,7 @@ interface SearchResultsProps {
   modalStatus: SearchModalStatus;
   groupedItems: Map<string, SearchResult[]>;
   resultStatus: SearchResultStatus;
+  filterOptions: string[];
   onClose: () => void;
 }
 
@@ -20,6 +21,7 @@ export function SearchResults({
   modalStatus,
   groupedItems,
   resultStatus,
+  filterOptions,
   onClose,
 }: SearchResultsProps) {
   const { user } = useContext(IzanamiContext);
@@ -35,6 +37,12 @@ export function SearchResults({
   }, []);
 
   const handleItemClick = (item: SearchResult) => {
+    const tenantExists = item.path.some((element) => element.type === "tenant");
+
+    if (!tenantExists) {
+      item.path = [...item.path, { type: "tenant", name: item.tenant }];
+    }
+
     setSearchHistory((prevHistory) => {
       const allHistory = JSON.parse(
         localStorage.getItem("userSearchHistory") || "{}"
@@ -47,7 +55,7 @@ export function SearchResults({
             item,
           ])
         ).values()
-      ).slice(-5);
+      );
       allHistory[username] = updatedHistory;
       localStorage.setItem("userSearchHistory", JSON.stringify(allHistory));
 
@@ -55,11 +63,13 @@ export function SearchResults({
     });
     onClose();
   };
-  const filteredHistory = searchHistory.filter(
-    (item) => modalStatus.all || item.tenant === modalStatus.tenant
-  );
-
-  console.log("Result Status: ", resultStatus.state);
+  const filteredHistory = searchHistory
+    .filter(
+      (item) =>
+        (modalStatus.all || item.tenant === modalStatus.tenant) &&
+        (filterOptions.length === 0 || filterOptions.includes(item.type))
+    )
+    .slice(-5);
 
   return (
     <div className="search-container">
@@ -74,8 +84,29 @@ export function SearchResults({
                     to={getLinkPath(term) || "#"}
                     onClick={() => handleItemClick(term)}
                   >
-                    {typeDisplayInformation.get(term.type)?.icon() ?? ""}
-                    {term.name}
+                    <ul
+                      className="breadcrumb"
+                      style={{
+                        marginBottom: "0rem",
+                      }}
+                    >
+                      {modalStatus.all &&
+                        term.path.map((pathElement, pathIndex) => (
+                          <li
+                            className="breadcrumb-item"
+                            key={`${term.name}-${pathIndex}`}
+                          >
+                            {typeDisplayInformation
+                              .get(pathElement.type)
+                              ?.icon() ?? ""}
+                            {pathElement.name}
+                          </li>
+                        ))}
+                      <li className="breadcrumb-item" key={`${term.name}-name`}>
+                        {typeDisplayInformation.get(term.type)?.icon() ?? ""}
+                        {term.name}
+                      </li>
+                    </ul>
                   </Link>
                 </li>
               ))}
