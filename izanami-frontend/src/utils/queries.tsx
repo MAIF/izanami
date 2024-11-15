@@ -28,8 +28,6 @@ import {
   SearchResult,
   FeatureTypeName,
   TClassicalCondition,
-  PersonnalAccessToken,
-  TokenTenantRight,
 } from "./types";
 import { isArray } from "lodash";
 import toast from "react-hot-toast";
@@ -116,101 +114,27 @@ export function keyUserQueryKey(tenant: string, key: string) {
   return `USERS-${tenant}-${key}`;
 }
 
-export function personnalAccessTokenKey(user: string) {
-  return `PAC-${user}`;
-}
-
-export function queryPersonnalAccessTokens(
-  user: string
-): Promise<PersonnalAccessToken[]> {
-  return handleFetchJsonResponse(fetch(`/api/admin/users/${user}/tokens`)).then(
-    (t) => {
-      const tokens: PersonnalAccessToken[] = t;
-      return tokens.map((t) => {
-        let res = { ...t };
-        if ("expiresAt" in res) {
-          res.expiresAt = new Date(res.expiresAt);
-        }
-        res.createdAt = new Date(res.createdAt);
-        return res;
-      });
-    }
-  );
-}
-
-export function createPersonnalAccessToken(
-  user: string,
-  name: string,
-  expiration: Date,
-  timezone: string,
-  allRights: boolean,
-  rights: { [tenant: string]: TokenTenantRight[] }
-) {
-  const hasExpiration = expiration && !isNaN(expiration?.getTime());
-  return handleFetchJsonResponse(
-    fetch(`/api/admin/users/${user}/tokens`, {
-      method: "POST",
-      body: JSON.stringify({
-        name: name,
-        expiresAt: hasExpiration
-          ? format(expiration, "yyyy-MM-dd'T'HH:mm")
-          : undefined,
-        expirationTimezone: hasExpiration ? timezone : undefined,
-        allRights,
-        rights,
-      }),
-      headers: {
-        "content-type": "application/json",
-      },
-    })
-  );
-}
-
-export function updatePersonnalAccessToken(token: PersonnalAccessToken) {
-  const hasExpiration =
-    "expiresAt" in token && !isNaN(token.expiresAt?.getTime());
-  return handleFetchJsonResponse(
-    fetch(`/api/admin/users/${token.username}/tokens/${token.id}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        ...token,
-        expirationTimezone: hasExpiration
-          ? token.expirationTimezone
-          : undefined,
-        expiresAt: hasExpiration
-          ? format(token.expiresAt, "yyyy-MM-dd'T'HH:mm")
-          : undefined,
-      }),
-      headers: {
-        "content-type": "application/json",
-      },
-    })
-  );
-}
-
-export function deletePersonnalAccessToken(user: string, id: string) {
-  return handleFetchWithoutResponse(
-    fetch(`/api/admin/users/${user}/tokens/${id}`, {
-      method: "DELETE",
-    })
-  );
-}
+keyUserQueryKey;
 
 export function importData(
   tenant: string,
   importRequest: ImportRequest
-): Promise<{ messages: string[]; conflicts?: object[] }> {
+): Promise<object[]> {
   const data = new FormData();
   data.append("export", importRequest.file.item(0)!);
-  return handleFetchJsonResponse(
-    fetch(
-      `/api/admin/tenants/${tenant}/_import?version=2&conflict=${importRequest.conflictStrategy}`,
-      {
-        method: "POST",
-        body: data,
-      }
-    )
-  );
+  return fetch(
+    `/api/admin/tenants/${tenant}/_import?version=2&conflict=${importRequest.conflictStrategy}&wipedData=${importRequest.wipeData}`,
+    {
+      method: "POST",
+      body: data,
+    }
+  ).then((resp) => {
+    if (resp.status >= 400) {
+      return resp.json();
+    } else {
+      return null;
+    }
+  });
 }
 
 export function requestExport(

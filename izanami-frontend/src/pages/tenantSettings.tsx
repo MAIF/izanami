@@ -400,15 +400,17 @@ function ImportForm(props: {
   const { cancel, submit } = props;
 
   const methods = useForm<ImportRequest>({
-    defaultValues: {},
+    defaultValues: { wipeData: false },
   });
   const {
     handleSubmit,
     register,
+    getValues,
+    watch,
     control,
     formState: { isSubmitting },
   } = methods;
-
+  watch(["wipeData"]);
   return (
     <FormProvider {...methods}>
       <form
@@ -417,35 +419,47 @@ function ImportForm(props: {
       >
         <h3 className="mt-3">Import data</h3>
         <label className="mt-3">
-          On conflict{" "}
-          <Tooltip id="import-conflict-tooltip">
-            Conflict strategy.
-            <ul>
-              <li>
-                Skip will ignore conflictual elements (they won't be overriden)
-              </li>
-              <li>Fail will fail on any conflict (except on projects)</li>
-              <li>Overwrite will write imported version over existing</li>
-            </ul>
-          </Tooltip>
-          <Controller
-            name="conflictStrategy"
-            defaultValue="skip"
-            control={control}
-            render={({ field: { onChange, value } }) => (
-              <Select
-                value={CONFLICT_STRATEGIES_OPTIONS.find(
-                  ({ value: aValue }) => value === aValue
-                )}
-                onChange={(value) => {
-                  onChange(value?.value);
-                }}
-                styles={customStyles}
-                options={CONFLICT_STRATEGIES_OPTIONS}
-              />
-            )}
+          Wipe data
+          <input
+            type="checkbox"
+            className="izanami-checkbox"
+            {...register("wipeData")}
           />
         </label>
+        {!getValues("wipeData") && (
+          <label className="mt-3">
+            On conflict{" "}
+            <Tooltip id="import-conflict-tooltip">
+              Conflict strategy.
+              <ul>
+                <li>
+                  Skip will ignore conflictual elements (they won't be
+                  overriden)
+                </li>
+                <li>Fail will fail on any conflict (except on projects)</li>
+                <li>Overwrite will write imported version over existing</li>
+              </ul>
+            </Tooltip>
+            <Controller
+              name="conflictStrategy"
+              defaultValue="skip"
+              control={control}
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  value={CONFLICT_STRATEGIES_OPTIONS.find(
+                    ({ value: aValue }) => value === aValue
+                  )}
+                  onChange={(value) => {
+                    onChange(value?.value);
+                  }}
+                  styles={customStyles}
+                  options={CONFLICT_STRATEGIES_OPTIONS}
+                />
+              )}
+            />
+          </label>
+        )}
+
         <label className="mt-3">
           Exported file (ndjson)
           <Tooltip id="exported-file">
