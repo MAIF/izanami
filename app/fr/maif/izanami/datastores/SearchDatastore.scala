@@ -9,6 +9,7 @@ import play.api.mvc.Results.Forbidden
 import scala.concurrent.Future
 
 class SearchDatastore(val env: Env) extends Datastore {
+  private val searchParam  =  env.configuration.get[Int]("app.search-parameter")
   def tenantSearch(
       tenant: String,
       username: String,
@@ -43,7 +44,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
       SELECT row_to_json(p.*) as json, GREATEST(p.name_score, p.description_score) AS match_score, 'project' as _type, $$3 as tenant
       FROM scored_projects p
-      WHERE p.name_score > 0.2 OR p.description_score > 0.2"""
+      WHERE p.name_score > $searchParam OR p.description_score > $searchParam"""
     }
 
     if (filter.isEmpty || filter.contains("feature")) {
@@ -63,7 +64,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
         SELECT row_to_json(f.*) as json, GREATEST(f.name_score, f.description_score) AS match_score, 'feature' as _type, $$3 as tenant
         FROM scored_features f
-        WHERE f.name_score > 0.2 OR f.description_score > 0.2"""
+        WHERE f.name_score > $searchParam OR f.description_score > $searchParam"""
 
     }
 
@@ -88,7 +89,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
          SELECT row_to_json(k.*) as json, GREATEST(k.name_score, k.description_score) AS match_score, 'key' as _type, $$3 as tenant
          FROM scored_keys k
-         WHERE k.name_score > 0.2 OR k.description_score > 0.2"""
+         WHERE k.name_score > $searchParam OR k.description_score > $searchParam"""
     }
 
     if (filter.isEmpty || filter.contains("tag")) {
@@ -110,7 +111,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
       SELECT row_to_json(t.*) as json, GREATEST(t.name_score, t.description_score) AS match_score, 'tag' as _type, $$3 as tenant
       FROM scored_tags t
-      WHERE t.name_score > 0.2 OR t.description_score > 0.2"""
+      WHERE t.name_score > $searchParam OR t.description_score > $searchParam"""
     }
 
     if (filter.isEmpty || filter.contains("script")) {
@@ -130,7 +131,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
         SELECT row_to_json(s.*) as json, s.name_score AS match_score, 'script' as _type, $$3 as tenant
         FROM scored_scripts s
-        WHERE s.name_score > 0.2"""
+        WHERE s.name_score > $searchParam"""
     }
     if (filter.isEmpty || filter.contains("global_context")) {
       scoredQueries :+=
@@ -150,7 +151,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
          SELECT row_to_json(gc.*) as json, gc.name_score AS match_score, 'global_context' as _type, $$3 as tenant
          FROM scored_global_contexts gc
-         WHERE gc.name_score > 0.2 """
+         WHERE gc.name_score > $searchParam """
     }
     if (filter.isEmpty || filter.contains("local_context")) {
       scoredQueries :+=
@@ -171,7 +172,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
           SELECT row_to_json(lc.*) as json, lc.name_score AS match_score, 'local_context' as _type, $$3 as tenant
           FROM scored_local_contexts lc
-          WHERE lc.name_score > 0.2 """
+          WHERE lc.name_score > $searchParam """
     }
     if (filter.isEmpty || filter.contains("webhook")) {
       scoredQueries :+=
@@ -194,7 +195,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
          SELECT row_to_json(w.*) as json, GREATEST(w.name_score, w.description_score) AS match_score, 'webhook' as _type, $$3 as tenant
          FROM scored_webhooks w
-         WHERE w.name_score > 0.2 OR w.description_score > 0.2"""
+         WHERE w.name_score > $searchParam OR w.description_score > $searchParam"""
     }
 
     searchQuery.append(scoredQueries.mkString(","))

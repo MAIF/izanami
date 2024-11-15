@@ -55,7 +55,7 @@ export function SearchResults({
             item,
           ])
         ).values()
-      );
+      ).slice(-30);
       allHistory[username] = updatedHistory;
       localStorage.setItem("userSearchHistory", JSON.stringify(allHistory));
 

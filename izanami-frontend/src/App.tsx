@@ -636,7 +636,7 @@ export class App extends Component {
   };
   constructor(props: any) {
     super(props);
-
+    window.localStorage.clear();
     this.state = {
       version: undefined,
       user: undefined,
