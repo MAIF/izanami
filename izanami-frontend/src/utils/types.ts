@@ -575,6 +575,7 @@ export type IzanamiTenantExportRequest = {
 };
 
 export type ImportRequest = {
+  wipeData: boolean;
   file: FileList;
   conflictStrategy: string;
 };

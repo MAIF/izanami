@@ -96,7 +96,7 @@ PUT           /api/admin/tenants/:tenant/local-scripts/:script                  
 DELETE        /api/admin/local-scripts/_cache                                                      fr.maif.izanami.web.PluginController.clearWasmCache()
 DELETE        /api/admin/tenants/:tenant/local-scripts/:script                                     fr.maif.izanami.web.PluginController.deleteScript(tenant: String, script: String)
 
-POST          /api/admin/tenants/:tenant/_import                                                   fr.maif.izanami.web.ImportController.importData(version: Int, tenant: String, conflict: String, timezone: Option[String], deduceProject: Boolean ?= false, create: Option[Boolean], project: Option[String], projectPartSize: Option[Int], inlineScript: Option[Boolean])
+POST          /api/admin/tenants/:tenant/_import                                                   fr.maif.izanami.web.ImportController.importData(version: Int, tenant: String, conflict: String,wipedData : Option[Boolean], timezone: Option[String], deduceProject: Boolean ?= false, create: Option[Boolean], project: Option[String], projectPartSize: Option[Int], inlineScript: Option[Boolean])
 GET           /api/admin/tenants/:tenant/_import/:id                                               fr.maif.izanami.web.ImportController.readImportStatus(tenant: String, id: String)
 DELETE        /api/admin/tenants/:tenant/_import/:id                                               fr.maif.izanami.web.ImportController.deleteImportStatus(tenant: String, id: String)
 

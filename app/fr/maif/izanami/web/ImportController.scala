@@ -194,6 +194,7 @@ class ImportController(
       version: Int,
       tenant: String,
       conflict: String,
+      wipeData: Option[Boolean],
       timezone: Option[String],
       deduceProject: Boolean,
       create: Option[Boolean],
@@ -219,7 +220,7 @@ class ImportController(
           })
           .getOrElse(BadRequest(Json.obj("message" -> "Missing timezone")).future)
       } else if (version == 2) {
-        importV2Data(request, tenant, conflict)
+        importV2Data(request, tenant, conflict, wipeData)
       } else {
         BadRequest(Json.obj("message" -> s"Invalid version: $version")).future
       }
@@ -228,7 +229,8 @@ class ImportController(
   def importV2Data(
       request: UserNameRequest[MultipartFormData[Files.TemporaryFile]],
       tenant: String,
-      conflict: String
+      conflict: String,
+      wipeData: Option[Boolean]
   ): Future[Result] = {
     val files: Map[String, URI] = request.body.files.map(f => (f.key, f.ref.path.toUri)).toMap
     (for (
