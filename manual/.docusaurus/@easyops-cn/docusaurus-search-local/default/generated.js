@@ -5,13 +5,8 @@ require("/home/runner/work/izanami/izanami/manual/node_modules/lunr-languages/lu
 export const language = ["en","zh"];
 export const removeDefaultStopWordFilter = false;
 export const removeDefaultStemmer = false;
-<<<<<<< HEAD
 export { default as Mark } from "/home/runner/work/izanami/izanami/manual/node_modules/mark.js/dist/mark.js"
-export const searchIndexUrl = "search-index{dir}.json?_=6c49ddf1";
-=======
-export { default as Mark } from "/Users/77199M/workspace/oss/izanami-v2/manual/node_modules/mark.js/dist/mark.js"
 export const searchIndexUrl = "search-index{dir}.json?_=008c5661";
->>>>>>> ca712e86 (feat: personnal access tokens)
 export const searchResultLimits = 8;
 export const searchResultContextMaxLength = 50;
 export const explicitSearchResultPath = true;
