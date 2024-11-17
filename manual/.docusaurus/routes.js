@@ -9,11 +9,7 @@ export default [
   },
   {
     path: '/izanami/docs',
-<<<<<<< HEAD
-    component: ComponentCreator('/izanami/docs', 'e80'),
-=======
-    component: ComponentCreator('/izanami/docs', '99f'),
->>>>>>> ca712e86 (feat: personnal access tokens)
+    component: ComponentCreator('/izanami/docs', 'a35'),
     routes: [
       {
         path: '/izanami/docs',
