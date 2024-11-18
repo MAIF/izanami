@@ -5,14 +5,33 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, PartialImportFailure}
 import fr.maif.izanami.models.ExportedType.parseExportedType
 import fr.maif.izanami.models.features.{BooleanResult, BooleanResultDescriptor}
-import fr.maif.izanami.models.{AbstractFeature, ApiKey, CompleteFeature, CompleteWasmFeature, ExportedType, Feature, FeatureType, Import, OverloadType, RightLevels, UserWithRights}
+import fr.maif.izanami.models.{
+  AbstractFeature,
+  ApiKey,
+  CompleteFeature,
+  CompleteWasmFeature,
+  ExportedType,
+  Feature,
+  FeatureType,
+  Import,
+  KeyType,
+  OverloadType,
+  RightLevels,
+  UserWithRights
+}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldKey.{oldKeyReads, toNewKey}
 import fr.maif.izanami.v1.OldScripts.doesUseHttp
 import fr.maif.izanami.v1.OldUsers.{oldUserReads, toNewUser}
 import fr.maif.izanami.v1.{JavaScript, OldFeature, OldGlobalScript, WasmManagerClient}
 import fr.maif.izanami.wasm.WasmConfig
-import fr.maif.izanami.web.ImportController.{extractProjectAndName, parseStrategy, readFile, scriptIdToNodeCompatibleName, unnest}
+import fr.maif.izanami.web.ImportController.{
+  extractProjectAndName,
+  parseStrategy,
+  readFile,
+  scriptIdToNodeCompatibleName,
+  unnest
+}
 import fr.maif.izanami.web.ImportState.importResultWrites
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.{Base64, Wasmo}
 import play.api.libs.Files
@@ -23,6 +42,7 @@ import java.net.URI
 import java.time.ZoneId
 import java.util.UUID
 import scala.collection.immutable.Seq
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Source
 import scala.util.{Right, Try}
@@ -235,29 +255,38 @@ class ImportController(
             .mapValues(v => v.map(_._2))
             .toMap
         })
-        .map(m => fixImportDataIfNeeded(m))
-        .map(m => env.datastores.exportDatastore.importTenantData(tenant, m, conflictStrategy))
-        .map(f =>
-          f.map {
-            case Right(_)                                   => Ok("")
-            case Left(PartialImportFailure(failedElements)) => {
-              //val r = failedElements.map { case (k, v) => (k.displayName, v) }
-              Conflict(Json.toJson(failedElements.values.flatten))
-            }
-            case Left(err)                                  => err.toHttpResponse
+        .map(m => fixImportDataIfNeeded(tenant, m))
+        .map {
+          case (messages, data) => {
+            env.datastores.exportDatastore
+              .importTenantData(tenant, data, conflictStrategy)
+              .map {
+                case Left(PartialImportFailure(failedElements)) =>
+                  Conflict(
+                    Json.obj(
+                      "messages"  -> Json.toJson(messages),
+                      "conflicts" -> Json.toJson(failedElements.values.flatten)
+                    )
+                  )
+                case Right(_)                                   => Ok(Json.obj("messages" -> Json.toJson(messages)))
+                case Left(err)                                  => err.toHttpResponse
+              }
           }
-        )
+        }
     }).toRight(Future.successful(BadRequest(Json.obj("message" -> "Missing export file")))).flatten.fold(r => r, r => r)
   }
 
-  def fixImportDataIfNeeded(data: Map[ExportedType, Seq[JsObject]]): Map[ExportedType, Seq[JsObject]] = {
-    var features = data.getOrElse(FeatureType, Seq())
+  def fixImportDataIfNeeded(
+      tenant: String,
+      data: Map[ExportedType, Seq[JsObject]]
+  ): (Seq[String], Map[ExportedType, Seq[JsObject]]) = {
+    var features  = data.getOrElse(FeatureType, Seq())
     features = features.map {
       case obj if !obj.keys.contains("result_type") => {
         val res: JsObject = obj + ("result_type" -> JsString(BooleanResult.toDatabaseName))
         res
       }
-      case obj                                     => obj
+      case obj                                      => obj
     }
     var overloads = data.getOrElse(OverloadType, Seq())
     overloads = overloads.map {
@@ -265,10 +294,29 @@ class ImportController(
         val res: JsObject = obj + ("result_type" -> JsString(BooleanResult.toDatabaseName))
         res
       }
-      case obj                                     => obj
+      case obj                                      => obj
     }
 
-    data + (FeatureType -> features, OverloadType -> overloads)
+    var keys     = data.getOrElse(KeyType, Seq())
+    val messages = ArrayBuffer[String]()
+    keys = keys.map(obj => {
+      val clientId = (obj \ "clientid").as[String]
+      if (!clientId.startsWith(s"${tenant}_")) {
+        val name        = (obj \ "name").as[String]
+        val parts       = clientId.split("_")
+        val newClientId = s"${tenant}_${parts(1)}"
+
+        messages.append(s"""New tenant name is different from old one (it changed from ${parts(0)} to $tenant).
+                    Since api keys embed tenant name in their client id, client id for key $name has been udpated from $clientId to $newClientId.
+                    You will need to update it in client applications.
+                    """.stripMargin)
+        (obj + ("clientid" -> JsString(newClientId))): JsObject
+      } else {
+        obj
+      }
+    })
+
+    (messages.toSeq, data + (FeatureType -> features, OverloadType -> overloads, KeyType -> keys))
   }
 
   def importV1Data(

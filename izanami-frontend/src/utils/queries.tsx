@@ -192,7 +192,7 @@ export function deletePersonnalAccessToken(user: string, id: string) {
 export function importData(
   tenant: string,
   importRequest: ImportRequest
-): Promise<object[]> {
+): Promise<{ messages: string[]; conflicts?: object[] }> {
   const data = new FormData();
   data.append("export", importRequest.file.item(0)!);
   return fetch(
@@ -202,11 +202,7 @@ export function importData(
       body: data,
     }
   ).then((resp) => {
-    if (resp.status >= 400) {
-      return resp.json();
-    } else {
-      return null;
-    }
+    return resp.json();
   });
 }
 

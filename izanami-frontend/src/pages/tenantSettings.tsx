@@ -236,14 +236,19 @@ export function TenantSettings(props: { tenant: string }) {
               cancel={() => setImportDisplayed(false)}
               submit={(request) => {
                 return importData(tenant, request).then((importRes) => {
-                  if (importRes) {
+                  if (importRes.conflicts || importRes?.messages?.length > 0) {
                     askConfirmation(
-                      <ImportError
-                        conflictStrategy={
-                          request.conflictStrategy as ConflictStrategy
-                        }
-                        failedElements={importRes}
-                      />
+                      <>
+                        <ImportMessages messages={importRes.messages} />
+                        {importRes.conflicts && (
+                          <ImportError
+                            conflictStrategy={
+                              request.conflictStrategy as ConflictStrategy
+                            }
+                            failedElements={importRes.conflicts}
+                          />
+                        )}
+                      </>
                     );
                   } else {
                     setImportDisplayed(false);
@@ -309,6 +314,26 @@ export function TenantSettings(props: { tenant: string }) {
   }
 }
 
+function ImportMessages(props: { messages: string[] }) {
+  return (
+    <div>
+      <h3>Import messages</h3>
+      {props.messages
+        .flatMap((msg) => {
+          return msg.split("\n");
+        })
+        .map((m, index) => {
+          return (
+            <div key={index}>
+              {m}
+              <br />
+            </div>
+          );
+        })}
+    </div>
+  );
+}
+
 function ImportError(props: {
   conflictStrategy: ConflictStrategy;
   failedElements: object[];
@@ -342,7 +367,7 @@ function ImportError(props: {
   }
   return (
     <div>
-      <h1>Import failed !</h1>
+      <h3>Import errors !</h3>
       {explanation}
       <CodeMirror
         value={failedElements.map((obj) => JSON.stringify(obj)).join("\n")}
