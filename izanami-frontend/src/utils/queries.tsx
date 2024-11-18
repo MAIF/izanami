@@ -146,13 +146,16 @@ export function createPersonnalAccessToken(
   allRights: boolean,
   rights: { [tenant: string]: TokenTenantRight[] }
 ) {
+  const hasExpiration = expiration && !isNaN(expiration);
   return handleFetchJsonResponse(
     fetch(`/api/admin/users/${user}/tokens`, {
       method: "POST",
       body: JSON.stringify({
         name: name,
-        expiresAt: format(expiration, "yyyy-MM-dd'T'HH:mm"),
-        expirationTimezone: timezone,
+        expiresAt: hasExpiration
+          ? format(expiration, "yyyy-MM-dd'T'HH:mm")
+          : undefined,
+        expirationTimezone: hasExpiration ? timezone : undefined,
         allRights,
         rights,
       }),
@@ -164,15 +167,18 @@ export function createPersonnalAccessToken(
 }
 
 export function updatePersonnalAccessToken(token: PersonnalAccessToken) {
+  const hasExpiration = "expiresAt" in token && !isNaN(token.expiresAt);
   return handleFetchJsonResponse(
     fetch(`/api/admin/users/${token.username}/tokens/${token.id}`, {
       method: "PUT",
       body: JSON.stringify({
         ...token,
-        expiresAt:
-          "expiresAt" in token
-            ? format(token.expiresAt, "yyyy-MM-dd'T'HH:mm")
-            : undefined,
+        expirationTimezone: hasExpiration
+          ? token.expirationTimezone
+          : undefined,
+        expiresAt: hasExpiration
+          ? format(token.expiresAt, "yyyy-MM-dd'T'HH:mm")
+          : undefined,
       }),
       headers: {
         "content-type": "application/json",
