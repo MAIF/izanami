@@ -209,7 +209,7 @@ class PersonnalAccessTokenTenantAuthAction(
               .findUser(username)
               .map {
                 case Some(user)
-                    if user.tenantRights
+                    if user.admin || user.tenantRights
                       .get(tenant)
                       .exists(r => RightLevels.superiorOrEqualLevels(minimumLevel).contains(r)) =>
                   Right(username)

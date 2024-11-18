@@ -17,6 +17,7 @@ import {
 } from "../utils/types";
 import { customStyles } from "../styles/reactSelect";
 import { hasRightForTenant, IzanamiContext } from "../securityContext";
+import { Tooltip } from "./Tooltip";
 
 export type PesonnalTokenFormType =
   | LimitedRightsPesonnalTokenFormType
@@ -91,6 +92,10 @@ export function TokenForm(props: {
       >
         <label>
           Name*
+          <Tooltip id="token-name">
+            Token name, use something meaningfull, it can be modified later
+            without impacts.
+          </Tooltip>
           <input
             autoFocus={true}
             className="form-control"
@@ -107,6 +112,12 @@ export function TokenForm(props: {
         </label>
         <label className="mt-3">
           All rights
+          <Tooltip id="token-all-rights">
+            If this is checked, token will have all user rights.
+            <br />
+            If this is unchecked, you'll have to specify what token is allowed
+            to do.
+          </Tooltip>
           <Controller
             name="allRights"
             control={control}
@@ -147,6 +158,11 @@ export function TokenForm(props: {
         )}
         <label className="mt-3">
           Expiration
+          <Tooltip id="token-expiration">
+            Expiration date for token.
+            <br />
+            Token won't be usable after this date.
+          </Tooltip>
           <Controller
             name="expiresAt"
             control={control}
@@ -173,6 +189,9 @@ export function TokenForm(props: {
         </label>
         <label className="mt-3">
           Timezone
+          <Tooltip id="token-expiration-timezone">
+            Timezone for token expiration.
+          </Tooltip>
           <Controller
             name="expirationTimezone"
             defaultValue={DEFAULT_TIMEZONE}
@@ -261,7 +280,7 @@ function TenantRightSelector(props: {
               type="button"
               onClick={() => onChange([...value, [null, []]])}
             >
-              Add
+              Add rights
             </button>
           </div>
         )}
