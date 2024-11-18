@@ -59,6 +59,7 @@ export function Users() {
       },
     }
   );
+
   const userUpdateMutation = useMutation(
     (user: { username: string; admin: boolean; rights: TRights }) => {
       const { username, ...rest } = user;
@@ -83,10 +84,20 @@ export function Users() {
       },
     }
   );
-
   const inviteUserMutation = useMutation(
-    (data: { email: string; admin: boolean; rights: TRights }) =>
-      createInvitation(data.email, data.admin, data.rights)
+    (data: {
+      admin: boolean;
+      email: string;
+      rights: TRights;
+      userToCopy: string;
+    }) => {
+      if (data.userToCopy) {
+        return queryUser(data.userToCopy).then((res: TUser) => {
+          return createInvitation(data.email, res.admin, res.rights);
+        });
+      }
+      return createInvitation(data.email, data.admin, data.rights);
+    }
   );
 
   function OperationToggleForm(props: {
@@ -95,6 +106,7 @@ export function Users() {
     cancel: () => void;
   }) {
     const { bulkOperation, selectedRows, cancel } = props;
+
     switch (bulkOperation) {
       case "Toggle Admin Role": {
         const adminOptions = [
@@ -197,7 +209,6 @@ export function Users() {
         );
     }
   }
-
   if (userQuery.isLoading) {
     return <Loader message="Loading users..." />;
   } else if (userQuery.isSuccess) {
@@ -263,6 +274,7 @@ export function Users() {
         size: 15,
       },
     ];
+
     return (
       <>
         <div className="d-flex align-items-center">
@@ -294,32 +306,57 @@ export function Users() {
                     props: {
                       autoFocus: true,
                     },
+                    defaultValue: "",
+                  },
+                  useCopyUserRights: {
+                    label: "Copy rights from another user",
+                    type: "bool",
                   },
                   admin: {
                     label: "Admin",
                     type: "bool",
+                    visible: ({ rawValues }) => !rawValues.useCopyUserRights,
                   },
                   rights: {
                     label: () => "",
                     type: "object",
                     array: true,
-                    render: ({ onChange }) => {
-                      return (
-                        <RightSelector
-                          tenantLevelFilter="Admin"
-                          onChange={(v) => onChange?.(v)}
-                        />
-                      );
-                    },
+                    visible: ({ rawValues }) => !rawValues.useCopyUserRights,
+                    render: ({ onChange }) => (
+                      <RightSelector
+                        tenantLevelFilter="Admin"
+                        onChange={(v) => {
+                          onChange?.(v);
+                        }}
+                      />
+                    ),
+                  },
+                  userToCopy: {
+                    label: "User to copy",
+                    type: "object",
+                    visible: ({ rawValues }) => rawValues.useCopyUserRights,
+                    render: ({ onChange }) => (
+                      <Select
+                        isClearable
+                        styles={customStyles}
+                        options={userQuery.data.map(({ username }) => ({
+                          label: username,
+                          value: username,
+                        }))}
+                        onChange={(v) => {
+                          onChange?.(v);
+                        }}
+                      />
+                    ),
                   },
                 }}
                 onSubmit={(ctx) => {
                   const backendRights = rightStateArrayToBackendMap(ctx.rights);
-
                   const payload = {
                     rights: backendRights,
                     admin: ctx.admin,
                     email: ctx.email,
+                    userToCopy: ctx.userToCopy?.value,
                   };
 
                   return inviteUserMutation
@@ -328,9 +365,8 @@ export function Users() {
                       if (response && response.invitationUrl) {
                         setCreationUrl(response.invitationUrl);
                       }
-                      return response;
-                    })
-                    .then(() => setCreating(false));
+                      setCreating(false);
+                    });
                 }}
                 onClose={() => setCreating(false)}
                 submitText="Send invitation"
