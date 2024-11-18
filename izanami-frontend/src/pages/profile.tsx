@@ -19,6 +19,7 @@ import { Loader } from "../components/Loader";
 import queryClient from "../queryClient";
 import { TokensTable } from "../components/TokensTable";
 import { TokenForm, tokenRightsToObject } from "../components/TokenForm";
+import { TokenTenantRight } from "../utils/types";
 
 export function Profile() {
   const ctx = React.useContext(IzanamiContext);

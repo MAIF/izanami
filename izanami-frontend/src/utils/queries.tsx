@@ -146,7 +146,7 @@ export function createPersonnalAccessToken(
   allRights: boolean,
   rights: { [tenant: string]: TokenTenantRight[] }
 ) {
-  const hasExpiration = expiration && !isNaN(expiration);
+  const hasExpiration = expiration && !isNaN(expiration?.getTime());
   return handleFetchJsonResponse(
     fetch(`/api/admin/users/${user}/tokens`, {
       method: "POST",
@@ -167,7 +167,8 @@ export function createPersonnalAccessToken(
 }
 
 export function updatePersonnalAccessToken(token: PersonnalAccessToken) {
-  const hasExpiration = "expiresAt" in token && !isNaN(token.expiresAt);
+  const hasExpiration =
+    "expiresAt" in token && !isNaN(token.expiresAt?.getTime());
   return handleFetchJsonResponse(
     fetch(`/api/admin/users/${token.username}/tokens/${token.id}`, {
       method: "PUT",

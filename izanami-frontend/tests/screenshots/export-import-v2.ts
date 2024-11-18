@@ -56,6 +56,7 @@ export async function generate() {
   await screenshot("import-form");
   await page.getByLabel("Exported file (ndjson)").setInputFiles(filepath);
   await page.getByRole("button", { name: "Import" }).click();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByLabel("Exported file (ndjson)").waitFor({
     state: "hidden",
   });
