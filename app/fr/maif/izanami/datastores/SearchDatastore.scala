@@ -9,7 +9,7 @@ import play.api.mvc.Results.Forbidden
 import scala.concurrent.Future
 
 class SearchDatastore(val env: Env) extends Datastore {
-  private val searchParam  =  env.configuration.get[Int]("app.search-parameter")
+  private val searchParam  =  env.configuration.get[Int]("app.search.parameter")
   def tenantSearch(
       tenant: String,
       username: String,
