@@ -46,7 +46,7 @@ export function SearchAction({
         >
           All tenants
         </button>
-        {tenant && tenant !== "all" && (
+        {tenant && (
           <>
             <button
               onClick={() => setModalStatus({ all: false, tenant })}

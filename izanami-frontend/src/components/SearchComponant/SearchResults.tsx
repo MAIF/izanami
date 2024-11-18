@@ -71,9 +71,9 @@ export function SearchResults({
     )
     .slice(-5);
 
-  return (
-    <div className="search-container">
-      {filteredHistory.length > 0 && resultStatus.state == "INITIAL" && (
+  if (resultStatus.state === "INITIAL" && filteredHistory.length > 0) {
+    return (
+      <div className="search-container">
         <div className="search-result">
           <>
             <span>Recent</span>
@@ -113,79 +113,93 @@ export function SearchResults({
             </ul>
           </>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {resultStatus.state !== "INITIAL" && (
+  if (resultStatus.state === "ERROR") {
+    return (
+      <div className="search-container">
         <div className="search-result">
-          {resultStatus.state === "ERROR" ? (
-            <div>{resultStatus.error}</div>
-          ) : resultStatus.state === "PENDING" ? (
-            <div>Searching...</div>
-          ) : (
-            resultStatus.state === "SUCCESS" &&
-            (groupedItems?.size > 0 ? (
-              <ul className="search-ul nav flex-column">
-                {[...groupedItems.keys()].map(
-                  (originTable, originTableIndex) => (
-                    <li className="search-ul-item" key={originTable}>
-                      <span>
-                        {typeDisplayInformation.get(originTable)?.displayName ??
-                          ""}
-                      </span>
-                      {groupedItems.get(originTable)?.map((item, index) => (
-                        <ol
-                          className="search-ul nav flex-column"
-                          key={`${item.name}-${originTableIndex}-${index}`}
-                        >
-                          <li
-                            className="search-ul-item"
-                            key={`${item.name}-${originTable}-${index}`}
-                          >
-                            <Link
-                              to={getLinkPath(item) || "#"}
-                              onClick={() => handleItemClick(item)}
-                            >
-                              <ul
-                                className="breadcrumb"
-                                style={{
-                                  marginBottom: "0rem",
-                                }}
-                              >
-                                {item.path.map((pathElement, pathIndex) => (
-                                  <li
-                                    className="breadcrumb-item"
-                                    key={`${item.name}-${pathIndex}`}
-                                  >
-                                    {typeDisplayInformation
-                                      .get(pathElement.type)
-                                      ?.icon() ?? ""}
-                                    {pathElement.name}
-                                  </li>
-                                ))}
-                                <li
-                                  className="breadcrumb-item"
-                                  key={`${item.name}-name`}
-                                >
-                                  {typeDisplayInformation
-                                    .get(item.type)
-                                    ?.icon() ?? ""}
-                                  {item.name}
-                                </li>
-                              </ul>
-                            </Link>
-                          </li>
-                        </ol>
-                      ))}
-                    </li>
-                  )
-                )}
-              </ul>
-            ) : (
-              <div className="search-result">No results found</div>
-            ))
-          )}
+          <div>{resultStatus.error}</div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  if (resultStatus.state === "PENDING") {
+    return (
+      <div className="search-container">
+        <div className="search-result">
+          <div>Searching...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (resultStatus.state === "SUCCESS" && groupedItems?.size > 0) {
+    return (
+      <div className="search-container">
+        <div className="search-result">
+          <ul className="search-ul nav flex-column">
+            {[...groupedItems.keys()].map((originTable, originTableIndex) => (
+              <li className="search-ul-item" key={originTable}>
+                <span>
+                  {typeDisplayInformation.get(originTable)?.displayName ?? ""}
+                </span>
+                {groupedItems.get(originTable)?.map((item, index) => (
+                  <ol
+                    className="search-ul nav flex-column"
+                    key={`${item.name}-${originTableIndex}-${index}`}
+                  >
+                    <li className="search-ul-item">
+                      <Link
+                        to={getLinkPath(item) || "#"}
+                        onClick={() => handleItemClick(item)}
+                      >
+                        <ul
+                          className="breadcrumb"
+                          style={{
+                            marginBottom: "0rem",
+                          }}
+                        >
+                          {item.path.map((pathElement, pathIndex) => (
+                            <li
+                              className="breadcrumb-item"
+                              key={`${item.name}-${pathIndex}`}
+                            >
+                              {typeDisplayInformation
+                                .get(pathElement.type)
+                                ?.icon() ?? ""}
+                              {pathElement.name}
+                            </li>
+                          ))}
+                          <li
+                            className="breadcrumb-item"
+                            key={`${item.name}-name`}
+                          >
+                            {typeDisplayInformation.get(item.type)?.icon() ??
+                              ""}
+                            {item.name}
+                          </li>
+                        </ul>
+                      </Link>
+                    </li>
+                  </ol>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="search-container">
+      <div className="search-result">
+        <div className="search-result">No results found</div>
+      </div>
     </div>
   );
 }

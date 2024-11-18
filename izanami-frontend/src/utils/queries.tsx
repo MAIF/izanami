@@ -1349,16 +1349,16 @@ export function searchEntities(
   query: string,
   filter: string[] = []
 ): Promise<SearchResult[]> {
+  let filterString = "";
   if (filter.length > 0) {
-    const filterString = filter.map(encodeURIComponent).join("&filter=");
-    const url = `/api/admin/search?query=${encodeURIComponent(
-      query
-    )}&filter=${filterString}`;
-
-    return handleFetchJsonResponse(fetch(url));
+    filterString = filter.map(encodeURIComponent).join("&filter=");
   }
   return handleFetchJsonResponse(
-    fetch(`/api/admin/search?query=${encodeURIComponent(query)}`)
+    fetch(
+      `/api/admin/search?query=${encodeURIComponent(query)}${
+        filterString ? `&filter=${filterString}` : ""
+      }`
+    )
   );
 }
 export function searchEntitiesByTenant(
@@ -1366,18 +1366,15 @@ export function searchEntitiesByTenant(
   query: string,
   filter: string[] = []
 ): Promise<SearchResult[]> {
+  let filterString = "";
   if (filter.length > 0) {
-    const filterString = filter.map(encodeURIComponent).join("&filter=");
-    const url = `/api/admin/tenants/${tenant}/search?query=${encodeURIComponent(
-      query
-    )}&filter=${filterString}`;
-
-    return handleFetchJsonResponse(fetch(url));
+    filterString = filter.map(encodeURIComponent).join("&filter=");
   }
-
   return handleFetchJsonResponse(
     fetch(
-      `/api/admin/tenants/${tenant}/search?query=${encodeURIComponent(query)}`
+      `/api/admin/tenants/${tenant}/search?query=${encodeURIComponent(query)}${
+        filterString ? `&filter=${filterString}` : ""
+      }`
     )
   );
 }
