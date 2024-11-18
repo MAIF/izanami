@@ -726,7 +726,9 @@ export class App extends Component {
           this.setState({
             confirmation: {
               message: msg,
-              callback: () => callback?.().finally(() => resolve()),
+              callback: callback
+                ? () => callback().finally(() => resolve())
+                : undefined,
               onCancel: () => {
                 return onCancel?.().finally(() => resolve());
               },
@@ -821,13 +823,7 @@ export class App extends Component {
       ...(callback
         ? {
             onConfirm: () => {
-              if (callback) {
-                callback().then(() =>
-                  this.setState({ confirmation: undefined })
-                );
-              } else {
-                this.setState({ confirmation: undefined });
-              }
+              callback().then(() => this.setState({ confirmation: undefined }));
             },
           }
         : {}),
