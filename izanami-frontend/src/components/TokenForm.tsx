@@ -38,7 +38,7 @@ export type AllRightsPesonnalTokenFormType = {
   allRights: true;
 };
 
-const DEFAULT_RIGHTS_VALUE: TokenTenantRightsArray = [[null, []]] as const;
+const DEFAULT_RIGHTS_VALUE: () => TokenTenantRightsArray = () => [[null, []]];
 
 export function tokenRightsToArray(
   rights: TokenTenantRights
@@ -65,7 +65,7 @@ export function TokenForm(props: {
   const methods = useForm<PesonnalTokenFormType>({
     defaultValues: props.defaultValue ?? {
       expiresAt: addYears(new Date(), 1),
-      rights: DEFAULT_RIGHTS_VALUE,
+      rights: DEFAULT_RIGHTS_VALUE(),
       allRights: false,
     },
   });
@@ -131,7 +131,7 @@ export function TokenForm(props: {
                     if (v?.target?.checked) {
                       unregister("rights");
                     } else {
-                      setValue("rights", DEFAULT_RIGHTS_VALUE);
+                      setValue("rights", DEFAULT_RIGHTS_VALUE());
                     }
                     onChange(v);
                   }}
