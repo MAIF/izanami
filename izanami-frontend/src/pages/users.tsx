@@ -92,12 +92,7 @@ export function Users() {
     }) => {
       if (data.userToCopy) {
         return queryUser(data.userToCopy).then((res: TUser) => {
-          const updatedData = { ...data, rights: res.rights };
-          return createInvitation(
-            updatedData.email,
-            updatedData.admin,
-            updatedData.rights
-          );
+          return createInvitation(data.email, res.admin, res.rights);
         });
       }
       return createInvitation(data.email, data.admin, data.rights);
@@ -312,13 +307,14 @@ export function Users() {
                     },
                     defaultValue: "",
                   },
-                  admin: {
-                    label: "Admin",
-                    type: "bool",
-                  },
                   useCopyUserRights: {
                     label: "Copy rights from another user",
                     type: "bool",
+                  },
+                  admin: {
+                    label: "Admin",
+                    type: "bool",
+                    visible: ({ rawValues }) => !rawValues.useCopyUserRights,
                   },
                   rights: {
                     label: () => "",
@@ -369,9 +365,6 @@ export function Users() {
                         setCreationUrl(response.invitationUrl);
                       }
                       setCreating(false);
-                    })
-                    .catch((error) => {
-                      throw new Error(error);
                     });
                 }}
                 onClose={() => setCreating(false)}
