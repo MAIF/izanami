@@ -56,7 +56,7 @@ class SearchAPISpec extends BaseAPISpec {
       fetchResponse.json.get.as[JsArray].value must have size 1
     }
 
-    "prevent search if filter in not valid" in {
+    "prevent search if filter is not valid" in {
       val tenantName = "my-tenant"
       val searchQuery = "comm"
       val situation = TestSituationBuilder()

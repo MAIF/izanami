@@ -33,8 +33,7 @@ class SearchController(
   def search(query: String, filter: List[String]): Action[AnyContent] = tenantRightAction.async {
     implicit request: UserRequestWithTenantRights[AnyContent] => {
       checkSearchParams(query, filter).flatMap {
-        case Left(error) =>
-          Future.successful(BadRequest(Json.obj("error" -> error.message)))
+        case Left(error) => error.toHttpResponse.future
         case Right(_) =>
           val tenants = request.user.tenantRights.keySet
           Future
@@ -75,8 +74,7 @@ class SearchController(
   def searchForTenant(tenant: String, query: String, filter: List[String]): Action[AnyContent] = simpleAuthAction.async {
     implicit request: UserNameRequest[AnyContent] =>
       checkSearchParams(query, filter).flatMap {
-        case Left(error) =>
-          Future.successful(BadRequest(Json.obj("error" -> error.message)))
+        case Left(error) => error.toHttpResponse.future
         case Right(_) =>
           env.datastores.search
             .tenantSearch(tenant, request.user, query, filter)
@@ -130,7 +128,7 @@ class SearchController(
                 val parts   = parent.split("_")
                 val project = parts.head
 
-                // We look for shorts local context parent, since before him all contexts will be global
+                // We look for shortest local context parent, since before him all contexts will be global
                 env.datastores.featureContext
                   .findLocalContexts(tenant, generateParentCandidates(parts.toSeq.drop(1)).map(s => s"${project}_$s"))
                   .map(context => {
