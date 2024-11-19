@@ -35,7 +35,9 @@ export function SearchResults({
       setSearchHistory(allHistory[username]);
     }
   }, []);
-
+  const allHistory = JSON.parse(
+    localStorage.getItem("userSearchHistory") || "{}"
+  );
   const handleItemClick = (item: SearchResult) => {
     const tenantExists = item.path.some((element) => element.type === "tenant");
 
@@ -44,9 +46,6 @@ export function SearchResults({
     }
 
     setSearchHistory((prevHistory) => {
-      const allHistory = JSON.parse(
-        localStorage.getItem("userSearchHistory") || "{}"
-      );
       const userHistory = allHistory[username] || [];
       const updatedHistory = Array.from(
         new Map(
@@ -76,7 +75,23 @@ export function SearchResults({
       <div className="search-container">
         <div className="search-result">
           <>
-            <span>Recent</span>
+            <div className="d-flex justify-content-between align-items-center">
+              <span>Previous searches</span>
+              <button
+                className="clear-history-search-btn"
+                onClick={() => {
+                  setSearchHistory([]);
+                  delete allHistory[username];
+                  localStorage.setItem(
+                    "userSearchHistory",
+                    JSON.stringify(allHistory)
+                  );
+                }}
+              >
+                Clear
+              </button>
+            </div>
+
             <ul className="search-ul nav flex-column">
               {filteredHistory.map((term, index) => (
                 <li className="search-ul-item" key={index}>
