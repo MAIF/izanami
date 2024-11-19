@@ -83,3 +83,9 @@ header .nav-link {
   justify-content: center;
   width: 24px;
 }
+
+@-moz-document url-prefix() {
+  [class*=" bi-three-dots-vertical"]::before {
+    vertical-align: -0.25em;
+  }
+}
