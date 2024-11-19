@@ -573,25 +573,29 @@ class ImportController(
       }
     }
 
-    env.datastores.tenants
-      .markImportAsStarted()
-      .map {
-        case Left(err) => err.toHttpResponse
-        case Right(id) => {
-          Future {
-            runImport(id)
-              .map {
-                case s @ ImportSuccess(id, features, users, scripts, keys, incompatibleScripts) =>
-                  env.datastores.tenants.markImportAsSucceded(id, s)
-                case f @ ImportFailure(id, errors)                                              => env.datastores.tenants.markImportAsFailed(id, f)
-              }
-              .recover(t => {
-                env.datastores.tenants.markImportAsFailed(id, ImportFailure(id, Seq(t.getMessage)))
-              })
+    if(request.body.files.isEmpty) {
+      Future.successful(BadRequest(Json.obj("message" -> "No files provided")))
+    } else {
+      env.datastores.tenants
+        .markImportAsStarted()
+        .map {
+          case Left(err) => err.toHttpResponse
+          case Right(id) => {
+            Future {
+              runImport(id)
+                .map {
+                  case s @ ImportSuccess(id, features, users, scripts, keys, incompatibleScripts) =>
+                    env.datastores.tenants.markImportAsSucceded(id, s)
+                  case f @ ImportFailure(id, errors)                                              => env.datastores.tenants.markImportAsFailed(id, f)
+                }
+                .recover(t => {
+                  env.datastores.tenants.markImportAsFailed(id, ImportFailure(id, Seq(t.getMessage)))
+                })
+            }
+            Accepted(Json.obj("id" -> id.toString))
           }
-          Accepted(Json.obj("id" -> id.toString))
         }
-      }
+    }
   }
 }
 
