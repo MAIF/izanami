@@ -202,15 +202,15 @@ export function importData(
 ): Promise<{ messages: string[]; conflicts?: object[] }> {
   const data = new FormData();
   data.append("export", importRequest.file.item(0)!);
-  return fetch(
-    `/api/admin/tenants/${tenant}/_import?version=2&conflict=${importRequest.conflictStrategy}`,
-    {
-      method: "POST",
-      body: data,
-    }
-  ).then((resp) => {
-    return resp.json();
-  });
+  return handleFetchJsonResponse(
+    fetch(
+      `/api/admin/tenants/${tenant}/_import?version=2&conflict=${importRequest.conflictStrategy}`,
+      {
+        method: "POST",
+        body: data,
+      }
+    )
+  );
 }
 
 export function requestExport(

@@ -244,25 +244,30 @@ export function TenantSettings(props: { tenant: string }) {
             <ImportForm
               cancel={() => setImportDisplayed(false)}
               submit={(request) => {
-                return importData(tenant, request).then((importRes) => {
-                  if (importRes.conflicts || importRes?.messages?.length > 0) {
-                    askConfirmation(
-                      <>
-                        <ImportMessages messages={importRes.messages} />
-                        {importRes.conflicts && (
-                          <ImportError
-                            conflictStrategy={
-                              request.conflictStrategy as ConflictStrategy
-                            }
-                            failedElements={importRes.conflicts}
-                          />
-                        )}
-                      </>
-                    );
-                  } else {
-                    setImportDisplayed(false);
-                  }
-                });
+                return importData(tenant, request)
+                  .then((importRes) => {
+                    if (
+                      importRes.conflicts ||
+                      importRes?.messages?.length > 0
+                    ) {
+                      askConfirmation(
+                        <>
+                          <ImportMessages messages={importRes.messages} />
+                          {importRes.conflicts && (
+                            <ImportError
+                              conflictStrategy={
+                                request.conflictStrategy as ConflictStrategy
+                              }
+                              failedElements={importRes.conflicts}
+                            />
+                          )}
+                        </>
+                      );
+                    } else {
+                      setImportDisplayed(false);
+                    }
+                  })
+                  .catch((err) => console.log("err", err));
               }}
             />
           </div>
