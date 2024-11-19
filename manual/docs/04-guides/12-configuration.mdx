@@ -140,3 +140,9 @@ With configurable values
 | initial delay (in seconds) | app.webhooks.retry.intial-delay | IZANAMI_WEBHOOK_RETRY_INITIAL_DELAY |
 | max delay (in seconds)     | app.webhooks.retry.max-delay    | IZANAMI_WEBHOOK_RETRY_MAX_DELAY     |
 | multiplier                 | app.webhooks.retry.multiplier   | IZANAMI_WEBHOOK_RETRY_MULTIPLIER    |
+
+### Logging
+
+To change logger, refer to [play documentation page](https://www.playframework.com/documentation/3.0.x/SettingsLogger).
+
+Izanami embed a json logger by default, therefore to have log at logstash json format, you can use the `-Dlogger.resource=json-logger.xml` argument.
