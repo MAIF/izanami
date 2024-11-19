@@ -172,10 +172,16 @@ export function TenantSettings(props: { tenant: string }) {
                 return importIzanamiV1Data({ ...data, tenant })
                   .then((response) => {
                     if (response.status >= 400) {
-                      // TODO handle body ?
-                      throw new Error(
-                        `Failed to import data (${response.status})`
-                      );
+                      return response
+                        .text()
+                        .catch(() => {
+                          throw new Error(`Failed to import data`);
+                        })
+                        .then((txt: string) => {
+                          throw new Error(
+                            `Failed to import data (${response.status}): ${txt}`
+                          );
+                        });
                     } else {
                       return response.json().then((body: any) => body.id);
                     }
@@ -209,10 +215,13 @@ export function TenantSettings(props: { tenant: string }) {
                   })
                   .then(() => setV1ImportDisplayed(false))
                   .catch((err) => {
+                    console.log("err", err);
                     askConfirmation(
                       <span className="error-message">
                         An error occured :{" "}
-                        {typeof err === "string" ? err : JSON.stringify(err)}
+                        {typeof err === "string"
+                          ? err
+                          : err?.message ?? JSON.stringify(err)}
                       </span>
                     );
                   });
