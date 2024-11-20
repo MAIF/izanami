@@ -16,7 +16,6 @@ interface SearchResultsProps {
   filterOptions: string[];
   onClose: () => void;
 }
-
 export function SearchResults({
   modalStatus,
   groupedItems,
@@ -27,17 +26,16 @@ export function SearchResults({
   const { user } = useContext(IzanamiContext);
   const username = user?.username ?? "";
   const [searchHistory, setSearchHistory] = useState<SearchResult[]>([]);
+  const allHistory = JSON.parse(
+    localStorage.getItem("userSearchHistory") || "{}"
+  );
+
   useEffect(() => {
-    const allHistory = JSON.parse(
-      localStorage.getItem("userSearchHistory") || "{}"
-    );
     if (allHistory[username]) {
       setSearchHistory(allHistory[username]);
     }
   }, []);
-  const allHistory = JSON.parse(
-    localStorage.getItem("userSearchHistory") || "{}"
-  );
+
   const handleItemClick = (item: SearchResult) => {
     const tenantExists = item.path.some((element) => element.type === "tenant");
 
@@ -94,36 +92,65 @@ export function SearchResults({
 
             <ul className="search-ul nav flex-column">
               {filteredHistory.map((term, index) => (
-                <li className="search-ul-item" key={index}>
-                  <Link
-                    to={getLinkPath(term) || "#"}
-                    onClick={() => handleItemClick(term)}
-                  >
-                    <ul
-                      className="breadcrumb"
-                      style={{
-                        marginBottom: "0rem",
+                <>
+                  <li className="search-ul-item" key={index}>
+                    <button
+                      type="button"
+                      id={`clear-history-item-${index}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setSearchHistory((prevHistory) => {
+                          const updatedHistory = prevHistory.filter(
+                            (item) => item !== term
+                          );
+                          allHistory[username] = updatedHistory;
+                          localStorage.setItem(
+                            "userSearchHistory",
+                            JSON.stringify(allHistory)
+                          );
+                          return updatedHistory;
+                        });
+                      }}
+                      aria-label="Clear search"
+                      className="clear-history-item-btn"
+                    >
+                      <i className="fa-regular fa-circle-xmark" />
+                    </button>
+                    <Link
+                      to={getLinkPath(term) || "#"}
+                      onClick={() => {
+                        handleItemClick(term);
                       }}
                     >
-                      {modalStatus.all &&
-                        term.path.map((pathElement, pathIndex) => (
-                          <li
-                            className="breadcrumb-item"
-                            key={`${term.name}-${pathIndex}`}
-                          >
-                            {typeDisplayInformation
-                              .get(pathElement.type)
-                              ?.icon() ?? ""}
-                            {pathElement.name}
-                          </li>
-                        ))}
-                      <li className="breadcrumb-item" key={`${term.name}-name`}>
-                        {typeDisplayInformation.get(term.type)?.icon() ?? ""}
-                        {term.name}
-                      </li>
-                    </ul>
-                  </Link>
-                </li>
+                      <ul
+                        className="breadcrumb"
+                        style={{
+                          marginBottom: "0rem",
+                        }}
+                      >
+                        {modalStatus.all &&
+                          term.path.map((pathElement, pathIndex) => (
+                            <li
+                              className="breadcrumb-item"
+                              key={`${term.name}-${pathIndex}`}
+                            >
+                              {typeDisplayInformation
+                                .get(pathElement.type)
+                                ?.icon() ?? ""}
+                              {pathElement.name}
+                            </li>
+                          ))}
+                        <li
+                          className="breadcrumb-item"
+                          key={`${term.name}-name`}
+                        >
+                          {typeDisplayInformation.get(term.type)?.icon() ?? ""}
+                          {term.name}
+                        </li>
+                      </ul>
+                    </Link>
+                  </li>
+                </>
               ))}
             </ul>
           </>
