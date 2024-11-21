@@ -8,11 +8,11 @@ import { Loader } from "./Loader";
 
 export function FeatureSelector(props: {
   id?: string;
-  value?: string;
+  value?: string[];
   onChange?: (v: string[]) => void;
 }) {
   const { tenant } = useParams();
-  const { value, onChange } = props;
+  const { onChange } = props;
 
   const featureQuery = useQuery(tenantFeaturesKey(tenant!), () =>
     findFeatures(tenant!)
@@ -31,9 +31,9 @@ export function FeatureSelector(props: {
         inputId={props.id ?? undefined}
         isMulti
         value={
-          value
-            ? options.find(({ value }) => props.value?.includes(value ?? ""))
-            : undefined
+          props.value
+            ? options.filter(({ value }) => props.value?.includes(value ?? ""))
+            : []
         }
         onChange={(newValue) => {
           onChange?.(newValue.map(({ value }) => value!));
