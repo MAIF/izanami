@@ -8,11 +8,11 @@ import { Loader } from "./Loader";
 
 export function ProjectSelector(props: {
   id?: string;
-  value?: string;
+  value?: string[];
   onChange?: (v: string[]) => void;
 }) {
   const { tenant } = useParams();
-  const { value, onChange } = props;
+  const { onChange } = props;
 
   const tenantQuery = useQuery(tenantQueryKey(tenant!), () =>
     queryTenant(tenant!)
@@ -32,9 +32,9 @@ export function ProjectSelector(props: {
         inputId={props.id ?? undefined}
         isMulti
         value={
-          value
-            ? options.find(({ value }) => props.value?.includes(value ?? ""))
-            : undefined
+          props.value
+            ? options.filter(({ value }) => props.value?.includes(value ?? ""))
+            : []
         }
         onChange={(newValue) => {
           onChange?.(newValue.map(({ value }) => value));
