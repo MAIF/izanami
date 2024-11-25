@@ -68,7 +68,7 @@ class SearchAPISpec extends BaseAPISpec {
 
       val fetchResponse = situation.fetchSearchEntitiesWithFilters(searchQuery, List("feat"))
 
-      fetchResponse.json.get mustBe Json.obj("error" -> "Invalid filters provided. Please ensure your filters are from the following list: project, feature, key, tag, script, global_context, local_context, webhook.")
+      fetchResponse.json.get mustBe Json.obj("message" -> "Invalid filters provided. Please ensure your filters are correct.")
     }
 
     // TODO check that result ordering is correct

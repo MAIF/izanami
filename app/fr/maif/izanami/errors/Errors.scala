@@ -164,8 +164,8 @@ case class ConflictingName(tenant: String, entityTpe: String, row: JsObject)
           .toString()}",
       status = 400
     )
-case class SearchFilterError(validList: String)
-  extends IzanamiError(message = s"Invalid filters provided. Please ensure your filters are from the following list: ${validList}.", status = BAD_REQUEST)
+case class SearchFilterError()
+  extends IzanamiError(message = s"Invalid filters provided. Please ensure your filters are correct.", status = BAD_REQUEST)
 case class SearchQueryError()
   extends IzanamiError(message = s"Query parameter is missing.", status = BAD_REQUEST)
 case class GenericBadRequest(override val message: String) extends IzanamiError(message = message, status = 400)
