@@ -259,7 +259,7 @@ class ImportController(
         .map {
           case (messages, data) => {
             env.datastores.exportDatastore
-              .importTenantData(tenant, data, conflictStrategy)
+              .importTenantData(tenant, data, conflictStrategy, request.user)
               .map {
                 case Left(PartialImportFailure(failedElements)) =>
                   Conflict(

@@ -22,7 +22,7 @@ import {
   TClassicalCondition,
 } from "../utils/types";
 import { format, parse } from "date-fns";
-import { useMutation, useQueries, useQuery } from "react-query";
+import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import {
   createFeature,
   deleteFeature,
@@ -156,14 +156,14 @@ function PeriodDetails(props: { period: TFeaturePeriod }): JSX.Element {
 function Period({ period }: { period: TFeaturePeriod }): JSX.Element {
   let display = "";
   if (period.begin && period.end) {
-    display = `from ${format(period.begin, "PPP")} to ${format(
+    display = `from ${format(period.begin, "PPPp")} to ${format(
       period.end,
-      "PPP"
+      "PPPp"
     )}`;
   } else if (period.begin) {
-    display = `after ${format(period.begin, "PPP")}`;
+    display = `after ${format(period.begin, "PPPp")}`;
   } else if (period.end) {
-    display = `until ${format(period.end, "PPP")}`;
+    display = `until ${format(period.end, "PPPp")}`;
   }
   return (
     <>
@@ -455,9 +455,11 @@ function OperationTransferForm(props: {
     (q, idx) => selectedRowProjects.indexOf(q) === idx
   );
 
-  const projectQuery = useQuery(tenantQueryKey(tenant), () =>
-    queryTenant(tenant)
-  );
+  const projectQuery = useQuery({
+    queryKey: [tenantQueryKey(tenant)],
+
+    queryFn: () => queryTenant(tenant),
+  });
   const { askConfirmation } = React.useContext(IzanamiContext);
 
   if (projectQuery.isLoading) {
@@ -531,7 +533,10 @@ function OperationTagForm(props: {
   refresh: () => any;
 }) {
   const { tenant, selectedRows, cancel, refresh } = props;
-  const tagsQuery = useQuery(tagsQueryKey(tenant), () => queryTags(tenant));
+  const tagsQuery = useQuery({
+    queryKey: [tagsQueryKey(tenant)],
+    queryFn: () => queryTags(tenant),
+  });
   const selectedRowTags = [...new Set(selectedRows.flatMap((f) => f.tags))];
   const { askConfirmation } = React.useContext(IzanamiContext);
   const [values, setSelectedValues] = React.useState<Option[] | null>();
@@ -615,21 +620,26 @@ function TransferForm(props: {
   cancel: () => void;
 }) {
   const { project, tenant, feature, cancel } = props;
-  const projectQuery = useQuery(tenantQueryKey(tenant), () =>
-    queryTenant(tenant)
-  );
+  const projectQuery = useQuery({
+    queryKey: [tenantQueryKey(tenant)],
 
-  const featureUpdateMutation = useMutation((data: { project: string }) =>
-    patchFeatures(tenant, [
-      {
-        op: "replace",
-        path: `/${feature.id}/project`,
-        value: data.project,
-      },
-    ]).then(() => {
-      queryClient.invalidateQueries(projectQueryKey(tenant, project));
-    })
-  );
+    queryFn: () => queryTenant(tenant),
+  });
+
+  const featureUpdateMutation = useMutation({
+    mutationFn: (data: { project: string }) =>
+      patchFeatures(tenant, [
+        {
+          op: "replace",
+          path: `/${feature.id}/project`,
+          value: data.project,
+        },
+      ]).then(() => {
+        queryClient.invalidateQueries({
+          queryKey: [projectQueryKey(tenant, project)],
+        });
+      }),
+  });
 
   const { askConfirmation } = React.useContext(IzanamiContext);
 
@@ -769,9 +779,11 @@ function FeatureUrl(props: {
 }) {
   const { project } = props.feature;
   const { tenant, context, feature } = props;
-  const contextQuery = useQuery(projectContextKey(tenant!, project!), () =>
-    queryContextsForProject(tenant!, project!)
-  );
+  const contextQuery = useQuery({
+    queryKey: [projectContextKey(tenant!, project!)],
+
+    queryFn: () => queryContextsForProject(tenant!, project!),
+  });
   const [selectedContext, setSelectedContext] = useState(context);
 
   const { expositionUrl } = React.useContext(IzanamiContext);
@@ -854,9 +866,11 @@ function OverloadTableForFeature(props: {
 }) {
   const { project, name } = props.feature;
   const { tenant } = props;
-  const contextQuery = useQuery(projectContextKey(tenant!, project!), () =>
-    queryContextsForProject(tenant!, project!)
-  );
+  const contextQuery = useQuery({
+    queryKey: [projectContextKey(tenant!, project!)],
+
+    queryFn: () => queryContextsForProject(tenant!, project!),
+  });
 
   const hasModificationRight = useProjectRight(tenant, project, TLevel.Write);
 
@@ -869,7 +883,9 @@ function OverloadTableForFeature(props: {
         overloads={overloads}
         project={project!}
         refresh={() =>
-          queryClient.invalidateQueries(projectContextKey(tenant!, project!))
+          queryClient.invalidateQueries({
+            queryKey: [projectContextKey(tenant!, project!)],
+          })
         }
         fields={["linkedPath", "name", "enabled", "details"]}
         actions={() => (hasModificationRight ? ["edit", "delete"] : [])}
@@ -887,12 +903,12 @@ function OverloadDetails(props: {
   const [creating, setCreating] = useState(false);
   const { tenant } = useParams();
   const { feature, cancel } = props;
-  const contextQuery = useQuery(
-    projectContextKey(tenant!, feature.project!),
-    () => queryContextsForProject(tenant!, feature.project!)
-  );
-  const updateStrategyMutation = useMutation(
-    (
+  const contextQuery = useQuery({
+    queryKey: [projectContextKey(tenant!, feature.project!)],
+    queryFn: () => queryContextsForProject(tenant!, feature.project!),
+  });
+  const updateStrategyMutation = useMutation({
+    mutationFn: (
       data: TContextOverload & {
         feature: string;
         project: string;
@@ -910,13 +926,12 @@ function OverloadDetails(props: {
         "value" in data ? data.value : undefined
       );
     },
-    {
-      onSuccess: () =>
-        queryClient.invalidateQueries(
-          projectContextKey(tenant!, feature.project!)
-        ),
-    }
-  );
+
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: [projectContextKey(tenant!, feature.project!)],
+      }),
+  });
   const [selectedContext, selectContext] = useState<string>();
   const modificationRight = useProjectRight(
     tenant,
@@ -1007,15 +1022,29 @@ function ExistingFeatureTestForm(props: {
   const [message, setMessage] = useState<string | undefined>(undefined);
   const { tenant } = useParams();
 
-  const contextQuery = useQuery(
-    projectContextKey(tenant!, feature.project!),
-    () => queryContextsForProject(tenant!, feature.project!)
-  );
+  const contextQuery = useQuery({
+    queryKey: [projectContextKey(tenant!, feature.project!)],
+    queryFn: () => queryContextsForProject(tenant!, feature.project!),
+  });
 
-  const featureTestMutation = useMutation(
-    ({ context, user, date }: { date: Date; user: string; context: string }) =>
-      testExistingFeature(tenant!, feature.id!, date, context ?? "", user ?? "")
-  );
+  const featureTestMutation = useMutation({
+    mutationFn: ({
+      context,
+      user,
+      date,
+    }: {
+      date: Date;
+      user: string;
+      context: string;
+    }) =>
+      testExistingFeature(
+        tenant!,
+        feature.id!,
+        date,
+        context ?? "",
+        user ?? ""
+      ),
+  });
 
   if (contextQuery.error) {
     return <div>Error while fetching contexts</div>;
@@ -1141,8 +1170,8 @@ export function OverloadTable(props: {
   const { tenant } = useParams();
   const { fields, overloads, actions, refresh, project } = props;
   const columns: ColumnDef<TContextOverload>[] = [];
-  const updateStrategyMutation = useMutation(
-    (
+  const updateStrategyMutation = useMutation({
+    mutationFn: (
       data: TContextOverload & {
         feature: string;
         project: string;
@@ -1160,27 +1189,25 @@ export function OverloadTable(props: {
         "value" in data ? data.value : undefined
       );
     },
-    {
-      onSuccess: () => {
-        refresh();
-      },
-    }
-  );
 
-  const deleteStrategyMutation = useMutation(
-    (data: { feature: string; path: string; project: string }) =>
+    onSuccess: () => {
+      refresh();
+    },
+  });
+
+  const deleteStrategyMutation = useMutation({
+    mutationFn: (data: { feature: string; path: string; project: string }) =>
       deleteFeatureActivationForContext(
         tenant!,
         data.project, // TODO this should not be necessary
         data.path,
         data.feature
       ),
-    {
-      onSuccess: () => {
-        refresh();
-      },
-    }
-  );
+
+    onSuccess: () => {
+      refresh();
+    },
+  });
 
   const { askConfirmation } = React.useContext(IzanamiContext);
 
@@ -1350,8 +1377,8 @@ export function FeatureTestForm(props: {
   const [message, setMessage] = useState<string | undefined>(undefined);
 
   // TODO handle context
-  const featureTestMutation = useMutation(
-    ({
+  const featureTestMutation = useMutation({
+    mutationFn: ({
       feature,
       user,
       date,
@@ -1359,8 +1386,8 @@ export function FeatureTestForm(props: {
       date: Date;
       user: string;
       feature: TCompleteFeature;
-    }) => testFeature(tenant!, feature, user, date)
-  );
+    }) => testFeature(tenant!, feature, user, date),
+  });
 
   return (
     <form
@@ -1504,42 +1531,39 @@ export function FeatureTable(props: {
 
   const { askConfirmation, user } = React.useContext(IzanamiContext);
 
-  const featureUpdateMutation = useMutation(
-    (data: { id: string; feature: TCompleteFeature }) =>
+  const featureUpdateMutation = useMutation({
+    mutationFn: (data: { id: string; feature: TCompleteFeature }) =>
       updateFeature(tenant!, data.id, data.feature),
-    {
-      onSuccess: () => {
-        refresh();
-      },
-    }
-  );
 
-  const contextQueries = useQueries(
-    [...new Set(features.map((f) => f.project))].map((project) => {
+    onSuccess: () => {
+      refresh();
+    },
+  });
+
+  const contextQueries = useQueries({
+    queries: [...new Set(features.map((f) => f.project))].map((project) => {
       return {
         queryKey: [projectContextKey(tenant!, project!)],
         queryFn: () => queryContextsForProject(tenant!, project!),
         enabled: fields.includes("overloadCount"),
       };
-    })
-  );
+    }),
+  });
 
-  const featureDeleteMutation = useMutation(
-    (id: string) => deleteFeature(tenant!, id),
-    {
-      onSuccess: () => {
-        refresh();
-      },
-    }
-  );
+  const featureDeleteMutation = useMutation({
+    mutationFn: (id: string) => deleteFeature(tenant!, id),
 
-  const featureCreateMutation = useMutation(
-    (data: { project: string; feature: any }) =>
+    onSuccess: () => {
+      refresh();
+    },
+  });
+
+  const featureCreateMutation = useMutation({
+    mutationFn: (data: { project: string; feature: any }) =>
       createFeature(tenant!, data.project, data.feature),
-    {
-      onSuccess: () => refresh(),
-    }
-  );
+
+    onSuccess: () => refresh(),
+  });
 
   if (fields.includes("name") && fields.includes("overloadCount")) {
     columns.push({
@@ -1741,10 +1765,14 @@ export function FeatureTable(props: {
                     },
                     {
                       onSuccess: () => {
-                        queryClient.invalidateQueries(tagsQueryKey(tenant!));
-                        queryClient.invalidateQueries(
-                          projectContextKey(tenant!, datum.project!)
-                        );
+                        queryClient.invalidateQueries({
+                          queryKey: [tagsQueryKey(tenant!)],
+                        });
+                        queryClient.invalidateQueries({
+                          queryKey: [
+                            projectContextKey(tenant!, datum.project!),
+                          ],
+                        });
                         cancel();
                       },
                     }

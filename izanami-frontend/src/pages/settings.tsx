@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import queryClient from "../queryClient";
 import { string } from "yup";
 import { JsonViewer } from "@textea/json-viewer";
@@ -59,12 +59,15 @@ export function Settings() {
     state: "INITIAL",
   });
 
-  const configurationQuery = useQuery(MutationNames.CONFIGURATION, () =>
-    queryConfiguration()
-  );
-  const configurationMutationQuery = useMutation(
-    (data: Omit<Configuration, "version">) => updateConfiguration(data)
-  );
+  const configurationQuery = useQuery({
+    queryKey: [MutationNames.CONFIGURATION],
+
+    queryFn: () => queryConfiguration(),
+  });
+  const configurationMutationQuery = useMutation({
+    mutationFn: (data: Omit<Configuration, "version">) =>
+      updateConfiguration(data),
+  });
 
   if (configurationQuery.isLoading) {
     return <Loader message="Loading configuration..." />;
@@ -195,7 +198,9 @@ export function Settings() {
                       : configuration.anonymousReportingLastAsked,
                   })
                   .then(() => {
-                    queryClient.invalidateQueries(MutationNames.CONFIGURATION);
+                    queryClient.invalidateQueries({
+                      queryKey: [MutationNames.CONFIGURATION],
+                    });
                   });
               }}
               submitText="Update settings"
@@ -237,13 +242,16 @@ export function Settings() {
 
 function MailerDetail(props: { mailer: Mailer }) {
   const { mailer } = props;
-  const mailerConfigurationQuery = useQuery(mailerQueryKey(mailer), () =>
-    queryMailerConfiguration(mailer)
-  );
+  const mailerConfigurationQuery = useQuery({
+    queryKey: [mailerQueryKey(mailer)],
 
-  const mailerConfigurationMutationQuery = useMutation(
-    (data: MailerConfiguration) => updateMailerConfiguration(mailer, data)
-  );
+    queryFn: () => queryMailerConfiguration(mailer),
+  });
+
+  const mailerConfigurationMutationQuery = useMutation({
+    mutationFn: (data: MailerConfiguration) =>
+      updateMailerConfiguration(mailer, data),
+  });
 
   if (mailerConfigurationQuery.isLoading) {
     return <Loader message="Loading configuration..." />;
@@ -282,7 +290,9 @@ function MailerDetail(props: { mailer: Mailer }) {
                     apiKey: apikey,
                   })
                   .then(() =>
-                    queryClient.invalidateQueries(mailerQueryKey("MailJet"))
+                    queryClient.invalidateQueries({
+                      queryKey: [mailerQueryKey("MailJet")],
+                    })
                   );
               }}
             />
@@ -315,7 +325,9 @@ function MailerDetail(props: { mailer: Mailer }) {
                     apiKey: apikey,
                   })
                   .then(() =>
-                    queryClient.invalidateQueries(mailerQueryKey("MailGun"))
+                    queryClient.invalidateQueries({
+                      queryKey: [mailerQueryKey("MailGun")],
+                    })
                   );
               }}
             />
@@ -358,7 +370,9 @@ function MailerDetail(props: { mailer: Mailer }) {
                     smtps,
                   })
                   .then(() =>
-                    queryClient.invalidateQueries(mailerQueryKey("SMTP"))
+                    queryClient.invalidateQueries({
+                      queryKey: [mailerQueryKey("SMTP")],
+                    })
                   );
               }}
             />

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import { globalContextKey, queryGlobalContexts } from "../utils/queries";
 import { useParams } from "react-router-dom";
 import Select from "react-select";
@@ -15,9 +15,12 @@ export function AllContexts(props: {
 }) {
   const { tenant } = useParams();
   const { value, onChange } = props;
-  const contextQuery = useQuery(globalContextKey(tenant!), () =>
-    queryGlobalContexts(tenant!, true)
-  );
+  const contextQuery = useQuery({
+    queryKey: [globalContextKey(tenant!)],
+
+    queryFn: () =>
+      queryGlobalContexts(tenant!, true)
+  });
 
   if (contextQuery.error) {
     return <div>Failed to fetch contexts</div>;

@@ -31,7 +31,7 @@ label {
   color: var(--color_level2);
 }
 
-.sub_container-bglighter label{
+.sub_container-bglighter label {
   color: var(--color_level3) !important;
   border-color: var(--color_level2) !important;
 }
@@ -86,6 +86,10 @@ form .error-message {
   margin-top: 4px;
 }
 
-.form-check-input:checked{
+.form-check-input:checked {
   background-color: $primaryColor;
+}
+
+input.form-control[type="datetime-local"] {
+  width: initial;
 }

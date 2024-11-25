@@ -30,6 +30,8 @@ import {
   TClassicalCondition,
   PersonnalAccessToken,
   TokenTenantRight,
+  FeatureLogEntry,
+  ProjectLogSearchQuery,
 } from "./types";
 import { isArray } from "lodash";
 import toast from "react-hot-toast";
@@ -39,6 +41,10 @@ export enum MutationNames {
   TENANTS = "TENANTS",
   USERS = "USER",
   CONFIGURATION = "CONFIGURATION",
+}
+
+export function projectLogQueryKey(tenant: string, project: string): string {
+  return `${tenant}/${project}/logs`;
 }
 
 export function webhookQueryKey(tenant: string): string {
@@ -209,7 +215,17 @@ export function importData(
         method: "POST",
         body: data,
       }
-    )
+    ).then((res) => {
+      if (res.status === 409) {
+        return res.json().then((json) => {
+          return {
+            json: () => Promise.resolve(json),
+            status: 200,
+          } as any;
+        });
+      }
+      return res;
+    })
   );
 }
 
@@ -1377,4 +1393,52 @@ export function searchEntitiesByTenant(
       }`
     )
   );
+}
+
+export function fetchProjectLogs(
+  tenant: string,
+  project: string,
+  cursor: number | null,
+  query: ProjectLogSearchQuery
+): Promise<{ events: FeatureLogEntry[]; count: number | null }> {
+  const { users, features, types } = query;
+  return handleFetchJsonResponse(
+    fetch(
+      `/api/admin/tenants/${tenant}/projects/${project}/logs?order=${
+        query.order
+      }&total=${query.total}${
+        cursor === null ? "" : `&cursor=${cursor}`
+      }&count=${query.pageSize}${
+        users.length > 0 ? `&users=${users.join(",")}` : ""
+      }${features.length > 0 ? `&features=${features.join(",")}` : ""}${
+        types.length > 0 ? `&types=${types.join(",")}` : ""
+      }${
+        query.begin
+          ? `&start=${encodeURIComponent(
+              format(query.begin, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+            )}`
+          : ""
+      }${
+        query.end
+          ? `&end=${encodeURIComponent(
+              format(query.end, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+            )}`
+          : ""
+      }`
+    )
+  ).then((logs) => {
+    logs.events.forEach((log: FeatureLogEntry) => {
+      if (log.emittedAt) {
+        log.emittedAt = new Date(log.emittedAt);
+      }
+      if ("conditions" in log) {
+        Object.values(log.conditions).map((f) => castDateIfNeeded(f));
+      }
+      if ("previousConditions" in log) {
+        Object.values(log.previousConditions).map((f) => castDateIfNeeded(f));
+      }
+      return log;
+    });
+    return logs;
+  });
 }

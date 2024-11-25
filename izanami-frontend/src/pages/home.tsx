@@ -1,7 +1,7 @@
 import { Form } from "../components/Form";
 import { constraints, format, type } from "@maif/react-forms";
 import * as React from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Navigate, NavLink, useNavigate } from "react-router-dom";
 import { createTenant, MutationNames, queryTenants } from "../utils/queries";
 import queryClient from "../queryClient";
@@ -15,16 +15,18 @@ export function HomePage() {
   const { user, refreshUser } = React.useContext(IzanamiContext);
   const navigate = useNavigate();
   const isAdmin = useAdmin();
-  const tenantQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
-  const tenantCreationMutation = useMutation(
-    (data: TenantInCreationType) => createTenant(data),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(MutationNames.TENANTS);
-        refreshUser();
-      },
-    }
-  );
+  const tenantQuery = useQuery({
+    queryKey: [MutationNames.TENANTS],
+    queryFn: () => queryTenants(),
+  });
+  const tenantCreationMutation = useMutation({
+    mutationFn: (data: TenantInCreationType) => createTenant(data),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [MutationNames.TENANTS] });
+      refreshUser();
+    },
+  });
   if (tenantQuery.isSuccess) {
     if (!isAdmin && tenantQuery.data.length === 1) {
       return <Navigate to={`/tenants/${tenantQuery.data[0].name}`} />;

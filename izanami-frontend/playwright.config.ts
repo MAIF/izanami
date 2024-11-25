@@ -13,8 +13,6 @@ export const STORAGE_STATE = path.join(__dirname, "playwright/.auth/user.json");
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
-  timeout: 180_000,
-  expect: { timeout: 12_000 },
   testDir: "./tests",
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -46,7 +44,13 @@ export default defineConfig({
     {
       name: "chromium",
       dependencies: ["setup"],
-      use: { ...devices["Desktop Chrome"], storageState: STORAGE_STATE },
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: STORAGE_STATE,
+        contextOptions: {
+          permissions: ["clipboard-read", "clipboard-write"],
+        },
+      },
       fullyParallel: false,
     },
 

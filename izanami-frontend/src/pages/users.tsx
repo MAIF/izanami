@@ -1,6 +1,6 @@
 import { ColumnDef, Row } from "@tanstack/react-table";
 import React, { useContext, useState } from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { GenericTable } from "../components/GenericTable";
 import queryClient from "../queryClient";
 import { IzanamiContext, useAdmin } from "../securityContext";
@@ -49,43 +49,51 @@ export function Users() {
     )
   );
   const [creating, setCreating] = useState(false);
-  const userQuery = useQuery(MutationNames.USERS, () => usersQuery());
-  const userDeleteMutation = useMutation(
-    (username: string) => deleteUser(username),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(MutationNames.USERS);
-        setSelectedRows([]);
-      },
-    }
-  );
+  const userQuery = useQuery({
+    queryKey: [MutationNames.USERS],
+    queryFn: () => usersQuery(),
+  });
+  const userDeleteMutation = useMutation({
+    mutationFn: (username: string) => deleteUser(username),
 
-  const userUpdateMutation = useMutation(
-    (user: { username: string; admin: boolean; rights: TRights }) => {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [MutationNames.USERS] });
+      setSelectedRows([]);
+    },
+  });
+
+  const userUpdateMutation = useMutation({
+    mutationFn: (user: {
+      username: string;
+      admin: boolean;
+      rights: TRights;
+    }) => {
       const { username, ...rest } = user;
       return updateUserRights(username, rest);
     },
-    {
-      onSuccess: (_, { username }) => {
-        queryClient.invalidateQueries(MutationNames.USERS);
-        queryClient.invalidateQueries(userQueryKey(username));
-      },
-    }
-  );
 
-  const userUpdateMutationForTenant = useMutation(
-    (user: { username: string; tenant: string; rights: TTenantRight }) => {
+    onSuccess: (_, { username }) => {
+      queryClient.invalidateQueries({ queryKey: [MutationNames.USERS] });
+      queryClient.invalidateQueries({ queryKey: [userQueryKey(username)] });
+    },
+  });
+
+  const userUpdateMutationForTenant = useMutation({
+    mutationFn: (user: {
+      username: string;
+      tenant: string;
+      rights: TTenantRight;
+    }) => {
       const { username, tenant, rights } = user;
       return updateUserRightsForTenant(username, tenant, rights);
     },
-    {
-      onSuccess: (_, { username }) => {
-        queryClient.invalidateQueries(userQueryKey(username));
-      },
-    }
-  );
-  const inviteUserMutation = useMutation(
-    (data: {
+
+    onSuccess: (_, { username }) => {
+      queryClient.invalidateQueries({ queryKey: [userQueryKey(username)] });
+    },
+  });
+  const inviteUserMutation = useMutation({
+    mutationFn: (data: {
       admin: boolean;
       email: string;
       rights: TRights;
@@ -97,8 +105,8 @@ export function Users() {
         });
       }
       return createInvitation(data.email, data.admin, data.rights);
-    }
-  );
+    },
+  });
 
   function OperationToggleForm(props: {
     bulkOperation: string;
@@ -589,11 +597,14 @@ export function UserEdition(props: {
     .filter(([, tenantRight]) => tenantRight.level == TLevel.Admin)
     .map(([name]) => name);
 
-  const userQuery = useQuery(
-    props.tenant
-      ? userQueryKeyForTenant(username, props.tenant)
-      : userQueryKey(username),
-    () => {
+  const userQuery = useQuery({
+    queryKey: [
+      props.tenant
+        ? userQueryKeyForTenant(username, props.tenant)
+        : userQueryKey(username),
+    ],
+
+    queryFn: () => {
       if (isAdmin && !props.tenant) {
         return queryUser(username);
       } else {
@@ -602,8 +613,8 @@ export function UserEdition(props: {
           props.tenant ? [props.tenant] : adminTenants
         );
       }
-    }
-  );
+    },
+  });
 
   if (userQuery.isLoading) {
     return <Loader message="Loading..." />;

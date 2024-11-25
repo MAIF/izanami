@@ -1,6 +1,6 @@
 import * as React from "react";
 import { FeatureContexts } from "../components/FeatureContexts";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   createContext,
   deleteContext,
@@ -33,28 +33,35 @@ export function ProjectContexts(props: {
 }) {
   const { tenant, project, open } = props;
 
-  const deleteContextMutation = useMutation(
-    (data: { tenant: string; project: string; path: string }) => {
+  const deleteContextMutation = useMutation({
+    mutationFn: (data: { tenant: string; project: string; path: string }) => {
       const { tenant, project, path } = data;
       return deleteContext(tenant, project, path);
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(projectContextKey(tenant, project));
-      },
-    }
-  );
 
-  const createContextMutation = useMutation(
-    (data: { tenant: string; project: string; path: string; name: string }) => {
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [projectContextKey(tenant, project)],
+      });
+    },
+  });
+
+  const createContextMutation = useMutation({
+    mutationFn: (data: {
+      tenant: string;
+      project: string;
+      path: string;
+      name: string;
+    }) => {
       const { tenant, project, path, name } = data;
       return createContext(tenant, project, path, name);
     },
-    {
-      onSuccess: () =>
-        queryClient.invalidateQueries(projectContextKey(tenant, project)),
-    }
-  );
+
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: [projectContextKey(tenant, project)],
+      }),
+  });
 
   const modificationRight = useProjectRight(tenant, project, TLevel.Write);
 
@@ -105,11 +112,13 @@ function ProjectOverloadTable({
   parents: TContext[];
 }) {
   const { project } = useParams();
-  const projectQuery = useQuery(projectQueryKey(tenant, project!), () =>
-    queryProject(tenant, project!)
-  );
-  const updateOverload = useMutation(
-    (data: {
+  const projectQuery = useQuery({
+    queryKey: [projectQueryKey(tenant, project!)],
+
+    queryFn: () => queryProject(tenant, project!),
+  });
+  const updateOverload = useMutation({
+    mutationFn: (data: {
       project: string;
       name: string;
       enabled: boolean;
@@ -131,8 +140,8 @@ function ProjectOverloadTable({
         wasm,
         value
       );
-    }
-  );
+    },
+  });
 
   const [creating, setCreating] = React.useState(false);
   const [displayingAllFeatures, displayAllFeatures] = useState(false);
@@ -171,9 +180,9 @@ function ProjectOverloadTable({
                 {
                   onSuccess: () => {
                     setCreating(false);
-                    queryClient.invalidateQueries(
-                      projectContextKey(tenant, project!)
-                    );
+                    queryClient.invalidateQueries({
+                      queryKey: [projectContextKey(tenant, project!)],
+                    });
                   },
                 }
               );
@@ -199,8 +208,12 @@ function ProjectOverloadTable({
           }
           fields={["path", "name", "enabled", "details"]}
           refresh={() => {
-            queryClient.invalidateQueries(projectQueryKey(tenant, project!));
-            queryClient.invalidateQueries(projectContextKey(tenant, project!));
+            queryClient.invalidateQueries({
+              queryKey: [projectQueryKey(tenant, project!)],
+            });
+            queryClient.invalidateQueries({
+              queryKey: [projectContextKey(tenant, project!)],
+            });
           }}
           overloads={
             displayingAllFeatures
