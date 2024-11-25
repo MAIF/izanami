@@ -2,7 +2,7 @@ import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
 import * as React from "react";
 import { useState } from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { NavLink, useNavigate } from "react-router-dom";
 import queryClient from "../queryClient";
 import { IzanamiContext, useTenantRight } from "../securityContext";
@@ -19,7 +19,10 @@ import { CopyButton } from "../components/FeatureTable";
 
 export function Tenant({ tenant }: { tenant: string }) {
   const queryKey = tenantQueryKey(tenant);
-  const tenantQuery = useQuery(queryKey, () => queryTenant(tenant));
+  const tenantQuery = useQuery({
+    queryKey: [queryKey],
+    queryFn: () => queryTenant(tenant),
+  });
 
   if (tenantQuery.isSuccess) {
     const tenant = tenantQuery.data;
@@ -47,15 +50,15 @@ function ProjectList(props: { tenant: TenantType }) {
   const [creating, setCreating] = useState<boolean>(false);
 
   const { refreshUser } = React.useContext(IzanamiContext);
-  const projectCreationMutation = useMutation(
-    (data: ProjectInCreationType) => createProject(tenant.name, data),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(queryKey);
-        refreshUser();
-      },
-    }
-  );
+  const projectCreationMutation = useMutation({
+    mutationFn: (data: ProjectInCreationType) =>
+      createProject(tenant.name, data),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [queryKey] });
+      refreshUser();
+    },
+  });
 
   const hasTenantWriteRight = useTenantRight(tenant.name, TLevel.Write);
   const navigate = useNavigate();

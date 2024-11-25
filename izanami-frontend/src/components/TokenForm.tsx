@@ -5,7 +5,7 @@ import { TOKEN_NAME_REGEXP } from "../utils/patterns";
 import { DEFAULT_TIMEZONE, TimeZoneSelect } from "./TimeZoneSelect";
 import { ErrorDisplay } from "./FeatureForm";
 import { MutationNames, queryTenants } from "../utils/queries";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Loader } from "./Loader";
 import Select from "react-select";
 
@@ -220,7 +220,10 @@ function TenantRightSelector(props: {
   value: TokenTenantRightsArray;
   onChange: (r: TokenTenantRightsArray) => void;
 }) {
-  const tenantQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
+  const tenantQuery = useQuery({
+    queryKey: [MutationNames.TENANTS],
+    queryFn: () => queryTenants()
+  });
   const { value, onChange } = props;
   const { user } = React.useContext(IzanamiContext);
 

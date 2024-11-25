@@ -13,9 +13,9 @@
           "tagsPath": "/izanami/docs/tags",
           "isLast": true,
           "routePriority": -1,
-          "sidebarFilePath": "/Users/77199M/workspace/oss/izanami-v2/manual/sidebars.js",
-          "contentPath": "/Users/77199M/workspace/oss/izanami-v2/manual/docs",
-          "contentPathLocalized": "/Users/77199M/workspace/oss/izanami-v2/manual/i18n/en/docusaurus-plugin-content-docs/current",
+          "sidebarFilePath": "/Users/77199M/workspaces/oss/izanami/manual/sidebars.js",
+          "contentPath": "/Users/77199M/workspaces/oss/izanami/manual/docs",
+          "contentPathLocalized": "/Users/77199M/workspaces/oss/izanami/manual/i18n/en/docusaurus-plugin-content-docs/current",
           "docs": [
             {
               "id": "clients/index",
@@ -959,8 +959,8 @@
           "tagsPath": "/izanami/v1/tags",
           "isLast": true,
           "routePriority": -1,
-          "contentPath": "/Users/77199M/workspace/oss/izanami-v2/manual/v1",
-          "contentPathLocalized": "/Users/77199M/workspace/oss/izanami-v2/manual/i18n/en/docusaurus-plugin-content-docs-v1/current",
+          "contentPath": "/Users/77199M/workspaces/oss/izanami/manual/v1",
+          "contentPathLocalized": "/Users/77199M/workspaces/oss/izanami/manual/i18n/en/docusaurus-plugin-content-docs-v1/current",
           "docs": [
             {
               "id": "about",

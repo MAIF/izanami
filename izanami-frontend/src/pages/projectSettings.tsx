@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   deleteProject,
   inviteUsersToProject,
@@ -29,35 +29,40 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
   const { project, tenant } = props;
   const { askPasswordConfirmation } = React.useContext(IzanamiContext);
   const queryKey = projectQueryKey(tenant, project);
-  const projectQuery = useQuery(queryKey, () => queryProject(tenant, project));
-  const usersQuery = useQuery(projectUserQueryKey(tenant, project), () =>
-    queryProjectUsers(tenant, project)
-  );
+  const projectQuery = useQuery({
+    queryKey: [queryKey],
+    queryFn: () => queryProject(tenant, project),
+  });
+  const usersQuery = useQuery({
+    queryKey: [projectUserQueryKey(tenant, project)],
+
+    queryFn: () => queryProjectUsers(tenant, project),
+  });
 
   const [modification, setModification] = useState(false);
   const navigate = useNavigate();
 
-  const projectDelete = useMutation(
-    (data: { tenant: string; project: string; password: string }) =>
+  const projectDelete = useMutation({
+    mutationFn: (data: { tenant: string; project: string; password: string }) =>
       deleteProject(data.tenant, data.project, data.password),
-    {
-      onSuccess: () => {
-        navigate(`/tenants/${tenant}`);
-      },
-    }
-  );
 
-  const inviteUsers = useMutation(
-    (data: { users: string[]; level: TLevel }) => {
+    onSuccess: () => {
+      navigate(`/tenants/${tenant}`);
+    },
+  });
+
+  const inviteUsers = useMutation({
+    mutationFn: (data: { users: string[]; level: TLevel }) => {
       const { users, level } = data;
       return inviteUsersToProject(tenant, project, users, level);
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(projectUserQueryKey(tenant, project));
-      },
-    }
-  );
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: projectUserQueryKey(tenant, project),
+      });
+    },
+  });
   const [inviting, setInviting] = useState(false);
 
   if (projectQuery.isLoading || usersQuery.isLoading) {
@@ -161,12 +166,12 @@ function ProjectUsers(props: {
 }) {
   const { tenant, project, usersData } = props;
 
-  const userUpdateMutationForProject = useMutation(
-    (user: { username: string; right?: TLevel }) => {
+  const userUpdateMutationForProject = useMutation({
+    mutationFn: (user: { username: string; right?: TLevel }) => {
       const { username, right } = user;
       return updateUserRightsForProject(username, tenant, project, right);
-    }
-  );
+    },
+  });
   const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
   return (
     <>
@@ -196,9 +201,9 @@ function ProjectUsers(props: {
                     {
                       onSuccess: () => {
                         cancel();
-                        queryClient.invalidateQueries(
-                          projectUserQueryKey(tenant, project)
-                        );
+                        queryClient.invalidateQueries({
+                          queryKey: projectUserQueryKey(tenant, project),
+                        });
                       },
                     }
                   );
@@ -321,16 +326,13 @@ function ProjectModification(props: {
   const { tenant, project } = props;
   const navigate = useNavigate();
 
-  const updateMutation = useMutation(
-    (data: { name: string; description: string }) =>
+  const updateMutation = useMutation({
+    mutationFn: (data: { name: string; description: string }) =>
       updateProject(tenant, project.name, data),
-    {
-      onSuccess: (
-        data: any,
-        variables: { name: string; description: string }
-      ) => navigate(`/tenants/${tenant}/projects/${variables.name}/settings`),
-    }
-  );
+
+    onSuccess: (data: any, variables: { name: string; description: string }) =>
+      navigate(`/tenants/${tenant}/projects/${variables.name}/settings`),
+  });
   return (
     <div className="sub_container">
       <Form

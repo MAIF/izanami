@@ -34,7 +34,7 @@ class FeatureContextController(
   }
 
   def deleteFeatureStrategy(tenant: String, project: String, context: FeatureContextPath, name: String): Action[AnyContent] = authAction(tenant, project, RightLevels.Write).async {
-    implicit request: UserNameRequest[AnyContent] =>
+    implicit request: ProjectIdUserNameRequest[AnyContent] =>
       env.datastores.featureContext.deleteFeatureStrategy(tenant, project, context.elements, name, request.user)
         .map {
           case Left(err) => err.toHttpResponse

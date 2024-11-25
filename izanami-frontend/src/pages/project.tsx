@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { FeatureTable } from "../components/FeatureTable";
 import { createFeature, projectQueryKey, queryProject } from "../utils/queries";
@@ -22,20 +22,25 @@ export function Project({
   const clearError = () => setError("");
   const queryKey = projectQueryKey(tenant, project);
 
-  const projectQuery = useQuery(queryKey, () => queryProject(tenant, project));
+  const projectQuery = useQuery({
+    queryKey: [queryKey],
+
+    queryFn: () => queryProject(tenant, project),
+  });
   const [creating, setCreating] = useState(false);
 
   const hasCreationRight = useProjectRight(tenant, project, TLevel.Write);
 
-  const featureCreateMutation = useMutation(
-    (data: { project: string; feature: any }) =>
+  const featureCreateMutation = useMutation({
+    mutationFn: (data: { project: string; feature: any }) =>
       createFeature(tenant, data.project, data.feature),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(projectQueryKey(tenant, project));
-      },
-    }
-  );
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [projectQueryKey(tenant, project)],
+      });
+    },
+  });
 
   if (projectQuery.isLoading) {
     return (
@@ -153,7 +158,9 @@ export function Project({
                 : ["test", "overloads"]
             }
             refresh={() =>
-              queryClient.invalidateQueries(projectQueryKey(tenant, project))
+              queryClient.invalidateQueries({
+                queryKey: [projectQueryKey(tenant, project)],
+              })
             }
           />
         )}

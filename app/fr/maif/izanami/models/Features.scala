@@ -466,8 +466,9 @@ case class FeatureRequest(
     noTagIn: Set[UUID] = Set(),
     context: Seq[String] = Seq()
 ) {
-  def isEmpty: Boolean =
+  def isEmpty: Boolean = {
     projects.isEmpty && oneTagIn.isEmpty && allTagsIn.isEmpty && noTagIn.isEmpty && features.isEmpty
+  }
 }
 
 object FeatureRequest {

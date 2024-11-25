@@ -58,7 +58,7 @@ class WebhookController(
 
   def listWebhooks(tenant: String): Action[AnyContent] = tenantAuthAction(tenant, RightLevels.Read).async {
     implicit request =>
-      env.datastores.webhook.listWebhook(tenant, request.user).map(ws => Ok(Json.toJson(ws)))
+      env.datastores.webhook.listWebhook(tenant, request.user.username).map(ws => Ok(Json.toJson(ws)))
   }
 
   def deleteWebhook(tenant: String, id: String): Action[JsValue] =

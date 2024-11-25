@@ -1,7 +1,7 @@
 import * as React from "react";
 import { customStyles } from "../styles/reactSelect";
 import Select from "react-select";
-import { useQuery } from "react-query";
+import { useQuery } from '@tanstack/react-query';
 import {
   Controller,
   FieldErrors,
@@ -86,7 +86,10 @@ function KindOptions() {
     setValue,
     formState: { errors },
   } = useFormContext<TContextOverload>();
-  const query = useQuery("WASMSCRIPTS", () => loadWasmManagerScripts());
+  const query = useQuery({
+    queryKey: ['WASMSCRIPTS'],
+    queryFn: () => loadWasmManagerScripts()
+  });
   const { integrations } = React.useContext(IzanamiContext);
 
   let opts = <></>;
@@ -415,13 +418,16 @@ export function ExistingScript() {
     formState: { errors },
   } = useFormContext<TContextOverload>();
 
-  const query = useQuery("LOCAL_SCRIPTS", () =>
-    fetch(`/api/admin/tenants/${tenant}/local-scripts`)
-      .then((resp) => resp.json())
-      .then((ws) =>
-        ws.map(({ name }: { name: string }) => ({ label: name, value: name }))
-      )
-  );
+  const query = useQuery({
+    queryKey: ['LOCAL_SCRIPTS'],
+
+    queryFn: () =>
+      fetch(`/api/admin/tenants/${tenant}/local-scripts`)
+        .then((resp) => resp.json())
+        .then((ws) =>
+          ws.map(({ name }: { name: string }) => ({ label: name, value: name }))
+        )
+  });
 
   if (query.error) {
     return <div className="error-message">Failed to fetch local scripts</div>;

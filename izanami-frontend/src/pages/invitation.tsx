@@ -1,5 +1,5 @@
 import React from "react";
-import { useMutation } from "react-query";
+import { useMutation } from '@tanstack/react-query';
 import Logo from "../../izanami.png";
 import { createUser } from "../utils/queries";
 import { constraints } from "@maif/react-forms";
@@ -10,12 +10,12 @@ import { PASSWORD_REGEXP, USERNAME_REGEXP } from "../utils/patterns";
 export function Invitation(props: { token: string }) {
   const { token } = props;
 
-  const userCreationMutation = useMutation(
-    (data: { username: string; password: string; token: string }) => {
+  const userCreationMutation = useMutation({
+    mutationFn: (data: { username: string; password: string; token: string }) => {
       const { username, password, token } = data;
       return createUser(username, password, token);
     }
-  );
+  });
 
   return (
     <>
