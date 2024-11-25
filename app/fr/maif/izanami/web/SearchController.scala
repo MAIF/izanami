@@ -4,6 +4,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, SearchFilterError, SearchQueryError}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.PathElement.pathElementWrite
+import fr.maif.izanami.web.SearchController.SearchEntityObject
 import play.api.libs.json.{JsObject, Json, Writes}
 import play.api.mvc._
 
@@ -18,14 +19,13 @@ class SearchController(
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
 
-    private def checkSearchParams(query: String, filter: List[String]): Future[Either[IzanamiError, Unit]] = {
+
+  private def checkSearchParams(query: String, filter: List[String]): Future[Either[IzanamiError, Unit]] = {
     if (query.isEmpty) {
       return Future.successful(Left(SearchQueryError()))
     }
-    val validFilters =
-      List("project", "feature", "key", "tag", "script", "global_context", "local_context", "webhook")
-    if (filter.nonEmpty && !filter.forall(validFilters.contains)) {
-      return Future.successful(Left(SearchFilterError(validFilters.mkString(", "))))
+    if (filter.nonEmpty && !filter.forall(SearchEntityObject.parseSearchEntityType(_).isDefined)) {
+      return Future.successful(Left(SearchFilterError()))
     }
     Future.successful(Right())
   }
@@ -41,7 +41,7 @@ class SearchController(
               tenants
                 .map(tenant =>
                   env.datastores.search
-                    .tenantSearch(tenant, request.user.username, query, filter)
+                    .tenantSearch(tenant, request.user.username, query, filter.map( item => SearchEntityObject.parseSearchEntityType(item)))
                     .map(l =>
                       l.map(t => {
                         (t._1, t._2, t._3, tenant)
@@ -77,7 +77,7 @@ class SearchController(
         case Left(error) => error.toHttpResponse.future
         case Right(_) =>
           env.datastores.search
-            .tenantSearch(tenant, request.user, query, filter)
+            .tenantSearch(tenant, request.user, query, filter.map(item => SearchEntityObject.parseSearchEntityType(item)))
             .flatMap(results => {
               Future.sequence(results.map { case (rowType, rowJson, _) =>
                 buildPath(rowType, rowJson, tenant)
@@ -205,4 +205,32 @@ object PathElement {
       "name" -> p.name
     )
   }
+}
+object SearchController {
+  sealed trait SearchEntityType
+  object SearchEntityObject {
+    case object Project extends SearchEntityType
+    case object Feature extends SearchEntityType
+    case object Key extends SearchEntityType
+    case object Tag extends SearchEntityType
+    case object Script extends SearchEntityType
+    case object GlobalContext extends SearchEntityType
+    case object LocalContext extends SearchEntityType
+    case object Webhook extends SearchEntityType
+    def parseSearchEntityType(str: String): Option[SearchEntityType] = {
+      Option(str).map(_.toUpperCase).flatMap {
+        case "PROJECT" => Some(Project)
+        case "FEATURE"      => Some(Feature)
+        case "KEY"      => Some(Key)
+        case "TAG"      => Some(Tag)
+        case "SCRIPT"      => Some(Script)
+        case "GLOBAL_CONTEXT"      => Some(GlobalContext)
+        case "LOCAL_CONTEXT"      => Some(LocalContext)
+        case "WEBHOOK"      => Some(Webhook)
+        case _           => None
+      }
+    }
+
+  }
+
 }
