@@ -5,14 +5,16 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
+import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.SourceFeatureDeleted
 import fr.maif.izanami.models.{Feature, Project, ProjectCreationRequest, RightLevels}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.ImportController
+import fr.maif.izanami.web.{ImportController, UserInformation}
 import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
+import play.api.libs.json.JsObject
 
 import java.util.UUID
 import java.util.regex.Pattern
@@ -20,12 +22,22 @@ import scala.concurrent.Future
 
 class ProjectsDatastore(val env: Env) extends Datastore {
 
+  def findProjectId(tenant: String, projectName: String, conn:Option[SqlConnection] = None): Future[Option[UUID]] = {
+    env.postgresql
+      .queryOne(
+        s"""SELECT id FROM projects WHERE name=$$1""",
+        List(projectName),
+        schemas = Set(tenant),
+        conn=conn
+      ) { row => row.optUUID("id") }
+  }
+
   def createProjects(
-      tenant: String,
-      names: Set[String],
-      conflictStrategy: ImportConflictStrategy,
-      user: String,
-      conn: Option[SqlConnection] = None
+                      tenant: String,
+                      names: Set[String],
+                      conflictStrategy: ImportConflictStrategy,
+                      user: UserInformation,
+                      conn: Option[SqlConnection] = None
   ): Future[Either[IzanamiError, Unit]] = {
     env.postgresql
       .queryRaw(
@@ -57,7 +69,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
                  |ON CONFLICT(username, project) DO NOTHING
                  |RETURNING 1
                  |""".stripMargin,
-              List(user, names.toArray, RightLevels.Admin.toString.toUpperCase),
+              List(user.username, names.toArray, RightLevels.Admin.toString.toUpperCase),
               conn = conn
             ) { _ => Some(value) }
             .map(o => {
@@ -81,7 +93,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
   def createProject(
       tenant: String,
       projectCreationRequest: ProjectCreationRequest,
-      user: String
+      user: UserInformation
   ): Future[Either[IzanamiError, Project]] = {
     env.postgresql.executeInTransaction(
       conn => {
@@ -108,7 +120,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
               env.postgresql
                 .queryOne(
                   s"""INSERT INTO users_projects_rights (username, project, level) VALUES ($$1, $$2, $$3) RETURNING project""",
-                  List(user, projectCreationRequest.name, RightLevels.Admin.toString.toUpperCase),
+                  List(user.username, projectCreationRequest.name, RightLevels.Admin.toString.toUpperCase),
                   conn = Some(conn)
                 ) { _ => Some(value) }
                 .map(_.toRight(InternalServerError()))
@@ -145,29 +157,49 @@ class ProjectsDatastore(val env: Env) extends Datastore {
     ) { row => row.optProject() }
   }
 
-  def deleteProject(tenant: String, project: String, user: String): Future[Either[IzanamiError, List[String]]] = {
+  def deleteProject(tenant: String, project: String, user: UserInformation): Future[Either[IzanamiError, List[String]]] = {
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
         .queryOne(
-          s"""DELETE FROM projects p WHERE p.name=$$1 RETURNING (SELECT array_agg(f.id) AS ids FROM features f WHERE f.project=p.name);""",
+          s"""DELETE FROM projects p WHERE p.name=$$1 RETURNING (SELECT json_agg(json_build_object('id', f.id, 'name', f.name)) AS ids FROM features f WHERE f.project=p.name);""",
           List(project),
           schemas = Set(tenant),
           conn = Some(conn)
-        ) { row => row.optStringArray("ids").map(_.toList).orElse(Some(List())) }
+        ) { row =>
+          row
+            .optJsArray("ids")
+            .flatMap(arr =>
+              arr
+                .asOpt[Seq[JsObject]]
+                .map(jsons => {
+                  jsons
+                    .map(json => {
+                      for (
+                        id   <- (json \ "id").asOpt[String];
+                        name <- (json \ "name").asOpt[String]
+                      ) yield (id, name)
+                    })
+                    .collect { case Some(value) =>
+                      value
+                    }
+                })
+            )
+            .orElse(Some(List()))
+        }
         .map(o => o.toRight(ProjectDoesNotExists(project)))
         .flatMap {
-          case Left(value) => Future.successful(Left(value))
-          case Right(ids)  =>
+          case Left(value)         => Future.successful(Left(value))
+          case Right(featureInfos) =>
             Future
               .sequence(
-                ids.map(id =>
+                featureInfos.map { case (id, name) =>
                   env.eventService.emitEvent(
                     channel = tenant,
-                    event = SourceFeatureDeleted(id = id, project = project, tenant = tenant, user = user)
+                    event = SourceFeatureDeleted(id = id, project = project, tenant = tenant, user = user.username, name=name, authentication = user.authentication, origin = NormalOrigin)
                   )(conn)
-                )
+                }
               )
-              .map(_ => Right(ids))
+              .map(_ => Right(featureInfos.map(_._1).toList))
         }
     })
 
@@ -295,7 +327,9 @@ object projectImplicits {
         yield {
           val maybeFeatures = row
             .optJsArray("features")
-            .map(array => array.value.map(v => Feature.readLightWeightFeature(v, name).asOpt).flatMap(o => o.toList).toList)
+            .map(array =>
+              array.value.map(v => Feature.readLightWeightFeature(v, name).asOpt).flatMap(o => o.toList).toList
+            )
           Project(id = id, name = name, features = maybeFeatures.getOrElse(List()), description = description)
         }
     }

@@ -5,28 +5,15 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
+import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.SourceFeatureUpdated
 import fr.maif.izanami.models.FeatureContext.generateSubContextId
 import fr.maif.izanami.models._
-import fr.maif.izanami.models.features.{
-  ActivationCondition,
-  BooleanActivationCondition,
-  BooleanResult,
-  BooleanResultDescriptor,
-  NumberActivationCondition,
-  NumberResult,
-  NumberResultDescriptor,
-  ResultType,
-  StringActivationCondition,
-  StringResult,
-  StringResultDescriptor,
-  ValuedActivationCondition,
-  ValuedResultDescriptor,
-  ValuedResultType
-}
+import fr.maif.izanami.models.features.{ActivationCondition, BooleanActivationCondition, BooleanResult, BooleanResultDescriptor, NumberActivationCondition, NumberResult, NumberResultDescriptor, ResultType, StringActivationCondition, StringResult, StringResultDescriptor, ValuedActivationCondition, ValuedResultDescriptor, ValuedResultType}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.WasmConfig
+import fr.maif.izanami.web.UserInformation
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import io.vertx.core.json.JsonArray
 import io.vertx.pgclient.PgException
@@ -391,7 +378,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       project: String,
       path: Seq[String],
       feature: String,
-      user: String
+      user: UserInformation
   ): Future[Either[IzanamiError, Unit]] = {
     val isLocal = env.postgresql
       .queryOne(
@@ -440,9 +427,11 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                         id = fid,
                         project = project,
                         tenant = tenant,
-                        user = user,
+                        user = user.username,
                         previous = featureWithOverloads,
-                        feature = featureWithOverloads.removeOverload(path.mkString("_"))
+                        feature = featureWithOverloads.removeOverload(path.mkString("_")),
+                        origin = NormalOrigin,
+                        authentication = user.authentication
                       )
                     )
                     .map(_ => Right(()))
@@ -471,7 +460,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       path: Seq[String],
       feature: String,
       strategy: CompleteContextualStrategy,
-      user: String
+      user: UserInformation
   ): Future[Either[IzanamiError, Unit]] = {
     // TODO factorize this
     val isLocal = env.postgresql
@@ -588,10 +577,12 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                         id = fid,
                         project = project,
                         tenant = tenant,
-                        user = user,
+                        user = user.username,
                         previous = oldFeature,
                         feature = oldFeature
-                          .updateConditionsForContext(path.mkString("_"), strategy.toLightWeightContextualStrategy)
+                          .updateConditionsForContext(path.mkString("_"), strategy.toLightWeightContextualStrategy),
+                        origin = NormalOrigin,
+                        authentication = user.authentication
                       )
                     )
                     .map(_ => Right(()))

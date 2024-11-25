@@ -237,7 +237,7 @@ class FeatureController(
       featureRequest: FeatureRequest
   ): Action[AnyContent] = authenticatedAction.async { implicit request =>
     val futureFeaturesByProject =
-      env.datastores.features.findByRequestV2(tenant, featureRequest, contexts = featureRequest.context, request.user)
+      env.datastores.features.findByRequestV2(tenant, featureRequest, contexts = featureRequest.context, request.user.username)
 
     futureFeaturesByProject.flatMap(featuresByProjects => {
       val resultingFeatures = featuresByProjects.values.flatMap(featSeq => featSeq.map(f => f.id)).toSet
@@ -306,7 +306,7 @@ class FeatureController(
                   )
                 ).toFuture
               } else {
-                env.datastores.features.applyPatch(tenant, fs, request.user.username).map(_ => NoContent)
+                env.datastores.features.applyPatch(tenant, fs, UserInformation(username=request.user.username, authentication = request.authentication)).map(_ => NoContent)
               }
             })
         })
@@ -392,7 +392,7 @@ class FeatureController(
                             tenant = tenant,
                             id = id,
                             feature = feature,
-                            user = request.user.username,
+                            user = UserInformation(username=request.user.username, authentication = request.authentication),
                             conn = Some(conn)
                           )
                           .flatMap {
@@ -455,7 +455,7 @@ class FeatureController(
 
             if (canCreateOrModifyFeature(feature, request.user)) {
               env.datastores.features
-                .delete(tenant, id, request.user.username)
+                .delete(tenant, id, UserInformation(username=request.user.username, authentication = request.authentication))
                 .map(maybeFeature =>
                   maybeFeature
                     .map(_ => NoContent)

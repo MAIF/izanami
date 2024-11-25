@@ -24,7 +24,7 @@ import { Toaster } from "react-hot-toast";
 import { Project } from "./pages/project";
 import { Menu } from "./pages/menu";
 import { Tenant } from "./pages/tenant";
-import { QueryClientProvider, useQuery } from "react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import queryClient from "./queryClient";
 import { Tag } from "./pages/tag";
 import { Login } from "./pages/login";
@@ -66,6 +66,7 @@ import Logo from "../izanami.png";
 import { SearchModal } from "./components/SearchComponant/SearchModal";
 import { WebHooks } from "./pages/webhooks";
 import { PasswordModal } from "./components/PasswordModal";
+import { ProjectLogs } from "./pages/projectLogs";
 
 function Wrapper({
   element,
@@ -286,6 +287,21 @@ const router = createBrowserRouter([
                 },
               },
               {
+                path: "/tenants/:tenant/projects/:project/logs",
+                element: <Wrapper element={ProjectLogs} />,
+                handle: {
+                  crumb: (data: any) => (
+                    <NavLink
+                      className={() => ""}
+                      to={`/tenants/${data.tenant}/projects/${data.project}/logs`}
+                    >
+                      <i className="fa-solid fa-timeline" aria-hidden></i>
+                      &nbsp;Logs
+                    </NavLink>
+                  ),
+                },
+              },
+              {
                 path: "/tenants/:tenant/projects/:project/settings",
                 element: <Wrapper element={ProjectSettings} />,
                 handle: {
@@ -423,7 +439,10 @@ function RedirectToFirstTenant(): JSX.Element {
   const context = useContext(IzanamiContext);
   const defaultTenant = context.user?.defaultTenant;
   let tenant = defaultTenant || context.user?.rights?.tenants?.[0];
-  const tenantQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
+  const tenantQuery = useQuery({
+    queryKey: [MutationNames.TENANTS],
+    queryFn: () => queryTenants()
+  });
 
   if (tenant) {
     return <Navigate to={`/tenants/${tenant}`} />;

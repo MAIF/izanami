@@ -1,31 +1,13 @@
 package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.HashUtils.{bcryptCheck, bcryptHash}
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{TokenCheckFailure, TokenCheckResult, TokenCheckSuccess}
 import fr.maif.izanami.datastores.PersonnalAccessTokenDatastoreImplicits.PersonnalAccessTokenRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{
-  InternalServerError,
-  IzanamiError,
-  OneProjectDoesNotExists,
-  TenantDoesNotExists,
-  TokenDoesNotExist,
-  TokenWithThisNameAlreadyExists
-}
-import fr.maif.izanami.models.{
-  AllRights,
-  CompletePersonnalAccessToken,
-  Expiration,
-  LimitedRights,
-  NoExpiration,
-  PersonnalAccessToken,
-  PersonnalAccessTokenCreationRequest,
-  PersonnalAccessTokenExpiration,
-  PersonnalAccessTokenRights,
-  ReadPersonnalAccessToken,
-  TenantTokenRights
-}
+import fr.maif.izanami.errors.{InternalServerError, IzanamiError, OneProjectDoesNotExists, TenantDoesNotExists, TokenDoesNotExist, TokenWithThisNameAlreadyExists}
+import fr.maif.izanami.models.{AllRights, CompletePersonnalAccessToken, Expiration, LimitedRights, NoExpiration, PersonnalAccessToken, PersonnalAccessTokenCreationRequest, PersonnalAccessTokenExpiration, PersonnalAccessTokenRights, ReadPersonnalAccessToken, TenantTokenRights}
 import fr.maif.izanami.security.IdGenerator.token
 import fr.maif.izanami.utils.Datastore
 import io.vertx.pgclient.PgException
@@ -37,17 +19,33 @@ import scala.concurrent.Future
 import scala.util.Try
 
 class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
+  def findAccessTokenByIds(ids: Set[UUID]): Future[Map[UUID, String]] = {
+    env.postgresql.queryAll(
+      s"""
+         |SELECT t.id, t.name
+         |FROM izanami.personnal_access_tokens t
+         |WHERE t.id=ANY($$1::UUID[])
+         |""".stripMargin,
+      List(ids.toArray)
+    ){r => {
+      for(
+        id <- r.optUUID("id");
+        name <- r.optString("name")
+      ) yield (id, name)
+    }}.map(l => l.toMap)
+  }
+
   def checkAccessToken(
       username: String,
       token: String,
       tenant: String,
       operation: TenantTokenRights
-  ): Future[Boolean] = {
+  ): Future[TokenCheckResult] = {
     val parts = token.split("_")
     if (parts.length != 2) {
-      Future.successful(false)
+      Future.successful(TokenCheckFailure)
     } else {
-      val id     = parts.head
+      val id     = UUID.fromString(parts.head)
       val secret = parts.last
       env.postgresql
         .queryOne(
@@ -89,10 +87,10 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
           }
         }
         .map {
-          case Some(t) => {
-            bcryptCheck(secret, t)
+          case Some(t) if bcryptCheck(secret, t) => {
+            TokenCheckSuccess(id)
           }
-          case None    => false
+          case _    => TokenCheckFailure
         }
     }
   }
@@ -287,6 +285,12 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
     ) { r => r.optToken }
   }
 
+}
+
+object PersonnalAccessTokenDatastore {
+  sealed trait TokenCheckResult
+  case class TokenCheckSuccess(tokenId: UUID) extends TokenCheckResult
+  case object TokenCheckFailure extends TokenCheckResult
 }
 
 object PersonnalAccessTokenDatastoreImplicits {

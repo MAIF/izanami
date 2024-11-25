@@ -58,6 +58,7 @@ test.describe("Export / import should", () => {
     await page.getByRole("button", { name: "Import data" }).click();
     await page.getByLabel("Exported file (ndjson)").setInputFiles(filepath);
     await page.getByRole("button", { name: "Import" }).click();
+    await page.getByRole("button", { name: "Close" }).click();
     await expect(page.getByLabel("Exported file (ndjson)")).not.toBeVisible();
 
     await page.getByRole("link", { name: "Projects" }).click();
@@ -89,7 +90,7 @@ test.describe("Export / import should", () => {
     await page.getByText("Fail").click();
     await page.getByRole("button", { name: "Import" }).click();
     await expect(
-      page.getByRole("heading", { name: "Import failed !" })
+      page.getByRole("heading", { name: "Import errors !" })
     ).toBeVisible();
   });
 });

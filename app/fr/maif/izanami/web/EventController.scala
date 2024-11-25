@@ -43,9 +43,9 @@ class EventController(
 
   def processForLegacyEndpoint(event: FeatureEvent): JsObject = {
     event match {
-      case FeatureCreated(_, _, _, _, _, Some(strategiesByContext))    =>
+      case FeatureCreated(_, _, _, _, _, Some(strategiesByContext), _, _, _)    =>
         createEvent(event.id, Feature.writeFeatureInLegacyFormat(strategiesByContext.get("").get))
-      case FeatureUpdated(_, _, _, _, _, Some(strategiesByContext), _) =>
+      case FeatureUpdated(_, _, _, _, _, Some(strategiesByContext), _, _, _, _) =>
         updateEvent(event.id, Feature.writeFeatureInLegacyFormat(strategiesByContext.get("").get))
       case _                                                           => deleteEvent(event.id)
     }

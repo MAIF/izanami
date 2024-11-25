@@ -7,7 +7,7 @@ import {
 } from "../utils/types";
 import { format } from "date-fns";
 import { GenericTable } from "./GenericTable";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   deletePersonnalAccessToken,
   personnalAccessTokenKey,
@@ -105,12 +105,16 @@ const columns: ColumnDef<PersonnalAccessToken>[] = [
 export function TokensTable(props: { user: string }) {
   const { askConfirmation } = React.useContext(IzanamiContext);
   const { user } = props;
-  const tokenQuery = useQuery(personnalAccessTokenKey(user), () => {
-    return queryPersonnalAccessTokens(user);
+  const tokenQuery = useQuery({
+    queryKey: [personnalAccessTokenKey(user)],
+
+    queryFn: () => {
+      return queryPersonnalAccessTokens(user);
+    },
   });
 
-  const udpateQuery = useMutation(
-    (data: {
+  const udpateQuery = useMutation({
+    mutationFn: (data: {
       old: PersonnalAccessToken;
       name: string;
       expiresAt: Date;
@@ -128,15 +132,20 @@ export function TokensTable(props: { user: string }) {
         allRights: data.allRights,
         rights: data.rights,
       }).then(() => {
-        queryClient.invalidateQueries(personnalAccessTokenKey(user));
-      })
-  );
+        queryClient.invalidateQueries({
+          queryKey: [personnalAccessTokenKey(user)],
+        });
+      }),
+  });
 
-  const deletionQuery = useMutation((data: { id: string }) =>
-    deletePersonnalAccessToken(user, data.id).then(() => {
-      queryClient.invalidateQueries(personnalAccessTokenKey(user));
-    })
-  );
+  const deletionQuery = useMutation({
+    mutationFn: (data: { id: string }) =>
+      deletePersonnalAccessToken(user, data.id).then(() => {
+        queryClient.invalidateQueries({
+          queryKey: [personnalAccessTokenKey(user)],
+        });
+      }),
+  });
 
   if (tokenQuery.data) {
     return (

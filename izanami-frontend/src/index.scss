@@ -109,7 +109,7 @@ textarea {
 }
 
 thead th {
-  & > div {
+  & > div.filterable {
     min-height: 62px;
   }
 
@@ -276,4 +276,8 @@ input[type="time"] {
 
 .react-tooltip {
   z-index: 1001;
+}
+
+.log-result-count {
+  color: var(--color_level3);
 }

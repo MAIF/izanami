@@ -2,42 +2,20 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.featureImplicits.FeatureRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{
-  FOREIGN_KEY_VIOLATION,
-  NOT_NULL_VIOLATION,
-  RELATION_DOES_NOT_EXISTS,
-  UNIQUE_VIOLATION
-}
+import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, NOT_NULL_VIOLATION, RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
-import fr.maif.izanami.events.{EventService, SourceFeatureCreated, SourceFeatureDeleted, SourceFeatureUpdated}
+import fr.maif.izanami.events.EventAuthentication.BackOfficeAuthentication
+import fr.maif.izanami.events.EventOrigin.{ImportOrigin, NormalOrigin}
+import fr.maif.izanami.events.{EventOrigin, EventService, SourceFeatureCreated, SourceFeatureDeleted, SourceFeatureUpdated}
 import fr.maif.izanami.models._
-import fr.maif.izanami.models.features.{
-  ActivationCondition,
-  BooleanActivationCondition,
-  BooleanResult,
-  BooleanResultDescriptor,
-  EnabledFeaturePatch,
-  FeaturePatch,
-  LegacyCompatibleCondition,
-  NumberActivationCondition,
-  NumberResult,
-  NumberResultDescriptor,
-  ProjectFeaturePatch,
-  RemoveFeaturePatch,
-  ResultType,
-  StringActivationCondition,
-  StringResult,
-  StringResultDescriptor,
-  TagsFeaturePatch,
-  ValuedResultDescriptor,
-  ValuedResultType
-}
+import fr.maif.izanami.models.features.{ActivationCondition, BooleanActivationCondition, BooleanResult, BooleanResultDescriptor, EnabledFeaturePatch, FeaturePatch, LegacyCompatibleCondition, NumberActivationCondition, NumberResult, NumberResultDescriptor, ProjectFeaturePatch, RemoveFeaturePatch, ResultType, StringActivationCondition, StringResult, StringResultDescriptor, TagsFeaturePatch, ValuedResultDescriptor, ValuedResultType}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterListEither, BetterSyntax}
 import fr.maif.izanami.v1.V1FeatureEvents
 import fr.maif.izanami.wasm.{WasmConfig, WasmConfigWithFeatures, WasmScriptAssociatedFeatures}
 import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
+import fr.maif.izanami.web.UserInformation
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import io.vertx.core.json.{JsonArray, JsonObject}
 import io.vertx.core.shareddata.ClusterSerializable
@@ -215,7 +193,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
   // TODO deduplicate
   def findActivationStrategiesForFeatures(
       tenant: String,
-      ids: Set[String]
+      ids: Set[String],
+      conn: Option[SqlConnection] = None
   ): Future[Map[String, Map[String, LightWeightFeature]]] = {
     env.postgresql
       .queryAll(
@@ -247,7 +226,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |WHERE f.id=ANY($$1)
          |GROUP BY f.id""".stripMargin,
         params = List(ids.toArray),
-        schemas = Set(tenant)
+        schemas = Set(tenant),
+        conn=conn
       ) { r =>
         {
           val maybeTuple = r
@@ -394,7 +374,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     }
   }
 
-  def applyPatch(tenant: String, operations: Seq[FeaturePatch], user: String): Future[Unit] = {
+  def applyPatch(tenant: String, operations: Seq[FeaturePatch], user: UserInformation): Future[Unit] = {
     val featureToUpdateIds = operations.collect {
       case p: EnabledFeaturePatch => p.id
       case p: ProjectFeaturePatch => p.id
@@ -421,18 +401,27 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                       ) yield (id, name, project, enabled)
                     }
                     .flatMap {
-                      case Some((id, name, project, enabled)) =>
-                        env.eventService.emitEvent(
-                          channel = tenant,
-                          event = SourceFeatureUpdated(
-                            id = id,
-                            project = project,
-                            tenant = tenant,
-                            user = user,
-                            previous = FeatureWithOverloads(oldFeatures(id)),
-                            feature = FeatureWithOverloads(oldFeatures(id)).setEnabling(value)
+                      case Some((id, name, project, enabled)) => {
+                        val completeFeatureStrategies = FeatureWithOverloads(oldFeatures(id))
+                        val hasChanged = completeFeatureStrategies.baseFeature().enabled != value
+                        if(hasChanged) {
+                          env.eventService.emitEvent(
+                            channel = tenant,
+                            event = SourceFeatureUpdated(
+                              id = id,
+                              project = project,
+                              tenant = tenant,
+                              user = user.username,
+                              previous = FeatureWithOverloads(oldFeatures(id)),
+                              feature = FeatureWithOverloads(oldFeatures(id)).setEnabling(value),
+                              origin = NormalOrigin,
+                              authentication = user.authentication
+                            )
                           )
-                        )
+                        } else {
+                          Future.successful(())
+                        }
+                      }
                       case None                               => Future.successful(())
                     }
                 }
@@ -458,9 +447,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                             id = id,
                             project = project,
                             tenant = tenant,
-                            user = user,
+                            user = user.username,
                             previous = FeatureWithOverloads(oldFeatures(id)),
-                            feature = FeatureWithOverloads(oldFeatures(id)).setProject(value)
+                            feature = FeatureWithOverloads(oldFeatures(id)).setProject(value),
+                            origin = NormalOrigin,
+                            authentication = user.authentication
                           )
                         )(conn)
                       case None                               => Future.successful(())
@@ -513,7 +504,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                       case Some((id, name, project, enabled)) =>
                         env.eventService.emitEvent(
                           channel = tenant,
-                          event = SourceFeatureDeleted(id = id, project = project, tenant = tenant, user = user)
+                          event = SourceFeatureDeleted(id = id, project = project, tenant = tenant, user = user.username, name=name, origin = NormalOrigin, authentication = BackOfficeAuthentication)
                         )(conn)
                       case None                               => Future.successful(())
                     }
@@ -1051,7 +1042,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       tenant: String,
       features: Iterable[CompleteFeature],
       conflictStrategy: ImportConflictStrategy,
-      user: String,
+      user: UserInformation,
       conn: Option[SqlConnection]
   ): Future[Either[List[IzanamiError], Unit]] = {
     // TODO return seq[Error] instead of a single one
@@ -1076,7 +1067,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       features: Iterable[CompleteFeature],
       conflictStrategy: ImportConflictStrategy,
       conn: SqlConnection,
-      user: String
+      user: UserInformation
   ): Future[Either[List[IzanamiError], Unit]] = {
     def insertFeatures[T <: ClusterSerializable](
         params: (
@@ -1347,8 +1338,10 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                     id = f.id,
                     project = f.project,
                     tenant = tenant,
-                    user = user,
-                    feature = FeatureWithOverloads(f.toLightWeightFeature)
+                    user = user.username,
+                    feature = FeatureWithOverloads(f.toLightWeightFeature),
+                    origin = ImportOrigin,
+                    authentication = user.authentication
                   )
                 )(conn)
               )
@@ -1362,7 +1355,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       tenant: String,
       project: String,
       feature: CompleteFeature,
-      user: String
+      user: UserInformation
   ): Future[Either[IzanamiError, String]] = {
     env.postgresql.executeInTransaction(
       implicit conn => doCreate(tenant, project, feature, conn, user),
@@ -1375,7 +1368,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       project: String,
       feature: CompleteFeature,
       conn: SqlConnection,
-      user: String
+      user: UserInformation
   ): Future[Either[IzanamiError, String]] = {
     (feature match {
       case Feature(_, _, _, _, _, _, _, _)                         => Future(Right(()))
@@ -1585,8 +1578,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       tenant: String,
       project: String,
       feature: CompleteFeature,
-      user: String,
-      importConflictStrategy: ImportConflictStrategy = Fail
+      user: UserInformation
   )(implicit
       conn: SqlConnection
   ): Future[Either[IzanamiError, String]] = {
@@ -1670,8 +1662,10 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 id = id,
                 project = project,
                 tenant = tenant,
-                user = user,
-                feature = FeatureWithOverloads(feature.toLightWeightFeature)
+                user = user.username,
+                feature = FeatureWithOverloads(feature.toLightWeightFeature),
+                authentication = user.authentication,
+                origin = NormalOrigin
               )
             )(conn)
             .map(_ => Right(id))
@@ -1682,7 +1676,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       tenant: String,
       id: String,
       feature: CompleteFeature,
-      user: String,
+      user: UserInformation,
       conn: Option[SqlConnection] = None
   ): Future[Either[IzanamiError, String]] = {
 
@@ -1802,9 +1796,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                     id = id,
                     project = feature.project,
                     tenant = tenant,
-                    user = user,
+                    user = user.username,
                     previous = oldFeature,
-                    feature = oldFeature.setFeature(feature.toLightWeightFeature)
+                    feature = oldFeature.setFeature(feature.toLightWeightFeature),
+                    authentication = user.authentication,
+                    origin = NormalOrigin
                   )
                 )(conn)
                 .map(_ => Right(id))
@@ -1857,19 +1853,20 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     }
   }
 
-  def delete(tenant: String, id: String, user: String): Future[Either[IzanamiError, String]] = {
+  def delete(tenant: String, id: String, user: UserInformation): Future[Either[IzanamiError, String]] = {
     env.postgresql.executeInTransaction(conn =>
       env.postgresql
         .queryOne(
-          s"""DELETE FROM features WHERE id=$$1 returning id, project""",
+          s"""DELETE FROM features WHERE id=$$1 returning id, project, name""",
           List(id),
           schemas = Set(tenant),
           conn = Some(conn)
         ) { row =>
           for (
             id      <- row.optString("id");
-            project <- row.optString("project")
-          ) yield (id, project)
+            project <- row.optString("project");
+            name <- row.optString("name")
+          ) yield (id, project, name)
         }
         .map { _.toRight(InternalServerError()) }
         .recover {
@@ -1878,11 +1875,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         }
         .flatMap {
           case l @ Left(err)        => Future.successful(Left(err))
-          case Right((id, project)) =>
+          case Right((id, project, name)) =>
             env.eventService
               .emitEvent(
                 channel = tenant,
-                event = SourceFeatureDeleted(id = id, project = project, tenant = tenant, user = user)
+                event = SourceFeatureDeleted(id = id, project = project, tenant = tenant, user = user.username, name=name, authentication = user.authentication, origin = NormalOrigin)
               )(conn)
               .map(_ => Right(id))
         }

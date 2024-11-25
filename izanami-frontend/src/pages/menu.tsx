@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   MutationNames,
   queryTenant,
@@ -31,7 +31,10 @@ export function Menu(props: {
   let { tenant, project } = props;
   const [selectedTenant, selectTenant] = React.useState<string | undefined>();
   const [selectedProject, selectProject] = React.useState<string | undefined>();
-  const tenantsQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
+  const tenantsQuery = useQuery({
+    queryKey: [MutationNames.TENANTS],
+    queryFn: () => queryTenants()
+  });
   const navigate = useNavigate();
   const isAdmin = useAdmin();
   let isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
@@ -48,11 +51,11 @@ export function Menu(props: {
     }
   }, [selectedTenant, tenant, user, props?.location?.pathname]);
 
-  const tenantQuery = useQuery(
-    tenantQueryKey(tenant!),
-    () => queryTenant(tenant!),
-    { enabled: !!tenant }
-  );
+  const tenantQuery = useQuery({
+    queryKey: [tenantQueryKey(tenant!)],
+    queryFn: () => queryTenant(tenant!),
+    enabled: !!tenant
+  });
 
   if (tenantsQuery.isSuccess) {
     // Allow to keep tenant menu part while in settings / users views
@@ -190,6 +193,26 @@ export function Menu(props: {
                         onClick={() => hideSidebar()}
                       >
                         Contexts
+                      </NavLink>
+                    </li>
+                    <li
+                      className={
+                        matchPath(
+                          {
+                            path: "/tenants/:tenant/projects/:project/logs",
+                          },
+                          props?.location?.pathname || ""
+                        )
+                          ? "active"
+                          : "inactive"
+                      }
+                    >
+                      <NavLink
+                        to={`/tenants/${tenant}/projects/${project}/logs`}
+                        className={() => ""}
+                        onClick={() => hideSidebar()}
+                      >
+                        Logs
                       </NavLink>
                     </li>
                     {isProjectAdmin && (

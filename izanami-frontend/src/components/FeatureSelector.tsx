@@ -1,47 +1,74 @@
 import * as React from "react";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
-import { findFeatures, tenantFeaturesKey } from "../utils/queries";
+import {
+  findFeatures,
+  projectQueryKey,
+  queryProject,
+  tenantFeaturesKey,
+} from "../utils/queries";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { Loader } from "./Loader";
+import CreatableSelect from "react-select/creatable";
 
 export function FeatureSelector(props: {
   id?: string;
   value?: string[];
   onChange?: (v: string[]) => void;
+  project?: string;
+  creatable?: boolean;
 }) {
   const { tenant } = useParams();
-  const { onChange } = props;
+  const { onChange, project } = props;
+  const creatable = props.creatable || false;
 
-  const featureQuery = useQuery(tenantFeaturesKey(tenant!), () =>
-    findFeatures(tenant!)
-  );
+  const featureQuery = useQuery({
+    queryKey:
+      project !== undefined
+        ? [projectQueryKey(tenant!, project), "features"]
+        : [tenantFeaturesKey(tenant!)],
+
+    queryFn: () =>
+      project
+        ? queryProject(tenant!, project).then((p) => p.features)
+        : findFeatures(tenant!),
+  });
 
   if (featureQuery.error) {
     return <div>Failed to fetch features</div>;
   } else if (featureQuery.data) {
     const options = featureQuery.data.map(({ name, id, project }) => ({
       value: id,
-      label: `${name} (${project})`,
+      label: `${name}${props.project ? "" : ` (${project})`} `,
     }));
 
-    return (
-      <Select
-        inputId={props.id ?? undefined}
-        isMulti
-        value={
-          props.value
-            ? options.filter(({ value }) => props.value?.includes(value ?? ""))
-            : []
-        }
-        onChange={(newValue) => {
-          onChange?.(newValue.map(({ value }) => value!));
-        }}
-        styles={customStyles}
-        options={options}
-        isClearable
-      />
+    const selectProps = {
+      inputId: props.id ?? undefined,
+      isMulti: true,
+      value: props.value
+        ? props.value.map((v) => {
+            const maybeOption = options.find(({ value }) => value === v);
+            if (maybeOption) {
+              return maybeOption;
+            } else {
+              return { label: v, value: v };
+            }
+          })
+        : [],
+      onChange: (newValue: any[]) => {
+        console.log("newValue", newValue);
+        onChange?.(newValue.map(({ value }) => value!));
+      },
+      styles: customStyles,
+      options: options,
+      isClearable: true,
+    };
+
+    return creatable ? (
+      <CreatableSelect {...selectProps} />
+    ) : (
+      <Select {...selectProps} />
     );
   } else {
     return <Loader message="Loading features..." />;

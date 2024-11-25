@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { queryTenant, tenantQueryKey } from "../utils/queries";
 import Select from "react-select";
@@ -14,9 +14,12 @@ export function ProjectSelector(props: {
   const { tenant } = useParams();
   const { onChange } = props;
 
-  const tenantQuery = useQuery(tenantQueryKey(tenant!), () =>
-    queryTenant(tenant!)
-  );
+  const tenantQuery = useQuery({
+    queryKey: [tenantQueryKey(tenant!)],
+
+    queryFn: () =>
+      queryTenant(tenant!)
+  });
 
   if (tenantQuery.error) {
     return <div>Failed to fetch projects</div>;

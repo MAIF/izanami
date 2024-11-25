@@ -1,7 +1,8 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.models.RightLevels.{RightLevel, superiorOrEqualLevels}
+import fr.maif.izanami.events.EventService
+import fr.maif.izanami.models.RightLevels.{superiorOrEqualLevels, RightLevel}
 import fr.maif.izanami.models._
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.WasmManagerClient
@@ -21,8 +22,7 @@ class TenantController(
     val adminAuthAction: AdminAuthAction,
     val tenantRightsAuthAction: TenantRightsAction,
     val validatePasswordAction: ValidatePasswordActionFactory,
-    val wasmManagerClient: WasmManagerClient,
-    val eventController: EventController
+    val wasmManagerClient: WasmManagerClient
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
 
@@ -76,12 +76,13 @@ class TenantController(
     }
   }
 
-  def deleteTenant(name: String): Action[JsValue] = (tenantAuthAction(name, RightLevels.Admin) andThen validatePasswordAction()).async(parse.json) { implicit request =>
-    env.datastores.tenants.deleteTenant(name, request.user).map {
-      case Left(err) => err.toHttpResponse
-      case Right(_) => NoContent
+  def deleteTenant(name: String): Action[JsValue] =
+    (tenantAuthAction(name, RightLevels.Admin) andThen validatePasswordAction()).async(parse.json) { implicit request =>
+      env.datastores.tenants.deleteTenant(name, request.user).map {
+        case Left(err) => err.toHttpResponse
+        case Right(_)  => NoContent
+      }
     }
-  }
 
   def readTenant(name: String): Action[AnyContent] = tenantAuthAction(name, RightLevels.Read).async {
     implicit request =>
@@ -93,7 +94,7 @@ class TenantController(
             tenant => {
               for (
                 projects <- {
-                  env.datastores.projects.readTenantProjectForUser(tenant.name, request.user)
+                  env.datastores.projects.readTenantProjectForUser(tenant.name, request.user.username)
                 };
                 tags     <- env.datastores.tags.readTags(tenant.name)
               )

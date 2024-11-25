@@ -1,11 +1,23 @@
-import { Page } from "@playwright/test";
+import { Locator, Page } from "@playwright/test";
 import { Client } from "pg";
 import { expect } from "./izanami-test";
 
 export const PASSWORD = "ADMIN_DEFAULT_PASSWORD";
 
-export async function clickAction(page: Page, name: string) {
-  const dropdownLocator = page.getByLabel("actions");
+export async function clickAction(
+  page: Page,
+  name: string,
+  rowHeader?: string
+) {
+  let dropdownLocator: Locator | null = null;
+  if (rowHeader) {
+    dropdownLocator = page
+      .getByRole("rowheader", { name: rowHeader })
+      .locator("..")
+      .getByRole("button", { name: "actions" });
+  } else {
+    dropdownLocator = page.getByLabel("actions");
+  }
   const locator = page.getByRole("link", { name: name, exact: true });
 
   await dropdownLocator.click();

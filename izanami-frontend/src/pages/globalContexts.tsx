@@ -5,7 +5,7 @@ import {
   useTenantRight,
 } from "../securityContext";
 import { TContext, TContextOverload, TLevel } from "../utils/types";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   createGlobalContext,
   deleteGlobalContext,
@@ -26,33 +26,33 @@ export function GlobalContexts(props: { tenant: string; open: string }) {
 function GlobalFeatureContexts(props: { tenant: string; open: string }) {
   const { tenant, open } = props;
   const modificationRight = useTenantRight(tenant, TLevel.Write);
-  const contextQuery = useQuery(globalContextKey(tenant), () =>
-    queryGlobalContexts(tenant)
-  );
+  const contextQuery = useQuery({
+    queryKey: [globalContextKey(tenant)],
 
-  const deleteContextMutation = useMutation(
-    (data: { tenant: string; path: string }) => {
+    queryFn: () => queryGlobalContexts(tenant),
+  });
+
+  const deleteContextMutation = useMutation({
+    mutationFn: (data: { tenant: string; path: string }) => {
       const { tenant, path } = data;
       return deleteGlobalContext(tenant, path);
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(globalContextKey(tenant));
-      },
-    }
-  );
 
-  const createGlobalSubContextMutation = useMutation(
-    (data: { tenant: string; path: string; name: string }) => {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [globalContextKey(tenant)] });
+    },
+  });
+
+  const createGlobalSubContextMutation = useMutation({
+    mutationFn: (data: { tenant: string; path: string; name: string }) => {
       const { tenant, path, name } = data;
       return createGlobalContext(tenant, path, name);
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(globalContextKey(tenant));
-      },
-    }
-  );
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [globalContextKey(tenant)] });
+    },
+  });
 
   if (contextQuery.isLoading) {
     return <Loader message="Loading global contexts ..." />;
@@ -115,7 +115,9 @@ function GlobalContextOverloadTable({
           }
         }}
         refresh={() => {
-          queryClient.invalidateQueries(globalContextKey(tenant));
+          queryClient.invalidateQueries({
+            queryKey: [globalContextKey(tenant)],
+          });
         }}
       />
     </>

@@ -331,6 +331,8 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
                       className={`d-flex flex-column ${
                         index == 0 && selectableRows
                           ? "justify-content-center align-items-center"
+                          : header.column.getCanFilter()
+                          ? "filterable"
                           : ""
                       }`}
                     >

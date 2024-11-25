@@ -106,7 +106,7 @@ function Editor(props: { value: string; onChange: (v: string) => void }) {
       <label htmlFor="handlebar-editor">
         Template
         <Tooltip id="handlebar-editor-tooltip">
-          This template will be applied to an incoming event
+          This handlebar template will be applied to an incoming event
           <br />
           to craft a webhook body. Make sure that you have a
           <br /> content-type header that matches template output.

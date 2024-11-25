@@ -77,7 +77,7 @@ class SearchController(
         case Left(error) => error.toHttpResponse.future
         case Right(_) =>
           env.datastores.search
-            .tenantSearch(tenant, request.user, query, filter.map(item => SearchEntityObject.parseSearchEntityType(item)))
+            .tenantSearch(tenant, request.user.username, query, filter.map(item => SearchEntityObject.parseSearchEntityType(item)))
             .flatMap(results => {
               Future.sequence(results.map { case (rowType, rowJson, _) =>
                 buildPath(rowType, rowJson, tenant)

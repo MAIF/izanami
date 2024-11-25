@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useState } from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { IzanamiContext } from "../securityContext";
 import {
@@ -27,14 +27,18 @@ export function Profile() {
   const isOIDC = user.userType === "OIDC";
   const [informationEdition, setInformationEdition] = useState(false);
   const [passwordEdition, setPasswordEdition] = useState(false);
-  const passwordUpdateMutation = useMutation(
-    (user: { username: string; oldPassword: string; password: string }) => {
+  const passwordUpdateMutation = useMutation({
+    mutationFn: (user: {
+      username: string;
+      oldPassword: string;
+      password: string;
+    }) => {
       const { username, ...rest } = user;
       return updateUserPassword(username, rest);
-    }
-  );
-  const informationUpdateMutation = useMutation(
-    (user: {
+    },
+  });
+  const informationUpdateMutation = useMutation({
+    mutationFn: (user: {
       oldUsername: string;
       username: string;
       email: string;
@@ -44,12 +48,11 @@ export function Profile() {
       const { oldUsername, ...rest } = user;
       return updateUserInformation(oldUsername, rest);
     },
-    {
-      onSuccess: () => {
-        // TODO
-      },
-    }
-  );
+
+    onSuccess: () => {
+      // TODO
+    },
+  });
   return (
     <div className="anim__popUp">
       <h1>Profile</h1>
@@ -152,7 +155,10 @@ function EditionForm(props: {
     onCancel,
     onSubmit,
   } = props;
-  const tenantQuery = useQuery(MutationNames.TENANTS, () => queryTenants());
+  const tenantQuery = useQuery({
+    queryKey: [MutationNames.TENANTS],
+    queryFn: () => queryTenants(),
+  });
 
   if (tenantQuery.error) {
     // FIXME handle error
@@ -417,8 +423,8 @@ function Tokens() {
   const [creating, setCreating] = useState(false);
   const formTitleRef = React.useRef<HTMLHeadingElement | null>(null);
 
-  const creationQuery = useMutation(
-    (data: {
+  const creationQuery = useMutation({
+    mutationFn: (data: {
       name: string;
       expiresAt: Date;
       expirationTimezone: string;
@@ -433,12 +439,13 @@ function Tokens() {
         data.allRights,
         data.rights
       ),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(personnalAccessTokenKey(user!.username!));
-      },
-    }
-  );
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [personnalAccessTokenKey(user!.username!)],
+      });
+    },
+  });
 
   return (
     <>

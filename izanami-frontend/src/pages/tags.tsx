@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState, useContext } from "react";
 import { Loader } from "../components/Loader";
 import {
@@ -27,42 +27,43 @@ import { CopyButton } from "../components/FeatureTable";
 
 export function Tags(props: { tenant: string }) {
   const { tenant } = props;
-  const tagsQuery = useQuery(tagsQueryKey(tenant), () => queryTags(tenant));
+  const tagsQuery = useQuery({
+    queryKey: [tagsQueryKey(tenant)],
+    queryFn: () => queryTags(tenant),
+  });
   const { askConfirmation } = useContext(IzanamiContext);
   const hasTenantWriteRight = useTenantRight(tenant, TLevel.Write);
   const [creating, setCreating] = useState<boolean>(false);
 
-  const tagCreateMutation = useMutation(
-    (data: TagType) => createTag(tenant, data.name, data.description),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(tagsQueryKey(tenant!));
-      },
-    }
-  );
+  const tagCreateMutation = useMutation({
+    mutationFn: (data: TagType) =>
+      createTag(tenant, data.name, data.description),
 
-  const tagDeleteMutation = useMutation(
-    ({ name }: { name: string }) => deleteTag(tenant!, name),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(tagsQueryKey(tenant!));
-      },
-    }
-  );
-  const tagUpdateMutation = useMutation(
-    ({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [tagsQueryKey(tenant!)] });
+    },
+  });
+
+  const tagDeleteMutation = useMutation({
+    mutationFn: ({ name }: { name: string }) => deleteTag(tenant!, name),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [tagsQueryKey(tenant!)] });
+    },
+  });
+  const tagUpdateMutation = useMutation({
+    mutationFn: ({
       currentName,
       tag,
     }: {
       currentName: string;
       tag: { name: string; description: string; id: string };
     }) => updateTag(tenant!, tag, currentName),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(tagsQueryKey(tenant!));
-      },
-    }
-  );
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [tagsQueryKey(tenant!)] });
+    },
+  });
 
   const [bulkOperation, setBulkOperation] = useState<string | undefined>(
     undefined

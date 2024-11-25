@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   deleteScript,
   fetchWasmScripts,
@@ -17,18 +17,24 @@ import { Loader } from "../components/Loader";
 
 export function WasmScripts(props: { tenant: string }) {
   const { tenant } = props;
-  const scriptQuery = useQuery(tenantScriptKey(tenant), () =>
-    fetchWasmScripts(tenant)
-  );
-  const wasmUpdateMutation = useMutation(
-    ({ name, newScript }: { name: string; newScript: TWasmConfig }) =>
-      updateScript(tenant!, name, newScript),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(tenantScriptKey(tenant!));
-      },
-    }
-  );
+  const scriptQuery = useQuery({
+    queryKey: [tenantScriptKey(tenant)],
+
+    queryFn: () => fetchWasmScripts(tenant),
+  });
+  const wasmUpdateMutation = useMutation({
+    mutationFn: ({
+      name,
+      newScript,
+    }: {
+      name: string;
+      newScript: TWasmConfig;
+    }) => updateScript(tenant!, name, newScript),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [tenantScriptKey(tenant!)] });
+    },
+  });
   const [searchParams] = useSearchParams();
   const selectedSearchRow = searchParams.get("filter");
   const { askConfirmation } = React.useContext(IzanamiContext);
@@ -138,7 +144,9 @@ export function WasmScripts(props: { tenant: string }) {
                   () => {
                     return deleteScript(tenant, wasmConfig.config.name).then(
                       () =>
-                        queryClient.invalidateQueries(tenantScriptKey(tenant))
+                        queryClient.invalidateQueries({
+                          queryKey: [tenantScriptKey(tenant)],
+                        })
                     );
                   }
                 ),

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { FeatureTable } from "../components/FeatureTable";
 import queryClient from "../queryClient";
 import {
@@ -26,9 +26,11 @@ import { Loader } from "../components/Loader";
 
 export function Tag(prop: { tag: string; tenant: string }) {
   const { tag, tenant } = prop;
-  const tagQuery = useQuery(tagQueryKey(tenant, tag), () =>
-    queryTag(tenant, tag)
-  );
+  const tagQuery = useQuery({
+    queryKey: [tagQueryKey(tenant, tag)],
+
+    queryFn: () => queryTag(tenant, tag),
+  });
   const [creating, setCreating] = React.useState(false);
   const { user } = React.useContext(IzanamiContext);
   const admin = useAdmin();
@@ -38,15 +40,16 @@ export function Tag(prop: { tag: string; tenant: string }) {
       (right) => right.level === TLevel.Write || right.level === TLevel.Admin
     );
 
-  const featureCreateMutation = useMutation(
-    (data: { project: string; feature: any }) =>
+  const featureCreateMutation = useMutation({
+    mutationFn: (data: { project: string; feature: any }) =>
       createFeature(tenant, data.project, data.feature),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(featureQueryKey(tenant, tag));
-      },
-    }
-  );
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [featureQueryKey(tenant, tag)],
+      });
+    },
+  });
 
   if (tagQuery.isError) {
     return <div>Failed to load tag</div>;
@@ -99,9 +102,11 @@ export function Tag(prop: { tag: string; tenant: string }) {
 
 function ProjectInput() {
   const { tenant } = useParams();
-  const tenantQuery = useQuery(tenantQueryKey(tenant!), () =>
-    queryTenant(tenant!)
-  );
+  const tenantQuery = useQuery({
+    queryKey: [tenantQueryKey(tenant!)],
+
+    queryFn: () => queryTenant(tenant!),
+  });
   const { control } = useFormContext<TCompleteFeature>();
 
   if (tenantQuery.isError) {
@@ -148,9 +153,11 @@ function ProjectInput() {
 function Features(props: { tagName: string; tenant: string }): JSX.Element {
   const { tagName, tenant } = props;
   const queryKey = featureQueryKey(tenant, tagName);
-  const featureQuery = useQuery(queryKey, () =>
-    queryTagFeatures(tenant, tagName)
-  );
+  const featureQuery = useQuery({
+    queryKey: [queryKey],
+
+    queryFn: () => queryTagFeatures(tenant, tagName),
+  });
   const { user } = React.useContext(IzanamiContext);
 
   if (featureQuery.isError) {
@@ -162,7 +169,7 @@ function Features(props: { tagName: string; tenant: string }): JSX.Element {
     return (
       <FeatureTable
         features={features}
-        refresh={() => queryClient.invalidateQueries(queryKey)}
+        refresh={() => queryClient.invalidateQueries({ queryKey: [queryKey] })}
         fields={["name", "tags", "project", "enabled", "details", "project"]}
         actions={(feature) => {
           if (

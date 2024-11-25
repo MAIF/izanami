@@ -1,7 +1,7 @@
 import * as React from "react";
 import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { GenericTable } from "../components/GenericTable";
 import queryClient from "../queryClient";
@@ -54,34 +54,36 @@ export function TenantSettings(props: { tenant: string }) {
   const [v1ImportDisplayed, setV1ImportDisplayed] = React.useState(false);
   const [exportDisplayed, setExportDisplayed] = React.useState(false);
   const [importDisplayed, setImportDisplayed] = React.useState(false);
-  const tenantQuery = useQuery(tenantQueryKey(tenant), () =>
-    queryTenant(tenant)
-  );
-  const usersQuery = useQuery(tenantUserQueryKey(tenant), () =>
-    queryTenantUsers(tenant)
-  );
+  const tenantQuery = useQuery({
+    queryKey: [tenantQueryKey(tenant)],
 
-  const deleteMutation = useMutation(
-    (password: string) => deleteTenant(password, props.tenant),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(MutationNames.TENANTS);
-        navigate("/home");
-      },
-    }
-  );
+    queryFn: () => queryTenant(tenant),
+  });
+  const usersQuery = useQuery({
+    queryKey: [tenantUserQueryKey(tenant)],
 
-  const inviteUsers = useMutation(
-    (data: { users: string[]; level: TLevel }) => {
+    queryFn: () => queryTenantUsers(tenant),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (password: string) => deleteTenant(password, props.tenant),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [MutationNames.TENANTS] });
+      navigate("/home");
+    },
+  });
+
+  const inviteUsers = useMutation({
+    mutationFn: (data: { users: string[]; level: TLevel }) => {
       const { users, level } = data;
       return inviteUsersToTenant(tenant, users, level);
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(tenantUserQueryKey(tenant));
-      },
-    }
-  );
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [tenantUserQueryKey(tenant)] });
+    },
+  });
 
   const navigate = useNavigate();
   const formTitleRef = React.useRef<HTMLHeadingElement | null>(null);
@@ -246,6 +248,7 @@ export function TenantSettings(props: { tenant: string }) {
               submit={(request) => {
                 return importData(tenant, request)
                   .then((importRes) => {
+                    console.log(importRes, "importRes");
                     if (
                       importRes.conflicts ||
                       importRes?.messages?.length > 0
@@ -261,10 +264,16 @@ export function TenantSettings(props: { tenant: string }) {
                               failedElements={importRes.conflicts}
                             />
                           )}
-                        </>
+                        </>,
+                        undefined,
+                        () => {
+                          setImportDisplayed(false);
+                          return Promise.resolve();
+                        }
                       );
                     } else {
                       setImportDisplayed(false);
+                      return Promise.resolve();
                     }
                   })
                   .catch((err) => console.log("err", err));
@@ -500,17 +509,22 @@ function ImportForm(props: {
 function TenantUsers(props: { tenant: string; usersData: any }) {
   const { tenant, usersData } = props;
 
-  const userUpdateMutationForTenant = useMutation(
-    (user: { username: string; tenant: string; rights: TTenantRight }) => {
+  const userUpdateMutationForTenant = useMutation({
+    mutationFn: (user: {
+      username: string;
+      tenant: string;
+      rights: TTenantRight;
+    }) => {
       const { username, tenant, rights } = user;
       return updateUserRightsForTenant(username, tenant, rights);
     },
-    {
-      onSuccess: (_, { username }) => {
-        queryClient.invalidateQueries(userQueryKeyForTenant(username, tenant));
-      },
-    }
-  );
+
+    onSuccess: (_, { username }) => {
+      queryClient.invalidateQueries({
+        queryKey: [userQueryKeyForTenant(username, tenant)],
+      });
+    },
+  });
   const isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
   return (
     <GenericTable
@@ -538,9 +552,9 @@ function TenantUsers(props: { tenant: string; usersData: any }) {
                     {
                       onSuccess: () => {
                         cancel();
-                        queryClient.invalidateQueries(
-                          tenantUserQueryKey(tenant)
-                        );
+                        queryClient.invalidateQueries({
+                          queryKey: [tenantUserQueryKey(tenant)],
+                        });
                       },
                     }
                   );
@@ -589,21 +603,17 @@ function TenantUsers(props: { tenant: string; usersData: any }) {
 function TenantModification(props: { tenant: TenantType; onDone: () => void }) {
   const navigate = useNavigate();
 
-  const updateMutation = useMutation(
-    (data: { name: string; description: string }) =>
+  const updateMutation = useMutation({
+    mutationFn: (data: { name: string; description: string }) =>
       updateTenant(props.tenant.name, data),
-    {
-      onSuccess: (
-        data: any,
-        variables: { name: string; description: string }
-      ) =>
-        queryClient
-          .invalidateQueries(tenantQueryKey(props.tenant.name))
-          .then(() => {
-            navigate(`/tenants/${variables.name}/settings`);
-          }),
-    }
-  );
+
+    onSuccess: (data: any, variables: { name: string; description: string }) =>
+      queryClient
+        .invalidateQueries({ queryKey: [tenantQueryKey(props.tenant.name)] })
+        .then(() => {
+          navigate(`/tenants/${variables.name}/settings`);
+        }),
+  });
   return (
     <div className="sub_container">
       <Form
@@ -681,23 +691,23 @@ function ExportForm(props: {
 
   watch(["allProjects", "allKeys", "allWebhooks"]);
 
-  const projectQuery = useQuery(
-    tenantQueryKey(tenant!),
-    () => queryTenant(tenant!),
-    { enabled: !getValues("allProjects") }
-  );
+  const projectQuery = useQuery({
+    queryKey: [tenantQueryKey(tenant!)],
+    queryFn: () => queryTenant(tenant!),
+    enabled: !getValues("allProjects"),
+  });
 
-  const keyQuery = useQuery(
-    tenantKeyQueryKey(tenant!),
-    () => queryKeys(tenant!),
-    { enabled: !getValues("allKeys") }
-  );
+  const keyQuery = useQuery({
+    queryKey: [tenantKeyQueryKey(tenant!)],
+    queryFn: () => queryKeys(tenant!),
+    enabled: !getValues("allKeys"),
+  });
 
-  const webhookQuery = useQuery(
-    webhookQueryKey(tenant!),
-    () => fetchWebhooks(tenant!),
-    { enabled: !getValues("allWebhooks") }
-  );
+  const webhookQuery = useQuery({
+    queryKey: [webhookQueryKey(tenant!)],
+    queryFn: () => fetchWebhooks(tenant!),
+    enabled: !getValues("allWebhooks"),
+  });
 
   return (
     <>
@@ -928,9 +938,11 @@ function IzanamiV1ImportForm(props: {
 }) {
   const { tenant } = useParams();
 
-  const projectQuery = useQuery(tenantQueryKey(tenant!), () =>
-    queryTenant(tenant!)
-  );
+  const projectQuery = useQuery({
+    queryKey: [tenantQueryKey(tenant!)],
+
+    queryFn: () => queryTenant(tenant!),
+  });
   const { cancel, submit } = props;
 
   const methods = useForm<IzanamiV1ImportRequest>({

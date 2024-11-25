@@ -165,3 +165,17 @@ By adjusting the threshold, you can control the sensitivity of your similarity s
 |                                         | Environnement variable                | Program argument                | Default     |
 | --------------------------------------- | ------------------------------------- | ------------------------------- | ----------- |
 | Similartiy_threshold parameter          | IZANAMI_SIMILARITY_THRESHOLD_PARAMETER| app.search.similarity_threshold | 0.2         |
+
+
+### Audit
+
+Izanami offers an audit log for some actions, such as feature creation/update/delete.
+To provide this, it stores events about passed use actions. As time passes, event storage can grow very big.
+
+Retention duration for this event can be parameterized using below variable.
+
+⚠️ You won't be able to access audit log older than retention duration.
+
+|                                                | Play configuration key          | Environnement variable              | Default          |
+| -----------------------------------------------| --------------------------------| ------------------------------------| -----------------|
+| event retention duration (in hours)            | app.audit.events-hours-ttl      | IZANAMI_AUDIT_EVENTS_HOURS_TTL      | 4344 (~6 months) |

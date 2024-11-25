@@ -50,7 +50,6 @@ export function Modal(props: {
         <div className="modal-footer">
           <button
             type="button"
-            aria-label="Cancel"
             className={`btn ${
               !closeButtonText && !onConfirm ? "btn-danger" : "btn-danger-light"
             }`}

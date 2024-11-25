@@ -9,6 +9,7 @@ import fr.maif.izanami.models.{ApiKey, ApiKeyProject, ApiKeyWithCompleteRights}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy}
+import fr.maif.izanami.web.UserInformation
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
 
@@ -19,7 +20,7 @@ import scala.concurrent.Future
 class ApiKeyDatastore(val env: Env) extends Datastore {
   def createApiKey(
       apiKey: ApiKey,
-      user: String
+      user: UserInformation
  ): Future[Either[IzanamiError, ApiKey]] = {
     createApiKeys(apiKey.tenant, apiKeys = Seq(apiKey), user=user, conflictStrategy = Fail, conn= None)
       .map(e => e.map(_.head).left.map(_.head))
@@ -35,7 +36,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
   def createApiKeys(
                     tenant: String,
                     apiKeys: Seq[ApiKey],
-                    user: String,
+                    user: UserInformation,
                     conflictStrategy: ImportConflictStrategy,
                     conn: Option[SqlConnection]
                   ): Future[Either[Seq[IzanamiError], Seq[ApiKey]]] = {
@@ -101,7 +102,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                      |VALUES (unnest($$1::text[]), unnest($$2::text[]), 'ADMIN')
                      |RETURNING apikey
                      |""".stripMargin,
-                  List(Array.fill(apiKeys.size)(user), apiKeys.map(_.name).toArray),
+                  List(Array.fill(apiKeys.size)(user.username), apiKeys.map(_.name).toArray),
                   conn = Some(connection),
                   schemas = Set(tenant)
                 ) { r => apiKeys.find(k => k.name == r.getString("apikey")) }
