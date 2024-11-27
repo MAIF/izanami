@@ -235,7 +235,8 @@ class ImportController(
     val files: Map[String, URI] = request.body.files.map(f => (f.key, f.ref.path.toUri)).toMap
     (for (
       conflictStrategy <- ImportController.parseStrategy(conflict);
-      uri              <- files.get("export")
+      uri              <- files.get("export");
+      wipeData <- wipeData
     ) yield {
       Try(scala.io.Source.fromFile(uri)).toEither.left
         .map(ex => {
@@ -260,19 +261,20 @@ class ImportController(
         .map(m => fixImportDataIfNeeded(tenant, m))
         .map {
           case (messages, data) => {
-            env.datastores.exportDatastore
-              .importTenantData(tenant, data, conflictStrategy)
-              .map {
-                case Left(PartialImportFailure(failedElements)) =>
-                  Conflict(
-                    Json.obj(
-                      "messages"  -> Json.toJson(messages),
-                      "conflicts" -> Json.toJson(failedElements.values.flatten)
+              env.datastores.exportDatastore
+                .importTenantData(tenant, request.user, data, conflictStrategy, wipeData)
+                .map {
+                  case Left(PartialImportFailure(failedElements)) =>
+                    Conflict(
+                      Json.obj(
+                        "messages"  -> Json.toJson(messages),
+                        "conflicts" -> Json.toJson(failedElements.values.flatten)
+                      )
                     )
-                  )
-                case Right(_)                                   => Ok(Json.obj("messages" -> Json.toJson(messages)))
-                case Left(err)                                  => err.toHttpResponse
-              }
+                  case Right(_)                                   => Ok(Json.obj("messages" -> Json.toJson(messages)))
+                  case Left(err)                                  => err.toHttpResponse
+                }
+
           }
         }
     }).toRight(Future.successful(BadRequest(Json.obj("message" -> "Missing export file")))).flatten.fold(r => r, r => r)
