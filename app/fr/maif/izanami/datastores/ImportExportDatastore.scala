@@ -4,7 +4,7 @@ import fr.maif.izanami.datastores.ImportExportDatastore.TableMetadata
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError, PartialImportFailure}
-import fr.maif.izanami.models.{ExportedType, KeyRightType, ProjectRightType, WebhookRightType}
+import fr.maif.izanami.models.{ExportedType, KeyRightType, ProjectRightType, TenantCreationRequest, WebhookRightType}
 import fr.maif.izanami.models.ExportedType.exportedTypeToString
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
@@ -13,7 +13,7 @@ import fr.maif.izanami.web.ImportController.ImportConflictStrategy
 import fr.maif.izanami.web.{ExportController, ImportController}
 import io.vertx.core.json.JsonArray
 import io.vertx.sqlclient.SqlConnection
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.{JsObject, JsString, Json}
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
@@ -47,8 +47,10 @@ class ImportExportDatastore(val env: Env) extends Datastore {
 
   def importTenantData(
       tenant: String,
+      user: String,
       entries: Map[ExportedType, Seq[JsObject]],
-      conflictStrategy: ImportConflictStrategy
+      conflictStrategy: ImportConflictStrategy,
+      wipeData: Boolean
   ): Future[Either[IzanamiError, Unit]] = {
 
     Future
@@ -70,38 +72,55 @@ class ImportExportDatastore(val env: Env) extends Datastore {
               .foldLeft(Future.successful(Right(())): Future[Either[Map[ExportedType, Seq[JsObject]], Unit]])(
                 (agg, t) => {
                   agg.flatMap(previousResult => {
-                    val f = conflictStrategy match {
-                      case ImportController.MergeOverwrite                 => importTenantDataWithMergeOnConflict(tenant, t._1, t._2)
-                      case ImportController.Skip                           => importTenantDataWithSkipOnConflict(tenant, t._1, t._2)
-                      case ImportController.Fail if previousResult.isRight =>
-                        importTenantDataWithFailOnConflict(tenant, t._1, t._2, conn)
-                      case _                                               => Future.successful(Right(()))
+                    if(wipeData) {
+                      env.datastores.tenants.deleteTenant(tenant, user).flatMap {
+                        case Left(err) => Future.successful(Left(Map(t._3 -> Seq(JsObject(Seq("error" -> JsString(err.toString)))))))
+                        case Right(_) =>
+                          env.datastores.tenants.createTenant(TenantCreationRequest(tenant), user).flatMap {
+                            case Left(err) => Future.successful(Left(Map(t._3 -> Seq(JsObject(Seq("error" -> JsString(err.toString)))))))
+                            case Right(_) => importTenantDataWithSkipOnConflict(tenant, t._1, t._2).map {
+                              case Left(failedJsons) =>
+                                Left(Map(t._3 -> failedJsons))
+                              case Right(_) =>
+                                Right(())
+                            }
+                      }
+                      }
+                    } else {
+                      val f = conflictStrategy match {
+                        case ImportController.MergeOverwrite                 => importTenantDataWithMergeOnConflict(tenant, t._1, t._2)
+                        case ImportController.Skip                         => importTenantDataWithSkipOnConflict(tenant, t._1, t._2)
+                        case ImportController.Fail if previousResult.isRight =>
+                          importTenantDataWithFailOnConflict(tenant, t._1, t._2, conn)
+                        case _                                               => Future.successful(Right(()))
+
+                      }
+                      f
+                        .flatMap(e => {
+                          updateUserTenantRightIfNeeded(
+                            tenant,
+                            entries,
+                            if (conflictStrategy == ImportController.Fail) Some(conn) else None
+                          )
+                            .map(_ => e)
+                        })
+                        .map(either =>
+                          either.left.map(jsons =>
+                            jsons.map(json => Json.obj("row" -> json, "_type" -> exportedTypeToString(t._3)))
+                          )
+                        )
+                        .map(either =>
+                          (either, previousResult) match {
+                            case (Left(err), Left(errs)) => {
+                              Left(errs + (t._3 -> err))
+                            }
+                            case (Left(err), Right(_))   => Left(Map(t._3 -> err))
+                            case (Right(_), Right(_))    => Right(())
+                            case (Right(_), Left(errs))  => Left(errs)
+                          }
+                        )
                     }
 
-                    f
-                      .flatMap(e => {
-                        updateUserTenantRightIfNeeded(
-                          tenant,
-                          entries,
-                          if (conflictStrategy == ImportController.Fail) Some(conn) else None
-                        )
-                          .map(_ => e)
-                      })
-                      .map(either =>
-                        either.left.map(jsons =>
-                          jsons.map(json => Json.obj("row" -> json, "_type" -> exportedTypeToString(t._3)))
-                        )
-                      )
-                      .map(either =>
-                        (either, previousResult) match {
-                          case (Left(err), Left(errs)) => {
-                            Left(errs + (t._3 -> err))
-                          }
-                          case (Left(err), Right(_))   => Left(Map(t._3 -> err))
-                          case (Right(_), Right(_))    => Right(())
-                          case (Right(_), Left(errs))  => Left(errs)
-                        }
-                      )
                   })
                 }
               )
@@ -110,7 +129,6 @@ class ImportExportDatastore(val env: Env) extends Datastore {
         }
       })
   }
-
   def importTenantDataWithMergeOnConflict(
       tenant: String,
       metadata: TableMetadata,

@@ -204,7 +204,7 @@ export function importData(
   data.append("export", importRequest.file.item(0)!);
   return handleFetchJsonResponse(
     fetch(
-      `/api/admin/tenants/${tenant}/_import?version=2&conflict=${importRequest.conflictStrategy}`,
+      `/api/admin/tenants/${tenant}/_import?version=2&conflict=${importRequest.conflictStrategy}&wipeData=${importRequest.wipeData}`,
       {
         method: "POST",
         body: data,
