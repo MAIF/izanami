@@ -198,22 +198,31 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
   if (selectableRows) {
     completeColumns.unshift({
       id: "select",
-      header: ({ table }) => (
-        <div
-          className="d-flex justify-content-center align-items-center h-100"
-          style={{ width: "16px", position: "relative" }}
-        >
-          <IndeterminateCheckbox
-            {...{
-              checked: table.getIsAllRowsSelected(),
-              indeterminate: table.getIsSomeRowsSelected(),
-              onChange: table.getToggleAllRowsSelectedHandler(),
-              id: "header_checkbox",
-              label: "select all rows",
-            }}
-          />
-        </div>
-      ),
+      header: ({ table }) => {
+        const isSelectableRows =
+          table
+            .getSelectedRowModel()
+            .rows.map((r) => r.original)
+            .filter((r) => isRowSelectable && isRowSelectable(r)).length > 0;
+
+        return (
+          <div
+            className="d-flex justify-content-center align-items-center h-100"
+            style={{ width: "16px", position: "relative" }}
+          >
+            <IndeterminateCheckbox
+              {...{
+                checked: table.getIsAllRowsSelected(),
+                indeterminate:
+                  table.getIsSomeRowsSelected() && isSelectableRows,
+                onChange: table.getToggleAllRowsSelectedHandler(),
+                id: "header_checkbox",
+                label: "select all rows",
+              }}
+            />
+          </div>
+        );
+      },
       cell: ({ row }) => {
         if (isRowSelectable === undefined || !isRowSelectable(row.original!)) {
           return <></>;
