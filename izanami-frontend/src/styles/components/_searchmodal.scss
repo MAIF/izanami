@@ -36,19 +36,25 @@
 .search-ul .active a {
   color: var(--bg-color_level3);
 }
+.search-ul .search-ul-item {
+  justify-content: space-between;
 
+}
 .search-ul .search-ul-item a {
   &:hover,
   &:active,
   &:focus {
     color: #fff;
   }
-}
 
+}
+.selected-search-item {
+  background-color: var(--bg-color_level2);
+}
 .search-ul a {
   color: var(--color_level1);
   text-decoration: none;
-
+  margin-right: 1.25rem;
   &:hover {
     color: #fff;
   }
@@ -67,4 +73,22 @@
   border: none;
   cursor: pointer;
   font-size: 1rem;
+}
+.clear-history-item-btn {
+  position: absolute;
+  right: 0.5rem;
+  margin-top: 0.5rem;
+  background: transparent;
+  color: var(--color_level1);
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.clear-history-search-btn {
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  background: transparent;
+  color: var(--color-blue);
 }
