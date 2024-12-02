@@ -164,6 +164,10 @@ case class ConflictingName(tenant: String, entityTpe: String, row: JsObject)
           .toString()}",
       status = 400
     )
+case class SearchFilterError()
+  extends IzanamiError(message = s"Invalid filters provided. Please ensure your filters are correct.", status = BAD_REQUEST)
+case class SearchQueryError()
+  extends IzanamiError(message = s"Query parameter is missing.", status = BAD_REQUEST)
 case class GenericBadRequest(override val message: String) extends IzanamiError(message = message, status = 400)
 case class PartialImportFailure(failedElements: Map[ExportedType, Seq[JsObject]])
     extends IzanamiError(message = s"Some element couldn't be imported", status = 400)

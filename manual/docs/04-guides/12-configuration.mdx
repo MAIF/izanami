@@ -141,8 +141,27 @@ With configurable values
 | max delay (in seconds)     | app.webhooks.retry.max-delay    | IZANAMI_WEBHOOK_RETRY_MAX_DELAY     |
 | multiplier                 | app.webhooks.retry.multiplier   | IZANAMI_WEBHOOK_RETRY_MULTIPLIER    |
 
-### Logging
+### SearchBar Parameter: similarity_threshold
 
-To change logger, refer to [play documentation page](https://www.playframework.com/documentation/3.0.x/SettingsLogger).
+The similartiy_threshold parameter in Izanami is a key setting that influences the behavior of similarity-based search queries.
 
-Izanami embed a json logger by default, therefore to have log at logstash json format, you can use the `-Dlogger.resource=json-logger.xml` argument.
+**Purpose**
+
+This parameter determines how closely two strings need to match for the similarity function to recognize them as "similar".
+
+**Range**
+
+The [similarity_threshold](https://www.postgresql.org/docs/current/pgtrgm.html) is a floating-point value ranging from 0.0 to 1.0:
+    - 0.0: All strings are considered similar, allowing for maximum inclusivity in search results.
+    - 1.0: Requires an exact match, providing the highest precision.
+
+**Usage**
+
+By adjusting the threshold, you can control the sensitivity of your similarity searches:
+
+- Lower values (0.2-0.4): Broader matching criteria, capturing more results that might be loosely related.
+- Higher values (0.8-1.0): Stricter matching criteria, focusing on results that closely resemble the query.
+
+|                                         | Environnement variable                | Program argument                | Default     |
+| --------------------------------------- | ------------------------------------- | ------------------------------- | ----------- |
+| Similartiy_threshold parameter          | IZANAMI_SIMILARITY_THRESHOLD_PARAMETER| app.search.similarity_threshold | 0.2         |

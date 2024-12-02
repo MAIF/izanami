@@ -607,7 +607,8 @@ function Layout() {
             user?.admin ||
             Object.keys(user?.rights.tenants || {}).length > 0) && (
             <SearchModal
-              tenant={tenant}
+              currentTenant={tenant}
+              availableTenants={Object.keys(user?.rights.tenants || {})}
               isOpenModal={isOpenModal}
               onClose={() => setIsOpenModal(false)}
             />
@@ -635,7 +636,6 @@ export class App extends Component {
   };
   constructor(props: any) {
     super(props);
-
     this.state = {
       version: undefined,
       user: undefined,

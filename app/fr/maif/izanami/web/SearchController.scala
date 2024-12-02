@@ -1,8 +1,10 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
+import fr.maif.izanami.errors.{IzanamiError, SearchFilterError, SearchQueryError}
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.PathElement.pathElementWrite
+import fr.maif.izanami.web.SearchController.SearchEntityObject
 import play.api.libs.json.{JsObject, Json, Writes}
 import play.api.mvc._
 
@@ -17,72 +19,88 @@ class SearchController(
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
 
-  def search(query: String): Action[AnyContent] = tenantRightAction.async {
-    implicit request: UserRequestWithTenantRights[AnyContent] =>
-      {
-        val tenants = request.user.tenantRights.keySet
-        Future
-          .sequence(
-            tenants
-              .map(tenant =>
-                env.datastores.search
-                  .tenantSearch(tenant, request.user.username, query)
-                  .map(l =>
-                    l.map(t => {
-                      (t._1, t._2, t._3, tenant)
-                    })
-                  )
-              )
-          )
-          .map(l => l.flatten.toList.sortBy(_._3)(Ordering.Double.TotalOrdering.reverse).take(10))
-          .flatMap(results => {
-            Future.sequence(results.map { case (rowType, rowJson, _, tenant) =>
-              buildPath(rowType, rowJson, tenant)
-                .map(pathElements => {
-                  val name     = (rowJson \ "name").asOpt[String].getOrElse("")
-                  val jsonPath =
-                    Json.toJson(pathElements.prepended(TenantPathElement(tenant)))(Writes.seq(pathElementWrite))
-                  Json.obj(
-                    "type"   -> rowType,
-                    "name"   -> name,
-                    "path"   -> jsonPath,
-                    "tenant" -> tenant
-                  )
-                })
-            })
-          })
-          .map(r => Ok(Json.toJson(r)))
-      }
+
+  private def checkSearchParams(query: String, filter: List[String]): Future[Either[IzanamiError, Unit]] = {
+    if (query.isEmpty) {
+      return Future.successful(Left(SearchQueryError()))
+    }
+    if (filter.nonEmpty && !filter.forall(SearchEntityObject.parseSearchEntityType(_).isDefined)) {
+      return Future.successful(Left(SearchFilterError()))
+    }
+    Future.successful(Right())
   }
 
-  def searchForTenant(tenant: String, query: String): Action[AnyContent] = simpleAuthAction.async {
+  def search(query: String, filter: List[String]): Action[AnyContent] = tenantRightAction.async {
+    implicit request: UserRequestWithTenantRights[AnyContent] => {
+      checkSearchParams(query, filter).flatMap {
+        case Left(error) => error.toHttpResponse.future
+        case Right(_) =>
+          val tenants = request.user.tenantRights.keySet
+          Future
+            .sequence(
+              tenants
+                .map(tenant =>
+                  env.datastores.search
+                    .tenantSearch(tenant, request.user.username, query, filter.map( item => SearchEntityObject.parseSearchEntityType(item)))
+                    .map(l =>
+                      l.map(t => {
+                        (t._1, t._2, t._3, tenant)
+                      })
+                    )
+                )
+            )
+            .map(l => l.flatten.toList.sortBy(_._3)(Ordering.Double.TotalOrdering.reverse).take(10))
+            .flatMap(results => {
+              Future.sequence(results.map { case (rowType, rowJson, _, tenant) =>
+                buildPath(rowType, rowJson, tenant)
+                  .map(pathElements => {
+                    val name = (rowJson \ "name").asOpt[String].getOrElse("")
+                    val jsonPath =
+                      Json.toJson(pathElements.prepended(TenantPathElement(tenant)))(Writes.seq(pathElementWrite))
+                    Json.obj(
+                      "type" -> rowType,
+                      "name" -> name,
+                      "path" -> jsonPath,
+                      "tenant" -> tenant
+                    )
+                  })
+              })
+            })
+            .map(r => Ok(Json.toJson(r)))
+      }
+    }
+  }
+
+  def searchForTenant(tenant: String, query: String, filter: List[String]): Action[AnyContent] = simpleAuthAction.async {
     implicit request: UserNameRequest[AnyContent] =>
-      {
-        env.datastores.search
-          .tenantSearch(tenant, request.user, query)
-          .flatMap(results => {
-            Future.sequence(results.map { case (rowType, rowJson, _) =>
-              buildPath(rowType, rowJson, tenant)
-                .map(pathElements => {
-                  val jsonPath = Json.toJson(pathElements)(Writes.seq(pathElementWrite))
-                  val name     = (rowJson \ "name").asOpt[String].getOrElse("")
-                  Json.obj(
-                    "type"   -> rowType,
-                    "name"   -> name,
-                    "path"   -> jsonPath,
-                    "tenant" -> tenant
-                  )
-                })
+      checkSearchParams(query, filter).flatMap {
+        case Left(error) => error.toHttpResponse.future
+        case Right(_) =>
+          env.datastores.search
+            .tenantSearch(tenant, request.user, query, filter.map(item => SearchEntityObject.parseSearchEntityType(item)))
+            .flatMap(results => {
+              Future.sequence(results.map { case (rowType, rowJson, _) =>
+                buildPath(rowType, rowJson, tenant)
+                  .map(pathElements => {
+                    val jsonPath = Json.toJson(pathElements)(Writes.seq(pathElementWrite))
+                    val name = (rowJson \ "name").asOpt[String].getOrElse("")
+                    Json.obj(
+                      "type" -> rowType,
+                      "name" -> name,
+                      "path" -> jsonPath,
+                      "tenant" -> tenant
+                    )
+                  })
+              })
             })
-          })
-          .map(res => Ok(Json.toJson(res)))
+            .map(res => Ok(Json.toJson(res)))
       }
   }
 
-  def buildPath(rowType: String, rowJson: JsObject, tenant: String): Future[Seq[PathElement]] = {
+  private def buildPath(rowType: String, rowJson: JsObject, tenant: String): Future[Seq[PathElement]] = {
     rowType match {
       case "feature"        => Seq(ProjectPathElement((rowJson \ "project").as[String])).future
-      case "global_context" => {
+      case "global_context" =>
         (rowJson \ "parent")
           .asOpt[String]
           .map(parent => {
@@ -90,8 +108,8 @@ class SearchController(
           })
           .getOrElse(Seq.empty)
           .future
-      }
-      case "local_context"  => {
+
+      case "local_context"  =>
         (rowJson \ "global_parent")
           .asOpt[String]
           .map(parent => {
@@ -110,11 +128,11 @@ class SearchController(
                 val parts   = parent.split("_")
                 val project = parts.head
 
-                // We look for shortes local context parent, since before him all contexts will be global
+                // We look for shortest local context parent, since before him all contexts will be global
                 env.datastores.featureContext
-                  .findLocalContexts(tenant, generateParentCandidates(parts.toSeq.drop(1)).map(s => s"${project}_${s}"))
-                  .map(ctxs => {
-                    val parentLocalContext      = ctxs.sortBy(_.length).headOption
+                  .findLocalContexts(tenant, generateParentCandidates(parts.toSeq.drop(1)).map(s => s"${project}_$s"))
+                  .map(context => {
+                    val parentLocalContext      = context.sortBy(_.length).headOption
                     val parts: Seq[PathElement] = parentLocalContext
                       .map(lc => {
                         val shortestLocalContextParts = lc.split("_")
@@ -143,7 +161,7 @@ class SearchController(
           .getOrElse( // If there is no parent nor global parents, this is a root local context
             Future.successful(Seq(ProjectPathElement((rowJson \ "project").as[String])))
           )
-      }
+
       case _                => Seq.empty.future
     }
   }
@@ -187,4 +205,32 @@ object PathElement {
       "name" -> p.name
     )
   }
+}
+object SearchController {
+  sealed trait SearchEntityType
+  object SearchEntityObject {
+    case object Project extends SearchEntityType
+    case object Feature extends SearchEntityType
+    case object Key extends SearchEntityType
+    case object Tag extends SearchEntityType
+    case object Script extends SearchEntityType
+    case object GlobalContext extends SearchEntityType
+    case object LocalContext extends SearchEntityType
+    case object Webhook extends SearchEntityType
+    def parseSearchEntityType(str: String): Option[SearchEntityType] = {
+      Option(str).map(_.toUpperCase).flatMap {
+        case "PROJECT" => Some(Project)
+        case "FEATURE"      => Some(Feature)
+        case "KEY"      => Some(Key)
+        case "TAG"      => Some(Tag)
+        case "SCRIPT"      => Some(Script)
+        case "GLOBAL_CONTEXT"      => Some(GlobalContext)
+        case "LOCAL_CONTEXT"      => Some(LocalContext)
+        case "WEBHOOK"      => Some(Webhook)
+        case _           => None
+      }
+    }
+
+  }
+
 }
