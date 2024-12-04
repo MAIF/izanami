@@ -6,8 +6,8 @@ const NumberTypeIcon = () => (
   <svg
     xmlns=" http://www.w3.org/2000/svg"
     viewBox="0 0 301.95 240.38"
-    width="18"
-    height="18"
+    width="12"
+    height="12"
     style={{ marginTop: "-2px" }}
   >
     <g id="Calque_2" data-name="Calque 2">
@@ -79,12 +79,12 @@ export const ResultTypeIcon = (props: {
   color?: string;
 }) => {
   const rs = props.resultType;
-  const color = props.color ?? "var(--color_level3)";
+  const color = props.color ?? "var(--color_level1)";
   return (
     <div className="custom-badge" style={{ fill: color }} aria-hidden>
       {rs === "boolean" ? (
         <i
-          style={{ fontSize: "18px", color: color }}
+          style={{ fontSize: "14px", color: color }}
           className="fa-solid fa-toggle-off"
         ></i>
       ) : rs === "string" ? (

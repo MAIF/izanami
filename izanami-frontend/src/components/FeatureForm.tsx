@@ -1251,7 +1251,7 @@ export function V2FeatureForm(props: {
                 }}
               />
             </label>
-            {type === "Classic" && <ConditionsInput />}
+            {type === "Classic" && <ConditionsInput folded={!!defaultValue} />}
             {type === "Existing WASM script" && <ExistingScript />}
             {type === "New WASM script" && <WasmInput />}
             <div

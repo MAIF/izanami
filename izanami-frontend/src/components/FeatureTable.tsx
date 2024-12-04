@@ -153,7 +153,7 @@ function PeriodDetails(props: { period: TFeaturePeriod }): JSX.Element {
   }
 }
 
-function Period({ period }: { period: TFeaturePeriod }): JSX.Element {
+export function Period({ period }: { period: TFeaturePeriod }): JSX.Element {
   let display = "";
   if (period.begin && period.end) {
     display = `from ${format(period.begin, "PPPp")} to ${format(
@@ -173,14 +173,14 @@ function Period({ period }: { period: TFeaturePeriod }): JSX.Element {
   );
 }
 
-function Rule(props: { rule: TFeatureRule }): JSX.Element {
+export function Rule(props: { rule: TFeatureRule }): JSX.Element {
   const { rule } = props;
   if (isPercentageRule(rule)) {
-    return <>For {`${rule.percentage}% of users`}</>;
+    return <>for {`${rule.percentage}% of users`}</>;
   } else if (isUserListRule(rule)) {
-    return <>{`Only for : ${rule.users.join(", ")}`}</>;
+    return <>{`only for : ${rule.users.join(", ")}`}</>;
   } else {
-    return <>For all users</>;
+    return <>for all users</>;
   }
 }
 export function possiblePaths(contexts: TContext[], path = ""): string[] {
@@ -242,11 +242,17 @@ function NonBooleanConditionsDetails({
   const { value } = resultDetail;
   return (
     <>
-      <span className="fw-semibold">Base value is</span>&nbsp;
-      <span className="fst-italic">{value}</span>
       {conditions.map((cond, idx) => {
-        return <NonBooleanConditionDetails key={idx} condition={cond} />;
+        return (
+          <>
+            <NonBooleanConditionDetails key={idx} condition={cond} />
+            <div className="feature-separator">-OR-</div>
+          </>
+        );
       })}
+      <span className="fw-semibold">Value is</span>&nbsp;
+      <span className="fst-italic">{value}</span>
+      &nbsp;otherwise
     </>
   );
 }
@@ -267,7 +273,7 @@ function NonBooleanConditionDetails({
   );
 }
 
-function ConditionDetails({
+export function ConditionDetails({
   conditions,
   resultDetail,
 }: {
@@ -1587,16 +1593,18 @@ export function FeatureTable(props: {
           if (!maybeContexts || maybeContexts.length === 0) {
             return (
               <div className="d-flex justify-start align-items-center">
+                <span style={{ paddingRight: "0.25rem" }}>{feature.name}</span>
                 <ResultTypeIcon resultType={feature.resultType} />
-                <span style={{ paddingLeft: "0.75rem" }}>{feature.name}</span>
               </div>
             );
           } else {
             return (
               <div className="d-flex align-items-center">
-                <ResultTypeIcon resultType={feature.resultType} />
                 <div className="d-flex py-2">
-                  <span style={{ paddingLeft: "0.75rem" }}>{feature.name}</span>
+                  <span style={{ paddingRight: "0.25rem" }}>
+                    {feature.name}
+                  </span>
+                  <ResultTypeIcon resultType={feature.resultType} />
                   <button
                     className="top-10 align-self-start badge rounded-pill bg-primary-outline"
                     role="button"
