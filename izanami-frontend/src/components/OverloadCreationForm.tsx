@@ -208,7 +208,7 @@ export function OverloadCreationForm(props: {
               }}
             />
           </label>
-          {type === "Classic" && <ConditionsInput />}
+          {type === "Classic" && <ConditionsInput folded={true} />}
           {type === "Existing WASM script" && <ExistingScript />}
           {type === "New WASM script" && <WasmInput />}
           <div className="d-flex justify-content-end">

@@ -321,6 +321,7 @@ export interface TWasmConfigSource {
 }
 
 export interface TClassicalCondition {
+  id: string;
   rule?: TFeatureRule;
   period?: TFeaturePeriod;
 }

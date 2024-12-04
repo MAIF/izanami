@@ -8,7 +8,7 @@ import {
 } from "./testBuilder";
 
 test.use({
-  headless: false,
+  headless: true,
 });
 
 test.describe("Audit screen should", () => {
@@ -86,6 +86,7 @@ test.describe("Audit screen should", () => {
     await page.getByLabel("Bulk action").click();
     await page.getByRole("option", { name: "Enable" }).click();
     await page.getByRole("button", { name: "Enable 6 features" }).click();
+    await expect(page.getByRole("cell", { name: "Enabled" })).toHaveCount(6);
     await page.getByRole("link", { name: "Logs" }).click();
     await expect(page.getByText("30 results")).toBeVisible();
     await expect(page.locator("li").filter({ hasText: "..." })).toBeVisible();
