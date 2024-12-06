@@ -85,7 +85,7 @@ export function TokenForm(props: {
   return (
     <FormProvider {...methods}>
       <form
-        className="d-flex flex-column col-12 col-lg-8"
+        className="sub_container d-flex flex-column"
         onSubmit={handleSubmit((data) => {
           props.onSubmit(data);
         })}
