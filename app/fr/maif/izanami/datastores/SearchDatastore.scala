@@ -25,6 +25,7 @@ class SearchDatastore(val env: Env) extends Datastore {
         s"""
       scored_projects AS (
         SELECT DISTINCT
+          p.id as id,
           p.name,
           p.description,
           izanami.SIMILARITY(p.name, $$1) AS name_score,
@@ -43,7 +44,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
       SELECT row_to_json(p.*) as json, GREATEST(p.name_score, p.description_score) AS match_score, 'project' as _type, $$3 as tenant
       FROM scored_projects p
-      WHERE p.name_score > $similarityThresholdParam OR p.description_score > $similarityThresholdParam"""
+      WHERE p.name_score > $similarityThresholdParam OR p.description_score > $similarityThresholdParam OR p.id::text = '$query'"""
     }
 
     if (filter.isEmpty || filter.contains(Some(SearchEntityObject.Feature))) {
@@ -51,6 +52,7 @@ class SearchDatastore(val env: Env) extends Datastore {
         s"""
       scored_features AS (
         SELECT DISTINCT
+          f.id as id,
           f.project,
           f.name,
           f.description,
@@ -63,7 +65,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
         SELECT row_to_json(f.*) as json, GREATEST(f.name_score, f.description_score) AS match_score, 'feature' as _type, $$3 as tenant
         FROM scored_features f
-        WHERE f.name_score > $similarityThresholdParam OR f.description_score > $similarityThresholdParam"""
+        WHERE f.name_score > $similarityThresholdParam OR f.description_score > $similarityThresholdParam OR f.id::text = '$query'"""
 
     }
 
