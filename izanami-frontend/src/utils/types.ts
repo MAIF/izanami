@@ -44,6 +44,7 @@ export interface TKey {
 
 export interface TenantType extends TenantInCreationType {
   id: string;
+  defaultOIDCRightLevel?: string;
   projects?: TenantProjectType[];
   tags?: TagType[];
 }

@@ -386,7 +386,7 @@ export function createTenant(
 
 export function updateTenant(
   oldName: string,
-  tenant: { name: string; description: string }
+  tenant: { name: string; description: string, defaultOIDCRightLevel?: string }
 ): Promise<any> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${oldName}`, {

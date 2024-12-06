@@ -46,6 +46,11 @@ import { customStyles } from "../styles/reactSelect";
 import { DEFAULT_TIMEZONE, TimeZoneSelect } from "../components/TimeZoneSelect";
 import { Loader } from "../components/Loader";
 
+const LEVEL_OPTIONS = Object.values(TLevel).map((n) => ({
+  label: n,
+  value: n,
+}));
+
 export function TenantSettings(props: { tenant: string }) {
   const { tenant } = props;
   const { askConfirmation, askPasswordConfirmation } =
@@ -83,6 +88,22 @@ export function TenantSettings(props: { tenant: string }) {
     }
   );
 
+  const defaultOIDCRightsMutation = useMutation(
+    (data: { tenant: TenantType, defaultOIDCRightLevel: string }) => {
+      console.log(data)
+      return updateTenant(data.tenant.name, {
+        ...data.tenant,
+        defaultOIDCRightLevel: data.defaultOIDCRightLevel
+      })
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(MutationNames.TENANTS);
+        navigate("/home");
+      },
+    }
+  );
+
   const navigate = useNavigate();
   const formTitleRef = React.useRef<HTMLHeadingElement | null>(null);
   const [modification, setModification] = React.useState(false);
@@ -116,6 +137,21 @@ export function TenantSettings(props: { tenant: string }) {
           />
         )}
         <TenantUsers tenant={tenant} usersData={usersQuery.data} />
+        <hr />
+        <h2 className="mt-4">Tenant OIDC users rights</h2>
+        <div className="d-flex align-items-center justify-content-between p-2">
+          <span>Update the default rights assigned to users first connected via OIDC</span>
+          <label className="ms-auto">
+            <Select
+              value={LEVEL_OPTIONS.find((o) => o.value === tenant.defaultOIDCRightLevel)}
+              onChange={(value) => {
+                defaultOIDCRightsMutation.mutateAsync({ tenant: tenantQuery.data, defaultOIDCRightLevel: value?.value });
+              }}
+              styles={customStyles}
+              options={LEVEL_OPTIONS}
+            />
+          </label>
+        </div>
         <hr />
         <h2 className="mt-4">Update tenant information</h2>
         <div className="d-flex align-items-center justify-content-between p-2">
