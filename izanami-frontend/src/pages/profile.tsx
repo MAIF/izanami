@@ -53,6 +53,8 @@ export function Profile() {
   return (
     <div className="anim__popUp">
       <h1>Profile</h1>
+      <hr />
+      <h2>Profile details</h2>
       {user.external ? (
         <></>
       ) : (
@@ -80,28 +82,49 @@ export function Profile() {
             />
           ) : (
             <>
-              <label>Username</label>
-              <div>{user.username}</div>
-              <label className="mt-2">Email</label>
-              <div>{user.email}</div>
-              <label className="mt-2">Default tenant</label>
-              <div>
-                {user.defaultTenant ?? (
-                  <span style={{ fontStyle: "italic" }}>No default tenant</span>
+              <div className="d-flex align-items-center justify-content-between">
+                <label>Username : {user.username}</label>
+                {!isOIDC && !informationEdition && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary my-2 btn-sm"
+                    onClick={() => setInformationEdition(true)}
+                  >
+                    Update informations
+                  </button>
                 )}
+              </div>
+              <div className="d-flex align-items-center justify-content-between mt-1">
+                <label className="mt-2">Email: {user.email}</label>
               </div>
             </>
           )}
-          {!isOIDC && !informationEdition && (
-            <button
-              type="button"
-              className="btn btn-secondary my-2 btn-sm"
-              onClick={() => setInformationEdition(true)}
-            >
-              Update informations
-            </button>
+          <hr />
+          <h2 className="mt-4">Rights</h2>
+          <label className="mt-2">
+            Default tenant:{" "}
+            {user.defaultTenant ?? (
+              <span style={{ fontStyle: "italic" }}>No default tenant</span>
+            )}
+          </label>
+
+          <Rights />
+          <hr />
+          <h2 className="mt-4">Security</h2>
+
+          {!isOIDC && !passwordEdition && (
+            <div className="d-flex align-items-center justify-content-between">
+              <span>Password</span>
+
+              <button
+                type="button"
+                className="btn btn-secondary my-2 btn-sm"
+                onClick={() => setPasswordEdition(true)}
+              >
+                Update password
+              </button>
+            </div>
           )}
-          <br />
           {passwordEdition && (
             <PasswordEditionForm
               onCancel={() => setPasswordEdition(false)}
@@ -117,22 +140,9 @@ export function Profile() {
             />
           )}
 
-          {!isOIDC && !passwordEdition && (
-            <button
-              type="button"
-              className="btn btn-secondary my-2 btn-sm"
-              onClick={() => setPasswordEdition(true)}
-            >
-              Update password
-            </button>
-          )}
+          {user.admin && <Tokens />}
         </>
       )}
-
-      <h2 className="mt-4">Rights</h2>
-      <Rights />
-
-      {user.admin && <Tokens />}
     </div>
   );
 }
@@ -160,6 +170,7 @@ function EditionForm(props: {
   } else if (tenantQuery.data) {
     return (
       <Form
+        className="sub_container d-flex flex-column"
         schema={{
           name: {
             label: "Username",
@@ -223,6 +234,7 @@ function PasswordEditionForm(props: {
 
   return (
     <Form
+      className="sub_container d-flex flex-column"
       schema={{
         currentPassword: {
           label: "Current password",
@@ -281,10 +293,9 @@ function Rights(): JSX.Element {
     <>
       {admin && (
         <div className="mt-3">
-          <h5>
-            <i className="bi bi-shield-check me-2" aria-hidden></i>You are
-            global admin of this Izanami instance
-          </h5>
+          <span className="me-1">Izanami instance right: </span>
+          <i className="bi bi-shield-check me-1" aria-hidden></i>
+          Global Admin
         </div>
       )}
       {Object.entries(tenants || {}).map(([key, value], index, array) => {
@@ -292,7 +303,7 @@ function Rights(): JSX.Element {
           <>
             {Object.entries(value.projects).length > 0 && (
               <>
-                <h4 className="mt-3">Projects</h4>
+                <h6 className="mt-3">Projects</h6>
                 {Object.entries(value.projects).map(
                   ([projectName, projectRight]) => {
                     return (
@@ -313,7 +324,7 @@ function Rights(): JSX.Element {
 
             {Object.entries(value.keys).length > 0 && (
               <>
-                <h4 className="mt-3">Keys</h4>
+                <h6 className="mt-3">Keys</h6>
                 {Object.entries(value.keys).map(([keyName, keyRight]) => {
                   return (
                     <div key={`${key}-${keyName}`}>
@@ -332,7 +343,7 @@ function Rights(): JSX.Element {
 
             {Object.entries(value.webhooks).length > 0 && (
               <>
-                <h4 className="mt-3">Webhooks</h4>
+                <h6 className="mt-3">Webhooks</h6>
                 {Object.entries(value.webhooks).map(
                   ([webhookName, webhookRight]) => {
                     return (
@@ -359,54 +370,38 @@ function Rights(): JSX.Element {
           </>
         );
 
-        if (array.length === 1) {
-          return (
-            <>
-              <h3 className="mt-3">Tenant&nbsp;</h3>
-              You have {value.level} right for the tenant
-              <Link to={`/tenants/${key}`}>
-                <button className="btn btn-sm btn-primary m-1">
-                  <i className="fas fa-cloud me-1" aria-hidden />
-                  {key}
-                </button>
-              </Link>
-              <div className="ms-4">{body}</div>
-            </>
-          );
-        } else {
-          return (
-            <div className="accordion mt-3" id={`${key}-accordion`} key={key}>
-              <div className="accordion-item">
-                <h3 className="accordion-header">
-                  <button
-                    className="accordion-button"
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target={`#${key}-accordion-collapse`}
-                    aria-expanded="true"
-                    aria-controls={`${key}-accordion-collapse`}
-                  >
-                    You are {value.level} for the tenant
-                    <Link to={`/tenants/${key}`}>
-                      <button className="btn btn-sm btn-primary m-1">
-                        <i className="fas fa-cloud me-1" aria-hidden />
-                        {key}
-                      </button>
-                    </Link>
-                  </button>
-                </h3>
-                <div
-                  className="accordion-collapse collapse"
-                  aria-labelledby="headingOne"
-                  data-bs-parent={`#${key}-accordion`}
-                  id={`${key}-accordion-collapse`}
+        return (
+          <div className="accordion mt-3" id={`${key}-accordion`} key={key}>
+            <div className="accordion-item">
+              <h3 className="accordion-header">
+                <button
+                  className="accordion-button"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target={`#${key}-accordion-collapse`}
+                  aria-expanded="true"
+                  aria-controls={`${key}-accordion-collapse`}
                 >
-                  <div className="accordion-body">{body}</div>
-                </div>
+                  You have {value.level} right for the tenant
+                  <Link to={`/tenants/${key}`}>
+                    <button className="btn btn-sm btn-primary m-1">
+                      <i className="fas fa-cloud me-1" aria-hidden />
+                      {key}
+                    </button>
+                  </Link>
+                </button>
+              </h3>
+              <div
+                className="accordion-collapse collapse"
+                aria-labelledby="headingOne"
+                data-bs-parent={`#${key}-accordion`}
+                id={`${key}-accordion-collapse`}
+              >
+                <div className="accordion-body">{body}</div>
               </div>
             </div>
-          );
-        }
+          </div>
+        );
       })}
     </>
   );
@@ -442,8 +437,11 @@ function Tokens() {
 
   return (
     <>
-      <h2 className="mt-4 d-flex align-items-center">
-        Tokens&nbsp;
+      <h3
+        className="mt-4 d-flex align-items-center"
+        style={{ color: "var(--color_level2)" }}
+      >
+        Personal access tokens&nbsp;
         {!creating && (
           <button
             className="btn btn-secondary btn-sm"
@@ -456,10 +454,10 @@ function Tokens() {
             Create new token
           </button>
         )}
-      </h2>
+      </h3>
       {creating && (
         <>
-          <h3 ref={formTitleRef}>New token</h3>
+          <h4 ref={formTitleRef}>New token</h4>
           <TokenForm
             onSubmit={(token) => {
               return creationQuery
@@ -487,6 +485,12 @@ function Tokens() {
             onCancel={() => setCreating(false)}
           />
         </>
+      )}
+      {!creating && (
+        <p>
+          Personal access tokens must be kept secure because there is no way to
+          recover a lost token. If you lose a token, you must create a new one.
+        </p>
       )}
       <TokensTable user={user!.username} />
     </>
