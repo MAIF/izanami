@@ -221,6 +221,19 @@ function PasswordEditionForm(props: {
 }) {
   const { onCancel, onSubmit } = props;
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: any) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   return (
     <Form
       schema={{
