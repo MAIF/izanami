@@ -28,6 +28,7 @@ class TenantController(
 
   def updateTenant(name: String): Action[JsValue] = tenantAuthAction(name, RightLevels.Admin).async(parse.json) {
     implicit request =>
+      println(request.body)
       Tenant.tenantReads.reads(request.body) match {
         case JsSuccess(value, _) =>
           if (name != value.name) {
@@ -87,7 +88,7 @@ class TenantController(
     implicit request =>
       env.datastores.tenants
         .readTenantByName(name)
-        .flatMap(maybeTenant =>
+        .flatMap(maybeTenant => {
           maybeTenant.fold(
             err => Future.successful(Results.Status(err.status)(Json.toJson(err))),
             tenant => {
@@ -97,13 +98,17 @@ class TenantController(
                 };
                 tags     <- env.datastores.tags.readTags(tenant.name)
               )
-                yield Ok(
-                  Json.toJson(
-                    Tenant(name = tenant.name, projects = projects, tags = tags, description = tenant.description)
+                yield {
+                  println(tenant, maybeTenant)
+                  Ok(
+                    Json.toJson(
+                      Tenant(name = tenant.name, projects = projects, tags = tags, description = tenant.description,
+                        defaultOIDCRightLevel = tenant.defaultOIDCRightLevel)
+                    )
                   )
-                )
+                }
             }
           )
-        )
+        })
   }
 }

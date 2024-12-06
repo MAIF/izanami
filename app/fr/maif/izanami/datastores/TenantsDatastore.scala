@@ -132,9 +132,9 @@ class TenantsDatastore(val env: Env) extends Datastore {
     env.postgresql.executeInTransaction(conn => {
       env.postgresql.queryOne(
         s"""
-           |UPDATE izanami.tenants SET description=$$1 WHERE name=$$2 RETURNING name
+           |UPDATE izanami.tenants SET description=$$1, defaultOIDCRightLevel=$$3 WHERE name=$$2 RETURNING name
            |""".stripMargin,
-        List(updateRequest.description, name),
+        List(updateRequest.description, name, updateRequest.defaultOIDCRightLevel.map(v => v.toString).orNull),
         conn=Some(conn)
       ){r => r.optString("name")}
         .map(o => o.toRight(TenantDoesNotExists(name)).map(_ => ()))
@@ -165,7 +165,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
   def readTenantByName(name: String): Future[Either[IzanamiError, Tenant]] = {
     env.postgresql
       .queryOne(
-        s"""SELECT t.name, t.description
+        s"""SELECT t.name, t.description, t.default_oidc_right_level
          |FROM izanami.tenants t
          |WHERE t.name=$$1
          |""".stripMargin,

@@ -1,0 +1,1 @@
+ALTER TABLE tenants ADD COLUMN default_oidc_right_level TEXT;
