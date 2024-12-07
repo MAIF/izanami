@@ -6,44 +6,6 @@ import { PASSWORD_REGEXP } from "../utils/patterns";
 interface PasswordModalForm {
   password: string;
 }
-export const PasswordInput = () => {
-  const {
-    register,
-    formState: { errors },
-  } = useFormContext<PasswordModalForm>();
-
-  return (
-    <div>
-      <label htmlFor="password-input">
-        Please enter your password to confirm deletion:
-      </label>
-      <form autoComplete="off">
-        <input
-          id="password-input"
-          type="password"
-          {...register("password", {
-            required: "Password name must be specified.",
-            pattern: {
-              value: PASSWORD_REGEXP,
-              message: `Password name must match ${PASSWORD_REGEXP}.`,
-            },
-          })}
-          className="form-control"
-          aria-label="Password"
-          aria-required="true"
-          aria-invalid={!!errors.password}
-          autoComplete="off"
-        />
-      </form>
-
-      {errors.password && (
-        <div id="password-error" className="error-message" role="alert">
-          {errors.password.message}
-        </div>
-      )}
-    </div>
-  );
-};
 
 export function PasswordModal(props: {
   title?: string;
@@ -53,12 +15,14 @@ export function PasswordModal(props: {
   children: ReactElement | ReactElement[] | string;
 }) {
   const { isOpenModal, title, onClose, onConfirm, children } = props;
-  const methods = useForm();
-  const onSubmit = (data: any) => {
-    onConfirm(data.password);
-    methods.reset();
-  };
+  const methods = useForm<PasswordModalForm>();
 
+  const {
+    register,
+    formState: { errors },
+    handleSubmit,
+    reset,
+  } = methods;
   if (!isOpenModal) return null;
 
   return (
@@ -66,14 +30,51 @@ export function PasswordModal(props: {
       <Modal
         title={title}
         visible={isOpenModal}
-        onConfirm={methods.handleSubmit(onSubmit)}
+        onConfirm={handleSubmit(({ password }) => {
+          onConfirm(password);
+          reset();
+        })}
         onClose={() => {
           onClose();
           methods.reset();
         }}
       >
         <>{children}</>
-        <PasswordInput />
+        <div>
+          <label htmlFor="password-input">
+            Please enter your password to confirm deletion:
+          </label>
+          <form
+            autoComplete="off"
+            onSubmit={handleSubmit(({ password }) => {
+              onConfirm(password);
+              reset();
+            })}
+          >
+            <input
+              id="password-input"
+              type="password"
+              {...register("password", {
+                required: "Password name must be specified.",
+                pattern: {
+                  value: PASSWORD_REGEXP,
+                  message: `Password name must match ${PASSWORD_REGEXP}.`,
+                },
+              })}
+              className="form-control"
+              aria-label="Password"
+              aria-required="true"
+              aria-invalid={!!errors.password}
+              autoComplete="off"
+            />
+          </form>
+
+          {errors.password && (
+            <div id="password-error" className="error-message" role="alert">
+              {errors.password.message}
+            </div>
+          )}
+        </div>
       </Modal>
     </FormProvider>
   );
