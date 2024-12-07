@@ -242,11 +242,17 @@ function NonBooleanConditionsDetails({
   const { value } = resultDetail;
   return (
     <>
-      <span className="fw-semibold">Base value is</span>&nbsp;
-      <span className="fst-italic">{value}</span>
       {conditions.map((cond, idx) => {
-        return <NonBooleanConditionDetails key={idx} condition={cond} />;
+        return (
+          <>
+            <NonBooleanConditionDetails key={idx} condition={cond} />
+            <div className="feature-separator">-OR-</div>
+          </>
+        );
       })}
+      <span className="fw-semibold">Value is</span>&nbsp;
+      <span className="fst-italic">{value}</span>
+      &nbsp;otherwise
     </>
   );
 }
