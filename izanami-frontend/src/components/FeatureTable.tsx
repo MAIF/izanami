@@ -1569,16 +1569,18 @@ export function FeatureTable(props: {
           if (!maybeContexts || maybeContexts.length === 0) {
             return (
               <div className="d-flex justify-start align-items-center">
+                <span style={{ paddingRight: "0.25rem" }}>{feature.name}</span>
                 <ResultTypeIcon resultType={feature.resultType} />
-                <span style={{ paddingLeft: "0.75rem" }}>{feature.name}</span>
               </div>
             );
           } else {
             return (
               <div className="d-flex align-items-center">
-                <ResultTypeIcon resultType={feature.resultType} />
                 <div className="d-flex py-2">
-                  <span style={{ paddingLeft: "0.75rem" }}>{feature.name}</span>
+                  <span style={{ paddingRight: "0.25rem" }}>
+                    {feature.name}
+                  </span>
+                  <ResultTypeIcon resultType={feature.resultType} />
                   <button
                     className="top-10 align-self-start badge rounded-pill bg-primary-outline"
                     role="button"
