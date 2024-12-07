@@ -1243,18 +1243,7 @@ export function V2FeatureForm(props: {
                 }}
               />
             </label>
-            {type === "Classic" && (
-              <div className="d-flex align-items-center justify-content-end mb-2 ms-3 mt-3">
-                <button
-                  className="btn btn-secondary btn-sm"
-                  type="button"
-                  onClick={() => setIsConditionOpen(!isConditionOpen)}
-                >
-                  {isConditionOpen ? "Hide conditions" : "Edit conditions"}
-                </button>
-              </div>
-            )}
-            {type === "Classic" && isConditionOpen && <ConditionsInput />}
+            {type === "Classic" && <ConditionsInput folded={!!defaultValue} />}
             {type === "Existing WASM script" && <ExistingScript />}
             {type === "New WASM script" && <WasmInput />}
             <div

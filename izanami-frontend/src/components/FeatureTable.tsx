@@ -153,7 +153,7 @@ function PeriodDetails(props: { period: TFeaturePeriod }): JSX.Element {
   }
 }
 
-function Period({ period }: { period: TFeaturePeriod }): JSX.Element {
+export function Period({ period }: { period: TFeaturePeriod }): JSX.Element {
   let display = "";
   if (period.begin && period.end) {
     display = `from ${format(period.begin, "PPP")} to ${format(
@@ -173,14 +173,14 @@ function Period({ period }: { period: TFeaturePeriod }): JSX.Element {
   );
 }
 
-function Rule(props: { rule: TFeatureRule }): JSX.Element {
+export function Rule(props: { rule: TFeatureRule }): JSX.Element {
   const { rule } = props;
   if (isPercentageRule(rule)) {
-    return <>For {`${rule.percentage}% of users`}</>;
+    return <>for {`${rule.percentage}% of users`}</>;
   } else if (isUserListRule(rule)) {
-    return <>{`Only for : ${rule.users.join(", ")}`}</>;
+    return <>{`only for : ${rule.users.join(", ")}`}</>;
   } else {
-    return <>For all users</>;
+    return <>for all users</>;
   }
 }
 export function possiblePaths(contexts: TContext[], path = ""): string[] {
@@ -267,7 +267,7 @@ function NonBooleanConditionDetails({
   );
 }
 
-function ConditionDetails({
+export function ConditionDetails({
   conditions,
   resultDetail,
 }: {

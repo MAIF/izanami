@@ -277,3 +277,14 @@ input[type="time"] {
 .react-tooltip {
   z-index: 1001;
 }
+
+.condition-accordion {
+  .accordion-body {
+    background-color: var(--bg-color_level25) !important;
+  }
+
+  .accordion-button {
+    background-color: var(--bg-color_level3) !important;
+    box-shadow: none !important;
+  }
+}
