@@ -85,17 +85,23 @@ export function TenantSettings(props: { tenant: string }) {
 
   const navigate = useNavigate();
   const formTitleRef = React.useRef<HTMLHeadingElement | null>(null);
+  const formTitleRef2 = React.useRef<HTMLHeadingElement | null>(null);
   const [modification, setModification] = React.useState(false);
 
   if (tenantQuery.isLoading || usersQuery.isLoading) {
     return <Loader message="Loading tenant / tenant users..." />;
   }
+  if (tenantQuery.isError || usersQuery.isError) {
+    return <div>Failed to fetch tenant / tenant users</div>;
+  }
   if (tenantQuery.isSuccess && usersQuery.isSuccess) {
     return (
       <>
-        <h1>Settings for tenant {tenant}</h1>
-        <h2 className="mt-5">
-          Tenant users
+        <h1>Tenant settings</h1>
+        <hr />
+        <h4 style={{ color: "var(--color_level2)" }}>Manage permissions</h4>
+        <h5 style={{ color: "var(--color_level2)" }}>
+          Users
           <button
             type="button"
             className="btn btn-secondary btn-sm mb-2 ms-3"
@@ -103,7 +109,7 @@ export function TenantSettings(props: { tenant: string }) {
           >
             Invite new users
           </button>
-        </h2>
+        </h5>
         {inviting && (
           <InvitationForm
             submit={({ users, level }) =>
@@ -117,9 +123,9 @@ export function TenantSettings(props: { tenant: string }) {
         )}
         <TenantUsers tenant={tenant} usersData={usersQuery.data} />
         <hr />
-        <h2 className="mt-4">Update tenant information</h2>
+        <h4 style={{ color: "var(--color_level2)" }}>General settings</h4>
         <div className="d-flex align-items-center justify-content-between p-2">
-          <span>Update description for this tenant</span>
+          <span>Update description for this tenant: {tenant}</span>
 
           <button
             type="button"
@@ -162,10 +168,12 @@ export function TenantSettings(props: { tenant: string }) {
           </button>
         </div>
         <hr />
-        <h2 ref={formTitleRef}>Export / import data</h2>
+        <h4 style={{ color: "var(--color_level2)" }} ref={formTitleRef}>
+          Import data
+        </h4>
         {v1ImportDisplayed ? (
           <>
-            <h3 className="ms-2 mt-3">Import data from Izanami v1 instance</h3>
+            <h5 className="ms-2 mt-3">Import data from Izanami v1 instance</h5>
             <IzanamiV1ImportForm
               cancel={() => setV1ImportDisplayed(false)}
               submit={(data) => {
@@ -228,17 +236,6 @@ export function TenantSettings(props: { tenant: string }) {
               }}
             />
           </>
-        ) : exportDisplayed ? (
-          <div>
-            <ExportForm
-              cancel={() => setExportDisplayed(false)}
-              submit={(request: IzanamiTenantExportRequest) =>
-                requestExport(tenant, request).then(() =>
-                  setExportDisplayed(false)
-                )
-              }
-            />
-          </div>
         ) : importDisplayed ? (
           <div>
             <ImportForm
@@ -304,27 +301,42 @@ export function TenantSettings(props: { tenant: string }) {
                 Import data
               </button>
             </div>
-            <div className="d-flex align-items-center justify-content-between p-2">
-              <span>Export data to transfer them to another instance</span>
-              <button
-                type="button"
-                className="btn btn-secondary m-2 btn-sm"
-                onClick={() => {
-                  setExportDisplayed(true);
-                  requestAnimationFrame(() => {
-                    formTitleRef?.current?.scrollIntoView(true);
-                  });
-                }}
-              >
-                Export data
-              </button>
-            </div>
           </>
+        )}
+        <hr />
+        <h4 style={{ color: "var(--color_level2)" }} ref={formTitleRef2}>
+          Export Data
+        </h4>
+        {!exportDisplayed ? (
+          <div className="d-flex align-items-center justify-content-between p-2">
+            <span>Export data to transfer them to another instance</span>
+            <button
+              type="button"
+              className="btn btn-secondary m-2 btn-sm"
+              onClick={() => {
+                setExportDisplayed(true);
+                requestAnimationFrame(() => {
+                  formTitleRef2?.current?.scrollIntoView(true);
+                });
+              }}
+            >
+              Export data
+            </button>
+          </div>
+        ) : (
+          <div>
+            <ExportForm
+              cancel={() => setExportDisplayed(false)}
+              submit={(request: IzanamiTenantExportRequest) =>
+                requestExport(tenant, request).then(() =>
+                  setExportDisplayed(false)
+                )
+              }
+            />
+          </div>
         )}
       </>
     );
-  } else {
-    return <div>Failed to fetch tenant / tenant users</div>;
   }
 }
 
@@ -400,52 +412,68 @@ function ImportForm(props: {
   const { cancel, submit } = props;
 
   const methods = useForm<ImportRequest>({
-    defaultValues: {},
+    defaultValues: { wipeData: false },
   });
   const {
     handleSubmit,
     register,
+    getValues,
+    watch,
     control,
     formState: { isSubmitting },
   } = methods;
-
+  watch(["wipeData"]);
   return (
     <FormProvider {...methods}>
       <form
         className="sub_container d-flex flex-column"
         onSubmit={handleSubmit((data) => submit(data))}
       >
-        <h3 className="mt-3">Import data</h3>
         <label className="mt-3">
-          On conflict{" "}
-          <Tooltip id="import-conflict-tooltip">
-            Conflict strategy.
-            <ul>
-              <li>
-                Skip will ignore conflictual elements (they won't be overriden)
-              </li>
-              <li>Fail will fail on any conflict (except on projects)</li>
-              <li>Overwrite will write imported version over existing</li>
-            </ul>
+          Wipe data
+          <Tooltip id="import-wipeData-tooltip">
+            Delete and recreate tenant.{" "}
           </Tooltip>
-          <Controller
-            name="conflictStrategy"
-            defaultValue="skip"
-            control={control}
-            render={({ field: { onChange, value } }) => (
-              <Select
-                value={CONFLICT_STRATEGIES_OPTIONS.find(
-                  ({ value: aValue }) => value === aValue
-                )}
-                onChange={(value) => {
-                  onChange(value?.value);
-                }}
-                styles={customStyles}
-                options={CONFLICT_STRATEGIES_OPTIONS}
-              />
-            )}
+          <input
+            type="checkbox"
+            className="izanami-checkbox"
+            {...register("wipeData")}
           />
         </label>
+        {!getValues("wipeData") && (
+          <label className="mt-3">
+            On conflict{" "}
+            <Tooltip id="import-conflict-tooltip">
+              Conflict strategy.
+              <ul>
+                <li>
+                  Skip will ignore conflictual elements (they won't be
+                  overriden)
+                </li>
+                <li>Fail will fail on any conflict (except on projects)</li>
+                <li>Overwrite will write imported version over existing</li>
+              </ul>
+            </Tooltip>
+            <Controller
+              name="conflictStrategy"
+              defaultValue="skip"
+              control={control}
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  value={CONFLICT_STRATEGIES_OPTIONS.find(
+                    ({ value: aValue }) => value === aValue
+                  )}
+                  onChange={(value) => {
+                    onChange(value?.value);
+                  }}
+                  styles={customStyles}
+                  options={CONFLICT_STRATEGIES_OPTIONS}
+                />
+              )}
+            />
+          </label>
+        )}
+
         <label className="mt-3">
           Exported file (ndjson)
           <Tooltip id="exported-file">
@@ -709,7 +737,6 @@ function ExportForm(props: {
             paddingLeft: "12px",
           }}
         >
-          <h3 className="mt-3">Export data</h3>
           <label className="mt-3">
             Export all projects
             <Tooltip id="export-projects-list">
