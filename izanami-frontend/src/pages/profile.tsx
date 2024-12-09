@@ -20,6 +20,7 @@ import queryClient from "../queryClient";
 import { TokensTable } from "../components/TokensTable";
 import { TokenForm, tokenRightsToObject } from "../components/TokenForm";
 import { TokenTenantRight } from "../utils/types";
+import { Label } from "react-query/types/devtools/Explorer";
 
 export function Profile() {
   const ctx = React.useContext(IzanamiContext);
@@ -94,28 +95,21 @@ export function Profile() {
                   </button>
                 )}
               </div>
-              <div className="d-flex align-items-center justify-content-between mt-1">
+              <div>
                 <label className="mt-2">Email: {user.email}</label>
               </div>
+              <label className="mt-4">
+                Default tenant:{" "}
+                {user.defaultTenant ?? (
+                  <span style={{ fontStyle: "italic" }}>No default tenant</span>
+                )}
+              </label>
             </>
           )}
-          <hr />
-          <h2 className="mt-4">Rights</h2>
-          <label className="mt-2">
-            Default tenant:{" "}
-            {user.defaultTenant ?? (
-              <span style={{ fontStyle: "italic" }}>No default tenant</span>
-            )}
-          </label>
-
-          <Rights />
-          <hr />
-          <h2 className="mt-4">Security</h2>
 
           {!isOIDC && !passwordEdition && (
             <div className="d-flex align-items-center justify-content-between">
-              <span>Password</span>
-
+              <label className="mt-4">Password</label>
               <button
                 type="button"
                 className="btn btn-secondary my-2 btn-sm"
@@ -125,6 +119,7 @@ export function Profile() {
               </button>
             </div>
           )}
+
           {passwordEdition && (
             <PasswordEditionForm
               onCancel={() => setPasswordEdition(false)}
@@ -140,6 +135,11 @@ export function Profile() {
             />
           )}
 
+          <hr />
+          <h2 className="mt-4">Rights</h2>
+          <Rights />
+          <hr />
+          <h2 className="mt-4">Security</h2>
           {user.admin && <Tokens />}
         </>
       )}
