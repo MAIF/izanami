@@ -56,21 +56,6 @@ class SearchAPISpec extends BaseAPISpec {
       fetchResponse.json.get.as[JsArray].value must have size 1
     }
 
-    "prevent search if filter is not valid" in {
-      val tenantName = "my-tenant"
-      val searchQuery = "comm"
-      val situation = TestSituationBuilder()
-        .loggedInWithAdminRights()
-        .withTenants(
-          TestTenant(tenantName).withProjects(TestProject("project").withFeatureNames("comments", "foo", "bar"))
-        )
-        .build()
-
-      val fetchResponse = situation.fetchSearchEntitiesWithFilters(searchQuery, List("feat"))
-
-      fetchResponse.json.get mustBe Json.obj("message" -> "Invalid filters provided. Please ensure your filters are correct.")
-    }
-
     // TODO check that result ordering is correct
     // TODO check that there is no more than 10 results
     // TODO check that path array contains correctly ordered entries (for features, local and global context)

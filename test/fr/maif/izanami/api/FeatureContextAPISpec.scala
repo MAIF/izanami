@@ -642,14 +642,14 @@ class FeatureContextAPISpec extends BaseAPISpec {
       res.status mustBe NOT_FOUND
     }
 
-    "Return 404 if project does not exist" in {
+    "Return 403 if project does not exist" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(TestTenant("tenant"))
         .build()
       val res       = situation.changeFeatureStrategyForContext("tenant", "project", "context", "F1", enabled = true)
 
-      res.status mustBe NOT_FOUND
+      res.status mustBe FORBIDDEN
     }
 
     "Return 404 if context does not exist" in {

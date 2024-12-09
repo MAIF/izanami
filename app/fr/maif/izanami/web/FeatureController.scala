@@ -6,19 +6,16 @@ import fr.maif.izanami.models.Feature._
 import fr.maif.izanami.models._
 import fr.maif.izanami.models.features.{BooleanResult, FeaturePatch, ProjectFeaturePatch}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.v1.OldFeature
 import fr.maif.izanami.web.FeatureController.queryFeatures
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
-import play.api.libs.Files
 import play.api.libs.json.Format.GenericFormat
 import play.api.libs.json._
 import play.api.mvc._
 
-import java.time.{Instant, ZoneId}
-import java.util.{Base64, TimeZone}
+import java.time.Instant
+import java.util.Base64
 import scala.concurrent.{ExecutionContext, Future}
-import scala.io.Source
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 class FeatureController(
     val env: Env,
