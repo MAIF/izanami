@@ -509,7 +509,7 @@ class UserController(
   }
 
   def deleteUser(user: String): Action[AnyContent] = adminAction.async { implicit request =>
-    if (request.user.equals(user)) {
+    if (request.user.username.equals(user)) {
       Future.successful(BadRequest(Json.obj("message" -> "User can't delete itself !")))
     } else {
       env.datastores.users.deleteUser(user).map(_ => NoContent)

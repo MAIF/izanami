@@ -129,7 +129,7 @@ class ProjectAPISpec extends BaseAPISpec {
       response.status mustBe UNAUTHORIZED
     }
 
-    "Return 404 if project does not exist" in {
+    "Return 403 if project does not exist" in {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("my-tenant")
@@ -140,7 +140,7 @@ class ProjectAPISpec extends BaseAPISpec {
 
       val response = situation.deleteProject("my-project", "my-tenant", "barbar123")
 
-      response.status mustBe NOT_FOUND
+      response.status mustBe FORBIDDEN
     }
   }
 

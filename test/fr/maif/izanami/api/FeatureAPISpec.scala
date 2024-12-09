@@ -529,7 +529,7 @@ class FeatureAPISpec extends BaseAPISpec {
         .build()
       val response      = testSituation.createFeature(name = "my-feature", project = "my-project", tenant = "foo")
 
-      response.status mustBe NOT_FOUND
+      response.status mustBe FORBIDDEN
     }
 
     "allow metadata in feature creation" in {
