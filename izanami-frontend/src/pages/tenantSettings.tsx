@@ -85,7 +85,7 @@ export function TenantSettings(props: { tenant: string }) {
 
   const navigate = useNavigate();
   const formTitleRef = React.useRef<HTMLHeadingElement | null>(null);
-  const formTitleRef2 = React.useRef<HTMLHeadingElement | null>(null);
+  const formExportTitleRef = React.useRef<HTMLHeadingElement | null>(null);
   const [modification, setModification] = React.useState(false);
 
   if (tenantQuery.isLoading || usersQuery.isLoading) {
@@ -99,8 +99,8 @@ export function TenantSettings(props: { tenant: string }) {
       <>
         <h1>Tenant settings</h1>
         <hr />
-        <h4 style={{ color: "var(--color_level2)" }}>Manage permissions</h4>
-        <h5 style={{ color: "var(--color_level2)" }}>
+        <h2>Manage permissions</h2>
+        <h3 style={{ color: "var(--color_level2)" }}>
           Users
           <button
             type="button"
@@ -109,7 +109,7 @@ export function TenantSettings(props: { tenant: string }) {
           >
             Invite new users
           </button>
-        </h5>
+        </h3>
         {inviting && (
           <InvitationForm
             submit={({ users, level }) =>
@@ -123,7 +123,7 @@ export function TenantSettings(props: { tenant: string }) {
         )}
         <TenantUsers tenant={tenant} usersData={usersQuery.data} />
         <hr />
-        <h4 style={{ color: "var(--color_level2)" }}>General settings</h4>
+        <h2>General settings</h2>
         <div className="d-flex align-items-center justify-content-between p-2">
           <span>Update description for this tenant: {tenant}</span>
 
@@ -168,12 +168,10 @@ export function TenantSettings(props: { tenant: string }) {
           </button>
         </div>
         <hr />
-        <h4 style={{ color: "var(--color_level2)" }} ref={formTitleRef}>
-          Import data
-        </h4>
+        <h2 ref={formTitleRef}>Import data</h2>
         {v1ImportDisplayed ? (
           <>
-            <h5 className="ms-2 mt-3">Import data from Izanami v1 instance</h5>
+            <h3 className="ms-2 mt-3">Import data from Izanami v1 instance</h3>
             <IzanamiV1ImportForm
               cancel={() => setV1ImportDisplayed(false)}
               submit={(data) => {
@@ -271,7 +269,7 @@ export function TenantSettings(props: { tenant: string }) {
         ) : (
           <>
             <div className="d-flex align-items-center justify-content-between p-2">
-              <span>Import data from V1 Izanami instance</span>
+              <span>Import data from 1.x Izanami instance</span>
 
               <button
                 type="button"
@@ -283,7 +281,7 @@ export function TenantSettings(props: { tenant: string }) {
                   });
                 }}
               >
-                Import V1 data
+                Import data from 1.x
               </button>
             </div>
             <div className="d-flex align-items-center justify-content-between p-2">
@@ -304,9 +302,7 @@ export function TenantSettings(props: { tenant: string }) {
           </>
         )}
         <hr />
-        <h4 style={{ color: "var(--color_level2)" }} ref={formTitleRef2}>
-          Export Data
-        </h4>
+        <h2 ref={formExportTitleRef}>Export Data</h2>
         {!exportDisplayed ? (
           <div className="d-flex align-items-center justify-content-between p-2">
             <span>Export data to transfer them to another instance</span>
@@ -316,7 +312,7 @@ export function TenantSettings(props: { tenant: string }) {
               onClick={() => {
                 setExportDisplayed(true);
                 requestAnimationFrame(() => {
-                  formTitleRef2?.current?.scrollIntoView(true);
+                  formExportTitleRef?.current?.scrollIntoView(true);
                 });
               }}
             >
