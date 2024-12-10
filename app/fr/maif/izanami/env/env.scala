@@ -7,6 +7,7 @@ import fr.maif.izanami.datastores._
 import fr.maif.izanami.events.EventService
 import fr.maif.izanami.jobs.WebhookListener
 import fr.maif.izanami.mail.Mails
+import fr.maif.izanami.models.OAuth2Configuration
 import fr.maif.izanami.security.JwtService
 import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
@@ -95,6 +96,43 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
   val wasmIntegration = WasmIntegration(new IzanamiWasmIntegrationContext(this))
   val jobs = new Jobs(this)
 
+  private def oidcConfigurationMigration() = {
+    this.datastores.configuration.readConfiguration()
+      .map {
+        case Left(err) =>
+        case Right(configuration) =>
+          if (configuration.oidcConfiguration.isEmpty) {
+            for(
+              clientId <- this.configuration.getOptional[String]("app.openid.client-id");
+              clientSecret <- this.configuration.getOptional[String]("app.openid.client-secret");
+              authorizeUrl <- this.configuration.getOptional[String]("app.openid.authorize-url");
+              tokenUrl <- this.configuration.getOptional[String]("app.openid.token-url");
+              redirectUrl <- this.configuration.getOptional[String]("app.openid.redirect-url");
+              usernameField <- this.configuration.getOptional[String]("app.openid.username-field");
+              emailField <- this.configuration.getOptional[String]("app.openid.email-field");
+              scopes <- this.configuration.getOptional[String]("app.openid.scopes").map(r => r.replace("\"", ""))
+            ) yield {
+              val oauth = OAuth2Configuration(
+                clientId = clientId,
+                clientSecret = clientSecret,
+                authorizeUrl = authorizeUrl,
+                tokenUrl = tokenUrl,
+                callbackUrl = redirectUrl,
+                emailField = emailField,
+                nameField = usernameField,
+                scopes = scopes,
+                name = "OAUTH2 configuration with default values",
+                userInfoUrl = "",
+                introspectionUrl = "",
+                loginUrl = "",
+                logoutUrl = "",
+              )
+              datastores.configuration.updateConfiguration(configuration.copy(oidcConfiguration = Some(oauth)))
+            }
+          }
+      }
+  }
+
   def onStart(): Future[Unit] = {
     logger.info(s"Postgres url ${postgresql.getHost}:${postgresql.getPort}")
 
@@ -104,6 +142,7 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
       _ <- jobs.onStart()
       _ <- wasmIntegration.startF()
       _ <- webhookListener.onStart()
+      _ <- oidcConfigurationMigration()
     } yield ()
   }
 

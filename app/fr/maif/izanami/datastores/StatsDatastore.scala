@@ -55,9 +55,13 @@ class StatsDatastore(val env: Env) extends Datastore {
     }).flatMap(stats => {
       retrieveRunInformations().map(runInfo => runInfo ++ Json.obj("entities" -> stats.toJson))
     }).flatMap(json => {
-      readMailerType().map(mailerInfo => {
-        val features = mailerInfo ++ readIntegrationInformations()
-        json ++ Json.obj("features" -> features)
+      readMailerType()
+        .flatMap(mailerInfo => {
+          readIntegrationInformations()
+            .map(integrationInformations => {
+              val features = mailerInfo ++ integrationInformations
+              json ++ Json.obj("features" -> features)
+            })
       })
     }).map(json => {
       json ++ Json.obj("stats" -> Json.obj(), "tenants" -> Json.arr(), "containerized" -> isContainerized)
@@ -221,20 +225,22 @@ class StatsDatastore(val env: Env) extends Datastore {
       }
   }
 
-  def readIntegrationInformations(): JsObject = {
+  def readIntegrationInformations(): Future[JsObject] = {
     val isWasmPresent = env.datastores.configuration.readWasmConfiguration().isDefined
-    val isOidcPresent = env.datastores.configuration.readOIDCConfiguration().isDefined
-
-    Json.obj(
-      "wasmo" -> isWasmPresent,
-      "oidc" -> isOidcPresent
-    )
+    env.datastores.configuration.readOIDCConfiguration()
+      .map(_.isDefined)
+      .map(isOidcPresent => {
+        Json.obj(
+          "wasmo" -> isWasmPresent,
+          "oidc" -> isOidcPresent
+        )
+      })
   }
 
   def readMailerType(): Future[JsObject] = {
     env.datastores.configuration.readConfiguration().map {
       case Left(err) => Json.obj()
-      case Right(IzanamiConfiguration(mailer, invitationMode, _, _, _)) => Json.obj(
+      case Right(IzanamiConfiguration(mailer, invitationMode, _, _, _, _, _)) => Json.obj(
         "mailer" -> mailer.toString,
         "invitation_mode" -> invitationMode.toString
       )

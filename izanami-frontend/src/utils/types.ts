@@ -416,6 +416,8 @@ export interface Configuration {
   originEmail: string;
   anonymousReporting: boolean;
   anonymousReportingLastAsked: Date;
+  defaultOIDCUserRights?: TRights;
+  oidcSettings?: OIDCSettings;
 }
 
 export interface MailJetConfigurationDetails {
@@ -646,4 +648,30 @@ export type SearchResult = {
 export type SearchResultPathElement = {
   type: "global_context" | "local_context" | "project" | "tenant";
   name: string;
+};
+
+
+export interface PKCEConfig {
+  enabled: boolean;
+  algorithm: string;
+};
+
+export interface OIDCSettings {
+  name: string;
+  sessionMaxAge: number;
+  clientId: string;
+  clientSecret: string;
+  tokenUrl: string;
+  authorizeUrl: string;
+  userInfoUrl: string;
+  introspectionUrl: string;
+  loginUrl: string;
+  logoutUrl: string;
+  scope: string;
+  claims: string;
+  pkce?: PKCEConfig;
+  accessTokenField: string;
+  nameField: string;
+  emailField: string;
+  callbackUrl: string;
 };
