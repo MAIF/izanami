@@ -52,14 +52,16 @@ class ConfigurationController(
     Ok(Json.obj("url" -> url))
   }
 
-  def availableIntegrations(): Action[AnyContent] = Action { implicit request =>
+  def availableIntegrations(): Action[AnyContent] = Action.async { implicit request =>
     val isWasmPresent = env.datastores.configuration.readWasmConfiguration().isDefined
-    val isOidcPresent = env.datastores.configuration.readOIDCConfiguration().isDefined
-
-    Ok(Json.obj(
-      "wasmo" -> isWasmPresent,
-      "oidc" -> isOidcPresent
-    ))
+    env.datastores.configuration.readOIDCConfiguration()
+      .map(_.isDefined)
+      .map(isOidcPresent => {
+        Ok(Json.obj(
+          "wasmo" -> isWasmPresent,
+          "oidc" -> isOidcPresent
+        ))
+      })
   }
 
   def readMailerConfiguration(id: String): Action[AnyContent] = adminAuthAction.async {

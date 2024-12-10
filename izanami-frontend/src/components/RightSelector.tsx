@@ -401,8 +401,8 @@ export function RightSelector(props: {
     const selectorChoices = props.tenant
       ? [props.tenant]
       : tenants.filter((item) => {
-          return !selectedTenants.includes(item);
-        });
+        return !selectedTenants.includes(item);
+      });
 
     return (
       <div>

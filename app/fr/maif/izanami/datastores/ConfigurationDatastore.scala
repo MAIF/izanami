@@ -1,5 +1,6 @@
 package fr.maif.izanami.datastores
 
+import akka.http.scaladsl.util.FastFuture
 import fr.maif.izanami.datastores.ConfigurationDatastore.{parseDbMailer, parseInvitationMode}
 import fr.maif.izanami.datastores.configurationImplicits.{ConfigurationRow, MailerConfigurationRow}
 import fr.maif.izanami.env.Env
@@ -9,11 +10,12 @@ import fr.maif.izanami.mail.MailerTypes.MailerType
 import fr.maif.izanami.mail._
 import fr.maif.izanami.models.InvitationMode.InvitationMode
 import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTPConfigurationWrites, mailGunConfigurationReads, mailJetConfigurationReads}
-import fr.maif.izanami.models.{FullIzanamiConfiguration, InvitationMode, IzanamiConfiguration, OIDCConfiguration}
+import fr.maif.izanami.models.{FullIzanamiConfiguration, InvitationMode, IzanamiConfiguration, OAuth2Configuration, OIDCConfiguration, Rights, User}
 import fr.maif.izanami.utils.Datastore
+import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import io.vertx.sqlclient.Row
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.{JsNull, JsObject, Json}
 
 import java.time.ZoneOffset
 import java.util.UUID
@@ -34,30 +36,20 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
     ) yield WasmoSettings(url, clientId, clientSecret = clientSecret)
   }
 
-  def readOIDCConfiguration(): Option[OIDCConfiguration] = {
-    for(
-      clientId <- env.configuration.getOptional[String]("app.openid.client-id");
-      clientSecret <- env.configuration.getOptional[String]("app.openid.client-secret");
-      authorizeUrl <- env.configuration.getOptional[String]("app.openid.authorize-url");
-      tokenUrl <- env.configuration.getOptional[String]("app.openid.token-url");
-      redirectUrl <- env.configuration.getOptional[String]("app.openid.redirect-url");
-      usernameField <- env.configuration.getOptional[String]("app.openid.username-field");
-      emailField <- env.configuration.getOptional[String]("app.openid.email-field");
-      scopes <- env.configuration.getOptional[String]("app.openid.scopes")
-    ) yield OIDCConfiguration(clientId=clientId,
-      clientSecret=clientSecret,
-      authorizeUrl=authorizeUrl,
-      tokenUrl=tokenUrl,
-      redirectUrl=redirectUrl,
-      usernameField = usernameField,
-      emailField = emailField,
-      scopes = scopes.split(" ").toSet
-    )
+  def readOIDCConfiguration(): Future[Option[OAuth2Configuration]] = {
+    env.datastores.configuration.readConfiguration()
+      .map {
+        case Left(err) =>
+          println("readOIDCConfiguration", err)
+          // TODO - manager error, log or whatever
+          None
+        case Right(value) => value.oidcConfiguration
+      }
   }
 
   def readConfiguration(): Future[Either[IzanamiError, IzanamiConfiguration]] = {
     env.postgresql
-      .queryOne("SELECT mailer, invitation_mode, origin_email, anonymous_reporting, anonymous_reporting_date from izanami.configuration") { row =>
+      .queryOne("SELECT mailer, invitation_mode, origin_email, anonymous_reporting, anonymous_reporting_date, default_oidc_user_rights, oidc_configuration from izanami.configuration") { row =>
         {
           row.optConfiguration()
         }
@@ -103,10 +95,16 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
     env.postgresql.queryOne(
       s"""
          |UPDATE izanami.configuration
-         |SET mailer=$$1, invitation_mode=$$2, origin_email=$$3, anonymous_reporting=$$4, anonymous_reporting_date=$$5
+         |SET mailer=$$1, invitation_mode=$$2, origin_email=$$3, anonymous_reporting=$$4, anonymous_reporting_date=$$5,
+         |default_oidc_user_rights=$$6, oidc_configuration=$$7
          |RETURNING *
          |""".stripMargin,
-      List(newConfig.mailer.toString.toUpperCase, newConfig.invitationMode.toString.toUpperCase, newConfig.originEmail.orNull, java.lang.Boolean.valueOf(newConfig.anonymousReporting), newConfig.anonymousReportingLastAsked.map(_.atOffset(ZoneOffset.UTC)).orNull )
+      List(newConfig.mailer.toString.toUpperCase, newConfig.invitationMode.toString.toUpperCase,
+        newConfig.originEmail.orNull,
+        java.lang.Boolean.valueOf(newConfig.anonymousReporting),
+        newConfig.anonymousReportingLastAsked.map(_.atOffset(ZoneOffset.UTC)).orNull,
+        newConfig.defaultOIDCUserRights.map(r => Json.toJson(r)(User.rightWrite)).getOrElse(JsNull).vertxJsValue,
+        newConfig.oidcConfiguration.map(r => Json.toJson(r)(OAuth2Configuration._fmt.writes)).getOrElse(JsNull).vertxJsValue)
     ) { row =>
       row.optConfiguration()
     }
@@ -216,13 +214,19 @@ object configurationImplicits {
         invitationModeStr <- row.optString("invitation_mode");
         anonymousReporting <- row.optBoolean("anonymous_reporting")
       )
-        yield IzanamiConfiguration(
-          parseDbMailer(mailerStr),
-          parseInvitationMode(invitationModeStr),
-          originEmail = row.optString("origin_email"),
-          anonymousReporting=anonymousReporting,
-          anonymousReportingLastAsked = row.optOffsetDatetime("anonymous_reporting_date").map(_.toInstant)
-        )
+        yield {
+          val defaultOIDCUserRights =  row.optJsObject("default_oidc_user_rights").flatMap(r => r.asOpt[Rights](User.rightsReads))
+          val oidcConfiguration =  row.optJsObject("oidc_configuration").flatMap(r => r.asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads))
+          IzanamiConfiguration(
+            parseDbMailer(mailerStr),
+            parseInvitationMode(invitationModeStr),
+            originEmail = row.optString("origin_email"),
+            anonymousReporting=anonymousReporting,
+            anonymousReportingLastAsked = row.optOffsetDatetime("anonymous_reporting_date").map(_.toInstant),
+            defaultOIDCUserRights = defaultOIDCUserRights,
+            oidcConfiguration = oidcConfiguration,
+          )
+        }
     }
   }
 
