@@ -244,15 +244,17 @@ function NonBooleanConditionsDetails({
     <>
       {conditions.map((cond, idx) => {
         return (
-          <>
+          <div>
             <NonBooleanConditionDetails key={idx} condition={cond} />
             <div className="feature-separator">-OR-</div>
-          </>
+          </div>
         );
       })}
-      <span className="fw-semibold">Value is</span>&nbsp;
+      <span className="fw-semibold">
+        {conditions.length > 0 ? "Otherwise value is" : "Value is"}
+      </span>
+      &nbsp;
       <span className="fst-italic">{value}</span>
-      &nbsp;otherwise
     </>
   );
 }
