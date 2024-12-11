@@ -36,8 +36,11 @@ export async function generate() {
   await page.getByRole("link", { name: "Edit" }).click();
   await page.getByRole("button", { name: "Add condition (OR)" }).click();
   const secondConditionLocator = page
-    .locator("fieldset")
-    .filter({ hasText: "Activation condition #1" });
+    .getByRole("heading", {
+      name: "Activation condition #1",
+    })
+    .locator("..");
+  await secondConditionLocator.click();
   await secondConditionLocator.getByLabel("Active only on specific").check();
   await secondConditionLocator
     .getByRole("combobox", { name: "Strategy to use" })

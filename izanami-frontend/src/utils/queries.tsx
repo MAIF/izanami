@@ -1361,15 +1361,38 @@ export function importUsersFile(tenant: string, file: FileList): Promise<any> {
   });
 }
 
-export function searchEntities(query: string): Promise<SearchResult[]> {
-  return handleFetchJsonResponse(fetch(`/api/admin/search?query=${query}`));
+export function searchEntities(
+  query: string,
+  filter: string[] = []
+): Promise<SearchResult[]> {
+  let filterString = "";
+  if (filter.length > 0) {
+    filterString = filter.map(encodeURIComponent).join("&filter=");
+  }
+  return handleFetchJsonResponse(
+    fetch(
+      `/api/admin/search?query=${encodeURIComponent(query)}${
+        filterString ? `&filter=${filterString}` : ""
+      }`
+    )
+  );
 }
+
 export function searchEntitiesByTenant(
   tenant: string,
-  query: string
+  query: string,
+  filter: string[] = []
 ): Promise<SearchResult[]> {
+  let filterString = "";
+  if (filter.length > 0) {
+    filterString = filter.map(encodeURIComponent).join("&filter=");
+  }
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/search?query=${query}`)
+    fetch(
+      `/api/admin/tenants/${tenant}/search?query=${encodeURIComponent(query)}${
+        filterString ? `&filter=${filterString}` : ""
+      }`
+    )
   );
 }
 
