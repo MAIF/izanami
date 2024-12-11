@@ -66,9 +66,9 @@ export function FeatureSelector(props: {
     };
 
     return creatable ? (
-      <CreatableSelect {...selectProps} />
+      <CreatableSelect {...(selectProps as any)} />
     ) : (
-      <Select {...selectProps} />
+      <Select {...(selectProps as any)} />
     );
   } else {
     return <Loader message="Loading features..." />;

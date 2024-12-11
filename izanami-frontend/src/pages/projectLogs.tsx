@@ -76,15 +76,15 @@ function extractSearchQueryFromUrlParams(
 const logQueryKey = (
   tenant: string,
   project: string,
-  query: Omit<ProjectLogSearchQuery, "total", "pageSize">
-) => {
+  query: Omit<Omit<ProjectLogSearchQuery, "total">, "pageSize">
+): string[] => {
   return [
     projectLogQueryKey(tenant!, project!),
     query.users.join(""),
     query.types.join(""),
     query.features.join(""),
-    query.begin,
-    query.end,
+    String(query.begin),
+    String(query.end),
     query.order,
   ];
 };
@@ -147,7 +147,9 @@ export function ProjectLogs() {
         onSubmit={({ users, features, begin, end, types }) => {
           totalRef.current = undefined;
 
-          queryClient.invalidateQueries(logQueryKey(tenant, project, query));
+          queryClient.invalidateQueries({
+            queryKey: logQueryKey(tenant!, project!, query),
+          });
           navigate({
             search: `?${createSearchParams({
               users: users.join(","),
