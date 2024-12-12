@@ -165,7 +165,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
   def readTenantByName(name: String): Future[Either[IzanamiError, Tenant]] = {
     env.postgresql
       .queryOne(
-        s"""SELECT t.name, t.description, t.default_oidc_right_level
+        s"""SELECT t.name, t.description
          |FROM izanami.tenants t
          |WHERE t.name=$$1
          |""".stripMargin,

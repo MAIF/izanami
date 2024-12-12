@@ -240,7 +240,7 @@ class StatsDatastore(val env: Env) extends Datastore {
   def readMailerType(): Future[JsObject] = {
     env.datastores.configuration.readConfiguration().map {
       case Left(err) => Json.obj()
-      case Right(IzanamiConfiguration(mailer, invitationMode, _, _, _, _, _)) => Json.obj(
+      case Right(IzanamiConfiguration(mailer, invitationMode, _, _, _, _)) => Json.obj(
         "mailer" -> mailer.toString,
         "invitation_mode" -> invitationMode.toString
       )

@@ -162,7 +162,7 @@ function projectOrKeyArrayToObject(arr: { name: string; level?: TLevel }[]) {
   }, {} as { [x: string]: any });
 }
 
-export function rightStateArrayToBackendMap(state: State): TRights {
+export function rightStateArrayToBackendMap(state?: State): TRights {
   if (!state) {
     return { tenants: {} };
   }
@@ -490,6 +490,9 @@ export function RightSelector(props: {
                 onItemChange={(item) => {
                   setCreating(false);
                   dispatch({ type: EventType.SelectTenant, name: item });
+                }}
+                onClear={() => {
+                  setCreating(false)
                 }}
               />
             </>

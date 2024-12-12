@@ -122,10 +122,8 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
                 nameField = usernameField,
                 scopes = scopes,
                 name = "OAUTH2 configuration with default values",
-                userInfoUrl = "",
-                introspectionUrl = "",
-                loginUrl = "",
-                logoutUrl = "",
+                method = "Basic",
+                enabled = true
               )
               datastores.configuration.updateConfiguration(configuration.copy(oidcConfiguration = Some(oauth)))
             }

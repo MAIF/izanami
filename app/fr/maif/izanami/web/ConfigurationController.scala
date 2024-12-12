@@ -27,6 +27,7 @@ class ConfigurationController(
     {
       IzanamiConfiguration.configurationReads.reads(request.body) match {
         case JsSuccess(configuration, path) => {
+          println(configuration)
           env.datastores.configuration.updateConfiguration(configuration).map(_ => NoContent)
         }
         case JsError(_)                     => BadBodyFormat().toHttpResponse.future
