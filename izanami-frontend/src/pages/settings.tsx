@@ -22,12 +22,13 @@ import {
   MailGunRegion,
   MailJetConfigurationDetails,
   SMTPConfigurationDetails,
+  TRights,
 } from "../utils/types";
 import { customStyles } from "../styles/reactSelect";
 import { constraints } from "@maif/react-forms";
 import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
-import { RightSelector, rightStateArrayToBackendMap } from "../components/RightSelector";
+import { RightSelector, rightStateArrayToBackendMap, State } from "../components/RightSelector";
 import { config } from "process";
 import { OIDCSettingsForm } from "../components/OIDCSettings";
 
@@ -69,14 +70,41 @@ export function Settings() {
     (data: Omit<Configuration, "version">) => updateConfiguration(data)
   );
 
+  const updateSettings = (current: Configuration, newValue: Configuration) => {
+    const wasAnonymousReportingDisabled =
+      !newValue.anonymousReporting && current.anonymousReporting;
+
+    const backendRights = rightStateArrayToBackendMap(newValue.oidcConfiguration?.defaultOIDCUserRights as State | undefined);
+
+    return configurationMutationQuery
+      .mutateAsync({
+        mailer: newValue.mailer,
+        invitationMode: newValue.invitationMode,
+        originEmail: newValue.originEmail,
+        anonymousReporting: newValue.anonymousReporting,
+        anonymousReportingLastAsked: wasAnonymousReportingDisabled
+          ? new Date()
+          : current.anonymousReportingLastAsked,
+        oidcConfiguration: {
+          ...newValue.oidcConfiguration || {},
+          defaultOIDCUserRights: backendRights
+        }
+      })
+      .then(() => {
+        queryClient.invalidateQueries(MutationNames.CONFIGURATION);
+      });
+  }
+
   if (configurationQuery.isLoading) {
     return <Loader message="Loading configuration..." />;
   } else if (configurationQuery.data) {
 
-
     const configuration = {
       ...configurationQuery.data,
-      defaultOIDCUserRights: { tenants: configurationQuery.data.defaultOIDCUserRights!.tenants }
+      oidcConfiguration: {
+        ...configurationQuery.data.oidcConfiguration,
+        defaultOIDCUserRights: { tenants: configurationQuery.data.oidcConfiguration?.defaultOIDCUserRights?.tenants }
+      }
     };
 
     return (
@@ -100,7 +128,7 @@ export function Settings() {
                     setValue("mailer", value);
                   },
                 },
-                invitationMethod: {
+                invitationMode: {
                   label: "Invitation method",
                   type: "string",
                   format: "select",
@@ -183,56 +211,21 @@ export function Settings() {
                   ),
                   type: "bool",
                   defaultValue: configuration.anonymousReporting,
-                },
-                oidcSettings: {
-                  label: 'OIDC settings',
-                  type: 'object',
-                  render: ({ onChange }) => {
-                    return <OIDCSettingsForm
-                      defaultValue={configuration.oidcSettings}
-                      onChange={(v) => {
-                        onChange?.(v);
-                      }} />
-                  }
-                },
-                defaultOIDCUserRights: {
-                  label: "Default ODIC User Rights",
-                  type: "object",
-                  array: true,
-                  render: ({ onChange }) => <RightSelector
-                    defaultValue={configuration.defaultOIDCUserRights}
-                    tenantLevelFilter="Admin"
-                    onChange={(v) => {
-                      onChange?.(v);
-                    }}
-                  />
-                },
+                }
               }}
               onSubmit={({
                 mailer,
                 invitationMethod,
                 originEmail,
                 anonymousReporting,
-                defaultOIDCUserRights
               }) => {
-                const wasAnonymousReportingDisabled =
-                  !anonymousReporting && configuration.anonymousReporting;
-
-                const backendRights = rightStateArrayToBackendMap(defaultOIDCUserRights);
-                return configurationMutationQuery
-                  .mutateAsync({
-                    mailer: mailer,
-                    invitationMode: invitationMethod,
-                    originEmail: originEmail,
-                    anonymousReporting,
-                    anonymousReportingLastAsked: wasAnonymousReportingDisabled
-                      ? new Date()
-                      : configuration.anonymousReportingLastAsked,
-                    defaultOIDCUserRights: backendRights
-                  })
-                  .then(() => {
-                    queryClient.invalidateQueries(MutationNames.CONFIGURATION);
-                  });
+                updateSettings(configuration, {
+                  mailer,
+                  invitationMode: invitationMethod,
+                  originEmail,
+                  anonymousReporting,
+                  oidcConfiguration: configuration.oidcConfiguration
+                })
               }}
               submitText="Update settings"
             />
@@ -259,6 +252,15 @@ export function Settings() {
               </Modal>
             )}
           </div>
+
+          <OIDCSettingsForm
+            defaultValue={configuration.oidcConfiguration}
+            onSubmit={newValue => {
+              updateSettings(configuration, {
+                ...configuration,
+                oidcConfiguration: newValue
+              })
+            }} />
 
           <div className="col">
             <MailerDetail mailer={selectedMailer ?? configuration.mailer} />

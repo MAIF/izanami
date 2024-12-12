@@ -44,7 +44,6 @@ export interface TKey {
 
 export interface TenantType extends TenantInCreationType {
   id: string;
-  defaultOIDCRightLevel?: string;
   projects?: TenantProjectType[];
   tags?: TagType[];
 }
@@ -416,8 +415,7 @@ export interface Configuration {
   originEmail: string;
   anonymousReporting: boolean;
   anonymousReportingLastAsked: Date;
-  defaultOIDCUserRights?: TRights;
-  oidcSettings?: OIDCSettings;
+  oidcConfiguration?: OIDCSettings;
 }
 
 export interface MailJetConfigurationDetails {
@@ -674,4 +672,5 @@ export interface OIDCSettings {
   nameField: string;
   emailField: string;
   callbackUrl: string;
+  defaultOIDCUserRights?: TRights;
 };

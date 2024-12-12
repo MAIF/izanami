@@ -47,22 +47,25 @@ object PKCEConfig {
 
 case class OAuth2Configuration(
     name: String,
+    enabled: Boolean,
+    method: String = "POST",
     sessionMaxAge: Int = 86400,
     clientId: String,
     clientSecret: String,
     tokenUrl: String,
     authorizeUrl: String,
-    userInfoUrl: String,
-    introspectionUrl: String,
-    loginUrl: String,
-    logoutUrl: String,
+//    userInfoUrl: String,
+//    introspectionUrl: String,
+//    loginUrl: String,
+//    logoutUrl: String,
     scopes: String = "openid profile email name",
     claims: String = "email name",
     pkce: Option[PKCEConfig] = None,
     accessTokenField: String = "access_token",
     nameField: String = "name",
     emailField: String = "email",
-    callbackUrl: String
+    callbackUrl: String,
+    defaultOIDCUserRights: Option[Rights] = None,
 //  refreshTokens: Boolean = false,
 )
 
@@ -72,62 +75,72 @@ object OAuth2Configuration {
 
     override def writes(o: OAuth2Configuration): JsObject = Json.obj(
       "name"             -> o.name,
+      "enabled"          -> o.enabled,
+      "method"           -> o.method,
       "sessionMaxAge"    -> o.sessionMaxAge,
       "clientId"         -> o.clientId,
       "clientSecret"     -> o.clientSecret,
       "authorizeUrl"     -> o.authorizeUrl,
       "tokenUrl"         -> o.tokenUrl,
-      "userInfoUrl"      -> o.userInfoUrl,
-      "introspectionUrl" -> o.introspectionUrl,
-      "loginUrl"         -> o.loginUrl,
-      "logoutUrl"        -> o.logoutUrl,
+//      "userInfoUrl"      -> o.userInfoUrl,
+//      "introspectionUrl" -> o.introspectionUrl,
+//      "loginUrl"         -> o.loginUrl,
+//      "logoutUrl"        -> o.logoutUrl,
       "scopes"           -> o.scopes,
       "claims"           -> o.claims,
       "pkce"             -> o.pkce.map(_.asJson).getOrElse(JsNull).as[JsValue],
       "accessTokenField" -> o.accessTokenField,
       "nameField"        -> o.nameField,
       "emailField"       -> o.emailField,
-      "callbackUrl"      -> o.callbackUrl
+      "callbackUrl"      -> o.callbackUrl,
+      "defaultOIDCUserRights" -> o.defaultOIDCUserRights.map(User.rightWrite.writes)
     )
 
     override def reads(json: JsValue): JsResult[OAuth2Configuration] = {
       val maybeConfig = for (
-        name             <- (json \ "name").asOpt[String];
-        clientId         <- (json \ "clientId").asOpt[String];
-        clientSecret     <- (json \ "clientSecret").asOpt[String];
-        authorizeUrl     <- (json \ "authorizeUrl").asOpt[String];
-        tokenUrl         <- (json \ "tokenUrl").asOpt[String];
-        userInfoUrl      <- (json \ "userInfoUrl").asOpt[String];
-        introspectionUrl <- (json \ "introspectionUrl").asOpt[String];
-        loginUrl         <- (json \ "loginUrl").asOpt[String];
-        logoutUrl        <- (json \ "logoutUrl").asOpt[String];
-        accessTokenField <- (json \ "accessTokenField").asOpt[String];
-        nameField        <- (json \ "nameField").asOpt[String];
-        emailField       <- (json \ "emailField").asOpt[String];
-        scopes           <- (json \ "scopes").asOpt[String];
-        claims           <- (json \ "claims").asOpt[String];
-        callbackUrl      <- (json \ "callbackUrl")
+        enabled               <- (json \ "enabled").asOpt[Boolean];
+        clientId              <- (json \ "clientId").asOpt[String];
+        clientSecret          <- (json \ "clientSecret").asOpt[String];
+        authorizeUrl          <- (json \ "authorizeUrl").asOpt[String];
+        tokenUrl              <- (json \ "tokenUrl").asOpt[String];
+        nameField             <- (json \ "nameField").asOpt[String];
+        emailField            <- (json \ "emailField").asOpt[String];
+        scopes                <- (json \ "scopes").asOpt[String];
+        callbackUrl           <- (json \ "callbackUrl")
           .asOpt[String]
-      ) yield OAuth2Configuration(
-        name = name,
-        sessionMaxAge = (json \ "sessionMaxAge").asOpt[Int].getOrElse(86400),
-        clientId = clientId,
-        clientSecret = clientSecret,
-        authorizeUrl = authorizeUrl,
-        tokenUrl = tokenUrl,
-        userInfoUrl = userInfoUrl,
-        introspectionUrl = introspectionUrl,
-        loginUrl = loginUrl,
-        logoutUrl = logoutUrl,
-        accessTokenField = accessTokenField,
-        nameField = nameField,
-        emailField = emailField,
-        scopes = scopes,
-        claims = claims,
-        pkce = (json \ "pkce").asOpt[PKCEConfig](PKCEConfig._fmt.reads),
-        callbackUrl = callbackUrl
-      )
-
+      ) yield {
+        val name = (json \ "name").asOpt[String].getOrElse("")
+        val method = (json \ "method").asOpt[String].getOrElse("Basic")
+        val defaultOIDCUserRights = (json \ "defaultOIDCUserRights").asOpt[Rights](User.rightsReads)
+//        val userInfoUrl           = (json \ "userInfoUrl").asOpt[String].getOrElse("")
+//        val introspectionUrl      = (json \ "introspectionUrl").asOpt[String].getOrElse("")
+//        val loginUrl              = (json \ "loginUrl").asOpt[String].getOrElse("")
+//        val logoutUrl             = (json \ "logoutUrl").asOpt[String].getOrElse("")
+        val accessTokenField      = (json \ "accessTokenField").asOpt[String].getOrElse("")
+        val claims                = (json \ "claims").asOpt[String].getOrElse("")
+        OAuth2Configuration(
+          name = name,
+          method = method,
+          enabled = enabled,
+          sessionMaxAge = (json \ "sessionMaxAge").asOpt[Int].getOrElse(86400),
+          clientId = clientId,
+          clientSecret = clientSecret,
+          authorizeUrl = authorizeUrl,
+          tokenUrl = tokenUrl,
+//          userInfoUrl = userInfoUrl,
+//          introspectionUrl = introspectionUrl,
+//          loginUrl = loginUrl,
+//          logoutUrl = logoutUrl,
+          accessTokenField = accessTokenField,
+          nameField = nameField,
+          emailField = emailField,
+          scopes = scopes,
+          claims = claims,
+          pkce = (json \ "pkce").asOpt[PKCEConfig](PKCEConfig._fmt.reads),
+          callbackUrl = callbackUrl,
+          defaultOIDCUserRights = defaultOIDCUserRights
+        )
+      }
 
       maybeConfig.map(json => JsSuccess(json)).getOrElse(JsError("Failed to read OAuth2Configuration"))
     }
@@ -141,7 +154,6 @@ case class IzanamiConfiguration(
     originEmail: Option[String],
     anonymousReporting: Boolean,
     anonymousReportingLastAsked: Option[Instant],
-    defaultOIDCUserRights: Option[Rights] = None,
     oidcConfiguration: Option[OAuth2Configuration] = None
 )
 
@@ -269,9 +281,9 @@ object IzanamiConfiguration {
     ) yield {
       val anonymousReportingLastAsked =
         (json \ "anonymousReportingLastAsked").asOpt[Instant](instantReads(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-      val defaultOIDCUserRights       = (json \ "defaultOIDCUserRights").asOpt[Rights](User.rightsReads)
       val oidcConfiguration           = (json \ "oidcConfiguration").asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads)
       val originEmail                 = (json \ "originEmail").asOpt[String]
+
       (mailer, originEmail) match {
         case (MailerTypes.Console, _) =>
           JsSuccess(
@@ -281,7 +293,6 @@ object IzanamiConfiguration {
               originEmail = originEmail,
               anonymousReporting = anonymousReporting,
               anonymousReportingLastAsked = anonymousReportingLastAsked,
-              defaultOIDCUserRights = defaultOIDCUserRights,
               oidcConfiguration = oidcConfiguration
             )
           )
@@ -294,7 +305,6 @@ object IzanamiConfiguration {
               originEmail = maybeEmail,
               anonymousReporting = anonymousReporting,
               anonymousReportingLastAsked = anonymousReportingLastAsked,
-              defaultOIDCUserRights = defaultOIDCUserRights,
               oidcConfiguration = oidcConfiguration
             )
           )
@@ -303,7 +313,6 @@ object IzanamiConfiguration {
   }
 
   implicit val configurationWrites: Writes[IzanamiConfiguration] = conf => {
-    val defaultOIDCUserRights = conf.defaultOIDCUserRights.map(User.rightWrite.writes).getOrElse(JsNull)
     val oidcConfiguration = conf.oidcConfiguration.map(OAuth2Configuration._fmt.writes).getOrElse(JsNull)
     Json.obj(
       "mailer"                      -> conf.mailer.toString,
@@ -311,7 +320,6 @@ object IzanamiConfiguration {
       "originEmail"                 -> conf.originEmail,
       "anonymousReporting"          -> conf.anonymousReporting,
       "anonymousReportingLastAsked" -> conf.anonymousReportingLastAsked,
-      "defaultOIDCUserRights"       -> defaultOIDCUserRights,
       "oidcConfiguration"           -> oidcConfiguration
     )
   }

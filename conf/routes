@@ -81,6 +81,7 @@ POST          /api/admin/login                                                  
 POST          /api/admin/logout                                                                    fr.maif.izanami.web.LoginController.logout()
 GET           /api/admin/openid-connect                                                            fr.maif.izanami.web.LoginController.openIdConnect()
 POST          /api/admin/openid-connect-callback                                                   fr.maif.izanami.web.LoginController.openIdCodeReturn()
+POST          /api/admin/openid-connect/configuration                                              fr.maif.izanami.web.LoginController.fetchOpenIdConnectConfiguration()
 
 PUT           /api/admin/configuration                                                             fr.maif.izanami.web.ConfigurationController.updateConfiguration()
 GET           /api/admin/configuration                                                             fr.maif.izanami.web.ConfigurationController.readConfiguration()

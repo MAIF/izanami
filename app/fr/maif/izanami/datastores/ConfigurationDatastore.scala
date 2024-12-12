@@ -49,7 +49,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
 
   def readConfiguration(): Future[Either[IzanamiError, IzanamiConfiguration]] = {
     env.postgresql
-      .queryOne("SELECT mailer, invitation_mode, origin_email, anonymous_reporting, anonymous_reporting_date, default_oidc_user_rights, oidc_configuration from izanami.configuration") { row =>
+      .queryOne("SELECT mailer, invitation_mode, origin_email, anonymous_reporting, anonymous_reporting_date, oidc_configuration from izanami.configuration") { row =>
         {
           row.optConfiguration()
         }
@@ -96,15 +96,20 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
       s"""
          |UPDATE izanami.configuration
          |SET mailer=$$1, invitation_mode=$$2, origin_email=$$3, anonymous_reporting=$$4, anonymous_reporting_date=$$5,
-         |default_oidc_user_rights=$$6, oidc_configuration=$$7
+         |oidc_configuration=$$6
          |RETURNING *
          |""".stripMargin,
-      List(newConfig.mailer.toString.toUpperCase, newConfig.invitationMode.toString.toUpperCase,
+      List(
+        newConfig.mailer.toString.toUpperCase,
+        newConfig.invitationMode.toString.toUpperCase,
         newConfig.originEmail.orNull,
         java.lang.Boolean.valueOf(newConfig.anonymousReporting),
         newConfig.anonymousReportingLastAsked.map(_.atOffset(ZoneOffset.UTC)).orNull,
-        newConfig.defaultOIDCUserRights.map(r => Json.toJson(r)(User.rightWrite)).getOrElse(JsNull).vertxJsValue,
-        newConfig.oidcConfiguration.map(r => Json.toJson(r)(OAuth2Configuration._fmt.writes)).getOrElse(JsNull).vertxJsValue)
+        newConfig.oidcConfiguration
+          .map(r => Json.toJson(r)(OAuth2Configuration._fmt.writes))
+          .getOrElse(JsNull)
+          .vertxJsValue
+      )
     ) { row =>
       row.optConfiguration()
     }
@@ -215,7 +220,6 @@ object configurationImplicits {
         anonymousReporting <- row.optBoolean("anonymous_reporting")
       )
         yield {
-          val defaultOIDCUserRights =  row.optJsObject("default_oidc_user_rights").flatMap(r => r.asOpt[Rights](User.rightsReads))
           val oidcConfiguration =  row.optJsObject("oidc_configuration").flatMap(r => r.asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads))
           IzanamiConfiguration(
             parseDbMailer(mailerStr),
@@ -223,7 +227,6 @@ object configurationImplicits {
             originEmail = row.optString("origin_email"),
             anonymousReporting=anonymousReporting,
             anonymousReportingLastAsked = row.optOffsetDatetime("anonymous_reporting_date").map(_.toInstant),
-            defaultOIDCUserRights = defaultOIDCUserRights,
             oidcConfiguration = oidcConfiguration,
           )
         }
