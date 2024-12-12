@@ -321,6 +321,8 @@ export function ProjectLogs() {
 
                       return base;
                     },
+                    size: 30,
+                    minSize: 150,
                   },
                 ]}
                 customRowActions={{
@@ -330,7 +332,11 @@ export function ProjectLogs() {
                     },
                     icon: (
                       <>
-                        <i className="fa-solid fa-circle-info"></i> Details
+                        <i
+                          className="fa-solid fa-circle-info"
+                          aria-hidden="true"
+                        ></i>{" "}
+                        Details
                       </>
                     ),
                     customForm: (data, cancel) => (
