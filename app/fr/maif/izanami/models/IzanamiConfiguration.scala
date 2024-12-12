@@ -54,10 +54,6 @@ case class OAuth2Configuration(
     clientSecret: String,
     tokenUrl: String,
     authorizeUrl: String,
-//    userInfoUrl: String,
-//    introspectionUrl: String,
-//    loginUrl: String,
-//    logoutUrl: String,
     scopes: String = "openid profile email name",
     claims: String = "email name",
     pkce: Option[PKCEConfig] = None,
@@ -66,7 +62,6 @@ case class OAuth2Configuration(
     emailField: String = "email",
     callbackUrl: String,
     defaultOIDCUserRights: Option[Rights] = None,
-//  refreshTokens: Boolean = false,
 )
 
 object OAuth2Configuration {
@@ -82,10 +77,6 @@ object OAuth2Configuration {
       "clientSecret"     -> o.clientSecret,
       "authorizeUrl"     -> o.authorizeUrl,
       "tokenUrl"         -> o.tokenUrl,
-//      "userInfoUrl"      -> o.userInfoUrl,
-//      "introspectionUrl" -> o.introspectionUrl,
-//      "loginUrl"         -> o.loginUrl,
-//      "logoutUrl"        -> o.logoutUrl,
       "scopes"           -> o.scopes,
       "claims"           -> o.claims,
       "pkce"             -> o.pkce.map(_.asJson).getOrElse(JsNull).as[JsValue],
@@ -112,10 +103,6 @@ object OAuth2Configuration {
         val name = (json \ "name").asOpt[String].getOrElse("")
         val method = (json \ "method").asOpt[String].getOrElse("Basic")
         val defaultOIDCUserRights = (json \ "defaultOIDCUserRights").asOpt[Rights](User.rightsReads)
-//        val userInfoUrl           = (json \ "userInfoUrl").asOpt[String].getOrElse("")
-//        val introspectionUrl      = (json \ "introspectionUrl").asOpt[String].getOrElse("")
-//        val loginUrl              = (json \ "loginUrl").asOpt[String].getOrElse("")
-//        val logoutUrl             = (json \ "logoutUrl").asOpt[String].getOrElse("")
         val accessTokenField      = (json \ "accessTokenField").asOpt[String].getOrElse("")
         val claims                = (json \ "claims").asOpt[String].getOrElse("")
         OAuth2Configuration(
@@ -127,10 +114,6 @@ object OAuth2Configuration {
           clientSecret = clientSecret,
           authorizeUrl = authorizeUrl,
           tokenUrl = tokenUrl,
-//          userInfoUrl = userInfoUrl,
-//          introspectionUrl = introspectionUrl,
-//          loginUrl = loginUrl,
-//          logoutUrl = logoutUrl,
           accessTokenField = accessTokenField,
           nameField = nameField,
           emailField = emailField,

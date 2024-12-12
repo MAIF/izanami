@@ -26,8 +26,7 @@ class ConfigurationController(
   def updateConfiguration(): Action[JsValue] = adminAuthAction.async(parse.json) { implicit request =>
     {
       IzanamiConfiguration.configurationReads.reads(request.body) match {
-        case JsSuccess(configuration, path) => {
-          println(configuration)
+        case JsSuccess(configuration, _path) => {
           env.datastores.configuration.updateConfiguration(configuration).map(_ => NoContent)
         }
         case JsError(_)                     => BadBodyFormat().toHttpResponse.future
