@@ -41,7 +41,6 @@ export function OIDCSettingsForm(props: {
           oidcUrl: {
             label: 'URL of the OIDC config',
             type: 'string',
-            defaultValue: 'https://accounts.google.com/.well-known/openid-configuration'
           }
         }}
         onSubmit={fetchConfig}
@@ -59,6 +58,16 @@ export function OIDCSettingsForm(props: {
           label: "Name",
           type: "string",
           required: true
+        },
+        method: {
+          label: "Method",
+          type: 'string',
+          format: 'select',
+          defaultValue: "POST",
+          options: [
+            { value: 'POST', label: 'POST' },
+            { value: 'Basic', label: 'BASIC' },
+          ]
         },
         clientId: {
           label: "Client ID",

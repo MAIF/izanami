@@ -39,10 +39,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
   def readOIDCConfiguration(): Future[Option[OAuth2Configuration]] = {
     env.datastores.configuration.readConfiguration()
       .map {
-        case Left(err) =>
-          println("readOIDCConfiguration", err)
-          // TODO - manager error, log or whatever
-          None
+        case Left(_err) => None
         case Right(value) => value.oidcConfiguration
       }
   }

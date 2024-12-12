@@ -62,19 +62,24 @@ class LoginController(
         _emailField,
         callbackUrl,
         defaultOIDCUserRights)) => {
-        val hasOpenIdInScope = scopes.split(" ").toSet.exists(s => s.equalsIgnoreCase("openid"))
-        val actualScope = (if (!hasOpenIdInScope) scopes + " openid" else scopes).replace(" ", "%20")
 
-        if (pkce.exists(_.enabled)) {
-          val (codeVerifier, codeChallenge, codeChallengeMethod) = generatePKCECodes()
-
-          Redirect(
-            s"$authorizeUrl?scope=$actualScope&client_id=$clientId&response_type=code&redirect_uri=$callbackUrl&code_challenge=$codeChallenge&code_challenge_method=$codeChallengeMethod"
-          ).addingToSession(
-            "code_verifier" -> codeVerifier
-          )
+        if (!enabled) {
+          BadRequest(Json.obj("message" -> "Something wrong happened"))
         } else {
-          Redirect(s"$authorizeUrl?scope=$actualScope&client_id=$clientId&response_type=code&redirect_uri=$callbackUrl")
+          val hasOpenIdInScope = scopes.split(" ").toSet.exists(s => s.equalsIgnoreCase("openid"))
+          val actualScope = (if (!hasOpenIdInScope) scopes + " openid" else scopes).replace(" ", "%20")
+
+          if (pkce.exists(_.enabled)) {
+            val (codeVerifier, codeChallenge, codeChallengeMethod) = generatePKCECodes(pkce.get.algorithm.some)
+
+            Redirect(
+              s"$authorizeUrl?scope=$actualScope&client_id=$clientId&response_type=code&redirect_uri=$callbackUrl&code_challenge=$codeChallenge&code_challenge_method=$codeChallengeMethod"
+            ).addingToSession(
+              "code_verifier" -> codeVerifier
+            )
+          } else {
+            Redirect(s"$authorizeUrl?scope=$actualScope&client_id=$clientId&response_type=code&redirect_uri=$callbackUrl")
+          }
         }
       }
     }
@@ -88,18 +93,18 @@ class LoginController(
         oauth2ConfigurationOpt <- env.datastores.configuration.readOIDCConfiguration()
       )
         yield {
-          if (code.isEmpty || oauth2ConfigurationOpt.isEmpty)  {
+          if (code.isEmpty || oauth2ConfigurationOpt.isEmpty || oauth2ConfigurationOpt.exists(_.enabled == false))  {
             InternalServerError(Json.obj("message" -> "Failed to read token claims")).asFuture
           } else {
             val OAuth2Configuration(_name,
-              enabled,
+              _enabled,
               method,
               _sessionMaxAge,
               clientId,
               clientSecret,
               tokenUrl,
-              authorizeUrl,
-              scopes,
+              _authorizeUrl,
+              _scopes,
               _claims,
               _pkce,
               _accessTokenField,
@@ -107,18 +112,34 @@ class LoginController(
               emailField,
               callbackUrl,
               defaultOIDCUserRights) = oauth2ConfigurationOpt.get
-            env.Ws
-              .url(tokenUrl)
-              .withAuth(clientId, clientSecret, WSAuthScheme.BASIC)
-              .withHttpHeaders(("content-type", "application/x-www-form-urlencoded"))
-              .post(Map(
-                "grant_type" -> "authorization_code",
-                "code" -> code.get,
-                "redirect_uri" -> callbackUrl,
-                "client_id" -> clientId,
-                "client_secret" -> clientSecret,
-                "code_verifier" -> request.session.get(s"code_verifier").getOrElse("")
-              ))
+
+            var builder = env.Ws
+                .url(tokenUrl)
+                .withHttpHeaders(("content-type", "application/x-www-form-urlencoded"))
+            var body =  Map(
+                  "grant_type" -> "authorization_code",
+                  "code" -> code.get,
+                  "redirect_uri" -> callbackUrl
+                )
+
+            if (method == "Basic") {
+              builder = builder
+                .withAuth(clientId, clientSecret, WSAuthScheme.BASIC)
+            } else {
+              body = Map(
+                  "grant_type" -> "authorization_code",
+                  "code" -> code.get,
+                  "redirect_uri" -> callbackUrl,
+                  "client_id" -> clientId,
+                  "client_secret" -> clientSecret
+                )
+            }
+
+            if (_pkce.exists(_.enabled)) {
+              body = body + ("code_verifier" -> request.session.get(s"code_verifier").getOrElse(""))
+            }
+
+            builder.post(body)
               .flatMap(r => {
                   val maybeToken = (r.json \ "id_token").get.asOpt[String]
 
@@ -188,12 +209,6 @@ class LoginController(
               val issuer = (body \ "issuer").asOpt[String];
               val tokenUrl = (body \ "token_endpoint").asOpt[String];
               val authorizeUrl = (body \ "authorization_endpoint").asOpt[String];
-//              val userInfoUrl = (body \ "userinfo_endpoint").asOpt[String];
-//              val introspectionUrl = (body \ "introspection_endpoint").asOpt[String];
-//              val loginUrl = (body \ "authorization_endpoint").asOpt[String];
-//              val logoutUrl = (body \ "end_session_endpoint")
-//                .asOpt[String]
-//                .orElse((body \ "ping_end_session_endpoint").asOpt[String])
 
               val claims = (body \ "claims_supported")
                 .asOpt[JsArray].map(Json.stringify)
@@ -209,10 +224,6 @@ class LoginController(
                 clientSecret = "",
                 tokenUrl = tokenUrl.getOrElse(""),
                 authorizeUrl = authorizeUrl.getOrElse(""),
-//                userInfoUrl = userInfoUrl.getOrElse(""),
-//                introspectionUrl = introspectionUrl.getOrElse(""),
-//                loginUrl = loginUrl.getOrElse(""),
-//                logoutUrl = logoutUrl.getOrElse(""),
                 scopes = scope,
                 claims = claims,
                 pkce = None,
