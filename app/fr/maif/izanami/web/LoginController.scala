@@ -44,9 +44,9 @@ class LoginController(
   }
 
   def openIdConnect = Action.async { implicit request =>
-    env.datastores.configuration.readOIDCConfiguration().map  {
+    env.datastores.configuration.readFullConfiguration().map(e => e.toOption.flatMap(_.oidcConfiguration)).map  {
       case None => MissingOIDCConfigurationError().toHttpResponse
-      case Some(OAuth2Configuration(_name,
+      case Some(OAuth2Configuration(
         enabled,
         method,
         _sessionMaxAge,
@@ -57,7 +57,6 @@ class LoginController(
         scopes,
         _claims,
         pkce,
-        _accessTokenField,
         _nameField,
         _emailField,
         callbackUrl,
@@ -90,13 +89,13 @@ class LoginController(
     {
       for (
         code                                                                                           <- request.body.asJson.flatMap(json => (json \ "code").get.asOpt[String]).asFuture;
-        oauth2ConfigurationOpt <- env.datastores.configuration.readOIDCConfiguration()
+        oauth2ConfigurationOpt <- env.datastores.configuration.readFullConfiguration().map(_.toOption.flatMap(_.oidcConfiguration))
       )
         yield {
           if (code.isEmpty || oauth2ConfigurationOpt.isEmpty || oauth2ConfigurationOpt.exists(_.enabled == false))  {
             InternalServerError(Json.obj("message" -> "Failed to read token claims")).asFuture
           } else {
-            val OAuth2Configuration(_name,
+            val OAuth2Configuration(
               _enabled,
               method,
               _sessionMaxAge,
@@ -107,7 +106,6 @@ class LoginController(
               _scopes,
               _claims,
               _pkce,
-              _accessTokenField,
               nameField,
               emailField,
               callbackUrl,
@@ -122,7 +120,7 @@ class LoginController(
                   "redirect_uri" -> callbackUrl
                 )
 
-            if (method == "Basic") {
+            if (method == "BASIC") {
               builder = builder
                 .withAuth(clientId, clientSecret, WSAuthScheme.BASIC)
             } else {
@@ -219,19 +217,15 @@ class LoginController(
                 .getOrElse("openid email profile")
 
               OAuth2Configuration(
-                name = issuer.getOrElse(""),
-                clientId = "",
-                clientSecret = "",
+                clientId = null,
+                clientSecret = null,
                 tokenUrl = tokenUrl.getOrElse(""),
                 authorizeUrl = authorizeUrl.getOrElse(""),
                 scopes = scope,
                 claims = claims,
                 pkce = None,
-                accessTokenField = "",
-                nameField = "",
-                emailField = "",
                 callbackUrl = s"${env.expositionUrl}/login",
-                method = "Basic",
+                method = "BASIC",
                 enabled = true
               ).some
             } else {

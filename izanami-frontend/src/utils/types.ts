@@ -410,29 +410,20 @@ export type InvitationMode = "Response" | "Mail";
 
 export interface Configuration {
   version: string;
-  mailer: Mailer;
   invitationMode: InvitationMode;
   originEmail: string;
   anonymousReporting: boolean;
   anonymousReportingLastAsked: Date;
+  mailerConfiguration: MailerConfiguration;
   oidcConfiguration?: OIDCSettings;
-}
-
-export interface MailJetConfigurationDetails {
-  secret: string;
-  apiKey: string;
 }
 
 export type MailGunRegion = "EUROPE" | "US";
 
-export interface MailGunConfigurationDetails {
-  apiKey: string;
-  region: MailGunRegion;
-}
-
-export interface SMTPConfigurationDetails {
+export interface SMTPConfiguration {
+  mailer: "SMTP";
   host: string;
-  port?: number;
+  port: number;
   user?: string;
   password?: string;
   auth: boolean;
@@ -440,29 +431,27 @@ export interface SMTPConfigurationDetails {
   smtps: boolean;
 }
 
-export interface SMTPConfiguration {
-  mailerType: "SMTP";
-  configuration: SMTPConfigurationDetails;
-}
-
 export interface MailJetConfiguration {
-  mailerType: "MailJet";
-  configuration: MailJetConfigurationDetails;
+  mailer: "MailJet";
+  secret: string;
+  apiKey: string;
 }
 
 export interface MailGunConfiguration {
-  mailerType: "MailGun";
-  configuration: MailGunConfigurationDetails;
+  mailer: "MailGun";
+  apiKey: string;
+  region: MailGunRegion;
 }
 
 export interface ConsoleConfiguration {
-  mailerType: "Console";
+  mailer: "Console";
 }
 
 export type MailerConfiguration =
-  | MailJetConfigurationDetails
-  | MailGunConfigurationDetails
-  | SMTPConfigurationDetails
+  | MailJetConfiguration
+  | MailGunConfiguration
+  | SMTPConfiguration
+  | ConsoleConfiguration
   | Record<string, never>;
 
 export interface TContextOverloadBase<FeatureTypeName> {
@@ -648,29 +637,25 @@ export type SearchResultPathElement = {
   name: string;
 };
 
-
 export interface PKCEConfig {
   enabled: boolean;
   algorithm: string;
-};
+}
 
 export interface OIDCSettings {
-  name: string;
+  method: "BASIC" | "POST";
+  enabled: boolean;
   sessionMaxAge: number;
   clientId: string;
   clientSecret: string;
   tokenUrl: string;
   authorizeUrl: string;
-  userInfoUrl: string;
-  introspectionUrl: string;
   loginUrl: string;
-  logoutUrl: string;
-  scope: string;
+  scopes: string;
   claims: string;
   pkce?: PKCEConfig;
-  accessTokenField: string;
   nameField: string;
   emailField: string;
   callbackUrl: string;
   defaultOIDCUserRights?: TRights;
-};
+}

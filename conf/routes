@@ -87,8 +87,8 @@ PUT           /api/admin/configuration                                          
 GET           /api/admin/configuration                                                             fr.maif.izanami.web.ConfigurationController.readConfiguration()
 GET           /api/admin/exposition                                                                fr.maif.izanami.web.ConfigurationController.readExpositionUrl()
 GET           /api/admin/integrations                                                              fr.maif.izanami.web.ConfigurationController.availableIntegrations()
-GET           /api/admin/configuration/mailer/:id                                                  fr.maif.izanami.web.ConfigurationController.readMailerConfiguration(id: String)
-PUT           /api/admin/configuration/mailer/:id                                                  fr.maif.izanami.web.ConfigurationController.updateMailerConfiguration(id: String)
+#GET           /api/admin/configuration/mailer/:id                                                  fr.maif.izanami.web.ConfigurationController.readMailerConfiguration(id: String)
+#PUT           /api/admin/configuration/mailer/:id                                                  fr.maif.izanami.web.ConfigurationController.updateMailerConfiguration(id: String)
 
 GET           /api/admin/plugins                                                                   fr.maif.izanami.web.PluginController.wasmFiles()
 GET           /api/admin/tenants/:tenant/local-scripts                                             fr.maif.izanami.web.PluginController.localScripts(tenant: String, features: Boolean ?= false)
