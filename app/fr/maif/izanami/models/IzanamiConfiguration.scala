@@ -2,7 +2,7 @@ package fr.maif.izanami.models
 
 import fr.maif.izanami.mail.MailGunRegions.MailGunRegion
 import fr.maif.izanami.mail.MailerTypes.{MailJet, MailerType, SMTP}
-import fr.maif.izanami.mail._
+import fr.maif.izanami.mail.{MailProviderConfiguration, _}
 import fr.maif.izanami.models.InvitationMode.InvitationMode
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
@@ -46,7 +46,6 @@ object PKCEConfig {
 }
 
 case class OAuth2Configuration(
-    name: String,
     enabled: Boolean,
     method: String = "POST",
     sessionMaxAge: Int = 86400,
@@ -57,7 +56,6 @@ case class OAuth2Configuration(
     scopes: String = "openid profile email name",
     claims: String = "email name",
     pkce: Option[PKCEConfig] = None,
-    accessTokenField: String = "access_token",
     nameField: String = "name",
     emailField: String = "email",
     callbackUrl: String,
@@ -69,7 +67,6 @@ object OAuth2Configuration {
   val _fmt: Format[OAuth2Configuration] = new Format[OAuth2Configuration] {
 
     override def writes(o: OAuth2Configuration): JsObject = Json.obj(
-      "name"             -> o.name,
       "enabled"          -> o.enabled,
       "method"           -> o.method,
       "sessionMaxAge"    -> o.sessionMaxAge,
@@ -80,7 +77,6 @@ object OAuth2Configuration {
       "scopes"           -> o.scopes,
       "claims"           -> o.claims,
       "pkce"             -> o.pkce.map(_.asJson).getOrElse(JsNull).as[JsValue],
-      "accessTokenField" -> o.accessTokenField,
       "nameField"        -> o.nameField,
       "emailField"       -> o.emailField,
       "callbackUrl"      -> o.callbackUrl,
@@ -101,12 +97,10 @@ object OAuth2Configuration {
           .asOpt[String]
       ) yield {
         val name = (json \ "name").asOpt[String].getOrElse("")
-        val method = (json \ "method").asOpt[String].getOrElse("Basic")
+        val method = (json \ "method").asOpt[String].getOrElse("BASIC")
         val defaultOIDCUserRights = (json \ "defaultOIDCUserRights").asOpt[Rights](User.rightsReads)
-        val accessTokenField      = (json \ "accessTokenField").asOpt[String].getOrElse("")
         val claims                = (json \ "claims").asOpt[String].getOrElse("")
         OAuth2Configuration(
-          name = name,
           method = method,
           enabled = enabled,
           sessionMaxAge = (json \ "sessionMaxAge").asOpt[Int].getOrElse(86400),
@@ -114,7 +108,6 @@ object OAuth2Configuration {
           clientSecret = clientSecret,
           authorizeUrl = authorizeUrl,
           tokenUrl = tokenUrl,
-          accessTokenField = accessTokenField,
           nameField = nameField,
           emailField = emailField,
           scopes = scopes,
@@ -145,7 +138,8 @@ case class FullIzanamiConfiguration(
     originEmail: Option[String],
     mailConfiguration: MailProviderConfiguration,
     anonymousReporting: Boolean,
-    anonymousReportingLastAsked: Option[Instant]
+    anonymousReportingLastAsked: Option[Instant],
+    oidcConfiguration: Option[OAuth2Configuration] = None
 )
 
 object InvitationMode extends Enumeration {
@@ -253,6 +247,67 @@ object IzanamiConfiguration {
       "url"    -> json.url,
       "apiKey" -> json.apiKey,
       "region" -> json.region.toString.toUpperCase
+    )
+  }
+
+  val mailConfigurationWrites: Writes[MailProviderConfiguration] = {
+    case ConsoleMailProvider => {
+      Json.obj("mailer" -> MailerTypes.Console.toString)
+    }
+    case m: MailGunMailProvider => Json.obj("mailer" -> MailerTypes.MailGun.toString) ++ mailGunConfigurationWrite.writes(m.configuration).as[JsObject]
+    case m: MailJetMailProvider => Json.obj("mailer" -> MailerTypes.MailJet.toString) ++ mailJetConfigurationWrites.writes(m.configuration).as[JsObject]
+    case m: SMTPMailProvider => Json.obj("mailer" -> MailerTypes.SMTP.toString) ++ SMTPConfigurationWrites.writes(m.configuration).as[JsObject]
+  }
+
+  implicit val fullConfigurationReads: Reads[FullIzanamiConfiguration] = json => {
+    (for (
+      mailer <- (json \ "mailerConfiguration" \ "mailer").asOpt[MailerType];
+      mailerConfiguration  <- (json \ "mailerConfiguration").asOpt[MailProviderConfiguration](mailProviderConfigurationReads(mailer));
+      invitationMode     <- (json \ "invitationMode").asOpt[InvitationMode];
+      anonymousReporting <- (json \ "anonymousReporting").asOpt[Boolean]
+    ) yield {
+      val anonymousReportingLastAsked =
+        (json \ "anonymousReportingLastAsked").asOpt[Instant](instantReads(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+      val oidcConfiguration           = (json \ "oidcConfiguration").asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads)
+      val originEmail                 = (json \ "originEmail").asOpt[String]
+
+      (mailer, originEmail) match {
+        case (MailerTypes.Console, _) =>
+          JsSuccess(
+            FullIzanamiConfiguration(
+              mailConfiguration = mailerConfiguration,
+              invitationMode = invitationMode,
+              originEmail = originEmail,
+              anonymousReporting = anonymousReporting,
+              anonymousReportingLastAsked = anonymousReportingLastAsked,
+              oidcConfiguration = oidcConfiguration
+            )
+          )
+        case (_, None)                => JsError("Origin email is missing")
+        case (_, maybeEmail)          =>
+          JsSuccess(
+            FullIzanamiConfiguration(
+              mailConfiguration = mailerConfiguration,
+              invitationMode = invitationMode,
+              originEmail = maybeEmail,
+              anonymousReporting = anonymousReporting,
+              anonymousReportingLastAsked = anonymousReportingLastAsked,
+              oidcConfiguration = oidcConfiguration
+            )
+          )
+      }
+    }).getOrElse(JsError("Bad body format"))
+  }
+
+  val fullConfigurationWrites: Writes[FullIzanamiConfiguration] = conf => {
+    val oidcConfiguration = conf.oidcConfiguration.map(OAuth2Configuration._fmt.writes).getOrElse(JsNull)
+    Json.obj(
+      "mailerConfiguration"        -> Json.toJson(conf.mailConfiguration)(mailConfigurationWrites),
+      "invitationMode"              -> conf.invitationMode.toString,
+      "originEmail"                 -> conf.originEmail,
+      "anonymousReporting"          -> conf.anonymousReporting,
+      "anonymousReportingLastAsked" -> conf.anonymousReportingLastAsked,
+      "oidcConfiguration"           -> oidcConfiguration
     )
   }
 

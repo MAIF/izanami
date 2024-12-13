@@ -97,7 +97,7 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
   val jobs = new Jobs(this)
 
   private def oidcConfigurationMigration() = {
-    this.datastores.configuration.readConfiguration()
+    this.datastores.configuration.readFullConfiguration()
       .map {
         case Left(err) =>
         case Right(configuration) =>
@@ -121,7 +121,6 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
                 emailField = emailField,
                 nameField = usernameField,
                 scopes = scopes,
-                name = "OAUTH2 configuration with default values",
                 method = "Basic",
                 enabled = true
               )

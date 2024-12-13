@@ -401,8 +401,8 @@ export function RightSelector(props: {
     const selectorChoices = props.tenant
       ? [props.tenant]
       : tenants.filter((item) => {
-        return !selectedTenants.includes(item);
-      });
+          return !selectedTenants.includes(item);
+        });
 
     return (
       <div>
@@ -492,7 +492,7 @@ export function RightSelector(props: {
                   dispatch({ type: EventType.SelectTenant, name: item });
                 }}
                 onClear={() => {
-                  setCreating(false)
+                  setCreating(false);
                 }}
               />
             </>
@@ -521,7 +521,9 @@ export function RightSelector(props: {
             >
               {props.tenant
                 ? `Add specific ${props.tenant} right`
-                : "Add another tenant"}
+                : selectedTenants?.length > 0
+                ? "Add another tenant"
+                : "Add tenant"}
             </button>
           )}
       </div>

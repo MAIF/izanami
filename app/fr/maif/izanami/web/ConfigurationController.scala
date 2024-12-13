@@ -4,7 +4,7 @@ import buildinfo.BuildInfo
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.BadBodyFormat
 import fr.maif.izanami.mail.{ConsoleMailProvider, MailGunMailProvider, MailJetMailProvider, MailerTypes, SMTPMailProvider}
-import fr.maif.izanami.models.IzanamiConfiguration
+import fr.maif.izanami.models.{FullIzanamiConfiguration, IzanamiConfiguration}
 import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationWrites, mailGunConfigurationWrite, mailJetConfigurationWrites, mailerReads}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.{JsError, JsObject, JsString, JsSuccess, JsValue, Json}
@@ -25,7 +25,7 @@ class ConfigurationController(
   } }
   def updateConfiguration(): Action[JsValue] = adminAuthAction.async(parse.json) { implicit request =>
     {
-      IzanamiConfiguration.configurationReads.reads(request.body) match {
+      IzanamiConfiguration.fullConfigurationReads.reads(request.body) match {
         case JsSuccess(configuration, _path) => {
           env.datastores.configuration.updateConfiguration(configuration).map(_ => NoContent)
         }
@@ -36,11 +36,11 @@ class ConfigurationController(
 
   def readConfiguration(): Action[AnyContent] = adminAuthAction.async { implicit request: UserNameRequest[AnyContent] =>
     env.datastores.configuration
-      .readConfiguration()
+      .readFullConfiguration()
       .map {
         case Left(error)          => error.toHttpResponse
         case Right(configuration) => {
-          val configurationWithVersion:JsObject = (Json.toJson(configuration).as[JsObject]) + ("version" -> JsString(BuildInfo.version))
+          val configurationWithVersion:JsObject = (Json.toJson(configuration)(IzanamiConfiguration.fullConfigurationWrites).as[JsObject]) + ("version" -> JsString(BuildInfo.version))
           Ok(configurationWithVersion)
         }
       }
@@ -54,17 +54,19 @@ class ConfigurationController(
 
   def availableIntegrations(): Action[AnyContent] = Action.async { implicit request =>
     val isWasmPresent = env.datastores.configuration.readWasmConfiguration().isDefined
-    env.datastores.configuration.readOIDCConfiguration()
-      .map(_.isDefined)
-      .map(isOidcPresent => {
-        Ok(Json.obj(
-          "wasmo" -> isWasmPresent,
-          "oidc" -> isOidcPresent
-        ))
-      })
+    env.datastores.configuration.readFullConfiguration()
+      .map{
+        case Left(err) => err.toHttpResponse
+        case Right(c:FullIzanamiConfiguration) => {
+          Ok(Json.obj(
+            "wasmo" -> isWasmPresent,
+            "oidc" -> c.oidcConfiguration.isDefined
+          ))
+        }
+      }
   }
 
-  def readMailerConfiguration(id: String): Action[AnyContent] = adminAuthAction.async {
+  /*def readMailerConfiguration(id: String): Action[AnyContent] = adminAuthAction.async {
     implicit request: UserNameRequest[AnyContent] =>
       mailerReads.reads(JsString(id)).fold(_ => {
         Future.successful(BadRequest(Json.obj("message" -> "Unknown mail provider")))
@@ -99,5 +101,5 @@ class ConfigurationController(
         case JsError(_)                                                                             => BadBodyFormat().toHttpResponse.future
       }
     }
-  }
+  }*/
 }

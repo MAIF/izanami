@@ -30,6 +30,7 @@ import {
   TClassicalCondition,
   PersonnalAccessToken,
   TokenTenantRight,
+  OIDCSettings,
 } from "./types";
 import { isArray } from "lodash";
 import toast from "react-hot-toast";
@@ -295,7 +296,8 @@ export function queryTenants(
 ): Promise<TenantType[]> {
   return handleFetchJsonResponse(
     fetch(
-      `/api/admin/tenants${tenantLevelFilter ? `?right=${tenantLevelFilter}` : ""
+      `/api/admin/tenants${
+        tenantLevelFilter ? `?right=${tenantLevelFilter}` : ""
       }`
     )
   );
@@ -510,7 +512,8 @@ export function createGlobalContext(
 ) {
   return handleFetchWithoutResponse(
     fetch(
-      `/api/admin/tenants/${tenant}/contexts${path.length > 0 ? `/${path}` : ""
+      `/api/admin/tenants/${tenant}/contexts${
+        path.length > 0 ? `/${path}` : ""
       }`,
       {
         method: "POST",
@@ -531,7 +534,8 @@ export function createContext(
 ) {
   return handleFetchWithoutResponse(
     fetch(
-      `/api/admin/tenants/${tenant}/projects/${project}/contexts${path.length > 0 ? `${path.startsWith("/") ? "" : "/"}${path}` : ""
+      `/api/admin/tenants/${tenant}/projects/${project}/contexts${
+        path.length > 0 ? `${path.startsWith("/") ? "" : "/"}${path}` : ""
       }`,
       {
         method: "POST",
@@ -645,7 +649,8 @@ export function testExistingFeature(
 ): Promise<{ active: boolean }> {
   return handleFetchJsonResponse(
     fetch(
-      `/api/admin/tenants/${tenant}/features/${featureId}/test${context ? "/" + context : ""
+      `/api/admin/tenants/${tenant}/features/${featureId}/test${
+        context ? "/" + context : ""
       }?date=${encodeURIComponent(
         format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
       )}&user=${user}`,
@@ -1090,8 +1095,8 @@ function _handleFetchResponse<T>(
         error instanceof String
           ? error
           : error?.message
-            ? error.message
-            : JSON.stringify(error);
+          ? error.message
+          : JSON.stringify(error);
       toast.error(
         <div
           style={{
@@ -1278,14 +1283,18 @@ export function importIzanamiV1Data(
   data.append("keys", importRequest.keyFiles.item(0)!);
   data.append("scripts", importRequest.scriptFiles.item(0)!);
   return fetch(
-    `/api/admin/tenants/${importRequest.tenant}/_import?version=1&conflict=${importRequest.conflictStrategy
-    }&deduceProject=${importRequest.deduceProject}&timezone=${importRequest.zone
-    }${importRequest.project
-      ? `&project=${importRequest.project}&create=${importRequest.newProject}`
-      : ""
-    }${importRequest.deduceProject
-      ? `&projectPartSize=${importRequest.projectPartSize}`
-      : ""
+    `/api/admin/tenants/${importRequest.tenant}/_import?version=1&conflict=${
+      importRequest.conflictStrategy
+    }&deduceProject=${importRequest.deduceProject}&timezone=${
+      importRequest.zone
+    }${
+      importRequest.project
+        ? `&project=${importRequest.project}&create=${importRequest.newProject}`
+        : ""
+    }${
+      importRequest.deduceProject
+        ? `&projectPartSize=${importRequest.projectPartSize}`
+        : ""
     }&inlineScript=${importRequest.inlineScript}`,
     {
       method: "POST",
@@ -1347,7 +1356,8 @@ export function searchEntities(
   }
   return handleFetchJsonResponse(
     fetch(
-      `/api/admin/search?query=${encodeURIComponent(query)}${filterString ? `&filter=${filterString}` : ""
+      `/api/admin/search?query=${encodeURIComponent(query)}${
+        filterString ? `&filter=${filterString}` : ""
       }`
     )
   );
@@ -1363,7 +1373,8 @@ export function searchEntitiesByTenant(
   }
   return handleFetchJsonResponse(
     fetch(
-      `/api/admin/tenants/${tenant}/search?query=${encodeURIComponent(query)}${filterString ? `&filter=${filterString}` : ""
+      `/api/admin/tenants/${tenant}/search?query=${encodeURIComponent(query)}${
+        filterString ? `&filter=${filterString}` : ""
       }`
     )
   );
@@ -1371,9 +1382,9 @@ export function searchEntitiesByTenant(
 
 export function fetchOpenIdConnectConfiguration(
   url: string
-): Promise<undefined> {
+): Promise<Partial<OIDCSettings>> {
   return handleFetchJsonResponse(
-    fetch('/api/admin/openid-connect/configuration', {
+    fetch("/api/admin/openid-connect/configuration", {
       method: "POST",
       body: JSON.stringify({ url }),
       headers: {
