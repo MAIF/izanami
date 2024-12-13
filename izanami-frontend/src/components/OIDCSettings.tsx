@@ -114,22 +114,6 @@ export function OIDCSettingsForm(props: {
           type: 'string',
           required: true
         },
-        // userInfoUrl: {
-        //   label: "User Info URL",
-        //   type: 'string'
-        // },
-        // introspectionUrl: {
-        //   label: "Introspection URL",
-        //   type: 'string'
-        // },
-        // loginUrl: {
-        //   label: "Login URL",
-        //   type: 'string'
-        // },
-        // logoutUrl: {
-        //   label: "Logout URL",
-        //   type: 'string'
-        // },
         claims: {
           label: "Claims",
           type: 'string'
