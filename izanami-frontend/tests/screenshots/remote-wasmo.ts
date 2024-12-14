@@ -56,8 +56,8 @@ export async function generate() {
   await page.keyboard.press("Enter");
   await page.keyboard.type(`return 0;`);
   await screenshot("plugin-filled");
-  await page.getByRole("button", { name: "Save plugin" }).click();
-  await page.getByRole("button", { name: "Build", exact: true }).click();
+  await page.locator('button[tooltip="Save plugin"]').click();
+  await page.locator('button[tooltip="Build"]').click();
   await page.waitForTimeout(2000);
   await page
     .getByText("[RELEASE] You can now use the")

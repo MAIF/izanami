@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import queryClient from "../queryClient";
 import { string } from "yup";
 import { JsonViewer } from "@textea/json-viewer";
@@ -67,12 +67,14 @@ type StatsResultStatus =
   | { state: "INITIAL" };
 
 export function Settings() {
-  const configurationQuery = useQuery(MutationNames.CONFIGURATION, () =>
-    queryConfiguration()
-  );
-  const configurationMutationQuery = useMutation(
-    (data: Omit<Configuration, "version">) => updateConfiguration(data)
-  );
+  const configurationQuery = useQuery({
+    queryKey: [MutationNames.CONFIGURATION],
+    queryFn: () => queryConfiguration(),
+  });
+  const configurationMutationQuery = useMutation({
+    mutationFn: (data: Omit<Configuration, "version">) =>
+      updateConfiguration(data),
+  });
 
   const updateSettings = (current: Configuration, newValue: Configuration) => {
     console.log("newValue", newValue);
@@ -83,8 +85,9 @@ export function Settings() {
       "newValue.oidcConfiguration?.defaultOIDCUserRights",
       newValue.oidcConfiguration?.defaultOIDCUserRights
     );
+    const newDefaultRights = newValue.oidcConfiguration?.defaultOIDCUserRights;
     const backendRights = rightStateArrayToBackendMap(
-      newValue.oidcConfiguration?.defaultOIDCUserRights
+      Array.isArray(newDefaultRights) ? newDefaultRights : []
     );
 
     return configurationMutationQuery
@@ -875,15 +878,17 @@ function OIDCForm() {
                     <Controller
                       name="oidcConfiguration.defaultOIDCUserRights"
                       control={control}
-                      render={({ field }) => (
-                        <RightSelector
-                          defaultValue={field?.value}
-                          tenantLevelFilter="Admin"
-                          onChange={(v) => {
-                            field?.onChange?.(v);
-                          }}
-                        />
-                      )}
+                      render={({ field }) => {
+                        return (
+                          <RightSelector
+                            defaultValue={field?.value}
+                            tenantLevelFilter="Admin"
+                            onChange={(v) => {
+                              field?.onChange(v);
+                            }}
+                          />
+                        );
+                      }}
                     />
                   </div>
                 </>

@@ -10,6 +10,7 @@ import fr.maif.izanami.models.RightLevels.RightLevel
 import fr.maif.izanami.models.{LightWebhook, Webhook, WebhookFeature, WebhookProject}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
+import fr.maif.izanami.web.UserInformation
 import io.vertx.core.json.JsonObject
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
@@ -315,7 +316,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
       }
     }
   }
-  def createWebhook(tenant: String, webhook: LightWebhook, username: String): Future[Either[IzanamiError, String]] = {
+  def createWebhook(tenant: String, webhook: LightWebhook, user: UserInformation): Future[Either[IzanamiError, String]] = {
     env.postgresql.executeInTransaction(
       conn => {
         env.datastores.featureContext.env.postgresql
@@ -371,7 +372,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
                   s"""
                      |INSERT INTO users_webhooks_rights (webhook, username, level) VALUES ($$1, $$2, 'ADMIN')
                      |""".stripMargin,
-                  params = List(webhook.name, username),
+                  params = List(webhook.name, user.username),
                   conn = Some(conn)
                 ) { _ => Some(id) }
                 .map(_ => Right(id))

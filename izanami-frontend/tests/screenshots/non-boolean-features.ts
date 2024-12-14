@@ -44,7 +44,7 @@ export async function generate() {
 
   await featureAction(page, "Overloads");
   await page.getByRole("button", { name: "Create new overload" }).click();
-  await page.getByRole("button", { name: "Delete" }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
   await page.getByRole("combobox", { name: "Context" }).click();
   await page.getByText("dev", { exact: true }).click();
   await page.getByLabel("Base value").fill("comments");
@@ -52,5 +52,3 @@ export async function generate() {
   await page.getByRole("button", { name: "Save" }).click();
   await screenshot("overload-in-project");
 }
-
-generate();

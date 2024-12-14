@@ -1,10 +1,62 @@
 import { isArray } from "lodash";
 
+
+export const featureEventTypeOptions = [{label: "Created", value: "FEATURE_CREATED"}, {label: "Updated", value: "FEATURE_UPDATED"}, {label: "Deleted", value: "FEATURE_DELETED"}] as const;
+export type TFeatureEventTypes = (typeof featureEventTypeOptions)[number]["value"];
+
+export type ProjectLogSearchQuery = {
+  users: string[];
+  types: TFeatureEventTypes[];
+  features: string[];
+  begin?: Date;
+  end?: Date;
+  order: "asc" | "desc";
+  total: boolean,
+  pageSize: number;
+};
+
 export const POSSIBLE_TOKEN_RIGHTS = ["EXPORT", "IMPORT"] as const;
 export type TokenTenantRight = typeof POSSIBLE_TOKEN_RIGHTS[number];
 
 export type TokenTenantRightsArray = [string | null, TokenTenantRight[]][];
 export type TokenTenantRights = { [tenant: string]: TokenTenantRight[] };
+
+export type FeatureLogEntry = FeatureCreated | FeatureDeleted | FeatureUpdated;
+
+interface FeatureLogEntryBase {
+  eventId: number;
+  id: string;
+  project: string;
+  tenant: string;
+  type: "FEATURE_CREATED" | "FEATURE_DELETED" | "FEATURE_UPDATED";
+  user: string;
+  emittedAt: Date;
+  origin: "NORMAL" | "IMPORT";
+  authentication: "BACKOFFICE" | "TOKEN";
+  token?: string;
+  tokenName?: string;
+}
+
+export interface FeatureCreated extends FeatureLogEntryBase {
+  type: "FEATURE_CREATED";
+  conditions: FeatureEventConditions;
+}
+
+export interface FeatureUpdated extends FeatureLogEntryBase {
+  type: "FEATURE_UPDATED";
+  conditions: FeatureEventConditions;
+  previousConditions: FeatureEventConditions;
+}
+
+type FeatureEventConditions = {
+  "": TLightFeature;
+  [x: string]: TLightFeature;
+};
+
+interface FeatureDeleted extends FeatureLogEntryBase {
+  type: "FEATURE_DELETED";
+  name: string;
+}
 
 export type PersonnalAccessToken =
   | {
@@ -269,6 +321,7 @@ export interface TWasmConfigSource {
 }
 
 export interface TClassicalCondition {
+  id: string;
   rule?: TFeatureRule;
   period?: TFeaturePeriod;
 }

@@ -1,28 +1,31 @@
 import * as React from "react";
 import {
   DAYS,
+  TClassicalCondition,
   TClassicalContextOverload,
   THourPeriod,
+  TValuedCondition,
   ValuedFeature,
 } from "../utils/types";
 import Select from "react-select";
 import CreatableSelect from "react-select/creatable";
 import { customStyles } from "../styles/reactSelect";
-import { Strategy } from "./FeatureTable";
+import { Rule, Strategy, Period as PeriodDetails } from "./FeatureTable";
 import { useEffect } from "react";
 import {
   useFieldArray,
   Controller,
   useFormContext,
   FieldErrors,
+  useWatch,
 } from "react-hook-form";
 import { format, parse, startOfDay } from "date-fns";
 import { DEFAULT_TIMEZONE, TimeZoneSelect } from "./TimeZoneSelect";
 import { ErrorDisplay } from "./FeatureForm";
 import { Tooltip } from "./Tooltip";
 
-export function ConditionsInput() {
-  const { control, watch } = useFormContext();
+export function ConditionsInput(props: { folded: boolean }) {
+  const { control, watch, getValues } = useFormContext();
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -30,37 +33,117 @@ export function ConditionsInput() {
   });
 
   const resultType = watch("resultType");
-
+  const conditions = watch("conditions");
   return (
     <>
-      {fields.map((condition, index) => (
-        <fieldset
-          className="mt-2 sub_container sub_container-bglighter anim__popUp"
-          key={`condition-${index}`}
-        >
-          <h5>
-            {resultType === "boolean"
-              ? "Activation condition"
-              : "Alternative value"}{" "}
-            #{index}{" "}
-            <button
-              className="btn btn-danger btn-sm m-2"
-              type="button"
-              onClick={() => {
-                remove(index);
-              }}
-            >
-              Delete
-            </button>
-          </h5>
-          <ConditionInput index={index} />
-        </fieldset>
-      ))}
+      {fields.length > 0 ? (
+        resultType === "boolean" ? (
+          <h5 className="mt-4">Activation conditions</h5>
+        ) : (
+          <h5 className="mt-4">Alternative values</h5>
+        )
+      ) : null}
+      {fields.map(({ id }, index) => {
+        const condition = conditions?.[index];
+        const emptyCondition =
+          Object.entries(condition).filter(([key, value]) => value !== "")
+            .length === 0;
+
+        return (
+          <div
+            className="accordion condition-accordion"
+            id={`${id}-accordion`}
+            key={id}
+          >
+            <div className="accordion-item mt-3">
+              <h3 className="accordion-header">
+                <button
+                  className={`accordion-button ${
+                    props.folded ? "collapsed" : ""
+                  }`}
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target={`#${id}-accordion-collapse`}
+                  aria-expanded={!props.folded}
+                  aria-controls={`${id}-accordion-collapse`}
+                >
+                  <div className="d-flex align-items-center justify-content-between w-100">
+                    <div className="d-flex flex-row align-items-center">
+                      <div>
+                        {resultType === "boolean" ? (
+                          <>
+                            <span className="fw-bold">
+                              Activation condition #{index}
+                            </span>
+                            {emptyCondition ? (
+                              <>&nbsp;{"<Empty condition>"}</>
+                            ) : (
+                              ""
+                            )}
+                          </>
+                        ) : emptyCondition ? (
+                          "<No value specified>"
+                        ) : (
+                          <>
+                            Alternative value{" "}
+                            <span className="fw-bold">{condition?.value}</span>
+                          </>
+                        )}
+                        &nbsp;
+                      </div>
+                      {condition && !emptyCondition ? (
+                        <>
+                          <ConditionSummary condition={condition} />
+                        </>
+                      ) : null}
+                    </div>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      type="button"
+                      onClick={(e) => {
+                        remove(index);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </button>
+              </h3>
+              <div
+                className={`accordion-collapse collapse ${
+                  props.folded ? "" : "show"
+                }`}
+                aria-labelledby="headingOne"
+                data-bs-parent={`#${id}-accordion`}
+                id={`${id}-accordion-collapse`}
+              >
+                <div className="accordion-body">
+                  <ConditionInput index={index} />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
       <div className="d-flex align-items-center justify-content-end mb-2 ms-3 mt-3">
         <button
           className="btn btn-secondary btn-sm"
           type="button"
-          onClick={() => append({})}
+          onClick={() => {
+            append({});
+            // This is super dirty, however bootstrap accordion state is really hard to control programatically
+            // the need is to have existing accordions closed by default (on edition) but to have new one opened
+
+            if (props.folded) {
+              setTimeout(() => {
+                const buttons = document.querySelectorAll(
+                  "button.accordion-button"
+                );
+                const last = buttons?.[buttons.length - 1] as HTMLButtonElement;
+                last.click();
+              }, 0);
+            }
+          }}
         >
           {resultType === "boolean"
             ? fields.length > 0
@@ -87,6 +170,22 @@ export function ConditionsInput() {
         </label>
       </div>
     </>
+  );
+}
+
+function ConditionSummary(props: { condition: TClassicalCondition }) {
+  const { period, rule } = props.condition;
+
+  return (
+    <div
+      className="d-flex flex-column border-start border-2"
+      style={{
+        paddingLeft: "8px",
+      }}
+    >
+      {period && <PeriodDetails period={period as any} />}
+      {rule && <Rule rule={rule} />}
+    </div>
   );
 }
 
@@ -129,7 +228,7 @@ function ConditionInput(props: { index: number }) {
         {resultType !== "boolean" && (
           <>
             <legend>
-              <h6>Result value</h6>
+              <h5>Result value</h5>
             </legend>
             <label className="mb-4">
               Alternative value
@@ -157,7 +256,7 @@ function ConditionInput(props: { index: number }) {
           </>
         )}
         <legend>
-          <h6>Time rule</h6>
+          <h5>Time rule</h5>
         </legend>
         <label>
           Active only on specific periods
@@ -175,14 +274,22 @@ function ConditionInput(props: { index: number }) {
               if (e.target.checked) {
                 const period = getValues(`conditions.${index}.period`);
                 if (!period || JSON.stringify(period) === "{}") {
-                  setValue(`conditions.${index}.period`, {
-                    begin: startOfDay(new Date()),
-                    activationDays: {
-                      days: DAYS.slice(),
+                  setValue(
+                    `conditions.${index}.period`,
+                    {
+                      begin: startOfDay(new Date()),
+                      activationDays: {
+                        days: DAYS.slice(),
+                      },
+                      hourPeriods: [],
+                      timezone:
+                        Intl.DateTimeFormat().resolvedOptions().timeZone,
+                      end: null as any,
                     },
-                    hourPeriods: [],
-                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                  });
+                    {
+                      shouldValidate: true,
+                    }
+                  );
                 }
               } else {
                 setValue(`conditions.${index}.period`, undefined);
@@ -195,7 +302,7 @@ function ConditionInput(props: { index: number }) {
       </fieldset>
       <fieldset style={{ border: "none" }} className="mt-3">
         <legend>
-          <h6>User rule</h6>
+          <h5>User rule</h5>
         </legend>
         <label>
           Strategy to use

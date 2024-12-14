@@ -6,19 +6,16 @@ import fr.maif.izanami.models.Feature._
 import fr.maif.izanami.models._
 import fr.maif.izanami.models.features.{BooleanResult, FeaturePatch, ProjectFeaturePatch}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.v1.OldFeature
 import fr.maif.izanami.web.FeatureController.queryFeatures
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
-import play.api.libs.Files
 import play.api.libs.json.Format.GenericFormat
 import play.api.libs.json._
 import play.api.mvc._
 
-import java.time.{Instant, ZoneId}
-import java.util.{Base64, TimeZone}
+import java.time.Instant
+import java.util.Base64
 import scala.concurrent.{ExecutionContext, Future}
-import scala.io.Source
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 class FeatureController(
     val env: Env,
@@ -237,7 +234,7 @@ class FeatureController(
       featureRequest: FeatureRequest
   ): Action[AnyContent] = authenticatedAction.async { implicit request =>
     val futureFeaturesByProject =
-      env.datastores.features.findByRequestV2(tenant, featureRequest, contexts = featureRequest.context, request.user)
+      env.datastores.features.findByRequestV2(tenant, featureRequest, contexts = featureRequest.context, request.user.username)
 
     futureFeaturesByProject.flatMap(featuresByProjects => {
       val resultingFeatures = featuresByProjects.values.flatMap(featSeq => featSeq.map(f => f.id)).toSet
@@ -306,7 +303,7 @@ class FeatureController(
                   )
                 ).toFuture
               } else {
-                env.datastores.features.applyPatch(tenant, fs, request.user.username).map(_ => NoContent)
+                env.datastores.features.applyPatch(tenant, fs, UserInformation(username=request.user.username, authentication = request.authentication)).map(_ => NoContent)
               }
             })
         })
@@ -392,7 +389,7 @@ class FeatureController(
                             tenant = tenant,
                             id = id,
                             feature = feature,
-                            user = request.user.username,
+                            user = UserInformation(username=request.user.username, authentication = request.authentication),
                             conn = Some(conn)
                           )
                           .flatMap {
@@ -455,7 +452,7 @@ class FeatureController(
 
             if (canCreateOrModifyFeature(feature, request.user)) {
               env.datastores.features
-                .delete(tenant, id, request.user.username)
+                .delete(tenant, id, UserInformation(username=request.user.username, authentication = request.authentication))
                 .map(maybeFeature =>
                   maybeFeature
                     .map(_ => NoContent)

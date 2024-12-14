@@ -5,7 +5,7 @@ import { useState } from "react";
 import { IzanamiContext } from "../securityContext";
 
 import { TContext } from "../utils/types";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import { GlobalContextIcon } from "../utils/icons";
 import { FEATURE_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "./Loader";
@@ -55,7 +55,10 @@ export function FeatureContexts(props: {
   } = props;
 
   const [creating, setCreating] = useState(false);
-  const contextQuery = useQuery(refreshKey, () => fetchContexts());
+  const contextQuery = useQuery({
+    queryKey: [refreshKey],
+    queryFn: () => fetchContexts()
+  });
 
   const { askConfirmation } = React.useContext(IzanamiContext);
 

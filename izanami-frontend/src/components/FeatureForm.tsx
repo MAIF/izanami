@@ -31,7 +31,7 @@ import Select from "react-select";
 import { ExistingScript, WasmInput } from "./WasmInput";
 import { useState } from "react";
 import { customStyles } from "../styles/reactSelect";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { queryTags, tagsQueryKey, toCompleteFeature } from "../utils/queries";
 import { FeatureTestForm } from "./FeatureTable";
@@ -339,7 +339,10 @@ function LegacyFeatureForm(props: {
     setError,
   } = methods;
 
-  const tagQuery = useQuery(tagsQueryKey(tenant!), () => queryTags(tenant!));
+  const tagQuery = useQuery({
+    queryKey: [tagsQueryKey(tenant!)],
+    queryFn: () => queryTags(tenant!)
+  });
 
   const strategy = watch("activationStrategy");
 
@@ -802,11 +805,11 @@ export function FeatureForm(props: {
   const { tenant } = useParams();
   const { defaultValue, submit, ...rest } = props;
 
-  const completeFeatureQuery = useQuery(
-    defaultValue ? JSON.stringify(defaultValue) : "",
-    () => toCompleteFeature(tenant!, defaultValue!),
-    { enabled: !!defaultValue }
-  );
+  const completeFeatureQuery = useQuery({
+    queryKey: [defaultValue ? JSON.stringify(defaultValue) : ""],
+    queryFn: () => toCompleteFeature(tenant!, defaultValue!),
+    enabled: !!defaultValue
+  });
 
   const [legacy, setLegacy] = useState<boolean>(
     defaultValue !== undefined && isSingleConditionFeature(defaultValue)
@@ -816,7 +819,10 @@ export function FeatureForm(props: {
     ClassicalFeature | undefined
   >(undefined);
 
-  if (completeFeatureQuery.data || completeFeatureQuery.isIdle) {
+  if (
+    completeFeatureQuery.data ||
+    completeFeatureQuery.fetchStatus === "idle"
+  ) {
     const defaultValue = completeFeatureQuery.data;
     let form = undefined;
     if (legacy) {
@@ -949,7 +955,10 @@ export function V2FeatureForm(props: {
   const { tenant } = useParams();
   const isWasm = defaultValue && isWasmFeature(defaultValue);
   const [type, setType] = useState(isWasm ? "Existing WASM script" : "Classic");
-  const tagQuery = useQuery(tagsQueryKey(tenant!), () => queryTags(tenant!));
+  const tagQuery = useQuery({
+    queryKey: [tagsQueryKey(tenant!)],
+    queryFn: () => queryTags(tenant!)
+  });
 
   const {
     control,
@@ -1242,7 +1251,7 @@ export function V2FeatureForm(props: {
                 }}
               />
             </label>
-            {type === "Classic" && <ConditionsInput />}
+            {type === "Classic" && <ConditionsInput folded={!!defaultValue} />}
             {type === "Existing WASM script" && <ExistingScript />}
             {type === "New WASM script" && <WasmInput />}
             <div

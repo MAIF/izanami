@@ -4,7 +4,7 @@ import { useNavigate, NavLink } from "react-router-dom";
 import { IzanamiContext } from "../securityContext";
 import Logo from "../../izanami.png";
 import { Configuration, TUser } from "../utils/types";
-import { useMutation } from "react-query";
+import { useMutation } from '@tanstack/react-query';
 import { updateConfiguration } from "../utils/queries";
 import { Loader } from "../components/Loader";
 

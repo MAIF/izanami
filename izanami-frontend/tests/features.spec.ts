@@ -6,6 +6,7 @@ import {
   testTenant,
   testProject,
 } from "./testBuilder";
+import { clickAction } from "./utils";
 
 test.use({
   headless: true,
@@ -103,7 +104,7 @@ test.describe("Project screen should", () => {
 
     await expect(
       page.getByRole("cell", {
-        name: "Active : from January 1st, 2010 to December 25th, 2030 on MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY from 10:00:00 to 15:00:00 For all users",
+        name: "Active : from January 1st, 2010 at 10:15 AM to December 25th, 2030 at 11:59 PM on MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY from 10:00:00 to 15:00:00 For all users",
       })
     ).toBeVisible();
   });
@@ -202,6 +203,7 @@ test.describe("Project screen should", () => {
     await expect(page.getByRole("row", { name: "test" })).toBeVisible();
 
     await featureAction(page, "Edit");
+    await page.getByRole("button", { name: "Activation condition #0" }).click();
     await page.getByLabel("date-range-from").fill("2023-10-25T00:00");
     await page.getByLabel("date-range-to").fill("2030-01-02T10:10");
     await page.getByLabel("Remove TUESDAY").click();
@@ -215,7 +217,7 @@ test.describe("Project screen should", () => {
 
     await page
       .getByRole("cell", {
-        name: "Active : from October 25th, 2023 to January 2nd, 2030 on MONDAY, WEDNESDAY, THURSDAY, FRIDAY, SUNDAY from 11:01:00 to 15:15:00 For all users",
+        name: "Active : from October 25th, 2023 at 12:00 AM to January 2nd, 2030 at 10:10 AM on MONDAY, WEDNESDAY, THURSDAY, FRIDAY, SUNDAY from 11:01:00 to 15:15:00 for all users",
       })
       .click();
   });
@@ -328,7 +330,7 @@ test.describe("Multi type features", () => {
     ).toBeVisible();
     await page.getByRole("button", { name: "Save" }).click();
 
-    await featureAction(page, "Test feature");
+    await clickAction(page, "Test feature", "str feature");
     await page.getByRole("button", { name: "Test feature" }).click();
     await expect(
       page.getByText("str feature value would be foo")
@@ -346,8 +348,8 @@ test.describe("Multi type features", () => {
     await page.getByText("globalctx").click();
     await page.getByLabel("Base value*").fill("bar");
     await page.getByRole("button", { name: "Save" }).click();
-
-    await featureAction(page, "Test feature");
+    await expect(page.getByRole("button", { name: "Save" })).toBeHidden();
+    await clickAction(page, "Test feature", "str feature");
     await page.getByRole("button", { name: "Test feature" }).click();
     await expect(
       page.getByText("str feature value would be foo")
@@ -359,7 +361,7 @@ test.describe("Multi type features", () => {
       page.getByText("str feature value would be bar")
     ).toBeVisible();
 
-    await featureAction(page, "Edit");
+    await clickAction(page, "Edit", "str feature");
     await page.getByRole("button", { name: "Add alternative value" }).click();
     await page.getByLabel("Alternative value").fill("bobv");
     await page.getByRole("combobox", { name: "Strategy to use" }).click();
