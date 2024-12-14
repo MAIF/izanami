@@ -59,7 +59,7 @@ case class OAuth2Configuration(
     nameField: String = "name",
     emailField: String = "email",
     callbackUrl: String,
-    defaultOIDCUserRights: Option[Rights] = None,
+    defaultOIDCUserRights: Rights = Rights.EMPTY,
 )
 
 object OAuth2Configuration {
@@ -80,7 +80,7 @@ object OAuth2Configuration {
       "nameField"        -> o.nameField,
       "emailField"       -> o.emailField,
       "callbackUrl"      -> o.callbackUrl,
-      "defaultOIDCUserRights" -> o.defaultOIDCUserRights.map(User.rightWrite.writes)
+      "defaultOIDCUserRights" -> User.rightWrite.writes(o.defaultOIDCUserRights)
     )
 
     override def reads(json: JsValue): JsResult[OAuth2Configuration] = {
@@ -114,7 +114,7 @@ object OAuth2Configuration {
           claims = claims,
           pkce = (json \ "pkce").asOpt[PKCEConfig](PKCEConfig._fmt.reads),
           callbackUrl = callbackUrl,
-          defaultOIDCUserRights = defaultOIDCUserRights
+          defaultOIDCUserRights = defaultOIDCUserRights.getOrElse(Rights.EMPTY)
         )
       }
 

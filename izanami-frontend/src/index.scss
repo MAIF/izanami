@@ -278,13 +278,24 @@ input[type="time"] {
   z-index: 1001;
 }
 
-.condition-accordion {
+.accordion-dark {
   .accordion-body {
     background-color: var(--bg-color_level25) !important;
   }
 
   .accordion-button {
     background-color: var(--bg-color_level3) !important;
+    box-shadow: none !important;
+  }
+}
+
+.accordion-darker {
+  .accordion-body {
+    background-color: var(--bg-color_level2) !important;
+  }
+
+  .accordion-button {
+    background-color: var(--bg-color_level25) !important;
     box-shadow: none !important;
   }
 }
