@@ -32,10 +32,10 @@ header .nav-link {
 }
 
 .feature-separator {
-  text-align: center;
+  margin-left: 24px;
   font-weight: bold;
-  margin-top: 8px;
-  margin-bottom: 8px;
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .error-message {

@@ -5,7 +5,7 @@ import {
   queryTags,
   tagsQueryKey,
 } from "../utils/queries";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import { NavLink, useParams } from "react-router-dom";
 import Select from "react-select";
 import { JsonViewer } from "@textea/json-viewer";
@@ -26,7 +26,10 @@ export function QueryBuilder() {
   const { tenant } = useParams();
   const { expositionUrl } = React.useContext(IzanamiContext);
 
-  const tagQuery = useQuery(tagsQueryKey(tenant!), () => queryTags(tenant!));
+  const tagQuery = useQuery({
+    queryKey: [tagsQueryKey(tenant!)],
+    queryFn: () => queryTags(tenant!)
+  });
   const [selectedProjects, setSelectedProjects] = React.useState<
     readonly string[]
   >([]);

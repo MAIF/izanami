@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useContext, useState } from "react";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import Select from "react-select";
 import {
   findKeyRight,
@@ -368,9 +368,11 @@ export function RightSelector(props: {
   onChange: (value: State) => void;
 }) {
   const { defaultValue, tenantLevelFilter, onChange } = props;
-  const tenantQuery = useQuery(MutationNames.TENANTS, () =>
-    queryTenants(tenantLevelFilter)
-  );
+  const tenantQuery = useQuery({
+    queryKey: [MutationNames.TENANTS],
+
+    queryFn: () => queryTenants(tenantLevelFilter),
+  });
 
   const [state, dispatch] = React.useReducer(reducer, []);
   React.useEffect(() => {
@@ -545,9 +547,11 @@ function ProjectSelector(props: {
   const { user } = useContext(IzanamiContext);
   const { admin, rights } = user!;
 
-  const projectQuery = useQuery(tenantQueryKey(tenant), () =>
-    queryTenant(tenant)
-  );
+  const projectQuery = useQuery({
+    queryKey: [tenantQueryKey(tenant)],
+
+    queryFn: () => queryTenant(tenant),
+  });
 
   if (projectQuery.isLoading) {
     return <Loader message="Loading..." />;
@@ -634,7 +638,11 @@ function KeySelector(props: {
   const [creating, setCreating] = useState(false);
   const { tenant, dispatch, keys } = props;
 
-  const keyQuery = useQuery(tenantKeyQueryKey(tenant), () => queryKeys(tenant));
+  const keyQuery = useQuery({
+    queryKey: [tenantKeyQueryKey(tenant)],
+
+    queryFn: () => queryKeys(tenant),
+  });
   const { user } = useContext(IzanamiContext);
   const { admin, rights } = user!;
 
@@ -721,9 +729,11 @@ function WebhookSelector(props: {
   const [creating, setCreating] = useState(false);
   const { tenant, dispatch, webhooks } = props;
 
-  const webhookQuery = useQuery(webhookQueryKey(tenant), () =>
-    fetchWebhooks(tenant)
-  );
+  const webhookQuery = useQuery({
+    queryKey: [webhookQueryKey(tenant)],
+
+    queryFn: () => fetchWebhooks(tenant),
+  });
   const { user } = useContext(IzanamiContext);
   const { admin, rights } = user!;
 

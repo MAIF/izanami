@@ -101,7 +101,7 @@ class UserController(
   }
 
   def updateUser(user: String): Action[JsValue] = authAction.async(parse.json) { implicit request =>
-    if (!request.user.equalsIgnoreCase(user)) {
+    if (!request.user.username.equalsIgnoreCase(user)) {
       Forbidden(Json.obj("message" -> "Modification of other users information is not allowed")).future
     } else {
       // TODO make special action that check password ?
@@ -309,7 +309,7 @@ class UserController(
   }
 
   def updateUserPassword(user: String): Action[JsValue] = authAction.async(parse.json) { implicit request =>
-    if (!request.user.equalsIgnoreCase(user)) {
+    if (!request.user.username.equalsIgnoreCase(user)) {
       Forbidden("Modification of other users information is not allowed").future
     } else {
       // TODO check password during update
@@ -407,7 +407,7 @@ class UserController(
 
   def readUsers(): Action[AnyContent] = authAction.async { implicit request =>
     env.datastores.users
-      .findUsers(request.user)
+      .findUsers(request.user.username)
       .map(users => {
         Ok(Json.toJson(users))
       })
@@ -509,7 +509,7 @@ class UserController(
   }
 
   def deleteUser(user: String): Action[AnyContent] = adminAction.async { implicit request =>
-    if (request.user.equals(user)) {
+    if (request.user.username.equals(user)) {
       Future.successful(BadRequest(Json.obj("message" -> "User can't delete itself !")))
     } else {
       env.datastores.users.deleteUser(user).map(_ => NoContent)
@@ -518,7 +518,7 @@ class UserController(
 
   def readRights(): Action[AnyContent] = authAction.async { implicit request =>
     env.datastores.users
-      .findUserWithCompleteRights(request.user)
+      .findUserWithCompleteRights(request.user.username)
       .map {
         case Some(user) => Ok(Json.toJson(user)(User.userRightsWrites))
         case None       => NotFound(Json.obj("message" -> "User does not exist"))

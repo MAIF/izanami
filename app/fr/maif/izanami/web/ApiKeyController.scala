@@ -25,7 +25,7 @@ class ApiKeyController(
           env.datastores.users
             .hasRightFor(
               tenant,
-              username = request.user,
+              username = request.user.username,
               rights = key.projects.map(p => RightUnit(name = p, rightType = RightTypes.Project, rightLevel = RightLevels.Write)),
               tenantLevel = if(key.admin) Some(RightLevels.Admin) else None
             )
@@ -70,7 +70,7 @@ class ApiKeyController(
                 case (newProjects, adminChanged) => {env.datastores.users
                   .hasRightFor(
                     tenant,
-                    username = request.user,
+                    username = request.user.username,
                     rights = newProjects.map(p => RightUnit(name = p, rightType = RightTypes.Project, rightLevel = RightLevels.Write)),
                     tenantLevel = if(adminChanged) Some(RightLevels.Admin) else None
                   )}
@@ -96,7 +96,7 @@ class ApiKeyController(
   def readApiKey(tenant: String): Action[AnyContent] = tenantAuthAction(tenant, RightLevels.Read).async {
     implicit request: UserNameRequest[AnyContent] =>
       env.datastores.apiKeys
-        .readApiKeys(tenant, request.user)
+        .readApiKeys(tenant, request.user.username)
         .map(keys => Ok(Json.toJson(keys)))
   }
 

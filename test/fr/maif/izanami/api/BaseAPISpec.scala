@@ -259,8 +259,23 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     }
   }
 
-  def enabledFeatureBase64  = scala.io.Source.fromResource("enabled_script_feature_base64").getLines().mkString("")
-  def disabledFeatureBase64 = scala.io.Source.fromResource("disabled_script_feature_base64").getLines().mkString("")
+  def enabledFeatureBase64  = {
+    val arch = System.getProperty("os.arch")
+    if(arch == "aarch64") {
+      scala.io.Source.fromResource("enabled_script_feature_base64").getLines().mkString("")
+    } else {
+      scala.io.Source.fromResource("enabled_script_feature_base64_intel").getLines().mkString("")
+    }
+
+  }
+  def disabledFeatureBase64 = {
+    val arch = System.getProperty("os.arch")
+    if(arch == "aarch64") {
+      scala.io.Source.fromResource("disabled_script_feature_base64").getLines().mkString("")
+    } else {
+      scala.io.Source.fromResource("disabled_script_feature_base64_intel").getLines().mkString("")
+    }
+  }
 
   def createWebhook(tenant: String, webhook: TestWebhook, cookies: Seq[WSCookie] = Seq()) = {
     ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/webhooks")

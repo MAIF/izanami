@@ -20,7 +20,7 @@ export function StringIcon(props: object) {
   return (
     <svg
       style={{ marginTop: "-3px" }}
-      height="12px"
+      height="10px"
       viewBox="0 0 8.3977594 4.1816964"
     >
       <g id="layer1" transform="translate(-13.854308,-12.137085)">

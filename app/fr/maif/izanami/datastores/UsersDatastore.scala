@@ -17,6 +17,7 @@ import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
 import play.api.libs.json.{JsError, JsSuccess, Reads}
 
+import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
@@ -750,12 +751,12 @@ class UsersDatastore(val env: Env) extends Datastore {
       tenant: String,
       project: String,
       level: RightLevel
-  ): Future[Either[IzanamiError, Option[String]]] = {
+  ): Future[Either[IzanamiError, Option[(String, UUID)]]] = {
     env.postgresql
       .queryOne(
         s"""
-           |SELECT u.username
-           |FROM izanami.sessions s
+           |SELECT p.id, u.username
+           |FROM projects p, izanami.sessions s
            |LEFT JOIN izanami.users u ON u.username=s.username
            |LEFT JOIN izanami.users_tenants_rights utr ON u.username = utr.username AND utr.tenant=$$2
            |LEFT JOIN users_projects_rights upr ON u.username = upr.username AND upr.project=$$3
@@ -765,10 +766,18 @@ class UsersDatastore(val env: Env) extends Datastore {
            |  OR utr.level='ADMIN'
            |  OR upr.level=ANY($$4)
            |)
+           |AND p.name=$$3
            |""".stripMargin,
         List(session, tenant, project, superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray),
         schemas = Set(tenant)
-      ) { r => r.optString("username") }
+      ) { r =>
+        {
+          for (
+            username  <- r.optString("username");
+            projectId <- r.optUUID("id")
+          ) yield (username, projectId)
+        }
+      }
       .map(maybeUser => Right(maybeUser))
       .recover {
         case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
@@ -1471,10 +1480,11 @@ class UsersDatastore(val env: Env) extends Datastore {
       ) { r => r.optString("username") }
       .map(userWithRights => {
         val userWithMissingRights = users.map { case (username, _) => username }.toSet.diff(userWithRights.toSet)
-          if(userWithMissingRights.isEmpty) {
-            Future.successful(())
-          } else {
-            env.postgresql.queryAll(
+        if (userWithMissingRights.isEmpty) {
+          Future.successful(())
+        } else {
+          env.postgresql
+            .queryAll(
               s"""
                  |INSERT INTO izanami.users_tenants_rights(username, tenant, level)
                  |VALUES (unnest($$1::text[]), $$2, 'READ')
@@ -1482,19 +1492,21 @@ class UsersDatastore(val env: Env) extends Datastore {
                  |""".stripMargin,
               List(userWithMissingRights.toArray, tenant)
             ) { r => { Some(()) } }
-              .map(_ => ())
-          }
-      }).flatMap(_ => env.postgresql
-        .queryOne(
-          s"""
+            .map(_ => ())
+        }
+      })
+      .flatMap(_ =>
+        env.postgresql
+          .queryOne(
+            s"""
              |INSERT INTO users_projects_rights (project, username, level)
              |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
              |ON CONFLICT (username, project) DO NOTHING
              |""".stripMargin,
-          List(project, users.map(_._1).toArray, users.map(_._2.toString.toUpperCase).toArray),
-          schemas = Set(tenant)
-        ) { r => Some(()) }
-        .map(_ => ())
+            List(project, users.map(_._1).toArray, users.map(_._2.toString.toUpperCase).toArray),
+            schemas = Set(tenant)
+          ) { r => Some(()) }
+          .map(_ => ())
       )
   }
 

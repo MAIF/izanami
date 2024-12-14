@@ -2,7 +2,7 @@ import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
 import * as React from "react";
 import { WEBHOOK_NAME_REGEXP } from "../utils/patterns";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   createWebhook,
   deleteWebhook,
@@ -47,37 +47,38 @@ export function WebHooks(props: { tenant: string }) {
     React.useContext(IzanamiContext);
   const hasTenantWriteLevel = useTenantRight(tenant, TLevel.Write);
 
-  const webhookCreationMutation = useMutation(
-    (data: { webhook: LightWebhook }) => createWebhook(tenant!, data.webhook),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(webhookQueryKey(tenant));
-        refreshUser();
-      },
-    }
-  );
+  const webhookCreationMutation = useMutation({
+    mutationFn: (data: { webhook: LightWebhook }) =>
+      createWebhook(tenant!, data.webhook),
 
-  const webhookUpdateMutation = useMutation(
-    (data: { id: string; webhook: LightWebhook }) =>
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [webhookQueryKey(tenant)] });
+      refreshUser();
+    },
+  });
+
+  const webhookUpdateMutation = useMutation({
+    mutationFn: (data: { id: string; webhook: LightWebhook }) =>
       updateWebhook(tenant!, data.id, data.webhook),
-    {
-      onSuccess: () => queryClient.invalidateQueries(webhookQueryKey(tenant)),
-    }
-  );
 
-  const webhookDeletion = useMutation(
-    (data: { id: string; password: string }) =>
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: [webhookQueryKey(tenant)] }),
+  });
+
+  const webhookDeletion = useMutation({
+    mutationFn: (data: { id: string; password: string }) =>
       deleteWebhook(tenant!, data.id, data.password),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(webhookQueryKey(tenant));
-      },
-    }
-  );
 
-  const webhookQuery = useQuery(webhookQueryKey(tenant), () =>
-    fetchWebhooks(tenant)
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [webhookQueryKey(tenant)] });
+    },
+  });
+
+  const webhookQuery = useQuery({
+    queryKey: [webhookQueryKey(tenant)],
+
+    queryFn: () => fetchWebhooks(tenant),
+  });
 
   if (webhookQuery.isError) {
     return <div>Failed to fetch webhooks for this tenant</div>;
@@ -343,19 +344,20 @@ function WebhookRightTable(props: { tenant: string; webhook: Webhook }) {
   const { tenant, webhook } = props;
   const [creating, setCreating] = useState(false);
 
-  const webhookRightQuery = useQuery(
-    webhookUserQueryKey(tenant, webhook.id),
-    () => fetchWebhookUsers(tenant, webhook.id)
-  );
+  const webhookRightQuery = useQuery({
+    queryKey: [webhookUserQueryKey(tenant, webhook.id)],
+    queryFn: () => fetchWebhookUsers(tenant, webhook.id),
+  });
 
-  const webhookRightUpdateMutation = useMutation(
-    (data: { user: string; right?: TLevel }) =>
+  const webhookRightUpdateMutation = useMutation({
+    mutationFn: (data: { user: string; right?: TLevel }) =>
       updateWebhookRightsFor(tenant, webhook.id, data.user, data.right),
-    {
-      onSuccess: () =>
-        queryClient.invalidateQueries(webhookUserQueryKey(tenant, webhook.id)),
-    }
-  );
+
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: [webhookUserQueryKey(tenant, webhook.id)],
+      }),
+  });
 
   if (webhookRightQuery.error) {
     return <div>Failed to retrieve webhook users</div>;
@@ -414,9 +416,11 @@ function WebHookCreationForm(props: {
   defaultValue?: Webhook;
 }) {
   const tenant = props.tenant;
-  const projectQuery = useQuery(tenantQueryKey(tenant), () =>
-    queryTenant(tenant)
-  );
+  const projectQuery = useQuery({
+    queryKey: [tenantQueryKey(tenant)],
+
+    queryFn: () => queryTenant(tenant),
+  });
   const { user } = React.useContext(IzanamiContext);
   const maybeDefault = props.defaultValue;
 

@@ -17,7 +17,7 @@ import Select from "react-select";
 import { ExistingScript, WasmInput } from "./WasmInput";
 import { useState } from "react";
 import { customStyles } from "../styles/reactSelect";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { projectQueryKey, queryProject } from "../utils/queries";
 import { Loader } from "./Loader";
@@ -64,9 +64,12 @@ export function OverloadCreationForm(props: {
     setValue,
   } = methods;
 
-  const projectQuery = useQuery(projectQueryKey(tenant!, project), () =>
-    queryProject(tenant!, project)
-  );
+  const projectQuery = useQuery({
+    queryKey: [projectQueryKey(tenant!, project)],
+
+    queryFn: () =>
+      queryProject(tenant!, project)
+  });
 
   if (projectQuery.isError) {
     return <div>Error while fetching project</div>;
@@ -205,7 +208,7 @@ export function OverloadCreationForm(props: {
               }}
             />
           </label>
-          {type === "Classic" && <ConditionsInput />}
+          {type === "Classic" && <ConditionsInput folded={true} />}
           {type === "Existing WASM script" && <ExistingScript />}
           {type === "New WASM script" && <WasmInput />}
           <div className="d-flex justify-content-end">

@@ -1,0 +1,27 @@
+.pagination {
+  .page-item {
+    .page-link {
+      background-color: var(--bg-color_level25) !important;
+      border: none;
+      color: var(--color_level3);
+      box-shadow: none !important;
+      &:hover {
+        color: var(--color-primary);
+      }
+
+      &.log-page {
+        color: var(--color_level3) !important;
+        &.current-page {
+          color: var(--color-primary) !important;
+          font-weight: bold;
+        }
+      }
+    }
+
+    &.disabled {
+      .page-link {
+        color: var(--color_level1);
+      }
+    }
+  }
+}

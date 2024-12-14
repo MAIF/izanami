@@ -37,16 +37,19 @@ class Datastores(env: Env) {
   val exportDatastore: ImportExportDatastore = new ImportExportDatastore(env)
   val search : SearchDatastore = new SearchDatastore(env)
   val personnalAccessToken : PersonnalAccessTokenDatastore = new PersonnalAccessTokenDatastore(env)
+  val events : EventDatastore = new EventDatastore(env)
 
   def onStart(): Future[Unit] = {
     for {
       _ <- users.onStart()
+      _ <- events.onStart()
     } yield ()
   }
 
   def onStop(): Future[Unit] = {
     for {
       _ <- users.onStop()
+      _ <- events.onStop()
     } yield ()
   }
 }

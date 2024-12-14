@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ColumnDef, Row } from "@tanstack/react-table";
 import {
   createKey,
@@ -88,43 +88,47 @@ export default function Keys(props: { tenant: string }) {
   const { tenant } = props;
   const [secret, setSecret] = React.useState<string | undefined>(undefined);
   const [clientid, setClientId] = React.useState<string | undefined>(undefined);
-  const keyQuery = useQuery(tenantKeyQueryKey(tenant), () => queryKeys(tenant));
+  const keyQuery = useQuery({
+    queryKey: [tenantKeyQueryKey(tenant)],
+
+    queryFn: () => queryKeys(tenant),
+  });
   const hasTenantWriteRight = useTenantRight(tenant, TLevel.Write);
   const [creating, setCreating] = React.useState(false);
   const { refreshUser, askPasswordConfirmation } =
     React.useContext(IzanamiContext);
 
-  const keyDeleteMutation = useMutation(
-    tenantKeyQueryKey(tenant),
-    (params: { name: string; password: string }) =>
+  const keyDeleteMutation = useMutation({
+    mutationKey: [tenantKeyQueryKey(tenant)],
+
+    mutationFn: (params: { name: string; password: string }) =>
       deleteKey(tenant, params.name, params.password),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(tenantKeyQueryKey(tenant));
-        refreshUser();
-      },
-    }
-  );
-  const keyUpdateMutation = useMutation(
-    tenantKeyQueryKey(tenant),
-    (params: { oldName: string; newKey: TKey }) =>
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [tenantKeyQueryKey(tenant)] });
+      refreshUser();
+    },
+  });
+  const keyUpdateMutation = useMutation({
+    mutationKey: [tenantKeyQueryKey(tenant)],
+
+    mutationFn: (params: { oldName: string; newKey: TKey }) =>
       updateKey(tenant, params.oldName, params.newKey),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(tenantKeyQueryKey(tenant));
-      },
-    }
-  );
-  const keyCreateMutation = useMutation(
-    tenantKeyQueryKey(tenant),
-    (params: { key: TKey; tenant: string }) =>
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [tenantKeyQueryKey(tenant)] });
+    },
+  });
+  const keyCreateMutation = useMutation({
+    mutationKey: [tenantKeyQueryKey(tenant)],
+
+    mutationFn: (params: { key: TKey; tenant: string }) =>
       createKey(params.tenant, params.key),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(tenantKeyQueryKey(tenant));
-      },
-    }
-  );
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [tenantKeyQueryKey(tenant)] });
+    },
+  });
 
   const columns: ColumnDef<TKey>[] = [
     {
@@ -453,18 +457,21 @@ function KeyRightTable(props: { tenant: string; apikey: TKey }) {
   const { tenant, apikey: key } = props;
   const [creating, setCreating] = React.useState(false);
 
-  const keyRightQuery = useQuery(keyUserQueryKey(tenant, key.name), () =>
-    fetchKeyUsers(tenant, key.name)
-  );
+  const keyRightQuery = useQuery({
+    queryKey: [keyUserQueryKey(tenant, key.name)],
 
-  const keyRightUpdateMutation = useMutation(
-    (data: { user: string; right?: TLevel }) =>
+    queryFn: () => fetchKeyUsers(tenant, key.name),
+  });
+
+  const keyRightUpdateMutation = useMutation({
+    mutationFn: (data: { user: string; right?: TLevel }) =>
       updateKeyRightsFor(tenant, key.name, data.user, data.right),
-    {
-      onSuccess: () =>
-        queryClient.invalidateQueries(keyUserQueryKey(tenant, key.name)),
-    }
-  );
+
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: [keyUserQueryKey(tenant, key.name)],
+      }),
+  });
 
   if (keyRightQuery.error) {
     return <div>Failed to retrieve key users</div>;
