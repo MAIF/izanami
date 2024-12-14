@@ -151,7 +151,6 @@ class LoginController(
                           email <- (json \ emailField).asOpt[String]
                         )
                         yield {
-                          val defaultRights = defaultOIDCUserRights.getOrElse(Rights.EMPTY)
                           env.datastores.users
                             .findUser(username)
                             .flatMap(maybeUser =>
@@ -159,8 +158,8 @@ class LoginController(
                                 .fold(
                                   env.datastores.users
                                     .createUser(User(username, email = email, userType = OIDC)
-                                      .withRights(defaultRights))
-                                )(user => Future(Right(user.withRights(defaultRights))))
+                                      .withRights(defaultOIDCUserRights))
+                                )(user => Future(Right(user.withRights(defaultOIDCUserRights))))
                                 .map(either => either.map(_ => username))
                             )
                         }

@@ -596,7 +596,7 @@ function OIDCForm() {
           onSubmit={fetchConfig}
         />
       </Modal>
-      <div className="accordion mt-3" id={`oidc-accordion`}>
+      <div className="accordion accordion-darker mt-3" id={`oidc-accordion`}>
         <div className="accordion-item">
           <h3 className="accordion-header">
             <button
