@@ -51,6 +51,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "guides/audit-logs",
+              "path": "/izanami/docs/guides/audit-logs",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "guides/bulk-feature-modification",
               "path": "/izanami/docs/guides/bulk-feature-modification",
               "sidebar": "tutorialSidebar"

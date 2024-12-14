@@ -33,7 +33,7 @@ export function Menu(props: {
   const [selectedProject, selectProject] = React.useState<string | undefined>();
   const tenantsQuery = useQuery({
     queryKey: [MutationNames.TENANTS],
-    queryFn: () => queryTenants()
+    queryFn: () => queryTenants(),
   });
   const navigate = useNavigate();
   const isAdmin = useAdmin();
@@ -54,7 +54,7 @@ export function Menu(props: {
   const tenantQuery = useQuery({
     queryKey: [tenantQueryKey(tenant!)],
     queryFn: () => queryTenant(tenant!),
-    enabled: !!tenant
+    enabled: !!tenant,
   });
 
   if (tenantsQuery.isSuccess) {
@@ -69,27 +69,33 @@ export function Menu(props: {
       <>
         <ul className="nav flex-column">
           <li className="w-100">
-            <>
+            {tenantsQuery.data.length > 1 || !tenant ? (
+              <>
+                <h3>
+                  <i className="fas fa-cloud" aria-hidden></i> Tenant
+                </h3>
+                <div>
+                  <Select
+                    options={tenantsQuery.data.map((t) => ({
+                      value: t.name,
+                      label: t.name,
+                    }))}
+                    styles={customStyles}
+                    value={tenant ? { value: tenant, label: tenant } : null}
+                    placeholder="Select tenant..."
+                    onChange={(v) => {
+                      selectProject(undefined);
+                      selectTenant(v!.value);
+                      navigate(`/tenants/${v!.value}`);
+                    }}
+                  />
+                </div>
+              </>
+            ) : (
               <h3>
-                <i className="fas fa-cloud" aria-hidden></i> Tenant
+                <i className="fas fa-cloud" aria-hidden></i> {tenant}
               </h3>
-              <div>
-                <Select
-                  options={tenantsQuery.data.map((t) => ({
-                    value: t.name,
-                    label: t.name,
-                  }))}
-                  styles={customStyles}
-                  value={tenant ? { value: tenant, label: tenant } : null}
-                  placeholder="Select tenant..."
-                  onChange={(v) => {
-                    selectProject(undefined);
-                    selectTenant(v!.value);
-                    navigate(`/tenants/${v!.value}`);
-                  }}
-                />
-              </div>
-            </>
+            )}
           </li>
           {tenant && (
             <>

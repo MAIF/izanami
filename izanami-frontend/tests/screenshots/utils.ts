@@ -54,6 +54,7 @@ export async function setup(shouldLogin) {
   const context = await browser.newContext();
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   const page = await context.newPage();
+  page.setViewportSize({ width: 1440, height: 900 });
 
   if (shouldLogin) {
     await login(page);

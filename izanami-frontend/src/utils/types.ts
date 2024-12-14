@@ -1,8 +1,12 @@
 import { isArray } from "lodash";
 
-
-export const featureEventTypeOptions = [{label: "Created", value: "FEATURE_CREATED"}, {label: "Updated", value: "FEATURE_UPDATED"}, {label: "Deleted", value: "FEATURE_DELETED"}] as const;
-export type TFeatureEventTypes = (typeof featureEventTypeOptions)[number]["value"];
+export const featureEventTypeOptions = [
+  { label: "Created", value: "FEATURE_CREATED" },
+  { label: "Updated", value: "FEATURE_UPDATED" },
+  { label: "Deleted", value: "FEATURE_DELETED" },
+] as const;
+export type TFeatureEventTypes =
+  typeof featureEventTypeOptions[number]["value"];
 
 export type ProjectLogSearchQuery = {
   users: string[];
@@ -11,7 +15,7 @@ export type ProjectLogSearchQuery = {
   begin?: Date;
   end?: Date;
   order: "asc" | "desc";
-  total: boolean,
+  total: boolean;
   pageSize: number;
 };
 
@@ -95,7 +99,7 @@ export interface TKey {
 }
 
 export interface TenantType extends TenantInCreationType {
-  id: string;
+  name: string;
   projects?: TenantProjectType[];
   tags?: TagType[];
 }
