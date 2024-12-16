@@ -54,7 +54,6 @@ case class OAuth2Configuration(
     tokenUrl: String,
     authorizeUrl: String,
     scopes: String = "openid profile email name",
-    claims: String = "email name",
     pkce: Option[PKCEConfig] = None,
     nameField: String = "name",
     emailField: String = "email",
@@ -75,7 +74,6 @@ object OAuth2Configuration {
       "authorizeUrl"     -> o.authorizeUrl,
       "tokenUrl"         -> o.tokenUrl,
       "scopes"           -> o.scopes,
-      "claims"           -> o.claims,
       "pkce"             -> o.pkce.map(_.asJson).getOrElse(JsNull).as[JsValue],
       "nameField"        -> o.nameField,
       "emailField"       -> o.emailField,
@@ -99,7 +97,6 @@ object OAuth2Configuration {
         val name = (json \ "name").asOpt[String].getOrElse("")
         val method = (json \ "method").asOpt[String].getOrElse("BASIC")
         val defaultOIDCUserRights = (json \ "defaultOIDCUserRights").asOpt[Rights](User.rightsReads)
-        val claims                = (json \ "claims").asOpt[String].getOrElse("")
         OAuth2Configuration(
           method = method,
           enabled = enabled,
@@ -111,7 +108,6 @@ object OAuth2Configuration {
           nameField = nameField,
           emailField = emailField,
           scopes = scopes,
-          claims = claims,
           pkce = (json \ "pkce").asOpt[PKCEConfig](PKCEConfig._fmt.reads),
           callbackUrl = callbackUrl,
           defaultOIDCUserRights = defaultOIDCUserRights.getOrElse(Rights.EMPTY)
