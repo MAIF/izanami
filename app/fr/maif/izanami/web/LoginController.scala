@@ -2,6 +2,7 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.MissingOIDCConfigurationError
+import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
 import fr.maif.izanami.models.User.userRightsWrites
 import fr.maif.izanami.models.{OAuth2Configuration, OIDC, Rights, User}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -200,14 +201,9 @@ class LoginController(
           .map { resp =>
             val result: Option[OAuth2Configuration] = if (resp.status == 200) {
               val body = Json.parse(resp.body)
-
-              val issuer = (body \ "issuer").asOpt[String];
               val tokenUrl = (body \ "token_endpoint").asOpt[String];
               val authorizeUrl = (body \ "authorization_endpoint").asOpt[String];
 
-              val claims = (body \ "claims_supported")
-                .asOpt[JsArray].map(Json.stringify)
-                .getOrElse("""["email","name"]""")
               val scope = (body \ "scopes_supported")
                 .asOpt[Seq[String]]
                 .map(_.mkString(" "))
@@ -221,7 +217,7 @@ class LoginController(
                 scopes = scope,
                 pkce = None,
                 callbackUrl = s"${env.expositionUrl}/login",
-                method = "BASIC",
+                method = OAuth2BASICMethod,
                 enabled = true
               ).some
             } else {
