@@ -7,8 +7,8 @@ import fr.maif.izanami.datastores._
 import fr.maif.izanami.events.EventService
 import fr.maif.izanami.jobs.WebhookListener
 import fr.maif.izanami.mail.Mails
-import fr.maif.izanami.models.OAuth2Configuration
-import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
+import fr.maif.izanami.models.{OAuth2Configuration, PKCEConfig, User}
+import fr.maif.izanami.models.OAuth2Configuration.{OAuth2BASICMethod, OAuth2MethodReads, OAuth2RawMethodConvert}
 import fr.maif.izanami.security.JwtService
 import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
@@ -111,22 +111,39 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
               clientSecret <- this.configuration.getOptional[String]("app.openid.client-secret");
               authorizeUrl <- this.configuration.getOptional[String]("app.openid.authorize-url");
               tokenUrl <- this.configuration.getOptional[String]("app.openid.token-url");
-              redirectUrl <- this.configuration.getOptional[String]("app.openid.redirect-url");
               usernameField <- this.configuration.getOptional[String]("app.openid.username-field");
               emailField <- this.configuration.getOptional[String]("app.openid.email-field");
-              scopes <- this.configuration.getOptional[String]("app.openid.scopes").map(r => r.replace("\"", ""))
+              scopes <- this.configuration.getOptional[String]("app.openid.scopes").map(_.replace("\"", ""))
             ) yield {
+              val enabled = this.configuration.getOptional[Boolean]("app.openid.enabled").getOrElse(true)
+              val sessionMaxAge = this.configuration.getOptional[String]("app.openid.session-max-age")
+                .map(_.toInt)
+                .getOrElse(86400)
+              val pkceEnabled = this.configuration.getOptional[Boolean]("app.openid.pkce.enabled").getOrElse(false)
+              val pkceAlgorithm = this.configuration.getOptional[String]("app.openid.pkce.algorithm")
+              val method = this.configuration.getOptional[String]("app.openid.method")
+
+              val redirectUrl = this.configuration.getOptional[String]("app.openid.redirect-url")
+              val callbackUrl = this.configuration.getOptional[String]("app.openid.callback-url")
+
               val oauth = OAuth2Configuration(
+                sessionMaxAge = sessionMaxAge,
                 clientId = clientId,
                 clientSecret = clientSecret,
                 authorizeUrl = authorizeUrl,
                 tokenUrl = tokenUrl,
-                callbackUrl = redirectUrl,
+                callbackUrl = redirectUrl.orElse(callbackUrl).getOrElse(""),
                 emailField = emailField,
                 nameField = usernameField,
                 scopes = scopes,
-                method = OAuth2BASICMethod,
-                enabled = true
+                method = OAuth2RawMethodConvert(method.getOrElse("BASIC")),
+                enabled = enabled,
+                pkce = if (pkceEnabled) {
+                  Some(PKCEConfig(enabled = pkceEnabled, algorithm = pkceAlgorithm.getOrElse("S256")))
+                } else {
+                  None
+                },
+//                defaultOIDCUserRights = User.rightWrite.writes()
               )
               datastores.configuration.updateConfiguration(configuration.copy(oidcConfiguration = Some(oauth)))
             }

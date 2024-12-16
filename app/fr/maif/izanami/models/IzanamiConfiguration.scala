@@ -57,19 +57,24 @@ object OAuth2Configuration {
   case object OAuth2POSTMethod extends OAuth2Method
   case object OAuth2BASICMethod extends OAuth2Method
 
-    def OAuth2MethodReads: Reads[OAuth2Method] = json => {
-      json.asOpt[String].map(_.toUpperCase).collect {
-        case "BASIC" => OAuth2BASICMethod
-        case "POST" => OAuth2POSTMethod
-      }
-        .map(JsSuccess(_))
-        .getOrElse(JsError("Failed to parse OAuth2 method"))
+  def OAuth2MethodReads: Reads[OAuth2Method] = json => {
+    json.asOpt[String].map(_.toUpperCase).collect {
+      case "BASIC" => OAuth2BASICMethod
+      case "POST" => OAuth2POSTMethod
     }
+      .map(JsSuccess(_))
+      .getOrElse(JsError("Failed to parse OAuth2 method"))
+  }
 
   def OAuth2MethodWrites: Writes[OAuth2Method] = {
     case OAuth2POSTMethod => JsString("POST")
     case OAuth2BASICMethod => JsString("BASIC")
     case _ => JsNull
+  }
+
+  def OAuth2RawMethodConvert(rawStr: String): OAuth2Method = rawStr match {
+    case "BASIC" => OAuth2BASICMethod
+    case "POST" => OAuth2POSTMethod
   }
 
   val _fmt: Format[OAuth2Configuration] = new Format[OAuth2Configuration] {

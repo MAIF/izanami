@@ -64,23 +64,23 @@ interface FeatureDeleted extends FeatureLogEntryBase {
 
 export type PersonnalAccessToken =
   | {
-      id: string;
-      name: string;
-      expiresAt: Date;
-      expirationTimezone: string;
-      createdAt: Date;
-      username: string;
-      allRights: boolean;
-      rights: TokenTenantRights;
-    }
+    id: string;
+    name: string;
+    expiresAt: Date;
+    expirationTimezone: string;
+    createdAt: Date;
+    username: string;
+    allRights: boolean;
+    rights: TokenTenantRights;
+  }
   | {
-      id: string;
-      name: string;
-      createdAt: Date;
-      username: string;
-      allRights: boolean;
-      rights: TokenTenantRights;
-    };
+    id: string;
+    name: string;
+    createdAt: Date;
+    username: string;
+    allRights: boolean;
+    rights: TokenTenantRights;
+  };
 
 export interface TenantInCreationType {
   name: string;
@@ -268,7 +268,7 @@ interface ClassicalFeatureBase<TypeName extends FeatureTypeName> {
   resultType: TypeName;
 }
 
-interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> {}
+interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> { }
 interface ClassicalStringFeature extends ClassicalFeatureBase<"string"> {
   value: string;
   conditions: TValuedCondition<string>[];
@@ -473,6 +473,7 @@ export interface Configuration {
   anonymousReportingLastAsked: Date;
   mailerConfiguration: MailerConfiguration;
   oidcConfiguration?: OIDCSettings;
+  preventOAuthModification: boolean;
 }
 
 export type MailGunRegion = "EUROPE" | "US";
@@ -522,7 +523,7 @@ export interface TContextOverloadBase<FeatureTypeName> {
 }
 
 export interface TBooleanContextOverload
-  extends TContextOverloadBase<"boolean"> {}
+  extends TContextOverloadBase<"boolean"> { }
 
 export interface TNumberContextOverload extends TContextOverloadBase<"number"> {
   conditions: TValuedCondition<number>[];
@@ -676,14 +677,14 @@ export interface SearchEntityResponse {
 
 export type SearchResult = {
   type:
-    | "feature"
-    | "project"
-    | "key"
-    | "tag"
-    | "script"
-    | "global_context"
-    | "local_context"
-    | "webhook";
+  | "feature"
+  | "project"
+  | "key"
+  | "tag"
+  | "script"
+  | "global_context"
+  | "local_context"
+  | "webhook";
   name: string;
   path: SearchResultPathElement[];
   tenant: string;
