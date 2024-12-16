@@ -24,20 +24,21 @@ object RightLevels extends Enumeration {
 
   def superiorOrEqualLevels(level: RightLevel): Set[Value] =
     level match {
-      case RightLevels.Read  => Set(RightLevels.Read, RightLevels.Write, RightLevels.Admin)
+      case RightLevels.Read => Set(RightLevels.Read, RightLevels.Write, RightLevels.Admin)
       case RightLevels.Write => Set(RightLevels.Write, RightLevels.Admin)
       case RightLevels.Admin => Set(RightLevels.Admin)
     }
 
   implicit def queryStringBindable(implicit
-      stringBinder: QueryStringBindable[String]
-  ): QueryStringBindable[RightLevel] =
+                                   stringBinder: QueryStringBindable[String]
+                                  ): QueryStringBindable[RightLevel] =
     new QueryStringBindable[RightLevel] {
       override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, RightLevel]] = {
         params.get(key).collect { case Seq(s) =>
           RightLevels.values.find(_.toString.equalsIgnoreCase(s)).toRight("Invalid right specified")
         }
       }
+
       override def unbind(key: String, value: RightLevel): String = {
         implicitly[QueryStringBindable[String]].unbind(key, value.toString)
       }
@@ -45,91 +46,97 @@ object RightLevels extends Enumeration {
 }
 
 case class UserInvitation(
-    email: String,
-    rights: Rights = Rights.EMPTY,
-    admin: Boolean = false,
-    id: String = null
-)
+                           email: String,
+                           rights: Rights = Rights.EMPTY,
+                           admin: Boolean = false,
+                           id: String = null
+                         )
 
 case class UserRightsUpdateRequest(
-    rights: Rights = Rights.EMPTY,
-    admin: Option[Boolean] = None
-)
+                                    rights: Rights = Rights.EMPTY,
+                                    admin: Option[Boolean] = None
+                                  )
 
 case class UserInformationUpdateRequest(
-    name: String,
-    email: String,
-    password: String,
-    defaultTenant: Option[String]
-)
+                                         name: String,
+                                         email: String,
+                                         password: String,
+                                         defaultTenant: Option[String]
+                                       )
 
-case class  UserPasswordUpdateRequest(
-    password: String,
-    oldPassword: String
-)
+case class UserPasswordUpdateRequest(
+                                      password: String,
+                                      oldPassword: String
+                                    )
+
 sealed trait UserType
+
 case object INTERNAL extends UserType
+
 case object OTOROSHI extends UserType
-case object OIDC     extends UserType
+
+case object OIDC extends UserType
 
 sealed trait UserTrait {
   val username: String
   val email: String
-  val password: String                           = null
-  val admin: Boolean                             = false
-  val userType: UserType                         = INTERNAL
-  val defaultTenant: Option[String]              = None
-  val legacy: Boolean                            = false
+  val password: String = null
+  val admin: Boolean = false
+  val userType: UserType = INTERNAL
+  val defaultTenant: Option[String] = None
+  val legacy: Boolean = false
+
   def withRights(rights: Rights): UserWithRights =
     UserWithRights(username, email, password, admin, userType, rights, defaultTenant)
 }
 
 case class User(
-    override val username: String,
-    override val email: String = null,
-    override val password: String = null,
-    override val admin: Boolean = false,
-    override val userType: UserType = INTERNAL,
-    override val defaultTenant: Option[String] = None,
-    override val legacy: Boolean = false
-) extends UserTrait {
-  def withSingleLevelRight(level: RightLevel): UserWithSingleLevelRight                                        =
+                 override val username: String,
+                 override val email: String = null,
+                 override val password: String = null,
+                 override val admin: Boolean = false,
+                 override val userType: UserType = INTERNAL,
+                 override val defaultTenant: Option[String] = None,
+                 override val legacy: Boolean = false
+               ) extends UserTrait {
+  def withSingleLevelRight(level: RightLevel): UserWithSingleLevelRight =
     UserWithSingleLevelRight(username, email, password, admin, userType, level, defaultTenant)
+
   def withSingleTenantScopedRightLevel(level: RightLevel, tenantAdmin: Boolean = false): UserWithSingleScopedRight =
     UserWithSingleScopedRight(username, email, password, admin, userType, level, defaultTenant, tenantAdmin)
 }
 
 case class UserWithSingleScopedRight(
-    override val username: String,
-    override val email: String = null,
-    override val password: String = null,
-    override val admin: Boolean = false,
-    override val userType: UserType,
-    right: RightLevel,
-    override val defaultTenant: Option[String] = None,
-    tenantAdmin: Boolean = false
-) extends UserTrait
+                                      override val username: String,
+                                      override val email: String = null,
+                                      override val password: String = null,
+                                      override val admin: Boolean = false,
+                                      override val userType: UserType,
+                                      right: RightLevel,
+                                      override val defaultTenant: Option[String] = None,
+                                      tenantAdmin: Boolean = false
+                                    ) extends UserTrait
 
 case class UserWithSingleLevelRight(
-    override val username: String,
-    override val email: String = null,
-    override val password: String = null,
-    override val admin: Boolean = false,
-    override val userType: UserType,
-    right: RightLevel,
-    override val defaultTenant: Option[String] = None
-) extends UserTrait
+                                     override val username: String,
+                                     override val email: String = null,
+                                     override val password: String = null,
+                                     override val admin: Boolean = false,
+                                     override val userType: UserType,
+                                     right: RightLevel,
+                                     override val defaultTenant: Option[String] = None
+                                   ) extends UserTrait
 
 case class UserWithRights(
-    override val username: String,
-    override val email: String,
-    override val password: String = null,
-    override val admin: Boolean = false,
-    override val userType: UserType,
-    rights: Rights = Rights(tenants = Map()),
-    override val defaultTenant: Option[String] = None,
-    override val legacy: Boolean = false
-) extends UserTrait {
+                           override val username: String,
+                           override val email: String,
+                           override val password: String = null,
+                           override val admin: Boolean = false,
+                           override val userType: UserType,
+                           rights: Rights = Rights(tenants = Map()),
+                           override val defaultTenant: Option[String] = None,
+                           override val legacy: Boolean = false
+                         ) extends UserTrait {
   def hasAdminRightForProject(project: String, tenant: String): Boolean = {
     admin || rights.tenants
       .get(tenant)
@@ -162,24 +169,24 @@ case class UserWithRights(
 }
 
 case class UserWithTenantRights(
-    override val username: String,
-    override val email: String,
-    override val password: String = null,
-    override val admin: Boolean = false,
-    override val userType: UserType,
-    override val defaultTenant: Option[String] = None,
-    tenantRights: Map[String, RightLevel] = Map()
-) extends UserTrait
+                                 override val username: String,
+                                 override val email: String,
+                                 override val password: String = null,
+                                 override val admin: Boolean = false,
+                                 override val userType: UserType,
+                                 override val defaultTenant: Option[String] = None,
+                                 tenantRights: Map[String, RightLevel] = Map()
+                               ) extends UserTrait
 
 case class UserWithCompleteRightForOneTenant(
-    override val username: String,
-    override val email: String,
-    override val password: String = null,
-    override val userType: UserType,
-    override val admin: Boolean = false,
-    override val defaultTenant: Option[String] = None,
-    tenantRight: Option[TenantRight]
-) extends UserTrait {
+                                              override val username: String,
+                                              override val email: String,
+                                              override val password: String = null,
+                                              override val userType: UserType,
+                                              override val admin: Boolean = false,
+                                              override val defaultTenant: Option[String] = None,
+                                              tenantRight: Option[TenantRight]
+                                            ) extends UserTrait {
   def hasRightForProject(project: String, level: RightLevel): Boolean = {
     val maybeTenantAdmin = tenantRight.map(t => t.level == RightLevels.Admin)
 
@@ -196,22 +203,22 @@ case class UserWithCompleteRightForOneTenant(
 case class AtomicRight(level: RightLevel)
 
 case class TenantRight(
-    level: RightLevel,
-    projects: Map[String, AtomicRight] = Map(),
-    keys: Map[String, AtomicRight] = Map(),
-    webhooks: Map[String, AtomicRight] = Map()
-)
+                        level: RightLevel,
+                        projects: Map[String, AtomicRight] = Map(),
+                        keys: Map[String, AtomicRight] = Map(),
+                        webhooks: Map[String, AtomicRight] = Map()
+                      )
 
 case class Rights(tenants: Map[String, TenantRight]) {
   def withTenantRight(name: String, level: RightLevel): Rights = {
     val newTenants =
       if (tenants.contains(name)) tenants + (name -> tenants(name).copy(level = level))
-      else tenants + (name                        -> TenantRight(level = level))
+      else tenants + (name -> TenantRight(level = level))
     copy(tenants = newTenants)
   }
 
   def withProjectRight(name: String, tenant: String, level: RightLevel): Rights = {
-    val newTenants  =
+    val newTenants =
       if (tenants.contains(tenant)) tenants else tenants + (tenant -> TenantRight(level = RightLevels.Read))
     val newProjects = newTenants(tenant).projects + (name -> AtomicRight(level = level))
     copy(tenants = newTenants + (tenant -> newTenants(tenant).copy(projects = newProjects)))
@@ -220,39 +227,68 @@ case class Rights(tenants: Map[String, TenantRight]) {
   def withKeyRight(name: String, tenant: String, level: RightLevel): Rights = {
     val newTenants =
       if (tenants.contains(tenant)) tenants else tenants + (tenant -> TenantRight(level = RightLevels.Read))
-    val newKeys    = newTenants(tenant).keys + (name -> AtomicRight(level = level))
+    val newKeys = newTenants(tenant).keys + (name -> AtomicRight(level = level))
     copy(tenants = newTenants + (tenant -> newTenants(tenant).copy(keys = newKeys)))
+  }
+
+  def removeTenantsRights(tenant: Set[String]): Rights = {
+    copy(tenants = tenants.filter(t => !tenant.contains(t._1)))
+  }
+
+  def removeProjectRights(tenant: String, project: Set[String]): Rights = {
+    tenants.get(tenant).map(t => t.copy(projects = t.projects.filter {
+      case (p, _) => !project.contains(p)
+    })).fold(this)(e => copy(tenants = tenants + (tenant -> e)))
+  }
+
+  def removeKeyRights(tenant: String, keys: Set[String]): Rights = {
+    tenants.get(tenant).map(t => t.copy(keys = t.keys.filter {
+      case (k, _) => !keys.contains(k)
+    })).fold(this)(e => copy(tenants = tenants + (tenant -> e)))
+  }
+
+  def removeWebhookRights(tenant: String, webhooks: Set[String]): Rights = {
+    tenants.get(tenant).map(t => t.copy(webhooks = t.webhooks.filter {
+      case (w, _) => !webhooks.contains(w)
+    })).fold(this)(e => copy(tenants = tenants + (tenant -> e)))
   }
 }
 
 object Rights {
   case class RightDiff(
-      addedTenantRights: Seq[FlattenTenantRight] = Seq(),
-      removedTenantRights: Seq[FlattenTenantRight] = Seq(),
-      addedProjectRights: Map[String, Seq[FlattenProjectRight]] = Map(),
-      removedProjectRights: Map[String, Seq[FlattenProjectRight]] = Map(),
-      addedKeyRights: Map[String, Seq[FlattenKeyRight]] = Map(),
-      removedKeyRights: Map[String, Seq[FlattenKeyRight]] = Map(),
-      addedWebhookRights: Map[String, Seq[FlattenWebhookRight]] = Map(),
-      removedWebhookRights: Map[String, Seq[FlattenWebhookRight]] = Map()
-  )
+                        addedTenantRights: Seq[FlattenTenantRight] = Seq(),
+                        removedTenantRights: Seq[FlattenTenantRight] = Seq(),
+                        addedProjectRights: Map[String, Seq[FlattenProjectRight]] = Map(),
+                        removedProjectRights: Map[String, Seq[FlattenProjectRight]] = Map(),
+                        addedKeyRights: Map[String, Seq[FlattenKeyRight]] = Map(),
+                        removedKeyRights: Map[String, Seq[FlattenKeyRight]] = Map(),
+                        addedWebhookRights: Map[String, Seq[FlattenWebhookRight]] = Map(),
+                        removedWebhookRights: Map[String, Seq[FlattenWebhookRight]] = Map()
+                      )
 
   case class TenantRightDiff(
-      addedTenantRight: Option[FlattenTenantRight] = Option.empty,
-      removedTenantRight: Option[FlattenTenantRight] = Option.empty,
-      addedProjectRights: Set[FlattenProjectRight] = Set(),
-      removedProjectRights: Set[FlattenProjectRight] = Set(),
-      addedKeyRights: Set[FlattenKeyRight] = Set(),
-      removedKeyRights: Set[FlattenKeyRight] = Set(),
-      addedWebhookRights: Set[FlattenWebhookRight] = Set(),
-      removedWebhookRights: Set[FlattenWebhookRight] = Set()
-  )
+                              addedTenantRight: Option[FlattenTenantRight] = Option.empty,
+                              removedTenantRight: Option[FlattenTenantRight] = Option.empty,
+                              addedProjectRights: Set[FlattenProjectRight] = Set(),
+                              removedProjectRights: Set[FlattenProjectRight] = Set(),
+                              addedKeyRights: Set[FlattenKeyRight] = Set(),
+                              removedKeyRights: Set[FlattenKeyRight] = Set(),
+                              addedWebhookRights: Set[FlattenWebhookRight] = Set(),
+                              removedWebhookRights: Set[FlattenWebhookRight] = Set()
+                            )
+
   sealed trait FlattenRight
-  case class FlattenTenantRight(name: String, level: RightLevel)                  extends FlattenRight
+
+  case class FlattenTenantRight(name: String, level: RightLevel) extends FlattenRight
+
   case class FlattenProjectRight(name: String, tenant: String, level: RightLevel) extends FlattenRight
-  case class FlattenKeyRight(name: String, tenant: String, level: RightLevel)     extends FlattenRight
+
+  case class FlattenKeyRight(name: String, tenant: String, level: RightLevel) extends FlattenRight
+
   case class FlattenWebhookRight(name: String, tenant: String, level: RightLevel) extends FlattenRight
+
   val EMPTY: Rights = Rights(tenants = Map())
+
   // TODO refactor me
   def compare(tenantName: String, base: Option[TenantRight], modified: Option[TenantRight]): Option[TenantRightDiff] = {
     def flattenProjects(tenantRight: TenantRight): Set[FlattenProjectRight] = {
@@ -274,7 +310,7 @@ object Rights {
     }
 
     (base, modified) match {
-      case (None, None)                 => None
+      case (None, None) => None
       case (Some(existingRights), None) =>
         Some(
           TenantRightDiff(
@@ -284,7 +320,7 @@ object Rights {
             removedWebhookRights = flattenWebhooks(existingRights)
           )
         )
-      case (None, Some(newRights))      =>
+      case (None, Some(newRights)) =>
         Some(
           TenantRightDiff(
             addedTenantRight = Some(FlattenTenantRight(name = tenantName, level = newRights.level)),
@@ -293,8 +329,8 @@ object Rights {
             addedWebhookRights = flattenWebhooks(newRights)
           )
         )
-      case (Some(oldR @ TenantRight(oldLevel, _, _, _)), Some(newR @ TenantRight(newLevel, _, _, _)))
-          if oldLevel != newLevel => {
+      case (Some(oldR@TenantRight(oldLevel, _, _, _)), Some(newR@TenantRight(newLevel, _, _, _)))
+        if oldLevel != newLevel => {
         Some(
           TenantRightDiff(
             addedTenantRight = Some(FlattenTenantRight(name = tenantName, level = newLevel)),
@@ -308,7 +344,7 @@ object Rights {
           )
         )
       }
-      case (Some(oldR), Some(newR))     => {
+      case (Some(oldR), Some(newR)) => {
         Some(
           TenantRightDiff(
             addedProjectRights = flattenProjects(newR).diff(flattenProjects(oldR)),
@@ -325,11 +361,11 @@ object Rights {
 
   def compare(base: Rights, modified: Rights): RightDiff = {
     def extractFlattenRights(
-        rights: Rights
-    ): (Set[FlattenTenantRight], Set[FlattenProjectRight], Set[FlattenKeyRight], Set[FlattenWebhookRight]) = {
-      val tenants  = ArrayBuffer[FlattenTenantRight]()
+                              rights: Rights
+                            ): (Set[FlattenTenantRight], Set[FlattenProjectRight], Set[FlattenKeyRight], Set[FlattenWebhookRight]) = {
+      val tenants = ArrayBuffer[FlattenTenantRight]()
       val projects = ArrayBuffer[FlattenProjectRight]()
-      val keys     = ArrayBuffer[FlattenKeyRight]()
+      val keys = ArrayBuffer[FlattenKeyRight]()
       val webhooks = ArrayBuffer[FlattenWebhookRight]()
       rights.tenants.foreach {
         case (tenantName, tenantRights) => {
@@ -355,7 +391,7 @@ object Rights {
     }
 
     val (baseTenantRights, baseProjectRights, baseKeyRights, basedWebhookRights) = extractFlattenRights(base)
-    val (newTenantRights, newProjectRights, newKeyRights, newWebhookRights)      = extractFlattenRights(modified)
+    val (newTenantRights, newProjectRights, newKeyRights, newWebhookRights) = extractFlattenRights(modified)
 
     RightDiff(
       addedTenantRights = newTenantRights.diff(baseTenantRights).toSeq,
@@ -381,7 +417,7 @@ object User {
       .getOrElse(JsError(s"${json} is not a correct right level"))
   }
 
-  implicit val rightReads: Reads[AtomicRight]   = Json.reads[AtomicRight]
+  implicit val rightReads: Reads[AtomicRight] = Json.reads[AtomicRight]
   implicit val rightWrites: Writes[AtomicRight] = Json.writes[AtomicRight]
 
   implicit val tenantRightReads: Reads[TenantRight] = (
@@ -389,16 +425,16 @@ object User {
       (__ \ "projects").readWithDefault[Map[String, AtomicRight]](Map()) and
       (__ \ "keys").readWithDefault[Map[String, AtomicRight]](Map()) and
       (__ \ "webhooks").readWithDefault[Map[String, AtomicRight]](Map())
-  )(TenantRight.apply _)
+    )(TenantRight.apply _)
 
   implicit val rightsReads: Reads[Rights] =
     (__ \ "tenants").readWithDefault[Map[String, TenantRight]](Map()).map(Rights.apply)
 
   implicit val tenantRightWrite: Writes[TenantRight] = { tenantRight =>
     Json.obj(
-      "level"    -> tenantRight.level.toString,
+      "level" -> tenantRight.level.toString,
       "projects" -> tenantRight.projects,
-      "keys"     -> tenantRight.keys,
+      "keys" -> tenantRight.keys,
       "webhooks" -> tenantRight.webhooks
     )
   }
@@ -411,61 +447,59 @@ object User {
       (__ \ "password").read[String].filter(name => PASSWORD_REGEXP.pattern.matcher(name).matches()) and
       (__ \ "admin").readWithDefault[Boolean](false) and
       (__ \ "defaultTenant").readNullable[String]
-  )((username, email, password, admin, defaultTenant) =>
+    )((username, email, password, admin, defaultTenant) =>
     User(username = username, email = email, password = password, admin = admin, defaultTenant = defaultTenant)
   )
 
   implicit val userWithRightsReads: Reads[UserWithRights] = (
     userReads and
       (__ \ "rights").readWithDefault[Rights](Rights(tenants = Map()))
-  )((user, rights) => user.withRights(rights))
+    )((user, rights) => user.withRights(rights))
 
   implicit val userWrites: Writes[User] = { user =>
     Json.obj(
-      "username"      -> user.username,
-      "email"         -> user.email,
-      "userType"      -> user.userType.toString,
-      "admin"         -> user.admin,
+      "username" -> user.username,
+      "email" -> user.email,
+      "userType" -> user.userType.toString,
+      "admin" -> user.admin,
       "defaultTenant" -> user.defaultTenant
     )
   }
 
-  implicit val userWithTenantRightWrites: Writes[UserWithSingleLevelRight] = { user =>
-    {
-      Json
-        .obj(
-          "username"      -> user.username,
-          "email"         -> user.email,
-          "userType"      -> user.userType.toString,
-          "admin"         -> user.admin,
-          "defaultTenant" -> user.defaultTenant
-        )
-        .applyOnWithOpt(Option(user.right)) { (json, right) => json ++ Json.obj("right" -> right) }
-    }
+  implicit val userWithTenantRightWrites: Writes[UserWithSingleLevelRight] = { user => {
+    Json
+      .obj(
+        "username" -> user.username,
+        "email" -> user.email,
+        "userType" -> user.userType.toString,
+        "admin" -> user.admin,
+        "defaultTenant" -> user.defaultTenant
+      )
+      .applyOnWithOpt(Option(user.right)) { (json, right) => json ++ Json.obj("right" -> right) }
+  }
   }
 
-  implicit val userWithSingleProjectRightWrites: Writes[UserWithSingleScopedRight] = { user =>
-    {
-      Json
-        .obj(
-          "username"      -> user.username,
-          "email"         -> user.email,
-          "userType"      -> user.userType.toString,
-          "admin"         -> user.admin,
-          "defaultTenant" -> user.defaultTenant,
-          "tenantAdmin"   -> user.tenantAdmin
-        )
-        .applyOnWithOpt(Option(user.right)) { (json, right) => json ++ Json.obj("right" -> right) }
-    }
+  implicit val userWithSingleProjectRightWrites: Writes[UserWithSingleScopedRight] = { user => {
+    Json
+      .obj(
+        "username" -> user.username,
+        "email" -> user.email,
+        "userType" -> user.userType.toString,
+        "admin" -> user.admin,
+        "defaultTenant" -> user.defaultTenant,
+        "tenantAdmin" -> user.tenantAdmin
+      )
+      .applyOnWithOpt(Option(user.right)) { (json, right) => json ++ Json.obj("right" -> right) }
+  }
   }
 
   implicit val userRightsWrites: Writes[UserWithRights] = { user =>
     Json.obj(
-      "username"      -> user.username,
-      "admin"         -> user.admin,
-      "rights"        -> user.rights,
-      "email"         -> user.email,
-      "userType"      -> user.userType,
+      "username" -> user.username,
+      "admin" -> user.admin,
+      "rights" -> user.rights,
+      "email" -> user.email,
+      "userType" -> user.userType,
       "defaultTenant" -> user.defaultTenant
     )
   }
@@ -474,8 +508,8 @@ object User {
     (json.asOpt[String].map(_.toUpperCase) flatMap {
       case "OTOROSHI" => OTOROSHI.some
       case "INTERNAL" => INTERNAL.some
-      case "OIDC"     => OIDC.some
-      case _          => None
+      case "OIDC" => OIDC.some
+      case _ => None
     }).map(JsSuccess(_)).getOrElse(JsError(s"Unknown user type ${json}"))
   }
 

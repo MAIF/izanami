@@ -69,6 +69,38 @@ services:
                 "ValueType": "string"
               }
             ]
+          },
+          {
+            "SubjectId":"2",
+            "Username":"User2",
+            "Password":"pwd",
+            "Claims": [
+              {
+                "Type": "name",
+                "Value": "Sam Tailor2",
+                "ValueType": "string"
+              },
+              {
+                "Type": "email",
+                "Value": "sam.tailor2@gmail.com",
+                "ValueType": "string"
+              },
+              {
+                "Type": "some-api-resource-claim",
+                "Value": "Sam's Api Resource Custom Claim",
+                "ValueType": "string"
+              },
+              {
+                "Type": "some-api-scope-claim",
+                "Value": "Sam's Api Scope Custom Claim",
+                "ValueType": "string"
+              },
+              {
+                "Type": "some-identity-resource-claim",
+                "Value": "Sam's Identity Resource Custom Claim",
+                "ValueType": "string"
+              }
+            ]
           }
         ]
       CLIENTS_CONFIGURATION_INLINE: |

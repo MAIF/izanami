@@ -119,7 +119,7 @@ class LoginController(
                   "redirect_uri" -> callbackUrl
                 )
 
-            if (method == "BASIC") {
+            if (method == OAuth2BASICMethod) {
               builder = builder
                 .withAuth(clientId, clientSecret, WSAuthScheme.BASIC)
             } else {
@@ -150,17 +150,20 @@ class LoginController(
                           email <- (json \ emailField).asOpt[String]
                         )
                         yield {
-                          env.datastores.users
-                            .findUser(username)
-                            .flatMap(maybeUser =>
-                              maybeUser
-                                .fold(
-                                  env.datastores.users
-                                    .createUser(User(username, email = email, userType = OIDC)
-                                      .withRights(defaultOIDCUserRights))
-                                )(user => Future(Right(user.withRights(defaultOIDCUserRights))))
-                                .map(either => either.map(_ => username))
-                            )
+                          env.datastores.configuration.updateOIDCDefaultRightIfNeeded(defaultOIDCUserRights)
+                            .flatMap(rs => {
+                              env.datastores.users
+                                .findUser(username)
+                                .flatMap(maybeUser =>
+                                  maybeUser
+                                    .fold(
+                                      env.datastores.users
+                                        .createUser(User(username, email = email, userType = OIDC)
+                                          .withRights(rs))
+                                    )(user => Future(Right(user.withRights(rs))))
+                                    .map(either => either.map(_ => username))
+                                )
+                            })
                         }
                       })
                       .getOrElse(Future(Left(InternalServerError(Json.obj("message" -> "Failed to read token claims")))))
