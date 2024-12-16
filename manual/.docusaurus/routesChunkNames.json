@@ -5,17 +5,17 @@
       "plugin": "1457b77c"
     }
   },
-  "/izanami/docs-a35": {
+  "/izanami/docs-61f": {
     "__comp": "5e95c892",
     "__context": {
       "plugin": "1ad66b9e"
     }
   },
-  "/izanami/docs-36d": {
+  "/izanami/docs-682": {
     "__comp": "a7bd4aaa",
     "version": "935f2afb"
   },
-  "/izanami/docs-f8a": {
+  "/izanami/docs-133": {
     "__comp": "a94703ab"
   },
   "/izanami/docs/clients/-7b7": {
@@ -53,6 +53,10 @@
   "/izanami/docs/guides/-7c0": {
     "__comp": "17896441",
     "content": "2e7f27e2"
+  },
+  "/izanami/docs/guides/audit-logs-9cf": {
+    "__comp": "17896441",
+    "content": "049f028b"
   },
   "/izanami/docs/guides/bulk-feature-modification-f37": {
     "__comp": "17896441",

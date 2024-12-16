@@ -177,6 +177,13 @@
             "href": "/izanami/docs/guides/personnal-access-tokens",
             "docId": "guides/personnal-access-tokens",
             "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Audit logs",
+            "href": "/izanami/docs/guides/audit-logs",
+            "docId": "guides/audit-logs",
+            "unlisted": false
           }
         ],
         "href": "/izanami/docs/guides/"
@@ -276,6 +283,12 @@
       "id": "getstarted/index",
       "title": "Get started",
       "description": "This guide will help you to:",
+      "sidebar": "tutorialSidebar"
+    },
+    "guides/audit-logs": {
+      "id": "guides/audit-logs",
+      "title": "Audit logs",
+      "description": "Sometimes it's helpful to see what happened to a flag to understand why a feature was activated / deactivated.",
       "sidebar": "tutorialSidebar"
     },
     "guides/bulk-feature-modification": {
