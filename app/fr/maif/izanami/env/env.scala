@@ -8,6 +8,7 @@ import fr.maif.izanami.events.EventService
 import fr.maif.izanami.jobs.WebhookListener
 import fr.maif.izanami.mail.Mails
 import fr.maif.izanami.models.OAuth2Configuration
+import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
 import fr.maif.izanami.security.JwtService
 import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
@@ -124,7 +125,7 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
                 emailField = emailField,
                 nameField = usernameField,
                 scopes = scopes,
-                method = "Basic",
+                method = OAuth2BASICMethod,
                 enabled = true
               )
               datastores.configuration.updateConfiguration(configuration.copy(oidcConfiguration = Some(oauth)))

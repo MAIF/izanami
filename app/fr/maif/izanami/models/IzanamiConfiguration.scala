@@ -4,6 +4,7 @@ import fr.maif.izanami.mail.MailGunRegions.MailGunRegion
 import fr.maif.izanami.mail.MailerTypes.{MailJet, MailerType, SMTP}
 import fr.maif.izanami.mail.{MailProviderConfiguration, _}
 import fr.maif.izanami.models.InvitationMode.InvitationMode
+import fr.maif.izanami.models.OAuth2Configuration.OAuth2Method
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.Reads.instantReads
@@ -11,17 +12,6 @@ import play.api.libs.json._
 
 import java.time.Instant
 import java.time.format.DateTimeFormatter
-
-case class OIDCConfiguration(
-    clientId: String,
-    clientSecret: String,
-    authorizeUrl: String,
-    tokenUrl: String,
-    redirectUrl: String,
-    usernameField: String,
-    emailField: String,
-    scopes: Set[String]
-)
 
 case class PKCEConfig(enabled: Boolean = false, algorithm: String = "S256") {
   def asJson: JsValue = {
@@ -47,7 +37,7 @@ object PKCEConfig {
 
 case class OAuth2Configuration(
     enabled: Boolean,
-    method: String = "POST",
+    method: OAuth2Method,
     sessionMaxAge: Int = 86400,
     clientId: String,
     clientSecret: String,
@@ -63,11 +53,30 @@ case class OAuth2Configuration(
 
 object OAuth2Configuration {
 
+  sealed trait OAuth2Method
+  case object OAuth2POSTMethod extends OAuth2Method
+  case object OAuth2BASICMethod extends OAuth2Method
+
+    def OAuth2MethodReads: Reads[OAuth2Method] = json => {
+      json.asOpt[String].map(_.toUpperCase).collect {
+        case "BASIC" => OAuth2BASICMethod
+        case "POST" => OAuth2POSTMethod
+      }
+        .map(JsSuccess(_))
+        .getOrElse(JsError("Failed to parse OAuth2 method"))
+    }
+
+  def OAuth2MethodWrites: Writes[OAuth2Method] = {
+    case OAuth2POSTMethod => JsString("POST")
+    case OAuth2BASICMethod => JsString("BASIC")
+    case _ => JsNull
+  }
+
   val _fmt: Format[OAuth2Configuration] = new Format[OAuth2Configuration] {
 
     override def writes(o: OAuth2Configuration): JsObject = Json.obj(
       "enabled"          -> o.enabled,
-      "method"           -> o.method,
+      "method"           -> Json.toJson(o.method)(OAuth2MethodWrites),
       "sessionMaxAge"    -> o.sessionMaxAge,
       "clientId"         -> o.clientId,
       "clientSecret"     -> o.clientSecret,
@@ -92,10 +101,10 @@ object OAuth2Configuration {
         emailField            <- (json \ "emailField").asOpt[String];
         scopes                <- (json \ "scopes").asOpt[String];
         callbackUrl           <- (json \ "callbackUrl")
-          .asOpt[String]
+          .asOpt[String];
+        method <- (json \ "method").asOpt[OAuth2Method](OAuth2MethodReads)
       ) yield {
-        val name = (json \ "name").asOpt[String].getOrElse("")
-        val method = (json \ "method").asOpt[String].getOrElse("BASIC")
+
         val defaultOIDCUserRights = (json \ "defaultOIDCUserRights").asOpt[Rights](User.rightsReads)
         OAuth2Configuration(
           method = method,

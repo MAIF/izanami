@@ -10,7 +10,7 @@ import fr.maif.izanami.mail.MailerTypes.MailerType
 import fr.maif.izanami.mail._
 import fr.maif.izanami.models.InvitationMode.InvitationMode
 import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTPConfigurationWrites, mailGunConfigurationReads, mailJetConfigurationReads}
-import fr.maif.izanami.models.{FullIzanamiConfiguration, InvitationMode, IzanamiConfiguration, OAuth2Configuration, OIDCConfiguration, Rights, User}
+import fr.maif.izanami.models.{FullIzanamiConfiguration, InvitationMode, IzanamiConfiguration, OAuth2Configuration, Rights, User}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
