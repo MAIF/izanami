@@ -547,6 +547,7 @@ function OIDCForm() {
     register,
     formState: { errors },
     setValue,
+    getValues,
     control,
     watch,
   } = useFormContext<Configuration>();
@@ -554,12 +555,11 @@ function OIDCForm() {
   const fetchConfig = ({ oidcUrl }: { oidcUrl: string }) => {
     return fetchOpenIdConnectConfiguration(oidcUrl)
       .then((result) => {
-        const { method, authorizeUrl, callbackUrl, claims, scopes, tokenUrl } =
+        const { method, authorizeUrl, callbackUrl, scopes, tokenUrl } =
           result as any;
 
         setValue("oidcConfiguration.authorizeUrl", authorizeUrl);
         setValue("oidcConfiguration.callbackUrl", callbackUrl);
-        setValue("oidcConfiguration.claims", claims);
         setValue("oidcConfiguration.scopes", scopes);
         setValue("oidcConfiguration.tokenUrl", tokenUrl);
         setValue("oidcConfiguration.method", method);
@@ -576,6 +576,9 @@ function OIDCForm() {
 
   const isOIDCEnabled = watch("oidcConfiguration.enabled");
   const isPKCEEnabled = watch("oidcConfiguration.pkce.enabled");
+
+  const preventOAuthModification = getValues('preventOAuthModification')
+
   return (
     <>
       <Modal
@@ -590,7 +593,7 @@ function OIDCForm() {
               label: "URL of the OIDC config",
               type: "string",
               defaultValue:
-                "https://accounts.google.com/.well-known/openid-configuration",
+                "https://identity-provider-tenant.eu.auth0.com/.well-known/openid-configuration",
             },
           }}
           onSubmit={fetchConfig}
@@ -619,264 +622,270 @@ function OIDCForm() {
             id="oidc-accordion-collapse"
           >
             <div className="accordion-body">
-              <div className="row mt-3">
-                <label>
-                  Enable OIDC authentication
-                  <input
-                    type="checkbox"
-                    className="izanami-checkbox"
-                    {...register("oidcConfiguration.enabled")}
-                  />
-                </label>
-              </div>
-              {isOIDCEnabled && (
-                <>
-                  <div className="row mt-3">
-                    <div>
-                      <button
-                        type="button"
-                        className="btn btn-success me-2"
-                        onClick={() => setOIDCModal({ visible: true })}
-                      >
-                        Read OIDC config from URL
-                      </button>
+              {preventOAuthModification && <p className="error-message">
+                T'as mis des vars d'envs mon grand, faut pas s'attendre à ce que tu puisses les modifier ici mon reuf!
+              </p>}
+              <fieldset disabled={preventOAuthModification}>
+                <div className="row mt-3">
+                  <label>
+                    Enable OIDC authentication
+                    <input
+                      disabled={preventOAuthModification}
+                      type="checkbox"
+                      className="izanami-checkbox"
+                      {...register("oidcConfiguration.enabled")}
+                    />
+                  </label>
+                </div>
+                {isOIDCEnabled && (
+                  <>
+                    <div className="row mt-3">
+                      <div>
+                        <button
+                          type="button"
+                          className="btn btn-success me-2"
+                          onClick={() => setOIDCModal({ visible: true })}
+                        >
+                          Read OIDC config from URL
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="row mt-3">
-                    <label>
-                      Method
-                      <Controller
-                        name="oidcConfiguration.method"
-                        control={control}
-                        rules={{
-                          required: "PKCE algorithm is required",
-                        }}
-                        render={({ field }) => (
-                          <Select
-                            value={OIDC_METHOD_OPTIONS.find(
-                              ({ value }) => value === field.value
-                            )}
-                            onChange={(e) => {
-                              field.onChange(e?.value);
-                            }}
-                            styles={customStyles}
-                            options={OIDC_METHOD_OPTIONS}
-                          />
-                        )}
-                      />
-                    </label>
-                    <ErrorMessage
-                      errors={errors}
-                      name="oidcConfiguration.method"
-                    />
-                  </div>
-                  <div className="row mt-3">
-                    <label>
-                      Client ID
-                      <input
-                        type="text"
-                        className="form-control"
-                        {...register("oidcConfiguration.clientId", {
-                          required: "Client id is required",
-                        })}
-                      />
-                    </label>
-                    <ErrorMessage
-                      errors={errors}
-                      name="oidcConfiguration.clientId"
-                    />
-                  </div>
-                  <div className="row mt-3">
-                    <label>
-                      Client Secret
-                      <input
-                        type="text"
-                        className="form-control"
-                        {...register("oidcConfiguration.clientSecret", {
-                          required: "Client secret is required",
-                        })}
-                      />
-                    </label>
-                    <ErrorMessage
-                      errors={errors}
-                      name="oidcConfiguration.clientSecret"
-                    />
-                  </div>
-                  <div className="row mt-3">
-                    <label>
-                      Token URL
-                      <input
-                        type="text"
-                        className="form-control"
-                        {...register("oidcConfiguration.tokenUrl", {
-                          required: "Token URL is required",
-                        })}
-                      />
-                    </label>
-                    <ErrorMessage
-                      errors={errors}
-                      name="oidcConfiguration.tokenUrl"
-                    />
-                  </div>
-                  <div className="row mt-3">
-                    <label>
-                      Authorize URL
-                      <input
-                        type="text"
-                        className="form-control"
-                        {...register("oidcConfiguration.authorizeUrl", {
-                          required: "Authorize URL is required",
-                        })}
-                      />
-                    </label>
-                    <ErrorMessage
-                      errors={errors}
-                      name="oidcConfiguration.authorizeUrl"
-                    />
-                  </div>
-                  <div className="row mt-3">
-                    <label>
-                      Scopes
-                      <Tooltip id="oidc-scopes">
-                        Space separated list of scopes
-                      </Tooltip>
-                      <input
-                        type="text"
-                        className="form-control"
-                        {...register("oidcConfiguration.scopes", {
-                          required: "Scopes are required",
-                        })}
-                      />
-                    </label>
-                    <ErrorMessage
-                      errors={errors}
-                      name="oidcConfiguration.scopes"
-                    />
-                  </div>
-                  <div className="row mt-3">
-                    <label>
-                      Name field name
-                      <input
-                        type="text"
-                        className="form-control"
-                        {...register("oidcConfiguration.nameField", {
-                          required: "Name field is required",
-                        })}
-                      />
-                    </label>
-                    <ErrorMessage
-                      errors={errors}
-                      name="oidcConfiguration.nameField"
-                    />
-                  </div>
-                  <div className="row mt-3">
-                    <label>
-                      Email field name
-                      <input
-                        type="text"
-                        className="form-control"
-                        {...register("oidcConfiguration.emailField", {
-                          required: "Email field is required",
-                        })}
-                      />
-                    </label>
-                    <ErrorMessage
-                      errors={errors}
-                      name="oidcConfiguration.emailField"
-                    />
-                  </div>
-                  <div className="row mt-3">
-                    <label>
-                      Callback URL
-                      <input
-                        type="text"
-                        className="form-control"
-                        {...register("oidcConfiguration.callbackUrl", {
-                          required: "Callback url is required",
-                        })}
-                      />
-                    </label>
-                    <ErrorMessage
-                      errors={errors}
-                      name="oidcConfiguration.callbackUrl"
-                    />
-                  </div>
-                  <div className="row mt-3">
-                    <label>
-                      Use PKCE flow
-                      <input
-                        type="checkbox"
-                        className="izanami-checkbox"
-                        {...register("oidcConfiguration.pkce.enabled")}
-                      />
-                    </label>
-                  </div>
-                  {isPKCEEnabled && (
                     <div className="row mt-3">
                       <label>
-                        PKCE Algorithm
+                        Method
                         <Controller
-                          name="oidcConfiguration.pkce.algorithm"
+                          name="oidcConfiguration.method"
                           control={control}
                           rules={{
                             required: "PKCE algorithm is required",
                           }}
                           render={({ field }) => (
                             <Select
-                              value={PKCE_ALGORITHM_OPTIONS.find(
+                              value={OIDC_METHOD_OPTIONS.find(
                                 ({ value }) => value === field.value
                               )}
                               onChange={(e) => {
                                 field.onChange(e?.value);
                               }}
                               styles={customStyles}
-                              options={PKCE_ALGORITHM_OPTIONS}
+                              options={OIDC_METHOD_OPTIONS}
                             />
                           )}
                         />
                       </label>
                       <ErrorMessage
                         errors={errors}
-                        name="oidcConfiguration.pkce.algorithm"
+                        name="oidcConfiguration.method"
                       />
                     </div>
-                  )}
-                  <div className="row mt-3">
-                    <label>
-                      Session max age
-                      <input
-                        type="number"
-                        className="form-control"
-                        {...register("oidcConfiguration.sessionMaxAge", {
-                          required: "Session max age is required",
-                        })}
+                    <div className="row mt-3">
+                      <label>
+                        Client ID
+                        <input
+                          type="text"
+                          className="form-control"
+                          {...register("oidcConfiguration.clientId", {
+                            required: "Client id is required",
+                          })}
+                        />
+                      </label>
+                      <ErrorMessage
+                        errors={errors}
+                        name="oidcConfiguration.clientId"
                       />
-                    </label>
-                    <ErrorMessage
-                      errors={errors}
-                      name="oidcConfiguration.sessionMaxAge"
-                    />
-                  </div>
-                  <div className="row mt-3">
-                    <label>OIDC default rights</label>
-                    <Controller
-                      name="oidcConfiguration.defaultOIDCUserRights"
-                      control={control}
-                      render={({ field }) => {
-                        return (
-                          <RightSelector
-                            defaultValue={field?.value}
-                            tenantLevelFilter="Admin"
-                            onChange={(v) => {
-                              field?.onChange(v);
+                    </div>
+                    <div className="row mt-3">
+                      <label>
+                        Client Secret
+                        <input
+                          type="text"
+                          className="form-control"
+                          {...register("oidcConfiguration.clientSecret", {
+                            required: "Client secret is required",
+                          })}
+                        />
+                      </label>
+                      <ErrorMessage
+                        errors={errors}
+                        name="oidcConfiguration.clientSecret"
+                      />
+                    </div>
+                    <div className="row mt-3">
+                      <label>
+                        Token URL
+                        <input
+                          type="text"
+                          className="form-control"
+                          {...register("oidcConfiguration.tokenUrl", {
+                            required: "Token URL is required",
+                          })}
+                        />
+                      </label>
+                      <ErrorMessage
+                        errors={errors}
+                        name="oidcConfiguration.tokenUrl"
+                      />
+                    </div>
+                    <div className="row mt-3">
+                      <label>
+                        Authorize URL
+                        <input
+                          type="text"
+                          className="form-control"
+                          {...register("oidcConfiguration.authorizeUrl", {
+                            required: "Authorize URL is required",
+                          })}
+                        />
+                      </label>
+                      <ErrorMessage
+                        errors={errors}
+                        name="oidcConfiguration.authorizeUrl"
+                      />
+                    </div>
+                    <div className="row mt-3">
+                      <label>
+                        Scopes
+                        <Tooltip id="oidc-scopes">
+                          Space separated list of scopes
+                        </Tooltip>
+                        <input
+                          type="text"
+                          className="form-control"
+                          {...register("oidcConfiguration.scopes", {
+                            required: "Scopes are required",
+                          })}
+                        />
+                      </label>
+                      <ErrorMessage
+                        errors={errors}
+                        name="oidcConfiguration.scopes"
+                      />
+                    </div>
+                    <div className="row mt-3">
+                      <label>
+                        Name field name
+                        <input
+                          type="text"
+                          className="form-control"
+                          {...register("oidcConfiguration.nameField", {
+                            required: "Name field is required",
+                          })}
+                        />
+                      </label>
+                      <ErrorMessage
+                        errors={errors}
+                        name="oidcConfiguration.nameField"
+                      />
+                    </div>
+                    <div className="row mt-3">
+                      <label>
+                        Email field name
+                        <input
+                          type="text"
+                          className="form-control"
+                          {...register("oidcConfiguration.emailField", {
+                            required: "Email field is required",
+                          })}
+                        />
+                      </label>
+                      <ErrorMessage
+                        errors={errors}
+                        name="oidcConfiguration.emailField"
+                      />
+                    </div>
+                    <div className="row mt-3">
+                      <label>
+                        Callback URL
+                        <input
+                          type="text"
+                          className="form-control"
+                          {...register("oidcConfiguration.callbackUrl", {
+                            required: "Callback url is required",
+                          })}
+                        />
+                      </label>
+                      <ErrorMessage
+                        errors={errors}
+                        name="oidcConfiguration.callbackUrl"
+                      />
+                    </div>
+                    <div className="row mt-3">
+                      <label>
+                        Use PKCE flow
+                        <input
+                          type="checkbox"
+                          className="izanami-checkbox"
+                          {...register("oidcConfiguration.pkce.enabled")}
+                        />
+                      </label>
+                    </div>
+                    {isPKCEEnabled && (
+                      <div className="row mt-3">
+                        <label>
+                          PKCE Algorithm
+                          <Controller
+                            name="oidcConfiguration.pkce.algorithm"
+                            control={control}
+                            rules={{
+                              required: "PKCE algorithm is required",
                             }}
+                            render={({ field }) => (
+                              <Select
+                                value={PKCE_ALGORITHM_OPTIONS.find(
+                                  ({ value }) => value === field.value
+                                )}
+                                onChange={(e) => {
+                                  field.onChange(e?.value);
+                                }}
+                                styles={customStyles}
+                                options={PKCE_ALGORITHM_OPTIONS}
+                              />
+                            )}
                           />
-                        );
-                      }}
-                    />
-                  </div>
-                </>
-              )}
+                        </label>
+                        <ErrorMessage
+                          errors={errors}
+                          name="oidcConfiguration.pkce.algorithm"
+                        />
+                      </div>
+                    )}
+                    <div className="row mt-3">
+                      <label>
+                        Session max age
+                        <input
+                          type="number"
+                          className="form-control"
+                          {...register("oidcConfiguration.sessionMaxAge", {
+                            required: "Session max age is required",
+                          })}
+                        />
+                      </label>
+                      <ErrorMessage
+                        errors={errors}
+                        name="oidcConfiguration.sessionMaxAge"
+                      />
+                    </div>
+                    <div className="row mt-3">
+                      <label>OIDC default rights</label>
+                      <Controller
+                        name="oidcConfiguration.defaultOIDCUserRights"
+                        control={control}
+                        render={({ field }) => {
+                          return (
+                            <RightSelector
+                              defaultValue={field?.value}
+                              tenantLevelFilter="Admin"
+                              onChange={(v) => {
+                                field?.onChange(v);
+                              }}
+                            />
+                          );
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+              </fieldset>
             </div>
           </div>
         </div>

@@ -7,7 +7,7 @@ import fr.maif.izanami.mail.{ConsoleMailProvider, MailGunMailProvider, MailJetMa
 import fr.maif.izanami.models.{FullIzanamiConfiguration, IzanamiConfiguration}
 import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationWrites, mailGunConfigurationWrite, mailJetConfigurationWrites, mailerReads}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.libs.json.{JsError, JsObject, JsString, JsSuccess, JsValue, Json}
+import play.api.libs.json.{JsBoolean, JsError, JsObject, JsString, JsSuccess, JsValue, Json}
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -35,14 +35,27 @@ class ConfigurationController(
   }
 
   def readConfiguration(): Action[AnyContent] = adminAuthAction.async { implicit request: UserNameRequest[AnyContent] =>
+    val isEnvOpenIdDefined = for(
+      _ <- env.configuration.getOptional[String]("app.openid.client-id");
+      _ <- env.configuration.getOptional[String]("app.openid.client-secret");
+      _ <- env.configuration.getOptional[String]("app.openid.authorize-url");
+      _ <- env.configuration.getOptional[String]("app.openid.token-url");
+      _ <- env.configuration.getOptional[String]("app.openid.username-field");
+      _ <- env.configuration.getOptional[String]("app.openid.email-field");
+      _ <- env.configuration.getOptional[String]("app.openid.scopes").map(_.replace("\"", ""))
+    ) yield true
+
+    val preventOAuthModification = JsBoolean(isEnvOpenIdDefined.isDefined)
+
     env.datastores.configuration
       .readFullConfiguration()
       .map {
         case Left(error)          => error.toHttpResponse
-        case Right(configuration) => {
-          val configurationWithVersion:JsObject = (Json.toJson(configuration)(IzanamiConfiguration.fullConfigurationWrites).as[JsObject]) + ("version" -> JsString(BuildInfo.version))
+        case Right(configuration) =>
+          val configurationWithVersion:JsObject = Json.toJson(configuration)(IzanamiConfiguration.fullConfigurationWrites).as[JsObject] +
+            ("version" -> JsString(BuildInfo.version)) +
+            ("preventOAuthModification" -> preventOAuthModification)
           Ok(configurationWithVersion)
-        }
       }
   }
 
@@ -60,7 +73,7 @@ class ConfigurationController(
         case Right(c:FullIzanamiConfiguration) => {
           Ok(Json.obj(
             "wasmo" -> isWasmPresent,
-            "oidc" -> c.oidcConfiguration.isDefined
+            "oidc" -> c.oidcConfiguration.exists(_.enabled)
           ))
         }
       }
