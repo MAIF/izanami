@@ -709,7 +709,6 @@ export interface OIDCSettings {
   authorizeUrl: string;
   loginUrl: string;
   scopes: string;
-  claims: string;
   pkce?: PKCEConfig;
   nameField: string;
   emailField: string;

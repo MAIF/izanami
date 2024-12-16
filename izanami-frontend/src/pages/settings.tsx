@@ -803,22 +803,6 @@ function OIDCForm() {
                   </div>
                   <div className="row mt-3">
                     <label>
-                      Claims
-                      <input
-                        type="text"
-                        className="form-control"
-                        {...register("oidcConfiguration.claims", {
-                          required: "Claims are required",
-                        })}
-                      />
-                    </label>
-                    <ErrorMessage
-                      errors={errors}
-                      name="oidcConfiguration.claims"
-                    />
-                  </div>
-                  <div className="row mt-3">
-                    <label>
                       Use PKCE flow
                       <input
                         type="checkbox"
