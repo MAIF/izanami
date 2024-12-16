@@ -106,6 +106,7 @@ export function Project({
                   .then(() => setCreating(false));
               }}
               cancel={() => setCreating(false)}
+              displayId={true}
             />
           </div>
         )}

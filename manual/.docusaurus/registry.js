@@ -1,4 +1,5 @@
 export default {
+  "049f028b": [() => import(/* webpackChunkName: "049f028b" */ "@site/docs/04-guides/17-audit-logs.mdx"), "@site/docs/04-guides/17-audit-logs.mdx", require.resolveWeak("@site/docs/04-guides/17-audit-logs.mdx")],
   "0f98d465": [() => import(/* webpackChunkName: "0f98d465" */ "@site/v1/18-tutorials/index.mdx"), "@site/v1/18-tutorials/index.mdx", require.resolveWeak("@site/v1/18-tutorials/index.mdx")],
   "12625af8": [() => import(/* webpackChunkName: "12625af8" */ "@site/v1/13-keys.mdx"), "@site/v1/13-keys.mdx", require.resolveWeak("@site/v1/13-keys.mdx")],
   "144ae2b5": [() => import(/* webpackChunkName: "144ae2b5" */ "@site/v1/10-configs/01-ui.mdx"), "@site/v1/10-configs/01-ui.mdx", require.resolveWeak("@site/v1/10-configs/01-ui.mdx")],

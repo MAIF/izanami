@@ -9,15 +9,15 @@ export default [
   },
   {
     path: '/izanami/docs',
-    component: ComponentCreator('/izanami/docs', 'a35'),
+    component: ComponentCreator('/izanami/docs', '61f'),
     routes: [
       {
         path: '/izanami/docs',
-        component: ComponentCreator('/izanami/docs', '36d'),
+        component: ComponentCreator('/izanami/docs', '682'),
         routes: [
           {
             path: '/izanami/docs',
-            component: ComponentCreator('/izanami/docs', 'f8a'),
+            component: ComponentCreator('/izanami/docs', '133'),
             routes: [
               {
                 path: '/izanami/docs/clients/',
@@ -70,6 +70,12 @@ export default [
               {
                 path: '/izanami/docs/guides/',
                 component: ComponentCreator('/izanami/docs/guides/', '7c0'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/izanami/docs/guides/audit-logs',
+                component: ComponentCreator('/izanami/docs/guides/audit-logs', '9cf'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

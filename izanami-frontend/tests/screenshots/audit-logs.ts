@@ -60,7 +60,8 @@ export async function generate() {
 
   await screenshot("natural-language-diff");
   await page.getByLabel("Display JSON diff").click();
-  await page.getByRole("heading", { name: "Before" }).scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "Close" }).scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollBy(0, -230));
   await screenshot("json-diff");
 
   await page.getByRole("button", { name: "Close" }).click();
@@ -70,4 +71,4 @@ export async function generate() {
   await screenshot("search-form");
 }
 
-generate();
+//generate();

@@ -341,7 +341,7 @@ function LegacyFeatureForm(props: {
 
   const tagQuery = useQuery({
     queryKey: [tagsQueryKey(tenant!)],
-    queryFn: () => queryTags(tenant!)
+    queryFn: () => queryTags(tenant!),
   });
 
   const strategy = watch("activationStrategy");
@@ -801,6 +801,7 @@ export function FeatureForm(props: {
   submit: (overload: TCompleteFeature) => void;
   defaultValue?: TLightFeature;
   additionalFields?: () => JSX.Element;
+  displayId?: Boolean;
 }) {
   const { tenant } = useParams();
   const { defaultValue, submit, ...rest } = props;
@@ -808,7 +809,7 @@ export function FeatureForm(props: {
   const completeFeatureQuery = useQuery({
     queryKey: [defaultValue ? JSON.stringify(defaultValue) : ""],
     queryFn: () => toCompleteFeature(tenant!, defaultValue!),
-    enabled: !!defaultValue
+    enabled: !!defaultValue,
   });
 
   const [legacy, setLegacy] = useState<boolean>(
@@ -947,17 +948,20 @@ export function V2FeatureForm(props: {
   submit: (overload: TCompleteFeature) => void;
   defaultValue?: TCompleteFeature;
   additionalFields?: () => JSX.Element;
+  displayId?: Boolean;
 }) {
   const { cancel, submit, defaultValue, additionalFields } = props;
   const methods = useForm<TCompleteFeature>({
     defaultValues: { resultType: "boolean", ...defaultValue },
   });
   const { tenant } = useParams();
+  const canDisplayId = Boolean(props.displayId);
   const isWasm = defaultValue && isWasmFeature(defaultValue);
   const [type, setType] = useState(isWasm ? "Existing WASM script" : "Classic");
+  const [idFieldDisplayed, setIdFieldDisplayed] = useState<Boolean>(false);
   const tagQuery = useQuery({
     queryKey: [tagsQueryKey(tenant!)],
-    queryFn: () => queryTags(tenant!)
+    queryFn: () => queryTags(tenant!),
   });
 
   const {
@@ -1131,6 +1135,40 @@ export function V2FeatureForm(props: {
                 {...register("enabled")}
               />
             </label>
+            {canDisplayId && (
+              <>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-secondary"
+                    onClick={() => {
+                      setIdFieldDisplayed((curr) => !curr);
+                    }}
+                  >
+                    {idFieldDisplayed ? "Hide ID" : "Custom ID"}
+                  </button>
+                </div>
+                {idFieldDisplayed && (
+                  <div className="mt-3">
+                    <label className="col-12">
+                      ID
+                      <Tooltip id="custom-id">
+                        It's generally better to let Izanami generate ID.
+                        <br />
+                        However if you absolutely need to set feature ID,
+                        <br />
+                        you can use this field.
+                      </Tooltip>
+                      <input
+                        className="form-control"
+                        type="text"
+                        {...register("id")}
+                      />
+                    </label>
+                  </div>
+                )}
+              </>
+            )}
             {additionalFields && additionalFields()}
             <div className="row">
               <label className="mt-3 col-6">

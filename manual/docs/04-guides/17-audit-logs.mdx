@@ -1,0 +1,48 @@
+---
+title: Audit logs
+---
+
+import jsonDiff from "@site/static/img/screenshots/audit-logs/json-diff.png";
+import logTable from "@site/static/img/screenshots/audit-logs/log-table.png";
+import naturalLanguage from "@site/static/img/screenshots/audit-logs/natural-language-diff.png";
+import searchForm from "@site/static/img/screenshots/audit-logs/search-form.png";
+
+import { Note } from "@site/src/components/Note";
+
+
+Sometimes it's helpful to see what happened to a flag to understand why a feature was activated / deactivated.
+
+To help diagnose such cases, Izanami offers an audit log on projects. Each user action that modifies a feature activation strategy (update, deletion, reimport,...) creates an entry in this log.
+
+<Note>Audit log for features are available from Izanmi 2.7.0</Note>
+
+
+# Project audit log
+
+Project "log" view displays all actions made on this project features.
+
+<img src={logTable} />
+
+For "Created" and "Updated" events, details can be seen by using the row action button.
+
+<img src={naturalLanguage} />
+
+Details can either be displayed in natural language (as above) or in JSON format (see below).
+
+<img src={jsonDiff} />
+
+Page top section allows filtering displayed actions based on several criteria, such as action type, user, feature, ...
+
+<img src={searchForm} />
+
+<Note>
+When using search, current criteria will be stored in URL.<br/>
+Therefore, you can easily share search results by sharing the current URL.
+</Note>
+
+You can search actions concerning deleting users / flags by typing their usernames / IDs directly in search form selects.
+
+## Log retention
+
+Audit log retention duration is configured by the [app.audit.events-hours-ttl parameter](./configuration#audit) parameter.
+Event older that indicated retention will be discarded and therefore won't be visible from audit log pages.

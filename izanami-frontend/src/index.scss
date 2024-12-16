@@ -303,3 +303,10 @@ input[type="time"] {
 .log-result-count {
   color: var(--color_level3);
 }
+
+table .cm-merge-theme {
+  max-width: 73vw;
+  @media screen and (max-width: $screen-lg) {
+    max-width: 85vw;
+  }
+}
