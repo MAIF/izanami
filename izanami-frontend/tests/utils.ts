@@ -108,7 +108,7 @@ export const cleanup = async () => {
   );
   promises.push(
     client.query(
-      "UPDATE izanami.configuration SET mailer='CONSOLE', invitation_mode='RESPONSE', anonymous_reporting_date=NOW()"
+      "UPDATE izanami.configuration SET mailer='CONSOLE', invitation_mode='RESPONSE', anonymous_reporting_date=NOW(), oidc_configuration=jsonb_set(oidc_configuration, '{defaultOIDCUserRights}', 'null')"
     )
   );
 

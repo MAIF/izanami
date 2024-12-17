@@ -601,7 +601,7 @@ function ProjectSelector(props: {
         {creating && (
           <div className="my-2">
             <ItemSelector
-              label="${tenant} new project"
+              label={`${tenant} new project`}
               choices={availableProjects}
               userRight={TLevel.Read}
               onItemChange={(project) => {
