@@ -77,7 +77,7 @@ input[readonly] {
 }
 
 form .error-message {
-  border: 1px solid red;
+  border: 1px solid var(--color-red);
   color: var(--color_level2);
   flex-grow: 0;
   align-self: flex-start;

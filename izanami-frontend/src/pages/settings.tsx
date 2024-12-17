@@ -1,34 +1,26 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import queryClient from "../queryClient";
-import { string } from "yup";
 import { JsonViewer } from "@textea/json-viewer";
 import { Modal } from "../components/Modal";
 import Select from "react-select";
-import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 
 import {
-  mailerQueryKey,
   MutationNames,
   queryStats,
   queryConfiguration,
-  queryMailerConfiguration,
   updateConfiguration,
-  updateMailerConfiguration,
   fetchOpenIdConnectConfiguration,
 } from "../utils/queries";
-import { Configuration, MailGunRegion } from "../utils/types";
+import { Configuration } from "../utils/types";
 import { customStyles } from "../styles/reactSelect";
-import { constraints } from "@maif/react-forms";
 import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
 import {
   RightSelector,
   rightStateArrayToBackendMap,
-  State,
 } from "../components/RightSelector";
-import { config } from "process";
 import {
   Controller,
   FormProvider,
@@ -599,6 +591,50 @@ function OIDCForm() {
           onSubmit={fetchConfig}
         />
       </Modal>
+
+      <h2 className="mt-3">OIDC</h2>
+
+      <div className="accordion accordion-darker mt-3" id={`oidc-accordion`}>
+        <div className="accordion-item">
+          <h3 className="accordion-header">
+            <button
+              className="accordion-button collapsed"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#default-oidc-rights-accordion-collapse"
+              aria-expanded="true"
+              aria-controls="default-oidc-rights-accordion-collapse"
+            >
+              Default rights
+              &nbsp;
+              <ErrorMessage errors={errors} name="oidcConfiguration" />
+            </button>
+          </h3>
+          <div
+            className="accordion-collapse collapse p-3"
+            aria-labelledby="headingOne"
+            data-bs-parent="#oidc-accordion"
+            id="default-oidc-rights-accordion-collapse"
+          >
+            <Controller
+              name="oidcConfiguration.defaultOIDCUserRights"
+              control={control}
+              render={({ field }) => {
+                return (
+                  <RightSelector
+                    defaultValue={field?.value}
+                    tenantLevelFilter="Admin"
+                    onChange={(v) => {
+                      field?.onChange(v);
+                    }}
+                  />
+                );
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="accordion accordion-darker mt-3" id={`oidc-accordion`}>
         <div className="accordion-item">
           <h3 className="accordion-header">
@@ -610,7 +646,7 @@ function OIDCForm() {
               aria-expanded="true"
               aria-controls="oidc-accordion-collapse"
             >
-              OIDC {isOIDCEnabled ? "[ENABLED]" : "[DISABLED]"}
+              Configuration {isOIDCEnabled ? "[ENABLED]" : "[DISABLED]"}
               &nbsp;
               <ErrorMessage errors={errors} name="oidcConfiguration" />
             </button>
@@ -622,11 +658,12 @@ function OIDCForm() {
             id="oidc-accordion-collapse"
           >
             <div className="accordion-body">
-              {preventOAuthModification && <p className="error-message">
-                T'as mis des vars d'envs mon grand, faut pas s'attendre à ce que tu puisses les modifier ici mon reuf!
+              {preventOAuthModification && <p className="error-message d-flex align-items-center gap-2">
+                <i className="fas fa-warning" />
+                The configuration is loaded from your environment variables and cannot be edited until you remove them.
               </p>}
               <fieldset disabled={preventOAuthModification}>
-                <div className="row mt-3">
+                <div className="row">
                   <label>
                     Enable OIDC authentication
                     <input
@@ -863,24 +900,6 @@ function OIDCForm() {
                       <ErrorMessage
                         errors={errors}
                         name="oidcConfiguration.sessionMaxAge"
-                      />
-                    </div>
-                    <div className="row mt-3">
-                      <label>OIDC default rights</label>
-                      <Controller
-                        name="oidcConfiguration.defaultOIDCUserRights"
-                        control={control}
-                        render={({ field }) => {
-                          return (
-                            <RightSelector
-                              defaultValue={field?.value}
-                              tenantLevelFilter="Admin"
-                              onChange={(v) => {
-                                field?.onChange(v);
-                              }}
-                            />
-                          );
-                        }}
                       />
                     </div>
                   </>
