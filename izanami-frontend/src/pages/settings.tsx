@@ -58,17 +58,29 @@ type StatsResultStatus =
   | { state: "PENDING" }
   | { state: "INITIAL" };
 
+type FormConfiguration = Omit<
+  Configuration,
+  "version" | "anonymousReportingLastAsked" | "preventOAuthModification"
+>;
+
+type UpdateConfiguration = Omit<
+  Configuration,
+  "version" | "preventOAuthModification"
+>;
+
 export function Settings() {
   const configurationQuery = useQuery({
     queryKey: [MutationNames.CONFIGURATION],
     queryFn: () => queryConfiguration(),
   });
   const configurationMutationQuery = useMutation({
-    mutationFn: (data: Omit<Configuration, "version">) =>
-      updateConfiguration(data),
+    mutationFn: (data: UpdateConfiguration) => updateConfiguration(data),
   });
 
-  const updateSettings = (current: Configuration, newValue: Configuration) => {
+  const updateSettings = (
+    current: Configuration,
+    newValue: FormConfiguration
+  ) => {
     const wasAnonymousReportingDisabled =
       !newValue.anonymousReporting && current.anonymousReporting;
 
@@ -85,14 +97,18 @@ export function Settings() {
         anonymousReportingLastAsked: wasAnonymousReportingDisabled
           ? new Date()
           : current.anonymousReportingLastAsked,
-        oidcConfiguration: {
-          ...(newValue.oidcConfiguration || {}),
-          defaultOIDCUserRights: backendRights,
-        },
+        oidcConfiguration: newValue.oidcConfiguration
+          ? {
+              ...newValue.oidcConfiguration,
+              defaultOIDCUserRights: backendRights,
+            }
+          : undefined,
         mailerConfiguration: newValue.mailerConfiguration,
       })
       .then(() => {
-        queryClient.invalidateQueries(MutationNames.CONFIGURATION);
+        queryClient.invalidateQueries({
+          queryKey: [MutationNames.CONFIGURATION],
+        });
       });
   };
 
@@ -129,7 +145,7 @@ const INVITATION_MODE_OPTIONS = [
 
 function ConfigurationForm(props: {
   configuration: Configuration;
-  onSubmit: (conf: Configuration) => void;
+  onSubmit: (conf: FormConfiguration) => void;
 }) {
   const [resultStats, setResultStats] = useState<StatsResultStatus>({
     state: "INITIAL",
