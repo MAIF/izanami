@@ -27,7 +27,10 @@ class ConfigurationController(
     {
       IzanamiConfiguration.fullConfigurationReads.reads(request.body) match {
         case JsSuccess(configuration, _path) => {
-          env.datastores.configuration.updateConfiguration(configuration).map(_ => NoContent)
+          configuration.oidcConfiguration.map(_.defaultOIDCUserRights).fold(Future.successful(configuration))(r => {
+            env.datastores.configuration.updateOIDCDefaultRightIfNeeded(r)
+              .map(newRigths => configuration.copy(oidcConfiguration = configuration.oidcConfiguration.map(c => c.copy(defaultOIDCUserRights = newRigths))))
+          }).flatMap(conf => env.datastores.configuration.updateConfiguration(conf).map(_ => NoContent))
         }
         case JsError(_)                     => BadBodyFormat().toHttpResponse.future
       }
