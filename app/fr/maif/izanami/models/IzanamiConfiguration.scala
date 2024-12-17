@@ -38,7 +38,6 @@ object PKCEConfig {
 case class OAuth2Configuration(
     enabled: Boolean,
     method: OAuth2Method,
-    sessionMaxAge: Int = 86400,
     clientId: String,
     clientSecret: String,
     tokenUrl: String,
@@ -82,7 +81,6 @@ object OAuth2Configuration {
     override def writes(o: OAuth2Configuration): JsObject = Json.obj(
       "enabled"          -> o.enabled,
       "method"           -> Json.toJson(o.method)(OAuth2MethodWrites),
-      "sessionMaxAge"    -> o.sessionMaxAge,
       "clientId"         -> o.clientId,
       "clientSecret"     -> o.clientSecret,
       "authorizeUrl"     -> o.authorizeUrl,
@@ -114,7 +112,6 @@ object OAuth2Configuration {
         OAuth2Configuration(
           method = method,
           enabled = enabled,
-          sessionMaxAge = (json \ "sessionMaxAge").asOpt[Int].getOrElse(86400),
           clientId = clientId,
           clientSecret = clientSecret,
           authorizeUrl = authorizeUrl,

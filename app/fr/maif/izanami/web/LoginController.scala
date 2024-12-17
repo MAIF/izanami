@@ -50,7 +50,6 @@ class LoginController(
       case Some(OAuth2Configuration(
         enabled,
         method,
-        _sessionMaxAge,
         clientId,
         _clientSecret,
         _tokenUrl,
@@ -98,7 +97,6 @@ class LoginController(
             val OAuth2Configuration(
               _enabled,
               method,
-              _sessionMaxAge,
               clientId,
               clientSecret,
               tokenUrl,

@@ -4,7 +4,7 @@ import buildinfo.BuildInfo
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.BadBodyFormat
 import fr.maif.izanami.mail.{ConsoleMailProvider, MailGunMailProvider, MailJetMailProvider, MailerTypes, SMTPMailProvider}
-import fr.maif.izanami.models.{FullIzanamiConfiguration, IzanamiConfiguration}
+import fr.maif.izanami.models.{FullIzanamiConfiguration, IzanamiConfiguration, Rights}
 import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationWrites, mailGunConfigurationWrite, mailJetConfigurationWrites, mailerReads}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.{JsBoolean, JsError, JsObject, JsString, JsSuccess, JsValue, Json}
@@ -25,31 +25,41 @@ class ConfigurationController(
   } }
 
   def updateConfiguration(): Action[JsValue] = adminAuthAction.async(parse.json) { implicit request =>
-    {
-      IzanamiConfiguration.fullConfigurationReads.reads(request.body) match {
-        case JsSuccess(configuration, _path) => {
-          configuration.oidcConfiguration.map(_.defaultOIDCUserRights).fold(Future.successful(configuration))(r => {
-            env.datastores.configuration.updateOIDCDefaultRightIfNeeded(r)
-              .map(newRigths => configuration.copy(oidcConfiguration = configuration.oidcConfiguration.map(c => c.copy(defaultOIDCUserRights = newRigths))))
-          }).flatMap(conf => env.datastores.configuration.updateConfiguration(conf).map(_ => NoContent))
+      {
+        IzanamiConfiguration.fullConfigurationReads.reads(request.body) match {
+          case JsError(_) => BadBodyFormat().toHttpResponse.future
+          case JsSuccess(configurationFromBody, _path) =>
+            configurationFromBody.oidcConfiguration
+              .map(_.defaultOIDCUserRights)
+              .fold(Future.successful(configurationFromBody))(r => {
+                env.datastores.configuration.updateOIDCDefaultRightIfNeeded(r)
+                  .map(newRigths => configurationFromBody
+                    .copy(oidcConfiguration = configurationFromBody.oidcConfiguration.map(c => c.copy(defaultOIDCUserRights = newRigths))))
+              })
+              .flatMap(configurationWithUpdatedRights => {
+                (if (env.isConfigurationEditable) {
+                  Some(configurationWithUpdatedRights).future
+                } else {
+                  env.datastores.configuration.readFullConfiguration().map {
+                    case Right(configuration)
+                      if configurationWithUpdatedRights.oidcConfiguration.exists(_.defaultOIDCUserRights != Rights.EMPTY) =>
+                      Some(configuration.copy(oidcConfiguration =
+                        configurationWithUpdatedRights.oidcConfiguration
+                          .map(c => c.copy(defaultOIDCUserRights = configurationWithUpdatedRights.oidcConfiguration.get.defaultOIDCUserRights))))
+                    case _ => None
+                  }
+                })
+                  .flatMap {
+                    case Some(newConf) => env.datastores.configuration.updateConfiguration(newConf).map(_ => NoContent)
+                    case None => BadRequest(Json.obj("message" -> "invalid configuration update request")).future
+                  }
+              })
         }
-        case JsError(_)                     => BadBodyFormat().toHttpResponse.future
-      }
     }
   }
 
-  def isConfigurationEditable(): Boolean = (for(
-    _ <- env.configuration.getOptional[String]("app.openid.client-id");
-    _ <- env.configuration.getOptional[String]("app.openid.client-secret");
-    _ <- env.configuration.getOptional[String]("app.openid.authorize-url");
-    _ <- env.configuration.getOptional[String]("app.openid.token-url");
-    _ <- env.configuration.getOptional[String]("app.openid.username-field");
-    _ <- env.configuration.getOptional[String]("app.openid.email-field");
-    _ <- env.configuration.getOptional[String]("app.openid.scopes").map(_.replace("\"", ""))
-  ) yield true).isDefined
-
   def readConfiguration(): Action[AnyContent] = adminAuthAction.async { implicit request: UserNameRequest[AnyContent] =>
-    val preventOAuthModification = JsBoolean(isConfigurationEditable())
+    val preventOAuthModification = JsBoolean(!env.isConfigurationEditable)
 
     env.datastores.configuration
       .readFullConfiguration()

@@ -703,7 +703,6 @@ export interface PKCEConfig {
 export interface OIDCSettings {
   method: "BASIC" | "POST";
   enabled: boolean;
-  sessionMaxAge: number;
   clientId: string;
   clientSecret: string;
   tokenUrl: string;

@@ -48,8 +48,12 @@ header .nav-link {
   border-radius: 10px;
   padding: 20px;
   margin-bottom: 12px;
+}
+
+.fieldset-form fieldset:disabled {
   opacity: .5;
 }
+
 .item-block {
   display: flex;
   flex-direction: column;
