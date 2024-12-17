@@ -14,7 +14,7 @@ test.use({
 });
 
 test.describe("Global settings page should", () => {
-  test("allow to update oidc rights", async ({ page, tenantName }) => {
+  test("allow to update oidc rights", async ({ page, tenantName, browser }) => {
     const secondTenantName = `${tenantName}2`;
     const situation = await testBuilder()
       .withTenant(
@@ -224,5 +224,21 @@ test.describe("Global settings page should", () => {
     await expect(
       page.getByText(`Project rights for ${tenantName}2`)
     ).toBeHidden();
+
+    const page1 = await (await browser.newContext()).newPage();
+    await page1.goto("http://localhost:3000/login");
+    await page1.getByRole("button", { name: "OpenId connect" }).click();
+    await expect(page1).toHaveURL(/http:\/\/localhost:9001\/Account\/Login.*/);
+    await page1.getByLabel("Username").fill("User1");
+    await page1.getByLabel("Password").fill("pwd");
+    await page1.getByRole("button", { name: "Login" }).click();
+
+    await expect(
+      page1.getByRole("button", { name: "Sam Tailor" })
+    ).toBeVisible();
+
+    await expect(
+      page1.getByRole("link", { name: "project", exact: true })
+    ).toBeVisible();
   });
 });
