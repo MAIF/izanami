@@ -20,9 +20,10 @@ class ConfigurationController(
   implicit val ec: ExecutionContext = env.executionContext;
 
 
-  def readStats(): Action[AnyContent] = adminAuthAction.async { implicit request => {
+  def readStats(): Action[AnyContent] = adminAuthAction.async { implicit _ => {
     env.datastores.stats.retrieveStats().map(Ok(_))
   } }
+
   def updateConfiguration(): Action[JsValue] = adminAuthAction.async(parse.json) { implicit request =>
     {
       IzanamiConfiguration.fullConfigurationReads.reads(request.body) match {
@@ -37,18 +38,18 @@ class ConfigurationController(
     }
   }
 
-  def readConfiguration(): Action[AnyContent] = adminAuthAction.async { implicit request: UserNameRequest[AnyContent] =>
-    val isEnvOpenIdDefined = for(
-      _ <- env.configuration.getOptional[String]("app.openid.client-id");
-      _ <- env.configuration.getOptional[String]("app.openid.client-secret");
-      _ <- env.configuration.getOptional[String]("app.openid.authorize-url");
-      _ <- env.configuration.getOptional[String]("app.openid.token-url");
-      _ <- env.configuration.getOptional[String]("app.openid.username-field");
-      _ <- env.configuration.getOptional[String]("app.openid.email-field");
-      _ <- env.configuration.getOptional[String]("app.openid.scopes").map(_.replace("\"", ""))
-    ) yield true
+  def isConfigurationEditable(): Boolean = (for(
+    _ <- env.configuration.getOptional[String]("app.openid.client-id");
+    _ <- env.configuration.getOptional[String]("app.openid.client-secret");
+    _ <- env.configuration.getOptional[String]("app.openid.authorize-url");
+    _ <- env.configuration.getOptional[String]("app.openid.token-url");
+    _ <- env.configuration.getOptional[String]("app.openid.username-field");
+    _ <- env.configuration.getOptional[String]("app.openid.email-field");
+    _ <- env.configuration.getOptional[String]("app.openid.scopes").map(_.replace("\"", ""))
+  ) yield true).isDefined
 
-    val preventOAuthModification = JsBoolean(isEnvOpenIdDefined.isDefined)
+  def readConfiguration(): Action[AnyContent] = adminAuthAction.async { implicit request: UserNameRequest[AnyContent] =>
+    val preventOAuthModification = JsBoolean(isConfigurationEditable())
 
     env.datastores.configuration
       .readFullConfiguration()
