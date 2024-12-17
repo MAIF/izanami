@@ -379,7 +379,7 @@ export function RightSelector(props: {
     if (defaultValue) {
       dispatch({ type: EventType.SetupState, rights: defaultValue });
     }
-  }, []);
+  }, [defaultValue]);
   React.useEffect(() => {
     if (isValid(state)) {
       onChange(state);
@@ -388,7 +388,8 @@ export function RightSelector(props: {
 
   const selectedTenants = state.map(({ name }) => name);
   const [creating, setCreating] = useState(
-    selectedTenants.length === 0 && !defaultValue
+    //selectedTenants.length === 0 && !defaultValue
+    false
   );
 
   const { user } = useContext(IzanamiContext);
@@ -405,7 +406,6 @@ export function RightSelector(props: {
       : tenants.filter((item) => {
           return !selectedTenants.includes(item);
         });
-
     return (
       <div>
         <>
@@ -523,9 +523,7 @@ export function RightSelector(props: {
             >
               {props.tenant
                 ? `Add specific ${props.tenant} right`
-                : selectedTenants?.length > 0
-                ? "Add another tenant"
-                : "Add tenant"}
+                : "Add tenant right"}
             </button>
           )}
       </div>
