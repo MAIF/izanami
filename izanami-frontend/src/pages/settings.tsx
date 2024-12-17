@@ -69,14 +69,9 @@ export function Settings() {
   });
 
   const updateSettings = (current: Configuration, newValue: Configuration) => {
-    console.log("newValue", newValue);
     const wasAnonymousReportingDisabled =
       !newValue.anonymousReporting && current.anonymousReporting;
 
-    console.log(
-      "newValue.oidcConfiguration?.defaultOIDCUserRights",
-      newValue.oidcConfiguration?.defaultOIDCUserRights
-    );
     const newDefaultRights = newValue.oidcConfiguration?.defaultOIDCUserRights;
     const backendRights = rightStateArrayToBackendMap(
       Array.isArray(newDefaultRights) ? newDefaultRights : []
@@ -145,7 +140,7 @@ function ConfigurationForm(props: {
     oidcConfiguration: {
       scopes: "email profile",
       usernameField: "name",
-      emailField: "email"
+      emailField: "email",
     },
   };
 
@@ -178,7 +173,6 @@ function ConfigurationForm(props: {
             .isValidSync(data.originEmail);
           if (data.originEmail && !isEmailValid) {
             valid = false;
-            console.log("invalid email");
             setError("originEmail", {
               type: "string",
               message: "Invalid email",
@@ -568,7 +562,7 @@ function OIDCForm() {
   const isOIDCEnabled = watch("oidcConfiguration.enabled");
   const isPKCEEnabled = watch("oidcConfiguration.pkce.enabled");
 
-  const preventOAuthModification = getValues('preventOAuthModification')
+  const preventOAuthModification = getValues("preventOAuthModification");
 
   return (
     <>
@@ -604,7 +598,12 @@ function OIDCForm() {
               aria-expanded="true"
               aria-controls="oidc-accordion-collapse"
             >
-              Configuration <span className={`badge rounded-pill text-bg-${isOIDCEnabled ? 'success' : 'danger'} ms-2`}>
+              Configuration{" "}
+              <span
+                className={`badge rounded-pill text-bg-${
+                  isOIDCEnabled ? "success" : "danger"
+                } ms-2`}
+              >
                 {isOIDCEnabled ? "ENABLED" : "DISABLED"}
               </span>
               &nbsp;
@@ -618,10 +617,13 @@ function OIDCForm() {
             id="oidc-accordion-collapse"
           >
             <div className="accordion-body">
-              {preventOAuthModification && <p className="error-message d-flex align-items-center gap-2">
-                <i className="fas fa-warning" />
-                The configuration is loaded from your environment variables and cannot be edited until you remove them.
-              </p>}
+              {preventOAuthModification && (
+                <p className="error-message d-flex align-items-center gap-2">
+                  <i className="fas fa-warning" />
+                  The configuration is loaded from your environment variables
+                  and cannot be edited until you remove them.
+                </p>
+              )}
               <fieldset disabled={preventOAuthModification}>
                 <div className="row">
                   <label>
@@ -864,8 +866,7 @@ function OIDCForm() {
               aria-expanded="true"
               aria-controls="default-oidc-rights-accordion-collapse"
             >
-              Default rights
-              &nbsp;
+              Default rights &nbsp;
               <ErrorMessage errors={errors} name="oidcConfiguration" />
             </button>
           </h3>
