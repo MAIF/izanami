@@ -2,7 +2,7 @@ package fr.maif.izanami.web
 
 import buildinfo.BuildInfo
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.BadBodyFormat
+import fr.maif.izanami.errors.{BadBodyFormat, IzanamiError}
 import fr.maif.izanami.mail.{ConsoleMailProvider, MailGunMailProvider, MailJetMailProvider, MailerTypes, SMTPMailProvider}
 import fr.maif.izanami.models.{FullIzanamiConfiguration, IzanamiConfiguration, Rights}
 import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationWrites, mailGunConfigurationWrite, mailJetConfigurationWrites, mailerReads}
@@ -24,42 +24,53 @@ class ConfigurationController(
     env.datastores.stats.retrieveStats().map(Ok(_))
   } }
 
+  private def hasOIDCConfChangedExceptDefaultRights(
+     bodyConfig: FullIzanamiConfiguration,
+     updatedRightsConfig: FullIzanamiConfiguration
+  ): Future[Either[IzanamiError, Boolean]] = {
+
+    env.datastores.configuration.readFullConfiguration().map(either => either.map(oldConfig => {
+      val oldOidcConfigWithoutRights = oldConfig.oidcConfiguration.map(c => c.copy(defaultOIDCUserRights = null))
+      val bodyConfigOidcConfigWithoutRights = bodyConfig.oidcConfiguration.map(c => c.copy(defaultOIDCUserRights = null))
+      val updatedRightsConfigOidcConfigWithoutRights = updatedRightsConfig.oidcConfiguration.map(c => c.copy(defaultOIDCUserRights = null))
+
+      !(oldOidcConfigWithoutRights == bodyConfigOidcConfigWithoutRights ||
+        oldOidcConfigWithoutRights == updatedRightsConfigOidcConfigWithoutRights)
+    }))
+  }
+
   def updateConfiguration(): Action[JsValue] = adminAuthAction.async(parse.json) { implicit request =>
       {
+        def updateOIDCRightIfNeeded(conf: FullIzanamiConfiguration): Future[FullIzanamiConfiguration] = {
+          conf.oidcConfiguration
+            .map(_.defaultOIDCUserRights)
+            .fold(conf.future)(rights => {
+              env.datastores.configuration.updateOIDCDefaultRightIfNeeded(rights)
+                .map(updatedRights => conf
+                  .copy(oidcConfiguration = conf.oidcConfiguration.get.copy(defaultOIDCUserRights = updatedRights).some)
+                )
+            })
+        }
+
         IzanamiConfiguration.fullConfigurationReads.reads(request.body) match {
           case JsError(_) => BadBodyFormat().toHttpResponse.future
-          case JsSuccess(configurationFromBody, _path) =>
-            configurationFromBody.oidcConfiguration
-              .map(_.defaultOIDCUserRights)
-              .fold(Future.successful(configurationFromBody))(r => {
-                env.datastores.configuration.updateOIDCDefaultRightIfNeeded(r)
-                  .map(newRigths => configurationFromBody
-                    .copy(oidcConfiguration = configurationFromBody.oidcConfiguration.map(c => c.copy(defaultOIDCUserRights = newRigths))))
-              })
-              .flatMap(configurationWithUpdatedRights => {
-                (if (env.isConfigurationEditable) {
-                  Some(configurationWithUpdatedRights).future
-                } else {
-                  env.datastores.configuration.readFullConfiguration().map {
-                    case Right(configuration)
-                      if configurationWithUpdatedRights.oidcConfiguration.exists(_.defaultOIDCUserRights != Rights.EMPTY) =>
-                      Some(configuration.copy(oidcConfiguration =
-                        configurationWithUpdatedRights.oidcConfiguration
-                          .map(c => c.copy(defaultOIDCUserRights = configurationWithUpdatedRights.oidcConfiguration.get.defaultOIDCUserRights))))
-                    case _ => None
-                  }
-                })
-                  .flatMap {
-                    case Some(newConf) => env.datastores.configuration.updateConfiguration(newConf).map(_ => NoContent)
-                    case None => BadRequest(Json.obj("message" -> "invalid configuration update request")).future
-                  }
-              })
+          case JsSuccess(configurationFromBody, _path) => {
+            for(
+              confWithFixedRights <- updateOIDCRightIfNeeded(configurationFromBody);
+              hasConfChanged <- hasOIDCConfChangedExceptDefaultRights(bodyConfig = configurationFromBody, updatedRightsConfig = confWithFixedRights);
+              result <- (hasConfChanged, env.isOIDCConfigurationEditable) match {
+                case (Left(err), _) => err.toHttpResponse.future
+                case (Right(true), false) => BadRequest(Json.obj("message" -> "OIDC configuration can't be updated while it is set in env variables.")).future
+                case _ => env.datastores.configuration.updateConfiguration(confWithFixedRights).map(_ => NoContent)
+              }
+            ) yield result
+          }
         }
     }
   }
 
   def readConfiguration(): Action[AnyContent] = adminAuthAction.async { implicit request: UserNameRequest[AnyContent] =>
-    val preventOAuthModification = JsBoolean(!env.isConfigurationEditable)
+    val preventOAuthModification = JsBoolean(!env.isOIDCConfigurationEditable)
 
     env.datastores.configuration
       .readFullConfiguration()

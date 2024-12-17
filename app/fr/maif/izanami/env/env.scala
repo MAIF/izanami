@@ -103,7 +103,7 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
   val wasmIntegration = WasmIntegration(new IzanamiWasmIntegrationContext(this))
   val jobs            = new Jobs(this)
 
-  def isConfigurationEditable: Boolean = (for (
+  def isOIDCConfigurationEditable: Boolean = (for (
     _ <- configuration.getOptional[String]("app.openid.client-id");
     _ <- configuration.getOptional[String]("app.openid.client-secret");
     _ <- configuration.getOptional[String]("app.openid.authorize-url");
