@@ -145,8 +145,7 @@ function ConfigurationForm(props: {
     oidcConfiguration: {
       scopes: "email profile",
       usernameField: "name",
-      emailField: "email",
-      sessionMaxAge: 86400,
+      emailField: "email"
     },
   };
 
@@ -601,52 +600,13 @@ function OIDCForm() {
               className="accordion-button collapsed"
               type="button"
               data-bs-toggle="collapse"
-              data-bs-target="#default-oidc-rights-accordion-collapse"
-              aria-expanded="true"
-              aria-controls="default-oidc-rights-accordion-collapse"
-            >
-              Default rights
-              &nbsp;
-              <ErrorMessage errors={errors} name="oidcConfiguration" />
-            </button>
-          </h3>
-          <div
-            className="accordion-collapse collapse p-3"
-            aria-labelledby="headingOne"
-            data-bs-parent="#oidc-accordion"
-            id="default-oidc-rights-accordion-collapse"
-          >
-            <Controller
-              name="oidcConfiguration.defaultOIDCUserRights"
-              control={control}
-              render={({ field }) => {
-                return (
-                  <RightSelector
-                    defaultValue={field?.value}
-                    tenantLevelFilter="Admin"
-                    onChange={(v) => {
-                      field?.onChange(v);
-                    }}
-                  />
-                );
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="accordion accordion-darker mt-3" id={`oidc-accordion`}>
-        <div className="accordion-item">
-          <h3 className="accordion-header">
-            <button
-              className="accordion-button collapsed"
-              type="button"
-              data-bs-toggle="collapse"
               data-bs-target="#oidc-accordion-collapse"
               aria-expanded="true"
               aria-controls="oidc-accordion-collapse"
             >
-              Configuration {isOIDCEnabled ? "[ENABLED]" : "[DISABLED]"}
+              Configuration <span className={`badge rounded-pill text-bg-${isOIDCEnabled ? 'success' : 'danger'} ms-2`}>
+                {isOIDCEnabled ? "ENABLED" : "DISABLED"}
+              </span>
               &nbsp;
               <ErrorMessage errors={errors} name="oidcConfiguration" />
             </button>
@@ -667,7 +627,6 @@ function OIDCForm() {
                   <label>
                     Enable OIDC authentication
                     <input
-                      disabled={preventOAuthModification}
                       type="checkbox"
                       className="izanami-checkbox"
                       {...register("oidcConfiguration.enabled")}
@@ -886,26 +845,51 @@ function OIDCForm() {
                         />
                       </div>
                     )}
-                    <div className="row mt-3">
-                      <label>
-                        Session max age
-                        <input
-                          type="number"
-                          className="form-control"
-                          {...register("oidcConfiguration.sessionMaxAge", {
-                            required: "Session max age is required",
-                          })}
-                        />
-                      </label>
-                      <ErrorMessage
-                        errors={errors}
-                        name="oidcConfiguration.sessionMaxAge"
-                      />
-                    </div>
                   </>
                 )}
               </fieldset>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="accordion accordion-darker mt-3" id={`oidc-accordion`}>
+        <div className="accordion-item">
+          <h3 className="accordion-header">
+            <button
+              className="accordion-button collapsed"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#default-oidc-rights-accordion-collapse"
+              aria-expanded="true"
+              aria-controls="default-oidc-rights-accordion-collapse"
+            >
+              Default rights
+              &nbsp;
+              <ErrorMessage errors={errors} name="oidcConfiguration" />
+            </button>
+          </h3>
+          <div
+            className="accordion-collapse collapse p-3"
+            aria-labelledby="headingOne"
+            data-bs-parent="#oidc-accordion"
+            id="default-oidc-rights-accordion-collapse"
+          >
+            <Controller
+              name="oidcConfiguration.defaultOIDCUserRights"
+              control={control}
+              render={({ field }) => {
+                return (
+                  <RightSelector
+                    defaultValue={field?.value}
+                    tenantLevelFilter="Admin"
+                    onChange={(v) => {
+                      field?.onChange(v);
+                    }}
+                  />
+                );
+              }}
+            />
           </div>
         </div>
       </div>
