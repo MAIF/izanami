@@ -101,8 +101,7 @@ class TenantController(
                 yield {
                   Ok(
                     Json.toJson(
-                      Tenant(name = tenant.name, projects = projects, tags = tags, description = tenant.description,
-                        defaultOIDCRightLevel = tenant.defaultOIDCRightLevel)
+                      Tenant(name = tenant.name, projects = projects, tags = tags, description = tenant.description)
                     )
                   )
                 }

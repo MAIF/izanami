@@ -323,7 +323,6 @@ class UsersAPISpec extends BaseAPISpec {
     "allow to create a new user with mail invitation via mailjet" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("my-tenant").withProjectNames("my-project"))
-        .withMailProvider("MailJet")
         .withOriginEmail("foo.bar@baz.com")
         .withInvitationMode("Mail")
         .withMailerConfiguration(
@@ -352,7 +351,6 @@ class UsersAPISpec extends BaseAPISpec {
     "allow to create a new user with mail invitation via mailgun" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("my-tenant").withProjectNames("my-project"))
-        .withMailProvider("MailGun")
         .withOriginEmail("foo.bar@baz.com")
         .withInvitationMode("Mail")
         .withMailerConfiguration(
@@ -382,7 +380,6 @@ class UsersAPISpec extends BaseAPISpec {
 
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("my-tenant").withProjectNames("my-project"))
-        .withMailProvider("SMTP")
         .withOriginEmail("foo.bar@baz.com")
         .withInvitationMode("Mail")
         .withMailerConfiguration(
@@ -1110,7 +1107,6 @@ class UsersAPISpec extends BaseAPISpec {
     "Send email to specified adress" in {
       val situation = TestSituationBuilder()
         .withUsers(TestUser(username = "foo", email = "foo.bar@baz.com"))
-        .withMailProvider("MailJet")
         .withOriginEmail("izanami@baz.com")
         .withMailerConfiguration(
           "MailJet",
@@ -1133,7 +1129,6 @@ class UsersAPISpec extends BaseAPISpec {
 
     "Return normally even if email does not exist in DB but don't send mail" in {
       val situation = TestSituationBuilder()
-        .withMailProvider("MailJet")
         .withOriginEmail("izanami@baz.com")
         .withMailerConfiguration(
           "MailJet",
@@ -1156,7 +1151,6 @@ class UsersAPISpec extends BaseAPISpec {
     "Update user password" in {
       var situation = TestSituationBuilder()
         .withUsers(TestUser("foo", email="foo.bar@baz.bar"))
-        .withMailProvider("MailJet")
         .withOriginEmail("izanami@baz.com")
         .withMailerConfiguration(
           "MailJet",
@@ -1187,7 +1181,6 @@ class UsersAPISpec extends BaseAPISpec {
     "Invalidate reset request if a new one is sent" in {
       var situation = TestSituationBuilder()
         .withUsers(TestUser("foo", email="foo.bar@baz.bar"))
-        .withMailProvider("MailJet")
         .withOriginEmail("izanami@baz.com")
         .withMailerConfiguration(
           "MailJet",
