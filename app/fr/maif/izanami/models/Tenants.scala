@@ -7,11 +7,10 @@ import play.api.libs.json._
 import fr.maif.izanami.models.RightLevels.RightLevel
 import scala.util.matching.Regex
 
-case class Tenant(name: String, projects: List[Project] = List(), tags: List[Tag] = List(), description: String = "",
-                 defaultOIDCRightLevel: Option[RightLevel] = None) {
+case class Tenant(name: String, projects: List[Project] = List(), tags: List[Tag] = List(), description: String = "") {
   def addProject(project: Project): Tenant = Tenant(name, projects :+ project)
 }
-case class TenantCreationRequest(name: String, description: String = "", defaultOIDCRightLevel: Option[RightLevel] = None)
+case class TenantCreationRequest(name: String, description: String = "")
 
 object Tenant {
   val tenantReads: Reads[TenantCreationRequest] = { json =>
@@ -19,12 +18,7 @@ object Tenant {
       .asOpt[String]
       .filter(id => TENANT_REGEXP.pattern.matcher(id).matches())
       .map(name => TenantCreationRequest(name,
-        description=(json \ "description").asOpt[String].getOrElse(""),
-        defaultOIDCRightLevel=(json \ "defaultOIDCRightLevel").asOpt[String].map(level => level.toLowerCase() match {
-            case "admin" => RightLevels.Admin
-            case "read" => RightLevels.Read
-            case "write" => RightLevels.Write
-          })))
+        description=(json \ "description").asOpt[String].getOrElse("")))
       .map(JsSuccess(_))
       .getOrElse(JsError("Invalid tenant"))
   }
@@ -35,8 +29,7 @@ object Tenant {
       "name"     -> tenant.name,
       "projects" -> tenant.projects,
       "description" -> tenant.description,
-      "tags" -> tenant.tags,
-      "defaultOIDCRightLevel" -> tenant.defaultOIDCRightLevel
+      "tags" -> tenant.tags
     )
   }
 }

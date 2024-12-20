@@ -133,9 +133,9 @@ class TenantsDatastore(val env: Env) extends Datastore {
     env.postgresql.executeInTransaction(conn => {
       env.postgresql.queryOne(
         s"""
-           |UPDATE izanami.tenants SET description=$$1, defaultOIDCRightLevel=$$3 WHERE name=$$2 RETURNING name
+           |UPDATE izanami.tenants SET description=$$1 WHERE name=$$2 RETURNING name
            |""".stripMargin,
-        List(updateRequest.description, name, updateRequest.defaultOIDCRightLevel.map(v => v.toString).orNull),
+        List(updateRequest.description, name),
         conn=Some(conn)
       ){r => r.optString("name")}
         .map(o => o.toRight(TenantDoesNotExists(name)).map(_ => ()))
