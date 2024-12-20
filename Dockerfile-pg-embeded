@@ -7,7 +7,7 @@ RUN set -eux; \
 RUN mkdir /app
 #RUN groupadd -g 10001 javauser && useradd -u 10000 -g javauser javauser
 ENV IZANAMI_CONTAINERIZED=true
-COPY ../target/izanami.jar /app/izanami.jar
+COPY ./target/izanami.jar /app/izanami.jar
 COPY script.sh /app/script.sh
 RUN chmod +x /app/script.sh
 
