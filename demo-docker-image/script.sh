@@ -3,7 +3,7 @@
 echo "Waiting postgres to launch on 5432..."
 
 while ! nc -z localhost 5432; do
-  sleep 0.1 # wait for 1/10 of the second before check again
+  sleep 0.1
 done
 
 java -jar /app/izanami.jar
