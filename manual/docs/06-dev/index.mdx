@@ -140,7 +140,7 @@ docker run --env IZANAMI_PG_URI=postgresql://postgres:postgres@host.docker.inter
 To build "test" docker image (docker image with embeded postgres)
 
 ```sh
-docker build -f ./demo-docker-image/Dockerfile-pg-embeded .
+docker build -t izanami-test-standalone -f ./demo-docker-image/Dockerfile-pg-embeded .
 ```
 
 
