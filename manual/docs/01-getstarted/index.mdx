@@ -33,6 +33,22 @@ To cover more advanced topics, either read about [core concepts](../concepts) or
 
 There are several ways to start Izanami.
 
+### Using standalone docker image
+
+The simplest way to test Izanami is to use standalone docker image.
+This image embeds Izanami itself and a postgres database, therefore you don't need any additionnal setup.
+
+```sh
+docker run -p 9000:9000 maif/izanami-test-standalone:latest
+```
+
+To keep your data after container is shut down, you can use a volume to store postgres database state:
+
+```sh
+docker run -p 9000:9000 --volume izanami-demo-db:/var/lib/postgresql/data maif/izanami-test-standalone:latest
+```
+
+
 ### Using docker
 
 One solution si to run a postgres DB separately (change `IZANAMI_PG_URI` to match your database setting).
@@ -54,10 +70,12 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      IZANAMI_ADMIN_DEFAULT_USERNAME: izanami
+      IZANAMI_ADMIN_DEFAULT_PASSWORD: password
     ports:
       - 5432:5432
   izanami:
-    image: maif/izanami:2.4.0
+    image: maif/izanami:2.7.1
     environment:
       IZANAMI_PG_URI: postgresql://postgres:postgres@host.docker.internal:5432/postgres
     ports:
@@ -70,9 +88,17 @@ You'll need to run a postgres database to start Izanami. Replace `app.pg.uri` wi
 
 ```sh
 java -jar \
+  -Dapp.admin.username=izanami \
+  -Dapp.admin.password=password \
   -Dapp.pg.uri=postgresql://postgres:postgres@localhost:5432/postgres \
   izanami.jar
 ```
+
+
+## Logging in
+
+Once Izanami is started, you can browse to [http://localhost:9000](http://localhost:9000) and log in with
+username `izanami` and password `password` (if you used above configuration).
 
 ## Your first feature
 
@@ -198,3 +224,9 @@ Click the "copy" button to copy feature URL.
 You've got everything you need to query your feature from curl.
 
 <Curl />
+
+
+<Note>
+While requesting Izanami directly from HTTP is perfectly fine, it may be a better idea to use [one of our client](../clients), which offers some nice enad built-in resilience and performance features.
+</Note>
+

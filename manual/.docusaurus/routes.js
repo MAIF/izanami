@@ -3,13 +3,48 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 
 export default [
   {
+    path: '/izanami/__docusaurus/debug',
+    component: ComponentCreator('/izanami/__docusaurus/debug', '92f'),
+    exact: true
+  },
+  {
+    path: '/izanami/__docusaurus/debug/config',
+    component: ComponentCreator('/izanami/__docusaurus/debug/config', '6f1'),
+    exact: true
+  },
+  {
+    path: '/izanami/__docusaurus/debug/content',
+    component: ComponentCreator('/izanami/__docusaurus/debug/content', 'c4d'),
+    exact: true
+  },
+  {
+    path: '/izanami/__docusaurus/debug/globalData',
+    component: ComponentCreator('/izanami/__docusaurus/debug/globalData', '952'),
+    exact: true
+  },
+  {
+    path: '/izanami/__docusaurus/debug/metadata',
+    component: ComponentCreator('/izanami/__docusaurus/debug/metadata', '933'),
+    exact: true
+  },
+  {
+    path: '/izanami/__docusaurus/debug/registry',
+    component: ComponentCreator('/izanami/__docusaurus/debug/registry', 'fcb'),
+    exact: true
+  },
+  {
+    path: '/izanami/__docusaurus/debug/routes',
+    component: ComponentCreator('/izanami/__docusaurus/debug/routes', '508'),
+    exact: true
+  },
+  {
     path: '/izanami/search',
-    component: ComponentCreator('/izanami/search', '67a'),
+    component: ComponentCreator('/izanami/search', 'fc4'),
     exact: true
   },
   {
     path: '/izanami/docs',
-    component: ComponentCreator('/izanami/docs', '61f'),
+    component: ComponentCreator('/izanami/docs', '8b6'),
     routes: [
       {
         path: '/izanami/docs',
@@ -213,7 +248,7 @@ export default [
   },
   {
     path: '/izanami/v1',
-    component: ComponentCreator('/izanami/v1', '433'),
+    component: ComponentCreator('/izanami/v1', '8d3'),
     routes: [
       {
         path: '/izanami/v1',
@@ -477,7 +512,7 @@ export default [
   },
   {
     path: '/izanami/',
-    component: ComponentCreator('/izanami/', 'a38'),
+    component: ComponentCreator('/izanami/', 'bbb'),
     exact: true
   },
   {

@@ -71,4 +71,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           file: {context}/demo-docker-image/Dockerfile-pg-embeded
-          tags: maif/izanami-test-standalone:${{ github.event.inputs.releaseVersion }}
+          tags: |
+            maif/izanami-test-standalone:${{ github.event.inputs.releaseVersion }}
+            maif/izanami-test-standalone:latest

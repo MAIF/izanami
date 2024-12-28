@@ -65,7 +65,7 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
   val secret = configuration.get[String]("app.secret")
 
   if(defaultSecret == secret) {
-    logger.warn("You're using Izanami default secret, which is not safe for production. Please generate a new secret and provide it to Izanami.")
+    logger.warn("You're using Izanami default secret, which is not safe for production. Please generate a new secret and provide it to Izanami (see https://maif.github.io/izanami/docs/guides/configuration#secret for details).")
   }
 
   lazy val encryptionKey = new SecretKeySpec(
@@ -99,8 +99,6 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
   val jobs = new Jobs(this)
 
   def onStart(): Future[Unit] = {
-    logger.info(s"Postgres url ${postgresql.getHost}:${postgresql.getPort}")
-
     for {
       _ <- postgresql.onStart()
       _ <- datastores.onStart()

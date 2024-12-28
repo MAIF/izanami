@@ -3,6 +3,7 @@
 
     <conversionRule conversionWord="coloredLevel" converterClass="play.api.libs.logback.ColoredLevel" />
 
+
     <logger name="jsonEncoderLogger" level="TRACE">
         <appender-ref ref="jsonEncoder" />
     </logger>
@@ -26,6 +27,7 @@
     <logger name="play" level="INFO" />
     <logger name="application" level="INFO" />
     <logger name="izanami-wasm" level="WARN" />
+    <logger name="org.flywaydb.core.internal.scanner.filesystem.FileSystemScanner" level="OFF"/>
 
     <root level="INFO">
         <!--<appender-ref ref="ASYNCFILE" />-->
