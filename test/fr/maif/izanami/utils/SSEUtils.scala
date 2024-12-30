@@ -65,14 +65,14 @@ class SseSubscriber(consumer: String => Unit) extends BodySubscriber[Void] {
 }
 
 object SseSubscriber {
-  val DATA_LINE_PATTERN = Pattern.compile("^data: ?(.*)$")
+  val DATA_LINE_PATTERN: Pattern = Pattern.compile("^data: ?(.*)$")
 
   def extractMessageData(lines: Seq[String]): String = {
     val s = StringBuilder
     lines.foreach(line => {
       val matcher = DATA_LINE_PATTERN.matcher(line)
       if(matcher.matches()) {
-        s + matcher.group(1)
+        String.valueOf(s) + matcher.group(1)
       }
     })
     s.toString

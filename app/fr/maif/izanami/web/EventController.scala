@@ -71,14 +71,14 @@ class EventController(
     Flow[JsObject]
       .keepAlive(
         interval,
-        keepAliveEvent
+        keepAliveEvent()
       )
 
   def keepAliveV2(interval: FiniteDuration): Flow[JsObject, JsObject, NotUsed] =
     Flow[JsObject]
       .keepAlive(
         interval,
-        keepAliveEventV2
+        keepAliveEventV2()
       )
 
   def events(pattern: String): Action[AnyContent] = clientKeyAction.async { request =>
