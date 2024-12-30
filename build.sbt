@@ -40,7 +40,7 @@ excludeDependencies ++= Seq(
 
 libraryDependencies += guice
 libraryDependencies += ws
-libraryDependencies += "com.softwaremill.macwire" %% "macros" % "2.3.7" % "provided"
+libraryDependencies += "com.softwaremill.macwire" %% "macros" % "2.4.0" % "provided"
 
 libraryDependencies += "com.zaxxer" % "HikariCP" % "5.1.0"
 libraryDependencies += "io.vertx" % "vertx-pg-client" % "4.5.1"
@@ -59,21 +59,21 @@ libraryDependencies += "commons-codec" % "commons-codec" % "1.16.0"
 libraryDependencies += "io.dropwizard.metrics" % "metrics-json" % "4.2.23" excludeAll (excludesJackson: _*)
 libraryDependencies += "org.mozilla" % "rhino" % "1.7.14"
 libraryDependencies += "com.squareup.okhttp3" % "okhttp" % "4.12.0" excludeAll (excludesJackson: _*)
-libraryDependencies += "fr.maif" %% "wasm4s" % "3.7.0" classifier "bundle"
+libraryDependencies += "fr.maif" %% "wasm4s" % "3.7.0" classifier "bundle" cross CrossVersion.for3Use2_13
 libraryDependencies += "com.auth0" % "java-jwt" % "4.4.0" excludeAll (excludesJackson: _*) // needed by wasm4s
-libraryDependencies += "com.typesafe.akka" %% "akka-http" % "10.2.10"
+libraryDependencies += "org.apache.pekko" %% "pekko-http" % "1.1.0"
 libraryDependencies += "com.github.jknack" % "handlebars" % "4.4.0"
 libraryDependencies += "com.github.jknack" % "handlebars-jackson" % "4.4.0" excludeAll (excludesJackson: _*)
 libraryDependencies += "net.logstash.logback" % "logstash-logback-encoder" % "8.0" excludeAll (excludesJackson: _*)
 
-libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "5.0.0" % Test
+libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "6.0.1" % Test
 libraryDependencies += "org.scalatest" %% "scalatest-flatspec" % "3.2.12" % "test"
 libraryDependencies += "com.github.tomakehurst" % "wiremock-jre8" % "2.34.0" % Test
 libraryDependencies += "com.fasterxml.jackson.core" % "jackson-databind" % "2.13.4.2" % Test
 libraryDependencies += "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.4" % Test
 libraryDependencies += jdbc % "test"
 libraryDependencies += "org.testcontainers" % "testcontainers" % "1.19.1" % Test
-libraryDependencies += "fr.maif" %% "izanami-client" % "1.11.5" % Test
+libraryDependencies += "fr.maif" %% "izanami-client" % "1.11.5" % Test cross CrossVersion.for3Use2_13
 libraryDependencies += "org.awaitility" % "awaitility-scala" % "4.2.0" % Test
 libraryDependencies += "com.github.mifmif" % "generex" % "1.0.1" % Test
 
