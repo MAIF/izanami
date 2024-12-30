@@ -1,26 +1,52 @@
 package fr.maif.izanami.events
 
 import akka.NotUsed
-import akka.stream.scaladsl.{BroadcastHub, Keep, Source}
-import akka.stream.{KillSwitches, Materializer, SharedKillSwitch}
+import akka.stream.KillSwitches
+import akka.stream.Materializer
+import akka.stream.SharedKillSwitch
+import akka.stream.scaladsl.BroadcastHub
+import akka.stream.scaladsl.Keep
+import akka.stream.scaladsl.Source
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.pgimplicits.{EnhancedRow, VertxFutureEnhancer}
-import fr.maif.izanami.events.EventAuthentication.{eventAuthenticationReads}
-import fr.maif.izanami.events.EventOrigin.{ORIGIN_NAME_MAP, eventOriginReads}
-import fr.maif.izanami.events.EventService.{sourceEventWrites}
-import fr.maif.izanami.models.{Feature, FeatureWithOverloads, LightWeightFeature, RequestContext}
+import fr.maif.izanami.env.pgimplicits.EnhancedRow
+import fr.maif.izanami.env.pgimplicits.VertxFutureEnhancer
+import fr.maif.izanami.events.EventAuthentication.eventAuthenticationReads
+import fr.maif.izanami.events.EventOrigin.ORIGIN_NAME_MAP
+import fr.maif.izanami.events.EventOrigin.eventOriginReads
+import fr.maif.izanami.events.EventService.sourceEventWrites
+import fr.maif.izanami.models.Feature
+import fr.maif.izanami.models.Feature.lightweightFeatureRead
+import fr.maif.izanami.models.Feature.lightweightFeatureWrite
+import fr.maif.izanami.models.Feature.writeStrategiesForEvent
+import fr.maif.izanami.models.FeatureWithOverloads
+import fr.maif.izanami.models.FeatureWithOverloads.featureWithOverloadWrite
+import fr.maif.izanami.models.LightWeightFeature
+import fr.maif.izanami.models.RequestContext
+import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.v1.V2FeatureEvents.createEventV2
+import fr.maif.izanami.v1.V2FeatureEvents.deleteEventV2
+import fr.maif.izanami.v1.V2FeatureEvents.updateEventV2
 import io.vertx.pgclient.pubsub.PgSubscriber
 import io.vertx.sqlclient.SqlConnection
-import play.api.libs.json.{Format, JsError, JsNumber, JsObject, JsResult, JsString, JsSuccess, JsValue, Json, Reads, Writes}
-import fr.maif.izanami.models.Feature.{featureWrite, lightweightFeatureRead, lightweightFeatureWrite, writeStrategiesForEvent}
-import fr.maif.izanami.models.FeatureWithOverloads.featureWithOverloadWrite
-import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
-import fr.maif.izanami.v1.V2FeatureEvents.{createEventV2, deleteEventV2, updateEventV2}
 import play.api.Logger
+import play.api.libs.json.Format
+import play.api.libs.json.JsError
+import play.api.libs.json.JsNumber
+import play.api.libs.json.JsObject
+import play.api.libs.json.JsResult
+import play.api.libs.json.JsString
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
+import play.api.libs.json.Reads
+import play.api.libs.json.Writes
 
-import java.time.{Instant, OffsetDateTime, ZoneOffset}
+import java.time.Instant
+import java.time.OffsetDateTime
 import java.util.UUID
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 
 sealed trait EventOrigin

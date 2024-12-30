@@ -4,22 +4,29 @@ import akka.http.scaladsl.model.Uri
 import akka.stream.Materializer
 import akka.util.ByteString
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
+import fr.maif.izanami.utils.RegexPool
+import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.WasmConfig
-import io.otoroshi.wasm4s.scaladsl.{EmptyUserData, EnvUserData, HostFunctionWithAuthorization}
-import org.extism.sdk.{ExtismCurrentPlugin, ExtismFunction, HostFunction, HostUserData, LibExtism}
+import io.otoroshi.wasm4s.scaladsl.EnvUserData
+import io.otoroshi.wasm4s.scaladsl.HostFunctionWithAuthorization
+import org.extism.sdk.ExtismCurrentPlugin
+import org.extism.sdk.ExtismFunction
+import org.extism.sdk.HostFunction
+import org.extism.sdk.HostUserData
+import org.extism.sdk.LibExtism
 import play.api.Logger
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
 import play.api.libs.typedmap.TypedMap
 
 import java.nio.charset.StandardCharsets
-import fr.maif.izanami.utils.RegexPool
-
 import java.util.Optional
 import java.util.concurrent.TimeUnit
 import scala.collection.Seq
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext}
 
 object HFunction {
   def defineContextualFunction(
@@ -78,11 +85,11 @@ object Utils {
     new String(arr, StandardCharsets.UTF_8)
   }
 
-  def contextParamsToString(plugin: ExtismCurrentPlugin, params: LibExtism.ExtismVal*) = {
+  def contextParamsToString(plugin: ExtismCurrentPlugin, params: LibExtism.ExtismVal*): String = {
     rawBytePtrToString(plugin, params(0).v.i64, params(1).v.i32)
   }
 
-  def contextParamsToJson(plugin: ExtismCurrentPlugin, params: LibExtism.ExtismVal*) = {
+  def contextParamsToJson(plugin: ExtismCurrentPlugin, params: LibExtism.ExtismVal*): JsValue = {
     Json.parse(rawBytePtrToString(plugin, params(0).v.i64, params(1).v.i32))
   }
 }
@@ -102,7 +109,7 @@ object Status extends Enumeration {
 
 object Logging {
 
-  val logger = Logger("izanami-wasm-logger")
+  val logger: Logger = Logger("izanami-wasm-logger")
 
   def proxyLog(): HostFunction[EnvUserData] = HFunction.defineFunction(
     "proxy_log",
@@ -139,7 +146,7 @@ object Logging {
 }
 
 object HttpCall {
-  def proxyHttpCall(config: WasmConfig)(implicit env: Env, executionContext: ExecutionContext, mat: Materializer) = {
+  def proxyHttpCall(config: WasmConfig)(implicit env: Env, executionContext: ExecutionContext, mat: Materializer): HostFunction[EnvUserData] = {
     HFunction
       .defineContextualFunction("proxy_http_call", config) {
         (

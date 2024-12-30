@@ -1,19 +1,29 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.ConfigurationDatastore.{parseDbMailer, parseInvitationMode}
-import fr.maif.izanami.datastores.configurationImplicits.{ConfigurationRow, MailerConfigurationRow}
+import fr.maif.izanami.datastores.ConfigurationDatastore.parseDbMailer
+import fr.maif.izanami.datastores.ConfigurationDatastore.parseInvitationMode
+import fr.maif.izanami.datastores.configurationImplicits.ConfigurationRow
+import fr.maif.izanami.datastores.configurationImplicits.MailerConfigurationRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{ConfigurationReadError, InternalServerError, IzanamiError}
+import fr.maif.izanami.errors.ConfigurationReadError
+import fr.maif.izanami.errors.InternalServerError
+import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.mail.MailerTypes.MailerType
 import fr.maif.izanami.mail._
+import fr.maif.izanami.models.FullIzanamiConfiguration
+import fr.maif.izanami.models.InvitationMode
 import fr.maif.izanami.models.InvitationMode.InvitationMode
-import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTPConfigurationWrites, mailGunConfigurationReads, mailJetConfigurationReads}
-import fr.maif.izanami.models.{FullIzanamiConfiguration, InvitationMode, IzanamiConfiguration, OIDCConfiguration}
+import fr.maif.izanami.models.IzanamiConfiguration
+import fr.maif.izanami.models.IzanamiConfiguration.SMTPConfigurationReads
+import fr.maif.izanami.models.IzanamiConfiguration.SMTPConfigurationWrites
+import fr.maif.izanami.models.IzanamiConfiguration.mailGunConfigurationReads
+import fr.maif.izanami.models.IzanamiConfiguration.mailJetConfigurationReads
+import fr.maif.izanami.models.OIDCConfiguration
 import fr.maif.izanami.utils.Datastore
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import io.vertx.sqlclient.Row
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.Json
 
 import java.time.ZoneOffset
 import java.util.UUID

@@ -2,7 +2,8 @@ package fr.maif.izanami.v1
 
 import fr.maif.izanami.models._
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.v1.OldCommons.{authorizedPatternReads, toNewRights}
+import fr.maif.izanami.v1.OldCommons.authorizedPatternReads
+import fr.maif.izanami.v1.OldCommons.toNewRights
 
 trait OldUser {
   def email: String

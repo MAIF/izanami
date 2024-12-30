@@ -1,6 +1,7 @@
 package fr.maif.izanami.web
 
-import play.api.mvc.{PathBindable, QueryStringBindable}
+import play.api.mvc.PathBindable
+import play.api.mvc.QueryStringBindable
 
 case class FeatureContextPath(elements: Seq[String] = Seq())
 

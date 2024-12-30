@@ -2,38 +2,41 @@ package fr.maif.izanami.web
 
 import akka.util.ByteString
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{IzanamiError, PartialImportFailure}
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.PartialImportFailure
+import fr.maif.izanami.models.ApiKey
+import fr.maif.izanami.models.CompleteFeature
+import fr.maif.izanami.models.CompleteWasmFeature
+import fr.maif.izanami.models.ExportedType
 import fr.maif.izanami.models.ExportedType.parseExportedType
-import fr.maif.izanami.models.features.{BooleanResult, BooleanResultDescriptor}
-import fr.maif.izanami.models.{
-  AbstractFeature,
-  ApiKey,
-  CompleteFeature,
-  CompleteWasmFeature,
-  ExportedType,
-  Feature,
-  FeatureType,
-  Import,
-  KeyType,
-  OverloadType,
-  RightLevels,
-  UserWithRights
-}
+import fr.maif.izanami.models.Feature
+import fr.maif.izanami.models.FeatureType
+import fr.maif.izanami.models.Import
+import fr.maif.izanami.models.KeyType
+import fr.maif.izanami.models.OverloadType
+import fr.maif.izanami.models.RightLevels
+import fr.maif.izanami.models.UserWithRights
+import fr.maif.izanami.models.features.BooleanResult
+import fr.maif.izanami.models.features.BooleanResultDescriptor
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.v1.OldKey.{oldKeyReads, toNewKey}
+import fr.maif.izanami.v1.JavaScript
+import fr.maif.izanami.v1.OldFeature
+import fr.maif.izanami.v1.OldGlobalScript
+import fr.maif.izanami.v1.OldKey.oldKeyReads
+import fr.maif.izanami.v1.OldKey.toNewKey
 import fr.maif.izanami.v1.OldScripts.doesUseHttp
-import fr.maif.izanami.v1.OldUsers.{oldUserReads, toNewUser}
-import fr.maif.izanami.v1.{JavaScript, OldFeature, OldGlobalScript, WasmManagerClient}
+import fr.maif.izanami.v1.OldUsers.oldUserReads
+import fr.maif.izanami.v1.OldUsers.toNewUser
+import fr.maif.izanami.v1.WasmManagerClient
 import fr.maif.izanami.wasm.WasmConfig
-import fr.maif.izanami.web.ImportController.{
-  extractProjectAndName,
-  parseStrategy,
-  readFile,
-  scriptIdToNodeCompatibleName,
-  unnest
-}
+import fr.maif.izanami.web.ImportController.extractProjectAndName
+import fr.maif.izanami.web.ImportController.parseStrategy
+import fr.maif.izanami.web.ImportController.readFile
+import fr.maif.izanami.web.ImportController.scriptIdToNodeCompatibleName
+import fr.maif.izanami.web.ImportController.unnest
 import fr.maif.izanami.web.ImportState.importResultWrites
-import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.{Base64, Wasmo}
+import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.Base64
+import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.Wasmo
 import play.api.libs.Files
 import play.api.libs.json._
 import play.api.mvc._
@@ -43,9 +46,11 @@ import java.time.ZoneId
 import java.util.UUID
 import scala.collection.immutable.Seq
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.io.Source
-import scala.util.{Right, Try}
+import scala.util.Right
+import scala.util.Try
 
 sealed trait ImportStatus
 case object Pending extends ImportStatus {
@@ -316,7 +321,7 @@ class ImportController(
       }
     })
 
-    (messages.toSeq, data + (FeatureType -> features, OverloadType -> overloads, KeyType -> keys))
+    (messages.toSeq, data ++ Map(FeatureType -> features, OverloadType -> overloads, KeyType -> keys))
   }
 
   def importV1Data(

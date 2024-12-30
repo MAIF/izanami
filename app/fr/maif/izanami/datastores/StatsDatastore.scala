@@ -7,10 +7,14 @@ import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.models.IzanamiConfiguration
 import fr.maif.izanami.security.IdGenerator
 import fr.maif.izanami.utils.Datastore
-import io.vertx.sqlclient.{Row, SqlConnection}
-import play.api.libs.json.{JsNumber, JsObject, JsValue, Json}
+import io.vertx.sqlclient.Row
+import io.vertx.sqlclient.SqlConnection
+import play.api.libs.json.JsObject
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
 
-import java.time.{Instant, ZoneId}
+import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt

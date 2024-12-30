@@ -2,7 +2,8 @@ package fr.maif.izanami.env
 
 import fr.maif.izanami.utils.syntax.implicits._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class Jobs(env: Env) {
 

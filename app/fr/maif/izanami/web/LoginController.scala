@@ -2,17 +2,23 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.MissingOIDCConfigurationError
+import fr.maif.izanami.models.OIDC
+import fr.maif.izanami.models.OIDCConfiguration
+import fr.maif.izanami.models.Rights
+import fr.maif.izanami.models.User
 import fr.maif.izanami.models.User.userRightsWrites
-import fr.maif.izanami.models.{OIDC, OIDCConfiguration, Rights, User}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import pdi.jwt.{JwtJson, JwtOptions}
-import play.api.libs.json.{JsObject, Json}
+import pdi.jwt.JwtJson
+import pdi.jwt.JwtOptions
+import play.api.libs.json.JsObject
+import play.api.libs.json.Json
 import play.api.libs.ws.WSAuthScheme
 import play.api.mvc.Cookie.SameSite
 import play.api.mvc._
 
 import java.util.Base64
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class LoginController(
     val env: Env,
@@ -21,7 +27,7 @@ class LoginController(
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
 
-  def openIdConnect = Action {
+  def openIdConnect: Action[AnyContent] = Action {
     env.datastores.configuration.readOIDCConfiguration() match {
       case None                                                                             => MissingOIDCConfigurationError().toHttpResponse
       case Some(OIDCConfiguration(clientId, _, authorizeUrl, _, redirectUrl, _, _, scopes)) => {
@@ -34,7 +40,7 @@ class LoginController(
     }
   }
 
-  def openIdCodeReturn = Action.async { implicit request =>
+  def openIdCodeReturn: Action[AnyContent] = Action.async { implicit request =>
     // TODO handle refresh_token
     {
       for (
@@ -93,7 +99,7 @@ class LoginController(
     }.getOrElse(Future(InternalServerError(Json.obj("message" -> "Failed to read token claims"))))
   }
 
-  def logout() = sessionAuthAction.async { implicit request =>
+  def logout(): Action[AnyContent] = sessionAuthAction.async { implicit request =>
     env.datastores.users
       .deleteSession(request.sessionId)
       .map(_ => {

@@ -1,12 +1,17 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.models.{ApiKey, RightLevels, RightTypes, RightUnit}
+import fr.maif.izanami.models.ApiKey
+import fr.maif.izanami.models.RightLevels
+import fr.maif.izanami.models.RightTypes
+import fr.maif.izanami.models.RightUnit
 import play.api.libs.json.JsError.toJson
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
 import play.api.mvc._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class ApiKeyController(
     val controllerComponents: ControllerComponents,

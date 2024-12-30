@@ -1,11 +1,12 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.mail.MailGunRegions.MailGunRegion
-import fr.maif.izanami.mail.MailerTypes.{MailJet, MailerType, SMTP}
+import fr.maif.izanami.mail.MailerTypes.MailJet
+import fr.maif.izanami.mail.MailerTypes.MailerType
+import fr.maif.izanami.mail.MailerTypes.SMTP
 import fr.maif.izanami.mail._
 import fr.maif.izanami.models.InvitationMode.InvitationMode
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.Reads.instantReads
 import play.api.libs.json._

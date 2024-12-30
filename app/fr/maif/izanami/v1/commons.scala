@@ -1,9 +1,13 @@
 package fr.maif.izanami.v1
 
+import fr.maif.izanami.models.AtomicRight
+import fr.maif.izanami.models.RightLevels
 import fr.maif.izanami.models.RightLevels.RightLevel
-import fr.maif.izanami.models.{AtomicRight, RightLevels, TenantRight}
+import fr.maif.izanami.models.TenantRight
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.libs.json.{JsError, JsSuccess, Reads}
+import play.api.libs.json.JsError
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.Reads
 
 
 sealed trait Right

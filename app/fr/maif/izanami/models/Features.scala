@@ -1,31 +1,31 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
-import fr.maif.izanami.models.Feature.{lightweightFeatureRead, lightweightFeatureWrite}
-import fr.maif.izanami.models.features.{
-  ActivationCondition,
-  ActivationRule,
-  BooleanActivationCondition,
-  BooleanResult,
-  BooleanResultDescriptor,
-  DateRangeActivationCondition,
-  FeaturePeriod,
-  HourPeriod,
-  LegacyCompatibleCondition,
-  NumberResult,
-  ResultDescriptor,
-  ResultType,
-  StringResult,
-  ValuedActivationCondition,
-  ValuedResultDescriptor,
-  ValuedResultType,
-  ZonedHourPeriod
-}
-import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
+import fr.maif.izanami.errors.InternalServerError
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.models.Feature.lightweightFeatureRead
+import fr.maif.izanami.models.Feature.lightweightFeatureWrite
+import fr.maif.izanami.models.features.ActivationCondition
+import fr.maif.izanami.models.features.ActivationRule
+import fr.maif.izanami.models.features.BooleanActivationCondition
+import fr.maif.izanami.models.features.BooleanResult
+import fr.maif.izanami.models.features.BooleanResultDescriptor
+import fr.maif.izanami.models.features.DateRangeActivationCondition
+import fr.maif.izanami.models.features.FeaturePeriod
+import fr.maif.izanami.models.features.HourPeriod
+import fr.maif.izanami.models.features.LegacyCompatibleCondition
+import fr.maif.izanami.models.features.ResultDescriptor
+import fr.maif.izanami.models.features.ResultType
+import fr.maif.izanami.models.features.ValuedResultDescriptor
+import fr.maif.izanami.models.features.ValuedResultType
+import fr.maif.izanami.models.features.ZonedHourPeriod
+import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.v1.OldFeature
 import fr.maif.izanami.v1.OldFeature.oldFeatureReads
-import fr.maif.izanami.v1.{OldFeature, OldGlobalScriptFeature}
-import fr.maif.izanami.wasm.{WasmConfig, WasmUtils}
+import fr.maif.izanami.v1.OldGlobalScriptFeature
+import fr.maif.izanami.wasm.WasmConfig
+import fr.maif.izanami.wasm.WasmUtils
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json._
 import play.api.mvc.QueryStringBindable
@@ -33,11 +33,13 @@ import play.api.mvc.QueryStringBindable
 import java.time._
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import scala.concurrent.{ExecutionContext, Future}
-import scala.runtime.RichBoolean
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 import scala.util.hashing.MurmurHash3
 import scala.util.matching.Regex
-import scala.util.{Failure, Success, Try}
 
 case class FeatureWithOverloads(featureMap: Map[String, LightWeightFeature]) {
   def id: String                                                                               = featureMap("").id

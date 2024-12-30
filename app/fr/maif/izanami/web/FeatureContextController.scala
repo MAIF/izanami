@@ -2,12 +2,16 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.BadBodyFormat
-import fr.maif.izanami.models.{FeatureContext, RightLevels}
+import fr.maif.izanami.models.FeatureContext
+import fr.maif.izanami.models.RightLevels
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
+import play.api.libs.json.JsError
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
 import play.api.mvc._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 class FeatureContextController(
     val controllerComponents: ControllerComponents,

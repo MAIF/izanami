@@ -1,21 +1,26 @@
 package fr.maif.izanami.jobs
 
-import akka.actor.{ActorSystem, Cancellable}
+import akka.actor.ActorSystem
+import akka.actor.Cancellable
 import akka.pattern.Patterns.after
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.github.jknack.handlebars.{Context, Handlebars}
+import com.github.jknack.handlebars.Context
+import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.jackson.JsonNodeValueResolver
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{WebhookCallError, WebhookRetryCountExceeded}
+import fr.maif.izanami.errors.WebhookCallError
+import fr.maif.izanami.errors.WebhookRetryCountExceeded
 import fr.maif.izanami.events._
-import fr.maif.izanami.models.{LightWebhook, RequestContext}
+import fr.maif.izanami.models.LightWebhook
+import fr.maif.izanami.models.RequestContext
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.JsValue
 
 import java.util.concurrent.atomic.AtomicReference
+import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.global
+import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
 
 class WebhookListener(env: Env, eventService: EventService) {
   private val handlebars                             = new Handlebars()

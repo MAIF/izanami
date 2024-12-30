@@ -1,13 +1,15 @@
 package fr.maif.izanami.models.features
 
+import fr.maif.izanami.models.Feature
+import fr.maif.izanami.models.RequestContext
 import fr.maif.izanami.models.features.ActivationCondition.hourFormatter
-import fr.maif.izanami.models.{Feature, RequestContext}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.Reads.instantReads
 import play.api.libs.json._
 
-import java.time.format.{DateTimeFormatter, DateTimeParseException}
 import java.time._
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 
 sealed trait ActivationCondition {
   def period: FeaturePeriod

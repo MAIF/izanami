@@ -1,15 +1,20 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{IzanamiError, SearchFilterError, SearchQueryError}
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.SearchFilterError
+import fr.maif.izanami.errors.SearchQueryError
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.PathElement.pathElementWrite
 import fr.maif.izanami.web.SearchController.SearchEntityObject
-import play.api.libs.json.{JsObject, Json, Writes}
+import play.api.libs.json.JsObject
+import play.api.libs.json.Json
+import play.api.libs.json.Writes
 import play.api.mvc._
 
 import scala.annotation.tailrec
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class SearchController(
     val env: Env,

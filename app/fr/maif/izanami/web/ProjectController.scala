@@ -1,17 +1,26 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.EventDatastore.{AscOrder, FeatureEventRequest, parseSortOrder}
+import fr.maif.izanami.datastores.EventDatastore.AscOrder
+import fr.maif.izanami.datastores.EventDatastore.FeatureEventRequest
+import fr.maif.izanami.datastores.EventDatastore.parseSortOrder
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.events.{EventAuthentication, EventService, FeatureEvent, TenantCreated, TenantDeleted}
-import fr.maif.izanami.models.RightLevels.RightLevel
-import fr.maif.izanami.models.{Project, RightLevels}
+import fr.maif.izanami.events.EventAuthentication
+import fr.maif.izanami.events.EventService
+import fr.maif.izanami.models.Project
+import fr.maif.izanami.models.RightLevels
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ProjectController.parseStringSet
-import play.api.libs.json.{JsError, JsNull, JsNumber, JsObject, JsSuccess, JsValue, Json, Writes}
+import play.api.libs.json.JsError
+import play.api.libs.json.JsNull
+import play.api.libs.json.JsNumber
+import play.api.libs.json.JsObject
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
 import play.api.mvc._
 
 import java.time.Instant
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.util.Try
 
 class ProjectController(

@@ -1,20 +1,29 @@
 package fr.maif.izanami.v1
 
+import fr.maif.izanami.models.CompleteFeature
+import fr.maif.izanami.models.CompleteWasmFeature
+import fr.maif.izanami.models.LightWeightWasmFeature
+import fr.maif.izanami.models.SingleConditionFeature
 import fr.maif.izanami.models.features._
-import fr.maif.izanami.models.{CompleteFeature, CompleteWasmFeature, LightWeightWasmFeature, SingleConditionFeature}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldFeatureType._
 import fr.maif.izanami.wasm.WasmConfig
 import fr.maif.izanami.web.ImportController.scriptIdToNodeCompatibleName
 import io.otoroshi.wasm4s.scaladsl.WasmSource
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.Wasmo
-import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps}
-import play.api.libs.json.Reads.{localDateTimeReads, localTimeReads, max, min}
+import play.api.libs.functional.syntax.toApplicativeOps
+import play.api.libs.functional.syntax.toFunctionalBuilderOps
+import play.api.libs.json.Reads.localDateTimeReads
+import play.api.libs.json.Reads.localTimeReads
+import play.api.libs.json.Reads.max
+import play.api.libs.json.Reads.min
 import play.api.libs.json._
 
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.{LocalDateTime, LocalTime, ZoneId}
-import scala.runtime.RichBoolean
+import play.api.libs.functional.FunctionalBuilder
 
 sealed trait OldFeature {
   def id: String
@@ -379,7 +388,7 @@ object OldFeature {
     )
   }
 
-  def commonRead =
+  def commonRead: FunctionalBuilder[Reads]#CanBuild5[String,String,Boolean,Option[String],Set[String]] =
     (__ \ "id").read[String] and
     (__ \ "name").readWithDefault[String]("null") and
     (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
@@ -547,7 +556,7 @@ object OldFeature {
     )
   }
 
-  val dateFormatter = DateTimeFormatter.ofPattern(dateTimePattern3)
+  val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern3)
 
   implicit val oldReleaseDateFeatureWrites: Writes[OldReleaseDateFeature] = feature => {
     commonWrite(feature) ++ Json.obj(
@@ -568,7 +577,7 @@ object OldFeature {
     )
   }
 
-  val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+  val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
   implicit val oldHourRangeWrites: Writes[OldHourRangeFeature] = feature => {
     commonWrite(feature) ++ Json.obj(

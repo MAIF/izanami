@@ -2,13 +2,24 @@ package fr.maif.izanami.web
 
 import com.github.jknack.handlebars.Handlebars
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.models.{LightWebhook, RightLevels, Webhook}
+import fr.maif.izanami.models.LightWebhook
+import fr.maif.izanami.models.RightLevels
+import fr.maif.izanami.models.Webhook
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.libs.json.{JsError, JsSuccess, JsValue, Json, Reads, Writes}
-import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
+import play.api.libs.json.JsError
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
+import play.api.libs.json.Reads
+import play.api.libs.json.Writes
+import play.api.mvc.Action
+import play.api.mvc.AnyContent
+import play.api.mvc.BaseController
+import play.api.mvc.ControllerComponents
 
 import java.util.UUID
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.util.Try
 
 class WebhookController(

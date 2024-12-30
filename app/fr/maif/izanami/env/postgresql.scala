@@ -1,26 +1,40 @@
 package fr.maif.izanami.env
 
 import akka.http.scaladsl.util.FastFuture
-import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import fr.maif.izanami.datastores.HashUtils
 import fr.maif.izanami.security.IdGenerator
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import io.vertx.core
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
-import io.vertx.core.net.{PemKeyCertOptions, PemTrustOptions}
-import io.vertx.pgclient.impl.PgPoolImpl
-import io.vertx.pgclient.pubsub.PgSubscriber
-import io.vertx.pgclient.{PgConnectOptions, PgPool, SslMode}
-import io.vertx.sqlclient.{PoolOptions, Row, RowSet, SqlConnection}
+import io.vertx.core.net.PemKeyCertOptions
+import io.vertx.core.net.PemTrustOptions
+import io.vertx.pgclient.PgConnectOptions
+import io.vertx.pgclient.PgPool
+import io.vertx.pgclient.SslMode
+import io.vertx.sqlclient.PoolOptions
+import io.vertx.sqlclient.Row
+import io.vertx.sqlclient.RowSet
+import io.vertx.sqlclient.SqlConnection
 import org.flywaydb.core.Flyway
-import play.api.libs.json.{JsArray, JsObject, Json}
-import play.api.{Configuration, Logger}
+import play.api.Configuration
+import play.api.Logger
+import play.api.libs.json.JsArray
+import play.api.libs.json.JsObject
+import play.api.libs.json.Json
 
-import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.util.UUID
-import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.Promise
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 class Postgresql(env: Env) {
 
@@ -30,7 +44,7 @@ class Postgresql(env: Env) {
 
   private val logger = Logger("izanami")
 
-  lazy val connectOptions      = if (configuration.has("app.pg.uri")) {
+  lazy val connectOptions: PgConnectOptions      = if (configuration.has("app.pg.uri")) {
     logger.info(s"Postgres URI : ${configuration.get[String]("app.pg.uri")}")
     val opts = PgConnectOptions.fromUri(configuration.get[String]("app.pg.uri"))
     opts
@@ -102,7 +116,7 @@ class Postgresql(env: Env) {
 
     maybePgConfig.getOrElse(throw new IllegalArgumentException("No suitable postgres configuration provided, you need to provide either Postgres URI or Postgres database, user and password (see https://maif.github.io/izanami/docs/guides/configuration#database for details)"))
   }
-  lazy val vertx               = Vertx.vertx()
+  lazy val vertx: Vertx               = Vertx.vertx()
   private lazy val poolOptions = new PoolOptions()
     .setMaxSize(configuration.getOptional[Int]("app.pg.pool-size").getOrElse(20))
     .applyOnWithOpt(configuration.getOptional[Int]("idle-timeout"))((p, v) => p.setIdleTimeout(v))

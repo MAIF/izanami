@@ -1,10 +1,15 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{FeatureNotFound, IncorrectKey, IzanamiError, TagDoesNotExists}
+import fr.maif.izanami.errors.FeatureNotFound
+import fr.maif.izanami.errors.IncorrectKey
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.TagDoesNotExists
 import fr.maif.izanami.models.Feature._
 import fr.maif.izanami.models._
-import fr.maif.izanami.models.features.{BooleanResult, FeaturePatch, ProjectFeaturePatch}
+import fr.maif.izanami.models.features.BooleanResult
+import fr.maif.izanami.models.features.FeaturePatch
+import fr.maif.izanami.models.features.ProjectFeaturePatch
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.FeatureController.queryFeatures
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
@@ -14,8 +19,10 @@ import play.api.mvc._
 
 import java.time.Instant
 import java.util.Base64
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.util.Success
 
 class FeatureController(
     val env: Env,

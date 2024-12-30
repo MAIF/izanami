@@ -1,18 +1,25 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{BadBodyFormat, EmailAlreadyUsed}
-import fr.maif.izanami.models.RightLevels.{Read, RightLevel}
-import fr.maif.izanami.models.Rights.{FlattenKeyRight, FlattenTenantRight, FlattenWebhookRight, TenantRightDiff}
+import fr.maif.izanami.errors.BadBodyFormat
+import fr.maif.izanami.errors.EmailAlreadyUsed
+import fr.maif.izanami.models.RightLevels.Read
+import fr.maif.izanami.models.RightLevels.RightLevel
+import fr.maif.izanami.models.Rights.FlattenKeyRight
+import fr.maif.izanami.models.Rights.FlattenTenantRight
+import fr.maif.izanami.models.Rights.FlattenWebhookRight
+import fr.maif.izanami.models.Rights.TenantRightDiff
 import fr.maif.izanami.models.User._
 import fr.maif.izanami.models._
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.data.validation.{Constraints, Valid}
+import play.api.data.validation.Constraints
+import play.api.data.validation.Valid
 import play.api.libs.json._
 import play.api.mvc._
 
 import java.util.Objects
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.util.Try
 
 class UserController(

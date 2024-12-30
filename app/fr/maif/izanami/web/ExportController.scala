@@ -2,13 +2,16 @@ package fr.maif.izanami.web
 
 import akka.util.ByteString
 import fr.maif.izanami.env.Env
+import fr.maif.izanami.models.Export
 import fr.maif.izanami.models.Feature.lightweightFeatureWrite
-import fr.maif.izanami.models.{Export, LightWeightFeature, RightLevels}
+import fr.maif.izanami.models.LightWeightFeature
+import fr.maif.izanami.models.RightLevels
 import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class ExportController(
     val env: Env,
