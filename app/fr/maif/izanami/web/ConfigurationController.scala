@@ -3,14 +3,30 @@ package fr.maif.izanami.web
 import buildinfo.BuildInfo
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.BadBodyFormat
-import fr.maif.izanami.mail.{ConsoleMailProvider, MailGunMailProvider, MailJetMailProvider, MailerTypes, SMTPMailProvider}
+import fr.maif.izanami.mail.ConsoleMailProvider
+import fr.maif.izanami.mail.MailGunMailProvider
+import fr.maif.izanami.mail.MailJetMailProvider
+import fr.maif.izanami.mail.MailerTypes
+import fr.maif.izanami.mail.SMTPMailProvider
 import fr.maif.izanami.models.IzanamiConfiguration
-import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationWrites, mailGunConfigurationWrite, mailJetConfigurationWrites, mailerReads}
+import fr.maif.izanami.models.IzanamiConfiguration.SMTPConfigurationWrites
+import fr.maif.izanami.models.IzanamiConfiguration.mailGunConfigurationWrite
+import fr.maif.izanami.models.IzanamiConfiguration.mailJetConfigurationWrites
+import fr.maif.izanami.models.IzanamiConfiguration.mailerReads
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.libs.json.{JsError, JsObject, JsString, JsSuccess, JsValue, Json}
-import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
+import play.api.libs.json.JsError
+import play.api.libs.json.JsObject
+import play.api.libs.json.JsString
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
+import play.api.mvc.Action
+import play.api.mvc.AnyContent
+import play.api.mvc.BaseController
+import play.api.mvc.ControllerComponents
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class ConfigurationController(
     val controllerComponents: ControllerComponents,

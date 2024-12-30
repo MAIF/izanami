@@ -2,18 +2,26 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.projectImplicits.ProjectRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
+import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
+import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.SourceFeatureDeleted
-import fr.maif.izanami.models.{Feature, Project, ProjectCreationRequest, RightLevels}
+import fr.maif.izanami.models.Feature
+import fr.maif.izanami.models.Project
+import fr.maif.izanami.models.ProjectCreationRequest
+import fr.maif.izanami.models.RightLevels
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.{ImportController, UserInformation}
-import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
+import fr.maif.izanami.web.ImportController.Fail
+import fr.maif.izanami.web.ImportController.ImportConflictStrategy
+import fr.maif.izanami.web.ImportController.MergeOverwrite
+import fr.maif.izanami.web.ImportController.Skip
+import fr.maif.izanami.web.UserInformation
 import io.vertx.pgclient.PgException
-import io.vertx.sqlclient.{Row, SqlConnection}
+import io.vertx.sqlclient.Row
+import io.vertx.sqlclient.SqlConnection
 import play.api.libs.json.JsObject
 
 import java.util.UUID

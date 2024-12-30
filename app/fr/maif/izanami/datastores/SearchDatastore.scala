@@ -3,8 +3,9 @@ package fr.maif.izanami.datastores
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.utils.Datastore
-import play.api.libs.json.{JsObject, Json}
-import fr.maif.izanami.web.SearchController.{SearchEntityObject, SearchEntityType}
+import fr.maif.izanami.web.SearchController.SearchEntityObject
+import fr.maif.izanami.web.SearchController.SearchEntityType
+import play.api.libs.json.JsObject
 
 import scala.concurrent.Future
 class SearchDatastore(val env: Env) extends Datastore {

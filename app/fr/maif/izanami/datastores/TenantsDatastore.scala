@@ -1,19 +1,33 @@
 package fr.maif.izanami.datastores
 
-import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import fr.maif.izanami.datastores.tenantImplicits.TenantRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{InternalServerError, IzanamiError, TenantAlreadyExists, TenantDoesNotExists}
+import fr.maif.izanami.errors.InternalServerError
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.TenantAlreadyExists
+import fr.maif.izanami.errors.TenantDoesNotExists
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.EventService.IZANAMI_CHANNEL
-import fr.maif.izanami.events.{SourceTenantCreated, SourceTenantDeleted}
-import fr.maif.izanami.models.{RightLevels, Tenant, TenantCreationRequest}
+import fr.maif.izanami.events.SourceTenantCreated
+import fr.maif.izanami.events.SourceTenantDeleted
+import fr.maif.izanami.models.RightLevels
+import fr.maif.izanami.models.Tenant
+import fr.maif.izanami.models.TenantCreationRequest
 import fr.maif.izanami.utils.Datastore
-import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
-import fr.maif.izanami.web.ImportState.{importFailureWrites, importResultReads, importSuccessWrites}
-import fr.maif.izanami.web.{ImportFailure, ImportPending, ImportState, ImportSuccess, UserInformation}
+import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.web.ImportFailure
+import fr.maif.izanami.web.ImportPending
+import fr.maif.izanami.web.ImportState
+import fr.maif.izanami.web.ImportState.importFailureWrites
+import fr.maif.izanami.web.ImportState.importResultReads
+import fr.maif.izanami.web.ImportState.importSuccessWrites
+import fr.maif.izanami.web.ImportSuccess
+import fr.maif.izanami.web.UserInformation
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
 import org.flywaydb.core.Flyway

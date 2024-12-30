@@ -4,24 +4,25 @@ import fr.maif.izanami.datastores.webhookImplicits.WebhookRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{IzanamiError, WebhookCreationFailed, WebhookDoesNotExists}
-import fr.maif.izanami.events.{EventService, IzanamiEvent}
-import fr.maif.izanami.models.RightLevels.RightLevel
-import fr.maif.izanami.models.{LightWebhook, Webhook, WebhookFeature, WebhookProject}
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.WebhookCreationFailed
+import fr.maif.izanami.errors.WebhookDoesNotExists
+import fr.maif.izanami.events.EventService
+import fr.maif.izanami.events.IzanamiEvent
+import fr.maif.izanami.models.LightWebhook
+import fr.maif.izanami.models.Webhook
+import fr.maif.izanami.models.WebhookFeature
+import fr.maif.izanami.models.WebhookProject
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import fr.maif.izanami.web.UserInformation
-import io.vertx.core.json.JsonObject
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
 import play.api.libs.json.Json
-import play.api.mvc.Results.InternalServerError
 
-import java.net.{URI, URL}
-import java.util
+import java.net.URI
 import java.util.UUID
 import scala.concurrent.Future
-import scala.jdk.CollectionConverters.MapHasAsJava
 
 class WebhooksDatastore(val env: Env) extends Datastore {
 

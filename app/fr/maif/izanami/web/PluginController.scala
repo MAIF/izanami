@@ -3,13 +3,17 @@ package fr.maif.izanami.web
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.models.RightLevels
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.wasm.{WasmConfig, WasmConfigWithFeatures}
+import fr.maif.izanami.wasm.WasmConfig
+import fr.maif.izanami.wasm.WasmConfigWithFeatures
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
 import play.api.mvc._
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success, Try}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 class PluginController(
     val env: Env,
@@ -20,7 +24,7 @@ class PluginController(
   implicit val ec: ExecutionContext = env.executionContext;
 
   // TODO authenticate
-  def localScripts(tenant: String, features: Boolean) = Action.async { implicit request =>
+  def localScripts(tenant: String, features: Boolean): Action[AnyContent] = Action.async { implicit request =>
     if (features) {
       env.datastores.features
         .readLocalScriptsWithAssociatedFeatures(tenant)
@@ -34,7 +38,7 @@ class PluginController(
     }
   }
 
-  def readScript(tenant: String, script: String) = authAction(tenant, RightLevels.Read).async { implicit request =>
+  def readScript(tenant: String, script: String): Action[AnyContent] = authAction(tenant, RightLevels.Read).async { implicit request =>
     env.datastores.features
       .readWasmScript(tenant, script)
       .map(maybeConfig =>
@@ -61,7 +65,7 @@ class PluginController(
     }
 
   // TODO basic authentication
-  def wasmFiles() = Action.async { implicit request =>
+  def wasmFiles(): Action[AnyContent] = Action.async { implicit request =>
     env.datastores.configuration
       .readWasmConfiguration() match {
       case Some(settings @ WasmoSettings(url, _, _, pluginsFilter, _, _)) =>

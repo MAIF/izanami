@@ -1,16 +1,20 @@
 package fr.maif.izanami.wasm
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{IzanamiError, WasmError, WasmResultParsingError}
-import io.otoroshi.wasm4s.scaladsl._
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.WasmError
+import fr.maif.izanami.errors.WasmResultParsingError
 import fr.maif.izanami.models.RequestContext
 import fr.maif.izanami.models.features.ResultType
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import io.otoroshi.wasm4s.scaladsl._
 import play.api.libs.json._
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 case class WasmAuthorizations(
     httpAccess: Boolean = false
@@ -19,7 +23,7 @@ case class WasmAuthorizations(
 }
 
 object WasmAuthorizations {
-  val format = new Format[WasmAuthorizations] {
+  val format: Format[WasmAuthorizations] = new Format[WasmAuthorizations] {
     override def writes(o: WasmAuthorizations): JsValue             = Json.obj(
       "httpAccess" -> o.httpAccess
     )
@@ -91,7 +95,7 @@ case class WasmConfig(
 }
 
 object WasmConfig {
-  val format = new Format[WasmConfig] {
+  val format: Format[WasmConfig] = new Format[WasmConfig] {
     override def reads(json: JsValue): JsResult[WasmConfig] = Try {
       val compilerSource = json.select("compiler_source").asOpt[String]
       val rawSource      = json.select("raw_source").asOpt[String]

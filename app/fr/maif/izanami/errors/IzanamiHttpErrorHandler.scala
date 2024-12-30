@@ -1,21 +1,23 @@
 package fr.maif.izanami.errors
 
 import fr.maif.izanami.env.Env
-import play.api.{Logger, mvc}
+import play.api.Logger
+import play.api.http.HttpErrorHandler
 import play.api.http.Status.INTERNAL_SERVER_ERROR
 import play.api.libs.json.Json
+import play.api.mvc
 import play.api.mvc.Result
 import play.api.mvc.Results.Status
-import play.api.http.HttpErrorHandler
 
 import java.security.SecureRandom
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class IzanamiHttpErrorHandler(env: Env) extends HttpErrorHandler {
 
   implicit val ec: ExecutionContext = env.executionContext
 
-  lazy val logger = Logger("izanami-error-handler")
+  lazy val logger: Logger = Logger("izanami-error-handler")
 
   override def onClientError(request: mvc.RequestHeader, statusCode: Int, message: String): Future[Result] = {
     val uuid =

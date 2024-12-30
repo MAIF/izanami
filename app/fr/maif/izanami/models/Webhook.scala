@@ -1,8 +1,14 @@
 package fr.maif.izanami.models
 
-import play.api.libs.json.{Format, JsError, JsNull, JsResult, JsString, JsSuccess, JsValue, Json, Reads, Writes}
+import play.api.libs.json.JsError
+import play.api.libs.json.JsString
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.Json
+import play.api.libs.json.Reads
+import play.api.libs.json.Writes
 
-import java.net.{URI, URL}
+import java.net.URI
+import java.net.URL
 import java.util.UUID
 import scala.util.Try
 

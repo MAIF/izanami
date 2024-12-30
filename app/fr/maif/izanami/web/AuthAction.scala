@@ -1,23 +1,35 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{TokenCheckFailure, TokenCheckSuccess}
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckFailure
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckSuccess
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.UserNotFound
 import fr.maif.izanami.events.EventAuthentication
-import fr.maif.izanami.events.EventAuthentication.{BackOfficeAuthentication, TokenAuthentication}
+import fr.maif.izanami.events.EventAuthentication.BackOfficeAuthentication
+import fr.maif.izanami.events.EventAuthentication.TokenAuthentication
+import fr.maif.izanami.models.ApiKeyWithCompleteRights
+import fr.maif.izanami.models.RightLevels
 import fr.maif.izanami.models.RightLevels.RightLevel
-import fr.maif.izanami.models.{ApiKey, ApiKeyWithCompleteRights, RightLevels, TenantTokenRights, UserWithCompleteRightForOneTenant, UserWithRights, UserWithTenantRights}
+import fr.maif.izanami.models.TenantTokenRights
+import fr.maif.izanami.models.UserWithCompleteRightForOneTenant
+import fr.maif.izanami.models.UserWithRights
+import fr.maif.izanami.models.UserWithTenantRights
 import fr.maif.izanami.security.JwtService.decodeJWT
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.AuthAction.{extractAndCheckPersonnalAccessToken, extractClaims}
+import fr.maif.izanami.web.AuthAction.extractAndCheckPersonnalAccessToken
+import fr.maif.izanami.web.AuthAction.extractClaims
 import pdi.jwt.JwtClaim
 import play.api.libs.json._
-import play.api.mvc.Results.{BadRequest, Forbidden, Unauthorized}
+import play.api.mvc.Results.BadRequest
+import play.api.mvc.Results.Forbidden
+import play.api.mvc.Results.Unauthorized
 import play.api.mvc._
 
-import java.util.{Base64, UUID}
+import java.util.Base64
+import java.util.UUID
 import javax.crypto.spec.SecretKeySpec
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 case class UserInformation(username: String, authentication: EventAuthentication)
 

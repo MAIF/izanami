@@ -1,6 +1,8 @@
 package fr.maif.izanami.models.features
 
-import play.api.libs.json.{JsError, JsSuccess, Reads}
+import play.api.libs.json.JsError
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.Reads
 
 import scala.util.matching.Regex
 

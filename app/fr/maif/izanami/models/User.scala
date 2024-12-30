@@ -3,7 +3,8 @@ package fr.maif.izanami.models
 import fr.maif.izanami.models.RightLevels.RightLevel
 import fr.maif.izanami.models.RightTypes.RightType
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.data.validation.{Constraints, Valid}
+import play.api.data.validation.Constraints
+import play.api.data.validation.Valid
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json._
 import play.api.mvc.QueryStringBindable

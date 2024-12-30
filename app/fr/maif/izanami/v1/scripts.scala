@@ -2,18 +2,20 @@ package fr.maif.izanami.v1
 
 import akka.util.ByteString
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{ConfigurationReadError, IzanamiError, NoWasmManagerConfigured}
-import fr.maif.izanami.models.IzanamiConfiguration
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.NoWasmManagerConfigured
 import fr.maif.izanami.v1.OldScripts.generateNewScriptContent
-import io.otoroshi.wasm4s.scaladsl.{ApikeyHelper, WasmoSettings}
+import io.otoroshi.wasm4s.scaladsl.ApikeyHelper
+import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import org.mozilla.javascript.Parser
 import org.mozilla.javascript.ast._
 import play.api.Logger
-import play.api.libs.json.{JsBoolean, Json}
+import play.api.libs.json.Json
 import play.api.libs.ws.WSClient
 
 import java.time.Duration
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
   implicit val logger: Logger = env.logger

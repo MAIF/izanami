@@ -4,15 +4,20 @@ import akka.stream.Materializer
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.host.scala.HostFunctions
+import io.otoroshi.wasm4s.scaladsl.CacheableWasmScript
+import io.otoroshi.wasm4s.scaladsl.WasmConfiguration
+import io.otoroshi.wasm4s.scaladsl.WasmIntegrationContext
+import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import io.otoroshi.wasm4s.scaladsl.security.TlsConfig
-import io.otoroshi.wasm4s.scaladsl.{CacheableWasmScript, WasmConfiguration, WasmIntegrationContext, WasmoSettings}
-import org.extism.sdk.{HostFunction, HostUserData}
+import org.extism.sdk.HostFunction
+import org.extism.sdk.HostUserData
 import play.api.Logger
 import play.api.libs.ws.WSRequest
 
 import java.util.concurrent.Executors
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class IzanamiWasmIntegrationContext(env: Env) extends WasmIntegrationContext {
 

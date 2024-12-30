@@ -1,21 +1,33 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.ImportExportDatastore.{DBImportResult, TableMetadata}
+import fr.maif.izanami.datastores.ImportExportDatastore.DBImportResult
+import fr.maif.izanami.datastores.ImportExportDatastore.TableMetadata
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{InternalServerError, IzanamiError, PartialImportFailure}
+import fr.maif.izanami.errors.InternalServerError
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.PartialImportFailure
 import fr.maif.izanami.events.EventOrigin.ImportOrigin
-import fr.maif.izanami.events.{SourceFeatureCreated, SourceFeatureUpdated}
-import fr.maif.izanami.models.{ExportedType, FeatureType, FeatureWithOverloads, KeyRightType, ProjectRightType, WebhookRightType}
-import fr.maif.izanami.models.ExportedType.exportedTypeToString
+import fr.maif.izanami.events.SourceFeatureCreated
+import fr.maif.izanami.events.SourceFeatureUpdated
+import fr.maif.izanami.models.ExportedType
+import fr.maif.izanami.models.FeatureType
+import fr.maif.izanami.models.FeatureWithOverloads
+import fr.maif.izanami.models.KeyRightType
+import fr.maif.izanami.models.ProjectRightType
+import fr.maif.izanami.models.WebhookRightType
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.web.ExportController.{ExportResult, TenantExportRequest}
-import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, MergeOverwrite}
-import fr.maif.izanami.web.{ExportController, ImportController, ImportResult, UserInformation}
+import fr.maif.izanami.web.ExportController
+import fr.maif.izanami.web.ExportController.TenantExportRequest
+import fr.maif.izanami.web.ImportController
+import fr.maif.izanami.web.ImportController.ImportConflictStrategy
+import fr.maif.izanami.web.ImportController.MergeOverwrite
+import fr.maif.izanami.web.UserInformation
 import io.vertx.core.json.JsonArray
 import io.vertx.sqlclient.SqlConnection
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.JsObject
+import play.api.libs.json.Json
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
@@ -122,7 +134,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                               authentication = user.authentication,
                               origin = ImportOrigin
                             ))(conn = conn)
-                          }).getOrElse(Future.successful())
+                          }).getOrElse(Future.successful(()))
                         }))
                         .flatMap(_ => {
                           previousFeatureStates.flatMap(previousStates => {
@@ -543,11 +555,11 @@ object ImportExportDatastore {
                              createdElements: Set[String] = Set(),
                              previousStrategies: Map[String, FeatureWithOverloads] = Map()
                            ) {
-    def addFailedElement(json: JsObject) = copy(failedElements = failedElements + json)
+    def addFailedElement(json: JsObject): DBImportResult = copy(failedElements = failedElements + json)
 
-    def addUpdatedElement(id: String) = copy(updatedElements = updatedElements + id)
+    def addUpdatedElement(id: String): DBImportResult = copy(updatedElements = updatedElements + id)
 
-    def addCreatedElement(id: String) = copy(createdElements = createdElements + id)
+    def addCreatedElement(id: String): DBImportResult = copy(createdElements = createdElements + id)
 
     def mergeWith(other: DBImportResult): DBImportResult = {
       copy(

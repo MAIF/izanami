@@ -1,19 +1,38 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.HashUtils.{bcryptCheck, bcryptHash}
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{TokenCheckFailure, TokenCheckResult, TokenCheckSuccess}
+import fr.maif.izanami.datastores.HashUtils.bcryptCheck
+import fr.maif.izanami.datastores.HashUtils.bcryptHash
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckFailure
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckResult
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckSuccess
 import fr.maif.izanami.datastores.PersonnalAccessTokenDatastoreImplicits.PersonnalAccessTokenRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, UNIQUE_VIOLATION}
+import fr.maif.izanami.env.PostgresqlErrors.FOREIGN_KEY_VIOLATION
+import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{InternalServerError, IzanamiError, OneProjectDoesNotExists, TenantDoesNotExists, TokenDoesNotExist, TokenWithThisNameAlreadyExists}
-import fr.maif.izanami.models.{AllRights, CompletePersonnalAccessToken, Expiration, LimitedRights, NoExpiration, PersonnalAccessToken, PersonnalAccessTokenCreationRequest, PersonnalAccessTokenExpiration, PersonnalAccessTokenRights, ReadPersonnalAccessToken, TenantTokenRights}
+import fr.maif.izanami.errors.InternalServerError
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.TenantDoesNotExists
+import fr.maif.izanami.errors.TokenDoesNotExist
+import fr.maif.izanami.errors.TokenWithThisNameAlreadyExists
+import fr.maif.izanami.models.AllRights
+import fr.maif.izanami.models.CompletePersonnalAccessToken
+import fr.maif.izanami.models.Expiration
+import fr.maif.izanami.models.LimitedRights
+import fr.maif.izanami.models.NoExpiration
+import fr.maif.izanami.models.PersonnalAccessToken
+import fr.maif.izanami.models.PersonnalAccessTokenCreationRequest
+import fr.maif.izanami.models.PersonnalAccessTokenExpiration
+import fr.maif.izanami.models.PersonnalAccessTokenRights
+import fr.maif.izanami.models.ReadPersonnalAccessToken
+import fr.maif.izanami.models.TenantTokenRights
 import fr.maif.izanami.security.IdGenerator.token
 import fr.maif.izanami.utils.Datastore
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
 
-import java.time.{Instant, LocalDateTime, ZoneId, ZoneOffset}
+import java.time.Instant
+import java.time.ZoneId
 import java.util.UUID
 import scala.concurrent.Future
 import scala.util.Try

@@ -1,12 +1,17 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.models.{Feature, RequestContext}
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.libs.json.{JsObject, Json}
-import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
+import fr.maif.izanami.models.Feature
+import fr.maif.izanami.models.RequestContext
+import play.api.libs.json.JsObject
+import play.api.libs.json.Json
+import play.api.mvc.Action
+import play.api.mvc.AnyContent
+import play.api.mvc.BaseController
+import play.api.mvc.ControllerComponents
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class LegacyController(val controllerComponents: ControllerComponents, val clientKeyAction: ClientApiKeyAction)(implicit
     val env: Env

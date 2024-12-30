@@ -1,6 +1,7 @@
 package fr.maif.izanami.env
 
-import akka.actor.{ActorSystem, Scheduler}
+import akka.actor.ActorSystem
+import akka.actor.Scheduler
 import akka.stream.Materializer
 import com.typesafe.config.ConfigFactory
 import fr.maif.izanami.datastores._
@@ -10,11 +11,10 @@ import fr.maif.izanami.mail.Mails
 import fr.maif.izanami.security.JwtService
 import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
-import play.api.libs.json.Json
-import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
-import io.otoroshi.wasm4s.scaladsl.WasmIntegration
+import play.api.Configuration
+import play.api.Environment
+import play.api.Logger
 import play.api.libs.ws.WSClient
-import play.api.{Configuration, Environment, Logger}
 
 import javax.crypto.spec.SecretKeySpec
 import scala.concurrent._
@@ -60,9 +60,9 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
   lazy val wasmQueueBufferSize: Int =
     configuration.getOptional[Int]("app.wasm.queue.buffer.size").getOrElse(2048)
 
-  val logger             = Logger("izanami")
-  val defaultSecret = configuration.get[String]("app.default-secret")
-  val secret = configuration.get[String]("app.secret")
+  val logger: Logger             = Logger("izanami")
+  val defaultSecret: String = configuration.get[String]("app.default-secret")
+  val secret: String = configuration.get[String]("app.secret")
 
   if(defaultSecret == secret) {
     logger.warn("You're using Izanami default secret, which is not safe for production. Please generate a new secret and provide it to Izanami (see https://maif.github.io/izanami/docs/guides/configuration#secret for details).")
@@ -73,7 +73,7 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
     "AES"
   )
 
-  lazy val expositionUrl = configuration.getOptional[String]("app.exposition.url")
+  lazy val expositionUrl: String = configuration.getOptional[String]("app.exposition.url")
     .getOrElse(s"http://localhost:${configuration.getOptional[Int]("http.port").getOrElse(9000)}")
 
   val actorSystem: ActorSystem = ActorSystem(
@@ -95,7 +95,7 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
   val datastores = new Datastores(this)
   val mails      = new Mails(this)
   val jwtService = new JwtService(this)
-  val wasmIntegration = WasmIntegration(new IzanamiWasmIntegrationContext(this))
+  val wasmIntegration: WasmIntegration = WasmIntegration(new IzanamiWasmIntegrationContext(this))
   val jobs = new Jobs(this)
 
   def onStart(): Future[Unit] = {

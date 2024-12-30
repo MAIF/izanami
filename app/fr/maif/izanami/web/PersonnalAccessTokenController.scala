@@ -1,17 +1,23 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.models.PersonnalAccessToken.{
-  completePersonnalAccessTokenWrites,
-  consultationTokenWrites,
-  personnalAccessTokenCreationRequestRead
-}
-import fr.maif.izanami.models.{AllRights, LimitedRights, PersonnalAccessTokenCreationRequest}
-import play.api.libs.json.{JsValue, Json, Writes}
-import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
+import fr.maif.izanami.models.AllRights
+import fr.maif.izanami.models.LimitedRights
+import fr.maif.izanami.models.PersonnalAccessToken.completePersonnalAccessTokenWrites
+import fr.maif.izanami.models.PersonnalAccessToken.consultationTokenWrites
+import fr.maif.izanami.models.PersonnalAccessToken.personnalAccessTokenCreationRequestRead
+import fr.maif.izanami.models.PersonnalAccessTokenCreationRequest
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
+import play.api.libs.json.Writes
+import play.api.mvc.Action
+import play.api.mvc.AnyContent
+import play.api.mvc.BaseController
+import play.api.mvc.ControllerComponents
 
 import java.util.UUID
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.util.Try
 
 class PersonnalAccessTokenController(

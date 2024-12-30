@@ -1,9 +1,17 @@
 package fr.maif.izanami.errors
 
 import fr.maif.izanami.models.ExportedType
-import play.api.http.Status.{BAD_REQUEST, FORBIDDEN, INTERNAL_SERVER_ERROR, NOT_FOUND, UNAUTHORIZED}
-import play.api.libs.json.{JsObject, JsValue, Json, Writes}
-import play.api.mvc.{Result, Results}
+import play.api.http.Status.BAD_REQUEST
+import play.api.http.Status.FORBIDDEN
+import play.api.http.Status.INTERNAL_SERVER_ERROR
+import play.api.http.Status.NOT_FOUND
+import play.api.http.Status.UNAUTHORIZED
+import play.api.libs.json.JsObject
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
+import play.api.libs.json.Writes
+import play.api.mvc.Result
+import play.api.mvc.Results
 
 import java.util.Objects
 import scala.collection.immutable.Iterable

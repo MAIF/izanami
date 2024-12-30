@@ -1,21 +1,32 @@
 package fr.maif.izanami.mail
 
+import com.mailjet.client.ClientOptions
+import com.mailjet.client.MailjetClient
+import com.mailjet.client.MailjetRequest
 import com.mailjet.client.resource.Emailv31
-import com.mailjet.client.{ClientOptions, MailjetClient, MailjetRequest}
 import com.sun.mail.smtp.SMTPTransport
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{IzanamiError, MailSendingError, MissingMailProviderConfigurationError}
-import fr.maif.izanami.mail.MailGunRegions.{Europe, MailGunRegion}
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.MailSendingError
+import fr.maif.izanami.errors.MissingMailProviderConfigurationError
+import fr.maif.izanami.mail.MailGunRegions.Europe
+import fr.maif.izanami.mail.MailGunRegions.MailGunRegion
 import fr.maif.izanami.mail.MailerTypes.MailerType
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import org.json.{JSONArray, JSONObject}
+import org.json.JSONArray
+import org.json.JSONObject
 import play.api.Logger
-import play.api.libs.ws.{WSAuthScheme, WSClient}
+import play.api.libs.ws.WSAuthScheme
+import play.api.libs.ws.WSClient
 
-import java.util.{Objects, Properties}
-import javax.mail.internet.{InternetAddress, MimeMessage}
-import javax.mail.{Message, Session}
-import scala.concurrent.{ExecutionContext, Future}
+import java.util.Objects
+import java.util.Properties
+import javax.mail.Message
+import javax.mail.Session
+import javax.mail.internet.InternetAddress
+import javax.mail.internet.MimeMessage
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.jdk.FutureConverters.CompletionStageOps
 import scala.util.Using
 

@@ -2,11 +2,14 @@ package fr.maif.izanami.web
 
 import controllers.Assets
 import fr.maif.izanami.env.Env
-import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
+import play.api.mvc.Action
+import play.api.mvc.AnyContent
+import play.api.mvc.BaseController
+import play.api.mvc.ControllerComponents
 
 class FrontendController(val assets: Assets, val controllerComponents: ControllerComponents)(implicit val env: Env) extends BaseController {
 
-  def headers = List(
+  def headers: List[(String, String)] = List(
     "Access-Control-Allow-Origin" -> "*",
     "Access-Control-Allow-Methods" -> "GET, POST, OPTIONS, DELETE, PUT",
     "Access-Control-Max-Age" -> "3600",
@@ -14,9 +17,9 @@ class FrontendController(val assets: Assets, val controllerComponents: Controlle
     "Access-Control-Allow-Credentials" -> "true"
   )
 
-  def rootOptions = options("/")
+  def rootOptions: Action[AnyContent] = options("/")
 
-  def options(url: String) = Action { request =>
+  def options(url: String): Action[AnyContent] = Action { request =>
     NoContent.withHeaders(headers: _*)
   }
     def index: Action[AnyContent] = assets.at("index.html")

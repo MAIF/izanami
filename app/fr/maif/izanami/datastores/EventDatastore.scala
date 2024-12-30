@@ -1,15 +1,21 @@
 package fr.maif.izanami.datastores
 
 import akka.actor.Cancellable
-import fr.maif.izanami.datastores.EventDatastore.{AscOrder, FeatureEventRequest}
+import fr.maif.izanami.datastores.EventDatastore.AscOrder
+import fr.maif.izanami.datastores.EventDatastore.FeatureEventRequest
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{EventNotFound, FailedToReadEvent, IzanamiError}
-import fr.maif.izanami.events.EventService.{FeatureEventType, IZANAMI_CHANNEL, eventFormat}
+import fr.maif.izanami.errors.EventNotFound
+import fr.maif.izanami.errors.FailedToReadEvent
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.events.EventService.FeatureEventType
+import fr.maif.izanami.events.EventService.IZANAMI_CHANNEL
+import fr.maif.izanami.events.EventService.eventFormat
 import fr.maif.izanami.events.IzanamiEvent
 import fr.maif.izanami.utils.Datastore
 
-import java.time.{Duration, Instant, ZoneOffset}
+import java.time.Instant
+import java.time.ZoneOffset
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 

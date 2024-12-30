@@ -2,14 +2,28 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.FeatureContextDatastore.FeatureContextRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
+import fr.maif.izanami.env.PostgresqlErrors.FOREIGN_KEY_VIOLATION
+import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
+import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.SourceFeatureUpdated
 import fr.maif.izanami.models.FeatureContext.generateSubContextId
 import fr.maif.izanami.models._
-import fr.maif.izanami.models.features.{ActivationCondition, BooleanActivationCondition, BooleanResult, BooleanResultDescriptor, NumberActivationCondition, NumberResult, NumberResultDescriptor, ResultType, StringActivationCondition, StringResult, StringResultDescriptor, ValuedActivationCondition, ValuedResultDescriptor, ValuedResultType}
+import fr.maif.izanami.models.features.ActivationCondition
+import fr.maif.izanami.models.features.BooleanActivationCondition
+import fr.maif.izanami.models.features.BooleanResult
+import fr.maif.izanami.models.features.BooleanResultDescriptor
+import fr.maif.izanami.models.features.NumberActivationCondition
+import fr.maif.izanami.models.features.NumberResult
+import fr.maif.izanami.models.features.NumberResultDescriptor
+import fr.maif.izanami.models.features.ResultType
+import fr.maif.izanami.models.features.StringActivationCondition
+import fr.maif.izanami.models.features.StringResult
+import fr.maif.izanami.models.features.StringResultDescriptor
+import fr.maif.izanami.models.features.ValuedResultDescriptor
+import fr.maif.izanami.models.features.ValuedResultType
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.WasmConfig
@@ -17,8 +31,11 @@ import fr.maif.izanami.web.UserInformation
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import io.vertx.core.json.JsonArray
 import io.vertx.pgclient.PgException
-import io.vertx.sqlclient.{Row, SqlConnection}
-import play.api.libs.json.{JsArray, JsValue, Json, Reads, Writes}
+import io.vertx.sqlclient.Row
+import io.vertx.sqlclient.SqlConnection
+import play.api.libs.json.JsArray
+import play.api.libs.json.Json
+import play.api.libs.json.Writes
 
 import java.util.Objects
 import scala.concurrent.Future

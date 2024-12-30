@@ -1,21 +1,32 @@
 package fr.maif.izanami.datastores
 
 import akka.actor.Cancellable
-import fr.maif.izanami.datastores.userImplicits.{dbUserTypeToUserType, rightRead, UserRow}
+import fr.maif.izanami.datastores.userImplicits.UserRow
+import fr.maif.izanami.datastores.userImplicits.dbUserTypeToUserType
+import fr.maif.izanami.datastores.userImplicits.rightRead
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
+import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
+import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
-import fr.maif.izanami.models.RightLevels.{superiorOrEqualLevels, RightLevel}
+import fr.maif.izanami.models.RightLevels.RightLevel
+import fr.maif.izanami.models.RightLevels.superiorOrEqualLevels
 import fr.maif.izanami.models.Rights.TenantRightDiff
-import fr.maif.izanami.models.User.{rightLevelReads, tenantRightReads}
+import fr.maif.izanami.models.User.rightLevelReads
+import fr.maif.izanami.models.User.tenantRightReads
 import fr.maif.izanami.models._
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
+import fr.maif.izanami.web.ImportController.Fail
+import fr.maif.izanami.web.ImportController.ImportConflictStrategy
+import fr.maif.izanami.web.ImportController.MergeOverwrite
+import fr.maif.izanami.web.ImportController.Skip
 import io.vertx.pgclient.PgException
-import io.vertx.sqlclient.{Row, SqlConnection}
-import play.api.libs.json.{JsError, JsSuccess, Reads}
+import io.vertx.sqlclient.Row
+import io.vertx.sqlclient.SqlConnection
+import play.api.libs.json.JsError
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.Reads
 
 import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
@@ -809,7 +820,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       username: String,
       rights: Set[RightUnit],
       tenantLevel: Option[RightLevel] = Option.empty
-  ) = {
+  ): Future[Boolean] = {
     val (keys, projects): (Set[String], Set[String]) = rights.partitionMap(r => {
       r.rightType match {
         case RightTypes.Key     => Left(r.name)

@@ -2,10 +2,14 @@ package fr.maif.izanami.v1
 
 import fr.maif.izanami.models.AbstractFeature
 import fr.maif.izanami.security.IdGenerator
-import fr.maif.izanami.v1.V1FeatureEvents.{baseJson, gen}
-import play.api.libs.json.{JsNull, JsObject, JsValue, Json}
+import fr.maif.izanami.v1.V1FeatureEvents.gen
+import play.api.libs.json.JsNull
+import play.api.libs.json.JsObject
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
 
-import java.time.{Instant, LocalDateTime}
+import java.time.Instant
+import java.time.LocalDateTime
 
 object V2FeatureEvents {
   private def baseJson(feature: JsObject, user: String): JsObject = {
@@ -67,7 +71,7 @@ object V2FeatureEvents {
 }
 
 object V1FeatureEvents {
-  val gen = IdGenerator(1024)
+  val gen: IdGenerator = IdGenerator(1024)
   private def baseJson(id: String, feature: JsObject): JsObject = {
     Json.obj(
       "_id"       -> gen.nextId(),

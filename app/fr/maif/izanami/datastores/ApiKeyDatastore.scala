@@ -2,16 +2,21 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.apiKeyImplicites.ApiKeyRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, RELATION_DOES_NOT_EXISTS}
+import fr.maif.izanami.env.PostgresqlErrors.FOREIGN_KEY_VIOLATION
+import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
-import fr.maif.izanami.models.{ApiKey, ApiKeyProject, ApiKeyWithCompleteRights}
+import fr.maif.izanami.models.ApiKey
+import fr.maif.izanami.models.ApiKeyProject
+import fr.maif.izanami.models.ApiKeyWithCompleteRights
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy}
+import fr.maif.izanami.web.ImportController.Fail
+import fr.maif.izanami.web.ImportController.ImportConflictStrategy
 import fr.maif.izanami.web.UserInformation
 import io.vertx.pgclient.PgException
-import io.vertx.sqlclient.{Row, SqlConnection}
+import io.vertx.sqlclient.Row
+import io.vertx.sqlclient.SqlConnection
 
 import java.util.UUID
 import scala.List

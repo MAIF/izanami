@@ -2,31 +2,62 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.featureImplicits.FeatureRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, NOT_NULL_VIOLATION, RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
+import fr.maif.izanami.env.PostgresqlErrors.FOREIGN_KEY_VIOLATION
+import fr.maif.izanami.env.PostgresqlErrors.NOT_NULL_VIOLATION
+import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
 import fr.maif.izanami.events.EventAuthentication.BackOfficeAuthentication
-import fr.maif.izanami.events.EventOrigin.{ImportOrigin, NormalOrigin}
-import fr.maif.izanami.events.{EventOrigin, EventService, SourceFeatureCreated, SourceFeatureDeleted, SourceFeatureUpdated}
+import fr.maif.izanami.events.EventOrigin.ImportOrigin
+import fr.maif.izanami.events.EventOrigin.NormalOrigin
+import fr.maif.izanami.events.SourceFeatureCreated
+import fr.maif.izanami.events.SourceFeatureDeleted
+import fr.maif.izanami.events.SourceFeatureUpdated
 import fr.maif.izanami.models._
-import fr.maif.izanami.models.features.{ActivationCondition, BooleanActivationCondition, BooleanResult, BooleanResultDescriptor, EnabledFeaturePatch, FeaturePatch, LegacyCompatibleCondition, NumberActivationCondition, NumberResult, NumberResultDescriptor, ProjectFeaturePatch, RemoveFeaturePatch, ResultType, StringActivationCondition, StringResult, StringResultDescriptor, TagsFeaturePatch, ValuedResultDescriptor, ValuedResultType}
+import fr.maif.izanami.models.features.ActivationCondition
+import fr.maif.izanami.models.features.BooleanActivationCondition
+import fr.maif.izanami.models.features.BooleanResult
+import fr.maif.izanami.models.features.BooleanResultDescriptor
+import fr.maif.izanami.models.features.EnabledFeaturePatch
+import fr.maif.izanami.models.features.FeaturePatch
+import fr.maif.izanami.models.features.LegacyCompatibleCondition
+import fr.maif.izanami.models.features.NumberActivationCondition
+import fr.maif.izanami.models.features.NumberResult
+import fr.maif.izanami.models.features.NumberResultDescriptor
+import fr.maif.izanami.models.features.ProjectFeaturePatch
+import fr.maif.izanami.models.features.RemoveFeaturePatch
+import fr.maif.izanami.models.features.ResultType
+import fr.maif.izanami.models.features.StringActivationCondition
+import fr.maif.izanami.models.features.StringResult
+import fr.maif.izanami.models.features.StringResultDescriptor
+import fr.maif.izanami.models.features.TagsFeaturePatch
+import fr.maif.izanami.models.features.ValuedResultDescriptor
 import fr.maif.izanami.utils.Datastore
-import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterListEither, BetterSyntax}
-import fr.maif.izanami.v1.V1FeatureEvents
-import fr.maif.izanami.wasm.{WasmConfig, WasmConfigWithFeatures, WasmScriptAssociatedFeatures}
-import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
+import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
+import fr.maif.izanami.utils.syntax.implicits.BetterListEither
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.wasm.WasmConfig
+import fr.maif.izanami.wasm.WasmConfigWithFeatures
+import fr.maif.izanami.wasm.WasmScriptAssociatedFeatures
+import fr.maif.izanami.web.ImportController.Fail
+import fr.maif.izanami.web.ImportController.ImportConflictStrategy
+import fr.maif.izanami.web.ImportController.MergeOverwrite
+import fr.maif.izanami.web.ImportController.Skip
 import fr.maif.izanami.web.UserInformation
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
-import io.vertx.core.json.{JsonArray, JsonObject}
+import io.vertx.core.json.JsonArray
+import io.vertx.core.json.JsonObject
 import io.vertx.core.shareddata.ClusterSerializable
 import io.vertx.pgclient.PgException
-import io.vertx.sqlclient.{Row, SqlConnection}
-import org.postgresql.xml.LegacyInsecurePGXmlFactoryFactory
-import play.api.libs.json.{JsArray, JsObject, JsValue, Json, Reads}
+import io.vertx.sqlclient.Row
+import io.vertx.sqlclient.SqlConnection
+import play.api.libs.json.JsArray
+import play.api.libs.json.JsObject
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
+import play.api.libs.json.Reads
 
-import java.lang
 import java.util.UUID
-import scala.collection.immutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.reflect.ClassTag
