@@ -1,8 +1,8 @@
 package fr.maif.izanami.wasm.host.scala
 
-import akka.http.scaladsl.model.Uri
-import akka.stream.Materializer
-import akka.util.ByteString
+import org.apache.pekko.http.scaladsl.model.Uri
+import org.apache.pekko.stream.Materializer
+import org.apache.pekko.util.ByteString
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.utils.RegexPool
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue

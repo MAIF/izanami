@@ -1,6 +1,6 @@
 package fr.maif.izanami.env
 
-import akka.http.scaladsl.util.FastFuture
+import org.apache.pekko.http.scaladsl.util.FastFuture
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import fr.maif.izanami.datastores.HashUtils

@@ -1,6 +1,6 @@
 package fr.maif.izanami.datastores
 
-import akka.actor.Cancellable
+import org.apache.pekko.actor.Cancellable
 import fr.maif.izanami.datastores.userImplicits.UserRow
 import fr.maif.izanami.datastores.userImplicits.dbUserTypeToUserType
 import fr.maif.izanami.datastores.userImplicits.rightRead

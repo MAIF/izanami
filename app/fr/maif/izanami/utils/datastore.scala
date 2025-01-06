@@ -1,6 +1,6 @@
 package fr.maif.izanami.utils
 
-import akka.http.scaladsl.util.FastFuture
+import org.apache.pekko.http.scaladsl.util.FastFuture
 import fr.maif.izanami.env.Env
 import play.api.Logger
 

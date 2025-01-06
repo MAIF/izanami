@@ -1,4 +1,4 @@
-addSbtPlugin("com.typesafe.play" % "sbt-plugin"    % "2.9.0")
+addSbtPlugin("org.playframework" % "sbt-plugin"    % "3.0.6")
 // addSbtPlugin("org.foundweekends.giter8" % "sbt-giter8-scaffold" % "0.13.1")
 addDependencyTreePlugin
 addSbtPlugin("com.eed3si9n"      % "sbt-assembly"  % "0.14.5")

@@ -1,6 +1,6 @@
 package fr.maif.izanami.web
 
-import akka.util.ByteString
+import org.apache.pekko.util.ByteString
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.models.Export
 import fr.maif.izanami.models.Feature.lightweightFeatureWrite
@@ -37,7 +37,7 @@ class ExportController(
                   header =
                     ResponseHeader(200, Map("Content-Disposition" -> "attachment", "filename" -> "export.ndjson")),
                   body = HttpEntity.Streamed(
-                    akka.stream.scaladsl.Source.single(ByteString(jsons.mkString("\n"), "UTF-8")),
+                    org.apache.pekko.stream.scaladsl.Source.single(ByteString(jsons.mkString("\n"), "UTF-8")),
                     None,
                     Some("application/x-ndjson")
                   )

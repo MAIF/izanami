@@ -1,6 +1,6 @@
 package fr.maif.izanami.web
 
-import akka.util.ByteString
+import org.apache.pekko.util.ByteString
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.errors.PartialImportFailure

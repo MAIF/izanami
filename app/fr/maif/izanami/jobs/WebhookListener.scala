@@ -1,8 +1,8 @@
 package fr.maif.izanami.jobs
 
-import akka.actor.ActorSystem
-import akka.actor.Cancellable
-import akka.pattern.Patterns.after
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.Cancellable
+import org.apache.pekko.pattern.Patterns.after
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.jknack.handlebars.Context
 import com.github.jknack.handlebars.Handlebars
