@@ -34,6 +34,7 @@
   <logger name="play" level="INFO" />
   <logger name="application" level="INFO" />
   <logger name="izanami-wasm" level="WARN" />
+  <logger name="org.flywaydb.core.internal.scanner.filesystem.FileSystemScanner" level="OFF"/>
 
 
   <root level="INFO">

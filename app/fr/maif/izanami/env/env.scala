@@ -25,20 +25,20 @@ class Datastores(env: Env) {
 
   private implicit val ec: ExecutionContext = env.executionContext
 
-  val features: FeaturesDatastore                         = new FeaturesDatastore(env)
-  val tenants: TenantsDatastore                           = new TenantsDatastore(env)
-  val projects: ProjectsDatastore                         = new ProjectsDatastore(env)
-  val tags: TagsDatastore                                 = new TagsDatastore(env)
-  val apiKeys: ApiKeyDatastore                            = new ApiKeyDatastore(env)
-  val featureContext: FeatureContextDatastore             = new FeatureContextDatastore(env)
-  val users: UsersDatastore                               = new UsersDatastore(env)
-  val configuration: ConfigurationDatastore               = new ConfigurationDatastore(env)
-  val webhook: WebhooksDatastore                          = new WebhooksDatastore(env)
-  val stats: StatsDatastore                               = new StatsDatastore(env)
-  val exportDatastore: ImportExportDatastore              = new ImportExportDatastore(env)
-  val search: SearchDatastore                             = new SearchDatastore(env)
+  val features: FeaturesDatastore = new FeaturesDatastore(env)
+  val tenants: TenantsDatastore = new TenantsDatastore(env)
+  val projects: ProjectsDatastore = new ProjectsDatastore(env)
+  val tags: TagsDatastore = new TagsDatastore(env)
+  val apiKeys: ApiKeyDatastore = new ApiKeyDatastore(env)
+  val featureContext: FeatureContextDatastore = new FeatureContextDatastore(env)
+  val users: UsersDatastore = new UsersDatastore(env)
+  val configuration: ConfigurationDatastore = new ConfigurationDatastore(env)
+  val webhook: WebhooksDatastore = new WebhooksDatastore(env)
+  val stats: StatsDatastore = new StatsDatastore(env)
+  val exportDatastore: ImportExportDatastore = new ImportExportDatastore(env)
+  val search: SearchDatastore = new SearchDatastore(env)
   val personnalAccessToken: PersonnalAccessTokenDatastore = new PersonnalAccessTokenDatastore(env)
-  val events: EventDatastore                              = new EventDatastore(env)
+  val events: EventDatastore = new EventDatastore(env)
 
   def onStart(): Future[Unit] = {
     for {
@@ -57,19 +57,22 @@ class Datastores(env: Env) {
 
 class Env(val configuration: Configuration, val environment: Environment, val Ws: WSClient) {
   // TODO variablize with izanami
-  lazy val wasmCacheTtl: Int        =
+  lazy val wasmCacheTtl: Int =
     configuration.getOptional[Int]("app.wasm.cache.ttl").filter(_ >= 5000).getOrElse(60000)
   lazy val wasmQueueBufferSize: Int =
     configuration.getOptional[Int]("app.wasm.queue.buffer.size").getOrElse(2048)
 
-  val logger        = Logger("izanami")
+  val logger = Logger("izanami")
   val defaultSecret = configuration.get[String]("app.default-secret")
-  val secret        = configuration.get[String]("app.secret")
+  val secret = configuration.get[String]("app.secret")
 
   if (defaultSecret == secret) {
     logger.warn(
       "You're using Izanami default secret, which is not safe for production. Please generate a new secret and provide it to Izanami."
     )
+  }
+  if (defaultSecret == secret) {
+    logger.warn("You're using Izanami default secret, which is not safe for production. Please generate a new secret and provide it to Izanami (see https://maif.github.io/izanami/docs/guides/configuration#secret for details).")
   }
 
   lazy val encryptionKey = new SecretKeySpec(
@@ -90,18 +93,18 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
   )
 
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
-  val scheduler: Scheduler                        = actorSystem.scheduler
-  val materializer: Materializer                  = Materializer(actorSystem)
+  val scheduler: Scheduler = actorSystem.scheduler
+  val materializer: Materializer = Materializer(actorSystem)
 
   // init subsystems
-  val eventService    = new EventService(this)
+  val eventService = new EventService(this)
   val webhookListener = new WebhookListener(this, eventService)
-  val postgresql      = new Postgresql(this)
-  val datastores      = new Datastores(this)
-  val mails           = new Mails(this)
-  val jwtService      = new JwtService(this)
+  val postgresql = new Postgresql(this)
+  val datastores = new Datastores(this)
+  val mails = new Mails(this)
+  val jwtService = new JwtService(this)
   val wasmIntegration = WasmIntegration(new IzanamiWasmIntegrationContext(this))
-  val jobs            = new Jobs(this)
+  val jobs = new Jobs(this)
 
   def isOIDCConfigurationEditable: Boolean = (for (
     _ <- configuration.getOptional[String]("app.openid.client-id");
@@ -113,11 +116,11 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
     _ <- configuration.getOptional[String]("app.openid.scopes").map(_.replace("\"", ""))
   ) yield true).isEmpty
 
-  private def oidcConfigurationMigration() = {
-    this.datastores.configuration
+  def oidcConfigurationMigration() = {
+    datastores.configuration
       .readFullConfiguration()
       .map {
-        case Left(err)            =>
+        case Left(err) =>
         case Right(configuration) =>
           for (
             clientId <- this.configuration.getOptional[String]("app.openid.client-id");
@@ -162,8 +165,6 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
   }
 
   def onStart(): Future[Unit] = {
-    logger.info(s"Postgres url ${postgresql.getHost}:${postgresql.getPort}")
-
     for {
       _ <- postgresql.onStart()
       _ <- datastores.onStart()

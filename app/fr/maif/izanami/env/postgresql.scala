@@ -35,79 +35,82 @@ class Postgresql(env: Env) {
     val opts = PgConnectOptions.fromUri(configuration.get[String]("app.pg.uri"))
     opts
   } else {
-    val ssl        = configuration.getOptional[Configuration]("app.pg.ssl").getOrElse(Configuration.empty)
-    val sslEnabled = ssl.getOptional[Boolean]("enabled").getOrElse(false)
-    new PgConnectOptions()
-      .applyOnWithOpt(configuration.getOptional[Int]("connect-timeout"))((p, v) => p.setConnectTimeout(v))
-      .applyOnWithOpt(configuration.getOptional[Int]("idle-timeout"))((p, v) => p.setIdleTimeout(v))
-      .applyOnWithOpt(configuration.getOptional[Boolean]("log-activity"))((p, v) => p.setLogActivity(v))
-      .applyOnWithOpt(configuration.getOptional[Int]("pipelining-limit"))((p, v) => p.setPipeliningLimit(v))
-      .setPort(getPort)
-      .setHost(getHost)
-      .setDatabase(configuration.getOptional[String]("app.pg.database").getOrElse("postgres"))
-      .setUser(configuration.getOptional[String]("app.pg.user").getOrElse("postgres"))
-      .setPassword(configuration.getOptional[String]("app.pg.password").getOrElse("postgres"))
-      .applyOnIf(sslEnabled) { pgopt =>
-        val mode              = SslMode.of(ssl.getOptional[String]("mode").getOrElse("VERIFY_CA"))
-        val pemTrustOptions   = new PemTrustOptions()
-        val pemKeyCertOptions = new PemKeyCertOptions()
-        pgopt.setSslMode(mode)
-        pgopt.applyOnWithOpt(ssl.getOptional[Int]("ssl-handshake-timeout"))((p, v) => p.setSslHandshakeTimeout(v))
-        ssl.getOptional[Seq[String]]("trustedCertsPath").map { pathes =>
-          pathes.map(p => pemTrustOptions.addCertPath(p))
-          pgopt.setPemTrustOptions(pemTrustOptions)
+
+    val maybePgConfig = for(
+      database <- configuration.getOptional[String]("app.pg.database");
+      user <- configuration.getOptional[String]("app.pg.user");
+      password <- configuration.getOptional[String]("app.pg.password");
+      host <- configuration.getOptional[String]("app.pg.host");
+      port <- configuration.getOptional[Int]("app.pg.port")
+    ) yield {
+      val ssl        = configuration.getOptional[Configuration]("app.pg.ssl").getOrElse(Configuration.empty)
+      val sslEnabled = ssl.getOptional[Boolean]("enabled").getOrElse(false)
+      new PgConnectOptions()
+        .applyOnWithOpt(configuration.getOptional[Int]("connect-timeout"))((p, v) => p.setConnectTimeout(v))
+        .applyOnWithOpt(configuration.getOptional[Int]("idle-timeout"))((p, v) => p.setIdleTimeout(v))
+        .applyOnWithOpt(configuration.getOptional[Boolean]("log-activity"))((p, v) => p.setLogActivity(v))
+        .applyOnWithOpt(configuration.getOptional[Int]("pipelining-limit"))((p, v) => p.setPipeliningLimit(v))
+        .setPort(port)
+        .setHost(host)
+        .setDatabase(database)
+        .setUser(user)
+        .setPassword(password)
+        .applyOnIf(sslEnabled) { pgopt =>
+          val mode              = SslMode.of(ssl.getOptional[String]("mode").getOrElse("VERIFY_CA"))
+          val pemTrustOptions   = new PemTrustOptions()
+          val pemKeyCertOptions = new PemKeyCertOptions()
+          pgopt.setSslMode(mode)
+          pgopt.applyOnWithOpt(ssl.getOptional[Int]("ssl-handshake-timeout"))((p, v) => p.setSslHandshakeTimeout(v))
+          ssl.getOptional[Seq[String]]("trustedCertsPath").map { pathes =>
+            pathes.map(p => pemTrustOptions.addCertPath(p))
+            pgopt.setPemTrustOptions(pemTrustOptions)
+          }
+          ssl.getOptional[String]("trusted-cert-path").map { path =>
+            pemTrustOptions.addCertPath(path)
+            pgopt.setPemTrustOptions(pemTrustOptions)
+          }
+          ssl.getOptional[Seq[String]]("trusted-certs").map { certs =>
+            certs.map(p => pemTrustOptions.addCertValue(Buffer.buffer(p)))
+            pgopt.setPemTrustOptions(pemTrustOptions)
+          }
+          ssl.getOptional[String]("trusted-cert").map { path =>
+            pemTrustOptions.addCertValue(Buffer.buffer(path))
+            pgopt.setPemTrustOptions(pemTrustOptions)
+          }
+          ssl.getOptional[Seq[String]]("client-certs-path").map { pathes =>
+            pathes.map(p => pemKeyCertOptions.addCertPath(p))
+            pgopt.setPemKeyCertOptions(pemKeyCertOptions)
+          }
+          ssl.getOptional[Seq[String]]("client-certs").map { certs =>
+            certs.map(p => pemKeyCertOptions.addCertValue(Buffer.buffer(p)))
+            pgopt.setPemKeyCertOptions(pemKeyCertOptions)
+          }
+          ssl.getOptional[String]("client-cert-path").map { path =>
+            pemKeyCertOptions.addCertPath(path)
+            pgopt.setPemKeyCertOptions(pemKeyCertOptions)
+          }
+          ssl.getOptional[String]("client-cert").map { path =>
+            pemKeyCertOptions.addCertValue(Buffer.buffer(path))
+            pgopt.setPemKeyCertOptions(pemKeyCertOptions)
+          }
+          ssl.getOptional[Boolean]("trust-all").map { v =>
+            pgopt.setTrustAll(v)
+          }
+          pgopt
         }
-        ssl.getOptional[String]("trusted-cert-path").map { path =>
-          pemTrustOptions.addCertPath(path)
-          pgopt.setPemTrustOptions(pemTrustOptions)
-        }
-        ssl.getOptional[Seq[String]]("trusted-certs").map { certs =>
-          certs.map(p => pemTrustOptions.addCertValue(Buffer.buffer(p)))
-          pgopt.setPemTrustOptions(pemTrustOptions)
-        }
-        ssl.getOptional[String]("trusted-cert").map { path =>
-          pemTrustOptions.addCertValue(Buffer.buffer(path))
-          pgopt.setPemTrustOptions(pemTrustOptions)
-        }
-        ssl.getOptional[Seq[String]]("client-certs-path").map { pathes =>
-          pathes.map(p => pemKeyCertOptions.addCertPath(p))
-          pgopt.setPemKeyCertOptions(pemKeyCertOptions)
-        }
-        ssl.getOptional[Seq[String]]("client-certs").map { certs =>
-          certs.map(p => pemKeyCertOptions.addCertValue(Buffer.buffer(p)))
-          pgopt.setPemKeyCertOptions(pemKeyCertOptions)
-        }
-        ssl.getOptional[String]("client-cert-path").map { path =>
-          pemKeyCertOptions.addCertPath(path)
-          pgopt.setPemKeyCertOptions(pemKeyCertOptions)
-        }
-        ssl.getOptional[String]("client-cert").map { path =>
-          pemKeyCertOptions.addCertValue(Buffer.buffer(path))
-          pgopt.setPemKeyCertOptions(pemKeyCertOptions)
-        }
-        ssl.getOptional[Boolean]("trust-all").map { v =>
-          pgopt.setTrustAll(v)
-        }
-        pgopt
-      }
+    }
+
+    maybePgConfig.getOrElse(throw new IllegalArgumentException("No suitable postgres configuration provided, you need to provide either Postgres URI or Postgres database, user and password (see https://maif.github.io/izanami/docs/guides/configuration#database for details)"))
   }
   lazy val vertx               = Vertx.vertx()
   private lazy val poolOptions = new PoolOptions()
-    .setMaxSize(configuration.getOptional[Int]("app.pg.pool-size").getOrElse(100))
+    .setMaxSize(configuration.getOptional[Int]("app.pg.pool-size").getOrElse(20))
     .applyOnWithOpt(configuration.getOptional[Int]("idle-timeout"))((p, v) => p.setIdleTimeout(v))
     .applyOnWithOpt(configuration.getOptional[Int]("max-lifetime"))((p, v) => p.setMaxLifetime(v))
 
   private lazy val pool = PgPool.pool(connectOptions, poolOptions)
 
   private val configuration = env.configuration
-
-  def getHost = {
-    configuration.getOptional[String]("app.pg.host").getOrElse("localhost")
-  }
-
-  def getPort = {
-    configuration.getOptional[Int]("app.pg.port").getOrElse(5432)
-  }
 
   def onStart(): Future[Unit] = {
     updateSchema()

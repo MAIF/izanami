@@ -137,6 +137,13 @@ To test docker image
 docker run --env IZANAMI_PG_URI=postgresql://postgres:postgres@host.docker.internal:5432/postgres -p 9000:9000 izanami
 ```
 
+To build "test" docker image (docker image with embeded postgres)
+
+```sh
+docker build -t izanami-test-standalone -f ./demo-docker-image/Dockerfile-pg-embeded .
+```
+
+
 ## Running documentation locally
 
 To run documentation, just install and start project in `manual` folder.

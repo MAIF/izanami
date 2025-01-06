@@ -1,0 +1,28 @@
+FROM postgres:17.2
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y default-jre netcat-traditional;
+
+RUN mkdir /app
+#RUN groupadd -g 10001 javauser && useradd -u 10000 -g javauser javauser
+ENV POSTGRES_PASSWORD=password
+
+ENV IZANAMI_CONTAINERIZED=true
+ENV IZANAMI_PG_DATABASE=postgres
+ENV IZANAMI_PG_USER=postgres
+ENV IZANAMI_PG_PASSWORD=password
+
+ENV IZANAMI_ADMIN_DEFAULT_USERNAME=izanami
+ENV IZANAMI_ADMIN_DEFAULT_PASSWORD=password
+
+EXPOSE 9000
+
+COPY ./target/izanami.jar /app/izanami.jar
+COPY ./demo-docker-image/script.sh /app/script.sh
+RUN chmod +x /app/script.sh
+
+#WORKDIR /app
+RUN chown -R postgres:postgres /app
+#USER postgres
+CMD ["/bin/sh", "/app/script.sh"]
