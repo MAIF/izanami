@@ -64,3 +64,13 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: maif/izanami:${{ github.event.inputs.releaseVersion }}
+      - name: Build and push demo image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          file: ./demo-docker-image/Dockerfile-pg-embeded
+          tags: |
+            maif/izanami-test-standalone:${{ github.event.inputs.releaseVersion }}
+            maif/izanami-test-standalone:latest

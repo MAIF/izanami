@@ -6,7 +6,7 @@ export const language = ["en","zh"];
 export const removeDefaultStopWordFilter = false;
 export const removeDefaultStemmer = false;
 export { default as Mark } from "/home/runner/work/izanami/izanami/manual/node_modules/mark.js/dist/mark.js"
-export const searchIndexUrl = "search-index{dir}.json?_=0656fc1b";
+export const searchIndexUrl = "search-index{dir}.json?_=9cbfd789";
 export const searchResultLimits = 8;
 export const searchResultContextMaxLength = 50;
 export const explicitSearchResultPath = true;
