@@ -1,12 +1,12 @@
 package fr.maif.izanami.events
 
-import akka.NotUsed
-import akka.stream.KillSwitches
-import akka.stream.Materializer
-import akka.stream.SharedKillSwitch
-import akka.stream.scaladsl.BroadcastHub
-import akka.stream.scaladsl.Keep
-import akka.stream.scaladsl.Source
+import org.apache.pekko.NotUsed
+import org.apache.pekko.stream.KillSwitches
+import org.apache.pekko.stream.Materializer
+import org.apache.pekko.stream.SharedKillSwitch
+import org.apache.pekko.stream.scaladsl.BroadcastHub
+import org.apache.pekko.stream.scaladsl.Keep
+import org.apache.pekko.stream.scaladsl.Source
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.env.pgimplicits.VertxFutureEnhancer

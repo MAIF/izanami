@@ -30,7 +30,7 @@ lazy val excludesJackson = Seq(
 
 version := (ThisBuild / version).value
 
-scalaVersion := "2.13.12"
+scalaVersion := "3.3.1"
 semanticdbEnabled := true
 semanticdbVersion := scalafixSemanticdb.revision
 
@@ -59,7 +59,7 @@ libraryDependencies += "commons-codec" % "commons-codec" % "1.16.0"
 libraryDependencies += "io.dropwizard.metrics" % "metrics-json" % "4.2.23" excludeAll (excludesJackson: _*)
 libraryDependencies += "org.mozilla" % "rhino" % "1.7.14"
 libraryDependencies += "com.squareup.okhttp3" % "okhttp" % "4.12.0" excludeAll (excludesJackson: _*)
-libraryDependencies += "fr.maif" %% "wasm4s" % "3.7.0" classifier "bundle" cross CrossVersion.for3Use2_13
+libraryDependencies += "fr.maif" %% "wasm4s" % "dev" classifier "bundle"
 libraryDependencies += "com.auth0" % "java-jwt" % "4.4.0" excludeAll (excludesJackson: _*) // needed by wasm4s
 libraryDependencies += "org.apache.pekko" %% "pekko-http" % "1.1.0"
 libraryDependencies += "com.github.jknack" % "handlebars" % "4.4.0"

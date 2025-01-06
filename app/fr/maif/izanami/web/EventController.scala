@@ -1,10 +1,10 @@
 package fr.maif.izanami.web
 
-import akka.NotUsed
-import akka.stream.Materializer
-import akka.stream.scaladsl.Flow
-import akka.stream.scaladsl.Merge
-import akka.stream.scaladsl.Source
+import org.apache.pekko.NotUsed
+import org.apache.pekko.stream.Materializer
+import org.apache.pekko.stream.scaladsl.Flow
+import org.apache.pekko.stream.scaladsl.Merge
+import org.apache.pekko.stream.scaladsl.Source
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.events.EventService.internalToExternalEvent
 import fr.maif.izanami.events._
@@ -71,14 +71,14 @@ class EventController(
     Flow[JsObject]
       .keepAlive(
         interval,
-        keepAliveEvent()
+        () => keepAliveEvent()
       )
 
   def keepAliveV2(interval: FiniteDuration): Flow[JsObject, JsObject, NotUsed] =
     Flow[JsObject]
       .keepAlive(
         interval,
-        keepAliveEventV2()
+        () => keepAliveEventV2()
       )
 
   def events(pattern: String): Action[AnyContent] = clientKeyAction.async { request =>
