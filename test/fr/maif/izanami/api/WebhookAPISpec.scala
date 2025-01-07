@@ -13,6 +13,75 @@ import scala.concurrent.duration.SECONDS
 
 class WebhookAPISpec extends BaseAPISpec {
   "webhook POST endpoint" should {
+    "prevent webhook creation one field is too long" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false)
+              )
+            )
+        )
+        .build()
+
+      var response = situation.createWebhook(
+        "tenant",
+        TestWebhook(
+          name = "abcdefghij" * 21,
+          url = "http://localhost:9999",
+          features = Set(situation.findFeatureId("tenant", "project", "f1").get)
+        )
+      )
+      response.status mustBe BAD_REQUEST
+
+      response = situation.createWebhook(
+        "tenant",
+        TestWebhook(
+          name = "abcdefghij",
+          description = "abcdefghij" * 51,
+          url = "http://localhost:9999",
+          features = Set(situation.findFeatureId("tenant", "project", "f1").get)
+        )
+      )
+      response.status mustBe BAD_REQUEST
+
+      response = situation.createWebhook(
+        "tenant",
+        TestWebhook(
+          name = "abcdefghij",
+          url = s"http://${"abcdefghij" * 204}:9000",
+          features = Set(situation.findFeatureId("tenant", "project", "f1").get)
+        )
+      )
+      response.status mustBe BAD_REQUEST
+
+      val body = s"{\n${(1 to 100_000).map(idx => s""""active$idx": {{payload.active}}""").mkString(",\n")}\n}"
+      response = situation.createWebhook(
+        "tenant",
+        TestWebhook(
+          name = "abcdefghij",
+          url = s"http://localhost:9000",
+          features = Set(situation.findFeatureId("tenant", "project", "f1").get),
+          bodyTemplate = Some(body)
+        )
+      )
+      response.status mustBe BAD_REQUEST
+
+      val headers = (1 to 10_000).map(idx => (s"foo$idx", "bar")).toMap
+      response = situation.createWebhook(
+        "tenant",
+        TestWebhook(
+          name = "abcdefghij",
+          url = s"http://localhost:9000",
+          features = Set(situation.findFeatureId("tenant", "project", "f1").get),
+          headers = headers
+        )
+      )
+      response.status mustBe BAD_REQUEST
+    }
+
     "prevent webhook creation if template is not valid" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -964,6 +1033,124 @@ class WebhookAPISpec extends BaseAPISpec {
   }
 
   "webhook PUT endpoint" should {
+    "prevent to update webhook if one field is too long" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false),
+                TestFeature("f2", enabled = false)
+              ),
+              TestProject("project2")
+            )
+            .withWebhooks(
+              TestWebhookByName(
+                name = "my-hook",
+                url = "http://localhost:3000",
+                features = Set(("tenant", "project", "f1"))
+              )
+            )
+        )
+        .build()
+
+      val webhookId = situation.findWebhookId(tenant = "tenant", webhook = "my-hook").get
+
+      var response = situation.updateWebhook(
+        "tenant",
+        id = webhookId,
+        transformer = json => {
+          val result: JsObject = json +
+            ("name"        -> Json.toJson("abcdefghij" * 21)) +
+            ("features"    -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
+            ("projects"    -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
+            ("headers"     -> Json.obj("foo" -> "bar")) +
+            ("url"         -> Json.toJson("http://foo.bar")) +
+            ("description" -> Json.toJson("My new description")) +
+            ("context"     -> Json.toJson("My new context")) +
+            ("user"        -> Json.toJson("My new user"))
+          result
+        }
+      )
+      response.status mustBe BAD_REQUEST
+
+      response = situation.updateWebhook(
+        "tenant",
+        id = webhookId,
+        transformer = json => {
+          val result: JsObject = json +
+            ("name"        -> Json.toJson("abcdefghij")) +
+            ("features"    -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
+            ("projects"    -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
+            ("headers"     -> Json.obj("foo" -> "bar")) +
+            ("url"         -> Json.toJson("http://foo.bar")) +
+            ("description" -> Json.toJson("abcdefghij" * 51)) +
+            ("context"     -> Json.toJson("My new context")) +
+            ("user"        -> Json.toJson("My new user"))
+          result
+        }
+      )
+      response.status mustBe BAD_REQUEST
+
+      response = situation.updateWebhook(
+        "tenant",
+        id = webhookId,
+        transformer = json => {
+          val result: JsObject = json +
+            ("name"        -> Json.toJson("abcdefghij")) +
+            ("features"    -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
+            ("projects"    -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
+            ("headers"     -> Json.obj("foo" -> "bar")) +
+            ("url"         -> Json.toJson(s"http://${"abcdefghij" * 204}:9000")) +
+            ("description" -> Json.toJson("abcdefghij")) +
+            ("context"     -> Json.toJson("My new context")) +
+            ("user"        -> Json.toJson("My new user"))
+          result
+        }
+      )
+      response.status mustBe BAD_REQUEST
+
+      val body = s"{\n${(1 to 100_000).map(idx => s""""active$idx": {{payload.active}}""").mkString(",\n")}\n}"
+      response = situation.updateWebhook(
+        "tenant",
+        id = webhookId,
+        transformer = json => {
+          val result: JsObject = json +
+            ("name"        -> Json.toJson("abcdefghij")) +
+            ("features"    -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
+            ("projects"    -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
+            ("headers"     -> Json.obj("foo" -> "bar")) +
+            ("url"         -> Json.toJson(s"http://localhost:9000")) +
+            ("description" -> Json.toJson("abcdefghij")) +
+            ("context"     -> Json.toJson("My new context")) +
+            ("bodyTemplate"  -> Json.toJson(body)) +
+            ("user"        -> Json.toJson("My new user"))
+          result
+        }
+      )
+      response.status mustBe BAD_REQUEST
+
+      val headers = (1 to 10_000).map(idx => (s"foo$idx", "bar")).toMap
+      response = situation.updateWebhook(
+        "tenant",
+        id = webhookId,
+        transformer = json => {
+          val result: JsObject = json +
+            ("name"        -> Json.toJson("abcdefghij")) +
+            ("features"    -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
+            ("projects"    -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
+            ("headers"     -> Json.toJson(headers)) +
+            ("url"         -> Json.toJson(s"http://localhost:9000")) +
+            ("description" -> Json.toJson("abcdefghij")) +
+            ("context"     -> Json.toJson("My new context")) +
+            ("user"        -> Json.toJson("My new user"))
+          result
+        }
+      )
+      response.status mustBe BAD_REQUEST
+    }
+
     "allow to update webhook" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()

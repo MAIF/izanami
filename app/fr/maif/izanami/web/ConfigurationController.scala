@@ -58,7 +58,10 @@ class ConfigurationController(
               result <- (hasOIDCConfChanged, env.isOIDCConfigurationEditable) match {
                 case (Left(err), _) => err.toHttpResponse.future
                 case (Right(true), false) => BadRequest(Json.obj("message" -> "OIDC configuration can't be updated while it is set in env variables.")).future
-                case _ => env.datastores.configuration.updateConfiguration(confWithFixedRights).map(_ => NoContent)
+                case _ => env.datastores.configuration.updateConfiguration(confWithFixedRights).map {
+                  case Left(err) => err.toHttpResponse
+                  case Right(_) => NoContent
+                }
               }
             ) yield result
           }

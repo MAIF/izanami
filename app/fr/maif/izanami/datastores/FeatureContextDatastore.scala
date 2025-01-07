@@ -82,6 +82,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
           conn = Some(conn)
         ) { row => row.optFeatureContext(global = true) }
         .map(o => o.toRight(InternalServerError()))
+        .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
         .flatMap {
           case Left(value) => Left(value).future
           case Right(ctx)  =>
@@ -125,6 +126,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
           conn = Some(conn)
         ) { row => row.optFeatureContext(global = false) }
         .map(o => o.toRight(InternalServerError()))
+        .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
         .flatMap {
           case Left(value) => Left(value).future
           case Right(ctx)  => {

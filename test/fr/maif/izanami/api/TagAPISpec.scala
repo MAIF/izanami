@@ -1,11 +1,24 @@
 package fr.maif.izanami.api
 
 import fr.maif.izanami.api.BaseAPISpec._
-import play.api.http.Status.{CREATED, FORBIDDEN, NOT_FOUND, NO_CONTENT, OK}
+import play.api.http.Status.{BAD_REQUEST, CREATED, FORBIDDEN, NOT_FOUND, NO_CONTENT, OK}
 
 class TagAPISpec extends BaseAPISpec {
 
   "Tag POST endpoint" should {
+    "prevent tag creation if tag name or description is too long" in {
+      val tenantName  = "my-tenant"
+      val situation = TestSituationBuilder()
+        .withTenantNames(tenantName)
+        .loggedInWithAdminRights()
+        .build()
+      var tagResponse = situation.createTag("abcdefghij" * 21, tenantName, "My description")
+      tagResponse.status mustBe BAD_REQUEST
+
+      tagResponse = situation.createTag("abcdefghij", tenantName, "abcdefghij" * 51)
+      tagResponse.status mustBe BAD_REQUEST
+    }
+
     "allow tag creation" in {
       val tenantName  = "my-tenant"
       val situation = TestSituationBuilder()
@@ -113,6 +126,20 @@ class TagAPISpec extends BaseAPISpec {
   }
 
   "Tag PUT endpoint" should {
+    "prevent tag update if new name or description is too long" in {
+      val tenantName = "my-tenant"
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant(tenantName).withTagNames("Tag"))
+        .loggedInWithAdminRights()
+        .build()
+
+      var updateResponse = situation.updateTag(tenantName,TestTag("abcdefghij" * 21,"my-description"),"Tag")
+      updateResponse.status mustBe BAD_REQUEST
+
+      updateResponse = situation.updateTag(tenantName,TestTag("supertag", "abcdefghij" * 51),"Tag")
+      updateResponse.status mustBe BAD_REQUEST
+    }
+
     "allow tag update" in {
       val tenantName = "my-tenant"
       val situation = TestSituationBuilder()

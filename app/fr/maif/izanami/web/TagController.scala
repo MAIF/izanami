@@ -23,9 +23,9 @@ class TagController(
         case JsSuccess(tag, _) => {
           env.datastores.tags
             .createTag(tag, tenant)
-            .map(maybeTenant =>
-              maybeTenant.fold(
-                err => Results.Status(err.status)(Json.toJson(err)),
+            .map(maybeTag =>
+              maybeTag.fold(
+                err => err.toHttpResponse,
                 tag => Created(Json.toJson(tag))
               )
             )

@@ -316,7 +316,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       id: String = null,
       cookies: Seq[WSCookie] = Seq(),
       resultType: String = "boolean",
-      value: String = null
+      value: String = null,
+      description: String = null
   ): RequestResult = {
     createFeatureWithRawConditions(
       name,
@@ -330,7 +331,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       id,
       cookies,
       resultType,
-      value
+      value,
+      description
     )
   }
 
@@ -376,7 +378,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       id: String = null,
       cookies: Seq[WSCookie] = Seq(),
       resultType: String = "boolean",
-      value: String = null
+      value: String = null,
+      description: String = null
   ): RequestResult = {
     val response = await(
       createFeatureWithRawConditionsAsync(
@@ -391,7 +394,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         id,
         cookies,
         resultType,
-        value
+        value,
+        description
       )
     )
 
@@ -413,7 +417,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       id: String,
       cookies: Seq[WSCookie] = Seq(),
       resultType: String = "boolean",
-      value: String = null
+      value: String = null,
+      description: String = null
   ): Future[WSResponse] = {
     ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/features")
       .withCookies(cookies: _*)
@@ -427,6 +432,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         if (resultType == "number") s""" "value": ${value},""" else s""" "value": "${value}", """
       } else ""}
            |"conditions": ${Json.parse(conditions).as[JsArray]}
+           |${if (description != null) s""" , "description": ${JsString(description)} """ else ""}
            |${if (Objects.nonNull(wasmConfig))
         s""" ,"wasmConfig": ${Json.stringify(wasmConfig.json)} """
       else ""}
@@ -2084,7 +2090,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         wasmConfig: TestWasmConfig = null,
         id: String = null,
         resultType: String = "boolean",
-        value: String = null
+        value: String = null,
+        description: String = null,
     ): RequestResult = {
       BaseAPISpec.this.createFeature(
         name,
@@ -2098,7 +2105,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         id,
         cookies,
         resultType,
-        value
+        value,
+        description
       )
     }
 

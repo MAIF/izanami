@@ -84,7 +84,7 @@ class ApiKeyController(
                 .updateApiKey(tenant, name, key)
                 .map(eitherName => {
                   eitherName.fold(
-                    err => Results.Status(err.status)(Json.toJson(err)),
+                    err => err.toHttpResponse,
                     _ => NoContent
                   )
                 })

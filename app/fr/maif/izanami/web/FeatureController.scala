@@ -303,7 +303,10 @@ class FeatureController(
                   )
                 ).toFuture
               } else {
-                env.datastores.features.applyPatch(tenant, fs, UserInformation(username=request.user.username, authentication = request.authentication)).map(_ => NoContent)
+                env.datastores.features.applyPatch(tenant, fs, UserInformation(username=request.user.username, authentication = request.authentication)).map {
+                  case Left(value) => value.toHttpResponse
+                  case Right(_) => NoContent
+                }
               }
             })
         })
@@ -374,9 +377,9 @@ class FeatureController(
                       .createTags(tagsToCreate.map(name => TagCreationRequest(name = name)).toList, tenant, Some(conn))
                   }
                   case tags                                  => Right(tags).toFuture
-                }
-                .flatMap(_ =>
-                  env.datastores.features
+                }.flatMap {
+                  case Left(err) => Future.successful(err.toHttpResponse)
+                  case Right(value) => env.datastores.features
                     .findById(tenant, id)
                     .flatMap {
                       case Left(err)                                                                      => err.toHttpResponse.future
@@ -405,11 +408,10 @@ class FeatureController(
                           )
                       }
                     }
-                )
+                }
             },
             schemas = Set(tenant)
           )
-
         }
       }
     }

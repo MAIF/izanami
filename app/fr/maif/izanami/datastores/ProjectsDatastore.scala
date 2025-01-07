@@ -110,10 +110,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
             case f: PgException if f.getSqlState == UNIQUE_VIOLATION         =>
               Left(ProjectAlreadyExists(projectCreationRequest.name, tenant))
             case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
-            case ex                                                          =>
-              logger.error("Failed to insert project", ex)
-              Left(InternalServerError())
-          }
+          }.recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
           .flatMap {
             case Left(value)  => Left(value).future
             case Right(value) =>
@@ -130,7 +127,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
     )
   }
 
-  def updateProject(tenant: String, oldName: String, newProject: ProjectCreationRequest): Future[Unit] = {
+  def updateProject(tenant: String, oldName: String, newProject: ProjectCreationRequest): Future[Either[IzanamiError, Unit]] = {
     env.postgresql
       .queryOne(
         s"""
@@ -140,6 +137,8 @@ class ProjectsDatastore(val env: Env) extends Datastore {
         schemas = Set(tenant)
       ) { _ => Some(()) }
       .map(_ => ())
+      .map(_ => Right(()))
+      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
   }
 
   def readTenantProjectForUser(tenant: String, user: String): Future[List[Project]] = {

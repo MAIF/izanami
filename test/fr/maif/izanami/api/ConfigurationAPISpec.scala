@@ -64,6 +64,17 @@ class ConfigurationAPISpec extends BaseAPISpec {
       response.status mustBe BAD_REQUEST
     }
 
+    "prevent update of origin email if it's too long" in {
+      val situation = TestSituationBuilder().loggedInWithAdminRights().build()
+
+      val response = situation.updateConfiguration(
+        mailerConfiguration=Json.obj("mailer" -> "mailjet", "apiKey" -> "my-key", "secret" -> "my-secret"),
+        originEmail = s"""${"abcdefghij"*32}@foobar.bar"""
+      )
+
+      response.status mustBe BAD_REQUEST;
+    }
+
     "allow to update mailer configuration" in {
       val situation = TestSituationBuilder().loggedInWithAdminRights().build()
 

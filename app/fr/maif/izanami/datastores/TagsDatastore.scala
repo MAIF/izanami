@@ -21,13 +21,14 @@ class TagsDatastore(val env: Env) extends Datastore {
       .map {
         _.toRight(InternalServerError())
       }
+      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
       .recover { case ex =>
         logger.error("Failed to insert tag", ex)
         Left(InternalServerError())
       }
   }
 
-  def createTags(tags: List[TagCreationRequest], tenant: String, conn: Option[SqlConnection] = None): Future[List[Tag]] = {
+  def createTags(tags: List[TagCreationRequest], tenant: String, conn: Option[SqlConnection] = None): Future[Either[IzanamiError, List[Tag]]] = {
     env.postgresql
       .queryAll(
         s"""insert into tags (name, description) values (unnest($$1::text[]), unnest($$2::text[])) ON CONFLICT (name) DO NOTHING returning *""",
@@ -35,6 +36,8 @@ class TagsDatastore(val env: Env) extends Datastore {
         schemas=Set(tenant),
         conn=conn
       ) { row => row.optTag() }
+      .map(ts => Right(ts))
+      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
   }
 
   def readTag(tenant: String, name: String): Future[Either[IzanamiError, Tag]] = {
@@ -82,6 +85,7 @@ class TagsDatastore(val env: Env) extends Datastore {
       .map {
         _.toRight(TagDoesNotExists(currentName))
       }
+      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
       .recover { case ex =>
         logger.error("Failed to update tag", ex)
         Left(InternalServerError())

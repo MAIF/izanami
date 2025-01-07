@@ -56,6 +56,19 @@ class TenantAPISpec extends BaseAPISpec {
   }
 
   "Tenant POST endpoint" should {
+    "prevent tenant creation if name or description is too long" in {
+      val testSituation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .build()
+
+      val name = "abcdefghij" * 7
+      var response = testSituation.createTenant(name)
+      response.status mustBe BAD_REQUEST
+
+      response = testSituation.createTenant("abcdefghij", description = "abcdefghij" * 51)
+      response.status mustBe BAD_REQUEST
+    }
+
     "prevent tenant creation if name contains uppercase" in {
       val testSituation = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -260,6 +273,15 @@ class TenantAPISpec extends BaseAPISpec {
   }
 
   "Tenant update endpoint" should {
+    "prevent updating tenant description" in {
+      val situation = TestSituationBuilder().withTenants(TestTenant("foo", "my description"))
+        .loggedInWithAdminRights()
+        .build()
+
+      val response = situation.updateTenant("foo", newName="foo", description="abcdefghij" * 51)
+      response.status mustEqual BAD_REQUEST
+    }
+
     "allow to update tenant description" in {
       val situation = TestSituationBuilder().withTenants(TestTenant("foo", "my description"))
         .loggedInWithAdminRights()

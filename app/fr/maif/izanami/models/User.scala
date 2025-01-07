@@ -407,7 +407,7 @@ object Rights {
 }
 
 object User {
-  val PASSWORD_REGEXP: Regex = "^[a-zA-Z0-9_]{8,100}$".r
+  val PASSWORD_REGEXP: Regex = "^[a-zA-Z0-9_]{8,50}$".r
 
   implicit val rightLevelReads: Reads[RightLevel] = { json =>
     json

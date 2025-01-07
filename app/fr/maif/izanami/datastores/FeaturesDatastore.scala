@@ -2,7 +2,7 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.featureImplicits.FeatureRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, NOT_NULL_VIOLATION, RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
+import fr.maif.izanami.env.PostgresqlErrors.{CHECK_VIOLATION, FOREIGN_KEY_VIOLATION, NOT_NULL_VIOLATION, RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
 import fr.maif.izanami.events.EventAuthentication.BackOfficeAuthentication
@@ -374,7 +374,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     }
   }
 
-  def applyPatch(tenant: String, operations: Seq[FeaturePatch], user: UserInformation): Future[Unit] = {
+  def applyPatch(tenant: String, operations: Seq[FeaturePatch], user: UserInformation): Future[Either[IzanamiError, Unit]] = {
     val featureToUpdateIds = operations.collect {
       case p: EnabledFeaturePatch => p.id
       case p: ProjectFeaturePatch => p.id
@@ -423,7 +423,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                         }
                       }
                       case None                               => Future.successful(())
-                    }
+                    }.map(_ => Right(()))
                 }
                 case ProjectFeaturePatch(value, id) => {
                   env.postgresql
@@ -455,7 +455,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                           )
                         )(conn)
                       case None                               => Future.successful(())
-                    }
+                    }.map(_ => Right(()))
                 }
                 case TagsFeaturePatch(value, id)    =>
                   findById(tenant, id).flatMap {
@@ -474,15 +474,16 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                           }
                           case tags                           => Right(tags).toFuture
                         }
-                        .flatMap(_ => {
-                          env.postgresql
+                        .flatMap {
+                          case Left(err) => Future.successful(Left(err))
+                          case Right(_) => env.postgresql
                             .queryOne(
                               s"""delete from features_tags where feature=$$1""",
                               List(id),
                               conn = Some(conn)
                             ) { _ => Some(id) }
                             .flatMap(maybeId => insertIntoFeatureTags(tenant, id, value, Some(conn)))
-                        })
+                        }
                     case Left(err)               => Future.successful(Left(err))
                     case Right(None)             => Future.successful(Left(FeatureDoesNotExist(name = id)))
                   }
@@ -507,10 +508,12 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                           event = SourceFeatureDeleted(id = id, project = project, tenant = tenant, user = user.username, name=name, origin = NormalOrigin, authentication = BackOfficeAuthentication)
                         )(conn)
                       case None                               => Future.successful(())
-                    }
+                    }.map(_ => Right(()))
                 }
               })
-              .map(_ => ())
+              .map(maybeErrors => {
+                ErrorAggregator.fromEitherSeq(maybeErrors).fold(Right(()): Either[IzanamiError, Unit])(err => Left(err))
+              })
           },
           schemas = Set(tenant)
         )
@@ -1486,7 +1489,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           .recover {
             case f: PgException if f.getSqlState == FOREIGN_KEY_VIOLATION =>
               Left(WasmScriptAlreadyExists(wasmConfig.source.path))
-          }
+          }.recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
           .flatMap(either => {
             // TODO this should be elsewhere
             wasmConfig.source.getWasm()(env.wasmIntegration.context, env.executionContext).map(_ => either)
@@ -1648,10 +1651,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       .recover {
         case f: PgException if f.getSqlState == FOREIGN_KEY_VIOLATION    => Left(ProjectDoesNotExists(project))
         case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
-        case ex                                                          =>
-          logger.error("Failed to insert feature", ex)
-          Left(InternalServerError())
       }
+      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
       .flatMap {
         case Left(error) => Future.successful(Left(error))
         case Right(id)   =>
@@ -1740,11 +1741,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         (feature match {
           case feat @ CompleteWasmFeature(_, _, _, _, wasmConfig, _, _, _, _)
               if wasmConfig.source.kind != WasmSourceKind.Local =>
-            createWasmScriptIfNeeded(tenant, wasmConfig, Some(conn))
-          case _ => Future(())
-        })
-          .flatMap(_ =>
-            env.postgresql.queryRaw(
+            createWasmScriptIfNeeded(tenant, wasmConfig, Some(conn)).map(e => e.map(_ => ()))
+          case _ => Future(Right(()))
+        }).flatMap {
+            case Left(err) => Future.successful(Left(err))
+            case Right(_) => env.postgresql.queryRaw(
               s"""
                  |DELETE FROM feature_contexts_strategies fc USING features f
                  |WHERE fc.feature=f.name
@@ -1756,56 +1757,55 @@ class FeaturesDatastore(val env: Env) extends Datastore {
               List(id, feature.project),
               conn = Some(conn)
             ) { _ => Some(()) }
-          )
-          .flatMap(_ =>
-            env.postgresql
-              .queryOne(
-                request,
-                params,
-                conn = Some(conn)
-              ) { row => row.optString("id") }
-              .map(maybeId => maybeId.toRight(InternalServerError()))
-              .recover {
-                case f: PgException if f.getSqlState == NOT_NULL_VIOLATION => Left(MissingFeatureFields())
-                case _                                                     => Left(InternalServerError())
-              }
-              .flatMap(either => {
-                either.fold(
-                  err => Future.successful(Left(err)),
-                  id => {
-                    env.postgresql
-                      .queryOne(
-                        s"""delete from features_tags where feature=$$1""",
-                        List(id),
-                        conn = Some(conn)
-                      ) { _ => Some(id) }
-                      .flatMap(_ =>
-                        insertIntoFeatureTags(tenant, id, feature.tags, Some(conn))
-                          .map(either => either.map(_ => id))
+              .flatMap(_ =>
+                env.postgresql
+                  .queryOne(
+                    request,
+                    params,
+                    conn = Some(conn)
+                  ) { row => row.optString("id") }
+                  .map(maybeId => maybeId.toRight(InternalServerError()))
+                  .recover {
+                    case f: PgException if f.getSqlState == NOT_NULL_VIOLATION => Left(MissingFeatureFields())
+                  }.recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+                  .flatMap(either => {
+                    either.fold(
+                      err => Future.successful(Left(err)),
+                      id => {
+                        env.postgresql
+                          .queryOne(
+                            s"""delete from features_tags where feature=$$1""",
+                            List(id),
+                            conn = Some(conn)
+                          ) { _ => Some(id) }
+                          .flatMap(_ =>
+                            insertIntoFeatureTags(tenant, id, feature.tags, Some(conn))
+                              .map(either => either.map(_ => id))
+                          )
+                      }
+                    )
+                  })
+              )
+              .flatMap {
+                case Right(_) if !oldFeature.baseFeature().hasSameActivationStrategy(feature) =>
+                  env.eventService
+                    .emitEvent(
+                      channel = tenant,
+                      event = SourceFeatureUpdated(
+                        id = id,
+                        project = feature.project,
+                        tenant = tenant,
+                        user = user.username,
+                        previous = oldFeature,
+                        feature = oldFeature.setFeature(feature.toLightWeightFeature),
+                        authentication = user.authentication,
+                        origin = NormalOrigin
                       )
-                  }
-                )
-              })
-          )
-          .flatMap {
-            case Right(_) if !oldFeature.baseFeature().hasSameActivationStrategy(feature) =>
-              env.eventService
-                .emitEvent(
-                  channel = tenant,
-                  event = SourceFeatureUpdated(
-                    id = id,
-                    project = feature.project,
-                    tenant = tenant,
-                    user = user.username,
-                    previous = oldFeature,
-                    feature = oldFeature.setFeature(feature.toLightWeightFeature),
-                    authentication = user.authentication,
-                    origin = NormalOrigin
-                  )
-                )(conn)
-                .map(_ => Right(id))
-            case Right(_)                                                                 => Future.successful(Right(id))
-            case Left(err)                                                                => Future.successful(Left(err))
+                    )(conn)
+                    .map(_ => Right(id))
+                case Right(_)                                                                 => Future.successful(Right(id))
+                case Left(err)                                                                => Future.successful(Left(err))
+              }
           }
       })
     }
@@ -1841,7 +1841,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           conn = conn,
           schemas = Set(tenant)
         ) { _ => Some(()) }
-        .map { _.toRight(InternalServerError()) }
+        .map(_ => Right(()))
         .recover {
           case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
           case f: PgException if f.getSqlState == FOREIGN_KEY_VIOLATION    =>

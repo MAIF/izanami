@@ -6,6 +6,21 @@ import play.api.libs.json.JsArray
 
 class ApplicationKeysAPISpec extends BaseAPISpec {
   "API key POST endpoint" should {
+    "prevent api key creation if name or description is too long" in {
+      val situation   = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenantNames("my-tenant")
+        .build()
+
+      var response    =
+        situation.createAPIKey(tenant = "my-tenant", name = "abcdefghij" * 21, description = "my long description")
+      response.status mustBe BAD_REQUEST
+
+      response    =
+        situation.createAPIKey(tenant = "my-tenant", name = "abcdefghij", description = "abcdefghij" * 51)
+      response.status mustBe BAD_REQUEST
+    }
+
     "allow to create API key" in {
       val situation   = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -258,6 +273,40 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
   }
 
   "API key PUT endpoint" should {
+    "prevent key update if name or description is too long" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant(name = "my-tenant")
+            .withProjectNames("project1")
+            .withApiKeys(TestApiKey("my-key", projects = Seq("project1")))
+        )
+        .build()
+
+      var result = situation.updateAPIKey(
+        tenant = "my-tenant",
+        currentName = "my-key",
+        projects = Seq("project1"),
+        description = "",
+        enabled = false,
+        admin=false,
+        newName = "abcdefghij" * 21
+      )
+      result.status mustBe BAD_REQUEST
+
+      result = situation.updateAPIKey(
+        tenant = "my-tenant",
+        currentName = "my-key",
+        projects = Seq("project1"),
+        description = "abcdefghij" * 51,
+        enabled = false,
+        admin=false,
+        newName = "abcdefghij"
+      )
+
+      result.status mustBe BAD_REQUEST
+    }
+
     "allow to disable a key" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
