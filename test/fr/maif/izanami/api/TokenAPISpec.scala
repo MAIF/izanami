@@ -9,6 +9,20 @@ import java.util.UUID
 
 class TokenAPISpec extends BaseAPISpec {
   "Token POST endpoint" should {
+    "prevent token creation if name is too long" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+        )
+        .withUsers(TestUser("testu").withTenantAdminRight("tenant"))
+        .loggedAs("testu")
+        .build()
+
+      val response = situation.createPersonnalAccessToken(TestPersonnalAccessToken("abcdefghij" * 21, allRights = true))
+      response.status mustBe BAD_REQUEST
+    }
+
     "allow to create all rights token" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -229,6 +243,33 @@ class TokenAPISpec extends BaseAPISpec {
       (jsonToken \ "rights" \ "tenant").as[Set[String]] mustEqual Set("EXPORT")
       (jsonToken \ "expiresAt").as[String] mustEqual "2019-01-01T00:00:00"
       (jsonToken \ "expirationTimezone").as[String] mustEqual "Europe/Paris"
+    }
+
+    "Prevent name update if new name is too long" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+        )
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(name = "foo", allRights = true)
+        )
+        .build()
+
+      val id = situation.findTokenId(situation.user, "foo")
+
+      val response = situation.updatePersonnalAccessToken(
+        id,
+        TestPersonnalAccessToken(
+          "abcdefghij" * 21,
+          allRights = false,
+          id = id,
+          rights = Map("tenant" -> Set("EXPORT")),
+          expiresAt = Some(LocalDateTime.of(2019, 1, 1, 0, 0)),
+          expirationTimezone = Some(ZoneId.of("Europe/Paris"))
+        )
+      )
+      response.status mustBe BAD_REQUEST
     }
 
     "Prevent token update for another user if not admin" in {

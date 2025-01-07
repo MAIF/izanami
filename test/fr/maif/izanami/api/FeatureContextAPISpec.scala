@@ -8,6 +8,16 @@ import java.time.LocalDateTime
 
 class FeatureContextAPISpec extends BaseAPISpec {
   "Global context POST endpoint" should {
+    "Prevent global context creation if name is too long" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .loggedInWithAdminRights()
+        .build()
+
+      var response = situation.createGlobalContext("tenant", "abcdefghij" * 21)
+      response.status mustEqual BAD_REQUEST
+    }
+
     "Allow to recreate deleted global context" in {
       val situation      = TestSituationBuilder()
         .withTenants(
@@ -104,6 +114,19 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Context POST endpoint" should {
+    "Prevent context creation if name is too long" in {
+      val tenant    = "context-tenant"
+      val project   = "context-project"
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(TestTenant(tenant).withProjectNames(project))
+        .build();
+      val context   = "abcdefghij" * 21
+      val result    = situation.createContext(tenant, project, context)
+
+      result.status mustBe BAD_REQUEST
+    }
+
     "Allow to recreate deleted local context" in {
       val situation = TestSituationBuilder()
         .withTenants(

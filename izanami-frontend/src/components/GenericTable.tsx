@@ -374,9 +374,11 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
                           <th
                             scope="row"
                             key={cell.id}
-                            style={
-                              selectableRows ? { verticalAlign: "middle" } : {}
-                            }
+                            style={{
+                              ...(selectableRows
+                                ? { verticalAlign: "middle" }
+                                : {}),
+                            }}
                           >
                             {flexRender(
                               cell.column.columnDef.cell,

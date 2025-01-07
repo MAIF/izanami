@@ -177,6 +177,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
                 conn = Some(conn)
               ) { _ => Some(()) }
               .map(_.toRight(WebhookDoesNotExists(id.toString)))
+              .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
           )
       },
       schemas = Set(tenant)
@@ -339,6 +340,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
             conn = Some(conn)
           ) { r => r.optUUID("id").map(_.toString) }
           .map(_.toRight(WebhookCreationFailed()))
+          .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
           .flatMap {
             case Right(id) if webhook.features.nonEmpty =>
               env.postgresql

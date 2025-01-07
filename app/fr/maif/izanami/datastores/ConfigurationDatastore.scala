@@ -191,6 +191,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
               }
             }
             }.map(o => o.toRight(InternalServerError("Failed to read configuration update result")))
+              .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
           }
         }
         })

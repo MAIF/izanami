@@ -95,7 +95,10 @@ class ProjectController(
     projectAuthAction(tenant, project, RightLevels.Admin).async(parse.json) { implicit request =>
       Project.projectReads.reads(request.body) match {
         case JsSuccess(updatedProject, _) =>
-          env.datastores.projects.updateProject(tenant, project, updatedProject).map(_ => NoContent)
+          env.datastores.projects.updateProject(tenant, project, updatedProject).map {
+            case Left(value) => value.toHttpResponse
+            case Right(_) => NoContent
+          }
         case JsError(_)                   => BadRequest(Json.obj("message" -> "bad body format")).future
       }
     }

@@ -168,6 +168,7 @@ class FeatureAPISpec extends BaseAPISpec {
       val fetchResponse = situation.fetchProject("tenant", "new-project")
       (fetchResponse.json.get \ "features").as[JsArray].value.length mustBe 2
     }
+
     "prevent to transfer features to a is not admin of the tenant and does not have write right on project " in {
       val situation = TestSituationBuilder()
         .withTenants(
@@ -199,6 +200,39 @@ class FeatureAPISpec extends BaseAPISpec {
       )
       response.status mustBe FORBIDDEN
     }
+
+    "prevent tag creation if tag name is too long" in {
+      val situation     = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("F1", tags = Seq("t1")),
+                TestFeature("F2"),
+                TestFeature("F3", tags = Seq("t2"))
+              )
+            )
+        )
+        .build()
+      val response      = situation.patchFeatures(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/${situation.findFeatureId("tenant", "project", "F1").get}/tags",
+            value = JsArray(Seq(JsString("t1"), JsString("abcdefghij" * 21), JsString("t4")))
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/${situation.findFeatureId("tenant", "project", "F2").get}/tags",
+            value = JsArray(Seq(JsString("t2")))
+          )
+        )
+      )
+      response.status mustEqual BAD_REQUEST
+    }
+
     "allow to applying multiple tags to features " in {
       val situation     = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -228,7 +262,7 @@ class FeatureAPISpec extends BaseAPISpec {
           )
         )
       )
-      response.status mustEqual 204
+      response.status mustEqual NO_CONTENT
       val fetchResponse = situation.fetchProject("tenant", "project").json.get
       ((fetchResponse \ "features").as[Seq[JsObject]].find(obj => (obj \ "name").as[String] == "F1").get \ "tags")
         .as[JsArray]
@@ -239,6 +273,48 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature POST endpoint" should {
+    "prevent creating a feature with too long field" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+            .withProjectNames("bar")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      var result = testSituation.createFeature(
+        "abcdefghij" * 21,
+        project = "bar",
+        tenant = "foo"
+      )
+      result.status mustBe BAD_REQUEST
+
+      result = testSituation.createFeature(
+        "abcdefghij",
+        description = "abcdefghij" * 51,
+        project = "bar",
+        tenant = "foo"
+      )
+      result.status mustBe BAD_REQUEST
+
+      result = testSituation.createFeature(
+        "abcdefghij",
+        project = "bar",
+        tenant = "foo",
+        id = "abcdefghij" * 51
+      )
+      result.status mustBe BAD_REQUEST
+
+      result = testSituation.createFeature(
+        name = "foo",
+        resultType = "string",
+        project = "bar",
+        tenant = "foo",
+        value = "abcdefghijklmnopqrstuvwxyz" * 100_000
+      )
+      result.status mustBe BAD_REQUEST
+    }
+
     "reject string or number features if conditions don't have values" in {
       val testSituation = TestSituationBuilder()
         .withTenants(
@@ -303,7 +379,7 @@ class FeatureAPISpec extends BaseAPISpec {
       (featureJson \ "value").as[String] mustEqual "foo"
     }
 
-    "allow to create wasm features using wasm manager script" in {
+    "allow to create wasm features using wasm script" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjectNames("foo"))
         .loggedInWithAdminRights()
@@ -324,6 +400,29 @@ class FeatureAPISpec extends BaseAPISpec {
         )
       )
       response.status mustBe CREATED
+    }
+
+    "prevent wasm feature creation if script id is too long" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjectNames("foo"))
+        .loggedInWithAdminRights()
+        .build()
+
+      val response = situation.createFeature(
+        "feature",
+        enabled = true,
+        project = "foo",
+        tenant = "tenant",
+        wasmConfig = TestWasmConfig(
+          name = "abcdefghij" * 21,
+          source = Json.obj(
+            "kind" -> "Base64",
+            "path" -> disabledFeatureBase64,
+            "opts" -> Json.obj()
+          )
+        )
+      )
+      response.status mustBe BAD_REQUEST
     }
 
     "allow to create feature using an existing script" in {
@@ -605,9 +704,102 @@ class FeatureAPISpec extends BaseAPISpec {
         "my-tag"
       )
     }
+
+
+    "prevent to create feature with non existing tags if tag name is too long" in {
+      val tenantName    = "my-tenant"
+      val projectName   = "my-project"
+      val testSituation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+        )
+        .build()
+
+      val featureResponse = testSituation.createFeature(
+        "my-feature",
+        project = projectName,
+        tenant = tenantName,
+        enabled = false,
+        tags = Seq("abcdefghij" * 21)
+      )
+
+      featureResponse.status mustBe BAD_REQUEST
+    }
   }
 
   "Feature PUT endpoint" should {
+    "prevent feature update if new wasm script name is too long" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjectNames("foo"))
+        .loggedInWithAdminRights()
+        .build()
+
+      var response = situation.createFeature(
+        "feature",
+        enabled = true,
+        project = "foo",
+        tenant = "tenant",
+        wasmConfig = TestWasmConfig(
+          name = "abcdefghij",
+          source = Json.obj(
+            "kind" -> "Base64",
+            "path" -> disabledFeatureBase64,
+            "opts" -> Json.obj()
+          )
+        )
+      )
+      response.status mustBe CREATED
+
+
+      val projectResponse = situation.fetchProject("tenant", "foo")
+      val jsonFeature     = (projectResponse.json.get \ "features" \ 0).as[JsObject]
+
+      val jsonWasmConfig = TestWasmConfig(
+        name = "abcdefghij" * 21,
+        source = Json.obj(
+          "kind" -> "Base64",
+          "path" -> disabledFeatureBase64,
+          "opts" -> Json.obj()
+        )
+      ).json
+
+      val newFeature = jsonFeature ++ Json.obj("wasmConfig" -> jsonWasmConfig)
+      val updateResponse = situation.updateFeature("tenant", (jsonFeature \ "id").as[String], newFeature)
+
+      updateResponse.status mustBe BAD_REQUEST
+    }
+
+    "prevent feature update if field are too long" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("foo").withFeatures(TestFeature("F1")))
+        )
+        .loggedInWithAdminRights()
+        .build();
+
+      val projectResponse = situation.fetchProject("tenant", "foo")
+      val jsonFeature     = (projectResponse.json.get \ "features" \ 0).as[JsObject]
+      val featureId = (jsonFeature \ "id").as[String]
+
+      var newFeature = jsonFeature ++ Json.obj("name" -> "abcdefghij" * 21)
+      var updateResponse = situation.updateFeature("tenant", featureId, newFeature)
+
+      updateResponse.status mustBe BAD_REQUEST
+
+      newFeature = jsonFeature ++ Json.obj("description" -> "abcdefghij" * 51)
+      updateResponse = situation.updateFeature("tenant", featureId, newFeature)
+
+      updateResponse.status mustBe BAD_REQUEST
+
+      newFeature = jsonFeature ++ Json.obj("resultType" -> "string", "value" -> "abcdefghijklmnopqrstuvwxyz" * 100_000)
+      updateResponse = situation.updateFeature("tenant", featureId, newFeature)
+
+      updateResponse.status mustBe BAD_REQUEST
+    }
+
     "allow to update feature result type" in {
       val situation = TestSituationBuilder()
         .withTenants(
@@ -824,6 +1016,26 @@ class FeatureAPISpec extends BaseAPISpec {
         v.as[String]
       ) must contain theSameElementsAs Seq("tag")
 
+    }
+
+    "prevent new tag creation while updating feature if tag name is too long" in {
+      val tenantName      = "my-tenant"
+      val projectName     = "my-project"
+      val testSituation   = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(TestTenant(tenantName).withProjects(TestProject(projectName)))
+        .build()
+      val featureResponse =
+        testSituation.createFeature(name = "feature-name", project = projectName, tenant = tenantName, enabled = false)
+      val updateResponse  = testSituation.updateFeature(
+        tenantName,
+        featureResponse.id.get,
+        Json.parse(
+          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": false, "tags": ["${"abcdefghij" * 21}"], "resultType": "boolean"}"""
+        )
+      )
+
+      updateResponse.status mustBe BAD_REQUEST
     }
 
     "allow to change RELEASE_DATE date" in {

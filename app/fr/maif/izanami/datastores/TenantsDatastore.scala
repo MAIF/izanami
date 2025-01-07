@@ -76,25 +76,29 @@ class TenantsDatastore(val env: Env) extends Datastore {
   }
 
   def createTenant(tenantCreationRequest: TenantCreationRequest, user: UserInformation): Future[Either[IzanamiError, Tenant]] = {
-    val connectOptions = env.postgresql.connectOptions
-    val config         = new HikariConfig()
-    config.setDriverClassName(classOf[org.postgresql.Driver].getName)
-    config.setJdbcUrl(
-      s"jdbc:postgresql://${connectOptions.getHost}:${connectOptions.getPort}/${connectOptions.getDatabase}"
-    )
-    config.setUsername(connectOptions.getUser)
-    config.setPassword(connectOptions.getPassword)
-    config.setMaximumPoolSize(10)
-    val dataSource     = new HikariDataSource(config)
-    val flyway         =
-      Flyway.configure
-        .dataSource(dataSource)
-        .locations("filesystem:conf/sql/tenants", "filesystem:sql/tenants", "sql/tenants", "conf/sql/tenants")
-        .baselineOnMigrate(true)
-        .schemas(tenantCreationRequest.name)
-        .load()
-    flyway.migrate()
-    dataSource.close()
+
+    def createDBSchema(): Unit = {
+      val connectOptions = env.postgresql.connectOptions
+      val config         = new HikariConfig()
+      config.setDriverClassName(classOf[org.postgresql.Driver].getName)
+      config.setJdbcUrl(
+        s"jdbc:postgresql://${connectOptions.getHost}:${connectOptions.getPort}/${connectOptions.getDatabase}"
+      )
+      config.setUsername(connectOptions.getUser)
+      config.setPassword(connectOptions.getPassword)
+      config.setMaximumPoolSize(10)
+      val dataSource     = new HikariDataSource(config)
+      val flyway         =
+        Flyway.configure
+          .dataSource(dataSource)
+          .locations("filesystem:conf/sql/tenants", "filesystem:sql/tenants", "sql/tenants", "conf/sql/tenants")
+          .baselineOnMigrate(true)
+          .schemas(tenantCreationRequest.name)
+          .load()
+      flyway.migrate()
+      dataSource.close()
+    }
+
 
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
@@ -106,8 +110,8 @@ class TenantsDatastore(val env: Env) extends Datastore {
         .map(maybeFeature => maybeFeature.toRight(InternalServerError()))
         .recover {
           case f: PgException if f.getSqlState == UNIQUE_VIOLATION => Left(TenantAlreadyExists(tenantCreationRequest.name))
-          case _ => Left(InternalServerError())
-        }.flatMap {
+        }.recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+        .flatMap {
           case Left(value) => Left(value).future
           case Right(value) => env.postgresql.queryOne(
             s"""
@@ -121,6 +125,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
         }.flatMap {
           case Left(value) => Left(value).future
           case r@Right(tenant) => {
+            createDBSchema()
             env.eventService.emitEvent(channel = IZANAMI_CHANNEL, event = SourceTenantCreated(tenant.name, user = user.username, authentication = user.authentication, origin = NormalOrigin))(conn)
               .map(_ => r)
           }
@@ -139,6 +144,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
         conn=Some(conn)
       ){r => r.optString("name")}
         .map(o => o.toRight(TenantDoesNotExists(name)).map(_ => ()))
+        .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
     })
   }
 

@@ -3,6 +3,8 @@ package fr.maif.izanami.env
 import akka.http.scaladsl.util.FastFuture
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import fr.maif.izanami.datastores.HashUtils
+import fr.maif.izanami.env.PostgresqlErrors.{CHECK_VIOLATION, UNIQUE_VIOLATION}
+import fr.maif.izanami.errors.{ApiKeyFieldTooLong, ConfigurationFieldTooLong, ContextNameTooLong, EmailIsTooLong, FeatureFieldTooLong, FeatureWithThisIdAlreadyExist, FeatureWithThisNameAlreadyExist, GlobalContextNameTooLong, InternalServerError, IzanamiError, PersonnalAccessTokenFieldTooLong, ProjectFieldTooLong, TagFieldTooLong, TenantFieldTooLong, UsernameFieldTooLong, WasmScriptNameTooLong, WebhookFieldTooLong}
 import fr.maif.izanami.security.IdGenerator
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import io.vertx.core
@@ -11,7 +13,7 @@ import io.vertx.core.buffer.Buffer
 import io.vertx.core.net.{PemKeyCertOptions, PemTrustOptions}
 import io.vertx.pgclient.impl.PgPoolImpl
 import io.vertx.pgclient.pubsub.PgSubscriber
-import io.vertx.pgclient.{PgConnectOptions, PgPool, SslMode}
+import io.vertx.pgclient.{PgConnectOptions, PgException, PgPool, SslMode}
 import io.vertx.sqlclient.{PoolOptions, Row, RowSet, SqlConnection}
 import org.flywaydb.core.Flyway
 import play.api.libs.json.{JsArray, JsObject, Json}
@@ -282,9 +284,37 @@ class Postgresql(env: Env) {
         case Failure(e)     => FastFuture.failed(e)
       }
     }(env.executionContext)
-      .andThen { case Failure(e) =>
-        logger.error(s"""Failed to apply query: "$query" with params: "${params.mkString(", ")}"""", e)
+      .andThen { case Failure(e) => {
+        val paramsToDisplay = params.map(p => {
+          if(p != null && p.toString.length > 10_000) {
+            p.toString.substring(0, 10_000) + "<param too long, it was truncated>"
+          } else {
+            p
+          }
+        })
+        logger.error(s"""Failed to apply query: "$query" with params: "${paramsToDisplay.mkString(", ")}"""", e)
+      }
       }(env.executionContext)
+  }
+
+
+  val pgErrorPartialFunction: PartialFunction[Throwable, IzanamiError] = {
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "featuresnamesize" => FeatureFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "projectsnamesize" => ProjectFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "wasm_script_configurationsnamesize" => WasmScriptNameTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "tagsnamesize" => TagFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "apikeysnamesize" => ApiKeyFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "global_feature_contextsnamesize" => GlobalContextNameTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "feature_contextsnamesize" => ContextNameTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "webhooksnamesize" => WebhookFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "tenantnamesize" => TenantFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "invitationstextsize" => EmailIsTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "usertextsize" => UsernameFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "configurationtextsize" => ConfigurationFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "personnal_access_tokenstextsize" => PersonnalAccessTokenFieldTooLong
+    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "features_pkey" => FeatureWithThisIdAlreadyExist
+    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "unique_feature_name_for_project" => FeatureWithThisNameAlreadyExist
+    case ex => InternalServerError("An unexpected error occured")
   }
 
   def queryOne[A](

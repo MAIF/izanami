@@ -167,9 +167,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
         .recover {
           case f: PgException if f.getSqlState == UNIQUE_VIOLATION =>
             Left(TokenWithThisNameAlreadyExists(data.name))
-          case ex                                                  =>
-            Left(InternalServerError())
-        }
+        }.recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
     })
   }
 
@@ -206,6 +204,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
             })
           }
         }
+
         .flatMap {
           case Some(token) => {
             token.rights match {
@@ -244,10 +243,8 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
               case LimitedRights(rights) => rights.keys.mkString(" or ")
               case _                     => "<unknown tenant>"
             }))
-          case ex                                                       =>
-            logger.error("Failed to update project mapping table", ex)
-            Left(InternalServerError())
         }
+        .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
     })
   }
 

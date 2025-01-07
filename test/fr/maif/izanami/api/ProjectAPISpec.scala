@@ -201,6 +201,20 @@ class ProjectAPISpec extends BaseAPISpec {
   }
 
   "projects POST endpoint" should {
+    "prevent project creation with too long fields" in {
+      val tenantName    = "my-tenant"
+      val testSituation = TestSituationBuilder()
+        .withTenantNames(tenantName)
+        .loggedInWithAdminRights()
+        .build()
+
+      var projectResponse = testSituation.createProject(name = "abcdefghij" * 21, tenant = tenantName)
+      projectResponse.status mustBe BAD_REQUEST
+
+      projectResponse = testSituation.createProject(name = "abcdefghij", description = "abcdefghij" * 51, tenant = tenantName)
+      projectResponse.status mustBe BAD_REQUEST
+    }
+
     "allow to create new project" in {
       val tenantName    = "my-tenant"
       val testSituation = TestSituationBuilder()
@@ -293,6 +307,20 @@ class ProjectAPISpec extends BaseAPISpec {
   }
 
   "Project PUT endpoint" should {
+    "prevent project update with too long fields" in {
+      val situation = TestSituationBuilder().withTenants(
+          TestTenant("tenant").withProjectNames("project")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      var response = situation.updateProject("tenant", "project", "abcdefghij" * 21)
+      response.status mustBe BAD_REQUEST
+
+      response = situation.updateProject("tenant", "project", "project", "abcdefghij" * 51)
+      response.status mustBe BAD_REQUEST
+    }
+
     "allow to update project name" in {
       val situation = TestSituationBuilder().withTenants(
         TestTenant("tenant").withProjectNames("project")

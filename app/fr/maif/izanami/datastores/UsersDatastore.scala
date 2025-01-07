@@ -109,10 +109,8 @@ class UsersDatastore(val env: Env) extends Datastore {
       .recover {
         case f: PgException if f.getSqlState == UNIQUE_VIOLATION =>
           Left(UserAlreadyExist(updateRequest.name, updateRequest.email))
-        case ex                                                  =>
-          logger.error("Failed to user", ex)
-          Left(InternalServerError())
       }
+      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
   }
 
   def updateLegacyUser(
@@ -538,7 +536,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     if (users.isEmpty) {
       Future.successful(Right(()))
     } else {
-      val eventualErrorOrUnit: Future[Either[InternalServerError, Unit]] = env.postgresql
+      val eventualErrorOrUnit: Future[Either[IzanamiError, Unit]] = env.postgresql
         .queryRaw(
           s"""insert into izanami.users (username, password, admin, email, user_type, legacy)
              |values (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::BOOLEAN[]), unnest($$4::TEXT[]), unnest($$5::izanami.user_type[]), unnest($$6::BOOLEAN[])) ${importConflictStrategy match {
@@ -555,99 +553,100 @@ class UsersDatastore(val env: Env) extends Datastore {
             users.map(user => java.lang.Boolean.valueOf(user.legacy)).toArray
           ),
           conn = Some(conn)
-        ) { _ => Some(()) }
-        .flatMap(_ => {
-          val base = users.flatMap(u => u.rights.tenants.map { case (tenant, right) => (tenant, u.username, right) })
-          base
-            .filter { case (_, _, r) => r.projects.nonEmpty }
-            .flatMap {
-              case (tenant, username, tenantRight) => {
-                tenantRight.projects.map { case (project, right) =>
-                  (tenant, username, project, right.level)
+        ) { _ => Right(()) }
+        .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+        .flatMap {
+          case Left(err) => Future.successful(Left(err))
+          case Right(_) => {
+            val base = users.flatMap(u => u.rights.tenants.map { case (tenant, right) => (tenant, u.username, right) })
+            base
+              .filter { case (_, _, r) => r.projects.nonEmpty }
+              .flatMap {
+                case (tenant, username, tenantRight) => {
+                  tenantRight.projects.map { case (project, right) =>
+                    (tenant, username, project, right.level)
+                  }
                 }
               }
-            }
-            .groupBy(_._1)
-            .view
-            .mapValues(seq => seq.map { case (_, username, project, level) => (username, project, level) })
-            .foldLeft(Future.successful(())) {
-              case (future, (tenant, values)) => {
-                future.flatMap(_ => createProjectRights(tenant, values, conn, importConflictStrategy))
+              .groupBy(_._1)
+              .view
+              .mapValues(seq => seq.map { case (_, username, project, level) => (username, project, level) })
+              .foldLeft(Future.successful(())) {
+                case (future, (tenant, values)) => {
+                  future.flatMap(_ => createProjectRights(tenant, values, conn, importConflictStrategy))
+                }
               }
-            }
-            .flatMap(_ => {
-              base
-                .filter { case (_, _, r) => r.keys.nonEmpty }
-                .flatMap {
-                  case (tenant, username, tenantRight) => {
-                    tenantRight.keys.map { case (key, right) =>
-                      (tenant, username, key, right.level)
+              .flatMap(_ => {
+                base
+                  .filter { case (_, _, r) => r.keys.nonEmpty }
+                  .flatMap {
+                    case (tenant, username, tenantRight) => {
+                      tenantRight.keys.map { case (key, right) =>
+                        (tenant, username, key, right.level)
+                      }
                     }
                   }
-                }
-                .groupBy(_._1)
-                .view
-                .mapValues(seq => seq.map { case (_, username, key, level) => (username, key, level) })
-                .foldLeft(Future.successful(())) {
-                  case (future, (tenant, values)) => {
-                    future.flatMap(_ => createKeyRights(tenant, values, conn, importConflictStrategy))
-                  }
-                }
-            })
-            .flatMap(_ => {
-              base
-                .filter { case (_, _, r) => r.webhooks.nonEmpty }
-                .flatMap {
-                  case (tenant, username, tenantRight) => {
-                    tenantRight.webhooks.map { case (key, right) =>
-                      (tenant, username, key, right.level)
+                  .groupBy(_._1)
+                  .view
+                  .mapValues(seq => seq.map { case (_, username, key, level) => (username, key, level) })
+                  .foldLeft(Future.successful(())) {
+                    case (future, (tenant, values)) => {
+                      future.flatMap(_ => createKeyRights(tenant, values, conn, importConflictStrategy))
                     }
                   }
-                }
-                .groupBy(_._1)
-                .view
-                .mapValues(seq => seq.map { case (_, username, key, level) => (username, key, level) })
-                .foldLeft(Future.successful(())) {
-                  case (future, (tenant, values)) => {
-                    future.flatMap(_ => createWebhookRights(tenant, values, conn))
+              })
+              .flatMap(_ => {
+                base
+                  .filter { case (_, _, r) => r.webhooks.nonEmpty }
+                  .flatMap {
+                    case (tenant, username, tenantRight) => {
+                      tenantRight.webhooks.map { case (key, right) =>
+                        (tenant, username, key, right.level)
+                      }
+                    }
                   }
-                }
-            })
-            .flatMap(_ => {
-              val (usernames, tenants, levels) = users
-                .flatMap(u => {
-                  u.rights.tenants.map { case (tenant, TenantRight(level, _, _, _)) => (u.username, tenant, level) }
-                })
-                .toArray
-                .unzip3
+                  .groupBy(_._1)
+                  .view
+                  .mapValues(seq => seq.map { case (_, username, key, level) => (username, key, level) })
+                  .foldLeft(Future.successful(())) {
+                    case (future, (tenant, values)) => {
+                      future.flatMap(_ => createWebhookRights(tenant, values, conn))
+                    }
+                  }
+              })
+              .flatMap(_ => {
+                val (usernames, tenants, levels) = users
+                  .flatMap(u => {
+                    u.rights.tenants.map { case (tenant, TenantRight(level, _, _, _)) => (u.username, tenant, level) }
+                  })
+                  .toArray
+                  .unzip3
 
-              env.postgresql.queryRaw(
-                s"""
-                 |INSERT INTO izanami.users_tenants_rights (username, tenant, level)
-                 |VALUES (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
-                 |${importConflictStrategy match {
-                  case Fail           => ""
-                  case MergeOverwrite =>
-                    """
-                 | ON CONFLICT(username, tenant) DO UPDATE SET level = CASE
-                 | WHEN users_keys_rights.level = 'READ' THEN excluded.level
-                 | WHEN (users_keys_rights.level = 'WRITE' AND excluded.level = 'ADMIN') THEN 'ADMIN'
-                 | WHEN users_keys_rights.level = 'ADMIN' THEN 'ADMIN'
-                 | ELSE users_keys_rights.level
-                 | END
-                 |""".stripMargin
-                  case Skip           => " ON CONFLICT(username, tenant) DO NOTHING "
-                }}
-                 |returning username
-                 |""".stripMargin,
-                List(usernames, tenants, levels.map(l => l.toString.toUpperCase())),
-                conn = Some(conn)
-              ) { _ => Some(()) }
-            })
-        })
-        .map(_ => Right(()))
-        .recover { case _ =>
-          Left(InternalServerError())
+                env.postgresql.queryRaw(
+                  s"""
+                     |INSERT INTO izanami.users_tenants_rights (username, tenant, level)
+                     |VALUES (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
+                     |${importConflictStrategy match {
+                    case Fail           => ""
+                    case MergeOverwrite =>
+                      """
+                     | ON CONFLICT(username, tenant) DO UPDATE SET level = CASE
+                     | WHEN users_keys_rights.level = 'READ' THEN excluded.level
+                     | WHEN (users_keys_rights.level = 'WRITE' AND excluded.level = 'ADMIN') THEN 'ADMIN'
+                     | WHEN users_keys_rights.level = 'ADMIN' THEN 'ADMIN'
+                     | ELSE users_keys_rights.level
+                     | END
+                     |""".stripMargin
+                    case Skip           => " ON CONFLICT(username, tenant) DO NOTHING "
+                  }}
+                     |returning username
+                     |""".stripMargin,
+                  List(usernames, tenants, levels.map(l => l.toString.toUpperCase())),
+                  conn = Some(conn)
+                ) { _ => Some(()) }
+                .map(_ => Right(()))
+              })
+          }
         }
       eventualErrorOrUnit
     }
@@ -969,6 +968,7 @@ class UsersDatastore(val env: Env) extends Datastore {
         Some(row.getUUID("id").toString)
       }
       .map(o => o.toRight(InternalServerError()))
+      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
   }
 
   def deleteInvitation(id: String): Future[Option[Unit]] = {

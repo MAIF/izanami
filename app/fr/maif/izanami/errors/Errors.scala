@@ -16,8 +16,29 @@ case class TenantAlreadyExists(name: String)
     extends IzanamiError(message = s"Tenant ${name} already exists", status = BAD_REQUEST)
 case class ProjectAlreadyExists(name: String, tenant: String)
     extends IzanamiError(message = s"Project ${name} already exists in tenant ${tenant}", status = BAD_REQUEST)
+case object FeatureWithThisNameAlreadyExist extends IzanamiError(
+  message = s"A feature with this name already exist for this project.",
+  status = BAD_REQUEST
+)
+case object FeatureWithThisIdAlreadyExist extends IzanamiError(
+  message = s"A feature with this id already exist for this tenant. Try again if you didn't specify custom id, otherwise search this tenant for your id to find problematic feature.",
+  status = BAD_REQUEST
+)
 case class TenantDoesNotExists(id: String)
     extends IzanamiError(message = s"Tenant ${id} does not exist", status = NOT_FOUND)
+case object FeatureFieldTooLong extends IzanamiError(message = "Feature name, description, id or value is too long. Max char count is 200 for name, 500 for description and id, and 1048576 for value.", status= BAD_REQUEST)
+case object ProjectFieldTooLong extends IzanamiError(message = "Project name or description is too long. Max char count is 200 for name and 500 for description.", status= BAD_REQUEST)
+case object TagFieldTooLong extends IzanamiError(message = "Tag name or description is too long. Max char count is 200 for name and 500 for description.", status= BAD_REQUEST)
+case object ApiKeyFieldTooLong extends IzanamiError(message = "API key name or description is too long. Max char count is 200 for name and 500 for description.", status= BAD_REQUEST)
+case object TenantFieldTooLong extends IzanamiError(message = "Tenant name or description is too long. Max char count is 200 for name and 500 for description.", status= BAD_REQUEST)
+case object UsernameFieldTooLong extends IzanamiError(message = "User name or password is too long. Max char count is 320 for username and 256 for password.", status= BAD_REQUEST)
+case object ConfigurationFieldTooLong extends IzanamiError(message = "Origin email is too long, it can't exceed 320 characters.", status= BAD_REQUEST)
+case object PersonnalAccessTokenFieldTooLong extends IzanamiError(message = "Personnal access token name is too long, it can't exceed 200 characters.", status= BAD_REQUEST)
+case object EmailIsTooLong extends IzanamiError(message = "Email is too long, max size is 320 characters.", status= BAD_REQUEST)
+case object WebhookFieldTooLong extends IzanamiError(message = "Webhook name, description, url, headers or template is too long. Max char count is 200 for name, 500 for description, 2048 for url, 40480 for headers and 1048576 for template.", status= BAD_REQUEST)
+case object GlobalContextNameTooLong extends IzanamiError(message = "Global context name is too long. Max char count is 200.", status= BAD_REQUEST)
+case object ContextNameTooLong extends IzanamiError(message = "Context name is too long. Max char count is 200.", status= BAD_REQUEST)
+case object WasmScriptNameTooLong extends IzanamiError(message = "Wasm script name is too long, max char count is 200.", status= BAD_REQUEST)
 case class TagDoesNotExists(id: String)
     extends IzanamiError(message = s"Tag ${id} does not exist in tenant", status = NOT_FOUND)
 case class OneTagDoesNotExists(names: Set[String])
@@ -176,6 +197,19 @@ case class ImportError(table: String, json: String, errorMessage: String)
       message = s"Error key while inserting into table $table with error $errorMessage values $json : ",
       status = 400
     )
+case class ErrorAggregator(errors: Seq[IzanamiError]) extends IzanamiError(message = errors.map(err => err.message).mkString("\n"), status = errors.map(err => err.status).sorted(Ordering[Int]).headOption.getOrElse(INTERNAL_SERVER_ERROR)) {}
+
+object ErrorAggregator {
+  def fromEitherSeq(eithers: Seq[Either[IzanamiError, Any]]): Option[ErrorAggregator] = {
+    if(eithers.exists(_.isLeft)) {
+      Some(ErrorAggregator(eithers.collect {
+        case Left(err) => err
+      }))
+    } else {
+      None
+    }
+  }
+}
 object IzanamiError {
   implicit val errorWrite: Writes[IzanamiError] = { err =>
     Json.obj(
