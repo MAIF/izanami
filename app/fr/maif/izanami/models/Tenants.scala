@@ -4,7 +4,7 @@ import fr.maif.izanami.models.Project.dbProjectReads
 import play.api.libs.json.Format.GenericFormat
 import play.api.libs.json._
 
-import java.util.UUID
+import fr.maif.izanami.models.RightLevels.RightLevel
 import scala.util.matching.Regex
 
 case class Tenant(name: String, projects: List[Project] = List(), tags: List[Tag] = List(), description: String = "") {
@@ -17,7 +17,8 @@ object Tenant {
     (json \ "name")
       .asOpt[String]
       .filter(id => TENANT_REGEXP.pattern.matcher(id).matches())
-      .map(name => TenantCreationRequest(name, description=(json \ "description").asOpt[String].getOrElse("")))
+      .map(name => TenantCreationRequest(name,
+        description=(json \ "description").asOpt[String].getOrElse("")))
       .map(JsSuccess(_))
       .getOrElse(JsError("Invalid tenant"))
   }

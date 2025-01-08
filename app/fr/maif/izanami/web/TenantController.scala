@@ -88,7 +88,7 @@ class TenantController(
     implicit request =>
       env.datastores.tenants
         .readTenantByName(name)
-        .flatMap(maybeTenant =>
+        .flatMap(maybeTenant => {
           maybeTenant.fold(
             err => Future.successful(Results.Status(err.status)(Json.toJson(err))),
             tenant => {
@@ -98,13 +98,15 @@ class TenantController(
                 };
                 tags     <- env.datastores.tags.readTags(tenant.name)
               )
-                yield Ok(
-                  Json.toJson(
-                    Tenant(name = tenant.name, projects = projects, tags = tags, description = tenant.description)
+                yield {
+                  Ok(
+                    Json.toJson(
+                      Tenant(name = tenant.name, projects = projects, tags = tags, description = tenant.description)
+                    )
                   )
-                )
+                }
             }
           )
-        )
+        })
   }
 }

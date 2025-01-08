@@ -162,7 +162,7 @@ function projectOrKeyArrayToObject(arr: { name: string; level?: TLevel }[]) {
   }, {} as { [x: string]: any });
 }
 
-export function rightStateArrayToBackendMap(state: State): TRights {
+export function rightStateArrayToBackendMap(state?: State): TRights {
   if (!state) {
     return { tenants: {} };
   }
@@ -371,8 +371,7 @@ export function RightSelector(props: {
   const tenantQuery = useQuery({
     queryKey: [MutationNames.TENANTS],
 
-    queryFn: () =>
-      queryTenants(tenantLevelFilter)
+    queryFn: () => queryTenants(tenantLevelFilter),
   });
 
   const [state, dispatch] = React.useReducer(reducer, []);
@@ -380,7 +379,7 @@ export function RightSelector(props: {
     if (defaultValue) {
       dispatch({ type: EventType.SetupState, rights: defaultValue });
     }
-  }, []);
+  }, [defaultValue]);
   React.useEffect(() => {
     if (isValid(state)) {
       onChange(state);
@@ -389,7 +388,8 @@ export function RightSelector(props: {
 
   const selectedTenants = state.map(({ name }) => name);
   const [creating, setCreating] = useState(
-    selectedTenants.length === 0 && !defaultValue
+    //selectedTenants.length === 0 && !defaultValue
+    false
   );
 
   const { user } = useContext(IzanamiContext);
@@ -406,7 +406,6 @@ export function RightSelector(props: {
       : tenants.filter((item) => {
           return !selectedTenants.includes(item);
         });
-
     return (
       <div>
         <>
@@ -494,6 +493,9 @@ export function RightSelector(props: {
                   setCreating(false);
                   dispatch({ type: EventType.SelectTenant, name: item });
                 }}
+                onClear={() => {
+                  setCreating(false);
+                }}
               />
             </>
           )}
@@ -521,7 +523,7 @@ export function RightSelector(props: {
             >
               {props.tenant
                 ? `Add specific ${props.tenant} right`
-                : "Add another tenant"}
+                : "Add tenant right"}
             </button>
           )}
       </div>
@@ -546,8 +548,7 @@ function ProjectSelector(props: {
   const projectQuery = useQuery({
     queryKey: [tenantQueryKey(tenant)],
 
-    queryFn: () =>
-      queryTenant(tenant)
+    queryFn: () => queryTenant(tenant),
   });
 
   if (projectQuery.isLoading) {
@@ -600,7 +601,7 @@ function ProjectSelector(props: {
         {creating && (
           <div className="my-2">
             <ItemSelector
-              label="${tenant} new project"
+              label={`${tenant} new project`}
               choices={availableProjects}
               userRight={TLevel.Read}
               onItemChange={(project) => {
@@ -638,8 +639,7 @@ function KeySelector(props: {
   const keyQuery = useQuery({
     queryKey: [tenantKeyQueryKey(tenant)],
 
-    queryFn: () =>
-      queryKeys(tenant)
+    queryFn: () => queryKeys(tenant),
   });
   const { user } = useContext(IzanamiContext);
   const { admin, rights } = user!;
@@ -730,8 +730,7 @@ function WebhookSelector(props: {
   const webhookQuery = useQuery({
     queryKey: [webhookQueryKey(tenant)],
 
-    queryFn: () =>
-      fetchWebhooks(tenant)
+    queryFn: () => fetchWebhooks(tenant),
   });
   const { user } = useContext(IzanamiContext);
   const { admin, rights } = user!;

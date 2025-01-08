@@ -4,7 +4,7 @@ import akka.actor.Cancellable
 import buildinfo.BuildInfo
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.models.IzanamiConfiguration
+import fr.maif.izanami.models.{FullIzanamiConfiguration, IzanamiConfiguration}
 import fr.maif.izanami.security.IdGenerator
 import fr.maif.izanami.utils.Datastore
 import io.vertx.sqlclient.{Row, SqlConnection}
@@ -20,7 +20,7 @@ class StatsDatastore(val env: Env) extends Datastore {
 
   override def onStart(): Future[Unit] = {
     anonymousReportingCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(0.minutes, 24.hours)(() =>
-      env.datastores.configuration.readConfiguration().foreach {
+      env.datastores.configuration.readFullConfiguration().foreach {
         case Right(conf) if conf.anonymousReporting => {
           sendAnonymousReporting()
         }
@@ -55,9 +55,13 @@ class StatsDatastore(val env: Env) extends Datastore {
     }).flatMap(stats => {
       retrieveRunInformations().map(runInfo => runInfo ++ Json.obj("entities" -> stats.toJson))
     }).flatMap(json => {
-      readMailerType().map(mailerInfo => {
-        val features = mailerInfo ++ readIntegrationInformations()
-        json ++ Json.obj("features" -> features)
+      readMailerType()
+        .flatMap(mailerInfo => {
+          readIntegrationInformations()
+            .map(integrationInformations => {
+              val features = mailerInfo ++ integrationInformations
+              json ++ Json.obj("features" -> features)
+            })
       })
     }).map(json => {
       json ++ Json.obj("stats" -> Json.obj(), "tenants" -> Json.arr(), "containerized" -> isContainerized)
@@ -221,22 +225,23 @@ class StatsDatastore(val env: Env) extends Datastore {
       }
   }
 
-  def readIntegrationInformations(): JsObject = {
+  def readIntegrationInformations(): Future[JsObject] = {
     val isWasmPresent = env.datastores.configuration.readWasmConfiguration().isDefined
-    val isOidcPresent = env.datastores.configuration.readOIDCConfiguration().isDefined
-
-    Json.obj(
-      "wasmo" -> isWasmPresent,
-      "oidc" -> isOidcPresent
-    )
+    env.datastores.configuration.readFullConfiguration()
+      .map(eitherConfig => (
+        Json.obj(
+          "wasmo" -> isWasmPresent,
+          "oidc" -> eitherConfig.exists(c => c.oidcConfiguration.isDefined)
+        )
+      ))
   }
 
   def readMailerType(): Future[JsObject] = {
-    env.datastores.configuration.readConfiguration().map {
+    env.datastores.configuration.readFullConfiguration().map {
       case Left(err) => Json.obj()
-      case Right(IzanamiConfiguration(mailer, invitationMode, _, _, _)) => Json.obj(
-        "mailer" -> mailer.toString,
-        "invitation_mode" -> invitationMode.toString
+      case Right(c: FullIzanamiConfiguration) => Json.obj(
+        "mailer" -> c.mailConfiguration.mailerType.toString,
+        "invitation_mode" -> c.invitationMode.toString
       )
     }
   }

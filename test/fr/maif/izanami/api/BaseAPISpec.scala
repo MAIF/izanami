@@ -171,6 +171,21 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   val DATE_TIME_FORMATTER                            = DateTimeFormatter.ISO_INSTANT
   val TIME_FORMATTER                                 = DateTimeFormatter.ISO_TIME
   val TEST_SECRET                                    = "supersafesecret"
+  val DEFAULT_OIDC_CONFIG = Json.obj(
+    "pkce"-> JsNull,
+    "method"-> JsString("BASIC"),
+    "scopes"-> JsString("email profile"),
+    "enabled"-> JsBoolean(true),
+    "clientId"-> JsString("foo"),
+    "tokenUrl"-> JsString("http://localhost:9001/connect/token"),
+    "nameField"-> JsString("name"),
+    "emailField"-> JsString("email"),
+    "callbackUrl"-> JsString("http://localhost:3000/login"),
+    "authorizeUrl"-> JsString("http://localhost:9001/connect/authorize"),
+    "clientSecret"-> JsString("bar"),
+    "defaultOIDCUserRights"-> Json.obj("tenants" -> Json.obj())
+  )
+
 
   var shouldCleanUpWasmServer           = true
   var shouldCleanUpMails                = true
@@ -692,19 +707,21 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
 
   def updateConfiguration(
-      mailProvider: String = "Console",
+      mailerConfiguration: JsObject = Json.obj("mailer" -> "Console"),
       invitationMode: String = "Response",
       originEmail: String = null,
+      oidcConfiguration: JsObject = DEFAULT_OIDC_CONFIG,
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
-    val response = await(updateConfigurationAsync(mailProvider, invitationMode, originEmail, cookies))
+    val response = await(updateConfigurationAsync(mailerConfiguration, invitationMode, originEmail, oidcConfiguration, cookies))
     RequestResult(json = Try { response.json }, status = response.status)
   }
 
   def updateConfigurationAsync(
-      mailProvider: String = "Console",
+      mailerConfiguration: JsObject = Json.obj("mailer" -> "Console"),
       invitationMode: String = "Response",
       originEmail: String = null,
+      oidcConfiguration: JsObject,
       cookies: Seq[WSCookie] = Seq(),
       anonymousReporting: Boolean = false,
       anonymousReportingDate: LocalDateTime = LocalDateTime.now()
@@ -715,18 +732,20 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       .put(
         if (Objects.isNull(originEmail)) {
           Json.obj(
-            "mailer"                 -> mailProvider,
+            "mailerConfiguration"                 -> mailerConfiguration,
             "invitationMode"         -> invitationMode,
             "anonymousReporting"     -> anonymousReporting,
-            "anonymousReportingDate" -> dateStr
+            "anonymousReportingDate" -> dateStr,
+            "oidcConfiguration" -> oidcConfiguration
           )
         } else {
           Json.obj(
-            "mailer"                 -> mailProvider,
+            "mailerConfiguration"                 -> mailerConfiguration,
             "invitationMode"         -> invitationMode,
             "originEmail"            -> originEmail,
             "anonymousReporting"     -> anonymousReporting,
-            "anonymousReportingDate" -> dateStr
+            "anonymousReportingDate" -> dateStr,
+            "oidcConfiguration" -> oidcConfiguration
           )
         }
       )
@@ -2726,11 +2745,12 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     }
 
     def updateConfiguration(
-        mailProvider: String = "Console",
+        mailerConfiguration: JsObject = Json.obj("mailer" -> "Console"),
         invitationMode: String = "Response",
-        originEmail: String = null
+        originEmail: String = null,
+        oidcConfiguration: JsObject = DEFAULT_OIDC_CONFIG
     ): RequestResult = {
-      BaseAPISpec.this.updateConfiguration(mailProvider, invitationMode, originEmail, cookies)
+      BaseAPISpec.this.updateConfiguration(mailerConfiguration, invitationMode, originEmail, oidcConfiguration, cookies)
     }
 
     def fetchConfiguration(): RequestResult = {
@@ -2739,15 +2759,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .withCookies(cookies: _*)
           .get()
       )
-      RequestResult(json = Try { response.json }, status = response.status)
-    }
-
-    def updateMailerConfiguration(mailer: String, configuration: JsObject): RequestResult =
-      BaseAPISpec.this.updateMailerConfiguration(mailer, configuration, cookies)
-
-    def readMailerConfiguration(mailer: String): RequestResult = {
-      val response = await(ws.url(s"${ADMIN_BASE_URL}/configuration/mailer/${mailer}").withCookies(cookies: _*).get())
-
       RequestResult(json = Try { response.json }, status = response.status)
     }
 
@@ -2930,7 +2941,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     }
   }
 
-  case class TestConfiguration(mailer: String, invitationMode: String, originEmail: String)
+  case class TestConfiguration(mailerConfiguration: JsObject, invitationMode: String, originEmail: String, oidcConfiguration: JsObject)
 
   case class TestWasmScript(name: String, content: String)
 
@@ -2942,8 +2953,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       users: Set[TestUser] = Set(),
       loggedInUser: Option[String] = None,
       configuration: TestConfiguration =
-        TestConfiguration(mailer = "Console", invitationMode = "Response", originEmail = null),
-      mailerConfigurations: Map[String, JsObject] = Map(),
+        TestConfiguration(mailerConfiguration = Json.obj("mailer" -> "Console"), invitationMode = "Response", originEmail = null, oidcConfiguration = DEFAULT_OIDC_CONFIG),
       wasmScripts: Seq[TestWasmScript] = Seq(),
       webhookServers: Map[Int, (Int, String)] = Map(),
       personnalAccessTokens: Set[TestPersonnalAccessToken] = Set()
@@ -2992,11 +3002,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       copy(wasmScripts = wasmScripts + (name -> enabled))
     }*/
 
-    def withMailProvider(provider: String): TestSituationBuilder = {
-      BaseAPISpec.this.shouldCleanUpMails = true
-      copy(configuration = configuration.copy(mailer = provider))
-    }
-
     def withOriginEmail(email: String): TestSituationBuilder = {
       BaseAPISpec.this.shouldCleanUpMails = true
       copy(configuration = configuration.copy(originEmail = email))
@@ -3004,7 +3009,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
     def withMailerConfiguration(mailer: String, configuration: JsObject): TestSituationBuilder = {
       BaseAPISpec.this.shouldCleanUpMails = true
-      copy(mailerConfigurations = mailerConfigurations + (mailer -> configuration))
+      copy(configuration = this.configuration.copy(mailerConfiguration = configuration + ("mailer" -> JsString(mailer))))
     }
 
     def withInvitationMode(invitationMode: String): TestSituationBuilder = {
@@ -3308,9 +3313,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
       futures.addOne(
         updateConfigurationAsync(
-          configuration.mailer,
+          configuration.mailerConfiguration,
           configuration.invitationMode,
           configuration.originEmail,
+          configuration.oidcConfiguration,
           buildCookies
         )
           .map(configurationResponse => {
@@ -3321,18 +3327,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
             }
           })
       )
-
-      val configurationFuture = Future.sequence(mailerConfigurations.map { case (mailer, configuration) =>
-        updateMailerConfigurationAsync(mailer, configuration, buildCookies)
-          .map(result => {
-            if (result.status >= 400) {
-              throw new Exception("Failed to update mailer configuration")
-            } else {
-              ()
-            }
-          })
-      })
-      futures.addOne(configurationFuture)
 
       await(
         Future

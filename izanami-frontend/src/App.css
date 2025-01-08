@@ -39,16 +39,21 @@ header .nav-link {
 }
 
 .error-message {
-  color: red;
+  color: var(--color-red);
 }
 
 .fieldset-form fieldset {
   background-color: var(--bg-color_level2);
   color: var(--color_level2);
   border-radius: 10px;
-  padding: 20px;
+  padding: 10px;
   margin-bottom: 12px;
 }
+
+.fieldset-form fieldset:disabled {
+  opacity: .5;
+}
+
 .item-block {
   display: flex;
   flex-direction: column;

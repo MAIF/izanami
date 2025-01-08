@@ -5,17 +5,17 @@
   
   .toast-error button {
     background-color: white;
-    color: red; 
+    color: var(--color-red); 
     border: 1px solid white;
   }
   
   .toast-error button:hover {
     background-color: white;
-    color: red;
-    border: 1px solid red;
+    color: var(--color-red);
+    border: 1px solid var(--color-red);
   }
   
   .toast-error i {
-    color: red;
+    color: var(--color-red);
   }
   

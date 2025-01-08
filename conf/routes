@@ -82,13 +82,14 @@ POST          /api/admin/login                                                  
 POST          /api/admin/logout                                                                    fr.maif.izanami.web.LoginController.logout()
 GET           /api/admin/openid-connect                                                            fr.maif.izanami.web.LoginController.openIdConnect()
 POST          /api/admin/openid-connect-callback                                                   fr.maif.izanami.web.LoginController.openIdCodeReturn()
+POST          /api/admin/openid-connect/configuration                                              fr.maif.izanami.web.LoginController.fetchOpenIdConnectConfiguration()
 
 PUT           /api/admin/configuration                                                             fr.maif.izanami.web.ConfigurationController.updateConfiguration()
 GET           /api/admin/configuration                                                             fr.maif.izanami.web.ConfigurationController.readConfiguration()
 GET           /api/admin/exposition                                                                fr.maif.izanami.web.ConfigurationController.readExpositionUrl()
 GET           /api/admin/integrations                                                              fr.maif.izanami.web.ConfigurationController.availableIntegrations()
-GET           /api/admin/configuration/mailer/:id                                                  fr.maif.izanami.web.ConfigurationController.readMailerConfiguration(id: String)
-PUT           /api/admin/configuration/mailer/:id                                                  fr.maif.izanami.web.ConfigurationController.updateMailerConfiguration(id: String)
+#GET           /api/admin/configuration/mailer/:id                                                  fr.maif.izanami.web.ConfigurationController.readMailerConfiguration(id: String)
+#PUT           /api/admin/configuration/mailer/:id                                                  fr.maif.izanami.web.ConfigurationController.updateMailerConfiguration(id: String)
 
 GET           /api/admin/plugins                                                                   fr.maif.izanami.web.PluginController.wasmFiles()
 GET           /api/admin/tenants/:tenant/local-scripts                                             fr.maif.izanami.web.PluginController.localScripts(tenant: String, features: Boolean ?= false)

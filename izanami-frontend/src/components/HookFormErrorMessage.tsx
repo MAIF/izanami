@@ -10,7 +10,7 @@ export function ErrorMessage(props: { errors: object; name: string }) {
         return (
           <div className="error-message">
             <i className="fa-solid fa-circle-exclamation" aria-hidden />
-            &nbsp; {message}
+            {message ? <>&nbsp;{message}</> : <></>}
           </div>
         );
       }}
