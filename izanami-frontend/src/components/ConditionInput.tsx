@@ -51,7 +51,7 @@ export function ConditionsInput(props: { folded: boolean }) {
 
         return (
           <div
-            className="accordion condition-accordion"
+            className="accordion accordion-dark"
             id={`${id}-accordion`}
             key={id}
           >

@@ -64,23 +64,23 @@ interface FeatureDeleted extends FeatureLogEntryBase {
 
 export type PersonnalAccessToken =
   | {
-      id: string;
-      name: string;
-      expiresAt: Date;
-      expirationTimezone: string;
-      createdAt: Date;
-      username: string;
-      allRights: boolean;
-      rights: TokenTenantRights;
-    }
+    id: string;
+    name: string;
+    expiresAt: Date;
+    expirationTimezone: string;
+    createdAt: Date;
+    username: string;
+    allRights: boolean;
+    rights: TokenTenantRights;
+  }
   | {
-      id: string;
-      name: string;
-      createdAt: Date;
-      username: string;
-      allRights: boolean;
-      rights: TokenTenantRights;
-    };
+    id: string;
+    name: string;
+    createdAt: Date;
+    username: string;
+    allRights: boolean;
+    rights: TokenTenantRights;
+  };
 
 export interface TenantInCreationType {
   name: string;
@@ -268,7 +268,7 @@ interface ClassicalFeatureBase<TypeName extends FeatureTypeName> {
   resultType: TypeName;
 }
 
-interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> {}
+interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> { }
 interface ClassicalStringFeature extends ClassicalFeatureBase<"string"> {
   value: string;
   conditions: TValuedCondition<string>[];
@@ -467,28 +467,21 @@ export type InvitationMode = "Response" | "Mail";
 
 export interface Configuration {
   version: string;
-  mailer: Mailer;
   invitationMode: InvitationMode;
   originEmail: string;
   anonymousReporting: boolean;
   anonymousReportingLastAsked: Date;
-}
-
-export interface MailJetConfigurationDetails {
-  secret: string;
-  apiKey: string;
+  mailerConfiguration: MailerConfiguration;
+  oidcConfiguration?: OIDCSettings;
+  preventOAuthModification: boolean;
 }
 
 export type MailGunRegion = "EUROPE" | "US";
 
-export interface MailGunConfigurationDetails {
-  apiKey: string;
-  region: MailGunRegion;
-}
-
-export interface SMTPConfigurationDetails {
+export interface SMTPConfiguration {
+  mailer: "SMTP";
   host: string;
-  port?: number;
+  port: number;
   user?: string;
   password?: string;
   auth: boolean;
@@ -496,29 +489,27 @@ export interface SMTPConfigurationDetails {
   smtps: boolean;
 }
 
-export interface SMTPConfiguration {
-  mailerType: "SMTP";
-  configuration: SMTPConfigurationDetails;
-}
-
 export interface MailJetConfiguration {
-  mailerType: "MailJet";
-  configuration: MailJetConfigurationDetails;
+  mailer: "MailJet";
+  secret: string;
+  apiKey: string;
 }
 
 export interface MailGunConfiguration {
-  mailerType: "MailGun";
-  configuration: MailGunConfigurationDetails;
+  mailer: "MailGun";
+  apiKey: string;
+  region: MailGunRegion;
 }
 
 export interface ConsoleConfiguration {
-  mailerType: "Console";
+  mailer: "Console";
 }
 
 export type MailerConfiguration =
-  | MailJetConfigurationDetails
-  | MailGunConfigurationDetails
-  | SMTPConfigurationDetails
+  | MailJetConfiguration
+  | MailGunConfiguration
+  | SMTPConfiguration
+  | ConsoleConfiguration
   | Record<string, never>;
 
 export interface TContextOverloadBase<FeatureTypeName> {
@@ -532,7 +523,7 @@ export interface TContextOverloadBase<FeatureTypeName> {
 }
 
 export interface TBooleanContextOverload
-  extends TContextOverloadBase<"boolean"> {}
+  extends TContextOverloadBase<"boolean"> { }
 
 export interface TNumberContextOverload extends TContextOverloadBase<"number"> {
   conditions: TValuedCondition<number>[];
@@ -686,14 +677,14 @@ export interface SearchEntityResponse {
 
 export type SearchResult = {
   type:
-    | "feature"
-    | "project"
-    | "key"
-    | "tag"
-    | "script"
-    | "global_context"
-    | "local_context"
-    | "webhook";
+  | "feature"
+  | "project"
+  | "key"
+  | "tag"
+  | "script"
+  | "global_context"
+  | "local_context"
+  | "webhook";
   name: string;
   path: SearchResultPathElement[];
   tenant: string;
@@ -703,3 +694,24 @@ export type SearchResultPathElement = {
   type: "global_context" | "local_context" | "project" | "tenant";
   name: string;
 };
+
+export interface PKCEConfig {
+  enabled: boolean;
+  algorithm: string;
+}
+
+export interface OIDCSettings {
+  method: "BASIC" | "POST";
+  enabled: boolean;
+  clientId: string;
+  clientSecret: string;
+  tokenUrl: string;
+  authorizeUrl: string;
+  loginUrl: string;
+  scopes: string;
+  pkce?: PKCEConfig;
+  nameField: string;
+  emailField: string;
+  callbackUrl: string;
+  defaultOIDCUserRights?: TRights;
+}

@@ -52,7 +52,7 @@ class UserController(
         )
 
         env.datastores.configuration
-          .readConfiguration()
+          .readFullConfiguration()
           .flatMap {
             case Left(err)                                                                       => err.toHttpResponse.future
             case Right(configuration) if configuration.invitationMode == InvitationMode.Response => {

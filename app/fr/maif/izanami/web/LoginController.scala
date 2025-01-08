@@ -2,16 +2,20 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.MissingOIDCConfigurationError
+import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
 import fr.maif.izanami.models.User.userRightsWrites
-import fr.maif.izanami.models.{OIDC, OIDCConfiguration, Rights, User}
+import fr.maif.izanami.models.{OAuth2Configuration, OIDC, Rights, User}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import pdi.jwt.{JwtJson, JwtOptions}
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.JsPath.\
+import play.api.libs.json.{JsArray, JsObject, Json}
 import play.api.libs.ws.WSAuthScheme
 import play.api.mvc.Cookie.SameSite
 import play.api.mvc._
 
+import java.security.{MessageDigest, SecureRandom}
 import java.util.Base64
+import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 
 class LoginController(
@@ -19,17 +23,62 @@ class LoginController(
     val controllerComponents: ControllerComponents,
     sessionAuthAction: AuthenticatedSessionAction
 ) extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext;
+  implicit val ec: ExecutionContext = env.executionContext
 
-  def openIdConnect = Action {
-    env.datastores.configuration.readOIDCConfiguration() match {
-      case None                                                                             => MissingOIDCConfigurationError().toHttpResponse
-      case Some(OIDCConfiguration(clientId, _, authorizeUrl, _, redirectUrl, _, _, scopes)) => {
-        val hasOpenIdInScope = scopes.exists(s => s.equalsIgnoreCase("openid"))
-        val actualScope      = (if (!hasOpenIdInScope) scopes + "openid" else scopes).mkString("%20")
-        Redirect(
-          s"${authorizeUrl}?scope=$actualScope&client_id=${clientId}&response_type=code&redirect_uri=${redirectUrl}"
-        )
+  private def generatePKCECodes(codeChallengeMethod: Option[String] = Some("S256")) = {
+    val code         = new Array[Byte](120)
+    val secureRandom = new SecureRandom()
+    secureRandom.nextBytes(code)
+
+    val codeVerifier = new String(Base64.getUrlEncoder.withoutPadding().encodeToString(code)).slice(0, 120)
+
+    val bytes  = codeVerifier.getBytes("US-ASCII")
+    val md     = MessageDigest.getInstance("SHA-256")
+    md.update(bytes, 0, bytes.length)
+    val digest = md.digest
+
+    codeChallengeMethod match {
+      case Some("S256") =>
+        (codeVerifier, org.apache.commons.codec.binary.Base64.encodeBase64URLSafeString(digest), "S256")
+      case _            => (codeVerifier, codeVerifier, "plain")
+    }
+  }
+
+  def openIdConnect = Action.async { implicit request =>
+    env.datastores.configuration.readFullConfiguration().map(e => e.toOption.flatMap(_.oidcConfiguration)).map  {
+      case None => MissingOIDCConfigurationError().toHttpResponse
+      case Some(OAuth2Configuration(
+        enabled,
+        method,
+        clientId,
+        _clientSecret,
+        _tokenUrl,
+        authorizeUrl,
+        scopes,
+        pkce,
+        _nameField,
+        _emailField,
+        callbackUrl,
+        defaultOIDCUserRights)) => {
+
+        if (!enabled) {
+          BadRequest(Json.obj("message" -> "Something wrong happened"))
+        } else {
+          val hasOpenIdInScope = scopes.split(" ").toSet.exists(s => s.equalsIgnoreCase("openid"))
+          val actualScope = (if (!hasOpenIdInScope) scopes + " openid" else scopes).replace(" ", "%20")
+
+          if (pkce.exists(_.enabled)) {
+            val (codeVerifier, codeChallenge, codeChallengeMethod) = generatePKCECodes(pkce.get.algorithm.some)
+
+            Redirect(
+              s"$authorizeUrl?scope=$actualScope&client_id=$clientId&response_type=code&redirect_uri=$callbackUrl&code_challenge=$codeChallenge&code_challenge_method=$codeChallengeMethod"
+            ).addingToSession(
+              "code_verifier" -> codeVerifier
+            )
+          } else {
+            Redirect(s"$authorizeUrl?scope=$actualScope&client_id=$clientId&response_type=code&redirect_uri=$callbackUrl")
+          }
+        }
       }
     }
   }
@@ -38,60 +87,151 @@ class LoginController(
     // TODO handle refresh_token
     {
       for (
-        code                                                                                           <- request.body.asJson.flatMap(json => (json \ "code").get.asOpt[String]);
-        OIDCConfiguration(clientId, clientSecret, _, tokenUrl, redirectUrl, usernameField, emailField, _) <-
-          env.datastores.configuration.readOIDCConfiguration()
+        code                                                                                           <- request.body.asJson.flatMap(json => (json \ "code").get.asOpt[String]).asFuture;
+        oauth2ConfigurationOpt <- env.datastores.configuration.readFullConfiguration().map(_.toOption.flatMap(_.oidcConfiguration))
       )
-        yield env.Ws
-          .url(tokenUrl)
-          .withAuth(clientId, clientSecret, WSAuthScheme.BASIC)
-          .withHttpHeaders(("content-type", "application/x-www-form-urlencoded"))
-          .post(Map("grant_type" -> "authorization_code", "code" -> code, "redirect_uri" -> redirectUrl))
-          .flatMap(r => {
-            val maybeToken = (r.json \ "id_token").get.asOpt[String]
-            maybeToken.fold(Future(InternalServerError(Json.obj("message" -> "Failed to retrieve token"))))(token => {
-              val maybeClaims = JwtJson.decode(token, JwtOptions(signature = false))
-              maybeClaims.toOption
-                .flatMap(claims => Json.parse(claims.content).asOpt[JsObject])
-                .flatMap(json => {
-                  for (
-                    username <- (json \ usernameField).asOpt[String];
-                    email    <- (json \ emailField).asOpt[String]
-                  )
-                    yield env.datastores.users
-                      .findUser(username)
-                      .flatMap(maybeUser =>
-                        maybeUser
-                          .fold(
-                            env.datastores.users
-                              .createUser(User(username, email = email, userType = OIDC).withRights(Rights.EMPTY))
-                          )(user => Future(Right(user.withRights(Rights.EMPTY))))
-                          .map(either => either.map(_ => username))
-                      )
-                })
-                .getOrElse(Future(Left(InternalServerError(Json.obj("message" -> "Failed to read token claims")))))
-                .flatMap {
-                  // TODO refactor this whole method
-                  case Right(username) => env.datastores.users.createSession(username).map(id => Right(id))
-                  case Left(err)       => Future(Left(err))
-                }
-                .map(maybeId => {
-                  maybeId
-                    .map(id => {
-                      env.jwtService.generateToken(id)
-                    })
-                    .map(token =>
-                      NoContent
-                        .withCookies(
-                          Cookie(name = "token", value = token, httpOnly = false, sameSite = Some(SameSite.Strict))
+        yield {
+          if (code.isEmpty || oauth2ConfigurationOpt.isEmpty || oauth2ConfigurationOpt.exists(_.enabled == false))  {
+            InternalServerError(Json.obj("message" -> "Failed to read token claims")).asFuture
+          } else {
+            val OAuth2Configuration(
+              _enabled,
+              method,
+              clientId,
+              clientSecret,
+              tokenUrl,
+              _authorizeUrl,
+              _scopes,
+              _pkce,
+              nameField,
+              emailField,
+              callbackUrl,
+              defaultOIDCUserRights) = oauth2ConfigurationOpt.get
+
+            var builder = env.Ws
+                .url(tokenUrl)
+                .withHttpHeaders(("content-type", "application/x-www-form-urlencoded"))
+            var body =  Map(
+                  "grant_type" -> "authorization_code",
+                  "code" -> code.get,
+                  "redirect_uri" -> callbackUrl
+                )
+
+            if (method == OAuth2BASICMethod) {
+              builder = builder
+                .withAuth(clientId, clientSecret, WSAuthScheme.BASIC)
+            } else {
+              body = Map(
+                  "grant_type" -> "authorization_code",
+                  "code" -> code.get,
+                  "redirect_uri" -> callbackUrl,
+                  "client_id" -> clientId,
+                  "client_secret" -> clientSecret
+                )
+            }
+
+            if (_pkce.exists(_.enabled)) {
+              body = body + ("code_verifier" -> request.session.get(s"code_verifier").getOrElse(""))
+            }
+
+            builder.post(body)
+              .flatMap(r => {
+                  val maybeToken = (r.json \ "id_token").get.asOpt[String]
+
+                  maybeToken.fold(Future(InternalServerError(Json.obj("message" -> "Failed to retrieve token"))))(token => {
+                    val maybeClaims = JwtJson.decode(token, JwtOptions(signature = false))
+                    maybeClaims.toOption
+                      .flatMap(claims => Json.parse(claims.content).asOpt[JsObject])
+                      .flatMap(json => {
+                        for (
+                          username <- (json \ nameField).asOpt[String];
+                          email <- (json \ emailField).asOpt[String]
                         )
-                    )
-                    .getOrElse(InternalServerError(Json.obj("message" -> "Failed to read token claims")))
-                })
-            })
-          })
-    }.getOrElse(Future(InternalServerError(Json.obj("message" -> "Failed to read token claims"))))
+                        yield {
+                          env.datastores.configuration.updateOIDCDefaultRightIfNeeded(defaultOIDCUserRights)
+                            .flatMap(rs => {
+                              env.datastores.users
+                                .findUser(username)
+                                .flatMap(maybeUser =>
+                                  maybeUser
+                                    .fold(
+                                      env.datastores.users
+                                        .createUser(User(username, email = email, userType = OIDC)
+                                          .withRights(rs))
+                                    )(user => Future(Right(user.withRights(rs))))
+                                    .map(either => either.map(_ => username))
+                                )
+                            })
+                        }
+                      })
+                      .getOrElse(Future(Left(InternalServerError(Json.obj("message" -> "Failed to read token claims")))))
+                      .flatMap {
+                        // TODO refactor this whole method
+                        case Right(username) => env.datastores.users.createSession(username).map(id => Right(id))
+                        case Left(err) => Future(Left(err))
+                      }
+                      .map(maybeId => {
+                        maybeId
+                          .map(id => {
+                            env.jwtService.generateToken(id)
+                          })
+                          .map(token =>
+                            NoContent
+                              .withCookies(
+                                Cookie(name = "token", value = token, httpOnly = false, sameSite = Some(SameSite.Strict))
+                              )
+                          )
+                          .getOrElse(InternalServerError(Json.obj("message" -> "Failed to read token claims")))
+                      })
+                  })
+              })
+          }
+        }
+    }.flatten
+    //.getOrElse(Future(InternalServerError(Json.obj("message" -> "Failed to read token claims"))))
   }
+
+  def fetchOpenIdConnectConfiguration = Action.async { implicit request =>
+    request.body.asJson.flatMap(body => (body \ "url").asOpt[String]) match {
+      case None => BadRequest(Json.obj("error" -> "missing field")).future
+      case Some(url) =>
+        env.Ws
+          .url(url)
+          .withRequestTimeout(10.seconds)
+          .get()
+          .map { resp =>
+            val result: Option[OAuth2Configuration] = if (resp.status == 200) {
+              val body = Json.parse(resp.body)
+              val tokenUrl = (body \ "token_endpoint").asOpt[String];
+              val authorizeUrl = (body \ "authorization_endpoint").asOpt[String];
+
+              val scope = (body \ "scopes_supported")
+                .asOpt[Seq[String]]
+                .map(_.mkString(" "))
+                .getOrElse("openid email profile")
+
+              OAuth2Configuration(
+                clientId = null,
+                clientSecret = null,
+                tokenUrl = tokenUrl.getOrElse(""),
+                authorizeUrl = authorizeUrl.getOrElse(""),
+                scopes = scope,
+                pkce = None,
+                callbackUrl = s"${env.expositionUrl}/login",
+                method = OAuth2BASICMethod,
+                enabled = true
+              ).some
+            } else {
+              None
+            }
+
+            result match {
+              case Some(value) => Ok(OAuth2Configuration._fmt.writes(value))
+              case None => NotFound(Json.obj())
+            }
+          }
+      }
+    }
 
   def logout() = sessionAuthAction.async { implicit request =>
     env.datastores.users

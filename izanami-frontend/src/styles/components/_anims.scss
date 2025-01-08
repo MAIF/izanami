@@ -6,6 +6,7 @@
   from {
     transform: scale(0);
   }
+
   to {
     transform: scale(1);
   }
@@ -19,6 +20,7 @@
   from {
     transform: translateY(-100%);
   }
+
   to {
     transform: translateY(1);
   }
@@ -61,6 +63,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(90deg);
   }
@@ -68,7 +71,7 @@
 
 .anim__bg {
   //   animation: bg 0.25s;
-  background-color: red;
+  color: var(--color-red);
 }
 
 .anim__highlighter {
@@ -81,6 +84,7 @@
   0% {
     background-color: rgba(0, 180, 205, 128);
   }
+
   100% {
     background-color: rgba(127, 219, 255, 0);
     border: 1px solid rgb(0, 180, 205);

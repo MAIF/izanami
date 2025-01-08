@@ -30,6 +30,7 @@ import {
   TClassicalCondition,
   PersonnalAccessToken,
   TokenTenantRight,
+  OIDCSettings,
   FeatureLogEntry,
   ProjectLogSearchQuery,
 } from "./types";
@@ -764,7 +765,7 @@ export function queryStats(): Promise<object> {
 }
 
 export function updateConfiguration(
-  configuration: Omit<Configuration, "version">
+  configuration: Omit<Configuration, "version" | "preventOAuthModification">
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch("/api/admin/configuration", {
@@ -1393,6 +1394,20 @@ export function searchEntitiesByTenant(
         filterString ? `&filter=${filterString}` : ""
       }`
     )
+  );
+}
+
+export function fetchOpenIdConnectConfiguration(
+  url: string
+): Promise<Partial<OIDCSettings>> {
+  return handleFetchJsonResponse(
+    fetch("/api/admin/openid-connect/configuration", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
   );
 }
 
