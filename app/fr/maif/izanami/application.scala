@@ -64,6 +64,7 @@ class IzanamiComponentsInstances(
 
   lazy val authAction                       = wire[TenantAuthActionFactory]
   lazy val tenantAuthAction                 = wire[ProjectAuthActionFactory]
+  lazy val projectAuthActionById            = wire[ProjectAuthActionByIdFactory]
   lazy val adminAuthAction                  = wire[AdminAuthAction]
   lazy val keyAuthAction                    = wire[KeyAuthActionFactory]
   lazy val authenticatedAction              = wire[AuthenticatedAction]

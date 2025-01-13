@@ -72,8 +72,9 @@ import Logo from "../izanami.png";
 import { SearchModal } from "./components/SearchComponant/SearchModal";
 import { WebHooks } from "./pages/webhooks";
 import { PasswordModal } from "./components/PasswordModal";
-import { ProjectLogs } from "./pages/projectLogs";
 import { Icons } from "./Icons";
+import { ProjectAudit, ProjectLogs } from "./pages/projectLogs";
+import { TenantAudit } from "./pages/tenantLogs";
 
 function Wrapper({
   element,
@@ -194,6 +195,20 @@ const router = createBrowserRouter([
         },
         children: [
           {
+            path: "/tenants/:tenant/logs",
+            element: <Wrapper element={TenantAudit} />,
+            handle: {
+              crumb: (data: any) => (
+                <NavLink
+                  className={() => ""}
+                  to={`/tenants/${data.tenant}/logs`}
+                >
+                  <i className="fa-solid fa-timeline" aria-hidden></i>&nbsp;Logs
+                </NavLink>
+              ),
+            },
+          },
+          {
             path: "/tenants/:tenant/webhooks",
             element: <Wrapper element={WebHooks} />,
             handle: {
@@ -257,12 +272,13 @@ const router = createBrowserRouter([
               },
               {
                 path: "/tenants/:tenant/projects/:project/logs",
-                element: <Wrapper element={ProjectLogs} />,
+                element: <Wrapper element={ProjectAudit} />,
                 handle: {
                   crumb: (data: any) => (
                     <NavLink
                       className={() => ""}
                       to={`/tenants/${data.tenant}/projects/${data.project}/logs`}
+                      aria-label={`${data.project} logs`}
                     >
                       <i className="fa-solid fa-timeline" aria-hidden></i>
                       &nbsp;Logs

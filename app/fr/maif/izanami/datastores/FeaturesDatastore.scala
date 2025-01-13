@@ -660,6 +660,21 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     ) { r => r.optString("project") }
   }
 
+  def findByIdLightweight(tenant: String, id: String, conn: Option[SqlConnection] = None): Future[Option[LightWeightFeature]] = {
+    env.postgresql
+      .queryOne(
+        s"""select f.*, f.script_config as config, COALESCE(json_agg(ft.tag) FILTER (WHERE ft.tag IS NOT NULL), '[]') AS tags
+           |from features f
+           |left join features_tags ft
+           |on ft.feature = f.id
+           |where f.id = $$1
+           |group by f.id""".stripMargin,
+        List(id),
+        schemas = Set(tenant),
+        conn = conn
+      ) { row => row.optFeature() }
+  }
+
   def findById(tenant: String, id: String, conn: Option[SqlConnection] = None): Future[Either[IzanamiError, Option[CompleteFeature]]] = {
     env.postgresql
       .queryOne(
@@ -1052,7 +1067,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     } else {
       def callback(conn: SqlConnection): Future[Either[List[IzanamiError], Unit]] = {
         env.datastores.projects
-          .createProjects(tenant, features.map(_.project).toSet, conflictStrategy, user, conn = conn.some)
+          .createProjects(tenant, features.map(_.project).toSet, conflictStrategy, user, conn = conn)
           .flatMap {
             case Left(error) => Future.successful(Left(List(error)))
             case _           => createBulk(tenant, features, conflictStrategy, conn, user)

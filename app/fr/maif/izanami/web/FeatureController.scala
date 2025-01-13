@@ -451,6 +451,15 @@ class FeatureController(
     }
   }
 
+  def findFeature(tenant: String, id: String): Action[AnyContent] = detailledRightForTenanFactory(tenant).async {
+    implicit request => env.datastores.features
+      .findByIdLightweight(tenant, id)
+      .map(o => o
+        .filter(f => request.user.hasRightForProject(f.project, RightLevels.Read))
+        .fold(NotFound(Json.obj("message" -> s"Either this feature does not exist, or you don't have right to see it")))(f => Ok(Json.toJson(f)(Feature.lightweightFeatureWrite)))
+      )
+  }
+
   def deleteFeature(tenant: String, id: String): Action[AnyContent] = detailledRightForTenanFactory(tenant).async {
     implicit request =>
       env.datastores.features

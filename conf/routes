@@ -20,15 +20,17 @@ POST          /api/admin/tenants/:tenant/projects                               
 PUT           /api/admin/tenants/:tenant/projects/:project                                         fr.maif.izanami.web.ProjectController.updateProject(tenant: String, project: String)
 GET           /api/admin/tenants/:tenant/projects                                                  fr.maif.izanami.web.ProjectController.readProjects(tenant: String)
 GET           /api/admin/tenants/:tenant/projects/:project                                         fr.maif.izanami.web.ProjectController.readProject(tenant: String, project: String)
+GET           /api/admin/tenants/:tenant/projects/_id/:project                                     fr.maif.izanami.web.ProjectController.readProjectById(tenant: String, project: String)
 DELETE        /api/admin/tenants/:tenant/projects/:project                                         fr.maif.izanami.web.ProjectController.deleteProject(tenant: String, project: String)
 GET           /api/admin/tenants/:tenant/projects/:project/logs                                    fr.maif.izanami.web.ProjectController.readEventsForProject(tenant: String, project: String, order: Option[String], users: Option[String], types: Option[String], features: Option[String], start: Option[String], end: Option[String], cursor:Option[Long], count: Int ?= 50, total: Option[Boolean])
 
 POST          /api/admin/tenants/:tenant/projects/:project/features                                fr.maif.izanami.web.FeatureController.createFeature(tenant: String, project: String)
 PUT           /api/admin/tenants/:tenant/features/:id                                              fr.maif.izanami.web.FeatureController.updateFeature(tenant: String, id: String)
 DELETE        /api/admin/tenants/:tenant/features/:id                                              fr.maif.izanami.web.FeatureController.deleteFeature(tenant: String, id: String)
+GET           /api/admin/tenants/:tenant/features/_test                                            fr.maif.izanami.web.FeatureController.testFeaturesForContext(tenant: String, user: String ?= "", date: Option[java.time.Instant], featureRequest: fr.maif.izanami.models.FeatureRequest)
+GET           /api/admin/tenants/:tenant/features/:id                                              fr.maif.izanami.web.FeatureController.findFeature(tenant: String, id: String)
 GET           /api/admin/tenants/:tenant/features                                                  fr.maif.izanami.web.FeatureController.searchFeatures(tenant: String, tag: String ?= "")
 PATCH         /api/admin/tenants/:tenant/features                                                  fr.maif.izanami.web.FeatureController.patchFeatures(tenant: String)
-GET           /api/admin/tenants/:tenant/features/_test                                            fr.maif.izanami.web.FeatureController.testFeaturesForContext(tenant: String, user: String ?= "", date: Option[java.time.Instant], featureRequest: fr.maif.izanami.models.FeatureRequest)
 POST          /api/admin/tenants/:tenant/test                                                      fr.maif.izanami.web.FeatureController.testFeature(tenant: String, user: String ?= "", date: java.time.Instant)
 POST          /api/admin/tenants/:tenant/features/:id/test/*context                                fr.maif.izanami.web.FeatureController.testExistingFeature(tenant: String, context: fr.maif.izanami.web.FeatureContextPath, id: String, user: String ?= "", date: java.time.Instant)
 POST          /api/admin/tenants/:tenant/features/:id/test                                         fr.maif.izanami.web.FeatureController.testExistingFeatureWithoutContext(tenant: String, id: String, user: String ?= "", date: java.time.Instant)
@@ -115,11 +117,15 @@ PUT           /api/admin/tenants/:tenant/webhooks/:id                           
 GET           /api/admin/tenants/:tenant/webhooks/:id/users                                        fr.maif.izanami.web.UserController.readUsersForWebhook(tenant: String, id: String)
 PUT           /api/admin/tenants/:tenant/webhooks/:webhook/users/:user/rights                      fr.maif.izanami.web.UserController.updateUserRightsForWebhook(tenant: String, webhook: String, user: String)
 
+GET           /api/admin/tenants/:tenant/logs                                                      fr.maif.izanami.web.TenantController.readEventsForTenant(tenant: String, order: Option[String], users: Option[String], types: Option[String], start: Option[String], end: Option[String], cursor:Option[Long], count: Int ?= 50, total: Option[Boolean], features: Option[String], projects: Option[String], unknownIds: Option[String])
+
+
 # Search application endpoints
 GET           /api/admin/search                                                                    fr.maif.izanami.web.SearchController.search(query: String, filter: List[String])
 GET           /api/admin/tenants/:tenant/search                                                    fr.maif.izanami.web.SearchController.searchForTenant(tenant: String, query: String, filter: List[String])
 
 POST          /api/admin/tenants/:tenant/_export                                                  fr.maif.izanami.web.ExportController.exportTenantData(tenant: String)
+
 
 
 # Client application endpoints

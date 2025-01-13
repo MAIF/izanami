@@ -315,7 +315,7 @@ class ProjectAuthAction(
     bodyParser: BodyParser[AnyContent],
     env: Env,
     tenant: String,
-    project: String,
+    projectIdOrName: Either[UUID, String],
     minimumLevel: RightLevel
 )(implicit ec: ExecutionContext)
     extends ActionBuilder[ProjectIdUserNameRequest, AnyContent] {
@@ -328,7 +328,7 @@ class ProjectAuthAction(
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
         env.datastores.users
-          .hasRightForProject(subject, tenant, project, minimumLevel)
+          .hasRightForProject(subject, tenant, projectIdOrName, minimumLevel)
           .flatMap(authorized =>
             authorized.fold(
               err => Future.successful(Results.Status(err.status)(Json.toJson(err))),
@@ -341,6 +341,7 @@ class ProjectAuthAction(
       })
   }
 }
+
 
 class WebhookAuthAction(
     bodyParser: BodyParser[AnyContent],
@@ -429,7 +430,12 @@ class WebhookAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(imp
 
 class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
   def apply(tenant: String, project: String, minimumLevel: RightLevel): ProjectAuthAction =
-    new ProjectAuthAction(bodyParser, env, tenant, project, minimumLevel)
+    new ProjectAuthAction(bodyParser, env, tenant, Right(project), minimumLevel)
+}
+
+class ProjectAuthActionByIdFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
+  def apply(tenant: String, project: UUID, minimumLevel: RightLevel): ProjectAuthAction =
+    new ProjectAuthAction(bodyParser, env, tenant, Left(project), minimumLevel)
 }
 
 class TenantAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
