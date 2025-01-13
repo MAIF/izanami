@@ -46,7 +46,7 @@ class ProjectController(
           users = parseStringSet(users),
           begin = start.flatMap(s => Try{Instant.parse(s)}.toOption),
           end = end.flatMap(e => Try{Instant.parse(e)}.toOption),
-          eventTypes = parseStringSet(types).map(t => EventService.parseFeatureEventType(t)).collect{case Some(t) => t},
+          eventTypes = parseStringSet(types).map(t => EventService.parseEventType(t)).collect{case Some(t) => t},
           features = parseStringSet(features),
           total = total.getOrElse(false)
         ))
@@ -95,7 +95,7 @@ class ProjectController(
     projectAuthAction(tenant, project, RightLevels.Admin).async(parse.json) { implicit request =>
       Project.projectReads.reads(request.body) match {
         case JsSuccess(updatedProject, _) =>
-          env.datastores.projects.updateProject(tenant, project, updatedProject).map {
+          env.datastores.projects.updateProject(tenant, project, updatedProject, request.user).map {
             case Left(value) => value.toHttpResponse
             case Right(_) => NoContent
           }

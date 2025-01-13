@@ -1,15 +1,19 @@
 package fr.maif.izanami.web
 
+import fr.maif.izanami.datastores.EventDatastore.{AscOrder, TenantEventRequest, parseSortOrder}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.events.EventService
-import fr.maif.izanami.models.RightLevels.{superiorOrEqualLevels, RightLevel}
+import fr.maif.izanami.events.{EventAuthentication, EventService}
+import fr.maif.izanami.models.RightLevels.{RightLevel, superiorOrEqualLevels}
 import fr.maif.izanami.models._
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.WasmManagerClient
+import fr.maif.izanami.web.ProjectController.parseStringSet
 import play.api.libs.json._
 import play.api.mvc._
 
+import java.time.Instant
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 sealed trait ProjectChoiceStrategy
 case class DeduceProject(fieldCount: Int = 1) extends ProjectChoiceStrategy
@@ -24,7 +28,53 @@ class TenantController(
     val validatePasswordAction: ValidatePasswordActionFactory,
     val wasmManagerClient: WasmManagerClient
 ) extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext;
+  implicit val ec: ExecutionContext = env.executionContext
+
+  def readEventsForTenant(
+                            tenant: String,
+                            order: Option[String],
+                            users: Option[String],
+                            types: Option[String],
+                            start: Option[String],
+                            end: Option[String],
+                            cursor: Option[Long],
+                            count: Int,
+                            total: Option[Boolean]
+                          ): Action[AnyContent] = tenantAuthAction(tenant, RightLevels.Read).async { implicit request =>
+    env.datastores.events
+      .listEventsForTenant(tenant, TenantEventRequest(
+        sortOrder = order.flatMap(o => parseSortOrder(o)).getOrElse(AscOrder),
+        cursor = cursor,
+        count = count,
+        users = parseStringSet(users),
+        begin = start.flatMap(s => Try{Instant.parse(s)}.toOption),
+        end = end.flatMap(e => Try{Instant.parse(e)}.toOption),
+        eventTypes = parseStringSet(types).map(t => EventService.parseEventType(t)).collect{case Some(t) => t},
+        total = total.getOrElse(false)
+      ))
+      .flatMap{case (events, maybeCount) => {
+        val tokenIds = events.map(_.authentication).collect {
+          case EventAuthentication.TokenAuthentication(tokenId) => tokenId
+        }.toSet
+
+        env.datastores.personnalAccessToken.findAccessTokenByIds(tokenIds).map(tokenNamesByIds => {
+          (events.map(e => {
+            val json = Json.toJson(e)(EventService.eventFormat.writes).as[JsObject]
+            e.authentication match {
+              case EventAuthentication.TokenAuthentication(tokenId) => {
+                val tokenName = tokenNamesByIds.getOrElse(tokenId, s"<Deleted token> (token id was $tokenId)")
+                json ++ Json.obj("tokenName" -> tokenName)
+              }
+              case EventAuthentication.BackOfficeAuthentication => json
+            }
+          }), maybeCount)
+        })
+      }}
+      .map{ case (events, maybeCount) => {
+        val jsonCount = maybeCount.map(JsNumber(_)).getOrElse(JsNull)
+        Ok(Json.obj("events" -> Json.toJson(events), "count" -> jsonCount))
+      }}
+  }
 
   def updateTenant(name: String): Action[JsValue] = tenantAuthAction(name, RightLevels.Admin).async(parse.json) {
     implicit request =>

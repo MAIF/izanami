@@ -1040,8 +1040,7 @@ export function queryTagFeatures(
   });
 }
 
-function castDateIfNeeded(feat: any): void {
-  // TODO
+export function castDateIfNeeded(feat: any): void {
   if (isArray(feat?.conditions)) {
     feat?.conditions?.map((cond: any) => {
       if (cond?.period?.begin) {
