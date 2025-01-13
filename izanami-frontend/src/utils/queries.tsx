@@ -473,6 +473,21 @@ export function queryProject(tenant: string, id: string): Promise<ProjectType> {
   });
 }
 
+export function queryProjectById(
+  tenant: string,
+  id: string
+): Promise<ProjectType | undefined> {
+  return fetch(`/api/admin/tenants/${tenant}/projects/_id/${id}`).then(
+    (resp) => {
+      if (resp.status >= 400) {
+        return Promise.resolve(undefined);
+      } else {
+        return resp.json();
+      }
+    }
+  );
+}
+
 export function updateFeature(
   tenant: string,
   id: string,
@@ -1040,8 +1055,7 @@ export function queryTagFeatures(
   });
 }
 
-function castDateIfNeeded(feat: any): void {
-  // TODO
+export function castDateIfNeeded(feat: any): void {
   if (isArray(feat?.conditions)) {
     feat?.conditions?.map((cond: any) => {
       if (cond?.period?.begin) {
@@ -1412,6 +1426,21 @@ export function fetchOpenIdConnectConfiguration(
       },
     })
   );
+}
+
+export function fetchFeature(
+  tenant: string,
+  id: string
+): Promise<TLightFeature | undefined> {
+  return fetch(`/api/admin/tenants/${tenant}/features/${id}`, {
+    method: "GET",
+  }).then((resp) => {
+    if (resp.status < 400) {
+      return resp.json();
+    } else {
+      return Promise.resolve(undefined);
+    }
+  });
 }
 
 export function fetchProjectLogs(

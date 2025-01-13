@@ -6,15 +6,26 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { fetchProjectLogs, projectLogQueryKey } from "../utils/queries";
+import {
+  castDateIfNeeded,
+  fetchProjectLogs,
+  handleFetchJsonResponse,
+  projectLogQueryKey,
+} from "../utils/queries";
 import { GenericTable } from "../components/GenericTable";
-import { format, parse } from "date-fns";
+import { format, parse, isValid } from "date-fns";
 import { FeatureDetails } from "../components/FeatureTable";
 import {
   FeatureCreated,
   featureEventTypeOptions,
   FeatureUpdated,
+  LogEntry,
+  LogSearchQuery,
+  ProjectCreated,
   ProjectLogSearchQuery,
+  ProjectUpdated,
+  tenantEventTypeOptions,
+  TFeatureEventTypes,
 } from "../utils/types";
 import { useState } from "react";
 import { isEqual, range } from "lodash";
@@ -32,7 +43,6 @@ import { FeatureSelector } from "../components/FeatureSelector";
 import { Tooltip } from "../components/Tooltip";
 import { URLSearchParams } from "url";
 import queryClient from "../queryClient";
-import { AuditLog } from "../components/AuditLogs";
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
 
@@ -47,19 +57,35 @@ function decodeArrayFromUrl(value: string | null): string[] {
 
 function extractSearchQueryFromUrlParams(
   params: URLSearchParams
-): Omit<ProjectLogSearchQuery, "total"> {
+): Omit<Omit<LogSearchQuery, "total">, "tenant"> {
+  const {
+    users,
+    types,
+    order,
+    pageSize,
+    start,
+    end,
+    tenant: t,
+    ...rest
+  } = Object.fromEntries(params);
+
+  const additionalFields = Object.fromEntries(
+    Object.entries(rest).map(([key, value]) => {
+      return [key, JSON.parse(value)];
+    })
+  );
+
   return {
     users: decodeArrayFromUrl(params.get("users")),
     types: decodeArrayFromUrl(params.get("types")) as any,
-    features: decodeArrayFromUrl(params.get("features")),
     order: (params.get("order") ?? "desc") as any,
     pageSize:
       params.get("pageSize") && Number(params.get("pageSize"))
         ? Number(params.get("pageSize"))
         : DEFAULT_PAGE_SIZE,
-    begin: params.get("begin")
+    start: params.get("start")
       ? parse(
-          decodeURIComponent(params.get("begin")!),
+          decodeURIComponent(params.get("start")!),
           "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
           new Date()
         )
@@ -71,6 +97,7 @@ function extractSearchQueryFromUrlParams(
           new Date()
         )
       : undefined,
+    additionalFields: additionalFields,
   };
 }
 
@@ -84,47 +111,94 @@ const logQueryKey = (
     query.users.join(""),
     query.types.join(""),
     query.features.join(""),
-    String(query.begin),
+    String(query.start),
     String(query.end),
     query.order,
   ];
 };
 
-export function ProjectAudit() {
-  const { tenant, project } = useParams();
-  return (
-    <AuditLog
-      eventUrl={`/api/admin/tenants/${tenant}/projects/${project}/logs`}
-      eventTypes={["FEATURE_CREATED", "FEATURE_UPDATED", "FEATURE_DELETED"]}
-      customSearchFields={(onChange, clear, defaultValue) => {
-        return (
-          <label className="col-12 col-xl-6 mb-4">
-            Features
-            <div style={{ width: "100%" }}>
-              <FeatureSelector
-                defaultValue={defaultValue?.features}
-                project={project}
-                onChange={(features) => {
-                  onChange({ features: features });
-                }}
-                creatable
-              />
-            </div>
-          </label>
-        );
-      }}
-    />
-  );
+type AuditLogProps = {
+  eventUrl: string;
+  customSearchFields?: (
+    onChange: (value: any) => undefined,
+    clear: () => undefined,
+    defaultValue: { [x: string]: any }
+  ) => React.ReactNode;
+  eventTypes?: TFeatureEventTypes[];
+};
+
+export function fetchLogs(
+  eventUrl: string,
+  cursor: number | null,
+  query: LogSearchQuery
+): Promise<{ events: LogEntry[]; count: number | null }> {
+  const { additionalFields, ...rest } = query;
+  const searchPart = Object.entries({
+    ...rest,
+    ...additionalFields,
+    cursor: cursor,
+  })
+    .map(([key, value]) => {
+      if (!value || (Array.isArray(value) && value.length === 0)) {
+        return "";
+      } else if ((key === "start" || key === "end") && value) {
+        return `${key}=${encodeURIComponent(
+          format(value as Date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+        )}`;
+      } else if (Array.isArray(value)) {
+        return `${key}=${value.join(",")}`;
+      } else if (key === "pageSize") {
+        return `count=${value}`;
+      } else {
+        return `${key}=${value}`;
+      }
+    })
+    .filter((str) => str.length > 0);
+
+  return handleFetchJsonResponse(
+    fetch(`${eventUrl}?${searchPart.join("&")}`)
+  ).then((logs) => {
+    logs.events.forEach((log: LogEntry) => {
+      if (log.emittedAt) {
+        log.emittedAt = new Date(log.emittedAt);
+      }
+      if ("conditions" in log) {
+        Object.values(log.conditions).map((f) => castDateIfNeeded(f));
+      }
+      if ("previousConditions" in log) {
+        Object.values(log.previousConditions).map((f) => castDateIfNeeded(f));
+      }
+      return log;
+    });
+    return logs;
+  });
 }
 
-export function ProjectLogs() {
-  const { tenant, project } = useParams();
+export function AuditLog(props: AuditLogProps) {
+  const { tenant } = useParams();
+  const { eventUrl } = props;
+  const customSearchFields = props.customSearchFields;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const query = extractSearchQueryFromUrlParams(searchParams);
-
+  const query = {
+    ...extractSearchQueryFromUrlParams(searchParams),
+    tenant: tenant!,
+  };
   const [page, setPage] = useState(0);
   const totalRef = React.useRef<number | undefined>(undefined);
+  const key = Object.entries(query)
+    .sort(([key, value], [otherKey, otherValue]) => {
+      return key < otherKey ? 1 : -1;
+    })
+    .filter(([key, value]) => value !== undefined)
+    .map(([key, value]) => {
+      if (key === "additionalFields") {
+        return `${key}:${JSON.stringify(value)}`;
+      } else {
+        return `${key}:${value}`;
+      }
+    })
+    .join("-");
   const {
     data,
     error,
@@ -134,9 +208,9 @@ export function ProjectLogs() {
     isFetchingNextPage,
     status,
   } = useInfiniteQuery({
-    queryKey: logQueryKey(tenant!, project!, query),
+    queryKey: [eventUrl, key],
     queryFn: ({ pageParam }) => {
-      return fetchProjectLogs(tenant!, project!, pageParam, {
+      return fetchLogs(eventUrl, pageParam, {
         ...query,
         total: totalRef.current === undefined,
       }).then((res) => {
@@ -170,31 +244,47 @@ export function ProjectLogs() {
   return (
     <>
       <SearchCriterions
+        eventTypes={props?.eventTypes}
+        customSearchFields={customSearchFields}
         defaultValue={query}
-        project={project!}
-        onSubmit={({ users, features, begin, end, types }) => {
+        onSubmit={(query) => {
           totalRef.current = undefined;
+          const { additionalFields, ...rest } = query;
 
-          queryClient.invalidateQueries({
-            queryKey: logQueryKey(tenant!, project!, query),
-          });
+          const serializedAdditionalFields = Object.fromEntries(
+            Object.entries(additionalFields).map(([key, value]) => {
+              return [key, JSON.stringify(value)];
+            })
+          );
+
+          const param = Object.fromEntries(
+            Object.entries({ ...serializedAdditionalFields, ...rest }).map(
+              ([key, value]) => {
+                let v = value;
+                if (Array.isArray(value)) {
+                  v = value.join(",");
+                }
+                return [key, v];
+              }
+            )
+          );
+
           navigate({
             search: `?${createSearchParams({
-              users: users.join(","),
-              features: features.join(","),
-              types: types.join(","),
+              ...param,
               pageSize: "" + DEFAULT_PAGE_SIZE,
-              order: query.order,
-              begin: begin
-                ? encodeURIComponent(
-                    format(begin, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
-                  )
-                : "",
-              end: end
-                ? encodeURIComponent(
-                    format(end, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
-                  )
-                : "",
+              start:
+                query?.start && isValid(query.start)
+                  ? encodeURIComponent(
+                      format(query?.start, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+                    )
+                  : "",
+              end:
+                query?.end && isValid(query.end)
+                  ? encodeURIComponent(
+                      format(query?.end, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+                    )
+                  : "",
             })}`,
           });
           setPage(0);
@@ -254,17 +344,25 @@ export function ProjectLogs() {
                         <SortButton
                           currentState={query.order}
                           onChange={(newState) => {
+                            const serializedAdditionalFields =
+                              Object.fromEntries(
+                                Object.entries(query.additionalFields).map(
+                                  ([key, value]) => {
+                                    return [key, JSON.stringify(value)];
+                                  }
+                                )
+                              );
                             navigate({
                               search: `?${createSearchParams({
+                                ...serializedAdditionalFields,
                                 users: query.users.join(","),
-                                features: query.features.join(","),
                                 types: query.types.join(","),
                                 pageSize: "" + query.pageSize,
                                 order: newState,
-                                begin: query.begin
+                                start: query.start
                                   ? encodeURIComponent(
                                       format(
-                                        query.begin,
+                                        query.start,
                                         "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
                                       )
                                     )
@@ -301,13 +399,10 @@ export function ProjectLogs() {
                     cell: (info) => {
                       const rowValue = info.row.original;
                       const type = rowValue.type;
-                      if (type === "FEATURE_CREATED") {
-                        return "Created";
-                      } else if (type === "FEATURE_UPDATED") {
-                        return "Updated";
-                      } else if (type === "FEATURE_DELETED") {
-                        return "Deleted";
-                      }
+                      return (
+                        tenantEventTypeOptions.find((t) => t.value === type)
+                          ?.label || "<UNKNOWN>"
+                      );
                     },
                     size: 15,
                     minSize: 100,
@@ -316,17 +411,46 @@ export function ProjectLogs() {
                     id: "eventId",
                     cell: (info) => {
                       const rowValue = info.row.original;
-                      if ("conditions" in rowValue) {
-                        return rowValue.conditions[""].name;
+                      const type = rowValue.type;
+                      // TODO refactor this
+                      if (
+                        type === "FEATURE_CREATED" ||
+                        type === "FEATURE_UPDATED" ||
+                        type === "FEATURE_DELETED"
+                      ) {
+                        let name;
+                        if (
+                          type === "FEATURE_CREATED" ||
+                          type === "FEATURE_UPDATED"
+                        ) {
+                          name = rowValue.conditions[""].name;
+                        } else {
+                          name = rowValue.name;
+                        }
+                        return (
+                          <>
+                            <i className="fas fa-rocket" />
+                            &nbsp;{name}&nbsp;(
+                            <i className="fas fa-building" />
+                            &nbsp;
+                            {rowValue.project})
+                          </>
+                        );
+                      } else if (rowValue.type === "PROJECT_UPDATED") {
+                        return (
+                          <>
+                            {rowValue.previous.name}&nbsp;{"→"}
+                            &nbsp;{rowValue.name}
+                          </>
+                        );
                       } else {
                         return rowValue.name;
                       }
                     },
-                    header: () => "Feature",
+                    header: () => "Entity",
                     size: 15,
                     minSize: 100,
                   },
-
                   {
                     id: "origin",
                     header: () => "Origin",
@@ -356,7 +480,10 @@ export function ProjectLogs() {
                 customRowActions={{
                   details: {
                     hasRight: (user, log) => {
-                      return log.type !== "FEATURE_DELETED";
+                      return (
+                        log.type !== "FEATURE_DELETED" &&
+                        log.type !== "PROJECT_CREATED"
+                      );
                     },
                     icon: (
                       <>
@@ -500,23 +627,31 @@ const loadOptions = (
 };
 
 function SearchCriterions(props: {
-  project: string;
+  eventTypes?: TFeatureEventTypes[];
   onSubmit: (
-    query: Omit<ProjectLogSearchQuery, "order" | "total" | "pageSize">
+    query: Omit<LogSearchQuery, "order" | "total" | "pageSize">
   ) => void;
-  defaultValue?: Omit<ProjectLogSearchQuery, "order" | "total" | "pageSize">;
+  defaultValue?: Omit<LogSearchQuery, "order" | "total" | "pageSize">;
+  customSearchFields?: (
+    onChange: (value: { [x: string]: any }) => undefined,
+    clear: () => undefined,
+    defaultValue: { [x: string]: any }
+  ) => React.ReactNode;
 }) {
+  const eventOptions = tenantEventTypeOptions.filter(({ label, value }) => {
+    return props?.eventTypes ? props.eventTypes.includes(value as any) : true;
+  });
   const methods = useForm<
-    Omit<ProjectLogSearchQuery, "order" | "total" | "pageSize">
+    Omit<LogSearchQuery, "order" | "total" | "pageSize"> & { [x: string]: any }
   >({
     defaultValues: props.defaultValue || {
       users: [],
       types: [],
-      features: [],
-      begin: undefined,
+      start: undefined,
       end: undefined,
     },
   });
+  const customSearchFields = props.customSearchFields;
 
   const {
     control,
@@ -525,6 +660,7 @@ function SearchCriterions(props: {
     watch,
     formState: { errors },
     setError,
+    setValue,
   } = methods;
 
   return (
@@ -536,7 +672,7 @@ function SearchCriterions(props: {
         className="container"
       >
         <div className="row">
-          <label className="col-12 col-xl-6">
+          <label className="col-12 col-xl-6 mb-4">
             Users
             <Controller
               name="users"
@@ -564,17 +700,17 @@ function SearchCriterions(props: {
             />
             <ErrorMessage errors={errors} name="users" />
           </label>
-          <label className="col-12 col-xl-6">
+          <label className="col-12 col-xl-6 mb-4">
             Event type
             <Controller
               name="types"
               control={control}
               render={({ field: { onChange, value } }) => (
                 <Select
-                  value={featureEventTypeOptions.filter((base) =>
+                  value={eventOptions.filter((base) =>
                     value.includes(base.value)
                   )}
-                  options={featureEventTypeOptions}
+                  options={eventOptions}
                   styles={customStyles}
                   isMulti
                   onChange={(selected) =>
@@ -584,24 +720,7 @@ function SearchCriterions(props: {
               )}
             />
           </label>
-        </div>
-        <div className="row mt-4">
-          <label className="col-12 col-xl-6">
-            Feature
-            <Controller
-              name="features"
-              control={control}
-              render={({ field: { onChange, value } }) => (
-                <FeatureSelector
-                  project={props.project}
-                  value={value}
-                  onChange={onChange}
-                  creatable
-                />
-              )}
-            />
-          </label>
-          <div className="col-12 col-xl-6">
+          <div className="col-12 col-xl-6 mb-4">
             <div className="d-flex flex-row flex-wrap">
               <label
                 style={{
@@ -610,7 +729,7 @@ function SearchCriterions(props: {
               >
                 <div>Period start</div>
                 <Controller
-                  name="begin"
+                  name="start"
                   control={control}
                   render={({ field: { onChange, value } }) => {
                     return (
@@ -669,8 +788,14 @@ function SearchCriterions(props: {
               </label>
             </div>
           </div>
-          <label className="col-12 col-xl-3"></label>
-          {/*</div>*/}
+          {customSearchFields &&
+            customSearchFields(
+              (v) => {
+                setValue("additionalFields", v);
+              },
+              () => {},
+              props?.defaultValue?.additionalFields || {}
+            )}
         </div>
         <div className="row">
           <div className="d-flex justify-content-end">
@@ -699,6 +824,13 @@ function LogFeatureDetails(props: {
   } else if (type === "FEATURE_UPDATED") {
     return (
       <FeatureUpdatedLogFeatureDetails
+        details={props.details}
+        onClose={() => props.onClose()}
+      />
+    );
+  } else if (type === "PROJECT_UPDATED") {
+    return (
+      <ProjectUpdatedLogFeatureDetails
         details={props.details}
         onClose={() => props.onClose()}
       />
@@ -781,6 +913,68 @@ function FeatureUpdatedLogFeatureDetails(props: {
         <FeatureUpdateJsonEventDisplay event={details} />
       ) : (
         <NaturalLanguageUpdateEventDisplay event={details} />
+      )}
+      <div className="d-flex justify-content-end">
+        <button
+          type="button"
+          className="btn btn-danger m-2"
+          onClick={() => props.onClose()}
+        >
+          Close
+        </button>
+      </div>
+    </>
+  );
+}
+
+function ProjectUpdatedLogFeatureDetails(props: {
+  details: ProjectUpdated;
+  onClose: () => void;
+}) {
+  const [isJson, setJson] = useState(false);
+  const details = props.details;
+  return (
+    <>
+      <label>
+        Display JSON event
+        <input
+          type="checkbox"
+          className="izanami-checkbox"
+          style={{ marginTop: 0 }}
+          onChange={(e) => {
+            setJson(e.target.checked);
+          }}
+        />
+      </label>
+      <br />
+      <br />
+      {isJson ? (
+        <>
+          <CodeMirror
+            id="event-value"
+            value={JSON.stringify(details, null, 2)}
+            readOnly={true}
+            extensions={[json()]}
+            theme="dark"
+          />
+        </>
+      ) : (
+        <div className="d-flex">
+          <div>
+            <h5>Before</h5>
+            Name was {details.previous.name}
+          </div>
+          <div
+            className="d-flex justify-content-center align-items-center"
+            style={{ fontSize: 60, margin: "0px 48px" }}
+          >
+            <i className="fa-solid fa-arrow-right"></i>
+          </div>
+          <div>
+            <h5>After</h5>
+            Name is {details.name}
+          </div>
+        </div>
       )}
       <div className="d-flex justify-content-end">
         <button

@@ -18,6 +18,7 @@ export function FeatureSelector(props: {
   onChange?: (v: string[]) => void;
   project?: string;
   creatable?: boolean;
+  defaultValue?: string[];
 }) {
   const { tenant } = useParams();
   const { onChange, project } = props;
@@ -44,6 +45,11 @@ export function FeatureSelector(props: {
     }));
 
     const selectProps = {
+      defaultValue: props?.defaultValue
+        ? options?.filter(({ label, value }) => {
+            return props.defaultValue?.includes(value);
+          })
+        : undefined,
       inputId: props.id ?? undefined,
       isMulti: true,
       value: props.value

@@ -217,7 +217,6 @@ export function TenantSettings(props: { tenant: string }) {
                   })
                   .then(() => setV1ImportDisplayed(false))
                   .catch((err) => {
-                    console.log("err", err);
                     askConfirmation(
                       <span className="error-message">
                         An error occured :{" "}
@@ -248,7 +247,6 @@ export function TenantSettings(props: { tenant: string }) {
               submit={(request) => {
                 return importData(tenant, request)
                   .then((importRes) => {
-                    console.log(importRes, "importRes");
                     if (
                       importRes.conflicts ||
                       importRes?.messages?.length > 0

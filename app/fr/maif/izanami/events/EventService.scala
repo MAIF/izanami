@@ -154,6 +154,42 @@ case class SourceTenantCreated(tenant: String, override val user: String, origin
   override val entityId: String = tenant
 }
 
+case class SourceProjectCreated(
+  tenant: String,
+  id: String,
+  name: String,
+  override val user: String,
+  origin: EventOrigin,
+  authentication: EventAuthentication) extends SourceIzanamiEvent {
+  override val dbEventType: String = "PROJECT_CREATED"
+  override val entityId: String = id
+}
+
+case class SourceProjectDeleted(
+   tenant: String,
+   id: String,
+   name: String,
+   override val user: String,
+   origin: EventOrigin,
+   authentication: EventAuthentication) extends SourceIzanamiEvent {
+  override val dbEventType: String = "PROJECT_DELETED"
+  override val entityId: String = id
+}
+
+case class PreviousProject(name: String)
+
+case class SourceProjectUpdated(
+   tenant: String,
+   id: String,
+   name: String,
+   previous: PreviousProject,
+   override val user: String,
+   origin: EventOrigin,
+   authentication: EventAuthentication) extends SourceIzanamiEvent {
+  override val dbEventType: String = "PROJECT_UPDATED"
+  override val entityId: String = id
+}
+
 sealed trait IzanamiEvent {
   val eventId: Long
   val user: String
@@ -234,6 +270,40 @@ case class TenantCreated(
                           authentication: EventAuthentication
                         ) extends IzanamiEvent
 
+case class ProjectCreated(
+                         override val eventId: Long,
+                         tenant: String,
+                         id: String,
+                         name: String,
+                         override val user: String,
+                         override val emittedAt: Option[Instant],
+                         origin: EventOrigin,
+                         authentication: EventAuthentication
+                         ) extends IzanamiEvent
+
+case class ProjectDeleted(
+                           override val eventId: Long,
+                           tenant: String,
+                           id: String,
+                           name: String,
+                           override val user: String,
+                           override val emittedAt: Option[Instant],
+                           origin: EventOrigin,
+                           authentication: EventAuthentication
+                         ) extends IzanamiEvent
+
+case class ProjectUpdated(
+                           override val eventId: Long,
+                           tenant: String,
+                           id: String,
+                           name: String,
+                           previous: PreviousProject,
+                           override val user: String,
+                           override val emittedAt: Option[Instant],
+                           origin: EventOrigin,
+                           authentication: EventAuthentication
+                         ) extends IzanamiEvent
+
 case class SourceDescriptor(
                              source: Source[IzanamiEvent, NotUsed],
                              killswitch: SharedKillSwitch,
@@ -265,11 +335,26 @@ object EventService {
     override def name: String = "FEATURE_DELETED"
   }
 
-  def parseFeatureEventType(typeStr: String): Option[FeatureEventType] = {
+  case object ProjectDeletedType extends FeatureEventType {
+    override def name: String = "PROJECT_DELETED"
+  }
+
+  case object ProjectCreatedType extends FeatureEventType {
+    override def name: String = "PROJECT_CREATED"
+  }
+
+  case object ProjectUpdatedType extends FeatureEventType {
+    override def name: String = "PROJECT_UPDATED"
+  }
+
+  def parseEventType(typeStr: String): Option[FeatureEventType] = {
     Option(typeStr).map(_.toUpperCase).collect {
       case "FEATURE_UPDATED" => FeatureUpdatedType
       case "FEATURE_CREATED" => FeatureCreatedType
       case "FEATURE_DELETED" => FeatureDeletedType
+      case "PROJECT_CREATED" => ProjectCreatedType
+      case "PROJECT_DELETED" => ProjectDeletedType
+      case "PROJECT_UPDATED" => ProjectUpdatedType
     }
   }
 
@@ -277,6 +362,41 @@ object EventService {
 
 
   implicit val sourceEventWrites: Writes[SourceIzanamiEvent] = {
+    case SourceProjectUpdated(tenant, id, name, previous, user, origin, authentication) => {
+      val previousJson = Json.obj("name" -> previous.name)
+      Json
+        .obj(
+          "id" -> id,
+          "name" -> name,
+          "tenant" -> tenant,
+          "user" -> user,
+          "type" -> "PROJECT_UPDATED",
+          "previous" -> previousJson,
+          "origin" -> EventOrigin.eventOriginWrites.writes(origin),
+        ) ++ EventAuthentication.eventAuthenticationWrites.writes(authentication).as[JsObject]
+    }
+    case SourceProjectDeleted(tenant, id, name, user, origin, authentication) => {
+      Json
+        .obj(
+          "id" -> id,
+          "name" -> name,
+          "tenant" -> tenant,
+          "user" -> user,
+          "type" -> "PROJECT_DELETED",
+          "origin" -> EventOrigin.eventOriginWrites.writes(origin),
+        ) ++ EventAuthentication.eventAuthenticationWrites.writes(authentication).as[JsObject]
+    }
+    case SourceProjectCreated(tenant, id, name, user, origin, authentication) => {
+      Json
+        .obj(
+          "id" -> id,
+          "name" -> name,
+          "tenant" -> tenant,
+          "user" -> user,
+          "type" -> "PROJECT_CREATED",
+          "origin" -> EventOrigin.eventOriginWrites.writes(origin),
+        ) ++ EventAuthentication.eventAuthenticationWrites.writes(authentication).as[JsObject]
+    }
     case SourceFeatureCreated(id, project, tenant, user, feature, projectId, origin, authentication) => {
       Json
         .obj(
@@ -321,6 +441,45 @@ object EventService {
   implicit val eventFormat: Format[IzanamiEvent] = new Format[IzanamiEvent] {
     override def writes(o: IzanamiEvent): JsValue = {
       o match {
+        case ProjectUpdated(eventId, tenant, id, name, previous, user, emittedAt, origin, authentication) => {
+          val previousJson = Json.obj("name" -> previous.name)
+          Json
+            .obj(
+              "eventId" -> eventId,
+              "id" -> id,
+              "name" -> name,
+              "tenant" -> tenant,
+              "user" -> user,
+              "previous" -> previousJson,
+              "type" -> "PROJECT_UPDATED",
+              "origin" -> EventOrigin.eventOriginWrites.writes(origin)
+            )
+            .applyOnWithOpt(emittedAt)((obj, instant) => obj + ("emittedAt" -> JsString(instant.toString))) ++ EventAuthentication.eventAuthenticationWrites.writes(authentication).as[JsObject]
+        }
+        case ProjectDeleted(eventId, tenant, id, name, user, emittedAt, origin, authentication) =>
+          Json
+            .obj(
+              "eventId" -> eventId,
+              "id" -> id,
+              "name" -> name,
+              "tenant" -> tenant,
+              "user" -> user,
+              "type" -> "PROJECT_DELETED",
+              "origin" -> EventOrigin.eventOriginWrites.writes(origin)
+            )
+            .applyOnWithOpt(emittedAt)((obj, instant) => obj + ("emittedAt" -> JsString(instant.toString))) ++ EventAuthentication.eventAuthenticationWrites.writes(authentication).as[JsObject]
+        case ProjectCreated(eventId, tenant, id, name, user, emittedAt, origin, authentication) =>
+          Json
+            .obj(
+              "eventId" -> eventId,
+              "id" -> id,
+              "name" -> name,
+              "tenant" -> tenant,
+              "user" -> user,
+              "type" -> "PROJECT_CREATED",
+              "origin" -> EventOrigin.eventOriginWrites.writes(origin)
+            )
+            .applyOnWithOpt(emittedAt)((obj, instant) => obj + ("emittedAt" -> JsString(instant.toString))) ++ EventAuthentication.eventAuthenticationWrites.writes(authentication).as[JsObject]
         case FeatureCreated(eventId, id, project, tenant, user, conditions, emittedAt, origin, authentication) =>
           Json
             .obj(
@@ -444,6 +603,39 @@ object EventService {
             authentication <- json.asOpt[EventAuthentication](eventAuthenticationReads);
             origin <- (json \ "origin").asOpt[EventOrigin](eventOriginReads)
           ) yield TenantCreated(eventId, tenant, user, emittedAt = emissionDate, origin = origin, authentication = authentication)
+        case "PROJECT_CREATED" =>
+          for (
+            eventId <- (json \ "eventId").asOpt[Long];
+            user <- (json \ "user").asOpt[String];
+            id <- (json \ "id").asOpt[String];
+            project <- (json \ "name").asOpt[String];
+            tenant <- (json \ "tenant").asOpt[String];
+            authentication <- json.asOpt[EventAuthentication](eventAuthenticationReads);
+            origin <- (json \ "origin").asOpt[EventOrigin](eventOriginReads)
+          ) yield ProjectCreated(eventId, tenant, id=id, user=user, emittedAt = emissionDate, origin = origin, authentication = authentication, name=project)
+        case "PROJECT_DELETED" =>
+          for (
+            eventId <- (json \ "eventId").asOpt[Long];
+            user <- (json \ "user").asOpt[String];
+            id <- (json \ "id").asOpt[String];
+            project <- (json \ "name").asOpt[String];
+            tenant <- (json \ "tenant").asOpt[String];
+            authentication <- json.asOpt[EventAuthentication](eventAuthenticationReads);
+            origin <- (json \ "origin").asOpt[EventOrigin](eventOriginReads)
+          ) yield ProjectDeleted(eventId, tenant, id=id, user=user, emittedAt = emissionDate, origin = origin, authentication = authentication, name=project)
+        case "PROJECT_UPDATED" => {
+          val oldName = (json \ "previous" \ "name").asOpt[String]
+          for (
+            eventId <- (json \ "eventId").asOpt[Long];
+            user <- (json \ "user").asOpt[String];
+            id <- (json \ "id").asOpt[String];
+            project <- (json \ "name").asOpt[String];
+            tenant <- (json \ "tenant").asOpt[String];
+            authentication <- json.asOpt[EventAuthentication](eventAuthenticationReads);
+            origin <- (json \ "origin").asOpt[EventOrigin](eventOriginReads);
+            oldName <- (json \ "previous" \ "name").asOpt[String]
+          ) yield ProjectUpdated(eventId, tenant, id=id, user=user, emittedAt = emissionDate, origin = origin, authentication = authentication, name=project, previous = PreviousProject(oldName))
+        }
       }
     }.fold(JsError("Failed to read event"): JsResult[IzanamiEvent])(evt => JsSuccess(evt))
   }
@@ -508,8 +700,7 @@ class EventService(env: Env) {
           .findProjectId(event.tenant, event.project, conn = Some(conn))
           .map(maybeId => maybeId.map(_.toString).orNull)
           .map(id => event.withProjectId(id))
-      case e: SourceTenantDeleted => Future.successful(e)
-      case e: SourceTenantCreated => Future.successful(e)
+      case e => Future.successful(e)
     }
     futureEvt
       .flatMap(evt => {
