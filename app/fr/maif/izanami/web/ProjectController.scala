@@ -2,6 +2,7 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.datastores.EventDatastore.{AscOrder, FeatureEventRequest, parseSortOrder}
 import fr.maif.izanami.env.Env
+import fr.maif.izanami.errors.ProjectDoesNotExists
 import fr.maif.izanami.events.{EventAuthentication, EventService, FeatureEvent, TenantCreated, TenantDeleted}
 import fr.maif.izanami.models.RightLevels.RightLevel
 import fr.maif.izanami.models.{Project, RightLevels}
@@ -11,6 +12,7 @@ import play.api.libs.json.{JsError, JsNull, JsNumber, JsObject, JsSuccess, JsVal
 import play.api.mvc._
 
 import java.time.Instant
+import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
@@ -19,6 +21,7 @@ class ProjectController(
     val controllerComponents: ControllerComponents,
     val tenantAuthAction: TenantAuthActionFactory,
     val projectAuthAction: ProjectAuthActionFactory,
+    val projectAuthActionById: ProjectAuthActionByIdFactory,
     val validatePasswordAction: ValidatePasswordActionFactory,
     val detailledRightForTenanFactory: DetailledRightForTenantFactory
 ) extends BaseController {
@@ -46,7 +49,7 @@ class ProjectController(
           users = parseStringSet(users),
           begin = start.flatMap(s => Try{Instant.parse(s)}.toOption),
           end = end.flatMap(e => Try{Instant.parse(e)}.toOption),
-          eventTypes = parseStringSet(types).map(t => EventService.parseFeatureEventType(t)).collect{case Some(t) => t},
+          eventTypes = parseStringSet(types).map(t => EventService.parseEventType(t)).collect{case Some(t) => t},
           features = parseStringSet(features),
           total = total.getOrElse(false)
         ))
@@ -95,7 +98,7 @@ class ProjectController(
     projectAuthAction(tenant, project, RightLevels.Admin).async(parse.json) { implicit request =>
       Project.projectReads.reads(request.body) match {
         case JsSuccess(updatedProject, _) =>
-          env.datastores.projects.updateProject(tenant, project, updatedProject).map {
+          env.datastores.projects.updateProject(tenant, project, updatedProject, request.user).map {
             case Left(value) => value.toHttpResponse
             case Right(_) => NoContent
           }
@@ -130,6 +133,18 @@ class ProjectController(
             err => Results.Status(err.status)(Json.toJson(err)),
             project => Ok(Json.toJson(project))
           )
+        })
+    }
+
+  def readProjectById(tenant: String, id: String): Action[AnyContent] =
+    projectAuthActionById(tenant, UUID.fromString(id), RightLevels.Read).async { implicit request =>
+      val projectId = UUID.fromString(id)
+      env.datastores.projects
+        .readProjectsById(tenant, Set(projectId))
+        .map(projectMap => {
+          projectMap.get(projectId).fold(
+            ProjectDoesNotExists(id).toHttpResponse
+          )(project => Ok(Json.toJson(project)))
         })
     }
 

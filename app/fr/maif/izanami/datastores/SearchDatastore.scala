@@ -41,7 +41,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       )
     """
     }
-    if (filter.isEmpty || filter.contains(SearchEntityObject.Project)) {
+    if (filter.isEmpty || filter.contains(Some(SearchEntityObject.Project))) {
       unionQueries :+= s"""
       SELECT row_to_json(p.*) as json, GREATEST(p.name_score, p.description_score) AS match_score, 'project' as _type, $$3 as tenant
       FROM scored_projects p

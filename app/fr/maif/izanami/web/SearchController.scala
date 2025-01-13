@@ -84,7 +84,9 @@ class SearchController(
                   .map(pathElements => {
                     val jsonPath = Json.toJson(pathElements)(Writes.seq(pathElementWrite))
                     val name = (rowJson \ "name").asOpt[String].getOrElse("")
+                    val id = (rowJson \ "id").asOpt[String].getOrElse("")
                     Json.obj(
+                      "id" -> id,
                       "type" -> rowType,
                       "name" -> name,
                       "path" -> jsonPath,

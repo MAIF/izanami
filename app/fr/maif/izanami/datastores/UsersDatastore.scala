@@ -748,26 +748,26 @@ class UsersDatastore(val env: Env) extends Datastore {
   def hasRightForProject(
       session: String,
       tenant: String,
-      project: String,
+      projectIdOrName: Either[UUID, String],
       level: RightLevel
   ): Future[Either[IzanamiError, Option[(String, UUID)]]] = {
     env.postgresql
       .queryOne(
         s"""
            |SELECT p.id, u.username
-           |FROM projects p, izanami.sessions s
-           |LEFT JOIN izanami.users u ON u.username=s.username
+           |FROM projects p
+           |JOIN izanami.sessions s ON s.id=$$1
+           |JOIN izanami.users u ON u.username=s.username
            |LEFT JOIN izanami.users_tenants_rights utr ON u.username = utr.username AND utr.tenant=$$2
-           |LEFT JOIN users_projects_rights upr ON u.username = upr.username AND upr.project=$$3
-           |WHERE s.id=$$1
-           |AND (
+           |LEFT JOIN users_projects_rights upr ON u.username = upr.username AND upr.project=p.name
+           |WHERE (
            |  u.admin=true
            |  OR utr.level='ADMIN'
            |  OR upr.level=ANY($$4)
            |)
-           |AND p.name=$$3
+           |AND ${projectIdOrName.fold(_ => s"p.id=$$3", _ => s"p.name=$$3")}
            |""".stripMargin,
-        List(session, tenant, project, superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray),
+        List(session, tenant, projectIdOrName.fold(identity, identity), superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray),
         schemas = Set(tenant)
       ) { r =>
         {
@@ -783,6 +783,8 @@ class UsersDatastore(val env: Env) extends Datastore {
         case _                                                           => Left(InternalServerError())
       }
   }
+
+
 
   // TODO merge with hasRight
   def hasRightForTenant(session: String, tenant: String, level: RightLevel): Future[Option[String]] = {

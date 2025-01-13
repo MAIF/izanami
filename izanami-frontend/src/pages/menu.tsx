@@ -217,6 +217,7 @@ export function Menu(props: {
                         to={`/tenants/${tenant}/projects/${project}/logs`}
                         className={() => ""}
                         onClick={() => hideSidebar()}
+                        aria-label={`${project} logs`}
                       >
                         Logs
                       </NavLink>
@@ -303,6 +304,25 @@ export function Menu(props: {
                 >
                   <i className="ms-2 fa-solid fa-tag" aria-hidden />
                   Tags
+                </NavLink>
+              </li>
+              <li
+                className={
+                  matchPath(
+                    { path: "/tenants/:tenant/logs" },
+                    props?.location?.pathname || ""
+                  )
+                    ? "active"
+                    : "inactive"
+                }
+              >
+                <NavLink
+                  to={`/tenants/${tenant}/logs`}
+                  className={() => ""}
+                  onClick={() => hideSidebar()}
+                >
+                  <i className="ms-2 fa-solid fa-timeline" aria-hidden />
+                  Logs
                 </NavLink>
               </li>
               <li
