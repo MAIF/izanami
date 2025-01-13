@@ -67,6 +67,7 @@ import { SearchModal } from "./components/SearchComponant/SearchModal";
 import { WebHooks } from "./pages/webhooks";
 import { PasswordModal } from "./components/PasswordModal";
 import { ProjectLogs } from "./pages/projectLogs";
+import { TenantAudit } from "./pages/tenantLogs";
 
 function Wrapper({
   element,
@@ -224,6 +225,20 @@ const router = createBrowserRouter([
           ),
         },
         children: [
+          {
+            path: "/tenants/:tenant/logs",
+            element: <Wrapper element={TenantAudit} />,
+            handle: {
+              crumb: (data: any) => (
+                <NavLink
+                  className={() => ""}
+                  to={`/tenants/${data.tenant}/logs`}
+                >
+                  <i className="fa-solid fa-timeline" aria-hidden></i>&nbsp;Logs
+                </NavLink>
+              ),
+            },
+          },
           {
             path: "/tenants/:tenant/webhooks",
             element: <Wrapper element={WebHooks} />,
@@ -441,7 +456,7 @@ function RedirectToFirstTenant(): JSX.Element {
   let tenant = defaultTenant || context.user?.rights?.tenants?.[0];
   const tenantQuery = useQuery({
     queryKey: [MutationNames.TENANTS],
-    queryFn: () => queryTenants()
+    queryFn: () => queryTenants(),
   });
 
   if (tenant) {

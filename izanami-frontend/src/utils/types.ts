@@ -5,13 +5,24 @@ export const featureEventTypeOptions = [
   { label: "Updated", value: "FEATURE_UPDATED" },
   { label: "Deleted", value: "FEATURE_DELETED" },
 ] as const;
+
+export const tenantEventTypeOptions = [
+  { label: "Feature created", value: "FEATURE_CREATED" },
+  { label: "Feature updated", value: "FEATURE_UPDATED" },
+  { label: "Feature deleted", value: "FEATURE_DELETED" },
+  { label: "Project created", value: "PROJECT_CREATED" },
+  { label: "Project deleted", value: "PROJECT_DELETED" },
+  { label: "Project updated", value: "PROJECT_UPDATED" },
+];
+
 export type TFeatureEventTypes =
   typeof featureEventTypeOptions[number]["value"];
 
-export type ProjectLogSearchQuery = {
+export type TTenantEventTypes = typeof tenantEventTypeOptions[number]["value"];
+
+type LogSearchQueryBase = {
   users: string[];
-  types: TFeatureEventTypes[];
-  features: string[];
+  types: EventType[];
   begin?: Date;
   end?: Date;
   order: "asc" | "desc";
@@ -19,26 +30,73 @@ export type ProjectLogSearchQuery = {
   pageSize: number;
 };
 
+export type ProjectLogSearchQuery = LogSearchQueryBase & {
+  tenant: string;
+  project: string;
+  types: TFeatureEventTypes[];
+  features: string[];
+};
+export type TenantLogSearchQuery = LogSearchQueryBase & {
+  tenant: string;
+};
+
+export type LogSearchQuery = ProjectLogSearchQuery | TenantLogSearchQuery;
+
 export const POSSIBLE_TOKEN_RIGHTS = ["EXPORT", "IMPORT"] as const;
 export type TokenTenantRight = typeof POSSIBLE_TOKEN_RIGHTS[number];
 
 export type TokenTenantRightsArray = [string | null, TokenTenantRight[]][];
 export type TokenTenantRights = { [tenant: string]: TokenTenantRight[] };
 
-export type FeatureLogEntry = FeatureCreated | FeatureDeleted | FeatureUpdated;
+type EventType = TTenantEventTypes;
+export type LogEntry =
+  | FeatureLogEntry
+  | ProjectCreated
+  | ProjectDeleted
+  | ProjectUpdated;
 
-interface FeatureLogEntryBase {
+interface LogEntryBase {
   eventId: number;
-  id: string;
-  project: string;
-  tenant: string;
-  type: "FEATURE_CREATED" | "FEATURE_DELETED" | "FEATURE_UPDATED";
+  type: EventType;
   user: string;
   emittedAt: Date;
   origin: "NORMAL" | "IMPORT";
   authentication: "BACKOFFICE" | "TOKEN";
   token?: string;
   tokenName?: string;
+}
+
+export interface ProjectCreated extends LogEntryBase {
+  type: "PROJECT_CREATED";
+  name: string;
+  id: string;
+  tenant: string;
+}
+
+export interface ProjectDeleted extends LogEntryBase {
+  type: "PROJECT_DELETED";
+  name: string;
+  id: string;
+  tenant: string;
+}
+
+export interface ProjectUpdated extends LogEntryBase {
+  type: "PROJECT_UPDATED";
+  name: string;
+  id: string;
+  tenant: string;
+  previous: {
+    name: string;
+  };
+}
+
+export type FeatureLogEntry = FeatureCreated | FeatureDeleted | FeatureUpdated;
+
+interface FeatureLogEntryBase extends LogEntryBase {
+  id: string;
+  project: string;
+  tenant: string;
+  type: TFeatureEventTypes;
 }
 
 export interface FeatureCreated extends FeatureLogEntryBase {
@@ -64,23 +122,23 @@ interface FeatureDeleted extends FeatureLogEntryBase {
 
 export type PersonnalAccessToken =
   | {
-    id: string;
-    name: string;
-    expiresAt: Date;
-    expirationTimezone: string;
-    createdAt: Date;
-    username: string;
-    allRights: boolean;
-    rights: TokenTenantRights;
-  }
+      id: string;
+      name: string;
+      expiresAt: Date;
+      expirationTimezone: string;
+      createdAt: Date;
+      username: string;
+      allRights: boolean;
+      rights: TokenTenantRights;
+    }
   | {
-    id: string;
-    name: string;
-    createdAt: Date;
-    username: string;
-    allRights: boolean;
-    rights: TokenTenantRights;
-  };
+      id: string;
+      name: string;
+      createdAt: Date;
+      username: string;
+      allRights: boolean;
+      rights: TokenTenantRights;
+    };
 
 export interface TenantInCreationType {
   name: string;
@@ -268,7 +326,7 @@ interface ClassicalFeatureBase<TypeName extends FeatureTypeName> {
   resultType: TypeName;
 }
 
-interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> { }
+interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> {}
 interface ClassicalStringFeature extends ClassicalFeatureBase<"string"> {
   value: string;
   conditions: TValuedCondition<string>[];
@@ -523,7 +581,7 @@ export interface TContextOverloadBase<FeatureTypeName> {
 }
 
 export interface TBooleanContextOverload
-  extends TContextOverloadBase<"boolean"> { }
+  extends TContextOverloadBase<"boolean"> {}
 
 export interface TNumberContextOverload extends TContextOverloadBase<"number"> {
   conditions: TValuedCondition<number>[];
@@ -677,14 +735,14 @@ export interface SearchEntityResponse {
 
 export type SearchResult = {
   type:
-  | "feature"
-  | "project"
-  | "key"
-  | "tag"
-  | "script"
-  | "global_context"
-  | "local_context"
-  | "webhook";
+    | "feature"
+    | "project"
+    | "key"
+    | "tag"
+    | "script"
+    | "global_context"
+    | "local_context"
+    | "webhook";
   name: string;
   path: SearchResultPathElement[];
   tenant: string;

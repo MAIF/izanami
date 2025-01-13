@@ -1,7 +1,7 @@
 package fr.maif.izanami.datastores
 
 import akka.actor.Cancellable
-import fr.maif.izanami.datastores.EventDatastore.{AscOrder, FeatureEventRequest}
+import fr.maif.izanami.datastores.EventDatastore.{AscOrder, FeatureEventRequest, TenantEventRequest}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{EventNotFound, FailedToReadEvent, IzanamiError}
@@ -60,6 +60,70 @@ class EventDatastore(val env: Env) extends Datastore {
       .map(o => o.toRight(EventNotFound(tenant, id)))
       .map(e => e.flatMap(js => eventFormat.reads(js).asOpt.toRight(FailedToReadEvent(js.toString()))))
 
+  }
+
+  def listEventsForTenant(tenant: String, request: TenantEventRequest): Future[(Seq[IzanamiEvent], Option[Long])] = {
+    def queryBody(startIndex: Int): (String, List[AnyRef]) = {
+      var index = startIndex
+      val query =
+        s"""
+           |FROM events e
+           |WHERE 1 = 1
+           |${if (request.users.nonEmpty) s"AND e.username = ANY($$${index += 1; index}::TEXT[])" else ""}
+           |${request.begin.map(_ => s"AND e.emitted_at >= $$${index += 1; index}").getOrElse("")}
+           |${request.end.map(_ => s"AND e.emitted_at <= $$${index += 1; index}").getOrElse("")}
+           |${if (request.eventTypes.nonEmpty) s"AND e.event_type = ANY($$${index += 1; index}::izanami.LOCAL_EVENT_TYPES[])" else ""}
+           |""".stripMargin
+
+      (query, List(
+        Option(request.users.toArray).filter(_.nonEmpty), request.begin.map(_.atOffset(ZoneOffset.UTC)), request.end.map(_.atOffset(ZoneOffset.UTC)), Option(request.eventTypes.map(_.name).toArray).filter(_.nonEmpty)
+      ).collect { case Some(t: AnyRef) => t })
+    }
+
+    val maybeFutureCount = if (request.total) {
+      val (body, params) = queryBody(0)
+      env.postgresql.queryOne(
+        s"""
+           |SELECT COUNT(*) as total
+           |${body}
+           |""".stripMargin, params = params, schemas = Set(tenant)
+      ) { r => r.optLong("total") }
+    } else {
+      Future.successful(None)
+    }
+
+    val futureResult = {
+      val (body, ps) = queryBody(request.cursor.map(_ => 2).getOrElse(1))
+      env.postgresql
+        .queryAll(
+          s"""
+             |SELECT e.event
+             |${body}
+             |${request.cursor.map(_ => s"AND e.id ${if (request.sortOrder == AscOrder) ">" else "<"} $$2").getOrElse("")}
+             |ORDER BY e.id ${request.sortOrder.toDb}
+             |LIMIT $$1
+             |""".stripMargin,
+          params = List(Some(java.lang.Integer.valueOf(request.count)), request.cursor.map(java.lang.Long.valueOf)).collect { case Some(t) => t }.concat(ps),
+          schemas = Set(tenant)
+        ) { r => r.optJsObject("event") }
+    }.map(jsons => {
+      jsons
+        .map(json => {
+          val readResult = eventFormat.reads(json)
+          readResult.fold(
+            err => {
+              logger.error(s"Failed to read event : ${err}")
+              None
+            },
+            evt => Some(evt)
+          )
+        })
+        .collect({ case Some(evt) => evt })
+    })
+
+    maybeFutureCount.flatMap(maybeCount => {
+      futureResult.map(result => (result, maybeCount))
+    })
   }
 
   def listEventsForProject(tenant: String, projectId: String, request: FeatureEventRequest): Future[(Seq[IzanamiEvent], Option[Long])] = {
@@ -160,6 +224,17 @@ object EventDatastore {
                                   count: Int,
                                   users: Set[String] = Set(),
                                   features: Set[String] = Set(),
+                                  begin: Option[Instant] = None,
+                                  end: Option[Instant] = None,
+                                  eventTypes: Set[FeatureEventType] = Set(),
+                                  total: Boolean
+                                )
+
+  case class TenantEventRequest(
+                                  sortOrder: SortOrder,
+                                  cursor: Option[Long],
+                                  count: Int,
+                                  users: Set[String] = Set(),
                                   begin: Option[Instant] = None,
                                   end: Option[Instant] = None,
                                   eventTypes: Set[FeatureEventType] = Set(),
