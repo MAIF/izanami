@@ -6,6 +6,7 @@ import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
 import fr.maif.izanami.models.User.userRightsWrites
 import fr.maif.izanami.models.{OAuth2Configuration, OIDC, Rights, User}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.web.AuthAction.delayResponse
 import pdi.jwt.{JwtJson, JwtOptions}
 import play.api.libs.json.JsPath.\
 import play.api.libs.json.{JsArray, JsObject, Json}
@@ -14,9 +15,10 @@ import play.api.mvc.Cookie.SameSite
 import play.api.mvc._
 
 import java.security.{MessageDigest, SecureRandom}
-import java.util.Base64
+import java.util.concurrent.{Executors, TimeUnit}
+import java.util.{Base64, Timer, TimerTask}
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 class LoginController(
     val env: Env,
@@ -263,7 +265,7 @@ class LoginController(
       .filter(arr => arr.length == 2) match {
       case Some(Array(username, password, _*)) =>
         env.datastores.users.isUserValid(username, password).flatMap {
-          case None       => Future.successful(Forbidden(Json.obj("message" -> "Incorrect credentials")))
+          case None       => delayResponse(Forbidden(Json.obj("message" -> "Incorrect credentials")))
           case Some(user) =>
             for {
               _         <- if (user.legacy) env.datastores.users.updateLegacyUser(username, password)
@@ -285,7 +287,7 @@ class LoginController(
               )
             )
         }
-      case _                                   => Future(Unauthorized(Json.obj("message" -> "Missing credentials")))
+      case _                                   => delayResponse(Unauthorized(Json.obj("message" -> "Missing credentials")))
     }
   }
 }

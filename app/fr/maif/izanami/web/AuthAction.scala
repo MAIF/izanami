@@ -15,9 +15,11 @@ import play.api.libs.json._
 import play.api.mvc.Results.{BadRequest, Forbidden, Unauthorized}
 import play.api.mvc._
 
+import java.time.Duration
+import java.util.concurrent.{Executors, TimeUnit}
 import java.util.{Base64, UUID}
 import javax.crypto.spec.SecretKeySpec
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 case class UserInformation(username: String, authentication: EventAuthentication)
 
@@ -450,6 +452,15 @@ class ValidatePasswordActionFactory(bodyParser: BodyParser[AnyContent], env: Env
 }
 
 object AuthAction {
+  private val TIMER = Executors.newSingleThreadScheduledExecutor()
+
+  def delayResponse(result: Result, duration: Duration = Duration.ofSeconds(3)): Future[Result] = {
+    val promise = Promise[Result]()
+    TIMER.schedule(() => promise.success(result), duration.toMillis, TimeUnit.MILLISECONDS)
+    promise.future
+  }
+
+
   def extractClaims[A](request: Request[A], secret: String, bodySecretKey: SecretKeySpec): Option[JwtClaim] = {
     request.cookies
       .get("token")
