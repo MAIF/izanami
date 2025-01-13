@@ -1054,7 +1054,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     } else {
       def callback(conn: SqlConnection): Future[Either[List[IzanamiError], Unit]] = {
         env.datastores.projects
-          .createProjects(tenant, features.map(_.project).toSet, conflictStrategy, user, conn = conn.some)
+          .createProjects(tenant, features.map(_.project).toSet, conflictStrategy, user, conn = conn)
           .flatMap {
             case Left(error) => Future.successful(Left(List(error)))
             case _           => createBulk(tenant, features, conflictStrategy, conn, user)

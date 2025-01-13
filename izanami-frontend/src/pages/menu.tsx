@@ -308,6 +308,25 @@ export function Menu(props: {
               <li
                 className={
                   matchPath(
+                    { path: "/tenants/:tenant/logs" },
+                    props?.location?.pathname || ""
+                  )
+                    ? "active"
+                    : "inactive"
+                }
+              >
+                <NavLink
+                  to={`/tenants/${tenant}/logs`}
+                  className={() => ""}
+                  onClick={() => hideSidebar()}
+                >
+                  <i className="ms-2 fa-solid fa-timeline" aria-hidden />
+                  Logs
+                </NavLink>
+              </li>
+              <li
+                className={
+                  matchPath(
                     { path: "/tenants/:tenant/webhooks" },
                     props?.location?.pathname || ""
                   )
