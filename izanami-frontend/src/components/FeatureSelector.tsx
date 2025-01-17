@@ -55,7 +55,7 @@ export function FeatureSelector(props: {
               return { label: v, value: v };
             }
           })
-        : [],
+        : undefined,
       onChange: (newValue: any[]) => {
         console.log("newValue", newValue);
         onChange?.(newValue.map(({ value }) => value!));

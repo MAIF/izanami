@@ -37,7 +37,7 @@ export function ProjectSelector(props: {
         value={
           props.value
             ? options.filter(({ value }) => props.value?.includes(value ?? ""))
-            : []
+            : undefined
         }
         onChange={(newValue) => {
           onChange?.(newValue.map(({ value }) => value));
