@@ -26,7 +26,7 @@ class IzanamiHttpErrorHandler(env: Env) extends HttpErrorHandler {
       s"Client Error [$uuid]: $msg on ${request.uri} ($statusCode)"
 
     logger.error(errorMessage)
-    Future.successful(Status(statusCode)(Json.obj("message" -> msg)).withHeaders(("content-type", "application/json")))
+    Future.successful(Status(statusCode)(Json.obj("message" -> msg)))
   }
 
   override def onServerError(request: mvc.RequestHeader, exception: Throwable): Future[Result] = {
