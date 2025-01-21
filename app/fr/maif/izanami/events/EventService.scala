@@ -691,7 +691,6 @@ class EventService(env: Env) {
     scala.collection.mutable.Map()
 
   def emitEvent(channel: String, event: SourceIzanamiEvent)(implicit conn: SqlConnection): Future[Unit] = {
-    println(s"Emitting ${event.getClass} on $channel")
     val global = channel.equalsIgnoreCase("izanami") || event.isInstanceOf[SourceTenantDeleted]
     val now = OffsetDateTime.now()
 

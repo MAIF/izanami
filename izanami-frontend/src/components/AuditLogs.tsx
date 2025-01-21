@@ -23,6 +23,7 @@ import {
   LogSearchQuery,
   ProjectCreated,
   ProjectLogSearchQuery,
+  ProjectUpdated,
   tenantEventTypeOptions,
 } from "../utils/types";
 import { useState } from "react";
@@ -366,6 +367,13 @@ export function AuditLog(props: AuditLogProps) {
                             <i className="fas fa-building" />
                             &nbsp;
                             {rowValue.project})
+                          </>
+                        );
+                      } else if (rowValue.type === "PROJECT_UPDATED") {
+                        return (
+                          <>
+                            {rowValue.previous.name}&nbsp;{"→"}
+                            &nbsp;{rowValue.name}
                           </>
                         );
                       } else {
@@ -733,6 +741,13 @@ function LogFeatureDetails(props: {
         onClose={() => props.onClose()}
       />
     );
+  } else if (type === "PROJECT_UPDATED") {
+    return (
+      <ProjectUpdatedLogFeatureDetails
+        details={props.details}
+        onClose={() => props.onClose()}
+      />
+    );
   } else {
     return <div className="error-message">Unknown event type {type}</div>;
   }
@@ -811,6 +826,68 @@ function FeatureUpdatedLogFeatureDetails(props: {
         <FeatureUpdateJsonEventDisplay event={details} />
       ) : (
         <NaturalLanguageUpdateEventDisplay event={details} />
+      )}
+      <div className="d-flex justify-content-end">
+        <button
+          type="button"
+          className="btn btn-danger m-2"
+          onClick={() => props.onClose()}
+        >
+          Close
+        </button>
+      </div>
+    </>
+  );
+}
+
+function ProjectUpdatedLogFeatureDetails(props: {
+  details: ProjectUpdated;
+  onClose: () => void;
+}) {
+  const [isJson, setJson] = useState(false);
+  const details = props.details;
+  return (
+    <>
+      <label>
+        Display JSON event
+        <input
+          type="checkbox"
+          className="izanami-checkbox"
+          style={{ marginTop: 0 }}
+          onChange={(e) => {
+            setJson(e.target.checked);
+          }}
+        />
+      </label>
+      <br />
+      <br />
+      {isJson ? (
+        <>
+          <CodeMirror
+            id="event-value"
+            value={JSON.stringify(details, null, 2)}
+            readOnly={true}
+            extensions={[json()]}
+            theme="dark"
+          />
+        </>
+      ) : (
+        <div className="d-flex">
+          <div>
+            <h5>Before</h5>
+            Name was {details.previous.name}
+          </div>
+          <div
+            className="d-flex justify-content-center align-items-center"
+            style={{ fontSize: 60, margin: "0px 48px" }}
+          >
+            <i className="fa-solid fa-arrow-right"></i>
+          </div>
+          <div>
+            <h5>After</h5>
+            Name is {details.name}
+          </div>
+        </div>
       )}
       <div className="d-flex justify-content-end">
         <button

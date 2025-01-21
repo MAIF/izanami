@@ -103,101 +103,102 @@ class ImportExportDatastore(val env: Env) extends Datastore {
               .flatMap {
                 case Left(err) => (Future.successful(Left(err)): Future[Either[IzanamiError, Unit]])
                 case Right(result) => {
-                  env.datastores.features.findActivationStrategiesForFeatures(tenant, result.createdFeatures ++ result.updatedFeatures, conn = Some(conn))
-                    .map(m => m.map { case (feature, strat) => (feature, FeatureWithOverloads(strat)) })
-                    .flatMap(strategiesByFeature => {
-                      Future.sequence(result.createdFeatures.map(created => {
-                          strategiesByFeature.get(created).map(strategies => {
-                            env.eventService.emitEvent(tenant, SourceFeatureCreated(
-                              id = created,
-                              project = strategies.baseFeature().project,
-                              tenant = tenant,
-                              user = user.username,
-                              feature = strategies,
-                              authentication = user.authentication,
-                              origin = ImportOrigin
-                            ))(conn = conn)
-                          }).getOrElse(Future.successful())
-                        }))
-                        .flatMap(_ => {
-                          if(result.updatedFeatures.nonEmpty) {
-                            val previousFeatureStates: Future[Map[String, FeatureWithOverloads]] = if (conflictStrategy == MergeOverwrite && entries.get(FeatureType).exists(s => s.nonEmpty)) {
-                              env.datastores.features.findActivationStrategiesForFeatures(tenant, entries(FeatureType).map(f => (f \ "id").as[String]).toSet)
-                                .map(m => m.map { case (f, s) => (f, FeatureWithOverloads(s)) })
-                                .recover(_ => Map())
-                            } else {
-                              Future.successful(Map())
-                            }
-                            previousFeatureStates.flatMap(previousStates => {
-                              Future.sequence(result.updatedFeatures.filter(updated => {
-                                !strategiesByFeature.get(updated).exists(newStrat => previousStates.get(updated).contains(newStrat))
-                              }).map(updated => {
-                                strategiesByFeature.get(updated).map(strategies => {
-                                  env.eventService.emitEvent(tenant, SourceFeatureUpdated(
-                                    id = updated,
+                  val projectNamesBydId = entries(ProjectType).map(json => {
+                    for (
+                      id <- (json \ "id").asOpt[UUID];
+                      name <- (json \ "name").asOpt[String]
+                    ) yield (id, name)
+                  }).collect {
+                    case Some(t) => t
+                  }.toMap
+
+                  Future.sequence(result.createdProjects.map(projectId => {
+                    env.eventService.emitEvent(tenant, SourceProjectCreated(
+                        tenant = tenant, id = projectId, name = projectNamesBydId(UUID.fromString(projectId)), user = user.username, origin = ImportOrigin, authentication = user.authentication
+                      ))(conn)}))
+                      .flatMap(_ => {
+                        if (result.updatedProjects.nonEmpty) {
+                          val previousProjectNames: Future[Map[UUID, String]] = if (conflictStrategy == MergeOverwrite && entries.get(FeatureType).exists(s => s.nonEmpty)) {
+                            env.postgresql.queryAll(
+                                s"""
+                                   |SELECT id, name FROM projects WHERE id=ANY($$1)
+                                   |""".stripMargin,
+                                List(result.updatedProjects.map(s => UUID.fromString(s)).toArray),
+                                schemas = Set(tenant)
+                              ) { r => {
+                                for (
+                                  id <- r.optUUID("id");
+                                  name <- r.optString("name")
+                                ) yield (id, name)
+                              }
+                              }.map(l => l.toMap)
+                              .recover(_ => Map())
+                          } else {
+                            Future.successful(Map())
+                          }
+                          previousProjectNames.flatMap(ids => {
+                            Future.sequence(result.updatedProjects.map(projectId => {
+                              env.eventService.emitEvent(tenant, SourceProjectUpdated(
+                                tenant = tenant, id = projectId, name = projectNamesBydId(UUID.fromString(projectId)), previous = PreviousProject(ids.get(UUID.fromString(projectId)).orNull), user = user.username, origin = ImportOrigin, authentication = user.authentication
+                              ))(conn)
+                            }))
+                          })
+                        } else {
+                          Future.successful(())
+                        }
+                      }).flatMap(_ => {
+                        env.datastores.features.findActivationStrategiesForFeatures(tenant, result.createdFeatures ++ result.updatedFeatures, conn = Some(conn))
+                          .map(m => m.map { case (feature, strat) => (feature, FeatureWithOverloads(strat)) })
+                          .flatMap(strategiesByFeature => {
+                            Future.sequence(result.createdFeatures.map(created => {
+                                strategiesByFeature.get(created).map(strategies => {
+                                  env.eventService.emitEvent(tenant, SourceFeatureCreated(
+                                    id = created,
                                     project = strategies.baseFeature().project,
                                     tenant = tenant,
                                     user = user.username,
                                     feature = strategies,
-                                    previous = previousStates.get(updated).orNull,
                                     authentication = user.authentication,
                                     origin = ImportOrigin
                                   ))(conn = conn)
                                 }).getOrElse(Future.successful())
                               }))
-                            })
-                          } else {
-                            Future.successful(())
-                          }
-                        })
-                        .flatMap(_ => {
-                          val projectNamesBydId = entries(ProjectType).map(json => {
-                            for (
-                              id <- (json \ "id").asOpt[UUID];
-                              name <- (json \ "name").asOpt[String]
-                            ) yield (id, name)
-                          }).collect {
-                            case Some(t) => t
-                          }.toMap
-
-                          Future.sequence(result.createdProjects.map(projectId => {
-                            env.eventService.emitEvent(tenant, SourceProjectCreated(
-                              tenant = tenant, id = projectId, name = projectNamesBydId(UUID.fromString(projectId)), user = user.username, origin = ImportOrigin, authentication = user.authentication
-                            ))(conn)
-                          })).flatMap(_ => {
-                            if(result.updatedProjects.nonEmpty) {
-                              val previousProjectNames: Future[Map[UUID, String]] = if (conflictStrategy == MergeOverwrite && entries.get(FeatureType).exists(s => s.nonEmpty)) {
-                                env.postgresql.queryAll(
-                                    s"""
-                                       |SELECT id, name FROM projects WHERE id=ANY($$1)
-                                       |""".stripMargin,
-                                    List(result.updatedProjects.map(s => UUID.fromString(s)).toArray),
-                                    schemas = Set(tenant)
-                                  ) { r => {
-                                    for (
-                                      id <- r.optUUID("id");
-                                      name <- r.optString("name")
-                                    ) yield (id, name)
+                              .flatMap(_ => {
+                                if (result.updatedFeatures.nonEmpty) {
+                                  val previousFeatureStates: Future[Map[String, FeatureWithOverloads]] = if (conflictStrategy == MergeOverwrite && entries.get(FeatureType).exists(s => s.nonEmpty)) {
+                                    env.datastores.features.findActivationStrategiesForFeatures(tenant, entries(FeatureType).map(f => (f \ "id").as[String]).toSet)
+                                      .map(m => m.map { case (f, s) => (f, FeatureWithOverloads(s)) })
+                                      .recover(_ => Map())
+                                  } else {
+                                    Future.successful(Map())
                                   }
-                                  }.map(l => l.toMap)
-                                  .recover(_ => Map())
-                              } else {
-                                Future.successful(Map())
-                              }
-                              previousProjectNames.flatMap(ids => {
-                                Future.sequence(result.updatedProjects.map(projectId => {
-                                  env.eventService.emitEvent(tenant, SourceProjectUpdated(
-                                    tenant = tenant, id = projectId, name = projectNamesBydId(UUID.fromString(projectId)), previous = PreviousProject(ids.get(UUID.fromString(projectId)).orNull),user = user.username, origin = ImportOrigin, authentication = user.authentication
-                                  ))(conn)
-                                }))
+                                  previousFeatureStates.flatMap(previousStates => {
+                                    Future.sequence(result.updatedFeatures.filter(updated => {
+                                      !strategiesByFeature.get(updated).exists(newStrat => previousStates.get(updated).contains(newStrat))
+                                    }).map(updated => {
+                                      strategiesByFeature.get(updated).map(strategies => {
+                                        env.eventService.emitEvent(tenant, SourceFeatureUpdated(
+                                          id = updated,
+                                          project = strategies.baseFeature().project,
+                                          tenant = tenant,
+                                          user = user.username,
+                                          feature = strategies,
+                                          previous = previousStates.get(updated).orNull,
+                                          authentication = user.authentication,
+                                          origin = ImportOrigin
+                                        ))(conn = conn)
+                                      }).getOrElse(Future.successful())
+                                    }))
+                                  })
+                                } else {
+                                  Future.successful(())
+                                }
                               })
-                            } else {
-                              Future.successful(())
-                            }
+                            // Stop feature part
+
                           })
-                        })
-                    }).map(_ => Right(()))
-                }
+                      }).map(_ => Right(()))
+                    }
                 case Right(vs) => Future.successful(Right(()))
               }
           })
