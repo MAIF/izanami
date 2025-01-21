@@ -5,12 +5,12 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError, PartialImportFailure}
 import fr.maif.izanami.events.EventOrigin.ImportOrigin
-import fr.maif.izanami.events.{SourceFeatureCreated, SourceFeatureUpdated, SourceProjectCreated}
+import fr.maif.izanami.events.{PreviousProject, SourceFeatureCreated, SourceFeatureUpdated, SourceProjectCreated, SourceProjectUpdated}
 import fr.maif.izanami.models.{ExportedType, FeatureType, FeatureWithOverloads, KeyRightType, Project, ProjectRightType, ProjectType, WebhookRightType}
 import fr.maif.izanami.models.ExportedType.exportedTypeToString
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.web.ExportController.{ExportResult, TenantExportRequest}
+import fr.maif.izanami.web.ExportController.{ExportResult, TenantExportRequest, projectExportResultWrites}
 import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, MergeOverwrite}
 import fr.maif.izanami.web.{ExportController, ImportController, ImportResult, UserInformation}
 import io.vertx.core.json.JsonArray
@@ -68,31 +68,6 @@ class ImportExportDatastore(val env: Env) extends Datastore {
           Future.successful(Left(InternalServerError(s"Failed to fetch metadata for one table")))
         } else {
           env.postgresql.executeInTransaction(conn => {
-            val previousFeatureStates: Future[Map[String, FeatureWithOverloads]] = if (conflictStrategy == MergeOverwrite && entries.get(FeatureType).exists(s => s.nonEmpty)) {
-              env.datastores.features.findActivationStrategiesForFeatures(tenant, entries(FeatureType).map(f => (f \ "id").as[String]).toSet)
-                .map(m => m.map { case (f, s) => (f, FeatureWithOverloads(s)) })
-                .recover(_ => Map())
-            } else {
-              Future.successful(Map())
-            }
-
-            val previousProjectNames: Future[Map[UUID, String]] = if (conflictStrategy == MergeOverwrite && entries.get(FeatureType).exists(s => s.nonEmpty)) {
-              env.postgresql.queryAll(
-                s"""
-                   |SELECT id, name FROM projects WHERE id=ANY($$1)
-                   |""".stripMargin,
-                schemas = Set(tenant)
-              ) { r => {
-                for (
-                  id <- r.optUUID("id");
-                  name <- r.optString("name")
-                ) yield (id, name)
-              }
-              }.map(l => l.toMap)
-              .recover(_ => Map())
-            } else {
-              Future.successful(Map())
-            }
             s
               .collect { case (Some(metadata), jsons, exportedType) => (metadata, jsons, exportedType) }
               .foldLeft(Future.successful(Right(Map())): Future[Either[IzanamiError, Map[ExportedType, UnitDBImportResult]]])(
@@ -145,24 +120,35 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                           }).getOrElse(Future.successful())
                         }))
                         .flatMap(_ => {
-                          previousFeatureStates.flatMap(previousStates => {
-                            Future.sequence(result.updatedFeatures.filter(updated => {
-                              !strategiesByFeature.get(updated).exists(newStrat => previousStates.get(updated).contains(newStrat))
-                            }).map(updated => {
-                              strategiesByFeature.get(updated).map(strategies => {
-                                env.eventService.emitEvent(tenant, SourceFeatureUpdated(
-                                  id = updated,
-                                  project = strategies.baseFeature().project,
-                                  tenant = tenant,
-                                  user = user.username,
-                                  feature = strategies,
-                                  previous = previousStates.get(updated).orNull,
-                                  authentication = user.authentication,
-                                  origin = ImportOrigin
-                                ))(conn = conn)
-                              }).getOrElse(Future.successful())
-                            }))
-                          })
+                          if(result.updatedFeatures.nonEmpty) {
+                            val previousFeatureStates: Future[Map[String, FeatureWithOverloads]] = if (conflictStrategy == MergeOverwrite && entries.get(FeatureType).exists(s => s.nonEmpty)) {
+                              env.datastores.features.findActivationStrategiesForFeatures(tenant, entries(FeatureType).map(f => (f \ "id").as[String]).toSet)
+                                .map(m => m.map { case (f, s) => (f, FeatureWithOverloads(s)) })
+                                .recover(_ => Map())
+                            } else {
+                              Future.successful(Map())
+                            }
+                            previousFeatureStates.flatMap(previousStates => {
+                              Future.sequence(result.updatedFeatures.filter(updated => {
+                                !strategiesByFeature.get(updated).exists(newStrat => previousStates.get(updated).contains(newStrat))
+                              }).map(updated => {
+                                strategiesByFeature.get(updated).map(strategies => {
+                                  env.eventService.emitEvent(tenant, SourceFeatureUpdated(
+                                    id = updated,
+                                    project = strategies.baseFeature().project,
+                                    tenant = tenant,
+                                    user = user.username,
+                                    feature = strategies,
+                                    previous = previousStates.get(updated).orNull,
+                                    authentication = user.authentication,
+                                    origin = ImportOrigin
+                                  ))(conn = conn)
+                                }).getOrElse(Future.successful())
+                              }))
+                            })
+                          } else {
+                            Future.successful(())
+                          }
                         })
                         .flatMap(_ => {
                           val projectNamesBydId = entries(ProjectType).map(json => {
@@ -178,7 +164,37 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                             env.eventService.emitEvent(tenant, SourceProjectCreated(
                               tenant = tenant, id = projectId, name = projectNamesBydId(UUID.fromString(projectId)), user = user.username, origin = ImportOrigin, authentication = user.authentication
                             ))(conn)
-                          }))
+                          })).flatMap(_ => {
+                            if(result.updatedProjects.nonEmpty) {
+                              val previousProjectNames: Future[Map[UUID, String]] = if (conflictStrategy == MergeOverwrite && entries.get(FeatureType).exists(s => s.nonEmpty)) {
+                                env.postgresql.queryAll(
+                                    s"""
+                                       |SELECT id, name FROM projects WHERE id=ANY($$1)
+                                       |""".stripMargin,
+                                    List(result.updatedProjects.map(s => UUID.fromString(s)).toArray),
+                                    schemas = Set(tenant)
+                                  ) { r => {
+                                    for (
+                                      id <- r.optUUID("id");
+                                      name <- r.optString("name")
+                                    ) yield (id, name)
+                                  }
+                                  }.map(l => l.toMap)
+                                  .recover(_ => Map())
+                              } else {
+                                Future.successful(Map())
+                              }
+                              previousProjectNames.flatMap(ids => {
+                                Future.sequence(result.updatedProjects.map(projectId => {
+                                  env.eventService.emitEvent(tenant, SourceProjectUpdated(
+                                    tenant = tenant, id = projectId, name = projectNamesBydId(UUID.fromString(projectId)), previous = PreviousProject(ids.get(UUID.fromString(projectId)).orNull),user = user.username, origin = ImportOrigin, authentication = user.authentication
+                                  ))(conn)
+                                }))
+                              })
+                            } else {
+                              Future.successful(())
+                            }
+                          })
                         })
                     }).map(_ => Right(()))
                 }
