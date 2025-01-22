@@ -154,6 +154,7 @@ export function fetchLogs(
 export function AuditLog(props: AuditLogProps) {
   const { tenant } = useParams();
   const { eventUrl } = props;
+  const customSearchFields = props.customSearchFields;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const query = extractSearchQueryFromUrlParams(searchParams, tenant!);
@@ -212,6 +213,7 @@ export function AuditLog(props: AuditLogProps) {
   return (
     <>
       <SearchCriterions
+        customSearchFields={customSearchFields}
         defaultValue={query}
         onSubmit={(query) => {
           totalRef.current = undefined;
@@ -559,6 +561,10 @@ function SearchCriterions(props: {
     query: Omit<LogSearchQuery, "order" | "total" | "pageSize">
   ) => void;
   defaultValue?: Omit<LogSearchQuery, "order" | "total" | "pageSize">;
+  customSearchFields?: (
+    onChange: (value: any) => undefined,
+    clear: () => undefined
+  ) => React.ReactNode;
 }) {
   const methods = useForm<Omit<LogSearchQuery, "order" | "total" | "pageSize">>(
     {
@@ -570,6 +576,7 @@ function SearchCriterions(props: {
       },
     }
   );
+  const customSearchFields = props.customSearchFields;
 
   const {
     control,
@@ -578,6 +585,7 @@ function SearchCriterions(props: {
     watch,
     formState: { errors },
     setError,
+    setValue,
   } = methods;
 
   return (
@@ -589,7 +597,7 @@ function SearchCriterions(props: {
         className="container"
       >
         <div className="row">
-          <label className="col-12 col-xl-6">
+          <label className="col-12 col-xl-6 mb-4">
             Users
             <Controller
               name="users"
@@ -617,7 +625,7 @@ function SearchCriterions(props: {
             />
             <ErrorMessage errors={errors} name="users" />
           </label>
-          <label className="col-12 col-xl-6">
+          <label className="col-12 col-xl-6 mb-4">
             Event type
             <Controller
               name="types"
@@ -637,9 +645,7 @@ function SearchCriterions(props: {
               )}
             />
           </label>
-        </div>
-        <div className="row mt-4">
-          <div className="col-12 col-xl-6">
+          <div className="col-12 col-xl-6 mb-4">
             <div className="d-flex flex-row flex-wrap">
               <label
                 style={{
@@ -707,8 +713,16 @@ function SearchCriterions(props: {
               </label>
             </div>
           </div>
-          <label className="col-12 col-xl-3"></label>
-          {/*</div>*/}
+          {customSearchFields && (
+            <div className="col-12 col-xl-3 mb-4">
+              {customSearchFields(
+                (v) => {
+                  console.log("v", v);
+                },
+                () => {}
+              )}
+            </div>
+          )}
         </div>
         <div className="row">
           <div className="d-flex justify-content-end">
