@@ -15,10 +15,7 @@ export function TenantAudit() {
           <label>Entities</label>
           <EntitySelector
             tenant={tenant!}
-            onChange={(values) => {
-              console.log("values", values);
-              return { values };
-            }}
+            onChange={(values) => onChange(values)}
             clear={clear}
           />
         </div>
@@ -65,7 +62,6 @@ function EntitySelector(props: {
       styles={customStyles}
       isMulti
       onChange={(selected) => {
-        console.log("selected", selected);
         const value = selected.reduce((acc: any, { type, value }) => {
           if (!acc[type]) {
             acc[type] = [];

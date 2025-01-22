@@ -59,6 +59,7 @@ function extractSearchQueryFromUrlParams(
   tenant: string
 ): Omit<LogSearchQuery, "total"> {
   return {
+    ...Object.fromEntries(params),
     tenant,
     users: decodeArrayFromUrl(params.get("users")),
     types: decodeArrayFromUrl(params.get("types")) as any,
@@ -114,26 +115,29 @@ export function fetchLogs(
   query: LogSearchQuery
 ): Promise<{ events: LogEntry[]; count: number | null }> {
   const { users, types } = query;
+  const searchPart = Object.entries({ ...query, cursor: cursor })
+    .map(([key, value]) => {
+      console.log({ key, value });
+      if (!value || (Array.isArray(value) && value.length === 0)) {
+        console.log("empty");
+        return "";
+      } else if ((key === "start" || key === "end") && value) {
+        return `${key}=${encodeURIComponent(
+          format(value as Date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+        )}`;
+      } else if (Array.isArray(value)) {
+        return `${key}=${value.join(",")}`;
+      } else if (key === "pageSize") {
+        return `count=${value}`;
+      } else {
+        return `${key}=${value}`;
+      }
+    })
+    .filter((str) => str.length > 0);
+  console.log("foo");
+  console.log("r", `${eventUrl}?${searchPart.join("&")}`);
   return handleFetchJsonResponse(
-    fetch(
-      `${eventUrl}?order=${query.order}&total=${query.total}${
-        cursor === null ? "" : `&cursor=${cursor}`
-      }&count=${query.pageSize}${
-        users.length > 0 ? `&users=${users.join(",")}` : ""
-      }${types.length > 0 ? `&types=${types.join(",")}` : ""}${
-        query.begin
-          ? `&start=${encodeURIComponent(
-              format(query.begin, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
-            )}`
-          : ""
-      }${
-        query.end
-          ? `&end=${encodeURIComponent(
-              format(query.end, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
-            )}`
-          : ""
-      }`
-    )
+    fetch(`${eventUrl}?${searchPart.join("&")}`)
   ).then((logs) => {
     logs.events.forEach((log: LogEntry) => {
       if (log.emittedAt) {
