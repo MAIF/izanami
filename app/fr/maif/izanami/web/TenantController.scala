@@ -39,7 +39,9 @@ class TenantController(
                             end: Option[String],
                             cursor: Option[Long],
                             count: Int,
-                            total: Option[Boolean]
+                            total: Option[Boolean],
+                            features: Option[String],
+                            projects: Option[String]
                           ): Action[AnyContent] = tenantAuthAction(tenant, RightLevels.Read).async { implicit request =>
     env.datastores.events
       .listEventsForTenant(tenant, TenantEventRequest(

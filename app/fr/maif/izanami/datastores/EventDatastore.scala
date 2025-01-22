@@ -238,6 +238,8 @@ object EventDatastore {
                                   begin: Option[Instant] = None,
                                   end: Option[Instant] = None,
                                   eventTypes: Set[FeatureEventType] = Set(),
-                                  total: Boolean
+                                  total: Boolean,
+                                  features: Set[String] = Set(),
+                                  project: Set[String] = Set()
                                 )
 }
