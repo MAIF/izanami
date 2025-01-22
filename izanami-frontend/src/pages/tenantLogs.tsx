@@ -11,8 +11,16 @@ export function TenantAudit() {
     <AuditLog
       eventUrl={`/api/admin/tenants/${tenant!}/logs`}
       customSearchFields={(onChange, clear) => (
-        <div>
-          <EntitySelector tenant={tenant!} onChange={onChange} clear={clear} />
+        <div className="col-12 col-xl-6 mb-4">
+          <label>Entities</label>
+          <EntitySelector
+            tenant={tenant!}
+            onChange={(values) => {
+              console.log("values", values);
+              return { values };
+            }}
+            clear={clear}
+          />
         </div>
       )}
     />
@@ -22,13 +30,13 @@ export function TenantAudit() {
 const loadEntities = (tenant: string) => (input: string) => {
   return searchEntitiesByTenant(tenant, input, ["feature", "project"]).then(
     (resp) =>
-      resp.map(({ name, type, ...rest }) => {
+      resp.map(({ name, type, id, ...rest }) => {
         let label = <span>name</span>;
         if (type === "feature") {
           label = (
             <span>
               <i className="fas fa-rocket" />
-              &nbsp;name (<i className="fas fa-building" />{" "}
+              &nbsp;{name} (<i className="fas fa-building" />{" "}
               {rest.path?.[0]?.name})
             </span>
           );
@@ -36,12 +44,12 @@ const loadEntities = (tenant: string) => (input: string) => {
           label = (
             <span>
               <i className="fas fa-building" />
-              &nbsp;name
+              &nbsp;{name}
             </span>
           );
         }
 
-        return { label: label, value: name };
+        return { label: label, value: id, type: type };
       })
   );
 };
@@ -51,25 +59,23 @@ function EntitySelector(props: {
   onChange: (v: any) => void;
   clear: () => void;
 }) {
-  const { register, control } = useFormContext();
-
   return (
-    <Controller
-      name="types"
-      control={control}
-      render={({ field: { onChange, value } }) => (
-        <AsyncCreatableSelect
-          loadOptions={loadEntities(props.tenant)}
-          styles={customStyles}
-          isMulti
-          onChange={(selected) => onChange(selected?.map(({ value }) => value))}
-        />
-      )}
+    <AsyncCreatableSelect
+      loadOptions={loadEntities(props.tenant)}
+      styles={customStyles}
+      isMulti
+      onChange={(selected) => {
+        console.log("selected", selected);
+        const value = selected.reduce((acc: any, { type, value }) => {
+          if (!acc[type]) {
+            acc[type] = [];
+          }
+          acc[type].push(value);
+
+          return acc;
+        }, {});
+        props?.onChange(value);
+      }}
     />
   );
 }
-/*
-value={featureEventTypeOptions.filter((base) =>
-            value.includes(base.value)
-          )}
-*/

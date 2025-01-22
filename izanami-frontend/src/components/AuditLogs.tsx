@@ -562,20 +562,20 @@ function SearchCriterions(props: {
   ) => void;
   defaultValue?: Omit<LogSearchQuery, "order" | "total" | "pageSize">;
   customSearchFields?: (
-    onChange: (value: any) => undefined,
+    onChange: (value: { [x: string]: any }) => undefined,
     clear: () => undefined
   ) => React.ReactNode;
 }) {
-  const methods = useForm<Omit<LogSearchQuery, "order" | "total" | "pageSize">>(
-    {
-      defaultValues: props.defaultValue || {
-        users: [],
-        types: [],
-        begin: undefined,
-        end: undefined,
-      },
-    }
-  );
+  const methods = useForm<
+    Omit<LogSearchQuery, "order" | "total" | "pageSize"> & { [x: string]: any }
+  >({
+    defaultValues: props.defaultValue || {
+      users: [],
+      types: [],
+      begin: undefined,
+      end: undefined,
+    },
+  });
   const customSearchFields = props.customSearchFields;
 
   const {
@@ -713,16 +713,15 @@ function SearchCriterions(props: {
               </label>
             </div>
           </div>
-          {customSearchFields && (
-            <div className="col-12 col-xl-3 mb-4">
-              {customSearchFields(
-                (v) => {
-                  console.log("v", v);
-                },
-                () => {}
-              )}
-            </div>
-          )}
+          {customSearchFields &&
+            customSearchFields(
+              (v) => {
+                Object.entries(v).map(([key, value]) => {
+                  setValue(key, value);
+                });
+              },
+              () => {}
+            )}
         </div>
         <div className="row">
           <div className="d-flex justify-content-end">

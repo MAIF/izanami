@@ -746,6 +746,7 @@ export type SearchResult = {
   name: string;
   path: SearchResultPathElement[];
   tenant: string;
+  id: string;
 };
 
 export type SearchResultPathElement = {
