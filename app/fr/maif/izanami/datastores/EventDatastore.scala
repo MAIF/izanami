@@ -240,6 +240,6 @@ object EventDatastore {
                                   eventTypes: Set[FeatureEventType] = Set(),
                                   total: Boolean,
                                   features: Set[String] = Set(),
-                                  project: Set[String] = Set()
+                                  projects: Set[String] = Set()
                                 )
 }

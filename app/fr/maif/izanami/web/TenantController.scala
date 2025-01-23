@@ -52,7 +52,9 @@ class TenantController(
         begin = start.flatMap(s => Try{Instant.parse(s)}.toOption),
         end = end.flatMap(e => Try{Instant.parse(e)}.toOption),
         eventTypes = parseStringSet(types).map(t => EventService.parseEventType(t)).collect{case Some(t) => t},
-        total = total.getOrElse(false)
+        total = total.getOrElse(false),
+        features = parseStringSet(features),
+        projects = parseStringSet(projects)
       ))
       .flatMap{case (events, maybeCount) => {
         val tokenIds = events.map(_.authentication).collect {
