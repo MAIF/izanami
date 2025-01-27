@@ -638,7 +638,7 @@ export function testFeature(
   feature: TCompleteFeature,
   user: string,
   date: Date,
-  context?: string
+  payload?: string
 ): Promise<{ active: boolean }> {
   return handleFetchJsonResponse(
     fetch(
@@ -647,7 +647,7 @@ export function testFeature(
       )}&user=${user}`,
       {
         method: "POST",
-        body: JSON.stringify(feature),
+        body: JSON.stringify({ feature, payload }),
         headers: {
           "Content-Type": "application/json",
         },
@@ -661,7 +661,8 @@ export function testExistingFeature(
   featureId: string,
   date: Date,
   context: string,
-  user: string
+  user: string,
+  payload?: string
 ): Promise<{ active: boolean }> {
   return handleFetchJsonResponse(
     fetch(
@@ -671,7 +672,9 @@ export function testExistingFeature(
         format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
       )}&user=${user}`,
       {
-        method: "GET",
+        method: "POST",
+        body: payload ? payload : "{}",
+        headers: { "Content-Type": "application/json" },
       }
     )
   );

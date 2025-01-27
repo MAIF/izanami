@@ -1,10 +1,10 @@
 import * as React from "react";
 import { useContext, useState } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
-import { IzanamiContext } from "../securityContext";
+import { IzanamiContext, MODE_KEY, Modes } from "../securityContext";
 import Logo from "../../izanami.png";
 import { Configuration, TUser } from "../utils/types";
-import { useMutation } from '@tanstack/react-query';
+import { useMutation } from "@tanstack/react-query";
 import { updateConfiguration } from "../utils/queries";
 import { Loader } from "../components/Loader";
 
@@ -62,10 +62,10 @@ function LoginForm(props: { req?: string }) {
   const [lightMode, setLightMode] = useState<boolean>(false);
 
   React.useEffect(() => {
-    let mode = window.localStorage.getItem("izanami-dark-light-mode");
-    setLightMode(mode !== "dark");
-    if (mode === "light") {
-      document.documentElement.setAttribute("data-theme", "light");
+    let mode = window.localStorage.getItem(MODE_KEY);
+    setLightMode(mode !== Modes.dark);
+    if (mode === Modes.light) {
+      document.documentElement.setAttribute("data-theme", Modes.light);
     }
   }, []);
 
@@ -73,10 +73,10 @@ function LoginForm(props: { req?: string }) {
     setLightMode(event.target.checked);
     if (lightMode) {
       document.documentElement.setAttribute("data-theme", "dark");
-      window.localStorage.setItem("izanami-dark-light-mode", "dark");
+      window.localStorage.setItem(MODE_KEY, "dark");
     } else {
-      document.documentElement.setAttribute("data-theme", "light");
-      window.localStorage.setItem("izanami-dark-light-mode", "light");
+      document.documentElement.setAttribute("data-theme", Modes.light);
+      window.localStorage.setItem(MODE_KEY, Modes.light);
     }
   };
 

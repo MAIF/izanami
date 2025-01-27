@@ -59,10 +59,11 @@ test.describe("Project screen should", () => {
 
     await page.waitForLoadState("domcontentloaded");
     await featureAction(page, "Test feature");
-    await page.getByRole("button", { name: "Test feature" }).click();
-    expect(await page.getByRole("status").innerText()).toMatch(
-      /feature would be inactive on .*/
-    );
+    await page
+      .getByRole("button", { name: "Test feature", exact: true })
+      .click();
+
+    await expect(page.getByText('"active": false,')).toBeVisible();
   });
 
   test("allow to test feature while creating it", async ({
@@ -76,11 +77,8 @@ test.describe("Project screen should", () => {
 
     await page.getByRole("button", { name: "Create new feature" }).click();
     await page.getByLabel("Enabled").check();
-    await page.getByRole("button", { name: "Save" }).click();
     await page.getByRole("button", { name: "Test feature" }).click();
-    expect(await page.getByRole("status").innerText()).toMatch(
-      /feature would be active on .*/
-    );
+    await expect(page.getByText('"active": true,')).toBeVisible();
   });
 
   test("allow to create dated features", async ({ page, tenantName }) => {
@@ -323,18 +321,18 @@ test.describe("Multi type features", () => {
     await page.getByRole("combobox", { name: "Feature result type" }).click();
     await page.getByText("string").click();
     await page.getByLabel("Base value*").fill("foo");
-    await page.getByRole("button", { name: "Test feature" }).click();
+    await page
+      .getByRole("button", { name: "Test feature", exact: true })
+      .click();
 
-    await expect(
-      page.getByText("str feature value would be foo")
-    ).toBeVisible();
+    await expect(page.getByText('"active": "foo"')).toBeVisible();
     await page.getByRole("button", { name: "Save" }).click();
 
     await clickAction(page, "Test feature", "str feature");
-    await page.getByRole("button", { name: "Test feature" }).click();
-    await expect(
-      page.getByText("str feature value would be foo")
-    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Test feature", exact: true })
+      .click();
+    await expect(page.getByText('"active": "foo"')).toBeVisible();
 
     await page.getByRole("link", { name: "Global contexts" }).click();
     await page.getByRole("button", { name: "Create new context" }).click();
@@ -350,16 +348,18 @@ test.describe("Multi type features", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("button", { name: "Save" })).toBeHidden();
     await clickAction(page, "Test feature", "str feature");
-    await page.getByRole("button", { name: "Test feature" }).click();
-    await expect(
-      page.getByText("str feature value would be foo")
-    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Test feature", exact: true })
+      .click();
+    await expect(page.getByText('"active": "foo"')).toBeVisible();
+
     await page.getByRole("combobox", { name: "Context" }).click();
     await page.getByText("globalctx").click();
-    await page.getByRole("button", { name: "Test feature" }).click();
-    await expect(
-      page.getByText("str feature value would be bar")
-    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Test feature", exact: true })
+      .click();
+
+    await expect(page.getByText('"active": "bar"')).toBeVisible();
 
     await clickAction(page, "Edit", "str feature");
     await page.getByRole("button", { name: "Add alternative value" }).click();

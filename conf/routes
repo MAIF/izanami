@@ -29,8 +29,8 @@ GET           /api/admin/tenants/:tenant/features                               
 PATCH         /api/admin/tenants/:tenant/features                                                  fr.maif.izanami.web.FeatureController.patchFeatures(tenant: String)
 GET           /api/admin/tenants/:tenant/features/_test                                            fr.maif.izanami.web.FeatureController.testFeaturesForContext(tenant: String, user: String ?= "", date: Option[java.time.Instant], featureRequest: fr.maif.izanami.models.FeatureRequest)
 POST          /api/admin/tenants/:tenant/test                                                      fr.maif.izanami.web.FeatureController.testFeature(tenant: String, user: String ?= "", date: java.time.Instant)
-GET           /api/admin/tenants/:tenant/features/:id/test/*context                                fr.maif.izanami.web.FeatureController.testExistingFeature(tenant: String, context: fr.maif.izanami.web.FeatureContextPath, id: String, user: String ?= "", date: java.time.Instant)
-GET           /api/admin/tenants/:tenant/features/:id/test                                         fr.maif.izanami.web.FeatureController.testExistingFeatureWithoutContext(tenant: String, id: String, user: String ?= "", date: java.time.Instant)
+POST          /api/admin/tenants/:tenant/features/:id/test/*context                                fr.maif.izanami.web.FeatureController.testExistingFeature(tenant: String, context: fr.maif.izanami.web.FeatureContextPath, id: String, user: String ?= "", date: java.time.Instant)
+POST          /api/admin/tenants/:tenant/features/:id/test                                         fr.maif.izanami.web.FeatureController.testExistingFeatureWithoutContext(tenant: String, id: String, user: String ?= "", date: java.time.Instant)
 
 
 POST          /api/admin/tenants/:tenant/tags                                                      fr.maif.izanami.web.TagController.createTag(tenant: String)

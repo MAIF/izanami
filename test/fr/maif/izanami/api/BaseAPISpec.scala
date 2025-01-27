@@ -918,6 +918,20 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       user: String = null,
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
+
+    val jsonFeature = Json.parse(s"""{
+                                    |"name": "${feature.name}",
+                                    |"tags": [${feature.tags.map(name => s""""${name}"""").mkString(",")}],
+                                    |"metadata": ${Json.stringify(feature.metadata)},
+                                    |"enabled": ${feature.enabled},
+                                    |"resultType": "${feature.resultType}",
+                                    |${if (feature.value != null) {
+      if (feature.resultType == "number") s""" "value": ${feature.value}, """
+      else s""" "value": "${feature.value}", """
+    } else ""}
+                                    |"conditions": ${Json.toJson(feature.conditions.map(c => c.json))}
+                                    |${if (Objects.nonNull(feature.wasmConfig)) s""" ,"wasmConfig": ${feature.wasmConfig.json} """ else ""}
+                                    |}""".stripMargin);
     val response = await(
       ws.url(s"""${ADMIN_BASE_URL}/tenants/$tenant/test?date=${DateTimeFormatter.ISO_INSTANT.format(date)}${if (
         user != null
@@ -925,19 +939,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         s"&user=${user}"
       else ""}""")
         .withCookies(cookies: _*)
-        .post(Json.parse(s"""{
-            |"name": "${feature.name}",
-            |"tags": [${feature.tags.map(name => s""""${name}"""").mkString(",")}],
-            |"metadata": ${Json.stringify(feature.metadata)},
-            |"enabled": ${feature.enabled},
-            |"resultType": "${feature.resultType}",
-            |${if (feature.value != null) {
-          if (feature.resultType == "number") s""" "value": ${feature.value}, """
-          else s""" "value": "${feature.value}", """
-        } else ""}
-            |"conditions": ${Json.toJson(feature.conditions.map(c => c.json))}
-            |${if (Objects.nonNull(feature.wasmConfig)) s""" ,"wasmConfig": ${feature.wasmConfig.json} """ else ""}
-            |}""".stripMargin))
+        .post(Json.obj("feature" -> jsonFeature))
     )
 
     val jsonTry = Try {
@@ -2377,7 +2379,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           s"&user=${user}"
         else ""}""")
           .withCookies(cookies: _*)
-          .get()
+          .post(Json.obj())
       )
 
       val jsonTry = Try {

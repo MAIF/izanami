@@ -84,9 +84,12 @@ export const customStyles: object = {
     zIndex: 110,
     border: "1px solid #545452",
   }),
-  placeholder: (styles: object) => ({
+  placeholder: (styles: object, { isDisabled }: { isDisabled: boolean }) => ({
     ...styles,
-    color: "var(--color_level3) !important",
+    color: isDisabled
+      ? "var(--color_level2) !important"
+      : "var(--color_level3) !important",
+    fontStyle: "italic",
   }),
   noOptionsMessage: (styles: object) => ({
     ...styles,

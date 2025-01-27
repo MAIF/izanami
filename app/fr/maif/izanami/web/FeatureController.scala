@@ -29,7 +29,14 @@ class FeatureController(
   def testFeature(tenant: String, user: String, date: Instant): Action[JsValue] =
     authenticatedAction.async(parse.json) { implicit request =>
       {
-        Feature.readCompleteFeature((request.body.as[JsObject]) + ("name" -> Json.toJson("test"))) match {
+        Feature.readCompleteFeature(((request.body \ "feature").as[JsObject]).applyOn(json => {
+          val hasName = (json \ "name").asOpt[String].exists(_.nonEmpty)
+          if(!hasName) {
+            json + ("name" -> JsString("test"))
+          } else {
+            json
+          }
+        })) match {
           case JsError(e)            => BadRequest(Json.obj("message" -> "bad body format")).future
           case JsSuccess(feature, _) => {
             val featureToEval = feature match {
@@ -51,7 +58,7 @@ class FeatureController(
       }
     }
 
-  def testExistingFeatureWithoutContext(tenant: String, id: String, user: String, date: Instant): Action[AnyContent] =
+  def testExistingFeatureWithoutContext(tenant: String, id: String, user: String, date: Instant): Action[JsValue] =
     testExistingFeature(tenant, FeatureContextPath(Seq()), id, user, date)
 
   def testExistingFeature(
@@ -60,8 +67,9 @@ class FeatureController(
       id: String,
       user: String,
       date: Instant
-  ): Action[AnyContent] = authenticatedAction.async { implicit request =>
+  ): Action[JsValue] = authenticatedAction.async(parse.json) { implicit request =>
     {
+      lazy val data: JsObject = Option(request.body).flatMap(json => json.asOpt[JsObject]).getOrElse(JsObject.empty)
       env.datastores.features
         .findById(
           tenant,
@@ -78,7 +86,7 @@ class FeatureController(
                     .flatMap {
                       case Some(strategy) => {
                         strategy
-                          .value(RequestContext(tenant = tenant, user, context = context), env)
+                          .value(RequestContext(tenant = tenant, user, context = context, now=date, data=data), env)
                           .map {
                             case Left(value)   => value.toHttpResponse
                             case Right(active) =>
@@ -95,7 +103,7 @@ class FeatureController(
                         Feature
                           .writeFeatureForCheck(
                             feature,
-                            RequestContext(tenant = tenant, user = user, now = date, context = context),
+                            RequestContext(tenant = tenant, user = user, now = date, context = context, data=data),
                             env
                           )
                           .map {

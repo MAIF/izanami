@@ -102,10 +102,28 @@ textarea {
   color: #fff;
 }
 
-.alert {
-  background-color: $primaryColor;
+.alert.alert-primary {
+  border-color: $primaryColor;
+  background-color: transparent;
+  color: var(--color_level3);
+  /*background-color: $primaryColor;
   color: #fff;
-  border-color: #fff;
+  border-color: #fff;*/
+}
+
+.alert.alert-secondary {
+  border-color: $colorBleue;
+  background-color: transparent;
+  color: var(--color_level3);
+  /*background-color: $primaryColor;
+  color: #fff;
+  border-color: #fff;*/
+}
+
+.alert.alert-danger {
+  border-color: var(--color-red);
+  background-color: transparent;
+  color: var(--color_level3);
 }
 
 thead th {

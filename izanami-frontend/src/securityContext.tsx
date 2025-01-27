@@ -1,7 +1,14 @@
 import React, { useContext } from "react";
 import { TLevel, TRights, TUser } from "./utils/types";
 
+export const MODE_KEY = "izanami-dark-light-mode";
+export const Modes = { light: "light", dark: "dark" } as const;
+type ModeKeys = keyof typeof Modes;
+export type ModeValue = typeof Modes[ModeKeys];
+
 export interface TIzanamiContext {
+  updateLightMode: (mode: ModeValue) => void;
+  mode: ModeValue;
   version?: string;
   expositionUrl?: string;
   user?: TUser;
@@ -29,6 +36,10 @@ export interface TIzanamiContext {
 }
 
 export const IzanamiContext = React.createContext<TIzanamiContext>({
+  updateLightMode: () => {
+    /* */
+  },
+  mode: Modes.dark,
   user: undefined,
   setUser: () => {
     /**/
