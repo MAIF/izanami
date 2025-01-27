@@ -1331,7 +1331,7 @@ function CustomTestForm() {
   return (
     <div className="sub_container sub_container-bglighter ">
       <h5>Test it</h5>
-      <FeatureTestForm feature={getValues()} noContext />
+      <FeatureTestForm feature={getValues()} />
     </div>
   );
 }

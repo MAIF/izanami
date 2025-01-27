@@ -32,7 +32,13 @@ import Keys from "./pages/keys";
 import { isAuthenticated } from "./utils/authUtils";
 import "./App.css";
 import { TUser } from "./utils/types";
-import { TIzanamiContext, IzanamiContext } from "./securityContext";
+import {
+  TIzanamiContext,
+  IzanamiContext,
+  Modes,
+  MODE_KEY,
+  ModeValue,
+} from "./securityContext";
 import { Topbar } from "./Topbar";
 import { Users } from "./pages/users";
 import { Settings } from "./pages/settings";
@@ -96,44 +102,6 @@ function redirectToLoginIfNotAuthenticated({
   if (!isAuthenticated()) {
     return redirect(`/login?req=${encodeURI(`${pathname}${search}`)}`);
   }
-}
-let mode = "";
-
-function setupLightMode() {
-  const maybeMode = window.localStorage.getItem("izanami-dark-light-mode");
-  if (!maybeMode) {
-    mode = "dark";
-    window.localStorage.setItem("izanami-dark-light-mode", mode);
-  } else {
-    mode = maybeMode;
-  }
-  applyLightMode();
-}
-
-function applyLightMode() {
-  let el = document.getElementById("lightMode");
-
-  if (el) {
-    if (mode === "dark") {
-      el.classList.remove("fa-moon");
-      el.classList.remove("fa-lightbulb");
-      el.classList.add("fa-moon");
-      document.documentElement.setAttribute("data-theme", "dark");
-    } else {
-      el.classList.remove("fa-moon");
-      el.classList.remove("fa-lightbulb");
-      el.classList.add("fa-lightbulb");
-      window.document.body.classList.remove("white-mode");
-      window.document.body.classList.remove("dark-mode");
-      window.document.body.classList.add("white-mode");
-      document.documentElement.setAttribute("data-theme", "light");
-    }
-  }
-}
-function switchLightMode() {
-  mode = mode === "dark" ? "light" : "dark";
-  window.localStorage.setItem("izanami-dark-light-mode", mode);
-  applyLightMode();
 }
 
 const router = createBrowserRouter([
@@ -441,7 +409,7 @@ function RedirectToFirstTenant(): JSX.Element {
   let tenant = defaultTenant || context.user?.rights?.tenants?.[0];
   const tenantQuery = useQuery({
     queryKey: [MutationNames.TENANTS],
-    queryFn: () => queryTenants()
+    queryFn: () => queryTenants(),
   });
 
   if (tenant) {
@@ -458,8 +426,15 @@ function RedirectToFirstTenant(): JSX.Element {
 type AppLoadingState = "Loading" | "Error" | "Success";
 
 function Layout() {
-  const { user, setUser, logout, expositionUrl, version } =
-    useContext(IzanamiContext);
+  const {
+    user,
+    setUser,
+    logout,
+    expositionUrl,
+    version,
+    updateLightMode,
+    mode,
+  } = useContext(IzanamiContext);
   const [isOpenModal, setIsOpenModal] = useState(false);
   const [loadingState, setLoadingState] = React.useState<AppLoadingState>(
     !user?.username || !expositionUrl ? "Loading" : "Success"
@@ -561,12 +536,18 @@ function Layout() {
                   </li>
                 )}
                 <li
-                  onClick={() => switchLightMode()}
+                  onClick={() =>
+                    updateLightMode(
+                      mode === Modes.dark ? Modes.light : Modes.dark
+                    )
+                  }
                   className="me-2 d-flex align-items-center justify-content-end my-2"
                 >
                   <i
                     id="lightMode"
-                    className="fa fa-lightbulb"
+                    className={`${
+                      mode === Modes.light ? "fa fa-lightbulb" : "fa fa-moon"
+                    }`}
                     style={{ color: "var(--color_level2)", cursor: "pointer" }}
                   />
                 </li>
@@ -637,6 +618,10 @@ function Layout() {
   }
 }
 
+function parseMode(modeStr: string) {
+  return modeStr === Modes.light ? Modes.light : Modes.dark;
+}
+
 export class App extends Component {
   state: TIzanamiContext & {
     confirmation?: {
@@ -653,9 +638,29 @@ export class App extends Component {
       title?: string;
     };
   };
+  setupLightMode() {
+    const mode = parseMode(window.localStorage.getItem(MODE_KEY) ?? "");
+    this.updateLightMode(mode);
+  }
+  updateLightMode(mode: ModeValue) {
+    window.localStorage.setItem(MODE_KEY, mode);
+
+    this.setState({ mode: mode });
+    window.document.body.classList.remove("white-mode");
+    window.document.body.classList.remove("dark-mode");
+    if (mode === Modes.dark) {
+      window.document.body.classList.add("dark-mode");
+      document.documentElement.setAttribute("data-theme", Modes.dark);
+    } else {
+      window.document.body.classList.add("white-mode");
+      document.documentElement.setAttribute("data-theme", Modes.light);
+    }
+  }
   constructor(props: any) {
     super(props);
     this.state = {
+      updateLightMode: (m) => this.updateLightMode(m),
+      mode: Modes.dark,
       version: undefined,
       user: undefined,
       setUser: (user: TUser) => {
@@ -820,12 +825,12 @@ export class App extends Component {
   componentDidMount(): void {
     this.fetchIntegrationsIfNeeded();
     this.fetchExpositionUrlIfNeeded();
+    this.setupLightMode();
   }
 
   componentDidUpdate(): void {
     this.fetchIntegrationsIfNeeded();
     this.fetchExpositionUrlIfNeeded;
-    setupLightMode();
   }
 
   render() {

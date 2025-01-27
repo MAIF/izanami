@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useState } from "react";
 import { Link, NavLink, useParams } from "react-router-dom";
+import CodeMirror from "@uiw/react-codemirror";
 import {
   ClassicalFeature,
   DAYS,
@@ -42,6 +43,7 @@ import {
 } from "../utils/queries";
 import {
   IzanamiContext,
+  Modes,
   hasRightForProject,
   useProjectRight,
 } from "../securityContext";
@@ -58,11 +60,13 @@ import { useForm, Controller } from "react-hook-form";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { Tooltip } from "react-tooltip";
+import { Tooltip as LocalToolTip } from "./Tooltip";
 import { Form } from "./Form";
 import { Loader } from "./Loader";
 import MultiSelect, { Option } from "./MultiSelect";
 import { constraints } from "@maif/react-forms";
 import { ResultTypeIcon } from "./ResultTypeIcon";
+import { json } from "@codemirror/lang-json";
 
 type FeatureFields =
   | "id"
@@ -89,6 +93,7 @@ interface FeatureTestType {
   user?: string;
   date: Date;
   context?: string;
+  payload?: string;
 }
 export const Strategy = {
   all: { id: "All", label: "All" },
@@ -1027,7 +1032,7 @@ function ExistingFeatureTestForm(props: {
   const { control, register, handleSubmit } = useForm<FeatureTestType>();
   const { feature } = props;
 
-  const [message, setMessage] = useState<string | undefined>(undefined);
+  const [message, setMessage] = useState<object | undefined>(undefined);
   const { tenant } = useParams();
 
   const contextQuery = useQuery({
@@ -1035,22 +1040,27 @@ function ExistingFeatureTestForm(props: {
     queryFn: () => queryContextsForProject(tenant!, feature.project!),
   });
 
+  const { mode } = React.useContext(IzanamiContext);
+
   const featureTestMutation = useMutation({
     mutationFn: ({
       context,
       user,
       date,
+      payload,
     }: {
       date: Date;
       user: string;
       context: string;
+      payload?: string;
     }) =>
       testExistingFeature(
         tenant!,
         feature.id!,
         date,
         context ?? "",
-        user ?? ""
+        user ?? "",
+        payload
       ),
   });
 
@@ -1059,109 +1069,196 @@ function ExistingFeatureTestForm(props: {
   } else if (contextQuery.data) {
     const allContexts = possiblePaths(contextQuery.data);
     return (
-      <form
-        onSubmit={handleSubmit(({ user, date, context }) => {
-          setMessage("");
-          featureTestMutation
-            .mutateAsync({
-              context: context ?? "",
-              user: user ?? "",
-              date,
-            })
-            .then(({ active }) => {
-              let message = "";
-              if (feature.resultType === "boolean") {
-                message = `${feature.name} would be ${
-                  active ? "active" : "inactive"
-                } on ${format(date, "yyyy-MM-dd")}${
-                  user ? ` for user ${user}` : ""
-                }${context ? ` for context ${context}` : ""}`;
-              } else {
-                message = `${feature.name} value would be ${active} on ${format(
-                  date,
-                  "yyyy-MM-dd"
-                )}${user ? ` for user ${user}` : ""}${
-                  context ? ` for context ${context}` : ""
-                }`;
-              }
-              setMessage(message);
-            });
-        })}
-        className="d-flex flex-column"
-      >
-        <label className="mt-3">
-          Context
-          <Controller
-            name={`context`}
-            control={control}
-            defaultValue={props.context ?? ""}
-            render={({ field: { onChange, value } }) => (
-              <Select
-                value={{ label: value, value }}
-                onChange={(e) => {
-                  onChange(e?.value);
-                }}
-                styles={customStyles}
-                options={allContexts
-                  .map((c) => c.substring(1))
-                  .sort()
-                  .map((c) => ({ value: c, label: c }))}
-                isClearable
-              />
-            )}
-          />
-        </label>
-        <label className="mt-3 col-2">
-          Date
-          <Controller
-            name="date"
-            defaultValue={new Date()}
-            control={control}
-            render={({ field: { onChange, value } }) => {
-              return (
-                <input
-                  className="form-control"
-                  defaultValue={format(new Date(), "yyyy-MM-dd")}
-                  value={value ? format(value, "yyyy-MM-dd") : ""}
-                  onChange={(e) => {
-                    onChange(parse(e.target.value, "yyyy-MM-dd", new Date()));
-                  }}
-                  type="date"
-                />
-              );
-            }}
-          />
-        </label>
-        <label className="mt-3">
-          User
-          <input
-            type="text"
-            className="form-control"
-            {...register("user")}
-          ></input>
-        </label>
-        {message && (
-          <div className="d-flex justify-content-end">
-            <output className="m-2 py-1 px-3 anim__highlighter">
-              {message}
-            </output>
-          </div>
-        )}
-        <div className="d-flex justify-content-end">
-          {props.cancel && (
-            <button
-              type="button"
-              className="btn btn-danger-light m-2"
-              onClick={() => props.cancel?.()}
-            >
-              Cancel
-            </button>
-          )}
-          <button type="submit" className="btn btn-primary m-2">
-            Test feature
+      <div className="position-relative">
+        <div className="position-absolute top-0 end-0 px-3">
+          <button
+            className="btn btn-danger-light btn-lg"
+            aria-label="Close test feature form"
+            onClick={() => props?.cancel?.()}
+          >
+            <i className="fa-solid fa-xmark" />
           </button>
         </div>
-      </form>
+        <div className="my-4">
+          <form
+            onSubmit={handleSubmit(({ user, date, context, payload }) => {
+              setMessage(undefined);
+              featureTestMutation
+                .mutateAsync({
+                  context: context ?? "",
+                  user: user ?? "",
+                  date,
+                  payload,
+                })
+                .then((response) => {
+                  setMessage(response);
+                });
+            })}
+            className="container"
+          >
+            <div className="row justify-content-center">
+              <div className="col-10">
+                <h4>Test feature</h4>
+                <div className="d-flex">
+                  <div style={{ width: "45%" }}>
+                    <div className="row ">
+                      <label>
+                        Context
+                        <LocalToolTip id="context-tooltip-id">
+                          Context to use for feature evaluation
+                        </LocalToolTip>
+                        <Controller
+                          name={`context`}
+                          control={control}
+                          defaultValue={props.context ?? undefined}
+                          render={({ field: { onChange, value } }) => (
+                            <Select
+                              value={value ? { label: value, value } : null}
+                              onChange={(e) => {
+                                onChange(e?.value ?? null);
+                              }}
+                              styles={customStyles}
+                              options={allContexts
+                                .map((c) => c.substring(1))
+                                .sort()
+                                .map((c) => ({ value: c, label: c }))}
+                              isClearable
+                              isDisabled={allContexts?.length === 0}
+                              placeholder={
+                                allContexts?.length > 0
+                                  ? "Specify context"
+                                  : "No context available"
+                              }
+                            />
+                          )}
+                        />
+                      </label>
+                    </div>
+                    <div className="row ">
+                      <label className="mt-3">
+                        Date
+                        <LocalToolTip id="date-tooltip-id">
+                          Date to use for feature evaluation
+                        </LocalToolTip>
+                        <br />
+                        <Controller
+                          name="date"
+                          defaultValue={new Date()}
+                          control={control}
+                          render={({ field: { onChange, value } }) => {
+                            return (
+                              <input
+                                style={{ width: "100%" }}
+                                className="form-control"
+                                defaultValue={format(
+                                  new Date(),
+                                  "yyyy-MM-dd'T'HH:mm"
+                                )}
+                                value={
+                                  value
+                                    ? format(value, "yyyy-MM-dd'T'HH:mm")
+                                    : ""
+                                }
+                                onChange={(e) => {
+                                  onChange(
+                                    parse(
+                                      e.target.value,
+                                      "yyyy-MM-dd'T'HH:mm",
+                                      new Date()
+                                    )
+                                  );
+                                }}
+                                type="datetime-local"
+                              />
+                            );
+                          }}
+                        />
+                      </label>
+                    </div>
+                    <div className="row ">
+                      <label className="mt-3">
+                        User
+                        <LocalToolTip id="user-tooltip-id">
+                          User to use for feature evaluation
+                        </LocalToolTip>
+                        <input
+                          type="text"
+                          className="form-control"
+                          {...register("user")}
+                        ></input>
+                      </label>
+                    </div>
+                    <div className="row">
+                      <label className="mt-3">
+                        Payload
+                        <LocalToolTip id="payload-tooltip-id">
+                          Payload to use for feature evaluation.
+                          <br />
+                          This will only be used by script features.
+                        </LocalToolTip>
+                        <Controller
+                          name="payload"
+                          control={control}
+                          render={({ field: { onChange, value } }) => (
+                            <CodeMirror
+                              value={value}
+                              onChange={onChange}
+                              extensions={[json()]}
+                              theme={`${
+                                mode === Modes.dark ? "dark" : "light"
+                              }`}
+                              id="test-payload"
+                              minHeight="100px"
+                              maxHeight="300px"
+                            />
+                          )}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                  <div
+                    className="d-flex align-items-center justify-content-center"
+                    style={{ width: "10%" }}
+                  >
+                    <div
+                      style={{
+                        borderRight: "2px solid var(--color_level2)",
+                        height: "100%",
+                      }}
+                    />
+                  </div>
+                  <div
+                    style={{ width: "45%" }}
+                    className="d-flex flex-column justify-content-center"
+                  >
+                    <div className="row justify-content-center align-items-center">
+                      <label>
+                        Result
+                        <CodeMirror
+                          value={
+                            message
+                              ? JSON.stringify(message, null, 2)
+                              : 'No result yet, click "Test feature"\nto fetch feature state'
+                          }
+                          extensions={message ? [json()] : []}
+                          readOnly={true}
+                          theme={`${mode === Modes.dark ? "dark" : "light"}`}
+                          id="test-result"
+                        />
+                      </label>
+                      <div className="d-flex justify-content-end ">
+                        <button type="submit" className="btn btn-primary mt-2">
+                          Test feature
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
     );
   } else {
     return <Loader message="Loading..." />;
@@ -1329,14 +1426,11 @@ export function OverloadTable(props: {
       },
       customForm: (datum: TContextOverload, cancel: () => void) => {
         return (
-          <>
-            <h4>Test feature</h4>
-            <ExistingFeatureTestForm
-              context={datum.path}
-              feature={datum}
-              cancel={cancel}
-            />
-          </>
+          <ExistingFeatureTestForm
+            context={datum.path}
+            feature={datum}
+            cancel={cancel}
+          />
         );
       },
     },
@@ -1377,12 +1471,11 @@ export function OverloadTable(props: {
 export function FeatureTestForm(props: {
   feature: TCompleteFeature;
   cancel?: () => any;
-  noContext?: boolean;
 }) {
   const { tenant } = useParams();
   const { control, register, handleSubmit } = useForm<FeatureTestType>();
 
-  const [message, setMessage] = useState<string | undefined>(undefined);
+  const [message, setMessage] = useState<object | undefined>(undefined);
 
   // TODO handle context
   const featureTestMutation = useMutation({
@@ -1397,18 +1490,21 @@ export function FeatureTestForm(props: {
     }) => testFeature(tenant!, feature, user, date),
   });
 
+  const { mode } = React.useContext(IzanamiContext);
+
   return (
     <form
       onSubmit={handleSubmit(({ user, date, context }) => {
-        setMessage("");
+        setMessage(undefined);
         featureTestMutation
           .mutateAsync({
             feature: props.feature,
             user: user ?? "",
             date,
           })
-          .then(({ active }) => {
-            if (props.feature.resultType === "boolean") {
+          .then((result) => {
+            setMessage(result);
+            /*if (props.feature.resultType === "boolean") {
               setMessage(
                 `feature ${props.feature.name} would be ${
                   active ? "active" : "inactive"
@@ -1423,23 +1519,16 @@ export function FeatureTestForm(props: {
                   user ? ` for user ${user}` : ""
                 }${context ? ` for context ${context}` : ""}`
               );
-            }
+            }*/
           });
       })}
       className="d-flex flex-column"
     >
-      {!props.noContext && (
-        <label>
-          Context path
-          <input
-            type="text"
-            className="form-control"
-            {...register("context")}
-          ></input>
-        </label>
-      )}
-      <label className="col-6">
+      <label className="mt-3">
         Date
+        <LocalToolTip id="date-tooltip-id">
+          Date to use for feature evaluation
+        </LocalToolTip>
         <Controller
           name="date"
           defaultValue={new Date()}
@@ -1459,33 +1548,70 @@ export function FeatureTestForm(props: {
           }}
         />
       </label>
-      <label className="mt-2">
+      <label className="mt-3">
         User
+        <LocalToolTip id="date-tooltip-id">
+          User to use for feature evaluation
+        </LocalToolTip>
         <input
           type="text"
           className="form-control"
           {...register("user")}
         ></input>
       </label>
-      {message && (
-        <div className="d-flex justify-content-end">
-          <output className="m-2 py-1 px-3 anim__highlighter">{message}</output>
-        </div>
-      )}
-      <div className="d-flex justify-content-end">
+      <label className="mt-3">
+        Payload
+        <LocalToolTip id="payload-tooltip-id">
+          Payload to use for feature evaluation.
+          <br />
+          This will only be used by script features.
+        </LocalToolTip>
+        <Controller
+          name="payload"
+          control={control}
+          render={({ field: { onChange, value } }) => (
+            <CodeMirror
+              value={value}
+              onChange={onChange}
+              extensions={[json()]}
+              theme={`${mode === Modes.dark ? "dark" : "light"}`}
+              id="test-payload"
+              minHeight="100px"
+              maxHeight="300px"
+            />
+          )}
+        />
+      </label>
+      <div className="d-flex justify-content-end  mt-3">
         {props.cancel && (
           <button
             type="button"
-            className="btn btn-danger-light m-2"
+            className="btn btn-danger-light"
             onClick={() => props.cancel?.()}
           >
             Cancel
           </button>
         )}
-        <button type="submit" className="btn btn-secondary m-2">
+        <button type="submit" className="btn btn-secondary">
           Test feature
         </button>
       </div>
+      {message && (
+        <label>
+          Result
+          <CodeMirror
+            value={
+              message
+                ? JSON.stringify(message, null, 2)
+                : 'No result yet, click "Test feature"\nto fetch feature state'
+            }
+            extensions={message ? [json()] : []}
+            readOnly={true}
+            theme={`${mode === Modes.dark ? "dark" : "light"}`}
+            id="test-result"
+          />
+        </label>
+      )}
     </form>
   );
 }
@@ -1850,12 +1976,7 @@ export function FeatureTable(props: {
         return actions(feature).includes("test");
       },
       customForm: (datum: TLightFeature, cancel: () => void) => {
-        return (
-          <>
-            <h4>Test feature</h4>
-            <ExistingFeatureTestForm feature={datum} cancel={cancel} />
-          </>
-        );
+        return <ExistingFeatureTestForm feature={datum} cancel={cancel} />;
       },
     },
     duplicate: {
