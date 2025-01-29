@@ -30,7 +30,8 @@ export async function generate() {
   await page.getByRole("button", { name: "Invite new user" }).hover();
   await screenshot("empty-invitation-form");
   await page.getByLabel("Email to invite").fill("test@foo.com");
-  await page.getByRole("combobox", { name: "New tenant" }).click();
+  await page.getByRole("button", { name: "Add tenant right" }).click();
+  await page.getByRole("combobox", { name: "Tenant" }).click();
   await page.getByRole("form").getByText("bookstore", { exact: true }).click();
   await page.getByRole("button", { name: "Add project rights" }).click();
   await page.getByRole("combobox", { name: "new project" }).click();

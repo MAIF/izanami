@@ -42,14 +42,14 @@ export async function generate() {
   await page.getByRole("link", { name: "Test feature" }).hover();
   await screenshot("hover-test");
   await page.getByRole("link", { name: "Test feature" }).click();
-  await page.getByRole("button", { name: "Test feature" }).click();
+  await page.getByRole("button", { name: "Test feature", exact: true }).click();
   await screenshot("prod-inactive");
   await page.getByRole("combobox", { name: "Context" }).click();
   await page.getByText("QA", { exact: true }).click();
-  await page.getByRole("button", { name: "Test feature" }).click();
+  await page.getByRole("button", { name: "Test feature", exact: true }).click();
   await screenshot("qa-active");
 
-  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Close Test Feature" }).click();
   await openActions(page, "comments");
   await page.getByRole("link", { name: "Url" }).click();
   await page.getByRole("combobox", { name: "Context (optional)" }).click();

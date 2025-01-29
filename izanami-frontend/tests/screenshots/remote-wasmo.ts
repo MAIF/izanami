@@ -81,10 +81,10 @@ export async function generate() {
   await openActions(page, "wasmobile");
 
   await page.getByRole("link", { name: "Test feature" }).click();
-  await page.getByRole("combobox", { name: "Context", exact: true }).click();
+  await page.getByRole("combobox", { name: "Context" }).click();
   await page.getByText("mobile", { exact: true }).click();
-  await page.getByRole("button", { name: "Test feature" }).click();
-  await page.getByText("wasmobile would be active").click();
+  await page.getByRole("button", { name: "Test feature", exact: true }).click();
+  await page.getByText('"active": true').click();
   await page.waitForTimeout(200);
   await screenshot("mobile-active");
 
@@ -92,8 +92,8 @@ export async function generate() {
     .getByRole("combobox", { name: "Context mobile", exact: true })
     .click();
   await page.getByText("prod/mobile", { exact: true }).click();
-  await page.getByRole("button", { name: "Test feature" }).click();
-  await page.getByText("wasmobile would be active").click();
+  await page.getByRole("button", { name: "Test feature", exact: true }).click();
+  await page.getByText('"active": true').click();
   await page.waitForTimeout(200);
   await screenshot("prod-mobile-active");
 
@@ -101,8 +101,8 @@ export async function generate() {
     .getByRole("combobox", { name: "Context prod/mobile", exact: true })
     .click();
   await page.getByText("prod", { exact: true }).click();
-  await page.getByRole("button", { name: "Test feature" }).click();
-  await page.getByText("wasmobile would be inactive").click();
+  await page.getByRole("button", { name: "Test feature", exact: true }).click();
+  await page.getByText('"active": false').click();
   await page.waitForTimeout(200);
   await screenshot("prod-inactive");
 
