@@ -44,11 +44,11 @@ export async function generate() {
   await page.getByRole("link", { name: "Test feature" }).click();
   await page.waitForTimeout(500);
   await screenshot("test-form");
-  await page.getByRole("button", { name: "Test feature" }).click();
-  await page.getByText("demo-feature would be active").waitFor();
+  await page.getByRole("button", { name: "Test feature", exact: true }).click();
+  await page.getByText('"active": true').waitFor();
   await page.waitForTimeout(500);
   await screenshot("feature-result");
-  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Close test feature form" }).click();
   await openActions(page, "demo-feature");
   await page.getByRole("link", { name: "Url" }).click();
   await page.waitForTimeout(200);
