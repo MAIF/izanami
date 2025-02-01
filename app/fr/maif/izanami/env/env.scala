@@ -65,12 +65,8 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
   val logger = Logger("izanami")
   val defaultSecret = configuration.get[String]("app.default-secret")
   val secret = configuration.get[String]("app.secret")
+  val extensionsSchema = configuration.get[String]("app.pg.extensions-schema")
 
-  if (defaultSecret == secret) {
-    logger.warn(
-      "You're using Izanami default secret, which is not safe for production. Please generate a new secret and provide it to Izanami."
-    )
-  }
   if (defaultSecret == secret) {
     logger.warn("You're using Izanami default secret, which is not safe for production. Please generate a new secret and provide it to Izanami (see https://maif.github.io/izanami/docs/guides/configuration#secret for details).")
   }

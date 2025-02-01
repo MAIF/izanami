@@ -42,6 +42,32 @@ If a connection URI is provided, all other parameters will be ignored.
 | Log activity            | IZANAMI_PG_LOG_ACTIVITY     | app.pg.log-activity     | false          |
 | Pipelining limit        | IZANAMI_PG_PIPELINING_LIMIT | app.pg.pipelining-limit | 256            |
 
+
+#### Database SSL
+
+Izanami provides some configuration options to secure database connection with SSL
+
+|                             | Environnement variable           | Program argument   | Default        |
+| ----------------------------| ---------------------------------| -------------------| -------------- |
+| SSL                         | IZANAMI_PG_SSL_ENABLED           | app.pg.ssl.enabled | false          |
+| Mode                        | IZANAMI_PG_SSL_MODE              | app.pg.ssl.mode    | REQUIRE        |
+| Trusted certtificates paths |                                  | trusted-certs-path | []             |
+| Trusted certificate path    | IZANAMI_PG_SSL_TRUSTED_CERT_PATH | trusted-cert-path  |                |
+| Trusted certificates        |                                  | trusted-certs      | []             |
+| Trusted certificate         | IZANAMI_PG_SSL_TRUSTED_CERT      | trusted-cert       |                |
+| Client certificates paths   |                                  | client-certs-path  | []             |
+| Client certificate path     | IZANAMI_PG_SSL_CLIENT_CERT_PATH  | client-cert-path   |                |
+| Client certificates         |                                  | client-certs       | []             |
+| Client certificate          | IZANAMI_PG_SSL_CLIENT_CERT       | client-cert        |                |
+| Trust all certificates      | IZANAMI_PG_SSL_TRUST_ALL         | trust-all          |                |
+
+
+<Note>
+Collection variables, such as `trusted-certs-path` can be valued throught command line with the following syntax:<br/>
+`java -jar izanami.jar -Dapp.pg.ssl.trusted-certs-path.0=first_path -Dapp.pg.ssl.trusted-certs-path.1=second_path`
+</Note>
+
+
 ### HTTP server
 
 Since Izanami uses play framework under the hood, http server configuration rely heavily on play configuration keys.

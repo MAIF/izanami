@@ -16,6 +16,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       filter: List[Option[SearchEntityType]]
   ): Future[List[(String, JsObject, Double)]] = {
     val searchQuery  = new StringBuilder()
+    val extensionsSchema = env.extensionsSchema
     searchQuery.append("WITH ")
 
     var scoredQueries = List[String]()
@@ -28,8 +29,8 @@ class SearchDatastore(val env: Env) extends Datastore {
           p.id as id,
           p.name,
           p.description,
-          izanami.SIMILARITY(p.name, $$1) AS name_score,
-          izanami.SIMILARITY(p.description, $$1) AS description_score
+          $extensionsSchema.SIMILARITY(p.name, $$1) AS name_score,
+          $extensionsSchema.SIMILARITY(p.description, $$1) AS description_score
         FROM projects p
         LEFT JOIN izanami.users u ON u.username=$$2
         LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
@@ -56,8 +57,8 @@ class SearchDatastore(val env: Env) extends Datastore {
           f.project,
           f.name,
           f.description,
-          izanami.SIMILARITY(f.name, $$1) AS name_score,
-          izanami.SIMILARITY(f.description, $$1) AS description_score
+          $extensionsSchema.SIMILARITY(f.name, $$1) AS name_score,
+          $extensionsSchema.SIMILARITY(f.description, $$1) AS description_score
         FROM scored_projects p, features f
         WHERE f.project=p.name
       )
@@ -76,8 +77,8 @@ class SearchDatastore(val env: Env) extends Datastore {
         SELECT DISTINCT
           k.name,
           k.description,
-          izanami.SIMILARITY(k.name, $$1) AS name_score,
-          izanami.SIMILARITY(k.description, $$1) AS description_score
+          $extensionsSchema.SIMILARITY(k.name, $$1) AS name_score,
+          $extensionsSchema.SIMILARITY(k.description, $$1) AS description_score
         FROM apikeys k
         LEFT JOIN izanami.users u ON u.username=$$2
         LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
@@ -100,8 +101,8 @@ class SearchDatastore(val env: Env) extends Datastore {
         SELECT DISTINCT
           t.name,
           t.description,
-          izanami.SIMILARITY(t.name, $$1) AS name_score,
-          izanami.SIMILARITY(t.description, $$1) AS description_score
+          $extensionsSchema.SIMILARITY(t.name, $$1) AS name_score,
+          $extensionsSchema.SIMILARITY(t.description, $$1) AS description_score
         FROM tags t
         LEFT JOIN izanami.users u ON u.username=$$2
         LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
@@ -121,7 +122,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       scored_scripts AS (
         SELECT DISTINCT
          s.id as name,
-         izanami.SIMILARITY(s.id, $$1) as name_score
+         $extensionsSchema.SIMILARITY(s.id, $$1) as name_score
         FROM wasm_script_configurations s
         LEFT JOIN izanami.users u ON u.username=$$2
         LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
@@ -141,7 +142,7 @@ class SearchDatastore(val env: Env) extends Datastore {
         SELECT DISTINCT
           c.parent,
           c.name as name,
-          izanami.SIMILARITY(c.name, $$1) as name_score
+          $extensionsSchema.SIMILARITY(c.name, $$1) as name_score
         FROM global_feature_contexts c
         LEFT JOIN izanami.users u ON u.username=$$2
         LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
@@ -162,7 +163,7 @@ class SearchDatastore(val env: Env) extends Datastore {
                c.parent,
                c.project,
                c.name as name,
-              izanami.SIMILARITY(c.name, $$1) as name_score
+              $extensionsSchema.SIMILARITY(c.name, $$1) as name_score
               FROM feature_contexts c
               LEFT JOIN izanami.users u ON u.username=$$2
               LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
@@ -182,8 +183,8 @@ class SearchDatastore(val env: Env) extends Datastore {
              SELECT DISTINCT
                w.name,
                 w.description,
-                 izanami.SIMILARITY(w.name, $$1) as name_score,
-                izanami.SIMILARITY(w.description, $$1) as description_score
+                 $extensionsSchema.SIMILARITY(w.name, $$1) as name_score,
+                $extensionsSchema.SIMILARITY(w.description, $$1) as description_score
              FROM webhooks w
              LEFT JOIN izanami.users u ON u.username=$$2
              LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
