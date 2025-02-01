@@ -14,6 +14,7 @@ sealed abstract class IzanamiError(val message: String, val status: Int) extends
 }
 case class TenantAlreadyExists(name: String)
     extends IzanamiError(message = s"Tenant ${name} already exists", status = BAD_REQUEST)
+case class FailedToCreateTenantSchema() extends IzanamiError(message = "Tenant schema creation failed, this is either an issue with your database or Izanami SQL scripts.", status = 500)
 case class ProjectAlreadyExists(name: String, tenant: String)
     extends IzanamiError(message = s"Project ${name} already exists in tenant ${tenant}", status = BAD_REQUEST)
 case object FeatureWithThisNameAlreadyExist extends IzanamiError(
@@ -192,6 +193,8 @@ case class SearchQueryError()
 case class GenericBadRequest(override val message: String) extends IzanamiError(message = message, status = 400)
 case class PartialImportFailure(failedElements: Map[ExportedType, Seq[JsObject]])
     extends IzanamiError(message = s"Some element couldn't be imported", status = 400)
+case class DbConnectionFailure()
+  extends IzanamiError(message = s"Database result is null, this usually means that Izanami failed to connect to its database", status = 500)
 case class ImportError(table: String, json: String, errorMessage: String)
     extends IzanamiError(
       message = s"Error key while inserting into table $table with error $errorMessage values $json : ",

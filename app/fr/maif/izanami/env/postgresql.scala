@@ -4,23 +4,21 @@ import akka.http.scaladsl.util.FastFuture
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import fr.maif.izanami.datastores.HashUtils
 import fr.maif.izanami.env.PostgresqlErrors.{CHECK_VIOLATION, UNIQUE_VIOLATION}
-import fr.maif.izanami.errors.{ApiKeyFieldTooLong, ConfigurationFieldTooLong, ContextNameTooLong, EmailIsTooLong, FeatureFieldTooLong, FeatureWithThisIdAlreadyExist, FeatureWithThisNameAlreadyExist, GlobalContextNameTooLong, InternalServerError, IzanamiError, PersonnalAccessTokenFieldTooLong, ProjectFieldTooLong, TagFieldTooLong, TenantFieldTooLong, UsernameFieldTooLong, WasmScriptNameTooLong, WebhookFieldTooLong}
+import fr.maif.izanami.errors._
 import fr.maif.izanami.security.IdGenerator
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import io.vertx.core
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.net.{PemKeyCertOptions, PemTrustOptions}
-import io.vertx.pgclient.impl.PgPoolImpl
-import io.vertx.pgclient.pubsub.PgSubscriber
 import io.vertx.pgclient.{PgConnectOptions, PgException, PgPool, SslMode}
 import io.vertx.sqlclient.{PoolOptions, Row, RowSet, SqlConnection}
 import org.flywaydb.core.Flyway
+import org.flywaydb.core.api.exception.FlywayValidateException
 import play.api.libs.json.{JsArray, JsObject, Json}
 import play.api.{Configuration, Logger}
 
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
-import java.util.UUID
+import java.util.{Objects, UUID}
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success, Try}
 
@@ -58,10 +56,12 @@ class Postgresql(env: Env) {
         .setUser(user)
         .setPassword(password)
         .applyOnIf(sslEnabled) { pgopt =>
-          val mode              = SslMode.of(ssl.getOptional[String]("mode").getOrElse("VERIFY_CA"))
-          val pemTrustOptions   = new PemTrustOptions()
+          pgopt.setSsl(true)
+          val mode = SslMode.of(ssl.get[String]("mode"))
+          val pemTrustOptions = new PemTrustOptions()
           val pemKeyCertOptions = new PemKeyCertOptions()
           pgopt.setSslMode(mode)
+
           pgopt.applyOnWithOpt(ssl.getOptional[Int]("ssl-handshake-timeout"))((p, v) => p.setSslHandshakeTimeout(v))
           ssl.getOptional[Seq[String]]("trustedCertsPath").map { pathes =>
             pathes.map(p => pemTrustOptions.addCertPath(p))
@@ -98,6 +98,7 @@ class Postgresql(env: Env) {
           ssl.getOptional[Boolean]("trust-all").map { v =>
             pgopt.setTrustAll(v)
           }
+
           pgopt
         }
     }
@@ -106,7 +107,7 @@ class Postgresql(env: Env) {
   }
   lazy val vertx               = Vertx.vertx()
   private lazy val poolOptions = new PoolOptions()
-    .setMaxSize(configuration.getOptional[Int]("app.pg.pool-size").getOrElse(20))
+    .setMaxSize(configuration.get[Int]("app.pg.pool-size"))
     .applyOnWithOpt(configuration.getOptional[Int]("idle-timeout"))((p, v) => p.setIdleTimeout(v))
     .applyOnWithOpt(configuration.getOptional[Int]("max-lifetime"))((p, v) => p.setMaxLifetime(v))
 
@@ -126,7 +127,20 @@ class Postgresql(env: Env) {
     )
     config.setUsername(connectOptions.getUser)
     config.setPassword(connectOptions.getPassword)
-    config.setMaximumPoolSize(10)
+    config.setMaximumPoolSize(2)
+
+    val ssl        = configuration.getOptional[Configuration]("app.pg.ssl").getOrElse(Configuration.empty)
+    val sslEnabled = ssl.getOptional[Boolean]("enabled").getOrElse(false)
+    config.applyOnIf(sslEnabled) { config =>
+      val mode = SslMode.of("REQUIRE")
+      config.addDataSourceProperty("sslmode", mode.toString)
+      config.addDataSourceProperty("ssl", true)
+
+      if(ssl.getOptional[Boolean]("trust-all").getOrElse(false)) {
+        config.addDataSourceProperty("sslfactory", "org.postgresql.ssl.NonValidatingFactory")
+      }
+      config
+    }
     val dataSource = new HikariDataSource(config)
     val password   = defaultPassword
     val flyway     =
@@ -160,12 +174,28 @@ class Postgresql(env: Env) {
               .locations("filesystem:conf/sql/tenants", "filesystem:sql/tenants", "sql/tenants", "conf/sql/tenants")
               .baselineOnMigrate(true)
               .schemas(tenant.name)
+              .placeholders(
+                java.util.Map.of("extensions_schema", env.extensionsSchema)
+              )
               .load()
-          flyway.migrate()
+            Try {
+              val result = flyway.migrate()
+            } match {
+              case Failure(e:FlywayValidateException) => {
+                val validationResult = flyway.validateWithResult()
+                if(validationResult.invalidMigrations.asScala.map(v => v.version).contains("2")) {
+                  env.logger.info(s"""Izanami needs to repair flyway migration for tenant ${tenant.name} since extension schema is now configurable. Starting repair...""")
+                  flyway.repair()
+                  env.logger.info(s"""Repair worked, restarting migration for ${tenant.name}""")
+                  flyway.migrate()
+                } else {
+                  throw e
+                }
+              }
+              case Success(_) => ()
+            }
         })
-      })(env.executionContext)
-      .map(_ => dataSource.close())(env.executionContext)
-
+      })(env.executionContext).andThen(_ => dataSource.close())(env.executionContext)
   }
 
   def defaultPassword: String = {
@@ -277,6 +307,10 @@ class Postgresql(env: Env) {
           )
     }).flatMap { _rows =>
       Try {
+
+        if(Objects.isNull(_rows)) {
+          throw DbConnectionFailure()
+        }
         val rows = _rows.asScala.toList
         f(rows)
       } match {
@@ -284,7 +318,9 @@ class Postgresql(env: Env) {
         case Failure(e)     => FastFuture.failed(e)
       }
     }(env.executionContext)
-      .andThen { case Failure(e) => {
+      .andThen {
+        case Failure(e:DbConnectionFailure) => logger.error(e.message)
+        case Failure(e) => {
         val paramsToDisplay = params.map(p => {
           if(p != null && p.toString.length > 10_000) {
             p.toString.substring(0, 10_000) + "<param too long, it was truncated>"

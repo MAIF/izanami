@@ -12,10 +12,6 @@ lazy val root = (project in file("."))
     addArtifact(Artifact("izanami", "jar", "jar"), assembly)
   )
 
-/*packagedArtifacts in publish := {
-  Map.empty
-}*/
-
 lazy val excludesJackson = Seq(
   ExclusionRule(organization = "com.fasterxml.jackson.core"),
   ExclusionRule(organization = "com.fasterxml.jackson.datatype"),
@@ -35,7 +31,7 @@ libraryDependencies += ws
 libraryDependencies += "com.softwaremill.macwire" %% "macros" % "2.3.7" % "provided"
 
 libraryDependencies += "com.zaxxer"            % "HikariCP"                   % "5.1.0"
-libraryDependencies += "io.vertx"              % "vertx-pg-client"            % "4.5.1"
+libraryDependencies += "io.vertx"              % "vertx-pg-client"            % "4.5.12"
 libraryDependencies += "com.ongres.scram"      % "common"                     % "2.1"
 libraryDependencies += "com.ongres.scram"      % "client"                     % "2.1"
 libraryDependencies += "org.flywaydb"          % "flyway-database-postgresql" % "10.4.1" excludeAll (excludesJackson: _*)

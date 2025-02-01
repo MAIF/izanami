@@ -28,6 +28,7 @@
     <logger name="application" level="INFO" />
     <logger name="izanami-wasm" level="WARN" />
     <logger name="org.flywaydb.core.internal.scanner.filesystem.FileSystemScanner" level="OFF"/>
+    <logger name="io.vertx.sqlclient.impl.SocketConnectionBase" level="ERROR"/>
 
     <root level="INFO">
         <!--<appender-ref ref="ASYNCFILE" />-->

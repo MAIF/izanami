@@ -5,7 +5,7 @@ import fr.maif.izanami.datastores.tenantImplicits.TenantRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{InternalServerError, IzanamiError, TenantAlreadyExists, TenantDoesNotExists}
+import fr.maif.izanami.errors.{FailedToCreateTenantSchema, InternalServerError, IzanamiError, TenantAlreadyExists, TenantDoesNotExists}
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.EventService.IZANAMI_CHANNEL
 import fr.maif.izanami.events.{SourceTenantCreated, SourceTenantDeleted}
@@ -21,6 +21,7 @@ import play.api.libs.json.Json
 
 import java.util.UUID
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 class TenantsDatastore(val env: Env) extends Datastore {
   def deleteImportStatus(id: UUID): Future[Unit] = {
@@ -77,7 +78,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
 
   def createTenant(tenantCreationRequest: TenantCreationRequest, user: UserInformation): Future[Either[IzanamiError, Tenant]] = {
 
-    def createDBSchema(): Unit = {
+    def createDBSchema(): Either[IzanamiError, Unit] = {
       val connectOptions = env.postgresql.connectOptions
       val config         = new HikariConfig()
       config.setDriverClassName(classOf[org.postgresql.Driver].getName)
@@ -94,9 +95,22 @@ class TenantsDatastore(val env: Env) extends Datastore {
           .locations("filesystem:conf/sql/tenants", "filesystem:sql/tenants", "sql/tenants", "conf/sql/tenants")
           .baselineOnMigrate(true)
           .schemas(tenantCreationRequest.name)
+          .placeholders(
+            java.util.Map.of("extensions_schema", env.extensionsSchema)
+          )
           .load()
-      flyway.migrate()
+      val result = Try {
+        flyway.migrate()
+      }
       dataSource.close()
+
+      result match {
+        case Failure(e) => {
+          env.logger.error("Failed to create new tenant schema. This is either an issue with your database or Izanami SQL scripts. Cause is ", e)
+          Left(FailedToCreateTenantSchema())
+        }
+        case Success(_) => Right(())
+      }
     }
 
 
@@ -122,10 +136,17 @@ class TenantsDatastore(val env: Env) extends Datastore {
             conn=Some(conn)
           ){_ => Some(value)}
           .map(maybeFeature => maybeFeature.toRight(InternalServerError()))
-        }.flatMap {
+        }
+        .map(either => either.flatMap(t => {
+          createDBSchema().map(_ => t).left.map(err => {
+            Option(conn.transaction()).foreach(t => t.rollback())
+            env.postgresql.queryRaw(s"""DROP SCHEMA IF EXISTS ${tenantCreationRequest.name} CASCADE"""){_ => ()}
+            err
+          })
+        }))
+        .flatMap {
           case Left(value) => Left(value).future
           case r@Right(tenant) => {
-            createDBSchema()
             env.eventService.emitEvent(channel = IZANAMI_CHANNEL, event = SourceTenantCreated(tenant.name, user = user.username, authentication = user.authentication, origin = NormalOrigin))(conn)
               .map(_ => r)
           }
