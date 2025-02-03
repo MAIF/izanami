@@ -141,7 +141,7 @@ class LoginController(
                   val maybeToken = (r.json \ "id_token").get.asOpt[String]
 
                   maybeToken.fold(Future(InternalServerError(Json.obj("message" -> "Failed to retrieve token"))))(token => {
-                    val maybeClaims = JwtJson.decode(token, JwtOptions(signature = false))
+                    val maybeClaims = JwtJson.decode(token, JwtOptions(signature = false, leeway = 1))
                     maybeClaims.toOption
                       .flatMap(claims => Json.parse(claims.content).asOpt[JsObject])
                       .flatMap(json => {
@@ -154,7 +154,7 @@ class LoginController(
                             .flatMap(rs => {
                               env.datastores.users
                                 .findUser(username)
-                                .flatMap(maybeUser =>
+                                .flatMap(maybeUser => {
                                   maybeUser
                                     .fold(
                                       env.datastores.users
@@ -162,14 +162,16 @@ class LoginController(
                                           .withRights(rs))
                                     )(user => Future(Right(user.withRights(rs))))
                                     .map(either => either.map(_ => username))
-                                )
+                                })
                             })
                         }
                       })
                       .getOrElse(Future(Left(InternalServerError(Json.obj("message" -> "Failed to read token claims")))))
                       .flatMap {
                         // TODO refactor this whole method
-                        case Right(username) => env.datastores.users.createSession(username).map(id => Right(id))
+                        case Right(username) => {
+                          env.datastores.users.createSession(username).map(id => Right(id))
+                        }
                         case Left(err) => Future(Left(err))
                       }
                       .map(maybeId => {
@@ -177,12 +179,12 @@ class LoginController(
                           .map(id => {
                             env.jwtService.generateToken(id)
                           })
-                          .map(token =>
+                          .map(token => {
                             NoContent
                               .withCookies(
                                 Cookie(name = "token", value = token, httpOnly = false, sameSite = Some(SameSite.Strict))
                               )
-                          )
+                          })
                           .getOrElse(InternalServerError(Json.obj("message" -> "Failed to read token claims")))
                       })
                   })

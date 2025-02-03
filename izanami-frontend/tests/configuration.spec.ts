@@ -186,7 +186,10 @@ test.describe("Global settings page should", () => {
     await page.getByLabel("Password").press("Enter");
 
     await page
-      .getByRole("link", { name: "chromium-allow-to-update-oidc" })
+      .getByRole("link", {
+        name: "chromium-allow-to-update-oidc-rights",
+        exact: true,
+      })
       .click();
     await page.getByRole("link", { name: "project2" }).click();
     await page.getByLabel("Project settings").click();
