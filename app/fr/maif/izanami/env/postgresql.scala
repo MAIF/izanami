@@ -205,6 +205,7 @@ class Postgresql(env: Env) {
 
   def defaultUser: String = {
     val maybeUserAdminUser = configuration.getOptional[String]("app.admin.username")
+      .orElse(configuration.getOptional[String]("app.admin.user"))
     maybeUserAdminUser.getOrElse("RESERVED_ADMIN_USER")
   }
 
