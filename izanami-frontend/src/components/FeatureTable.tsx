@@ -1483,24 +1483,36 @@ export function FeatureTestForm(props: {
       feature,
       user,
       date,
+      payload,
     }: {
       date: Date;
       user: string;
       feature: TCompleteFeature;
-    }) => testFeature(tenant!, feature, user, date),
+      payload?: { [x: string]: any };
+    }) => testFeature(tenant!, feature, user, date, payload),
   });
 
   const { mode } = React.useContext(IzanamiContext);
 
   return (
     <form
-      onSubmit={handleSubmit(({ user, date, context }) => {
+      onSubmit={handleSubmit(({ user, date, payload }) => {
         setMessage(undefined);
+        let json = {};
+        if (payload) {
+          try {
+            json = JSON.parse(payload);
+          } catch (err) {
+            console.error("Failed to parse json payload", payload);
+          }
+        }
+
         featureTestMutation
           .mutateAsync({
             feature: props.feature,
             user: user ?? "",
             date,
+            payload: json as { [x: string]: any },
           })
           .then((result) => {
             setMessage(result);

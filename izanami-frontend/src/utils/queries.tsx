@@ -638,7 +638,7 @@ export function testFeature(
   feature: TCompleteFeature,
   user: string,
   date: Date,
-  payload?: string
+  payload?: { [x: string]: any }
 ): Promise<{ active: boolean }> {
   return handleFetchJsonResponse(
     fetch(
