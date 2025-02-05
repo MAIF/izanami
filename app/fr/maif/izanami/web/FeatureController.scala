@@ -47,7 +47,7 @@ class FeatureController(
               case f                                                                          => f
             }
             Feature
-              .writeFeatureForCheck(featureToEval, RequestContext(tenant = "_test_", user = user, now = date), env)
+              .writeFeatureForCheck(featureToEval, RequestContext(tenant = "_test_", user = user, now = date, data = (request.body \ "payload").asOpt[JsObject].getOrElse(Json.obj())), env)
               .map {
                 case Left(value) => value.toHttpResponse
                 case Right(json) => Ok(json)
