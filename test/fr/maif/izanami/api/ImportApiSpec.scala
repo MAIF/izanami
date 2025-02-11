@@ -17,6 +17,32 @@ import java.util.UUID
 
 class ImportApiSpec extends BaseAPISpec {
   "V2 feature import" should {
+
+    "Update context id when importing it from a tenant with different name" in {
+      val data = Seq(
+        """{"row":{"id":"techtales_prod","name":"prod","parent":null},"_type":"global_context"}
+          |{"row":{"id":"proj_prod_local","name":"local","parent":null,"project":"proj","global_parent":"techtales_prod"},"_type":"local_context"}
+          |{"row":{"id":"proj_fifou","name":"fifou","parent":null,"project":"proj","global_parent":null},"_type":"local_context"}
+          |""".stripMargin
+      )
+
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("foo").withProjects(TestProject("proj").withFeatureNames("f1")))
+        .loggedInWithAdminRights()
+        .build()
+
+      val res = situation.importV2("foo", data = data)
+
+      val response = situation.changeFeatureStrategyForContext("foo", "proj", contextPath = "prod", feature = "f1", enabled = false)
+      val localResponse = situation.changeFeatureStrategyForContext("foo", "proj", contextPath = "prod/local", feature = "f1", enabled = true)
+      val projectLocalResponse = situation.changeFeatureStrategyForContext("foo", "proj", contextPath = "fifou", feature = "f1", enabled = false)
+
+      res.status mustEqual OK
+      response.status mustEqual NO_CONTENT
+      localResponse.status mustEqual NO_CONTENT
+      projectLocalResponse.status mustEqual NO_CONTENT
+    }
+
     "allow to import features with all rights token" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("testtenant"))

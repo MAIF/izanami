@@ -5,33 +5,14 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, PartialImportFailure}
 import fr.maif.izanami.models.ExportedType.parseExportedType
 import fr.maif.izanami.models.features.{BooleanResult, BooleanResultDescriptor}
-import fr.maif.izanami.models.{
-  AbstractFeature,
-  ApiKey,
-  CompleteFeature,
-  CompleteWasmFeature,
-  ExportedType,
-  Feature,
-  FeatureType,
-  Import,
-  KeyType,
-  OverloadType,
-  RightLevels,
-  UserWithRights
-}
+import fr.maif.izanami.models.{AbstractFeature, ApiKey, CompleteFeature, CompleteWasmFeature, ExportedType, Feature, FeatureType, GlobalContextType, Import, KeyType, LocalContextType, OverloadType, RightLevels, UserWithRights}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldKey.{oldKeyReads, toNewKey}
 import fr.maif.izanami.v1.OldScripts.doesUseHttp
 import fr.maif.izanami.v1.OldUsers.{oldUserReads, toNewUser}
 import fr.maif.izanami.v1.{JavaScript, OldFeature, OldGlobalScript, WasmManagerClient}
 import fr.maif.izanami.wasm.WasmConfig
-import fr.maif.izanami.web.ImportController.{
-  extractProjectAndName,
-  parseStrategy,
-  readFile,
-  scriptIdToNodeCompatibleName,
-  unnest
-}
+import fr.maif.izanami.web.ImportController.{extractProjectAndName, parseStrategy, readFile, scriptIdToNodeCompatibleName, unnest}
 import fr.maif.izanami.web.ImportState.importResultWrites
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.{Base64, Wasmo}
 import play.api.libs.Files
@@ -316,7 +297,32 @@ class ImportController(
       }
     })
 
-    (messages.toSeq, data + (FeatureType -> features, OverloadType -> overloads, KeyType -> keys))
+    var globalContexts = data.getOrElse(GlobalContextType, Seq())
+    globalContexts = globalContexts.map(json => {
+      var id = (json \ "id").as[String]
+      if(!id.startsWith(s"${tenant}_")) {
+        val tail = id.split("_").toList.tail.mkString("_")
+        id = s"${tenant}_" + tail
+        json + ("id" -> JsString(id))
+      } else {
+        json
+      }
+    })
+
+    var localContexts = data.getOrElse(LocalContextType, Seq())
+    localContexts = localContexts.map(json => {
+      val maybeGlobalParent = (json \ "global_parent").asOpt[String]
+      maybeGlobalParent match {
+        case Some(p) if !p.startsWith(s"${tenant}_")=> {
+          val tail = p.split("_").toList.tail.mkString("_")
+          val newParent = s"${tenant}_" + tail
+          json + ("global_parent" -> JsString(newParent))
+        }
+        case _ => json
+      }
+    })
+
+    (messages.toSeq, data + (FeatureType -> features, OverloadType -> overloads, KeyType -> keys, GlobalContextType -> globalContexts, LocalContextType -> localContexts))
   }
 
   def importV1Data(
