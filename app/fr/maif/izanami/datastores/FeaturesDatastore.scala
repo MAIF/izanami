@@ -604,7 +604,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       )
   }
 
-  def searchFeature(tenant: String, tags: Set[String]): Future[Seq[AbstractFeature]] = {
+  def searchFeature(tenant: String, tags: Set[String]): Future[Seq[LightWeightFeature]] = {
     val hasTags = tags.nonEmpty
     env.postgresql
       .queryOne(
@@ -618,9 +618,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |        WHERE ft.feature = f.id
          |        GROUP BY ft.tag
          |      )
-         |    ), 'wasmConfig', (
-         |      select w.config FROM wasm_script_configurations w where w.id = f.script_config
-         |    )))::jsonb)
+         |    ), 'wasmConfig', f.script_config))::jsonb)
          |    FILTER (WHERE f.id IS NOT NULL), '[]'
          |) as "features"
          |from features f${if (hasTags) {
@@ -633,7 +631,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         schemas = Set(tenant)
       ) { r =>
         r.optJsArray("features")
-          .map(arr => arr.value.toSeq.map(js => Feature.readFeature(js).asOpt).flatMap(_.toSeq))
+          .map(arr => arr.value.toSeq.map(js => Feature.readLightWeightFeature(js).asOpt).flatMap(_.toSeq))
       }
       .map(o => o.getOrElse(Seq()))
   }

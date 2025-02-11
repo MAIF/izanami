@@ -193,7 +193,7 @@ class FeatureController(
     implicit request =>
       env.datastores.features
         .searchFeature(tenant, if (tag.isBlank) Set() else Set(tag))
-        .map(features => Ok(Json.toJson(features)(Writes.seq(featureWrite))))
+        .map(features => Ok(Json.toJson(features)(Writes.seq(lightweightFeatureWrite))))
   }
 
   def evaluateFeaturesForContext(
