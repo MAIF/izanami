@@ -277,6 +277,17 @@ class ImportController(
       }
       case obj                                      => obj
     }
+    overloads = overloads.map(json => {
+      val maybeGlobalCtx = (json \ "global_context").asOpt[String]
+      maybeGlobalCtx match {
+        case Some(c) if !c.startsWith(s"${tenant}_")=> {
+          val tail = c.split("_").toList.tail.mkString("_")
+          val newParent = s"${tenant}_" + tail
+          json + ("global_context" -> JsString(newParent))
+        }
+        case _ => json
+      }
+    })
 
     var keys     = data.getOrElse(KeyType, Seq())
     val messages = ArrayBuffer[String]()
@@ -321,6 +332,7 @@ class ImportController(
         case _ => json
       }
     })
+
 
     (messages.toSeq, data + (FeatureType -> features, OverloadType -> overloads, KeyType -> keys, GlobalContextType -> globalContexts, LocalContextType -> localContexts))
   }
