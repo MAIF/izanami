@@ -28,6 +28,7 @@ type LogSearchQueryBase = {
   order: "asc" | "desc";
   total: boolean;
   pageSize: number;
+  additionalFields: { [x: string]: any };
 };
 
 export type ProjectLogSearchQuery = LogSearchQueryBase & {

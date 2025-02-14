@@ -55,12 +55,27 @@ function decodeArrayFromUrl(value: string | null): string[] {
 }
 
 function extractSearchQueryFromUrlParams(
-  params: URLSearchParams,
-  tenant: string
-): Omit<LogSearchQuery, "total"> {
+  params: URLSearchParams
+): Omit<Omit<LogSearchQuery, "total">, "tenant"> {
+  const {
+    users,
+    types,
+    order,
+    pageSize,
+    begin,
+    end,
+    tenant: t,
+    ...rest
+  } = Object.fromEntries(params);
+
+  const additionalFields = Object.fromEntries(
+    Object.entries(rest).map(([key, value]) => {
+      console.log("value", value);
+      return [key, JSON.parse(value)];
+    })
+  );
+
   return {
-    ...Object.fromEntries(params),
-    tenant,
     users: decodeArrayFromUrl(params.get("users")),
     types: decodeArrayFromUrl(params.get("types")) as any,
     order: (params.get("order") ?? "desc") as any,
@@ -82,6 +97,7 @@ function extractSearchQueryFromUrlParams(
           new Date()
         )
       : undefined,
+    additionalFields: additionalFields,
   };
 }
 
@@ -105,7 +121,8 @@ type AuditLogProps = {
   eventUrl: string;
   customSearchFields?: (
     onChange: (value: any) => undefined,
-    clear: () => undefined
+    clear: () => undefined,
+    defaultValue: { [x: string]: any }
   ) => React.ReactNode;
 };
 
@@ -114,8 +131,12 @@ export function fetchLogs(
   cursor: number | null,
   query: LogSearchQuery
 ): Promise<{ events: LogEntry[]; count: number | null }> {
-  const { users, types } = query;
-  const searchPart = Object.entries({ ...query, cursor: cursor })
+  const { additionalFields, ...rest } = query;
+  const searchPart = Object.entries({
+    ...rest,
+    ...additionalFields,
+    cursor: cursor,
+  })
     .map(([key, value]) => {
       console.log({ key, value });
       if (!value || (Array.isArray(value) && value.length === 0)) {
@@ -134,8 +155,7 @@ export function fetchLogs(
       }
     })
     .filter((str) => str.length > 0);
-  console.log("foo");
-  console.log("r", `${eventUrl}?${searchPart.join("&")}`);
+
   return handleFetchJsonResponse(
     fetch(`${eventUrl}?${searchPart.join("&")}`)
   ).then((logs) => {
@@ -161,7 +181,10 @@ export function AuditLog(props: AuditLogProps) {
   const customSearchFields = props.customSearchFields;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const query = extractSearchQueryFromUrlParams(searchParams, tenant!);
+  const query = {
+    ...extractSearchQueryFromUrlParams(searchParams),
+    tenant: tenant,
+  };
   const [page, setPage] = useState(0);
   const totalRef = React.useRef<number | undefined>(undefined);
   const key = Object.entries(query)
@@ -221,16 +244,26 @@ export function AuditLog(props: AuditLogProps) {
         defaultValue={query}
         onSubmit={(query) => {
           totalRef.current = undefined;
-          const { users, begin, end, types } = query;
-          const param = Object.fromEntries(
-            Object.entries(query).map(([key, value]) => {
-              let v = value;
-              if (Array.isArray(value)) {
-                v = value.join(",");
-              }
-              return [key, v];
+          const { additionalFields, ...rest } = query;
+
+          const serializedAdditionalFields = Object.fromEntries(
+            Object.entries(additionalFields).map(([key, value]) => {
+              return [key, JSON.stringify(value)];
             })
           );
+
+          const param = Object.fromEntries(
+            Object.entries({ ...serializedAdditionalFields, ...rest }).map(
+              ([key, value]) => {
+                let v = value;
+                if (Array.isArray(value)) {
+                  v = value.join(",");
+                }
+                return [key, v];
+              }
+            )
+          );
+          console.log("param", param);
           queryClient.invalidateQueries({
             // TODO combine eventUrl with params
             queryKey: "",
@@ -239,14 +272,14 @@ export function AuditLog(props: AuditLogProps) {
             search: `?${createSearchParams({
               ...param,
               pageSize: "" + DEFAULT_PAGE_SIZE,
-              begin: begin
+              begin: query?.begin
                 ? encodeURIComponent(
-                    format(begin, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+                    format(query?.begin, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
                   )
                 : "",
-              end: end
+              end: query?.end
                 ? encodeURIComponent(
-                    format(end, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+                    format(query?.end, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
                   )
                 : "",
             })}`,
@@ -308,8 +341,17 @@ export function AuditLog(props: AuditLogProps) {
                         <SortButton
                           currentState={query.order}
                           onChange={(newState) => {
+                            const serializedAdditionalFields =
+                              Object.fromEntries(
+                                Object.entries(query.additionalFields).map(
+                                  ([key, value]) => {
+                                    return [key, JSON.stringify(value)];
+                                  }
+                                )
+                              );
                             navigate({
                               search: `?${createSearchParams({
+                                ...serializedAdditionalFields,
                                 users: query.users.join(","),
                                 types: query.types.join(","),
                                 pageSize: "" + query.pageSize,
@@ -567,7 +609,8 @@ function SearchCriterions(props: {
   defaultValue?: Omit<LogSearchQuery, "order" | "total" | "pageSize">;
   customSearchFields?: (
     onChange: (value: { [x: string]: any }) => undefined,
-    clear: () => undefined
+    clear: () => undefined,
+    defaultValue: { [x: string]: any }
   ) => React.ReactNode;
 }) {
   const methods = useForm<
@@ -720,11 +763,10 @@ function SearchCriterions(props: {
           {customSearchFields &&
             customSearchFields(
               (v) => {
-                Object.entries(v).map(([key, value]) => {
-                  setValue(key, value);
-                });
+                setValue("additionalFields", v);
               },
-              () => {}
+              () => {},
+              props?.defaultValue?.additionalFields || {}
             )}
         </div>
         <div className="row">
