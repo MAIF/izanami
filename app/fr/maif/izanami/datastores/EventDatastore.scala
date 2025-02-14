@@ -65,6 +65,7 @@ class EventDatastore(val env: Env) extends Datastore {
   def listEventsForTenant(tenant: String, request: TenantEventRequest): Future[(Seq[IzanamiEvent], Option[Long])] = {
     def queryBody(startIndex: Int): (String, List[AnyRef]) = {
       var index = startIndex
+      val entityIds = request.features.concat(request.projects)
       val query =
         s"""
            |FROM events e
@@ -73,10 +74,15 @@ class EventDatastore(val env: Env) extends Datastore {
            |${request.begin.map(_ => s"AND e.emitted_at >= $$${index += 1; index}").getOrElse("")}
            |${request.end.map(_ => s"AND e.emitted_at <= $$${index += 1; index}").getOrElse("")}
            |${if (request.eventTypes.nonEmpty) s"AND e.event_type = ANY($$${index += 1; index}::izanami.LOCAL_EVENT_TYPES[])" else ""}
+           |${if (entityIds.nonEmpty) s"""AND (
+              |  e.entity_id=ANY($$${index += 1; index})
+              |${if(request.projects.nonEmpty) s" OR (e.event_type IN ('FEATURE_CREATED', 'FEATURE_UPDATED', 'FEATURE_DELETED') AND e.event->>'projectId'=ANY($$${index += 1; index}::TEXT[]))"}
+              |)""".stripMargin
+              else ""}
            |""".stripMargin
 
       (query, List(
-        Option(request.users.toArray).filter(_.nonEmpty), request.begin.map(_.atOffset(ZoneOffset.UTC)), request.end.map(_.atOffset(ZoneOffset.UTC)), Option(request.eventTypes.map(_.name).toArray).filter(_.nonEmpty)
+        Option(request.users.toArray).filter(_.nonEmpty), request.begin.map(_.atOffset(ZoneOffset.UTC)), request.end.map(_.atOffset(ZoneOffset.UTC)), Option(request.eventTypes.map(_.name).toArray).filter(_.nonEmpty), Option(entityIds.toArray).filter(_.nonEmpty), Option(request.projects.toArray).filter(_.nonEmpty)
       ).collect { case Some(t: AnyRef) => t })
     }
 

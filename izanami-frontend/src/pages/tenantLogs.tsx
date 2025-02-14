@@ -2,21 +2,29 @@ import { useParams } from "react-router-dom";
 import { AuditLog } from "../components/AuditLogs";
 import { Controller, useFormContext } from "react-hook-form";
 import AsyncCreatableSelect from "react-select/async-creatable";
-import { searchEntitiesByTenant } from "../utils/queries";
+import {
+  fetchFeature,
+  queryProject,
+  queryProjectById,
+  searchEntitiesByTenant,
+} from "../utils/queries";
 import { customStyles } from "../styles/reactSelect";
+import { useEffect, useState } from "react";
+import { Loader } from "../components/Loader";
 
 export function TenantAudit() {
   const { tenant } = useParams();
   return (
     <AuditLog
       eventUrl={`/api/admin/tenants/${tenant!}/logs`}
-      customSearchFields={(onChange, clear) => (
+      customSearchFields={(onChange, clear, defaultValue) => (
         <div className="col-12 col-xl-6 mb-4">
           <label>Entities</label>
           <EntitySelector
             tenant={tenant!}
             onChange={(values) => onChange(values)}
             clear={clear}
+            defaultValue={defaultValue}
           />
         </div>
       )}
@@ -55,18 +63,93 @@ function EntitySelector(props: {
   tenant: string;
   onChange: (v: any) => void;
   clear: () => void;
+  defaultValue?: { features?: string[]; projects?: string[] };
 }) {
-  return (
+  const [ready, setReady] = useState<
+    | {
+        ready: true;
+        data: { label: string; value: string }[];
+      }
+    | { ready: false }
+  >({ ready: false });
+  useEffect(() => {
+    const featureToFetch = props?.defaultValue?.features || [];
+    const projectTofetch = props?.defaultValue?.projects || [];
+    if (featureToFetch.length === 0 && projectTofetch.length === 0) {
+      setReady({ ready: true, data: [] });
+    }
+
+    let promises = [];
+    if (featureToFetch) {
+      promises.push(
+        Promise.all(featureToFetch.map((f) => fetchFeature(props.tenant, f)))
+      );
+    } else {
+      promises.push(Promise.resolve([]));
+    }
+
+    if (projectTofetch) {
+      promises.push(
+        Promise.all(
+          projectTofetch.map((p) => queryProjectById(props.tenant, p))
+        )
+      );
+    } else {
+      promises.push([]);
+    }
+
+    Promise.all(promises)
+      .then(([features, projects]) => {
+        console.log("[features, projects]", [features, projects]);
+        return features
+          .filter((f) => Boolean(f))
+          .map((f: any) => ({
+            label: (
+              <span>
+                <i className="fas fa-rocket" />
+                &nbsp;{f.name} (<i className="fas fa-building" /> {f.project})
+              </span>
+            ),
+            value: f.id,
+          }))
+          .concat(
+            projects.map((p: any) => ({
+              label: (
+                <span>
+                  <i className="fas fa-building" />
+                  &nbsp;{p.name}
+                </span>
+              ),
+              value: p.id,
+            }))
+          );
+      })
+      .then((options) => setReady({ ready: true, data: options }));
+  }, []);
+  console.log("data", ready.data);
+  return !ready.ready ? (
+    <Loader message="Loading..." />
+  ) : (
     <AsyncCreatableSelect
       loadOptions={loadEntities(props.tenant)}
       styles={customStyles}
+      defaultValue={ready.data}
       isMulti
       onChange={(selected) => {
         const value = selected.reduce((acc: any, { type, value }) => {
-          if (!acc[type]) {
-            acc[type] = [];
+          let typeNameForQuery: string = type;
+          switch (type) {
+            case "feature":
+              typeNameForQuery = "features";
+              break;
+            case "project":
+              typeNameForQuery = "projects";
+              break;
           }
-          acc[type].push(value);
+          if (!acc[typeNameForQuery]) {
+            acc[typeNameForQuery] = [];
+          }
+          acc[typeNameForQuery].push(value);
 
           return acc;
         }, {});
