@@ -408,10 +408,27 @@ export function AuditLog(props: AuditLogProps) {
                     id: "eventId",
                     cell: (info) => {
                       const rowValue = info.row.original;
-                      if ("conditions" in rowValue) {
+                      console.log("rowValue", rowValue);
+                      const type = rowValue.type;
+                      // TODO refactor this
+                      if (
+                        type === "FEATURE_CREATED" ||
+                        type === "FEATURE_UPDATED" ||
+                        type === "FEATURE_DELETED"
+                      ) {
+                        let name;
+                        if (
+                          type === "FEATURE_CREATED" ||
+                          type === "FEATURE_UPDATED"
+                        ) {
+                          name = rowValue.conditions[""].name;
+                        } else {
+                          name = rowValue.name;
+                        }
                         return (
                           <>
-                            {rowValue.conditions[""].name}&nbsp;(
+                            <i className="fas fa-rocket" />
+                            &nbsp;{name}&nbsp;(
                             <i className="fas fa-building" />
                             &nbsp;
                             {rowValue.project})
