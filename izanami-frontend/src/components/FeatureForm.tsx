@@ -1097,7 +1097,6 @@ export function V2FeatureForm(props: {
               if (error) {
                 return;
               }
-
               submit(data);
             })}
             className="d-flex flex-column col-8 flex-shrink-1"
@@ -1142,10 +1141,13 @@ export function V2FeatureForm(props: {
                     type="button"
                     className="btn btn-sm btn-secondary"
                     onClick={() => {
+                      if (idFieldDisplayed) {
+                        setValue("id", undefined);
+                      }
                       setIdFieldDisplayed((curr) => !curr);
                     }}
                   >
-                    {idFieldDisplayed ? "Hide ID" : "Custom ID"}
+                    {idFieldDisplayed ? "Remove Custom ID" : "Custom ID"}
                   </button>
                 </div>
                 {idFieldDisplayed && (
@@ -1162,9 +1164,15 @@ export function V2FeatureForm(props: {
                       <input
                         className="form-control"
                         type="text"
-                        {...register("id")}
+                        {...register("id", {
+                          required:
+                            'ID must be specified, click "Remove Custom ID" to let Izanami generate it for you',
+                        })}
                       />
                     </label>
+                    <ErrorDisplay
+                      error={(errors as FieldErrors<TCompleteFeature>).id}
+                    />
                   </div>
                 )}
               </>
