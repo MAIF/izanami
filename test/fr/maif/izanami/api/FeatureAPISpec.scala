@@ -273,6 +273,24 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature POST endpoint" should {
+    "prevent creating a feature with empty string as id" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+            .withProjectNames("bar")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      var result = testSituation.createFeature(
+       "foobar",
+        project = "bar",
+        tenant = "foo",
+        id = ""
+      )
+      result.status mustBe BAD_REQUEST
+    }
+
     "prevent creating a feature with too long field" in {
       val testSituation = TestSituationBuilder()
         .withTenants(

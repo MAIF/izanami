@@ -3,25 +3,7 @@ package fr.maif.izanami.models
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
 import fr.maif.izanami.models.Feature.{lightweightFeatureRead, lightweightFeatureWrite}
-import fr.maif.izanami.models.features.{
-  ActivationCondition,
-  ActivationRule,
-  BooleanActivationCondition,
-  BooleanResult,
-  BooleanResultDescriptor,
-  DateRangeActivationCondition,
-  FeaturePeriod,
-  HourPeriod,
-  LegacyCompatibleCondition,
-  NumberResult,
-  ResultDescriptor,
-  ResultType,
-  StringResult,
-  ValuedActivationCondition,
-  ValuedResultDescriptor,
-  ValuedResultType,
-  ZonedHourPeriod
-}
+import fr.maif.izanami.models.features.{ActivationCondition, ActivationRule, BooleanActivationCondition, BooleanResult, BooleanResultDescriptor, DateRangeActivationCondition, FeaturePeriod, HourPeriod, LegacyCompatibleCondition, NumberResult, ResultDescriptor, ResultType, StringResult, ValuedActivationCondition, ValuedResultDescriptor, ValuedResultType, ZonedHourPeriod}
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.v1.OldFeature.oldFeatureReads
 import fr.maif.izanami.v1.{OldFeature, OldGlobalScriptFeature}
@@ -32,7 +14,7 @@ import play.api.mvc.QueryStringBindable
 
 import java.time._
 import java.time.format.DateTimeFormatter
-import java.util.UUID
+import java.util.{Objects, UUID}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.runtime.RichBoolean
 import scala.util.hashing.MurmurHash3
@@ -750,7 +732,8 @@ object Feature {
         resultType <- json
                         .select("resultType")
                         .asOpt[ResultType](ResultType.resultTypeReads)
-                        .orElse(json.select("result_type").asOpt[ResultType](ResultType.resultTypeReads))
+                        .orElse(json.select("result_type").asOpt[ResultType](ResultType.resultTypeReads));
+        if Objects.isNull(id) || id.nonEmpty
       )
         yield {
           val maybeConditionJsArray =
