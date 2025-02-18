@@ -4,7 +4,7 @@ title: Get started
 
 import { Note } from "@site/src/components/Note";
 import emptyLandingPage from "@site/static/img/screenshots/gettingstarted/empty-landing-page.png";
-import tenanForm from "@site/static/img/screenshots/gettingstarted/tenant-form.png";
+import tenantForm from "@site/static/img/screenshots/gettingstarted/tenant-form.png";
 import firstTenant from "@site/static/img/screenshots/gettingstarted/first-tenant.png";
 import projectForm from "@site/static/img/screenshots/gettingstarted/project-form.png";
 import firstProject from "@site/static/img/screenshots/gettingstarted/first-project.png";
@@ -36,7 +36,7 @@ There are several ways to start Izanami.
 ### Using standalone docker image
 
 The simplest way to test Izanami is to use standalone docker image.
-This image embeds Izanami itself and a postgres database, therefore you don't need any additionnal setup.
+This image embeds Izanami itself and a postgres database, therefore you don't need any additional setup.
 
 ```sh
 docker run -p 9000:9000 maif/izanami-test-standalone:latest
@@ -51,7 +51,7 @@ docker run -p 9000:9000 --volume izanami-demo-db:/var/lib/postgresql/data maif/i
 
 ### Using docker
 
-One solution si to run a postgres DB separately (change `IZANAMI_PG_URI` to match your database setting).
+One solution is to run a postgres DB separately (change `IZANAMI_PG_URI` to match your database setting).
 
 ```sh
 docker run --env IZANAMI_PG_URI=postgresql://postgres:postgres@host.docker.internal:5432/postgres -p 9000:9000 izanami
@@ -118,7 +118,7 @@ When clicking this button, Izanami will display tenant creation form, tenant nam
 - numbers
 - `-` and `_` characters
 
-<img src={tenanForm} />
+<img src={tenantForm} />
 
 Once tenant is created, Izanami redirects you its page, and indicates that there is no project for this tenant yet.
 
@@ -180,7 +180,7 @@ A result textbox will appear indicating if feature is currently active or not.
 
 To query feature state from external application, we'll need to create a client key.
 
-<Note>We recommand to create one key by client application</Note>
+<Note>We recommend to create one key by client application</Note>
 
 ### Creating an API key
 
@@ -228,6 +228,6 @@ You've got everything you need to query your feature from curl.
 
 
 <Note>
-While requesting Izanami directly from HTTP is perfectly fine, it may be a better idea to use [one of our client](../clients), which offers some nice enad built-in resilience and performance features.
+While requesting Izanami directly from HTTP is perfectly fine, it may be a better idea to use [one of our client](../clients), which offers some nice and built-in resilience and performance features.
 </Note>
 
