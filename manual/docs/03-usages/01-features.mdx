@@ -33,7 +33,7 @@ If a feature is enabled, activation conditions are used to compute feature activ
 
 A feature can have 0, 1 or more activation conditions, however only one of them need to match to make the whole feature active.
 
-A condition is composed of one time rule and/or one user rule. Possible rules are detailled below.
+A condition is composed of one time rule and/or one user rule. Possible rules are detailed below.
 
 If both rule are defined, both need to be active to activate condition.
 
@@ -47,7 +47,7 @@ If both rule are defined, both need to be active to activate condition.
   <figcaption>Feature activation decision tree</figcaption>
 </figure>
 
-Below schema givena an example of feature that define several activation conditions.
+Below schema gives an example of feature that define several activation conditions.
 
 Conditions are used here to progressively activate feature for all users, while keeping feature active for two "admin" users: Alice and Bob.
 
@@ -71,7 +71,7 @@ There is several variation for this catrgory of feature, that can be composed to
 - Activation days: feature will be active only on provided days
 
 <Note>
-  Here is an example of conditions combination for time features: 
+  Here is an example of conditions combination for time features:
   <ul>
     <li>has a date range condition from 1st January to 31 January of 2024</li>
     <li>has two hour ranges: 08h00 -> 10h00 and 14h00 -> 18h00</li>
@@ -82,7 +82,7 @@ There is several variation for this catrgory of feature, that can be composed to
   <li>✅ Will be active on Monday 8 January at 9h00</li>
   <li>❌ Won't be active on Friday 26 January at 9h00</li>
   <li>❌ Won't be active on Tuesday 16 January at 13h00</li>
-  <li>❌ Won't be active before 1st Januar or after 31 January</li>
+  <li>❌ Won't be active before 1st January or after 31 January</li>
 </ul>
 
 </Note>
@@ -98,7 +98,7 @@ Three is two types of user based conditions:
 
 ## String / number features
 
-Sometimes a fature that can only be active or inactive is not enough.
+Sometimes a feature that can only be active or inactive is not enough.
 
 For such cases, Izanami allows to define features that can take any string or number value.
 
