@@ -66,7 +66,7 @@ test.describe("Audit screen should", () => {
     const id = await (
       await page.evaluateHandle(() => navigator.clipboard.readText())
     ).jsonValue();
-    console.log("id", id);
+
     await page.keyboard.type(id);
     await page.getByRole("option", { name: "Create" }).click();
     await page.getByRole("button", { name: "Search", exact: true }).click();
