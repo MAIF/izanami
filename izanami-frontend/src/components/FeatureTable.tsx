@@ -21,6 +21,7 @@ import {
   isLightWasmFeature,
   TValuedCondition,
   TClassicalCondition,
+  FeatureTypeName,
 } from "../utils/types";
 import { format, parse } from "date-fns";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
@@ -1628,6 +1629,23 @@ export function FeatureTestForm(props: {
   );
 }
 export function FeatureDetails({ feature }: { feature: TLightFeature }) {
+  return (
+    <div className="d-flex">
+      <ResultTypeIcon resultType={feature.resultType} />
+      <div
+        style={{
+          paddingLeft: "0.5rem",
+          marginLeft: "0.25rem",
+          borderLeft: "1px solid var(--color_level1)",
+        }}
+      >
+        <TextualFeatureDetails feature={feature} />
+      </div>
+    </div>
+  );
+}
+
+function TextualFeatureDetails({ feature }: { feature: TLightFeature }) {
   if (isLightWasmFeature(feature)) {
     return (
       <>
@@ -1738,7 +1756,6 @@ export function FeatureTable(props: {
                 >
                   {feature.name}
                 </span>
-                <ResultTypeIcon resultType={feature.resultType} />
               </div>
             );
           } else {
@@ -1753,7 +1770,6 @@ export function FeatureTable(props: {
                   >
                     {feature.name}
                   </span>
-                  <ResultTypeIcon resultType={feature.resultType} />
                   <button
                     className="top-10 align-self-start badge rounded-pill bg-primary-outline"
                     role="button"
