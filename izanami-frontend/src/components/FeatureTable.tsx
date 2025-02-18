@@ -1738,8 +1738,39 @@ export function FeatureTable(props: {
       cell: (props: { row: Row<any> }) => {
         const feature = props.row.original;
 
-        if (contextQueries.some((q) => q.isError)) {
-          return <div>Failed to fetch overload count</div>;
+        if (contextQueries.some((q) => q.isLoading)) {
+          return (
+            <div className="d-flex justify-start align-items-center">
+              <span style={{ textOverflow: "ellipsis" }}>{feature.name}</span>
+            </div>
+          );
+        } else if (contextQueries.some((q) => q.isError)) {
+          return (
+            <div className="d-flex align-items-center">
+              <div className="d-flex py-2">
+                <span
+                  style={{
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {feature.name}
+                </span>
+                <span
+                  className="top-10 align-self-start badge rounded-pill border-danger bg-primary-outline"
+                  style={{
+                    color: "var(--color-level-3)",
+                    marginTop: "-0.5rem",
+                  }}
+                  data-tooltip-id="paste_url"
+                  data-tooltip-content="Failed to fetch overloads"
+                  data-tooltip-place="top"
+                >
+                  <Tooltip id="paste_url" />
+                  <i className="fa-solid fa-triangle-exclamation"></i>
+                </span>
+              </div>
+            </div>
+          );
         } else if (contextQueries.every((q) => q.isSuccess)) {
           const maybeContexts = contextQueries
             .map((q) => q.data)
@@ -1751,11 +1782,7 @@ export function FeatureTable(props: {
           if (!maybeContexts || maybeContexts.length === 0) {
             return (
               <div className="d-flex justify-start align-items-center">
-                <span
-                  style={{ paddingRight: "0.25rem", textOverflow: "ellipsis" }}
-                >
-                  {feature.name}
-                </span>
+                <span style={{ textOverflow: "ellipsis" }}>{feature.name}</span>
               </div>
             );
           } else {
@@ -1764,7 +1791,6 @@ export function FeatureTable(props: {
                 <div className="d-flex py-2">
                   <span
                     style={{
-                      paddingRight: "0.25rem",
                       textOverflow: "ellipsis",
                     }}
                   >
