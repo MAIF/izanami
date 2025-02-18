@@ -566,8 +566,8 @@ object Feature {
             }(env.executionContext)
         }
       }(env.executionContext)
-
   }
+
 
   def writeFeatureForCheck(
       feature: CompleteFeature,
