@@ -400,7 +400,9 @@ function KeyModal(props: {
   return (
     <Modal title="Key created !" visible={visible} onClose={() => onClose()}>
       <>
-        <label htmlFor="clientid">Key client id</label>
+        <label htmlFor="clientid">
+          Key client id (izanami-client-id header)
+        </label>
         <div className="input-group mb-3">
           <input
             id="clientid"
@@ -423,7 +425,9 @@ function KeyModal(props: {
             </button>
           </div>
         </div>
-        <label htmlFor="secret">Key secret</label>
+        <label htmlFor="secret">
+          Key secret (izanami-client-secret header)
+        </label>
         <div className="input-group mb-3">
           <input
             id="secret"
