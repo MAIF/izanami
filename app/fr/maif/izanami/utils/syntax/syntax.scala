@@ -75,6 +75,12 @@ object implicits {
     }
   }
 
+
+  implicit class BetterBoolean[E,V](private val b: Boolean) extends AnyVal {
+    def toJava: java.lang.Boolean = java.lang.Boolean.valueOf(b)
+  }
+
+
   implicit class BetterJsValue(private val obj: JsValue) extends AnyVal {
     def stringify: String                    = Json.stringify(obj)
     def prettify: String                     = Json.prettyPrint(obj)

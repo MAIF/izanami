@@ -362,7 +362,7 @@ export function queryGlobalContexts(
 }
 
 function parseOverloadDates(context: TContext) {
-  context.overloads.forEach((ctx) => castDateIfNeeded(ctx));
+  context?.overloads?.forEach((ctx) => castDateIfNeeded(ctx));
   context.children.forEach(parseOverloadDates);
 }
 
@@ -1071,6 +1071,10 @@ export function castDateIfNeeded(feat: any): void {
     if (feat.conditions.end) {
       feat.conditions.end = new Date(feat.conditions.end);
     }
+  }
+
+  if (feat?.stale?.since) {
+    feat.stale.since = new Date(feat.stale.since);
   }
 }
 

@@ -5,14 +5,14 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, PartialImportFailure}
 import fr.maif.izanami.models.ExportedType.parseExportedType
 import fr.maif.izanami.models.features.{BooleanResult, BooleanResultDescriptor}
-import fr.maif.izanami.models.{AbstractFeature, ApiKey, CompleteFeature, CompleteWasmFeature, ExportedType, Feature, FeatureType, GlobalContextType, Import, KeyType, LocalContextType, OverloadType, RightLevels, UserWithRights}
+import fr.maif.izanami.models._
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldKey.{oldKeyReads, toNewKey}
 import fr.maif.izanami.v1.OldScripts.doesUseHttp
 import fr.maif.izanami.v1.OldUsers.{oldUserReads, toNewUser}
 import fr.maif.izanami.v1.{JavaScript, OldFeature, OldGlobalScript, WasmManagerClient}
 import fr.maif.izanami.wasm.WasmConfig
-import fr.maif.izanami.web.ImportController.{extractProjectAndName, parseStrategy, readFile, scriptIdToNodeCompatibleName, unnest}
+import fr.maif.izanami.web.ImportController._
 import fr.maif.izanami.web.ImportState.importResultWrites
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.{Base64, Wasmo}
 import play.api.libs.Files
@@ -20,9 +20,9 @@ import play.api.libs.json._
 import play.api.mvc._
 
 import java.net.URI
-import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.{Instant, ZoneId}
 import java.util.UUID
-import scala.collection.immutable.Seq
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Source
@@ -261,10 +261,17 @@ class ImportController(
       tenant: String,
       data: Map[ExportedType, Seq[JsObject]]
   ): (Seq[String], Map[ExportedType, Seq[JsObject]]) = {
+  val formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(ZoneId.of("UTC"));
     var features  = data.getOrElse(FeatureType, Seq())
     features = features.map {
       case obj if !obj.keys.contains("result_type") => {
         val res: JsObject = obj + ("result_type" -> JsString(BooleanResult.toDatabaseName))
+        res
+      }
+      case obj                                      => obj
+    }.map {
+      case obj if !obj.keys.contains("created_at") => {
+        val res: JsObject = obj + ("created_at" -> JsString(formatter.format(Instant.now())))
         res
       }
       case obj                                      => obj
@@ -277,17 +284,7 @@ class ImportController(
       }
       case obj                                      => obj
     }
-    overloads = overloads.map(json => {
-      val maybeGlobalCtx = (json \ "global_context").asOpt[String]
-      maybeGlobalCtx match {
-        case Some(c) if !c.startsWith(s"${tenant}_")=> {
-          val tail = c.split("_").toList.tail.mkString("_")
-          val newParent = s"${tenant}_" + tail
-          json + ("global_context" -> JsString(newParent))
-        }
-        case _ => json
-      }
-    })
+    overloads = overloads.map(json => castOldOverloadToNewOverloadIfNeeded(json))
 
     var keys     = data.getOrElse(KeyType, Seq())
     val messages = ArrayBuffer[String]()
@@ -311,7 +308,7 @@ class ImportController(
     var globalContexts = data.getOrElse(GlobalContextType, Seq())
     globalContexts = globalContexts.map(json => {
       var id = (json \ "id").as[String]
-      if(!id.startsWith(s"${tenant}_")) {
+      if (!id.startsWith(s"${tenant}_")) {
         val tail = id.split("_").toList.tail.mkString("_")
         id = s"${tenant}_" + tail
         json + ("id" -> JsString(id))
@@ -320,21 +317,78 @@ class ImportController(
       }
     })
 
-    var localContexts = data.getOrElse(LocalContextType, Seq())
-    localContexts = localContexts.map(json => {
-      val maybeGlobalParent = (json \ "global_parent").asOpt[String]
-      maybeGlobalParent match {
-        case Some(p) if !p.startsWith(s"${tenant}_")=> {
-          val tail = p.split("_").toList.tail.mkString("_")
-          val newParent = s"${tenant}_" + tail
-          json + ("global_parent" -> JsString(newParent))
+    val contexts = data.getOrElse(ContextType, Seq()).concat(
+        data.getOrElse(LocalContextType, Seq())
+        .map(json => oldContextToNewContext(LocalContextType, json))
+      )
+      .concat(data.getOrElse(GlobalContextType, Seq())
+        .map(json => oldContextToNewContext(GlobalContextType, json))
+      ).sortWith((json1, json2) => {
+        val isFirstGlobal = (json1 \ "global").as[Boolean]
+        val isSecondGlobal = (json2 \ "global").as[Boolean]
+
+        if(isFirstGlobal && !isSecondGlobal) {
+          true
+        } else if(!isFirstGlobal && isSecondGlobal) {
+          false
+        } else {
+          val firstParent = (json1 \ "parent").asOpt[String].filter(s => s!= null)
+          val secondParent = (json2\ "parent").asOpt[String].filter(s => s!= null)
+
+          (firstParent, secondParent) match {
+            case (None, None) => true
+            case (Some(_), None) => false
+            case (None, Some(_)) => true
+            case (Some(str1), Some(str2)) => str1.length < str2.length
+          }
         }
-        case _ => json
-      }
+      })
+
+    (
+      messages.toSeq,
+      data + (FeatureType -> features, OverloadType -> overloads, KeyType -> keys, ContextType -> contexts) - LocalContextType - GlobalContextType
+    )
+  }
+
+  def oldParentToNewParent(parent: String): String = {
+    val parts = parent.split("_").toList.tail
+    parts.mkString(".")
+  }
+
+
+  def castOldOverloadToNewOverloadIfNeeded(json: JsObject): JsObject = {
+    val maybeOldContext = (json \ "local_context").asOpt[String].orElse((json \ "global_context").asOpt[String])
+
+    maybeOldContext.fold(json)((oldCtx) => {
+      val newCtx = oldParentToNewParent(oldCtx)
+
+      val res: JsObject = json - "local_context" - "global_context" + ("context" -> JsString(newCtx))
+      res
     })
+  }
 
+  def oldContextToNewContext(contextType: ExportedType, json: JsObject): JsObject = {
+    if(contextType != GlobalContextType && contextType != LocalContextType) {
+      throw new IllegalArgumentException(s"Failed to convert old context to new context : unknown type $contextType")
+    }
 
-    (messages.toSeq, data + (FeatureType -> features, OverloadType -> overloads, KeyType -> keys, GlobalContextType -> globalContexts, LocalContextType -> localContexts))
+    val global = if(contextType == GlobalContextType) true else false
+
+    val parent = (json \ "parent").asOpt[String].orElse((json \ "global_parent").asOpt[String]).map(p => {
+      val parts = p.split("_").toList.tail
+      parts.mkString(".")
+    }).orNull
+
+    val maybeProject = (json \ "project").asOpt[String].filter(p => contextType == LocalContextType)
+
+    val isProtected = (json \ "protected").asOpt[Boolean].getOrElse(false)
+
+    Json.obj(
+      "name" -> (json \ "name").as[String],
+      "global" -> global,
+      "parent" -> parent,
+      "protected" -> isProtected
+    ).applyOnWithOpt(maybeProject)((json, proj) => json + ("project" -> JsString(proj)))
   }
 
   def importV1Data(
@@ -516,39 +570,20 @@ class ImportController(
                 case Left(err)        => ImportFailure(id, Seq(err.message)).future
                 case Right(scriptIds) => {
                   val featureWithCorrectPath = features.map {
-                    case f @ CompleteWasmFeature(
-                          id,
-                          name,
-                          project,
-                          enabled,
-                          w @ WasmConfig(
-                            scriptName,
-                            source,
-                            memoryPages,
-                            functionName,
-                            config,
-                            allowedPaths,
-                            wasi,
-                            opa,
-                            instances,
-                            killOptions
-                          ),
-                          tags,
-                          metadata,
-                          description,
-                          resultType
-                        ) =>
+                    case f: CompleteWasmFeature =>
+                      val wasmConfig = f.wasmConfig
                       f.copy(wasmConfig =
-                        w.copy(source =
-                          w.source.copy(
+                        wasmConfig.copy(source =
+                          wasmConfig.source.copy(
                             kind = if (isBase64) Base64 else Wasmo,
                             path =
-                              if (isBase64) java.util.Base64.getEncoder.encodeToString(scriptIds(scriptName)._2.toArray)
-                              else scriptIds(scriptName)._1
+                              if (isBase64)
+                                java.util.Base64.getEncoder.encodeToString(scriptIds(wasmConfig.name)._2.toArray)
+                              else scriptIds(wasmConfig.name)._1
                           )
                         )
                       )
-                    case f => f
+                    case f                      => f
                   }
 
                   env.datastores.features
@@ -591,7 +626,7 @@ class ImportController(
       }
     }
 
-    if(request.body.files.isEmpty) {
+    if (request.body.files.isEmpty) {
       Future.successful(BadRequest(Json.obj("message" -> "No files provided")))
     } else {
       env.datastores.tenants

@@ -23,6 +23,7 @@ export function AllContexts(props: {
   });
 
   if (contextQuery.error) {
+    console.log(contextQuery.error);
     return <div>Failed to fetch contexts</div>;
   } else if (contextQuery.data) {
     const options = contextHierarchyToSelectOption(contextQuery.data);

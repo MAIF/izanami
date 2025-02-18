@@ -33,7 +33,7 @@ class FeatureClientAPISpec extends BaseAPISpec {
         .as[Int] mustEqual 75
     }
 
-    "return 404 if key does not authorize feature" in {
+    "return 403 if key does not authorize feature" in {
       val tenantName      = "my-tenant"
       val projectName     = "my-project"
       val testSitutation  = TestSituationBuilder()
@@ -52,10 +52,10 @@ class FeatureClientAPISpec extends BaseAPISpec {
       )
       val checkResponse   = testSitutation.checkFeature(featureResponse.id.get, key = "my-key")
 
-      checkResponse.status mustBe UNAUTHORIZED
+      checkResponse.status mustBe FORBIDDEN
     }
 
-    "return 401 if key is disabled" in {
+    "return 403 if key is disabled" in {
       val tenantName      = "my-tenant"
       val projectName     = "my-project"
       val testSitutation  = TestSituationBuilder()
@@ -74,7 +74,7 @@ class FeatureClientAPISpec extends BaseAPISpec {
       )
       val checkResponse   = testSitutation.checkFeature(featureResponse.id.get, key = "my-key")
 
-      checkResponse.status mustBe UNAUTHORIZED
+      checkResponse.status mustBe FORBIDDEN
     }
 
     "return 401 if no key is provided" in {
@@ -452,7 +452,7 @@ class FeatureClientAPISpec extends BaseAPISpec {
 
       val checkResponse = situation.checkFeature("d398cb04-1476-4b32-ae9b-8bb4d5f9f3a5", "my-key")
 
-      checkResponse.status mustBe UNAUTHORIZED
+      checkResponse.status mustBe FORBIDDEN
     }
 
     "return true for enabled DATE_RANGE feature if date is in range" in {

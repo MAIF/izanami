@@ -103,6 +103,12 @@ case class ConflictWithSameNameLocalContext(name: String, parentCtx: String = nu
       status = BAD_REQUEST
     )
 
+
+case object ContextWithThisNameAlreadyExist extends IzanamiError(
+    message = "A context with this name already exist",
+    status = BAD_REQUEST
+  )
+
 case class UserNotFound(user: String) extends IzanamiError(message = s"User ${user} does not exist", status = NOT_FOUND)
 case class SessionNotFound(session: String)
     extends IzanamiError(message = s"Session ${session} does not exist", status = UNAUTHORIZED)

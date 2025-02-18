@@ -6,7 +6,7 @@ import java.time.{DayOfWeek, LocalDateTime, LocalTime}
 
 object DemoDataLoader {
   def main(args: Array[String]): Unit = {
-    cleanUpDB()
+    cleanUpDB(hard = true)
     TestSituationBuilder()
       .withTenants(
         TestTenant("demo")

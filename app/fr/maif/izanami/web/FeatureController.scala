@@ -3,40 +3,48 @@ package fr.maif.izanami.web
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{FeatureNotFound, IncorrectKey, IzanamiError, TagDoesNotExists}
 import fr.maif.izanami.models.Feature._
+import fr.maif.izanami.models.FeatureCall.{FeatureCallOrigin, Sse}
+import fr.maif.izanami.models.LightWeightFeatureWithUsageInformation.writeLightWeightFeatureWithUsageInformation
 import fr.maif.izanami.models._
-import fr.maif.izanami.models.features.{BooleanResult, FeaturePatch, ProjectFeaturePatch}
+import fr.maif.izanami.models.features._
+import fr.maif.izanami.services.{FeatureService, FeatureUsageService}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.FeatureController.queryFeatures
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import play.api.libs.json.Format.GenericFormat
+import play.api.libs.json.Json.JsValueWrapper
 import play.api.libs.json._
 import play.api.mvc._
 
 import java.time.Instant
 import java.util.Base64
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
 
 class FeatureController(
     val env: Env,
     val controllerComponents: ControllerComponents,
     val projectAuthAction: ProjectAuthActionFactory,
     val authenticatedAction: AuthenticatedAction,
-    val detailledRightForTenanFactory: DetailledRightForTenantFactory
+    val detailledRightForTenanFactory: DetailledRightForTenantFactory,
+    featureService: FeatureService,
+    featureUsageService: FeatureUsageService
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
 
   def testFeature(tenant: String, user: String, date: Instant): Action[JsValue] =
     authenticatedAction.async(parse.json) { implicit request =>
       {
-        Feature.readCompleteFeature(((request.body \ "feature").as[JsObject]).applyOn(json => {
-          val hasName = (json \ "name").asOpt[String].exists(_.nonEmpty)
-          if(!hasName) {
-            json + ("name" -> JsString("test"))
-          } else {
-            json
-          }
-        })) match {
+        Feature.readCompleteFeature(
+          ((request.body \ "feature")
+            .as[JsObject])
+            .applyOn(json => {
+              val hasName = (json \ "name").asOpt[String].exists(_.nonEmpty)
+              if (!hasName) {
+                json + ("name" -> JsString("test"))
+              } else {
+                json
+              }
+            })
+        ) match {
           case JsError(e)            => BadRequest(Json.obj("message" -> "bad body format")).future
           case JsSuccess(feature, _) => {
             val featureToEval = feature match {
@@ -47,7 +55,16 @@ class FeatureController(
               case f                                                                          => f
             }
             Feature
-              .writeFeatureForCheck(featureToEval, RequestContext(tenant = "_test_", user = user, now = date, data = (request.body \ "payload").asOpt[JsObject].getOrElse(Json.obj())), env)
+              .writeFeatureForCheck(
+                featureToEval,
+                RequestContext(
+                  tenant = "_test_",
+                  user = user,
+                  now = date,
+                  data = (request.body \ "payload").asOpt[JsObject].getOrElse(Json.obj())
+                ),
+                env
+              )
               .map {
                 case Left(value) => value.toHttpResponse
                 case Right(json) => Ok(json)
@@ -82,11 +99,11 @@ class FeatureController(
               maybeFeature
                 .map(feature =>
                   env.datastores.featureContext
-                    .readStrategyForContext(tenant, context.elements, feature)
+                    .readStrategyForContext(tenant, context, feature)
                     .flatMap {
                       case Some(strategy) => {
                         strategy
-                          .value(RequestContext(tenant = tenant, user, context = context, now=date, data=data), env)
+                          .value(RequestContext(tenant = tenant, user, context = context, now = date, data = data), env)
                           .map {
                             case Left(value)   => value.toHttpResponse
                             case Right(active) =>
@@ -103,7 +120,7 @@ class FeatureController(
                         Feature
                           .writeFeatureForCheck(
                             feature,
-                            RequestContext(tenant = tenant, user = user, now = date, context = context, data=data),
+                            RequestContext(tenant = tenant, user = user, now = date, context = context, data = data),
                             env
                           )
                           .map {
@@ -155,28 +172,16 @@ class FeatureController(
           futureTenant
             .flatMap {
               case Some(tenant) =>
-                env.datastores.features
-                  .findByIdForKey(tenant, id, context.elements, clientId, clientSecret)
-                  .map(maybeFeature => maybeFeature.map(feature => (tenant, feature)))
-              case None         => Future.successful(None)
-            }
-            .flatMap {
-              case Some((tenant, feature)) =>
-                Feature
-                  .writeFeatureForCheck(
-                    feature,
-                    RequestContext(
-                      tenant = tenant,
-                      user = user,
-                      context = context,
-                      data = maybeBody.getOrElse(Json.obj())
-                    ),
-                    env = env
-                  )
-                  .map {
-                    case Left(error) => error.toHttpResponse
-                    case Right(json) => Ok(json)
-                  }
+                queryFeatures(conditions = false, RequestContext(
+                  tenant = tenant,
+                  user = user,
+                  context = context,
+                  data = maybeBody.getOrElse(Json.obj())
+                ), FeatureRequest(features = Set(id), context=context.elements), clientId, clientSecret , origin = FeatureCall.Sse // FIXME context is passed twice
+                ).map {
+                  case Left(err) => err.toHttpResponse
+                  case Right(json) => (json \ id).asOpt[JsValue].map(json => Ok(json)).getOrElse(NotFound)
+                }
               case None                    => Unauthorized(Json.obj("message" -> "Key does not authorize read for this feature")).future
             }
         }
@@ -193,7 +198,14 @@ class FeatureController(
     implicit request =>
       env.datastores.features
         .searchFeature(tenant, if (tag.isBlank) Set() else Set(tag))
-        .map(features => Ok(Json.toJson(features)(Writes.seq(lightweightFeatureWrite))))
+        .flatMap(features => {
+          featureUsageService.determineStaleStatus(tenant, features).map {
+            case Left(err) => err.toHttpResponse
+            case Right(featuresWithUsageInformation) => {
+              Ok(Json.toJson(featuresWithUsageInformation)(Writes.seq(writeLightWeightFeatureWithUsageInformation)))
+            }
+          }
+        })
   }
 
   def evaluateFeaturesForContext(
@@ -220,12 +232,31 @@ class FeatureController(
         clientId     <- request.headers.get("Izanami-Client-Id")
         clientSecret <- request.headers.get("Izanami-Client-Secret")
       } yield (clientId, clientSecret)
-      val authTuple: Option[(String, String)]     = basicAuth.orElse(customHeaders)
+
+      val authTuple: Option[(String, String)] = basicAuth.orElse(customHeaders)
 
       authTuple match {
         case None                           => Unauthorized(Json.obj("message" -> "Missing or incorrect authorization headers")).future
         case Some((clientId, clientSecret)) => {
-          queryFeatures(user, conditions, date, featureRequest, clientId, clientSecret, maybeBody, env)
+
+          val futureMaybeTenant = ApiKey
+            .extractTenant(clientId)
+            .map(t => Future.successful(Some(t)))
+            .getOrElse(env.datastores.apiKeys.findLegacyKeyTenant(clientId))
+
+          futureMaybeTenant
+            .flatMap {
+              case None         => Left(IncorrectKey()).future
+              case Some(tenant) =>
+                val requestContext = RequestContext(
+                  tenant = tenant,
+                  user = user,
+                  now = date.getOrElse(Instant.now()),
+                  context = FeatureContextPath(featureRequest.context),
+                  data = maybeBody.getOrElse(Json.obj())
+                )
+                queryFeatures(conditions, requestContext, featureRequest, clientId, clientSecret, FeatureCall.Http)
+            }
             .map {
               case Left(err)    => err.toHttpResponse
               case Right(value) => Ok(value)
@@ -242,7 +273,12 @@ class FeatureController(
       featureRequest: FeatureRequest
   ): Action[AnyContent] = authenticatedAction.async { implicit request =>
     val futureFeaturesByProject =
-      env.datastores.features.findByRequestV2(tenant, featureRequest, contexts = featureRequest.context, request.user.username)
+      env.datastores.features.findByRequestV2(
+        tenant,
+        featureRequest,
+        contexts = FeatureContextPath(featureRequest.context),
+        request.user.username
+      )
 
     futureFeaturesByProject.flatMap(featuresByProjects => {
       val resultingFeatures = featuresByProjects.values.flatMap(featSeq => featSeq.map(f => f.id)).toSet
@@ -311,10 +347,16 @@ class FeatureController(
                   )
                 ).toFuture
               } else {
-                env.datastores.features.applyPatch(tenant, fs, UserInformation(username=request.user.username, authentication = request.authentication)).map {
-                  case Left(value) => value.toHttpResponse
-                  case Right(_) => NoContent
-                }
+                env.datastores.features
+                  .applyPatch(
+                    tenant,
+                    fs,
+                    UserInformation(username = request.user.username, authentication = request.authentication)
+                  )
+                  .map {
+                    case Left(value) => value.toHttpResponse
+                    case Right(_)    => NoContent
+                  }
               }
             })
         })
@@ -385,40 +427,45 @@ class FeatureController(
                       .createTags(tagsToCreate.map(name => TagCreationRequest(name = name)).toList, tenant, Some(conn))
                   }
                   case tags                                  => Right(tags).toFuture
-                }.flatMap {
-                  case Left(err) => Future.successful(err.toHttpResponse)
-                  case Right(value) => env.datastores.features
-                    .findById(tenant, id)
-                    .flatMap {
-                      case Left(err)                                                                      => err.toHttpResponse.future
-                      case Right(None)                                                                    => NotFound("").toFuture
-                      case Right(Some(oldFeature)) if !canCreateOrModifyFeature(oldFeature, request.user) =>
-                        Forbidden("Your are not allowed to modify this feature").toFuture
-                      case Right(Some(oldFeature))                                                        => {
-                        env.datastores.features
-                          .update(
-                            tenant = tenant,
-                            id = id,
-                            feature = feature,
-                            user = UserInformation(username=request.user.username, authentication = request.authentication),
-                            conn = Some(conn)
-                          )
-                          .flatMap {
-                            case Right(id) => env.datastores.features.findById(tenant, id, conn = Some(conn))
-                            case Left(err) => Future.successful(Left(err))
-                          }
-                          .map(maybeFeature =>
-                            convertReadResult(
-                              maybeFeature,
-                              callback = feature => Ok(Json.toJson(feature)(featureWrite)),
-                              id = id.toString
+                }
+                .flatMap {
+                  case Left(err)    => Future.successful(err.toHttpResponse)
+                  case Right(value) =>
+                    env.datastores.features
+                      .findById(tenant, id)
+                      .flatMap {
+                        case Left(err)                                                                      => err.toHttpResponse.future
+                        case Right(None)                                                                    => NotFound("").toFuture
+                        case Right(Some(oldFeature)) if !canCreateOrModifyFeature(oldFeature, request.user) =>
+                          Forbidden("Your are not allowed to modify this feature").toFuture
+                        case Right(Some(oldFeature))                                                        => {
+                          env.datastores.features
+                            .update(
+                              tenant = tenant,
+                              id = id,
+                              feature = feature,
+                              user = UserInformation(
+                                username = request.user.username,
+                                authentication = request.authentication
+                              ),
+                              conn = Some(conn)
                             )
-                          )
+                            .flatMap {
+                              case Right(id) => env.datastores.features.findById(tenant, id, conn = Some(conn))
+                              case Left(err) => Future.successful(Left(err))
+                            }
+                            .map(maybeFeature =>
+                              convertReadResult(
+                                maybeFeature,
+                                callback = feature => Ok(Json.toJson(feature)(featureWrite)),
+                                id = id.toString
+                              )
+                            )
+                        }
                       }
-                    }
                 }
             },
-            schemas = Set(tenant)
+            schemas = Seq(tenant)
           )
         }
       }
@@ -471,7 +518,11 @@ class FeatureController(
 
             if (canCreateOrModifyFeature(feature, request.user)) {
               env.datastores.features
-                .delete(tenant, id, UserInformation(username=request.user.username, authentication = request.authentication))
+                .delete(
+                  tenant,
+                  id,
+                  UserInformation(username = request.user.username, authentication = request.authentication)
+                )
                 .map(maybeFeature =>
                   maybeFeature
                     .map(_ => NoContent)
@@ -484,161 +535,74 @@ class FeatureController(
         }
 
   }
-}
 
-object FeatureController {
-  def queryFeatures(
-      user: String,
+  private def queryFeatures(
       conditions: Boolean,
-      date: Option[Instant],
+      requestContext: RequestContext,
       featureRequest: FeatureRequest,
       clientId: String,
       clientSecret: String,
-      maybeBody: Option[JsObject],
-      env: Env
+      origin: FeatureCallOrigin
   ): Future[Either[IzanamiError, JsValue]] = {
-    implicit val executionContext: ExecutionContext = env.executionContext
-    val futureMaybeTenant                           = ApiKey
-      .extractTenant(clientId)
-      .map(t => Future.successful(Some(t)))
-      .getOrElse(env.datastores.apiKeys.findLegacyKeyTenant(clientId))
 
-    futureMaybeTenant.flatMap {
-      case None         => Left(IncorrectKey()).future
-      case Some(tenant) => {
+    val evaluatedFeatures =
+      featureService.evaluateFeatures(conditions, requestContext, featureRequest, clientId, clientSecret)
+    evaluatedFeatures.map {
+      case Left(error)                      => Left(error)
+      case Right(evaluatedCompleteFeatures) =>
+        val response = formatFeatureResponse(evaluatedCompleteFeatures, conditions)
+        featureUsageService.registerCalls(requestContext.tenant, clientId, evaluatedCompleteFeatures, requestContext.context, origin)
+        // TODO handle error
+        Right(response)
+    }
+  }
+
+  private def formatFeatureResponse(
+      evaluatedCompleteFeatures: Seq[EvaluatedCompleteFeature],
+      conditions: Boolean
+  ): JsValue = {
+    val fields = evaluatedCompleteFeatures
+      .map(evaluated => {
+        val active: JsValueWrapper = evaluated.result
+        var baseJson               = Json.obj(
+          "name"    -> evaluated.baseFeature.name,
+          "active"  -> active,
+          "project" -> evaluated.baseFeature.project
+        )
+
         if (conditions) {
-          val futureFeaturesByProject =
-            env.datastores.features.doFindByRequestForKey(tenant, featureRequest, clientId, clientSecret, true)
-          futureFeaturesByProject.transformWith {
-            case Failure(exception)                                               => Left(fr.maif.izanami.errors.InternalServerError()).future
-            case Success(Left(error))                                             => Left(error).future
-            case Success(Right(featuresByProjects)) if featuresByProjects.isEmpty => Left(IncorrectKey()).future
-            case Success(Right(featuresByProjects))                               => {
-              val strategiesByFeatureId = featuresByProjects.toSeq.flatMap {
-                case (projectId, features) => {
-                  val futures: Seq[Future[Either[(String, IzanamiError), (String, JsObject)]]] = features.toSeq.map {
-                    case (featureId, featureAndContexts) => {
-                      val strategyByCtx = featureAndContexts.map {
-                        case (Some(ctx), feat) => (ctx, feat)
-                        case (None, feat)      => ("", feat)
-                      }.toMap
-
-                      // TODO fatorize this separator
-                      val ctxStr        = featureRequest.context.mkString("_")
-                      val strategyToUse = if (ctxStr.isBlank) {
-                        strategyByCtx("")
-                      } else {
-                        strategyByCtx
-                          .filter { case (ctx, f) => ctxStr.startsWith(ctx) }
-                          .toSeq
-                          .sortWith {
-                            case ((c1, _), (c2, _)) if c1.length < c2.length => false
-                            case _                                           => true
-                          }
-                          .headOption
-                          .map(_._2)
-                          .getOrElse(strategyByCtx(""))
-                      }
-
-                      val jsonStrategies = Json
-                        .toJson(strategyByCtx.map {
-                          case (ctx, feature) => {
-                            (
-                              ctx.replace("_", "/"),
-                              (feature match {
-                                case w: CompleteWasmFeature     =>
-                                  Feature.featureWrite
-                                    .writes(w)
-                                    .as[
-                                      JsObject
-                                    ] - "wasmConfig" - "tags" - "name" - "description" - "id" - "project" ++ Json
-                                    .obj("wasmConfig" -> Json.obj("name" -> w.wasmConfig.name))
-                                case lf: SingleConditionFeature =>
-                                  Feature.featureWrite
-                                    .writes(lf.toModernFeature)
-                                    .as[JsObject] - "tags" - "name" - "description" - "id" - "project"
-                                case f                          => Feature.featureWrite.writes(f).as[JsObject]
-                              }) - "metadata" - "tags" - "name" - "description" - "id" - "project"
-                            )
-                          }
-                        })
-                        .as[JsObject]
-
-                      writeFeatureForCheck(
-                        strategyToUse,
-                        RequestContext(
-                          tenant = tenant,
-                          user = user,
-                          now = date.getOrElse(Instant.now()),
-                          context = FeatureContextPath(featureRequest.context),
-                          data = maybeBody.getOrElse(Json.obj())
-                        ),
-                        env = env
-                      ).map {
-                        case Left(err)          => Left((featureId, err))
-                        case Right(jsonFeature) => {
-                          val entry = jsonFeature ++ Json.obj("conditions" -> jsonStrategies)
-                          Right((featureId, entry))
-                        }
-                      }
-                    }
-                  }
-                  futures
-                }
-              }
-
-              Future
-                .sequence(strategiesByFeatureId)
-                .map(s => {
-                  s.map {
-                    case Left((featureId, error)) => (featureId, Json.obj("error" -> error.message))
-                    case Right((featureId, json)) => (featureId, json)
-                  }.toMap
-                })
-                .map(map => Right(Json.toJson(map)))
-            }
-          }
-        } else {
-          val futureFeaturesByProject = env.datastores.features.findByRequestForKey(
-            tenant,
-            featureRequest,
-            clientId,
-            clientSecret
-          )
-
-          futureFeaturesByProject.transformWith {
-            case Failure(exception)                                               => Left(fr.maif.izanami.errors.InternalServerError()).future
-            case Success(Left(error))                                             => Left(error).future
-            case Success(Right(featuresByProjects)) if featuresByProjects.isEmpty => Left(IncorrectKey()).future
-            case Success(Right(featuresByProjects))                               => {
-              Future
-                .sequence(
-                  featuresByProjects.values.flatten
-                    .map(feature =>
-                      Feature
-                        .writeFeatureForCheck(
-                          feature,
-                          context = RequestContext(
-                            tenant = tenant,
-                            user = user,
-                            now = date.getOrElse(Instant.now()),
-                            context = FeatureContextPath(featureRequest.context),
-                            data = maybeBody.getOrElse(Json.obj())
-                          ),
-                          env = env
-                        )
-                        .map(either => (feature.id, either))
-                        .map {
-                          case (id, Left(error))   => id -> Json.obj("error" -> error.message)
-                          case (id, Right(active)) => id -> active
-                        }
-                    )
+          val jsonStrategies = Json
+            .toJson(evaluated.featureStrategies.strategies.map {
+              case (ctx, feature) => {
+                (
+                  ctx.replace("_", "/"),
+                  writeConditions(feature)
                 )
-                .map(_.toMap)
-                .map(map => Right(Json.toJson(map)))
-            }
-          }
+              }
+            })
+            .as[JsObject]
+          baseJson = baseJson + ("conditions" -> jsonStrategies)
         }
+        (evaluated.baseFeature.id, baseJson)
+      })
+      .toMap
+    Json.toJson(fields)
+  }
+
+  def writeConditions(f: CompleteFeature): JsObject = {
+    val resultType: JsValueWrapper = Json.toJson(f.resultType)(ResultType.resultTypeWrites)
+    val baseJson                   = Json.obj(
+      "enabled"    -> f.enabled,
+      "resultType" -> resultType
+    )
+    f match {
+      case w: CompleteWasmFeature => baseJson + ("wasmConfig" -> Json.obj("name" -> w.wasmConfig.name))
+      case f                      => {
+        val conditions = f match {
+          case s: SingleConditionFeature => s.toModernFeature.resultDescriptor.conditions
+          case f: Feature                => f.resultDescriptor.conditions
+        }
+        baseJson + ("conditions" -> Json.toJson(conditions)(Writes.seq(ActivationCondition.activationConditionWrite)))
       }
     }
   }

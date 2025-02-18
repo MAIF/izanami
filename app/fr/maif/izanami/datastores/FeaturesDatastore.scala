@@ -2,36 +2,33 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.featureImplicits.FeatureRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{CHECK_VIOLATION, FOREIGN_KEY_VIOLATION, NOT_NULL_VIOLATION, RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
+import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, NOT_NULL_VIOLATION, RELATION_DOES_NOT_EXISTS}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
 import fr.maif.izanami.events.EventAuthentication.BackOfficeAuthentication
 import fr.maif.izanami.events.EventOrigin.{ImportOrigin, NormalOrigin}
-import fr.maif.izanami.events.{EventOrigin, EventService, SourceFeatureCreated, SourceFeatureDeleted, SourceFeatureUpdated}
+import fr.maif.izanami.events.{SourceFeatureCreated, SourceFeatureDeleted, SourceFeatureUpdated}
 import fr.maif.izanami.models._
-import fr.maif.izanami.models.features.{ActivationCondition, BooleanActivationCondition, BooleanResult, BooleanResultDescriptor, EnabledFeaturePatch, FeaturePatch, LegacyCompatibleCondition, NumberActivationCondition, NumberResult, NumberResultDescriptor, ProjectFeaturePatch, RemoveFeaturePatch, ResultType, StringActivationCondition, StringResult, StringResultDescriptor, TagsFeaturePatch, ValuedResultDescriptor, ValuedResultType}
+import fr.maif.izanami.models.features._
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterListEither, BetterSyntax}
-import fr.maif.izanami.v1.V1FeatureEvents
 import fr.maif.izanami.wasm.{WasmConfig, WasmConfigWithFeatures, WasmScriptAssociatedFeatures}
 import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
-import fr.maif.izanami.web.UserInformation
+import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import io.vertx.core.json.{JsonArray, JsonObject}
 import io.vertx.core.shareddata.ClusterSerializable
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
-import org.postgresql.xml.LegacyInsecurePGXmlFactoryFactory
-import play.api.libs.json.{JsArray, JsObject, JsValue, Json, Reads}
+import play.api.libs.json._
 
-import java.lang
 import java.util.UUID
-import scala.collection.immutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.reflect.ClassTag
 
 class FeaturesDatastore(val env: Env) extends Datastore {
+  val extensionSchema = env.extensionsSchema
 
   def findActivationStrategiesForFeatureByName(
       tenant: String,
@@ -42,7 +39,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       .queryOne(
         s"""SELECT f.id FROM features f where project=$$1 AND name=$$2""",
         List(project, name),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r =>
         r.optString("id")
       }
@@ -71,7 +68,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |    COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]'::json) as tags,
          |    COALESCE(
          |        json_object_agg(
-         |            fcs.context_path, json_build_object(
+         |            fcs.context, json_build_object(
          |                'enabled', fcs.enabled,
          |                'conditions', fcs.conditions,
          |                'config', fcs.script_config,
@@ -88,7 +85,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |WHERE f.id=$$1
          |GROUP BY f.id""".stripMargin,
       params = List(id),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { rs =>
       {
         if (rs.isEmpty) {
@@ -212,7 +209,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |    COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]'::json) as tags,
          |    COALESCE(
          |        json_object_agg(
-         |            fcs.context_path, json_build_object(
+         |            fcs.context, json_build_object(
          |                'enabled', fcs.enabled,
          |                'conditions', fcs.conditions
          |            )
@@ -226,8 +223,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |WHERE f.id=ANY($$1)
          |GROUP BY f.id""".stripMargin,
         params = List(ids.toArray),
-        schemas = Set(tenant),
-        conn=conn
+        schemas = Seq(tenant),
+        conn = conn
       ) { r =>
         {
           val maybeTuple = r
@@ -343,7 +340,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |and (ap.project is not null or a.admin=true)
          |""".stripMargin,
       List(clientId, pattern.replaceAll("\\*", "%")),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r => r.optInt("count") }
 
     val dataQuery = env.postgresql.queryAll(
@@ -363,7 +360,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |limit $$3
          |offset $$4""".stripMargin,
       List(clientId, pattern.replaceAll("\\*", "%"), Integer.valueOf(count), Integer.valueOf((page - 1) * count)),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r => r.optCompleteFeature() }
 
     for (
@@ -374,7 +371,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     }
   }
 
-  def applyPatch(tenant: String, operations: Seq[FeaturePatch], user: UserInformation): Future[Either[IzanamiError, Unit]] = {
+  def applyPatch(
+      tenant: String,
+      operations: Seq[FeaturePatch],
+      user: UserInformation
+  ): Future[Either[IzanamiError, Unit]] = {
     val featureToUpdateIds = operations.collect {
       case p: EnabledFeaturePatch => p.id
       case p: ProjectFeaturePatch => p.id
@@ -403,8 +404,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                     .flatMap {
                       case Some((id, name, project, enabled)) => {
                         val completeFeatureStrategies = FeatureWithOverloads(oldFeatures(id))
-                        val hasChanged = completeFeatureStrategies.baseFeature().enabled != value
-                        if(hasChanged) {
+                        val hasChanged                = completeFeatureStrategies.baseFeature().enabled != value
+                        if (hasChanged) {
                           env.eventService.emitEvent(
                             channel = tenant,
                             event = SourceFeatureUpdated(
@@ -423,7 +424,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                         }
                       }
                       case None                               => Future.successful(())
-                    }.map(_ => Right(()))
+                    }
+                    .map(_ => Right(()))
                 }
                 case ProjectFeaturePatch(value, id) => {
                   env.postgresql
@@ -455,7 +457,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                           )
                         )(conn)
                       case None                               => Future.successful(())
-                    }.map(_ => Right(()))
+                    }
+                    .map(_ => Right(()))
                 }
                 case TagsFeaturePatch(value, id)    =>
                   findById(tenant, id).flatMap {
@@ -476,13 +479,14 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                         }
                         .flatMap {
                           case Left(err) => Future.successful(Left(err))
-                          case Right(_) => env.postgresql
-                            .queryOne(
-                              s"""delete from features_tags where feature=$$1""",
-                              List(id),
-                              conn = Some(conn)
-                            ) { _ => Some(id) }
-                            .flatMap(maybeId => insertIntoFeatureTags(tenant, id, value, Some(conn)))
+                          case Right(_)  =>
+                            env.postgresql
+                              .queryOne(
+                                s"""delete from features_tags where feature=$$1""",
+                                List(id),
+                                conn = Some(conn)
+                              ) { _ => Some(id) }
+                              .flatMap(maybeId => insertIntoFeatureTags(tenant, id, value, Some(conn)))
                         }
                     case Left(err)               => Future.successful(Left(err))
                     case Right(None)             => Future.successful(Left(FeatureDoesNotExist(name = id)))
@@ -505,17 +509,26 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                       case Some((id, name, project, enabled)) =>
                         env.eventService.emitEvent(
                           channel = tenant,
-                          event = SourceFeatureDeleted(id = id, project = project, tenant = tenant, user = user.username, name=name, origin = NormalOrigin, authentication = BackOfficeAuthentication)
+                          event = SourceFeatureDeleted(
+                            id = id,
+                            project = project,
+                            tenant = tenant,
+                            user = user.username,
+                            name = name,
+                            origin = NormalOrigin,
+                            authentication = BackOfficeAuthentication
+                          )
                         )(conn)
                       case None                               => Future.successful(())
-                    }.map(_ => Right(()))
+                    }
+                    .map(_ => Right(()))
                 }
               })
               .map(maybeErrors => {
                 ErrorAggregator.fromEitherSeq(maybeErrors).fold(Right(()): Either[IzanamiError, Unit])(err => Left(err))
               })
           },
-          schemas = Set(tenant)
+          schemas = Seq(tenant)
         )
       })
   }
@@ -523,25 +536,19 @@ class FeaturesDatastore(val env: Env) extends Datastore {
   def findByIdForKey(
       tenant: String,
       id: String,
-      contexts: Seq[String],
+      context: FeatureContextPath,
       clientId: String,
       clientSecret: String
   ): Future[Option[CompleteFeature]] = {
-    val possibleContextPaths = contexts
-      .foldLeft(Seq(): Seq[Seq[String]])((acc, next) => {
-        val newElement = acc.lastOption.map(last => last.appended(next)).getOrElse(Seq(next))
-        acc.appended(newElement)
-      })
-      .map(_.mkString("_"))
-    val needContexts         = contexts.nonEmpty
-    val params               = if (needContexts) List(clientId, id, possibleContextPaths.toArray) else List(clientId, id)
+    val needContexts         = context.elements.nonEmpty
+    val params               = if (needContexts) List(clientId, id, context.toDBPath) else List(clientId, id)
 
     env.postgresql
       .queryAll(
         s"""
          |SELECT
          |  k.clientsecret,
-         |  ${if (needContexts) s"fcs.context_path," else "null as context_path,"}
+         |  ${if (needContexts) s"fcs.context," else "null as context,"}
          |  json_build_object(
          |    'name', f.name,
          |    'project', f.project,
@@ -567,7 +574,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |    ${if (needContexts) s"END)" else ""} as feature
          |FROM features f
          |${if (needContexts)
-          s"LEFT JOIN feature_contexts_strategies fcs ON fcs.feature=f.name AND fcs.context_path = ANY($$3) LEFT JOIN wasm_script_configurations ow ON fcs.script_config=ow.id"
+          s"LEFT JOIN feature_contexts_strategies fcs ON fcs.feature=f.name AND fcs.context @> text2ltree($$3) LEFT JOIN wasm_script_configurations ow ON fcs.script_config=ow.id"
         else ""}
          |INNER JOIN apikeys k ON (k.clientid=$$1 AND k.enabled=true)
          |LEFT JOIN wasm_script_configurations w ON w.id=f.script_config
@@ -576,7 +583,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |AND (kp.apikey IS NOT NULL OR k.admin=TRUE)
          |""".stripMargin,
         params,
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r =>
         {
           for (
@@ -588,7 +595,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                              .map(js => jsonFeature.as[JsObject] + ("wasmConfig" -> js))
                              .orElse(Some(jsonFeature));
             feature     <- Feature.readCompleteFeature(js).asOpt
-          ) yield (r.optString("context_path"), feature)
+          ) yield (r.optString("context"), feature)
         }
       }
       .map(ls =>
@@ -628,7 +635,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         } else ""}
          |""".stripMargin,
         if (hasTags) List(tags.toArray) else List(),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r =>
         r.optJsArray("features")
           .map(arr => arr.value.toSeq.map(js => Feature.readLightWeightFeature(js).asOpt).flatMap(_.toSeq))
@@ -645,7 +652,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |WHERE config #>> '{source,path}' = $$1
          |""".stripMargin,
         List(path),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { row => { row.optJsObject("config") } }
       .map(o => o.map(jsObj => jsObj.as[WasmConfig](WasmConfig.format)))
   }
@@ -656,7 +663,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |SELECT DISTINCT project FROM features WHERE id=ANY($$1)
          |""".stripMargin,
       List(ids.toArray),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r => r.optString("project") }
   }
 
@@ -670,7 +677,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
            |where f.id = $$1
            |group by f.id""".stripMargin,
         List(id),
-        schemas = Set(tenant),
+        schemas = Seq(tenant),
         conn = conn
       ) { row => row.optFeature() }
   }
@@ -687,7 +694,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |where f.id = $$1
          |group by f.id, wasm""".stripMargin,
         List(id),
-        schemas = Set(tenant),
+        schemas = Seq(tenant),
         conn = conn
       ) { row => row.optCompleteFeature() }
       .map(o => Right(o))
@@ -717,7 +724,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
            |where f.id = $$1
            |group by f.id, k.admin, wasm, ap.project""".stripMargin,
         List(id, clientId),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { row =>
         {
           row
@@ -749,18 +756,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       clientSecret: String,
       conditions: Boolean
   ): Future[Either[IzanamiError, Map[UUID, Map[String, Iterable[(Option[String], CompleteFeature)]]]]] = {
-    val possibleContextPaths = request.context
-      .foldLeft(Seq(): Seq[Seq[String]])((acc, next) => {
-        val newElement = acc.lastOption.map(last => last.appended(next)).getOrElse(Seq(next))
-        acc.appended(newElement)
-      })
-      .map(_.mkString("_"))
-
     val needTags     = request.allTagsIn.nonEmpty || request.noTagIn.nonEmpty || request.oneTagIn.nonEmpty;
     val needContexts = request.context.nonEmpty || conditions
 
     val params = if (needContexts && !conditions) {
-      List(clientId, clientSecret, request.projects.toArray, request.features.toArray, possibleContextPaths.toArray)
+      List(clientId, clientSecret, request.projects.toArray, request.features.toArray, FeatureContextPath(request.context).toDBPath)
     } else {
       List(clientId, clientSecret, request.projects.toArray, request.features.toArray)
     }
@@ -782,7 +782,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
            |    f.value,
            |    w.config as wasm
            |    ${if (needContexts) """,
-           |    COALESCE(json_object_agg(fcs.context_path, json_build_object(
+           |    COALESCE(json_object_agg(fcs.context, json_build_object(
            |      'id', f.id,
            |      'name', f.name,
            |      'project', f.project,
@@ -793,7 +793,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
            |      'conditions', fcs.conditions,
            |      'context', fcs.context,
            |      'wasmConfig', ow.config,
-           |      'context_path', fcs.context_path)) FILTER(WHERE fcs.enabled IS NOT NULL), '{}'::json) AS overloads
+           |      'context', fcs.context)) FILTER(WHERE fcs.enabled IS NOT NULL), '{}'::json) AS overloads
            |    """ else ""}
            |    ${if (needTags) ",COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]') as tags" else ""}
            |  FROM projects p
@@ -803,7 +803,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
            |    LEFT JOIN tags t ON t.name=ft.tag""" else ""}
            |   ${if (needContexts) s"""
            |    LEFT JOIN feature_contexts_strategies fcs ON fcs.feature=f.name ${if (!conditions)
-                                        s"AND fcs.context_path = ANY($$5)"
+                                        s"AND fcs.context @> text2ltree($$5)"
                                       else ""}
            |    LEFT JOIN wasm_script_configurations ow ON fcs.script_config=ow.id""".stripMargin
         else ""}
@@ -816,7 +816,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
            |  GROUP BY f.id, pid, w.config
            |""".stripMargin,
         params,
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r =>
         {
           r.optCompleteFeature()
@@ -910,15 +910,10 @@ class FeaturesDatastore(val env: Env) extends Datastore {
   def findByRequestV2(
       tenant: String,
       request: FeatureRequest,
-      contexts: Seq[String],
+      contexts: FeatureContextPath,
       user: String
   ): Future[Map[UUID, Seq[CompleteFeature]]] = {
-    val possibleContextPaths = contexts
-      .foldLeft(Seq(): Seq[Seq[String]])((acc, next) => {
-        val newElement = acc.lastOption.map(last => last.appended(next)).getOrElse(Seq(next))
-        acc.appended(newElement)
-      })
-      .map(seq => seq.mkString("_"))
+
 
     env.postgresql
       .queryAll(
@@ -942,7 +937,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |    fcs.value as overload_value,
          |    fcs.result_type as overload_result_type,
          |    ow.config as overload_config,
-         |    fcs.context_path,
+         |    fcs.context,
          |    COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]'::json) as tags
          |  FROM
          |    izanami.sessions s
@@ -953,7 +948,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |  LEFT JOIN features f on f.project = p.name
          |  LEFT JOIN features_tags ft ON f.id=ft.feature
          |  LEFT JOIN tags t ON t.name=ft.tag
-         |  LEFT JOIN feature_contexts_strategies fcs ON fcs.feature=f.name AND fcs.context_path = ANY($$4)
+         |  LEFT JOIN feature_contexts_strategies fcs ON fcs.feature=f.name AND fcs.context @> text2ltree($$4)
          |  LEFT JOIN wasm_script_configurations ow ON fcs.script_config=ow.id
          |  LEFT JOIN wasm_script_configurations w ON w.id=f.script_config
          |  WHERE s.username=$$1
@@ -963,13 +958,13 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |    OR (u.admin OR utr.level = 'ADMIN')
          |  )
          |  AND (p.id=ANY($$2) OR f.id=ANY($$3))
-         |  GROUP BY f.id, pid, w.config, ow.config, fcs.enabled, fcs.conditions, fcs.context, fcs.context_path, fcs.value, fcs.result_type
+         |  GROUP BY f.id, pid, w.config, ow.config, fcs.enabled, fcs.conditions, fcs.context, fcs.context, fcs.value, fcs.result_type
          |) SELECT filtered_features.pid AS project_id,
          |         COALESCE(json_agg(json_build_object(
          |           'name', filtered_features.name,
          |           'project', filtered_features.project,
          |           'tags', filtered_features.tags,
-         |           'context', filtered_features.context_path,
+         |           'context', filtered_features.context,
          |           'description', filtered_features.description,
          |           'id', filtered_features.id)::jsonb ||
          |           (CASE
@@ -998,9 +993,9 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           user,
           request.projects.toArray,
           request.features.toArray,
-          possibleContextPaths.toArray
+          contexts.toDBPath
         ),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r =>
         {
           r.optUUID("project_id")
@@ -1016,7 +1011,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                     featureDuplicates
                       .sortWith((first, second) => {
                         def contextSize(jsValue: JsValue): Int =
-                          (jsValue \ "context").asOpt[String].map(_.split("_")).map(_.length).getOrElse(0)
+                          (jsValue \ "context").asOpt[String].map(_.split(".")).map(_.length).getOrElse(0)
                         val firstContextSize                   = contextSize(first)
                         val secondContextSize                  = contextSize(second)
 
@@ -1112,7 +1107,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 returning id, project""".stripMargin,
           params.productIterator.toList.map(a => a.asInstanceOf[AnyRef]),
           conn = Some(conn),
-          schemas = Set(tenant)
+          schemas = Seq(tenant)
         ) { row =>
           for (
             id      <- row.optString("id");
@@ -1155,9 +1150,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
 
     val wasmConfigs = features
       .map {
-        case Feature(_, _, _, _, _, _, _, _)                         => None
-        case CompleteWasmFeature(_, _, _, _, wasmConfig, _, _, _, _) => Some(wasmConfig)
-        case s: SingleConditionFeature                               => None
+        case wf: CompleteWasmFeature => Some(wf.wasmConfig)
+        case _                       => None
       }
       .flatMap(o => o.toList)
 
@@ -1243,12 +1237,9 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         ArrayBuffer[SingleConditionFeature]
     ) = (ArrayBuffer(), ArrayBuffer(), ArrayBuffer())
     features.foreach {
-      case f @ Feature(_, _, _, _, _, _, _, _)                 =>
-        modernFeatures.addOne(f)
-      case wf @ CompleteWasmFeature(_, _, _, _, _, _, _, _, _) =>
-        wasmFeatures.addOne(wf)
-      case s: SingleConditionFeature                           =>
-        legacyFeatures.addOne(s)
+      case f: Feature                => modernFeatures.addOne(f)
+      case wf: CompleteWasmFeature   => wasmFeatures.addOne(wf)
+      case s: SingleConditionFeature => legacyFeatures.addOne(s)
     }
 
     val legacyFeatureParams = unzip7(legacyFeatures.map {
@@ -1315,7 +1306,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                    |returning id, project""".stripMargin,
                     wasmFeatureParams.productIterator.toList.map(a => a.asInstanceOf[AnyRef]),
                     conn = conn.some,
-                    schemas = Set(tenant)
+                    schemas = Seq(tenant)
                   ) { row =>
                     for (
                       id      <- row.optString("id");
@@ -1375,7 +1366,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
   ): Future[Either[IzanamiError, String]] = {
     env.postgresql.executeInTransaction(
       implicit conn => doCreate(tenant, project, feature, conn, user),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     )
   }
 
@@ -1387,10 +1378,10 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       user: UserInformation
   ): Future[Either[IzanamiError, String]] = {
     (feature match {
-      case Feature(_, _, _, _, _, _, _, _)                         => Future(Right(()))
-      case CompleteWasmFeature(_, _, _, _, wasmConfig, _, _, _, _) =>
-        createWasmScriptIfNeeded(tenant, wasmConfig, conn = Some(conn))
-      case s: SingleConditionFeature                               => Future(Right(()))
+      case _: Feature                => Future(Right(()))
+      case cwf: CompleteWasmFeature  =>
+        createWasmScriptIfNeeded(tenant, cwf.wasmConfig, conn = Some(conn))
+      case s: SingleConditionFeature => Future(Right(()))
     }).flatMap {
       case Left(err) => Left(err).future
       case Right(_)  => {
@@ -1411,7 +1402,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |SELECT config FROM wasm_script_configurations
          |""".stripMargin,
       List(),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r => r.optJsObject("config").map(js => js.as(WasmConfig.format)) }
   }
 
@@ -1422,7 +1413,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |DELETE FROM wasm_script_configurations WHERE id=$$1
          |""".stripMargin,
         List(name),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r => Some(()) }
       .map(_ => Right(()))
       .recover {
@@ -1439,7 +1430,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |GROUP BY c.config
          |""".stripMargin,
       List(),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r =>
       {
         r.optJsObject("config")
@@ -1496,13 +1487,14 @@ class FeaturesDatastore(val env: Env) extends Datastore {
             s"""INSERT INTO wasm_script_configurations (id, config) VALUES ($$1,$$2) RETURNING id""",
             List(wasmConfig.name, Json.toJson(wasmConfig)(WasmConfig.format).vertxJsValue),
             conn = conn,
-            schemas = Set(tenant)
+            schemas = Seq(tenant)
           ) { row => row.optString("id") }
           .map(o => o.toRight(InternalServerError()))
           .recover {
             case f: PgException if f.getSqlState == FOREIGN_KEY_VIOLATION =>
               Left(WasmScriptAlreadyExists(wasmConfig.source.path))
-          }.recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+          }
+          .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
           .flatMap(either => {
             // TODO this should be elsewhere
             wasmConfig.source.getWasm()(env.wasmIntegration.context, env.executionContext).map(_ => either)
@@ -1518,7 +1510,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |WHERE id=$$1
          |""".stripMargin,
       List(name),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r => r.optJsObject("config").map(js => js.as(WasmConfig.format)) }
   }
 
@@ -1556,7 +1548,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |returning id
          |""".stripMargin,
           List(ids.toArray, scripts.toArray),
-          schemas = Set(tenant),
+          schemas = Seq(tenant),
           conn = conn
         ) { rs => rs.flatMap(_.optString("id")).toSet }
         .map(ids => {
@@ -1585,7 +1577,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           wasmConfig.json.vertxJsValue,
           script
         ),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { row => row.optString("id") }
       .map(o => ())
   }
@@ -1658,7 +1650,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         request,
         params,
         conn = Some(conn),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { row => row.optString("id") }
       .map(_.toRight(InternalServerError()))
       .recover {
@@ -1696,13 +1688,14 @@ class FeaturesDatastore(val env: Env) extends Datastore {
 
     def act(conn: SqlConnection, oldFeature: FeatureWithOverloads): Future[Either[IzanamiError, String]] = {
 
+      // Updating result type of a feature automatically trigger overload delete, to avoid
+      // returning a string for some contexts and a boolean in others
       val maybeDeleteFuture = if (oldFeature.baseFeature().resultType != feature.resultType) {
         env.datastores.featureContext.deleteFeatureStrategies(tenant, feature.project, feature.name, conn = conn)
       } else {
         Future.successful(())
       }
       maybeDeleteFuture.flatMap(_ => {
-
         val (request, params) = feature match {
           case SingleConditionFeature(id, name, project, conditions, enabled, tags, metadata, description) =>
             (
@@ -1752,24 +1745,29 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         }
 
         (feature match {
-          case feat @ CompleteWasmFeature(_, _, _, _, wasmConfig, _, _, _, _)
-              if wasmConfig.source.kind != WasmSourceKind.Local =>
-            createWasmScriptIfNeeded(tenant, wasmConfig, Some(conn)).map(e => e.map(_ => ()))
-          case _ => Future(Right(()))
+          case feat: CompleteWasmFeature if feat.wasmConfig.source.kind != WasmSourceKind.Local =>
+            createWasmScriptIfNeeded(tenant, feat.wasmConfig, Some(conn)).map(e => e.map(_ => ()))
+          case _                                                                                => Future(Right(()))
         }).flatMap {
-            case Left(err) => Future.successful(Left(err))
-            case Right(_) => env.postgresql.queryRaw(
-              s"""
-                 |DELETE FROM feature_contexts_strategies fc USING features f
-                 |WHERE fc.feature=f.name
+          case Left(err) => Future.successful(Left(err))
+          case Right(_)  =>
+            // delete overload in potential old project, this cover the case where a feature
+            // is transfered from one project to another.
+            env.postgresql
+              .queryRaw(
+                s"""
+                 |DELETE FROM feature_contexts_strategies fc USING features f, new_contexts c
+                 |WHERE fc.feature=f.name AND c.ctx_path= fc.context
                  |AND fc.project=f.project
                  |AND f.id=$$1
                  |AND f.project != $$2
-                 |AND fc.local_context IS NOT NULL
+                 |AND c.global=false
+                 |AND c.project != $$2
                  |""".stripMargin,
-              List(id, feature.project),
-              conn = Some(conn)
-            ) { _ => Some(()) }
+                List(id, feature.project),
+                conn = Some(conn),
+                schemas=Seq(tenant, extensionSchema)
+              ) { _ => Some(()) }
               .flatMap(_ =>
                 env.postgresql
                   .queryOne(
@@ -1780,7 +1778,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                   .map(maybeId => maybeId.toRight(InternalServerError()))
                   .recover {
                     case f: PgException if f.getSqlState == NOT_NULL_VIOLATION => Left(MissingFeatureFields())
-                  }.recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+                  }
+                  .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
                   .flatMap(either => {
                     either.fold(
                       err => Future.successful(Left(err)),
@@ -1819,7 +1818,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 case Right(_)                                                                 => Future.successful(Right(id))
                 case Left(err)                                                                => Future.successful(Left(err))
               }
-          }
+        }
       })
     }
     // TODO allow updating metadata
@@ -1852,7 +1851,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
              |VALUES ($$1, unnest($$2::TEXT[])) returning *""".stripMargin,
           List(id, tags.toArray),
           conn = conn,
-          schemas = Set(tenant)
+          schemas = Seq(tenant)
         ) { _ => Some(()) }
         .map(_ => Right(()))
         .recover {
@@ -1872,13 +1871,13 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         .queryOne(
           s"""DELETE FROM features WHERE id=$$1 returning id, project, name""",
           List(id),
-          schemas = Set(tenant),
+          schemas = Seq(tenant),
           conn = Some(conn)
         ) { row =>
           for (
             id      <- row.optString("id");
             project <- row.optString("project");
-            name <- row.optString("name")
+            name    <- row.optString("name")
           ) yield (id, project, name)
         }
         .map { _.toRight(InternalServerError()) }
@@ -1887,12 +1886,20 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           case _                                                             => Left(InternalServerError())
         }
         .flatMap {
-          case l @ Left(err)        => Future.successful(Left(err))
+          case l @ Left(err)              => Future.successful(Left(err))
           case Right((id, project, name)) =>
             env.eventService
               .emitEvent(
                 channel = tenant,
-                event = SourceFeatureDeleted(id = id, project = project, tenant = tenant, user = user.username, name=name, authentication = user.authentication, origin = NormalOrigin)
+                event = SourceFeatureDeleted(
+                  id = id,
+                  project = project,
+                  tenant = tenant,
+                  user = user.username,
+                  name = name,
+                  authentication = user.authentication,
+                  origin = NormalOrigin
+                )
               )(conn)
               .map(_ => Right(id))
         }
@@ -1904,7 +1911,7 @@ object featureImplicits {
   implicit class FeatureRow(val row: Row) extends AnyVal {
     // TODO deduplicate with below
     def optCompleteFeature(): Option[CompleteFeature] = {
-      val tags =
+      val tags     =
         row.optJsArray("tags").map(array => array.value.map(v => v.as[String]).toSet).getOrElse(Set())
 
       for (
@@ -2023,9 +2030,8 @@ object featureImplicits {
     }
 
     def optFeature(): Option[LightWeightFeature] = {
-      val tags =
+      val tags               =
         row.optJsArray("tags").map(array => array.value.map(v => v.as[String]).toSet).getOrElse(Set())
-
       lazy val maybeWasmName = row.optString("config")
 
       for (

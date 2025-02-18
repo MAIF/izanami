@@ -29,7 +29,7 @@ test.describe("Project context screen should", () => {
         )
       )
       .withUser(
-        testUser("testu", false).withTenantRight(
+        testUser(tenantName, false).withTenantRight(
           tenantName,
           testTenantRight("Write").withProjectRight("project", "Write")
         )
@@ -38,7 +38,7 @@ test.describe("Project context screen should", () => {
 
     await page.goto(`/tenants/${tenantName}/projects/project/contexts`);
 
-    const otherPage = await logAsInNewPage(browser, "testu");
+    const otherPage = await logAsInNewPage(browser, tenantName);
     await otherPage.goto(`/tenants/${tenantName}/projects/project/contexts`);
 
     await expect(

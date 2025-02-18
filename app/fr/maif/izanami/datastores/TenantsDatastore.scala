@@ -96,7 +96,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
           .baselineOnMigrate(true)
           .schemas(tenantCreationRequest.name)
           .placeholders(
-            java.util.Map.of("extensions_schema", env.extensionsSchema)
+            java.util.Map.of("extensions_schema", env.extensionsSchema, "schema", tenantCreationRequest.name)
           )
           .load()
       val result = Try {

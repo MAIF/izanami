@@ -86,6 +86,7 @@ function LoginForm(props: { req?: string }) {
           marginBottom: 48,
           height: 300,
         }}
+        role="presentation"
       />
       <form
         className="d-flex flex-column container-fluid"
@@ -195,27 +196,24 @@ function LoginForm(props: { req?: string }) {
                 </button>
               </>
             )}
-            <div className="d-flex align-items-center justify-content-center mt-3">
-              <i className="fa fa-moon" />
-              <div className="form-check form-switch mx-2">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  role="switch"
-                  id="flexSwitchCheckChecked"
-                  checked={lightMode}
-                  onChange={handleCheckboxChange}
-                />
-                <label
-                  className="form-check-label"
-                  htmlFor="flexSwitchCheckChecked"
-                ></label>
-              </div>
-              <i className="fa fa-lightbulb" />
-            </div>
           </>
         )}
       </form>
+      <div className="d-flex align-items-center justify-content-center mt-3">
+        <i className="fa fa-moon" />
+        <div className="form-check form-switch mx-2">
+          <input
+            aria-label={`Switch to ${lightMode ? "dark mode" : "light mode"}`}
+            className="form-check-input"
+            type="checkbox"
+            role="switch"
+            id="flexSwitchCheckChecked"
+            checked={lightMode}
+            onChange={handleCheckboxChange}
+          />
+        </div>
+        <i className="fa fa-lightbulb" />
+      </div>
     </div>
   );
 }

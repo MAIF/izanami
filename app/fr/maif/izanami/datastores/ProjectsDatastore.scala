@@ -27,7 +27,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
       .queryOne(
         s"""SELECT id FROM projects WHERE name=$$1""",
         List(projectName),
-        schemas = Set(tenant),
+        schemas = Seq(tenant),
         conn = conn
       ) { row => row.optUUID("id") }
   }
@@ -55,7 +55,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
            |RETURNING name, id
            |""".stripMargin,
         List(names.toArray),
-        schemas = Set(tenant),
+        schemas = Seq(tenant),
         conn = Some(conn)
       ) { r => {
         for (
@@ -144,7 +144,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
             }
           }
       },
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     )
   }
 
@@ -161,7 +161,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
              |UPDATE projects SET name=$$1, description=$$2 WHERE name=$$3 RETURNING id
              |""".stripMargin,
           List(newProject.name, newProject.description, oldName),
-          schemas = Set(tenant),
+          schemas = Seq(tenant),
           conn = Some(conn)
         ) { r => r.optUUID("id") }
         .map(o => o.toRight(InternalServerError()))
@@ -189,7 +189,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
       OR p.name=ANY(SELECT upr.project FROM users_projects_rights upr WHERE upr.username=$$1)
       """,
       List(user),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { row => row.optProject() }
   }
 
@@ -199,7 +199,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
         .queryOne(
           s"""DELETE FROM projects p WHERE p.name=$$1 RETURNING (SELECT json_agg(json_build_object('id', f.id, 'name', f.name)) AS ids FROM features f WHERE f.project=p.name), p.id as id;""",
           List(project),
-          schemas = Set(tenant),
+          schemas = Seq(tenant),
           conn = Some(conn)
         ) { row => {
           val featureInfos = row
@@ -252,25 +252,29 @@ class ProjectsDatastore(val env: Env) extends Datastore {
     env.postgresql
       .queryOne(
         s"""
-           |select p.id, p.name, p.description,
-           |  COALESCE(
-           |    json_agg(row_to_json(f.*)::jsonb
-           |      || (json_build_object('tags', (
-           |        array(
-           |          SELECT ft.tag
-           |          FROM features_tags ft
-           |          WHERE ft.feature = f.id
-           |          GROUP BY ft.tag
-           |        )
-           |      ), 'wasmConfig', f.script_config))::jsonb)
-           |      FILTER (WHERE f.id IS NOT NULL), '[]'
-           |  ) as "features"
-           |from projects p
-           |left join features f on p.name = f.project
-           |WHERE p.name = $$1
-           |group by p.id""".stripMargin,
+         |select p.id, p.name, p.description,
+         |  COALESCE(
+         |    json_agg(row_to_json(f.*)::jsonb
+         |      || (json_build_object('tags', (
+         |        array(
+         |          SELECT ft.tag
+         |          FROM features_tags ft
+         |          WHERE ft.feature = f.id
+         |          GROUP BY ft.tag
+         |        )
+         |      ), 'wasmConfig', f.script_config,
+         |      'lastCall', (SELECT max(fc.range_stop)
+         |                   from feature_calls fc
+         |                   where fc.feature = f.id)
+         |      ))::jsonb)
+         |      FILTER (WHERE f.id IS NOT NULL), '[]'
+         |  ) as "features"
+         |from projects p
+         |left join features f on p.name = f.project
+         |WHERE p.name = $$1
+         |group by p.id""".stripMargin,
         List(project),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { row => row.optProjectWithFeatures() }
       .map(o => o.toRight(ProjectDoesNotExists(project)))
   }
@@ -297,7 +301,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
            |left join features f on p.name = f.project
            |group by p.id""".stripMargin,
         List(),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { row => row.optProjectWithFeatures() }
   }
 
@@ -324,7 +328,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
            |where p.name=ANY($$1)
            |group by p.id""".stripMargin,
         List(projectFilter.toArray),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { row => row.optProjectWithFeatures() }
   }
 
@@ -340,7 +344,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
            |WHERE id=ANY($$1)
            |""".stripMargin,
         List(ids.toArray),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r => {
         r.optProject()
       }

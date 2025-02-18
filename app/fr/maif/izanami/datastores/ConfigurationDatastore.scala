@@ -46,17 +46,17 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
       val tenantItemsToDelete = Future.sequence(tenantsToKeep.map(t => {
         val futureExistingProjects = env.postgresql.queryAll(
             "SELECT name from projects",
-            schemas=Set(t)
+            schemas=Seq(t)
           ){r => r.optString("name")}
           .map(l => l.toSet)
         val futureExistingKeys = env.postgresql.queryAll(
           "SELECT name from apikeys",
-          schemas=Set(t)
+          schemas=Seq(t)
         ){r => r.optString("name")}
           .map(l => l.toSet)
         val futureExistingWebhooks = env.postgresql.queryAll(
             "SELECT name from webhooks",
-            schemas=Set(t)
+            schemas=Seq(t)
           ){r => r.optString("name")}
           .map(l => l.toSet)
 

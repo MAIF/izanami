@@ -12,27 +12,35 @@ import akka.stream.scaladsl.{FileIO, Keep, Sink, Source}
 import akka.util.Timeout
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
-import com.github.tomakehurst.wiremock.client.WireMock.aResponse
+import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, configure}
 import com.github.tomakehurst.wiremock.core.{Container, WireMockConfiguration}
 import com.github.tomakehurst.wiremock.http.{HttpHeaders, Request}
-import fr.maif.izanami.api.BaseAPISpec.{cleanUpDB, eventKillSwitch, login, shouldCleanUpEvents, shouldCleanUpMails, shouldCleanUpWasmServer, webhookServers, ws}
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import fr.maif.izanami.IzanamiLoader
+import fr.maif.izanami.api.BaseAPISpec.{cleanUpDB, eventKillSwitch, isAvailable, izanamiInstance, login, maybeContainers, shouldCleanUpEvents, shouldCleanUpMails, shouldCleanUpWasmServer, shouldRestartInstance, startContainers, webhookServers, ws}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.utils.{WasmManagerClient, WiremockResponseDefinitionTransformer}
 import org.awaitility.scala.AwaitilitySupport
 import org.postgresql.util.PSQLException
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatestplus.play.PlaySpec
+import org.testcontainers.containers.DockerComposeContainer
+import play.api.ApplicationLoader.Context
+import play.api.inject.DefaultApplicationLifecycle
+import play.api.{Application, Configuration, Environment, Mode}
 import play.api.libs.json._
 import play.api.libs.ws.ahc.{AhcWSClient, StandaloneAhcWSClient}
 import play.api.libs.ws.{WSAuthScheme, WSClient, WSCookie, WSResponse}
 import play.api.test.Helpers.{OK, await}
 import play.api.mvc.MultipartFormData.FilePart
-import play.api.test.DefaultAwaitTimeout
+import play.api.test.{DefaultAwaitTimeout, DefaultTestServerFactory, RunningServer}
+import play.core.server.ServerConfig
 
-import java.io.{BufferedWriter, File, FileWriter}
+import java.io.{BufferedWriter, File, FileWriter, IOException}
+import java.net.Socket
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
-import java.sql.DriverManager
+import java.sql.{Connection, DriverManager}
 import java.time._
 import java.time.format.DateTimeFormatter
 import java.util.{Base64, Objects, TimeZone}
@@ -40,8 +48,8 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Future, Promise}
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.duration.{DurationInt, SECONDS}
 import scala.util.Try
 
 case class StubServer(server: WireMockServer, extension: WiremockResponseDefinitionTransformer)
@@ -51,7 +59,7 @@ class BaseAPISpec
     with BeforeAndAfterEach
     with BeforeAndAfterAll
     with DefaultAwaitTimeout
-    with IzanamiServerTest
+    //with IzanamiServerTest
     with AwaitilitySupport {
   override implicit def defaultAwaitTimeout: Timeout = 30.seconds
 
@@ -82,7 +90,12 @@ class BaseAPISpec
   }
 
   override def beforeEach(): Unit = {
-    var futures: Seq[Future[Any]] = Seq(Future { cleanUpDB() })
+    if(isAvailable(5432) && maybeContainers.isEmpty) {
+      startContainers()
+    }
+
+
+    var futures: Seq[Future[Any]] = Seq()
 
     if (shouldCleanUpWasmServer) {
       futures = futures.appended(clearWasmServer())
@@ -100,9 +113,30 @@ class BaseAPISpec
       shouldCleanUpMails = false
     }
 
-    if (shouldCleanUpEvents) {
+    /*if (shouldCleanUpEvents) {
       futures = futures.appended(cleanEvents)
       shouldCleanUpEvents = false
+    }*/
+
+    if(izanamiInstance != null) {
+      val baseFuture = if(shouldCleanUpEvents) cleanEvents else Future.successful()
+
+      val res = baseFuture.map(_ => {
+        if(shouldRestartInstance) {
+          shouldRestartInstance = false
+          println("Izanami instance is running from previous test, stopping it...")
+          BaseAPISpec.stopServer()
+          println("Izanami is stopped")
+          cleanUpDB(hard = true)
+        } else {
+          println("An izanami instance is already running, and no custom configuration was provided, no need to shut it down")
+          cleanUpDB(hard = false)
+        }
+      })
+
+      futures = futures.appended(res)
+    } else {
+      futures = futures.appended(Future { cleanUpDB(hard = true) })
     }
 
     if (Objects.nonNull(eventKillSwitch)) {
@@ -159,6 +193,13 @@ class BaseAPISpec
   }
 }
 
+class IzanamiServerFactory extends DefaultTestServerFactory {
+  override def serverConfig(app: Application): ServerConfig = {
+    val sc = ServerConfig(port = Some(9000), sslPort = None, mode = Mode.Test, rootDir = app.path)
+    sc.copy(configuration = sc.configuration ++ overrideServerConfiguration(app))
+  }
+}
+
 object BaseAPISpec extends DefaultAwaitTimeout {
   override implicit def defaultAwaitTimeout: Timeout = 30.seconds
   val SCHEMA_TO_KEEP                                 = Set("INFORMATION_SCHEMA", "IZANAMI", "PUBLIC", "PG_CATALOG", "PG_TOAST")
@@ -174,7 +215,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   val DEFAULT_OIDC_CONFIG = Json.obj(
     "pkce"-> JsNull,
     "method"-> JsString("BASIC"),
-    "scopes"-> JsString("email profile"),
+    "scopes"-> JsString("openid email profile"),
     "enabled"-> JsBoolean(true),
     "clientId"-> JsString("foo"),
     "tokenUrl"-> JsString("http://localhost:9001/connect/token"),
@@ -185,14 +226,102 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     "clientSecret"-> JsString("bar"),
     "defaultOIDCUserRights"-> Json.obj("tenants" -> Json.obj())
   )
+  val dbConnectionChain = "jdbc:postgresql://localhost:5432/postgres?user=postgres&password=postgres"
 
 
   var shouldCleanUpWasmServer           = true
   var shouldCleanUpMails                = true
   var shouldCleanUpEvents               = true
+  var shouldRestartInstance             = false
   var eventKillSwitch: UniqueKillSwitch = null
+  var izanamiInstance: RunningServer = null
+  var maybeContainers: Option[DockerComposeContainer[Nothing]] = None
 
   val webhookServers: scala.collection.mutable.Map[Int, StubServer] = scala.collection.mutable.Map()
+
+
+  def isAvailable(port: Int): Boolean = {
+    var socket: Option[Socket] = None
+    try {
+      socket = Some(new Socket("localhost", port))
+      false
+    } catch {
+      case _: IOException => true
+    } finally {
+      socket.foreach(_.close())
+    }
+  }
+
+  def stopServer(): Unit = {
+    izanamiInstance.stopServer.close()
+    izanamiInstance = null
+
+    org.awaitility.Awaitility.await atMost (30, SECONDS) until (() => {
+      val res = Try {
+        val b = await(ws.url("http://localhost:9000/api/_health").get().map(r => r.status != 200))
+        b
+      }.getOrElse(true)
+      res
+    })
+  }
+
+
+  def startContainers(): Unit = {
+    if(isAvailable(5432)) {
+      println("Port 5432 is available, starting docker-compose for the current suite")
+      var containers = new DockerComposeContainer(new File("docker-compose.yml"))
+      containers = containers.withLocalCompose(true).asInstanceOf[DockerComposeContainer[Nothing]]
+
+      containers.start()
+      maybeContainers = Some(containers)
+      val maybeWasmManager = containers.getContainerByServiceName("wasm-manager")
+
+      org.awaitility.Awaitility.await atMost (30, SECONDS) until (() =>java.lang.Boolean.valueOf(maybeWasmManager.get.isHealthy))
+      BaseAPISpec.shouldCleanUpWasmServer = false
+    } else {
+      println("Port 5432 is taken, assuming that docker containers are already running")
+    }
+  }
+
+  def stopContainers(): Unit = {
+    try {
+      maybeContainers.foreach(_.close())
+    } catch { // In case the suite aborts, ensure containers are stopped
+      case ex: Throwable => {
+        println("Exception was thrown ", ex)
+        maybeContainers.foreach(_.close())
+        throw ex
+      }}
+  }
+
+  def startServer(customConfig: Map[String, AnyRef]): RunningServer = {
+    val configuration: Configuration = Configuration.load(Environment.simple(), Map("config.file" -> "conf/dev.conf"))
+    var updatedConfig = customConfig.foldLeft(configuration.underlying)((conf, entry) => {
+      conf.withValue(entry._1, ConfigValueFactory.fromAnyRef(entry._2))
+    })
+
+    lazy val application = new IzanamiLoader().load(
+      Context(
+        environment = Environment.simple(),
+        devContext = None,
+        lifecycle = new DefaultApplicationLifecycle(),
+        initialConfiguration = Configuration(updatedConfig)
+      )
+    )
+
+    lazy val server = new IzanamiServerFactory()
+
+    println("Starting server")
+    val runningServer = server.start(application)
+    org.awaitility.Awaitility.await atMost (30, SECONDS) until (() => {
+      val b = await(ws.url("http://localhost:9000/api/_health")
+        .get().map(r => r.status == 200))
+      b
+    })
+    println("Server started")
+
+    runningServer
+  }
 
   def setupWebhookServer(port: Int, responseCode: Int = OK, path: String = "/"): Unit = {
     webhookServers.get(port) match {
@@ -218,7 +347,19 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     webhookServers(port).extension.requests
   }
 
-  def cleanUpDB(): Unit = {
+  def executeInDatabase(callback: (Connection => Unit)) {
+    classOf[org.postgresql.Driver]
+    val con_str = dbConnectionChain
+    val conn    = DriverManager.getConnection(con_str)
+
+    try {
+      callback(conn)
+    } finally {
+      conn.close()
+    }
+  }
+
+  def cleanUpDB(hard: Boolean): Unit = {
     classOf[org.postgresql.Driver]
     val con_str = "jdbc:postgresql://localhost:5432/postgres?user=postgres&password=postgres"
     val conn    = DriverManager.getConnection(con_str)
@@ -237,8 +378,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
            |    -- don't kill my own connection!
            |    pid <> pg_backend_pid()
            |    AND backend_type = 'client backend'
-           |    AND query LIKE 'LISTEN%'
-           |    AND query <> 'LISTEN "izanami"'
+           |    AND ((query LIKE 'LISTEN%'
+           |    AND query <> 'LISTEN "izanami"')
+           |    ${if(hard) "OR application_name = 'vertx-pg-client'" else ""})
            |""".stripMargin)
 
       while (result.next()) {
@@ -293,6 +435,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
 
   def createWebhook(tenant: String, webhook: TestWebhook, cookies: Seq[WSCookie] = Seq()) = {
+    BaseAPISpec.this.shouldRestartInstance = true
     ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/webhooks")
       .withCookies(cookies: _*)
       .post(webhook.toJson)
@@ -302,6 +445,13 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     ws.url(s"${ADMIN_BASE_URL}/users/${user}/tokens")
       .withCookies(cookies: _*)
       .post(token.toJson)
+  }
+
+  def updateFeatureCreationDateInDB(tenant: String, feature: String, newDate: LocalDateTime) = {
+    val dtf = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+    executeInDatabase(conn => {
+      conn.createStatement().execute(s"""UPDATE ${tenant}.features SET created_at='${newDate.atOffset(ZoneOffset.UTC).format(dtf)}' WHERE id='${feature}'""")
+    })
   }
 
   def createFeature(
@@ -1643,8 +1793,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       scripts: Map[String, String] = Map(),
       webhooks: Map[String, Map[String, String]] = Map(),
       user: String,
-      tokenData: Map[String, Map[String, (String, String)]]
+      tokenData: Map[String, Map[String, (String, String)]],
+      server: RunningServer
   ) {
+    BaseAPISpec.this.izanamiInstance = server
 
     def shutdownEventSources(tenant: String) = {
       val response = await(
@@ -3046,7 +3198,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         TestConfiguration(mailerConfiguration = Json.obj("mailer" -> "Console"), invitationMode = "Response", originEmail = null, oidcConfiguration = DEFAULT_OIDC_CONFIG),
       wasmScripts: Seq[TestWasmScript] = Seq(),
       webhookServers: Map[Int, (Int, String)] = Map(),
-      personnalAccessTokens: Set[TestPersonnalAccessToken] = Set()
+      personnalAccessTokens: Set[TestPersonnalAccessToken] = Set(),
+      customConfiguration: Map[String, AnyRef] = Map()
   ) {
 
     def withWebhookServer(port: Int, responseCode: Int = OK, path: String = "/"): TestSituationBuilder = {
@@ -3131,7 +3284,26 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       copy(tenants = this.tenants ++ tenants.map(t => TestTenant(name = t)))
     }
 
+    def withCustomConfiguration(config: Map[String, AnyRef]): TestSituationBuilder = {
+      copy(customConfiguration = config)
+    }
+
     def build(): TestSituation = {
+      if(customConfiguration.nonEmpty) {
+        BaseAPISpec.this.shouldRestartInstance = true
+      }
+
+      val runningServer = if(izanamiInstance == null) {
+        startServer(customConfiguration)
+      } else if(customConfiguration.nonEmpty) {
+        println("Custom configuration was provided, restarting already running Izanami instance")
+        stopServer()
+        println("Already running instance was stopped, restarting new instance with custom config")
+        startServer(customConfiguration)
+      } else {
+        BaseAPISpec.this.izanamiInstance
+      }
+      //val runningServer = startServer(customConfiguration)
 
       var scriptIds: Map[String, String]                                              = Map()
       var keyData: Map[String, TestSituationKey]                                      = Map()
@@ -3279,10 +3451,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                             }
                           })
                         })
-                        .concat(project.contexts.map(context => {
-                          createContextHierarchyAsync(tenant.name, project.name, context, cookies = buildCookies)
-                        }))
-                    )
+                    ).flatMap(_ => {
+                      Future.sequence(project.contexts.map(context => {
+                        createContextHierarchyAsync(tenant.name, project.name, context, cookies = buildCookies)
+                      }))
+                    })
                   })
                 }))
               )
@@ -3468,7 +3641,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         scripts = scriptIds,
         webhooks = immutableWebhookData,
         user = loggedInUser.getOrElse(null),
-        tokenData = immutableTokenData
+        tokenData = immutableTokenData,
+        server = runningServer
       )
     }
   }

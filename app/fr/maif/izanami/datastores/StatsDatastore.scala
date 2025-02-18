@@ -137,7 +137,7 @@ class StatsDatastore(val env: Env) extends Datastore {
         s"""
          |select count(id), script_config is null as classical from features group by classical
          |""".stripMargin,
-        schemas = Set(tenant),
+        schemas = Seq(tenant),
         conn=Some(conn)
       ) { rows =>
         {
@@ -151,7 +151,7 @@ class StatsDatastore(val env: Env) extends Datastore {
               s"""
              |select count(*), script_config is null as classical from feature_contexts_strategies group by classical
              |""".stripMargin,
-              schemas = Set(tenant),
+              schemas = Seq(tenant),
               conn=Some(conn)
             ) { rows =>
               {
@@ -174,7 +174,7 @@ class StatsDatastore(val env: Env) extends Datastore {
             s"""
              |select count(*) from projects
              |""".stripMargin,
-            schemas = Set(tenant),
+            schemas = Seq(tenant),
             conn=Some(conn)
           ) { r => r.optInt("count") }
           .map(o => o.getOrElse(0))
@@ -186,7 +186,7 @@ class StatsDatastore(val env: Env) extends Datastore {
             s"""
            |select count(*), admin from apikeys group by admin
            |""".stripMargin,
-            schemas = Set(tenant),
+            schemas = Seq(tenant),
             conn=Some(conn)
           ) { rows => readBooleanCount(rows, "admin") }
           .map { case (admin, nonAdmin) => stats.copy(adminKeyCount=admin, nonAdminKeyCount=nonAdmin) }
@@ -206,7 +206,7 @@ class StatsDatastore(val env: Env) extends Datastore {
             s"""
                |select count(*) from tags
                |""".stripMargin,
-            schemas = Set(tenant),
+            schemas = Seq(tenant),
             conn=Some(conn)
           ) { r => r.optInt("count") }
           .map(o => o.getOrElse(0))

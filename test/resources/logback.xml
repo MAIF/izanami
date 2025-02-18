@@ -35,9 +35,15 @@
   <logger name="izanami" level="DEBUG" />
   <logger name="application" level="INFO" />
   <logger name="izanami-wasm" level="WARN" />
+  <logger name="org.testcontainers" level="ERROR" />
+  <logger name="tc" level="WARN" />
+  <logger name="org.eclipse.jetty" level="WARN"/>
+  <logger name="org.flywaydb" level="WARN"/>
+  <logger name="com.zaxxer.hikari" level="WARN"/>
+  <logger name="akka" level="WARN"/>
 
 
-  <root level="DEBUG">
+  <root level="INFO">
     <appender-ref ref="ASYNCFILE" />
     <appender-ref ref="ASYNCSTDOUT" />
   </root>

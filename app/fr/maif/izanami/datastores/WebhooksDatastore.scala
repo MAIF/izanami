@@ -33,7 +33,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
          |RETURNING webhook
          |""".stripMargin,
         List(webhook, java.lang.Long.valueOf(eventId)),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r =>
         {
           Some(true)
@@ -55,7 +55,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
            |RETURNING webhook
            |""".stripMargin,
         List(webhook, java.lang.Long.valueOf(eventId)),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r =>
         Some(())
       }
@@ -72,7 +72,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
            |RETURNING webhook
            |""".stripMargin,
         List(webhook, java.lang.Long.valueOf(eventId)),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { _ => () }
   }
 
@@ -92,7 +92,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
          |  GROUP BY w.id, e.event
          |""".stripMargin,
         List(java.lang.Long.valueOf(300)),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r =>
         for (
           webhook      <- r.optLightWebhook();
@@ -180,7 +180,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
               .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
           )
       },
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     )
   }
 
@@ -192,7 +192,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
          |RETURNING id
          |""".stripMargin,
         List(webhook),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r => Some(()) }
       .map(_.toRight(WebhookDoesNotExists(webhook)))
   }
@@ -225,7 +225,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
          |GROUP BY w.id
          |""".stripMargin,
       params = List(featureIds.toArray, projectNames.toArray),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r => r.optLightWebhook() }
   }
 
@@ -259,7 +259,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
          |  OR u.admin = true
          |GROUP BY w.id""".stripMargin,
       params = List(user, tenant),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r =>
       {
         for (
@@ -381,7 +381,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
             case either    => Future.successful(either)
           }
       },
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     )
   }
 }

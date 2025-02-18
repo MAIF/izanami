@@ -16,7 +16,7 @@ class TagsDatastore(val env: Env) extends Datastore {
       .queryOne(
         s"""insert into tags (name, description) values ($$1, $$2) returning *""",
         List(tagCreationRequest.name, tagCreationRequest.description),
-        schemas=Set(tenant)
+        schemas=Seq(tenant)
       ) { row => row.optTag() }
       .map {
         _.toRight(InternalServerError())
@@ -33,7 +33,7 @@ class TagsDatastore(val env: Env) extends Datastore {
       .queryAll(
         s"""insert into tags (name, description) values (unnest($$1::text[]), unnest($$2::text[])) ON CONFLICT (name) DO NOTHING returning *""",
         List(tags.map(_.name).toArray, tags.map(_.description).toArray),
-        schemas=Set(tenant),
+        schemas=Seq(tenant),
         conn=conn
       ) { row => row.optTag() }
       .map(ts => Right(ts))
@@ -45,7 +45,7 @@ class TagsDatastore(val env: Env) extends Datastore {
       .queryOne(
         s"""SELECT * FROM tags WHERE name=$$1""",
         List(name),
-        schemas=Set(tenant)
+        schemas=Seq(tenant)
       ) { row => row.optTag() }
       .map { _.toRight(TagDoesNotExists(name)) }
   }
@@ -55,7 +55,7 @@ class TagsDatastore(val env: Env) extends Datastore {
       .queryOne(
         s"""DELETE FROM tags WHERE name=$$1 returning name, id""",
         List(name),
-        schemas=Set(tenant)
+        schemas=Seq(tenant)
       ) { row => row.optTag() }
       .map { _.toRight(TagDoesNotExists(name)).map(_ => ()) }
   }
@@ -65,14 +65,14 @@ class TagsDatastore(val env: Env) extends Datastore {
       .queryAll(
         s"""SELECT * FROM tags WHERE name=ANY($$1)""",
         List(names.toArray),
-        schemas=Set(tenant)
+        schemas=Seq(tenant)
       ) { row => row.optTag() }
   }
 
   def readTags(tenant: String): Future[List[Tag]] = {
     env.postgresql.queryAll(
       s"""SELECT * FROM tags""",
-      schemas=Set(tenant)
+      schemas=Seq(tenant)
     ) { row => row.optTag() }
   }
   def updateTag(tag: Tag, tenant: String, currentName: String): Future[Either[IzanamiError, Tag]] = {
@@ -80,7 +80,7 @@ class TagsDatastore(val env: Env) extends Datastore {
       .queryOne(
         s"""Update tags set name=$$1, description=$$2  where name = $$3 returning *""",
         List(tag.name, tag.description, currentName),
-        schemas=Set(tenant)
+        schemas=Seq(tenant)
       ) { row => row.optTag() }
       .map {
         _.toRight(TagDoesNotExists(currentName))

@@ -26,6 +26,7 @@ class Datastores(env: Env) {
   private implicit val ec: ExecutionContext = env.executionContext
 
   val features: FeaturesDatastore = new FeaturesDatastore(env)
+  val featureCalls: FeatureCallsDatastore = new FeatureCallsDatastore(env)
   val tenants: TenantsDatastore = new TenantsDatastore(env)
   val projects: ProjectsDatastore = new ProjectsDatastore(env)
   val tags: TagsDatastore = new TagsDatastore(env)
@@ -44,6 +45,7 @@ class Datastores(env: Env) {
     for {
       _ <- users.onStart()
       _ <- events.onStart()
+      _ <- featureCalls.onStart()
     } yield ()
   }
 
@@ -51,6 +53,7 @@ class Datastores(env: Env) {
     for {
       _ <- users.onStop()
       _ <- events.onStop()
+      _ <- featureCalls.onStop()
     } yield ()
   }
 }
@@ -66,6 +69,8 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
   val defaultSecret = configuration.get[String]("app.default-secret")
   val secret = configuration.get[String]("app.secret")
   val extensionsSchema = configuration.get[String]("app.pg.extensions-schema")
+  val houseKeepingStartDelayInSeconds = configuration.get[Long]("app.housekeeping.start-delay-in-seconds")
+  val houseKeepingIntervalInSeconds = configuration.get[Long]("app.housekeeping.interval-in-seconds")
 
   if (defaultSecret == secret) {
     logger.warn("You're using Izanami default secret, which is not safe for production. Please generate a new secret and provide it to Izanami (see https://maif.github.io/izanami/docs/guides/configuration#secret for details).")

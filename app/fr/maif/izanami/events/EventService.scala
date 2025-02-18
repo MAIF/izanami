@@ -723,7 +723,7 @@ class EventService(env: Env) {
                |""".stripMargin,
             params = List(jsonEvent.vertxJsValue, event.dbEventType, event.entityId, now, ORIGIN_NAME_MAP(event.origin), EventAuthentication.authenticationName(event.authentication), event.user),
             conn = Some(conn),
-            schemas = if (global) Set() else Set(channel)
+            schemas = if (global) Seq() else Seq(channel)
           ) { r => {
             r.optLong("id").map(id => (id, jsonEvent))
           }
