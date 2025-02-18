@@ -342,7 +342,7 @@ There is no TTL using this strategy so you have to choose the right patterns to 
 An error handling strategy could be provided. You can choose between :
 
 - `RecoverWithFallback`: If the call crash, the fallback is used
-- `Crash`: The call will finish on error if an error occured while evaluating the feature, config or experiment.
+- `Crash`: The call will finish on error if an error occurred while evaluating the feature, config or experiment.
 
 <Tabs groupId="javascala">
   <TabItem value="java" label="Java" default>
@@ -764,7 +764,7 @@ There is no TTL using this strategy so you have to choose the right patterns to 
 An error handling strategy could be provided. You can choose between :
 
 - `RecoverWithFallback`: If the call crash, the fallback is used
-- `Crash`: The call will finish on error if an error occured while evaluating the feature, config or experiment.
+- `Crash`: The call will finish on error if an error occurred while evaluating the feature, config or experiment.
 
 <Tabs groupId="javascala">
   <TabItem value="java"
@@ -900,7 +900,7 @@ This execute a code and return a value if a feature is active:
  default>
 
 ```java
-Future<String> conditonal = featureClient.featureOrElse("my:feature",
+Future<String> conditional = featureClient.featureOrElse("my:feature",
     () -> "Feature is active",
     () -> "Feature is not active"
 );
@@ -912,7 +912,7 @@ Future<String> conditonal = featureClient.featureOrElse("my:feature",
 >
 
 ```scala
-val conditonal: Future[String] = featureClient.featureOrElse("test") {
+val conditional: Future[String] = featureClient.featureOrElse("test") {
   "Feature is active"
 } {
   "Feature is not active"
@@ -930,7 +930,7 @@ Or with a context
  default>
 
 ```java
-Future<String> conditonalContext = featureClient.featureOrElse(
+Future<String> conditionalContext = featureClient.featureOrElse(
     "my:feature",
     Json.obj(Syntax.$("context", true)),
     () -> "Feature is active",
@@ -944,7 +944,7 @@ Future<String> conditonalContext = featureClient.featureOrElse(
 >
 
 ```scala
-val conditonalWithContext: Future[String] = featureClient.featureOrElse("test", context) {
+val conditionalWithContext: Future[String] = featureClient.featureOrElse("test", context) {
   "Feature is active"
 } {
   "Feature is not active"
