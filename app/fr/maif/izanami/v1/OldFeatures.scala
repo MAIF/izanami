@@ -13,8 +13,7 @@ import play.api.libs.json.Reads.{localDateTimeReads, localTimeReads, max, min}
 import play.api.libs.json._
 
 import java.time.format.DateTimeFormatter
-import java.time.{LocalDateTime, LocalTime, ZoneId}
-import scala.runtime.RichBoolean
+import java.time.{Instant, LocalDateTime, LocalTime, ZoneId}
 
 sealed trait OldFeature {
   def id: String

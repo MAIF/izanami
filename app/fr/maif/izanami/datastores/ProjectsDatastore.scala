@@ -252,23 +252,27 @@ class ProjectsDatastore(val env: Env) extends Datastore {
     env.postgresql
       .queryOne(
         s"""
-           |select p.id, p.name, p.description,
-           |  COALESCE(
-           |    json_agg(row_to_json(f.*)::jsonb
-           |      || (json_build_object('tags', (
-           |        array(
-           |          SELECT ft.tag
-           |          FROM features_tags ft
-           |          WHERE ft.feature = f.id
-           |          GROUP BY ft.tag
-           |        )
-           |      ), 'wasmConfig', f.script_config))::jsonb)
-           |      FILTER (WHERE f.id IS NOT NULL), '[]'
-           |  ) as "features"
-           |from projects p
-           |left join features f on p.name = f.project
-           |WHERE p.name = $$1
-           |group by p.id""".stripMargin,
+         |select p.id, p.name, p.description,
+         |  COALESCE(
+         |    json_agg(row_to_json(f.*)::jsonb
+         |      || (json_build_object('tags', (
+         |        array(
+         |          SELECT ft.tag
+         |          FROM features_tags ft
+         |          WHERE ft.feature = f.id
+         |          GROUP BY ft.tag
+         |        )
+         |      ), 'wasmConfig', f.script_config,
+         |      'lastCall', (SELECT max(fc.date)
+         |                   from feature_calls fc
+         |                   where fc.feature = f.id)
+         |      ))::jsonb)
+         |      FILTER (WHERE f.id IS NOT NULL), '[]'
+         |  ) as "features"
+         |from projects p
+         |left join features f on p.name = f.project
+         |WHERE p.name = $$1
+         |group by p.id""".stripMargin,
         List(project),
         schemas = Set(tenant)
       ) { row => row.optProjectWithFeatures() }

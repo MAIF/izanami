@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { Link, NavLink, useParams } from "react-router-dom";
 import CodeMirror from "@uiw/react-codemirror";
 import {
@@ -21,6 +21,7 @@ import {
   isLightWasmFeature,
   TValuedCondition,
   TClassicalCondition,
+  StaleStatus,
 } from "../utils/types";
 import { format, parse } from "date-fns";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
@@ -89,12 +90,14 @@ type FeatureActionNames =
   | "duplicate"
   | "transfer"
   | "url";
+
 interface FeatureTestType {
   user?: string;
   date: Date;
   context?: string;
   payload?: string;
 }
+
 export const Strategy = {
   all: { id: "All", label: "All" },
   percentage: { id: "Percentage", label: "Percentage" },
@@ -298,7 +301,8 @@ function BooleanConditionsDetails({
   if (conditions.length === 0) {
     return (
       <>
-        <div className="fw-semibold">Active : </div>For all users
+        <div className="fw-semibold">Active :</div>
+        For all users
       </>
     );
   }
@@ -440,6 +444,7 @@ function OperationButton(props: {
     </>
   );
 }
+
 function OperationTransferForm(props: {
   tenant: string;
   selectedRows: TLightFeature[];
@@ -523,6 +528,7 @@ function OperationTransferForm(props: {
     );
   }
 }
+
 function OperationTagForm(props: {
   tenant: string;
   selectedRows: TLightFeature[];
@@ -722,7 +728,7 @@ function OperationForm(props: {
 export function CopyButton(props: { value: any; title?: any }) {
   const [validCheckMark, setValidCheckmark] = React.useState<boolean>(false);
   const [idCheckMark, setIdCheckmark] = React.useState<number>();
-  const timeRef = React.useRef<NodeJS.Timeout>();
+  const timeRef = React.useRef<NodeJS.Timeout | undefined>(undefined);
   const { value, title } = props;
 
   return (
@@ -859,6 +865,7 @@ function FeatureUrl(props: {
     return <Loader message="Loading..." />;
   }
 }
+
 function OverloadTableForFeature(props: {
   tenant: string;
   feature: TLightFeature;
@@ -1059,6 +1066,7 @@ function OverloadDetails(props: {
     return <Loader message="Loading..." />;
   }
 }
+
 function ExistingFeatureTestForm(props: {
   feature: TLightFeature | TContextOverload;
   cancel?: () => any;
@@ -1575,6 +1583,7 @@ export function OverloadTable(props: {
     />
   );
 }
+
 export function FeatureTestForm(props: {
   feature: TCompleteFeature;
   cancel?: () => any;
@@ -1624,21 +1633,21 @@ export function FeatureTestForm(props: {
           .then((result) => {
             setMessage(result);
             /*if (props.feature.resultType === "boolean") {
-              setMessage(
-                `feature ${props.feature.name} would be ${
-                  active ? "active" : "inactive"
-                } on ${format(date, "yyyy-MM-dd")}${
-                  user ? ` for user ${user}` : ""
-                }${context ? ` for context ${context}` : ""}`
-              );
-            } else {
-              setMessage(
-                `feature ${props.feature.name} value would be ${active}
-                 on ${format(date, "yyyy-MM-dd")}${
-                  user ? ` for user ${user}` : ""
-                }${context ? ` for context ${context}` : ""}`
-              );
-            }*/
+                                                              setMessage(
+                                                                `feature ${props.feature.name} would be ${
+                                                                  active ? "active" : "inactive"
+                                                                } on ${format(date, "yyyy-MM-dd")}${
+                                                                  user ? ` for user ${user}` : ""
+                                                                }${context ? ` for context ${context}` : ""}`
+                                                              );
+                                                            } else {
+                                                              setMessage(
+                                                                `feature ${props.feature.name} value would be ${active}
+                                                                 on ${format(date, "yyyy-MM-dd")}${
+                                                                  user ? ` for user ${user}` : ""
+                                                                }${context ? ` for context ${context}` : ""}`
+                                                              );
+                                                            }*/
           });
       })}
       className="d-flex flex-column"
@@ -1734,6 +1743,7 @@ export function FeatureTestForm(props: {
     </form>
   );
 }
+
 export function FeatureDetails({ feature }: { feature: TLightFeature }) {
   return (
     <div className="d-flex">
@@ -1763,7 +1773,7 @@ function TextualFeatureDetails({ feature }: { feature: TLightFeature }) {
     return (
       <>
         {feature.description && <div>{feature.description}</div>}
-        <div className="fw-semibold">Active : </div>
+        <div className="fw-semibold">Active :</div>
         <SingleConditionFeatureDetail
           feature={toLegacyFeatureFormat(feature)}
         />
@@ -1784,6 +1794,48 @@ function TextualFeatureDetails({ feature }: { feature: TLightFeature }) {
       </>
     );
   }
+}
+
+function Pill({
+  criticity,
+  children,
+  tooltip,
+  onClick,
+  ariaLabel,
+}: {
+  criticity: "info" | "warning" | "error";
+  children: React.ReactNode;
+  tooltip: string;
+  onClick?: () => any;
+  ariaLabel?: string;
+}) {
+  let borderStyle = "";
+  if (criticity === "error") {
+    borderStyle = "border-danger";
+  } else if (criticity === "warning") {
+    borderStyle = "border-warning";
+  }
+  const isButton = Boolean(onClick);
+
+  return (
+    <span
+      role={isButton ? "button" : "generic"}
+      aria-label={ariaLabel}
+      className={`top-10 align-self-start badge rounded-pill bg-primary-outline ${borderStyle}`}
+      style={{
+        color: "var(--color-level-3)",
+        marginTop: "-0.5rem",
+        cursor: isButton ? "pointer" : "auto",
+      }}
+      data-tooltip-id="pill_tooltip"
+      data-tooltip-content={tooltip}
+      data-tooltip-place="top"
+      onClick={onClick}
+    >
+      <Tooltip id="pill_tooltip" />
+      {children}
+    </span>
+  );
 }
 
 export function FeatureTable(props: {
@@ -1815,6 +1867,7 @@ export function FeatureTable(props: {
       return {
         queryKey: [projectContextKey(tenant!, project!)],
         queryFn: () => queryContextsForProject(tenant!, project!),
+        //queryFn: () => Promise((resolve, reject) => reject("err")),
         enabled: fields.includes("overloadCount"),
       };
     }),
@@ -1835,6 +1888,39 @@ export function FeatureTable(props: {
     onSuccess: () => refresh(),
   });
 
+  const staleMessage = (stale?: StaleStatus) => {
+    switch (stale?.because) {
+      case "NoCall":
+        return `Feature has not been called since ${format(
+          stale?.since,
+          "PPPp"
+        )}`;
+      case "NeverCalled":
+        return `Feature has never been called since its creation at ${format(
+          stale?.since,
+          "PPPp"
+        )}`;
+      case "NoValueChange":
+        return `Feature value has not changed to its last value ${
+          stale.value
+        } since ${format(stale?.since, "PPPp")}`;
+    }
+    return "";
+  };
+
+  const displayFeature = (feature: TLightFeature) => {
+    return (
+      <>
+        <span style={{ textOverflow: "ellipsis" }}>{feature.name}</span>
+        {feature.stale && (
+          <Pill criticity="warning" tooltip={staleMessage(feature.stale)}>
+            <i className="fa-solid fa-triangle-exclamation"></i>
+          </Pill>
+        )}
+      </>
+    );
+  };
+
   if (fields.includes("name") && fields.includes("overloadCount")) {
     columns.push({
       accessorKey: "name",
@@ -1842,38 +1928,23 @@ export function FeatureTable(props: {
       minSize: 150,
       size: 20,
       cell: (props: { row: Row<any> }) => {
-        const feature = props.row.original;
+        const feature: TLightFeature = props.row.original;
+        const featureNameBase = displayFeature(feature);
 
         if (contextQueries.some((q) => q.isLoading)) {
           return (
             <div className="d-flex justify-start align-items-center">
-              <span style={{ textOverflow: "ellipsis" }}>{feature.name}</span>
+              {featureNameBase}
             </div>
           );
         } else if (contextQueries.some((q) => q.isError)) {
           return (
             <div className="d-flex align-items-center">
               <div className="d-flex py-2">
-                <span
-                  style={{
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {feature.name}
-                </span>
-                <span
-                  className="top-10 align-self-start badge rounded-pill border-danger bg-primary-outline"
-                  style={{
-                    color: "var(--color-level-3)",
-                    marginTop: "-0.5rem",
-                  }}
-                  data-tooltip-id="paste_url"
-                  data-tooltip-content="Failed to fetch overloads"
-                  data-tooltip-place="top"
-                >
-                  <Tooltip id="paste_url" />
+                {featureNameBase}
+                <Pill tooltip="Failed to fetch overloads" criticity={"error"}>
                   <i className="fa-solid fa-triangle-exclamation"></i>
-                </span>
+                </Pill>
               </div>
             </div>
           );
@@ -1888,42 +1959,28 @@ export function FeatureTable(props: {
           if (!maybeContexts || maybeContexts.length === 0) {
             return (
               <div className="d-flex justify-start align-items-center">
-                <span style={{ textOverflow: "ellipsis" }}>{feature.name}</span>
+                {featureNameBase}
               </div>
             );
           } else {
             return (
               <div className="d-flex align-items-center">
                 <div className="d-flex py-2">
-                  <span
-                    style={{
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {feature.name}
-                  </span>
-                  <button
-                    className="top-10 align-self-start badge rounded-pill bg-primary-outline"
-                    role="button"
-                    aria-label={`${maybeContexts.length} Overload${
-                      maybeContexts.length > 1 ? "s" : ""
-                    }`}
-                    style={{
-                      color: "var(--color-level-3)",
-                      marginTop: "-0.5rem",
-                    }}
-                    data-tooltip-id="paste_url"
-                    data-tooltip-content="Overloads"
-                    data-tooltip-place="top"
+                  {featureNameBase}
+                  <Pill
                     onClick={() =>
                       document
                         .getElementById(`overload-action-icon-${feature.id}`)
                         ?.click()
                     }
+                    tooltip="Overloads"
+                    criticity={"info"}
+                    ariaLabel={`${maybeContexts.length} Overload${
+                      maybeContexts.length > 1 ? "s" : ""
+                    }`}
                   >
-                    <Tooltip id="paste_url" />
                     {maybeContexts.length}
-                  </button>
+                  </Pill>
                 </div>
               </div>
             );
@@ -1941,8 +1998,7 @@ export function FeatureTable(props: {
         const feature = props.row.original;
         return (
           <div className="d-flex justify-start align-items-center">
-            <ResultTypeIcon resultType={feature.resultType} />
-            <span className="px-1">{feature.name}</span>
+            {displayFeature(feature)}
           </div>
         );
       },
