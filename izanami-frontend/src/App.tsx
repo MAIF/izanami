@@ -113,7 +113,11 @@ const router = createBrowserRouter([
   },
   {
     path: "/login",
-    element: <Wrapper element={Login} />,
+    element: (
+      <main>
+        <Wrapper element={Login} />
+      </main>
+    ),
   },
   {
     path: "/password/_reset",

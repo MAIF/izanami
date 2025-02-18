@@ -140,14 +140,13 @@ class SearchDatastore(val env: Env) extends Datastore {
         s"""
       scored_global_contexts AS (
         SELECT DISTINCT
-          c.parent,
+          ltree2text(c.parent) as parent,
           c.name as name,
           $extensionsSchema.SIMILARITY(c.name, $$1) as name_score
-        FROM global_feature_contexts c
+          FROM new_contexts c
         LEFT JOIN izanami.users u ON u.username=$$2
         LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
-        WHERE utr.level IS NOT NULL
-        OR u.admin=true
+        WHERE (utr.level IS NOT NULL OR u.admin=true) AND c.global=true
       )
        """
       unionQueries :+= s"""
@@ -160,15 +159,14 @@ class SearchDatastore(val env: Env) extends Datastore {
         s"""
           scored_local_contexts AS (
           SELECT DISTINCT
-               c.parent,
+               ltree2text(c.parent) as parent,
                c.project,
                c.name as name,
               $extensionsSchema.SIMILARITY(c.name, $$1) as name_score
-              FROM feature_contexts c
+              FROM new_contexts c
               LEFT JOIN izanami.users u ON u.username=$$2
               LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
-              WHERE utr.level IS NOT NULL
-              OR u.admin=true
+              WHERE (utr.level IS NOT NULL OR u.admin=true) AND c.global=false
           )
     """
       unionQueries :+= s"""
@@ -207,7 +205,7 @@ class SearchDatastore(val env: Env) extends Datastore {
     env.postgresql.queryAll(
       searchQuery.toString(),
       List(query, username, tenant),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r =>
       for {
         t     <- r.optString("_type")

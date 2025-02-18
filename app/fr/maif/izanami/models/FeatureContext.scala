@@ -2,24 +2,15 @@ package fr.maif.izanami.models
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.models.features.{
-  ActivationCondition,
-  BooleanActivationCondition,
-  BooleanResult,
-  BooleanResultDescriptor,
-  ResultDescriptor,
-  ResultType,
-  ValuedActivationCondition,
-  ValuedResultDescriptor,
-  ValuedResultType
-}
+import fr.maif.izanami.models.features.{ActivationCondition, BooleanActivationCondition, BooleanResult, BooleanResultDescriptor, ResultDescriptor, ResultType, ValuedActivationCondition, ValuedResultDescriptor, ValuedResultType}
 import fr.maif.izanami.wasm.{WasmConfig, WasmUtils}
+import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json._
 
 import scala.concurrent.Future
 import scala.util.matching.Regex
 
-case class FeatureContext(
+/*case class FeatureContext(
     id: String,
     name: String,
     parent: String = null,
@@ -28,7 +19,114 @@ case class FeatureContext(
     global: Boolean,
     project: Option[String] = None,
     isProtected: Boolean
-)
+)*/
+
+
+sealed trait ContextHolder {
+  def context: Context
+}
+
+case object ContextHolder {
+  def writes: Writes[ContextHolder] = {
+    case c: Context => Context.writes.writes(c)
+    case c: ContextWithOverloads => ContextWithOverloads.writes.writes(c)
+  }
+}
+
+sealed trait Context extends ContextHolder {
+  def name: String
+  def path: Seq[String]
+  def global: Boolean
+  def isProtected: Boolean
+  def fullyQualifiedName: Seq[String] = Option(path).getOrElse(Seq()).appended(name)
+  def context: Context = this
+}
+
+case class LocalContext(
+    name: String,
+    path: Seq[String],
+    isProtected: Boolean,
+    project: String
+) extends Context {
+  override def global: Boolean = false
+}
+
+case class GlobalContext(name: String, path: Seq[String], isProtected: Boolean) extends Context {
+  override def global: Boolean = true
+}
+
+case object Context {
+  def writes: Writes[Context] = { context =>
+    val project = context match {
+      case l: LocalContext => JsString(l.project)
+      case _               => JsNull
+    }
+    Json.obj(
+      "name" -> context.name,
+      "global"    -> context.global,
+      "protected" -> context.isProtected,
+      "project"   -> project
+    )
+  }
+}
+
+case class ContextWithOverloads(
+   context: Context,
+   overloads: Seq[AbstractFeature] = Seq()
+) extends ContextHolder
+
+case object ContextWithOverloads {
+  def writes: Writes[ContextWithOverloads] = { c =>
+    val json = Context.writes.writes(c.context).as[JsObject]
+    json ++
+      Json.obj(
+        "overloads" -> c.overloads.map(f => Feature.featureWrite.writes(f)),
+      )
+  }
+}
+
+case class ContextNode(
+    underlying: ContextHolder,
+    children: Seq[ContextNode]
+) {
+  def context: Context = underlying.context
+}
+
+case object ContextNode {
+  def writes: Writes[ContextNode] = { c =>
+    val json = ContextHolder.writes.writes(c.underlying).as[JsObject]
+    json ++
+      Json.obj(
+        "children"  -> c.children.map(f => ContextNode.writes.writes(f))
+      )
+  }
+}
+
+
+sealed trait FeatureContextCreationRequest {
+  def name: String
+  def parent: FeatureContextPath
+  def global: Boolean
+  def isProtected: Boolean
+  def withProtected(b: Boolean): FeatureContextCreationRequest
+}
+case class LocalFeatureContextCreationRequest(
+    name: String,
+    parent: FeatureContextPath,
+    global: Boolean,
+    project: String,
+    isProtected: Boolean
+) extends FeatureContextCreationRequest {
+  override def withProtected(b: Boolean): FeatureContextCreationRequest = copy(isProtected = b)
+}
+case class GlobalFeatureContextCreationRequest(
+    name: String,
+    parent: FeatureContextPath,
+    global: Boolean,
+    isProtected: Boolean
+) extends FeatureContextCreationRequest {
+  override def withProtected(b: Boolean): FeatureContextCreationRequest = copy(isProtected = b)
+}
 
 sealed trait LightweightContextualStrategy extends ContextualFeatureStrategy
 
@@ -62,15 +160,15 @@ case class ClassicalFeatureStrategy(
     with LightweightContextualStrategy {
   def value(requestContext: RequestContext, env: Env): Future[Either[IzanamiError, JsValue]] = {
     Future.successful(Right((enabled, resultDescriptor) match {
-      case (false, r: BooleanResultDescriptor)                  => JsFalse
-      case (false, _)                                           => JsNull
-      case (true, BooleanResultDescriptor(conditions))          =>
+      case (false, r: BooleanResultDescriptor)         => JsFalse
+      case (false, _)                                  => JsNull
+      case (true, BooleanResultDescriptor(conditions)) =>
         JsBoolean(conditions.isEmpty || conditions.exists(c => c.active(requestContext, feature)))
-      case (true, v:ValuedResultDescriptor) => {
-          v.conditions
-            .find(condition => condition.active(requestContext, feature))
-            .map(condition => condition.jsonValue)
-            .getOrElse(v.jsonValue)
+      case (true, v: ValuedResultDescriptor)           => {
+        v.conditions
+          .find(condition => condition.active(requestContext, feature))
+          .map(condition => condition.jsonValue)
+          .getOrElse(v.jsonValue)
       }
     }))
   }
@@ -101,19 +199,6 @@ case class LightWeightWasmFeatureStrategy(
 ) extends LightweightContextualStrategy
 
 object FeatureContext {
-  def generateSubContextId(project: String, name: String, path: Seq[String] = Seq()): String =
-    generateSubContextId(project, path.appended(name))
-
-  def generateSubContextId(project: String, path: Seq[String]): String =
-    s"${(project +: path).mkString("_")}"
-
-  def genratePossibleIds(project: String, path: Seq[String] = Seq()): Seq[String] = {
-    path
-      .foldLeft(Seq(): Seq[String])((acc, next) =>
-        acc.prepended(acc.headOption.map(last => s"${last}_${next}").getOrElse(next))
-      )
-      .map(keyEnd => s"${project}_${keyEnd}")
-  }
 
   def readcontextualFeatureStrategyRead(
       json: JsValue,
@@ -129,7 +214,7 @@ object FeatureContext {
           val maybeConditions = json
             .asOpt[ValuedResultDescriptor](ValuedResultDescriptor.valuedDescriptorReads)
           (maybeWasmConfig, maybeConditions) match {
-            case (Some(config), _)    => JsSuccess(CompleteWasmFeatureStrategy(enabled, config, feature, resultType))
+            case (Some(config), _)     => JsSuccess(CompleteWasmFeatureStrategy(enabled, config, feature, resultType))
             case (_, Some(descriptor)) =>
               JsSuccess(
                 ClassicalFeatureStrategy(
@@ -163,28 +248,32 @@ object FeatureContext {
       .getOrElse(JsError("Missing result type"))
   }
 
-  implicit def featureContextWrites: Writes[FeatureContext] = { context =>
-    Json.obj(
-      "name"      -> context.name,
-      "id"        -> context.id,
-      "overloads" -> { context.overloads.map(f => Feature.featureWrite.writes(f)) },
-      "children"  -> { context.children.map(f => FeatureContext.featureContextWrites.writes(f)) },
-      "global"    -> context.global,
-      "protected" -> context.isProtected,
-      "project"   -> context.project
-    )
-  }
+
+
+
+
+
 
   val CONTEXT_REGEXP: Regex = "^[a-zA-Z0-9-]+$".r
-  def readFeatureContext(json: JsValue, global: Boolean): JsResult[FeatureContext] = {
-    val name = (json \ "name").asOpt[String].filter(id => CONTEXT_REGEXP.pattern.matcher(id).matches())
-    val id   = (json \ "id").asOpt[String]
-    val isProtected   = (json \ "protected").asOpt[Boolean].getOrElse(false)
+  /*def readFeatureContext(json: JsValue, global: Boolean): JsResult[Context] = {
+
+    for(
+      name <- (json \ "name").asOpt[String].filter(id => CONTEXT_REGEXP.pattern.matcher(id).matches());
+      id <- (json \ "id").asOpt[String];
+      isProtected <- (json \ "protected").asOpt[Boolean].getOrElse(false);
+
+    path
+    global
+    isProtected
+    id
+    val name        =
+    val id          =
+    val
 
     name
       .map(n => FeatureContext(id.orNull, n, global = global, isProtected = isProtected))
       .map(JsSuccess(_))
       .getOrElse(JsError("Error reading context"))
 
-  }
+  }*/
 }

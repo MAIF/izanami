@@ -248,8 +248,7 @@ function FeatureContextTree(props: {
       return {
         options: hasUpdateDeleteRight
           ? [
-              ...(hasRightOverProtectedContexts &&
-              (!ctx.global || allowGlobalContextDelete)
+              ...(!ctx.protected || hasRightOverProtectedContexts
                 ? [
                     {
                       icon: <>Add subcontext</>,

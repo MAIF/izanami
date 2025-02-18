@@ -1,12 +1,12 @@
 package fr.maif.izanami.datastores
 
 import akka.actor.Cancellable
-import fr.maif.izanami.datastores.userImplicits.{dbUserTypeToUserType, rightRead, UserRow}
+import fr.maif.izanami.datastores.userImplicits.{UserRow, dbUserTypeToUserType, rightRead}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
-import fr.maif.izanami.models.RightLevels.{superiorOrEqualLevels, RightLevel}
+import fr.maif.izanami.models.RightLevels.{RightLevel, superiorOrEqualLevels}
 import fr.maif.izanami.models.Rights.TenantRightDiff
 import fr.maif.izanami.models.User.{rightLevelReads, tenantRightReads}
 import fr.maif.izanami.models._
@@ -20,7 +20,7 @@ import play.api.libs.json.{JsError, JsSuccess, Reads}
 import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, DurationLong}
 
 class UsersDatastore(val env: Env) extends Datastore {
   var sessionExpirationCancellation: Cancellable    = Cancellable.alreadyCancelled
@@ -28,13 +28,13 @@ class UsersDatastore(val env: Env) extends Datastore {
   var passwordResetRequestCancellation: Cancellable = Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {
-    sessionExpirationCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(5.minutes, 5.minutes)(() =>
+    sessionExpirationCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
       deleteExpiredSessions(env.configuration.get[Int]("app.sessions.ttl"))
     )
-    invitationExpirationCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(5.minutes, 5.minutes)(() =>
+    invitationExpirationCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
       deleteExpiredInvitations(env.configuration.get[Int]("app.invitations.ttl"))
     )
-    passwordResetRequestCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(5.minutes, 5.minutes)(() =>
+    passwordResetRequestCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
       deleteExpiredPasswordResetRequests(env.configuration.get[Int]("app.password-reset-requests.ttl"))
     )
     Future.successful(())
@@ -144,7 +144,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |DELETE FROM users_projects_rights WHERE username=$$1
          |""".stripMargin,
         List(username),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { _ => Some(()) }
       .map(_ => ())
   }
@@ -189,7 +189,7 @@ class UsersDatastore(val env: Env) extends Datastore {
                 ) { r => Some(()) }
               })
           }.map(_ => Right(())),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       )
     }
   }
@@ -209,7 +209,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |RETURNING 1
          |""".stripMargin,
         List(username, project, right.toString.toUpperCase),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { _ => Some(()) }
       .map(_ => ())
   }
@@ -340,7 +340,7 @@ class UsersDatastore(val env: Env) extends Datastore {
               )
             })
         },
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       )
       .map(_ => ())
   }
@@ -697,7 +697,7 @@ class UsersDatastore(val env: Env) extends Datastore {
            |)
            |""".stripMargin,
         List(session, tenant, webhook, superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r =>
         {
           for (
@@ -735,7 +735,7 @@ class UsersDatastore(val env: Env) extends Datastore {
            |)
            |""".stripMargin,
         List(session, tenant, key, superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r => r.optString("username") }
       .map(Right(_))
       .recover {
@@ -768,7 +768,7 @@ class UsersDatastore(val env: Env) extends Datastore {
            |AND ${projectIdOrName.fold(_ => s"p.id=$$3", _ => s"p.name=$$3")}
            |""".stripMargin,
         List(session, tenant, projectIdOrName.fold(identity, identity), superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r =>
         {
           for (
@@ -864,7 +864,7 @@ class UsersDatastore(val env: Env) extends Datastore {
            |WHERE u.username=$$1
            |""".stripMargin,
         params.toList,
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { r =>
         {
           val admin            = r.getBoolean("admin")
@@ -1031,7 +1031,7 @@ class UsersDatastore(val env: Env) extends Datastore {
            |RETURNING username
            |""".stripMargin,
       List(usernames, projects, levels),
-      schemas = Set(tenant),
+      schemas = Seq(tenant),
       conn = Some(conn)
     ) { _ => Some(()) }
   }
@@ -1052,7 +1052,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |RETURNING username
          |""".stripMargin,
       List(usernames, projects, levels),
-      schemas = Set(tenant),
+      schemas = Seq(tenant),
       conn = Some(conn)
     ) { _ => () }
   }
@@ -1087,7 +1087,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |RETURNING username
          |""".stripMargin,
       List(usernames, projects, levels),
-      schemas = Set(tenant),
+      schemas = Seq(tenant),
       conn = Some(conn)
     ) { _ => () }
   }
@@ -1315,7 +1315,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |OR u.admin=true
          |""".stripMargin,
       List(tenant, webhook),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r =>
       {
         r.optUser()
@@ -1342,7 +1342,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |OR u.admin=true
          |""".stripMargin,
       List(project, tenant),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r =>
       r.optUser()
         .map(u => {
@@ -1375,7 +1375,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |OR u.admin=true
          |""".stripMargin,
       List(tenant, key),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r =>
       {
         r.optUser()
@@ -1419,7 +1419,7 @@ class UsersDatastore(val env: Env) extends Datastore {
              |WHERE u.username=$$1;
              |""".stripMargin,
               List(username, tenant),
-              schemas = Set(tenant)
+              schemas = Seq(tenant)
             ) { row => row.optUserWithRights() }
             .map(fuser => fuser.map(u => (tenant, u)))
         })
@@ -1506,7 +1506,7 @@ class UsersDatastore(val env: Env) extends Datastore {
              |ON CONFLICT (username, project) DO NOTHING
              |""".stripMargin,
             List(project, users.map(_._1).toArray, users.map(_._2.toString.toUpperCase).toArray),
-            schemas = Set(tenant)
+            schemas = Seq(tenant)
           ) { r => Some(()) }
           .map(_ => ())
       )
@@ -1534,7 +1534,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |WHERE u.username=s.username
          |and s.id=$$1""".stripMargin,
         List(session, tenant),
-        schemas = Set(tenant)
+        schemas = Seq(tenant)
       ) { row =>
         {
           for (

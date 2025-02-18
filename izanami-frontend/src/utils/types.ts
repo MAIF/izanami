@@ -1,4 +1,5 @@
 import { isArray } from "lodash";
+import { NotifyOnChangeProps } from "@tanstack/react-query";
 
 export interface Option {
   value: string;
@@ -222,7 +223,26 @@ export interface SingleConditionFeature {
   project?: string;
   conditions: Record<string, any>;
   resultType: "boolean";
+  stale?: StaleStatus;
 }
+
+export type NeverCalled = {
+  because: "NeverCalled";
+  since: Date;
+};
+
+export type NoCall = {
+  because: "NoCall";
+  since: Date;
+};
+
+export type NoValueChange = {
+  because: "NoValueChange";
+  since: Date;
+  value: string | number | boolean;
+};
+
+export type StaleStatus = NeverCalled | NoCall | NoValueChange;
 
 export interface SinglePercentageConditionFeature
   extends SingleConditionFeature {
@@ -318,13 +338,16 @@ interface ClassicalFeatureBase<TypeName extends FeatureTypeName> {
   project?: string;
   conditions: TClassicalCondition[];
   resultType: TypeName;
+  stale?: StaleStatus;
 }
 
 interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> {}
+
 interface ClassicalStringFeature extends ClassicalFeatureBase<"string"> {
   value: string;
   conditions: TValuedCondition<string>[];
 }
+
 interface ClassicalNumberFeature extends ClassicalFeatureBase<"number"> {
   value: number;
   conditions: TValuedCondition<number>[];
@@ -355,6 +378,7 @@ export interface LightWasmFeature {
   project?: string;
   wasmConfig: string;
   resultType: FeatureTypeName;
+  stale?: StaleStatus;
 }
 
 export interface TWasmConfig {

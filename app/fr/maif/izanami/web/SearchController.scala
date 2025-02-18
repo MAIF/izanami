@@ -2,6 +2,7 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, SearchFilterError, SearchQueryError}
+import fr.maif.izanami.models.{Context, GlobalContext, LocalContext}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.PathElement.pathElementWrite
 import fr.maif.izanami.web.SearchController.SearchEntityObject
@@ -100,70 +101,31 @@ class SearchController(
   }
 
   private def buildPath(rowType: String, rowJson: JsObject, tenant: String): Future[Seq[PathElement]] = {
+    def createContextPath(contexts: List[Context], hasProject: Option[String]): Seq[PathElement] = {
+        contexts match {
+          case (g:GlobalContext)::(l:LocalContext)::tail => {
+            Seq(GlobalContextPathElement(g.name), ProjectPathElement(l.project), LocalContextPathElement(l.name)).concat(createContextPath(tail, hasProject))
+          }
+          case (g:GlobalContext)::Nil if hasProject.isDefined => {
+            Seq(GlobalContextPathElement(g.name), ProjectPathElement(hasProject.get))
+          }
+          case (g:GlobalContext)::tail => Seq(GlobalContextPathElement(g.name)).concat(createContextPath(tail, hasProject))
+          case (g:LocalContext)::tail => Seq(LocalContextPathElement(g.name)).concat(createContextPath(tail, hasProject))
+          case _ => Seq()
+      }
+    }
+
     rowType match {
       case "feature"        => Seq(ProjectPathElement((rowJson \ "project").as[String])).future
-      case "global_context" =>
-        (rowJson \ "parent")
-          .asOpt[String]
-          .map(parent => {
-            parent.split("_").toSeq.drop(1).map(ctx => GlobalContextPathElement(ctx))
-          })
-          .getOrElse(Seq.empty)
-          .future
-
-      case "local_context"  =>
-        (rowJson \ "global_parent")
-          .asOpt[String]
-          .map(parent => {
-            val parts   = parent.split("_").toSeq
-            val project = (rowJson \ "project").as[String]
-            parts
-              .drop(1)
-              .map(ctx => GlobalContextPathElement(ctx))
-              .appended(ProjectPathElement(project))
-              .future
-          })
-          .orElse(
-            (rowJson \ "parent")
-              .asOpt[String]
-              .map(parent => {
-                val parts   = parent.split("_")
-                val project = parts.head
-
-                // We look for shortest local context parent, since before him all contexts will be global
-                env.datastores.featureContext
-                  .findLocalContexts(tenant, generateParentCandidates(parts.toSeq.drop(1)).map(s => s"${project}_$s"))
-                  .map(context => {
-                    val parentLocalContext      = context.sortBy(_.length).headOption
-                    val parts: Seq[PathElement] = parentLocalContext
-                      .map(lc => {
-                        val shortestLocalContextParts = lc.split("_")
-                        val parentLocalContextName    = shortestLocalContextParts.last
-                        val globalContextParts        =
-                          generateParentCandidates(shortestLocalContextParts.toSeq.dropRight(1).drop(1))
-                            .map(name => GlobalContextPathElement(name))
-                            .toSeq
-                            .appended(ProjectPathElement(project))
-
-                        val localContextParts = parent
-                          .replace(lc, "")
-                          .split("_")
-                          .filter(_.nonEmpty)
-                          .map(str => LocalContextPathElement(str))
-                          .toSeq
-                          .prepended(LocalContextPathElement(parentLocalContextName))
-
-                        globalContextParts.concat(localContextParts)
-                      })
-                      .getOrElse(Seq.empty)
-                    parts
-                  })
-              })
-          )
-          .getOrElse( // If there is no parent nor global parents, this is a root local context
-            Future.successful(Seq(ProjectPathElement((rowJson \ "project").as[String])))
-          )
-
+      case "global_context" | "local_context" => {
+        val hasProject = (rowJson\"project").asOpt[String]
+        (rowJson \ "parent").asOpt[String].map(parent => {
+          env.datastores.featureContext.findParents(tenant, parent)
+            .map(contexts => {
+              createContextPath(contexts, hasProject=hasProject)
+            })
+        }).getOrElse(hasProject.map(project => Seq(ProjectPathElement(project))).getOrElse(Seq()).future)
+      }
       case _                => Seq.empty.future
     }
   }

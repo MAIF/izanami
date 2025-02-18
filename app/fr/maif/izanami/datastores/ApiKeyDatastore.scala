@@ -57,7 +57,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
             apiKeys.map(k => java.lang.Boolean.valueOf(k.admin)).toArray
           ),
           conn = Some(connection),
-          schemas = Set(tenant)
+          schemas = Seq(tenant)
         ) { row => {
           val requestKey = apiKeys.find(k => k.name == row.getString("name")).get
           row.optApiKey(requestKey.tenant).map(key => key.copy(clientSecret = requestKey.clientSecret))
@@ -77,7 +77,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                        |""".stripMargin,
                     List(apiKey.name, apiKey.projects.toArray),
                     conn = Some(connection),
-                    schemas = Set(tenant)
+                    schemas = Seq(tenant)
                   ) { _ => Some(apiKey) }
                   .map {
                     _.toRight(InternalServerError())
@@ -104,7 +104,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                          |""".stripMargin,
                       List(Array.fill(apiKeys.size)(user.username), apiKeys.map(_.name).toArray),
                       conn = Some(connection),
-                      schemas = Set(tenant)
+                      schemas = Seq(tenant)
                     ) { r => apiKeys.find(k => k.name == r.getString("apikey")) }
                     .map(l => Right(l))
                 }
@@ -160,7 +160,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
          |GROUP BY a.name
          |""".stripMargin,
       List(username),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r => r.optApiKeyWithSubObjects(tenant) }
   }
 
@@ -183,7 +183,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
          |GROUP BY a.name
          |""".stripMargin,
       List(name),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r => r.optApiKeyWithSubObjects(tenant) }
   }
 
@@ -195,7 +195,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
            DELETE FROM apikeys WHERE name=$$1 RETURNING clientid
              |""".stripMargin,
           List(name),
-          schemas = Set(tenant),
+          schemas = Seq(tenant),
           conn = Some(conn)
         ) { row => row.optString("clientid") }
         .map(o => o.toRight(KeyNotFound(name)))
@@ -255,7 +255,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
             case _ => Future.successful(Right(()))
           }
       },
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     )
   }
 
@@ -291,7 +291,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                |GROUP BY a.name
                |""".stripMargin,
             List(clientId),
-            schemas = Set(tenant)
+            schemas = Seq(tenant)
           ) { r => {
             val projects = r
               .optJsArray("projects")

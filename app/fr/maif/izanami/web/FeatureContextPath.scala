@@ -4,8 +4,7 @@ import play.api.mvc.{PathBindable, QueryStringBindable}
 
 case class FeatureContextPath(elements: Seq[String] = Seq()) {
   def toUserPath: String = elements.mkString("/")
-  def toDBPath(prefix: String): String = s"${prefix}_${elements.mkString("_")}"
-  def toUnprefixedDBPath: String = elements.mkString("_")
+  def toDBPath = elements.mkString(".")
 }
 
 object FeatureContextPath {

@@ -1,241 +1,220 @@
 package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.FeatureContextDatastore.FeatureContextRow
-import fr.maif.izanami.env.Env
+import fr.maif.izanami.env.{Env, Postgresql}
 import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.SourceFeatureUpdated
-import fr.maif.izanami.models.FeatureContext.generateSubContextId
 import fr.maif.izanami.models._
-import fr.maif.izanami.models.features.{ActivationCondition, BooleanActivationCondition, BooleanResult, BooleanResultDescriptor, NumberActivationCondition, NumberResult, NumberResultDescriptor, ResultType, StringActivationCondition, StringResult, StringResultDescriptor, ValuedActivationCondition, ValuedResultDescriptor, ValuedResultType}
+import fr.maif.izanami.models.features._
 import fr.maif.izanami.utils.Datastore
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.utils.syntax.implicits.{BetterBoolean, BetterSyntax}
 import fr.maif.izanami.wasm.WasmConfig
 import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import io.vertx.core.json.JsonArray
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
-import play.api.libs.json.{JsArray, JsValue, Json, Reads, Writes}
+import play.api.libs.json.{JsArray, Json, Writes}
 
 import java.util.Objects
 import scala.concurrent.Future
 
 class FeatureContextDatastore(val env: Env) extends Datastore {
+  val postgresql: Postgresql = env.postgresql
+  val extensionSchema = env.extensionsSchema
 
-  def getFeatureContext(tenant: String, project: String, parents: Seq[String]) = {
-    val localParentId = generateSubContextId(project, parents)
-    val globalParentId = generateSubContextId(tenant, parents)
-    env.postgresql.queryOne(
+  def readContext(tenant: String, path: FeatureContextPath): Future[Option[Context]] = {
+    postgresql.queryOne(
       s"""
-         |SELECT id, name, parent, project, false as global, protected
-         |FROM feature_contexts
-         |WHERE id=$$1
-         |UNION ALL
-         |SELECT id, name, parent, null as project, true as global, protected
-         |FROM global_feature_contexts
-         |WHERE id=$$2
+         |SELECT global, name, project, ltree2text(parent) as parent, protected
+         |FROM new_contexts
+         |WHERE ctx_path=text2ltree($$1)
          |""".stripMargin,
-      List(localParentId, globalParentId),
-      schemas = Set(tenant)
-    ) {r =>
-      for (
-        id     <- r.optString("id");
-        name   <- r.optString("name");
-        global <- r.optBoolean("global");
-        isProtected <- r.optBoolean("protected")
-      ) yield FeatureContext(id, name, r.optString("parent").orNull, global = global, project = r.optString("project"), isProtected = isProtected)
+      List(path.toDBPath),
+      schemas = Seq(extensionSchema, tenant)
+    ) {r => r.optContext}
+  }
+
+  def getFeatureContext(tenant: String, project: String, path: FeatureContextPath): Future[Option[Context]] = {
+    postgresql.queryOne(
+      s"""
+         |SELECT global, name, project, ltree2text(parent) as parent, protected
+         |FROM new_contexts
+         |WHERE ctx_path=text2ltree($$1)
+         |AND (project=$$2 OR global=true)
+         |""".stripMargin,
+      List(path.toDBPath, project),
+      schemas = Seq(extensionSchema, tenant)
+    ) {r => r.optContext}
+  }
+
+  def getLocalFeatureContext(tenant: String, project: String, path: FeatureContextPath): Future[Option[LocalContext]] = {
+    getFeatureContext(tenant, project, path).map {
+      case Some(l: LocalContext) => Some(l)
+      case _ => None
     }
   }
 
 
-  def getGlobalFeatureContext(tenant: String, parents: Seq[String]) = {
-    val globalParentId = generateSubContextId(tenant, parents)
-    env.postgresql.queryOne(
+  def getGlobalFeatureContext(tenant: String, parents: FeatureContextPath): Future[Option[GlobalContext]] = {
+    postgresql.queryOne(
       s"""
-         |SELECT id, name, parent, null as project, true as global, protected
-         |FROM global_feature_contexts
-         |WHERE id=$$1
+         |SELECT name, project, ltree2text(parent) as parent, protected
+         |FROM new_contexts
+         |WHERE ctx_path=text2ltree($$1)
+         |AND global=true
          |""".stripMargin,
-      List(globalParentId),
-      schemas = Set(tenant)
-    ) {r =>
-      for (
-        id     <- r.optString("id");
-        name   <- r.optString("name");
-        global <- r.optBoolean("global");
-        isProtected <- r.optBoolean("protected")
-      ) yield FeatureContext(id, name, r.optString("parent").orNull, global = global, project = r.optString("project"), isProtected = isProtected)
-    }
+      List(parents.toDBPath),
+      schemas = Seq(extensionSchema, tenant)
+    ) {r => r.optGlobalContext}
   }
-
-  private def doGetFeatureContext(tenant: String, project: String, parents: Seq[String]) = {
-    val localParentId = generateSubContextId(project, parents)
-    val globalParentId = generateSubContextId(tenant, parents)
-    env.postgresql.queryOne(
-      s"""
-         |SELECT id, name, parent, project, false as global, protected
-         |FROM feature_contexts
-         |WHERE id=$$1
-         |UNION ALL
-         |SELECT id, name, parent, null as project, true as global, protected
-         |FROM global_feature_contexts
-         |WHERE id=$$2
-         |""".stripMargin,
-      List(localParentId, globalParentId),
-      schemas = Set(tenant)
-    ) {r =>
-      for (
-        id     <- r.optString("id");
-        name   <- r.optString("name");
-        global <- r.optBoolean("global");
-        isProtected <- r.optBoolean("protected")
-      ) yield FeatureContext(id, name, r.optString("parent").orNull, global = global, project = r.optString("project"), isProtected = isProtected)
-    }
-  }
-
 
   def updateGlobalFeatureContext(tenant: String, context: FeatureContextPath, isProtected: Boolean): Future[Either[IzanamiError, Unit]] = {
-    val id = context.toDBPath(tenant)
-    val idForLikeClause = s"${id}_%"
-    val params = if(isProtected) {
-      List(java.lang.Boolean.valueOf(isProtected), id, idForLikeClause)
-    } else {
-      List(java.lang.Boolean.valueOf(isProtected), id)
-    }
-
-    env.postgresql.executeInTransaction(implicit conn => {
-      env.postgresql.queryOne(
-          s"""
-             |UPDATE global_feature_contexts
-             |SET protected=$$1
-             |WHERE id=$$2
-             |${if(isProtected) s"OR parent LIKE $$3 OR parent = $$2" else ""}
-             |RETURNING *
-             |""".stripMargin,
-          params,
-          conn = Some(conn)
-        ){_ => Some(())}
-        .map(o => o.toRight(FeatureContextDoesNotExist(context.toUserPath)))
-        .flatMap {
-          case Left(err) => Left(err).future
-          case Right(_) if isProtected => {
-            env.postgresql.queryAll(
-              s"""
-                 |UPDATE feature_contexts
-                 |SET protected=$$1
-                 |WHERE global_parent LIKE $$2
-                 |OR global_parent = $$3
-                 |OR parent LIKE CONCAT(project, '_', $$4::TEXT, '_%')
-                 |""".stripMargin,
-              List(java.lang.Boolean.valueOf(isProtected), idForLikeClause, id, context.toUnprefixedDBPath),
-              conn = Some(conn)
-            ){_ => Some(()) }
-              .map(_ => Right(()))
-          }
-          case _ => Right(()).future
-        }
-    }, schemas=Set(tenant))
+    postgresql.queryOne(
+      s"""
+         |UPDATE new_contexts
+         |SET protected=$$1
+         |WHERE ctx_path=text2ltree($$2)
+         |${if(isProtected) s"OR text2ltree($$2) @> ctx_path" else ""}
+         |RETURNING *
+         |""".stripMargin,
+      List(isProtected.toJava, context.toDBPath),
+      schemas=Seq(extensionSchema, tenant)
+    ){_ => Some(())}
+      .map {
+        case Some(_) => Right()
+        case None => Left(FeatureContextDoesNotExist(context.toUserPath))
+      }
   }
 
-  def updateLocalFeatureContext(tenant: String, project: String, name: String, isProtected: Boolean, parents: FeatureContextPath): Future[Either[IzanamiError, Unit]] = {
-    val parentPart = if(parents.elements.nonEmpty) s"${parents.elements.mkString("_")}_" else ""
-    val id = s"${project}_${parentPart}${name}"
-
-    val params = if(isProtected) {
-      List(java.lang.Boolean.valueOf(isProtected), id, s"${id}_%")
-    } else {
-      List(java.lang.Boolean.valueOf(isProtected), id)
-    }
-
-    env.postgresql.queryOne(
+  def updateLocalFeatureContext(tenant: String, project: String, isProtected: Boolean, path: FeatureContextPath): Future[Either[IzanamiError, Unit]] = {
+    postgresql.queryOne(
         s"""
-           |UPDATE feature_contexts
+           |UPDATE new_contexts
            |SET protected=$$1
-           |WHERE id=$$2
-           |${if(isProtected) s"OR parent LIKE $$3 OR PARENT = $$2" else ""}
+           |WHERE ctx_path=text2ltree($$2)
+           |AND project=$$3
+           |${if(isProtected) s"OR text2ltree($$2) @> ctx_path" else ""}
            |RETURNING *
            |""".stripMargin,
-        params,
-        schemas = Set(tenant)
+        List(isProtected.toJava, path.toDBPath, project),
+        schemas = Seq(extensionSchema, tenant)
       ){_ => Some(())}
-      .map(o => o.toRight(FeatureContextDoesNotExist(name)))
+      .map(o => o.toRight(FeatureContextDoesNotExist(path.toUserPath)))
   }
 
-  def findChildrenForGlobalContext(tenant: String, path: FeatureContextPath): Future[Seq[FeatureContext]] = {
-    val id = path.toDBPath(tenant)
-    val parentStart = s"${path.toDBPath(tenant)}_%"
-    env.postgresql.queryAll(
+  def findChildrenForGlobalContext(tenant: String, path: FeatureContextPath): Future[Seq[Context]] = {
+    postgresql.queryAll(
       s"""
-         |SELECT id, name, parent, null as project, true as global, protected
-         |FROM global_feature_contexts gfc
-         |WHERE gfc.parent LIKE $$1 OR gfc.parent LIKE $$2
-         |UNION
-         |SELECT id, name, COALESCE(fc.parent, fc.global_parent) as parent, project, false as global, protected
-         |FROM feature_contexts fc
-         |WHERE parent LIKE $$1 OR parent LIKE concat(project, '_', $$3::TEXT, '_%')
+         |SELECT name, ltree2text(parent) as parent, project, global, protected
+         |FROM new_contexts
+         |WHERE text2ltree($$1) @> ctx_path
          |""".stripMargin,
-      List(id, parentStart, path.toUnprefixedDBPath),
-      schemas = Set(tenant)){r => {
-      r.optFeatureContext(r.optBoolean("global").get)
-    }}
+      List(path.toDBPath),
+      schemas = Seq(extensionSchema, tenant)){r => r.optContext}
   }
 
-  def findChildrenForLocalContext(tenant: String, project: String, path: FeatureContextPath): Future[Seq[FeatureContext]] = {
-    val id = path.toDBPath(project)
-    val parentStart = s"${path.toDBPath(project)}_%"
-    env.postgresql.queryAll(
+  def findChildrenForLocalContext(tenant: String, project: String, path: FeatureContextPath): Future[Seq[LocalContext]] = {
+    postgresql.queryAll(
       s"""
-         |SELECT id, name, parent, project, false as global, protected
-         |FROM feature_contexts
-         |WHERE parent LIKE $$1 OR parent LIKE $$2
+         |SELECT name, ltree2text(parent) as parent, project, global, protected
+         |FROM new_contexts
+         |WHERE text2ltree($$1) @> ctx_path
+         |AND project = $$2
          |""".stripMargin,
-      List(id, parentStart),
-      schemas = Set(tenant)){r => {
-      r.optFeatureContext(r.optBoolean("global").get)
-    }}
+      List(path.toDBPath, project),
+      schemas = Seq(extensionSchema, tenant))
+    {r => r.optLocalContext}
   }
 
-  def deleteGlobalFeatureContext(tenant: String, path: Seq[String]): Future[Either[IzanamiError, Unit]] = {
-    val ctxName    = path.last
-    val parentPart = path.init
-    env.postgresql.executeInTransaction(conn => {
-      env.postgresql
-        .queryOne(
-          s"""
-             |DELETE FROM global_feature_contexts
-             |WHERE id=$$1
-             |RETURNING *
-             |""".stripMargin,
-          List(generateSubContextId(tenant, path)),
-          schemas = Set(tenant),
-          conn = Some(conn)
-        ) { r => Some(()) }
-        .map(_.toRight(FeatureContextDoesNotExist(path.mkString("/"))))
-        .flatMap {
-          case Left(value)  => Left(value).future
-          case Right(value) =>
-            env.postgresql
-              .queryRaw(
-                s"""DELETE FROM feature_context_name_unicity_check_table
-                   |WHERE (parent = $$1 AND context=$$2) OR (parent = $$3) OR (parent LIKE $$4)
-                   |""".stripMargin,
-                List(
-                  if (parentPart.isEmpty) "" else generateSubContextId(tenant, parentPart),
-                  ctxName,
-                  s"${tenant}_${ctxName}",
-                  s"${tenant}_${ctxName}_%"
-                ),
-                conn = Some(conn)
-              ) { r => Some(()) }
-              .map(_ => Right(()))
+  def deleteGlobalFeatureContext(tenant: String, path: FeatureContextPath): Future[Either[IzanamiError, Unit]] = {
+    postgresql
+      .queryOne(
+        s"""
+           |DELETE FROM new_contexts
+           |WHERE ctx_path=text2ltree($$1)
+           |RETURNING *
+           |""".stripMargin,
+        List(path.toDBPath),
+        schemas = Seq(extensionSchema, tenant)
+      ) { r => Some(()) }
+      .map(_.toRight(FeatureContextDoesNotExist(path.toUserPath)))
+  }
+
+  /*def updateContext(tenant: String, parents: Seq[String], featureContext: Context) = {
+    postgresql.queryOne(
+        s"""
+           |UPDATE new_contexts
+           |SET
+           |  global
+           |  name
+           |  project
+           |  protected
+           |  path = $$1,
+           |  project = $$2,
+           |  protected = $$3,
+           |  global = $$4
+           |WHERE
+           |  id = $$5
+           |RETURNING *
+           |""".stripMargin,
+        List(
+          parents.mkString("/").appended(featureContext.name).toArray,
+          featureContext.project.orNull,
+          featureContext.isProtected.toJava,
+          featureContext.global.toJava,
+          featureContext.id
+        ),
+        schemas = Seq(tenant)
+      ){
+        r => {
+          r.optFeatureContext(global = featureContext.global)
         }
-    })
+      }
+      .map(o => o.toRight(InternalServerError()))
+      .recover(postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+  }*/
+
+  def createContext(tenant: String, parents: FeatureContextPath, featureContext: FeatureContextCreationRequest): Future[Either[IzanamiError, Context]] = {
+    val maybeProject = featureContext match {
+      case ctx: LocalFeatureContextCreationRequest => Some(ctx.project)
+      case _ => None
+    }
+    val parent = parents.toDBPath match {
+      case "" => null
+      case s => s
+    }
+    postgresql.queryOne(
+        s"""
+           |INSERT INTO new_contexts (parent, global, name, project, protected)
+           |VALUES (
+           |  text2ltree($$1),
+           |  $$2,
+           |  $$3,
+           |  $$4,
+           |  $$5
+           |)
+           |RETURNING ltree2text(parent) as parent, global, name, project, protected
+           |""".stripMargin,
+        List(
+          parent,
+          featureContext.global.toJava,
+          featureContext.name,
+          maybeProject.orNull,
+          featureContext.isProtected.toJava
+        ),
+        schemas = Seq(extensionSchema, tenant)
+      ) {
+        r => r.optContext
+      }
+      .map(o => o.toRight(InternalServerError()))
+      .recover(postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
   }
 
-  def createGlobalFeatureContext(
+  /*def createGlobalFeatureContext(
                                   tenant: String,
                                   parents: Seq[String],
                                   featureContext: FeatureContext
@@ -243,8 +222,8 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
     val id       = generateSubContextId(tenant, featureContext.name, parents)
     val parentId = if (parents.isEmpty) null else generateSubContextId(tenant, parents)
 
-    env.postgresql.executeInTransaction(conn => {
-      env.postgresql
+    postgresql.executeInTransaction(conn => {
+      postgresql
         .queryOne(
           s"""
              |INSERT INTO global_feature_contexts (id, name, parent, protected)
@@ -252,15 +231,15 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
              |RETURNING *
              |""".stripMargin,
           List(id, featureContext.name, parentId, java.lang.Boolean.valueOf(featureContext.isProtected)),
-          schemas = Set(tenant),
+          schemas = Seq(tenant),
           conn = Some(conn)
         ) { row => row.optFeatureContext(global = true) }
         .map(o => o.toRight(InternalServerError()))
-        .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+        .recover(postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
         .flatMap {
           case Left(value) => Left(value).future
           case Right(ctx)  =>
-            env.postgresql
+            postgresql
               .queryOne(
                 s"""
                    |INSERT INTO feature_context_name_unicity_check_table (parent, context) VALUES ($$1, $$2) RETURNING context
@@ -278,70 +257,72 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
         }
     })
 
-  }
+    createContext(tenant, parents, featureContext)
+  }*/
 
   // TODO merge with createFeatureSubContext ?
-  def createFeatureContext(
-                            tenant: String,
-                            project: String,
-                            featureContext: FeatureContext
-                          ): Future[Either[IzanamiError, FeatureContext]] = {
-    val id = generateSubContextId(project, featureContext.name)
-    env.postgresql.executeInTransaction(conn => {
-      env.postgresql
-        .queryOne(
-          s"""
-             |INSERT INTO feature_contexts (id, name, project, protected)
-             |VALUES ($$1, $$2, $$3, $$4)
-             |RETURNING *
-             |""".stripMargin,
-          List(id, featureContext.name, project, java.lang.Boolean.valueOf(featureContext.isProtected)),
-          schemas = Set(tenant),
-          conn = Some(conn)
-        ) { row => row.optFeatureContext(global = false) }
-        .map(o => o.toRight(InternalServerError()))
-        .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
-        .flatMap {
-          case Left(value) => Left(value).future
-          case Right(ctx)  => {
-            env.postgresql
-              .queryOne(
-                s"""
-                   |INSERT INTO feature_context_name_unicity_check_table (parent, context) VALUES ($$1, $$2) RETURNING context
-                   |""".stripMargin,
-                List("", featureContext.name),
-                conn = Some(conn)
-              ) { _ => Some(ctx) }
-              .map(o => o.toRight(InternalServerError()))
-              .recover {
-                case f: PgException if f.getSqlState == UNIQUE_VIOLATION =>
-                  Left(ConflictWithSameNameGlobalContext(name = featureContext.name))
-                case _                                                   =>
-                  Left(InternalServerError())
-              }
-          }
-        }
+  /* def createFeatureContext(
+                             tenant: String,
+                             project: String,
+                             featureContext: FeatureContext
+                           ): Future[Either[IzanamiError, FeatureContext]] = {
+     val id = generateSubContextId(project, featureContext.name)
+     postgresql.executeInTransaction(conn => {
+       postgresql
+         .queryOne(
+           s"""
+              |INSERT INTO feature_contexts (id, name, project, protected)
+              |VALUES ($$1, $$2, $$3, $$4)
+              |RETURNING *
+              |""".stripMargin,
+           List(id, featureContext.name, project, java.lang.Boolean.valueOf(featureContext.isProtected)),
+           schemas = Seq(tenant),
+           conn = Some(conn)
+         ) { row => row.optFeatureContext(global = false) }
+         .map(o => o.toRight(InternalServerError()))
+         .recover(postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+         .flatMap {
+           case Left(value) => Left(value).future
+           case Right(ctx)  => {
+             postgresql
+               .queryOne(
+                 s"""
+                    |INSERT INTO feature_context_name_unicity_check_table (parent, context) VALUES ($$1, $$2) RETURNING context
+                    |""".stripMargin,
+                 List("", featureContext.name),
+                 conn = Some(conn)
+               ) { _ => Some(ctx) }
+               .map(o => o.toRight(InternalServerError()))
+               .recover {
+                 case f: PgException if f.getSqlState == UNIQUE_VIOLATION =>
+                   Left(ConflictWithSameNameGlobalContext(name = featureContext.name))
+                 case _                                                   =>
+                   Left(InternalServerError())
+               }
+           }
+         }
 
-    })
+     })
 
-  }
+  }*/
 
-  def createFeatureSubContext(
+  /*def createFeatureSubContext(
                                tenant: String,
                                project: String,
                                parents: Seq[String],
                                name: String,
                                isProtected: Boolean
                              ): Future[Either[IzanamiError, FeatureContext]] = {
+    createContext(tenant, parents = parents, featureContext = FeatureContext(id = null, name, global = true, isProtected = isProtected, project = Some(project)))
     if (parents.isEmpty) {
       createFeatureContext(tenant, project, FeatureContext(id = null, name, global = true, isProtected = isProtected))
     } else {
       val id      = generateSubContextId(project, name, parents)
-      val isLocal = env.postgresql
+      val isLocal = postgresql
         .queryOne(
           s"""SELECT id FROM feature_contexts WHERE id=$$1""",
           List(generateSubContextId(project, parents)),
-          schemas = Set(tenant)
+          schemas = Seq(tenant)
         ) { r =>
           Some(())
         }
@@ -352,9 +333,9 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
           if (parents.isEmpty) null
           else if (local) generateSubContextId(project, parents)
           else generateSubContextId(tenant, parents)
-        env.postgresql.executeInTransaction(
+        postgresql.executeInTransaction(
           conn => {
-            env.postgresql
+            postgresql
               .queryOne(
                 s"""
                    |INSERT INTO feature_contexts (id, name, project, ${if (local) "parent" else "global_parent"}, protected)
@@ -375,7 +356,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
               .flatMap {
                 case Left(error)          => Left(error).future
                 case Right(ctx) if !local => {
-                  env.postgresql
+                  postgresql
                     .queryOne(
                       s"""
                          |INSERT INTO feature_context_name_unicity_check_table (parent, context) VALUES ($$1, $$2) RETURNING context
@@ -394,146 +375,94 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                 case Right(ctx)           => Right(ctx).future
               }
           },
-          schemas = Set(tenant)
+          schemas = Seq(tenant)
         )
       })
     }
-  }
+  }*/
 
   def readStrategyForContext(
                               tenant: String,
-                              featureContext: Seq[String],
+                              featureContext: FeatureContextPath,
                               feature: AbstractFeature
                             ): Future[Option[CompleteContextualStrategy]] = {
-    val possibleContextPaths = featureContext.foldLeft(Seq(): Seq[Seq[String]])((acc, next) => {
-      val newElement = acc.lastOption.map(last => last.appended(next)).getOrElse(Seq(next))
-      acc.appended(newElement)
-    })
-
-    val possibleContextIds = possibleContextPaths
-      .map(path => {
-        generateSubContextId(feature.project, path.last, path.dropRight(1))
-      })
-      .concat(possibleContextPaths.map(path => {
-        generateSubContextId(tenant, path.last, path.dropRight(1))
-      }))
-
-    env.postgresql.queryOne(
+    postgresql.queryOne(
       s"""
          |SELECT gf.conditions, gf.enabled, gf.value, gf.result_type, ws.config
          |FROM feature_contexts_strategies gf
          |LEFT OUTER JOIN wasm_script_configurations ws ON gf.script_config=ws.id
          |WHERE gf.project = $$1
          |AND gf.feature = $$2
-         |AND gf.context=ANY($$3)
-         |ORDER BY length(gf.context) desc
+         |AND gf.context @> text2ltree($$3)
+         |ORDER BY nlevel(gf.context) desc
          |limit 1
          |""".stripMargin,
-      List(feature.project, feature.name, possibleContextIds.toArray),
-      schemas = Set(tenant)
+      List(feature.project, feature.name, featureContext.toDBPath),
+      schemas = Seq(tenant)
     ) { row =>
       row.optCompleteStrategy(feature.name).map(cs => cs.asInstanceOf[CompleteContextualStrategy])
     }
   }
 
-  def readGlobalFeatureContexts(tenant: String): Future[Seq[FeatureContext]] = {
-    env.postgresql.queryAll(
+  def readGlobalFeatureContexts(tenant: String): Future[Seq[ContextWithOverloads]] = {
+    postgresql.queryAll(
+      // TODO add last call
       s"""
-         |SELECT c.name, c.parent, c.id, NULL as project, c.protected, COALESCE(
+         |SELECT c.name, ltree2text(c.parent) as parent, c.protected, c.global, COALESCE(
          |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'project', f.project, 'description', f.description , 'wasm', s.script_config)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
          |) as overloads
-         |FROM global_feature_contexts c
-         |LEFT JOIN feature_contexts_strategies s ON s.global_context=c.id
+         |FROM new_contexts c
+         |LEFT JOIN feature_contexts_strategies s ON s.context=c.ctx_path
          |LEFT JOIN features f ON f.name=s.feature
-         |GROUP BY (c.name, c.parent, c.id)
+         |WHERE c.global=true
+         |GROUP BY (c.name, c.parent, c.protected, c.global)
          |""".stripMargin,
       List(),
-      schemas = Set(tenant)
-    ) { row => row.optFeatureContext(global = true) }
+      schemas = Seq(extensionSchema, tenant)
+    ) { row => row.optContextWithOverloadHierarchy}
   }
 
-  def readAllLocalFeatureContexts(tenant: String): Future[Seq[FeatureContext]] = {
-    env.postgresql.queryAll(
+  def readAllLocalFeatureContexts(tenant: String): Future[Seq[Context]] = {
+    postgresql.queryAll(
       s"""
-         |SELECT name, gfc.parent, id, protected, true as global, null as project
-         |FROM global_feature_contexts gfc
-         |UNION ALL
-         |SELECT name, COALESCE(fc.parent, fc.global_parent) as parent, id, protected, false as global, project
-         |FROM feature_contexts fc
+         |SELECT name, ltree2text(parent) as parent, protected, global, project
+         |FROM new_contexts fc
          |""".stripMargin,
-      schemas = Set(tenant)
-    ) { r =>
-      for (
-        id     <- r.optString("id");
-        name   <- r.optString("name");
-        global <- r.optBoolean("global");
-        isProtected <- r.optBoolean("protected")
-      ) yield FeatureContext(id, name, r.optString("parent").orNull, global = global, project = r.optString("project"), isProtected = isProtected)
-    }
+      schemas = Seq(extensionSchema, tenant)
+    ) { r => r.optContext}
   }
 
-  def readFeatureContexts(tenant: String, project: String): Future[Seq[FeatureContext]] = {
-    env.postgresql.queryAll(
+  def readFeatureContexts(tenant: String, project: String): Future[Seq[ContextWithOverloads]] = {
+    postgresql.queryAll(
       s"""
-         |SELECT c.name, COALESCE(c.parent, c.global_parent) as parent, c.id, c.project, c.protected, COALESCE(
+         |SELECT c.name, ltree2text(parent) as parent, c.project, c.protected, c.global, COALESCE(
          |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'description', f.description, 'project', f.project, 'wasm', s.script_config, 'value', s.value, 'resultType', s.result_type)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
          |) as overloads
-         |FROM feature_contexts c
-         |LEFT JOIN feature_contexts_strategies s ON s.context=c.id
+         |FROM new_contexts c
+         |LEFT JOIN feature_contexts_strategies s ON s.context=c.ctx_path
          |LEFT JOIN features f ON f.name=s.feature
-         |WHERE c.project=$$1
-         |GROUP BY (c.name, parent, c.id, c.project)
-         |UNION ALL
-         |SELECT c.name, c.parent, c.id, NULL as project, c.protected, COALESCE(
-         |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'description', f.description, 'project', f.project, 'wasm', s.script_config, 'value', s.value, 'resultType', s.result_type)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
-         |) as overloads
-         |FROM global_feature_contexts c
-         |LEFT JOIN feature_contexts_strategies s ON s.global_context=c.id
-         |LEFT JOIN features f ON f.name=s.feature
-         |GROUP BY (c.name, c.parent, c.id)
+         |WHERE c.project=$$1 or c.global=true
+         |GROUP BY (c.name, parent, c.protected, c.project, c.global)
          |""".stripMargin,
       List(project),
-      schemas = Set(tenant)
-    ) { row =>
-    {
-      row.optFeatureContext(global = row.optString("project").isEmpty)
-    }
-    }
+      schemas = Seq(extensionSchema, tenant)
+    ) { row => row.optContextWithOverloadHierarchy}
   }
 
-  def deleteContext(tenant: String, project: String, path: Seq[String]): Future[Either[IzanamiError, Unit]] = {
-    val ctxName    = path.last
-    val parentPart = path.init
-    env.postgresql.executeInTransaction(conn => {
-      env.postgresql
+  def deleteContext(tenant: String, project: String, path: FeatureContextPath): Future[Either[IzanamiError, Unit]] = {
+    postgresql.executeInTransaction(conn => {
+      postgresql
         .queryOne(
           s"""
-             |DELETE FROM feature_contexts
-             |WHERE id=$$1
+             |DELETE FROM new_contexts
+             |WHERE ctx_path=text2ltree($$1)
              |RETURNING *
              |""".stripMargin,
-          List(generateSubContextId(project, path)),
-          schemas = Set(tenant),
+          List(path.toDBPath),
+          schemas = Seq(extensionSchema, tenant),
           conn = Some(conn)
         ) { r => Some(()) }
-        .map(_.toRight(FeatureContextDoesNotExist(path.mkString("/"))))
-        .flatMap {
-          case Left(value)  => Left(value).future
-          case Right(value) => {
-            env.postgresql
-              .queryRaw(
-                s"""DELETE FROM feature_context_name_unicity_check_table
-                   |WHERE (parent = $$1 AND context=$$2)
-                   |""".stripMargin,
-                List(
-                  if (parentPart.isEmpty) "" else generateSubContextId(project, parentPart),
-                  ctxName
-                ),
-                conn = Some(conn)
-              ) { _ => Some(()) }
-              .map(_ => Right(()))
-          }
-        }
+        .map(_.toRight(FeatureContextDoesNotExist(path.toUserPath)))
     })
   }
 
@@ -543,10 +472,10 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                                feature: String,
                                conn: SqlConnection
                              ): Future[Unit] = {
-    env.postgresql.queryRaw(
+    postgresql.queryRaw(
       s"""DELETE FROM feature_contexts_strategies WHERE project=$$1 AND feature=$$2""",
       List(project, feature),
-      schemas = Set(tenant),
+      schemas = Seq(tenant),
       conn = Some(conn)
     ) { _ => () }
   }
@@ -554,47 +483,37 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
   def deleteFeatureStrategy(
                              tenant: String,
                              project: String,
-                             path: Seq[String],
+                             path: FeatureContextPath,
                              feature: String,
                              user: UserInformation
                            ): Future[Either[IzanamiError, Unit]] = {
-    val isLocal = env.postgresql
-      .queryOne(
-        s"""SELECT id FROM feature_contexts WHERE id=$$1""",
-        List(generateSubContextId(project, path)),
-        schemas = Set(tenant)
-      ) { r =>
-        Some(())
-      }
-      .map(o => o.fold(false)(_ => true))
-    isLocal
-      .flatMap(local =>
         env.datastores.features
           .findActivationStrategiesForFeatureByName(tenant, feature, project)
           .map(o => o.toRight(InternalServerError()))
-          .map(e => e.map(map => (local, FeatureWithOverloads(map))))
-      )
-      .flatMap {
+          .map(e => e.map(map => FeatureWithOverloads(map)))
+          .flatMap {
         case Left(error)                          => Left(error).future
-        case Right((local, featureWithOverloads)) => {
+        case Right(featureWithOverloads) => {
 
-          env.postgresql.executeInTransaction(implicit conn => {
-            env.postgresql
+          postgresql.executeInTransaction(implicit conn => {
+            postgresql
               .queryOne(
                 s"""
                    |DELETE FROM feature_contexts_strategies
-                   |WHERE project=$$1 AND context=$$2 AND feature=$$3
-                   |RETURNING (SELECT f.id FROM features f WHERE f.project=$$1 AND name=$$3)
+                   |WHERE project=$$1
+                   |AND feature=$$2
+                   |AND context=text2ltree($$3)
+                   |RETURNING (SELECT f.id FROM features f WHERE f.project=$$1 AND name=$$2)
                    |""".stripMargin,
                 List(
                   project,
-                  if (local) generateSubContextId(project, path) else generateSubContextId(tenant, path),
-                  feature
+                  feature,
+                  path.toDBPath
                 ),
-                schemas = Set(tenant),
+                schemas = Seq(extensionSchema, tenant),
                 conn = Some(conn)
               ) { r => r.optString("id") }
-              .map(_.toRight(FeatureOverloadDoesNotExist(project, path.mkString("/"), feature)))
+              .map(_.toRight(FeatureOverloadDoesNotExist(project, path.toUserPath, feature)))
               .flatMap {
                 case Left(err)  => Left(err).future
                 case Right(fid) => {
@@ -607,7 +526,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                         tenant = tenant,
                         user = user.username,
                         previous = featureWithOverloads,
-                        feature = featureWithOverloads.removeOverload(path.mkString("_")),
+                        feature = featureWithOverloads.removeOverload(path.toUserPath),
                         origin = NormalOrigin,
                         authentication = user.authentication
                       )
@@ -620,58 +539,32 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       }
   }
 
-  def isGlobal(tenant: String, context: Seq[String]): Future[Boolean] = {
-    env.postgresql
-      .queryOne(
-        s"""SELECT id FROM global_feature_contexts WHERE id=$$1""",
-        List(generateSubContextId(tenant, context.mkString("_"))),
-        schemas = Set(tenant)
-      ) { r =>
-        Some(())
-      }
-      .map(o => o.fold(false)(_ => true))
-  }
-
   def updateFeatureStrategy(
                              tenant: String,
                              project: String,
-                             path: Seq[String],
+                             path: FeatureContextPath,
                              feature: String,
                              strategy: CompleteContextualStrategy,
                              user: UserInformation
                            ): Future[Either[IzanamiError, Unit]] = {
-    // TODO factorize this
-    val isLocal = env.postgresql
-      .queryOne(
-        s"""SELECT id FROM feature_contexts WHERE id=$$1""",
-        List(generateSubContextId(project, path)),
-        schemas = Set(tenant)
-      ) { r =>
-        Some(())
-      }
-      .map(o => o.fold(false)(_ => true))
-    isLocal
-      .flatMap(local => {
-        env.datastores.features
-          .findActivationStrategiesForFeatureByName(tenant, feature, project)
-          .map(o => o.toRight(FeatureDoesNotExist(feature)).map(m => (local, FeatureWithOverloads(m))))
-      })
+      env.datastores.features
+        .findActivationStrategiesForFeatureByName(tenant, feature, project)
+        .map(o => o.toRight(FeatureDoesNotExist(feature)).map(m => FeatureWithOverloads(m)))
       .flatMap {
         case Left(value)                => Left(value).future
-        case Right((local, oldFeature)) => {
-          env.postgresql.executeInTransaction(
+        case Right(oldFeature) => {
+          postgresql.executeInTransaction(
             implicit conn => {
               (strategy match {
                 case ClassicalFeatureStrategy(enabled, _, resultDescriptor) =>
-                  env.postgresql
+                  postgresql
                     .queryRaw(
                       s"""
-                         |INSERT INTO feature_contexts_strategies (project, ${if (local) "local_context"
-                      else "global_context"}, conditions, enabled, feature, result_type ${if (
+                         |INSERT INTO feature_contexts_strategies (project, context, conditions, enabled, feature, result_type ${if (
                         resultDescriptor.resultType != BooleanResult
                       ) ",value"
                       else ""})
-                         |VALUES($$1,$$2,$$3,$$4,$$5, $$6 ${if (resultDescriptor.resultType != BooleanResult) s",$$7"
+                         |VALUES($$1,text2ltree($$2),$$3,$$4,$$5, $$6 ${if (resultDescriptor.resultType != BooleanResult) s",$$7"
                       else ""})
                          |ON CONFLICT(project, context, feature) DO UPDATE
                          |SET conditions=EXCLUDED.conditions, enabled=EXCLUDED.enabled, script_config=NULL, value=EXCLUDED.value, result_type=EXCLUDED.result_type
@@ -680,8 +573,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                         case descriptor: ValuedResultDescriptor  =>
                           List(
                             project,
-                            if (local) generateSubContextId(project, path.last, path.dropRight(1))
-                            else generateSubContextId(tenant, path.last, path.dropRight(1)),
+                            path.toDBPath,
                             new JsonArray(Json.toJson(resultDescriptor.conditions).toString()),
                             java.lang.Boolean.valueOf(enabled),
                             feature,
@@ -691,8 +583,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                         case BooleanResultDescriptor(conditions) =>
                           List(
                             project,
-                            if (local) generateSubContextId(project, path.last, path.dropRight(1))
-                            else generateSubContextId(tenant, path.last, path.dropRight(1)),
+                            path.toDBPath,
                             new JsonArray(
                               Json
                                 .toJson(conditions)(Writes.seq(ActivationCondition.booleanConditionWrites))
@@ -703,19 +594,27 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                             resultDescriptor.resultType.toDatabaseName
                           )
                       },
-                      schemas = Set(tenant),
+                      schemas = Seq(extensionSchema, tenant),
                       conn = Some(conn)
                     ) { _ => Right(oldFeature.id) }
                     .recover {
                       case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
                         Left(TenantDoesNotExists(tenant))
-                      case f: PgException if (f.getSqlState == FOREIGN_KEY_VIOLATION && f.getConstraint == "feature_contexts_strategies_feature_project_fkey") =>
-                        Left(NoFeatureMatchingOverloadDefinition(tenant = tenant, project = project, feature = feature, resultType = strategy.resultType.toDatabaseName))
+                      case f: PgException
+                          if f.getSqlState == FOREIGN_KEY_VIOLATION && f.getConstraint == "feature_contexts_strategies_feature_project_fkey" =>
+                        Left(
+                          NoFeatureMatchingOverloadDefinition(
+                            tenant = tenant,
+                            project = project,
+                            feature = feature,
+                            resultType = strategy.resultType.toDatabaseName
+                          )
+                        )
                       case f: PgException if f.getSqlState == FOREIGN_KEY_VIOLATION    =>
-                        Left(FeatureContextDoesNotExist(path.mkString("/")))
+                        Left(FeatureContextDoesNotExist(path.toUserPath))
                       case _                                                           => Left(InternalServerError())
                     }
-                case f @ (_: CompleteWasmFeatureStrategy)                            => {
+                case f @ (_: CompleteWasmFeatureStrategy)                   => {
                   (f match {
                     case f: CompleteWasmFeatureStrategy if f.wasmConfig.source.kind != WasmSourceKind.Local =>
                       env.datastores.features.createWasmScriptIfNeeded(tenant, f.wasmConfig, Some(conn))
@@ -723,24 +622,23 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                   }).flatMap {
                     case Left(err) => Left(err).future
                     case Right(id) => {
-                      env.postgresql
+                      postgresql
                         .queryRaw(
                           s"""
-                             |INSERT INTO feature_contexts_strategies (project, ${if (local) "local_context"
-                          else "global_context"}, script_config, enabled, feature, result_type) VALUES($$1,$$2,$$3,$$4,$$5, $$6)
+                             |INSERT INTO feature_contexts_strategies (project, context, script_config, enabled, feature, result_type)
+                             |VALUES($$1,text2ltree($$2),$$3,$$4,$$5, $$6)
                              |ON CONFLICT(project, context, feature) DO UPDATE
                              |SET script_config=EXCLUDED.script_config, enabled=EXCLUDED.enabled, conditions=NULL, result_type=EXCLUDED.result_type
                              |""".stripMargin,
                           List(
                             project,
-                            if (local) generateSubContextId(project, path.last, path.dropRight(1))
-                            else generateSubContextId(tenant, path.last, path.dropRight(1)),
+                            path.toDBPath,
                             id,
                             java.lang.Boolean.valueOf(f.enabled),
                             feature,
                             f.resultType.toDatabaseName
                           ),
-                          schemas = Set(tenant),
+                          schemas = Seq(extensionSchema, tenant),
                           conn = Some(conn)
                         ) { _ => Right(id) }
                     }
@@ -758,7 +656,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                         user = user.username,
                         previous = oldFeature,
                         feature = oldFeature
-                          .updateConditionsForContext(path.mkString("_"), strategy.toLightWeightContextualStrategy),
+                          .updateConditionsForContext(path.toUserPath, strategy.toLightWeightContextualStrategy),
                         origin = NormalOrigin,
                         authentication = user.authentication
                       )
@@ -767,36 +665,91 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                 case Left(err)  => Left(err).future
               }
             },
-            schemas = Set(tenant)
+            schemas = Seq(tenant)
           )
         }
       }
   }
 
+
+  /**
+   * Find parents contexts of given path (including it), sorted from "higher" ancestor to "lower"
+   * @param tenant schema to use
+   * @param path path to search parent for
+   * @return list of ordered parents, from higher to lower
+   */
+  def findParents(tenant: String, path: String): Future[List[Context]] = {
+    postgresql.queryAll(
+      s"""
+         |SELECT
+         |  ltree2text(parent) as parent,
+         |  name,
+         |  global,
+         |  protected,
+         |  project
+         |FROM new_contexts
+         |WHERE ctx_path @> text2ltree($$1)
+         |ORDER BY nlevel(ctx_path) ASC
+         |""".stripMargin,
+      List(path),
+      schemas = Seq(tenant)
+    ){r =>r.optContext }
+  }
+
   def findLocalContexts(tenant: String, idCandidates: Set[String]): Future[List[String]] = {
-    env.postgresql.queryAll(
+    postgresql.queryAll( // TODO review this use
       s"""
          |SELECT id
-         |FROM feature_contexts
+         |FROM new_contexts
          |WHERE id=ANY($$1)
          |""".stripMargin,
       List(idCandidates.toArray),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ) { r => r.optString("id") }
   }
 }
 
 object FeatureContextDatastore {
   implicit class FeatureContextRow(val row: Row) extends AnyVal {
-    def optFeatureContext(global: Boolean): Option[FeatureContext] = {
-      val features = row
-        .optJsArray("overloads")
+    def optContextWithOverloadHierarchy: Option[ContextWithOverloads] = {
+      row.optContext.map(ctx => ContextWithOverloads(ctx, overloads = row.optOverloads("overloads")))
+    }
+
+    def optContext: Option[Context] = {
+      row.optBoolean("global").flatMap(global => {
+        if(global) {
+          optGlobalContext
+        } else {
+          optLocalContext
+        }
+      })
+    }
+
+    def optLocalContext: Option[LocalContext] = {
+      for(
+        ctx <- optGlobalContext;
+        project     <- row.optString("project")
+      ) yield LocalContext(name = ctx.name, path = ctx.path, isProtected = ctx.isProtected, project = project)
+    }
+
+    def optGlobalContext: Option[GlobalContext] = {
+      for (
+        name        <- row.optString("name");
+        parent <- row.optString("parent").map(ltree => ltree.split("\\.")).map(_.toSeq).orElse(Some(Seq()));
+        isProtected <- row.optBoolean("protected")
+      ) yield GlobalContext(name = name, path = parent, isProtected = isProtected)
+    }
+
+    def optOverloads(field: String): Seq[AbstractFeature] = {
+      row
+        .optJsArray(field)
         .getOrElse(JsArray.empty)
         .value
         .flatMap(jsObject => {
           val maybeSeq: Option[Seq[LightWeightFeature]] =
             for (
               name        <- (jsObject \ "feature").asOpt[String];
+              enabled     <- (jsObject \ "enabled").asOpt[Boolean];
               enabled     <- (jsObject \ "enabled").asOpt[Boolean];
               id          <- (jsObject \ "id").asOpt[String];
               description <- (jsObject \ "description").asOpt[String];
@@ -859,18 +812,7 @@ object FeatureContextDatastore {
           maybeSeq
         })
         .flatten
-
-      Some(
-        FeatureContext(
-          id = row.getString("id"),
-          name = row.getString("name"),
-          parent = row.getString("parent"),
-          project = if (global) None else row.optString("project"),
-          overloads = features.toSeq,
-          global = global,
-          isProtected = row.getBoolean("protected")
-        )
-      )
+        .toSeq
     }
 
     def optCompleteStrategy(feature: String): Option[CompleteContextualStrategy] = {
@@ -879,10 +821,10 @@ object FeatureContextDatastore {
         resultTypeStr <- row.optString("result_type");
         resultType    <- ResultType.parseResultType(resultTypeStr)
       ) yield {
-        val maybeConditions                     = row
+        val maybeConditions = row
           .optJsArray("conditions")
           .getOrElse(JsArray.empty)
-        val maybeConfig                         = row.optJsObject("config").flatMap(obj => obj.asOpt(WasmConfig.format))
+        val maybeConfig     = row.optJsObject("config").flatMap(obj => obj.asOpt(WasmConfig.format))
         (maybeConfig, maybeConditions) match {
           case (Some(config), _) => Some(CompleteWasmFeatureStrategy(enabled, config, feature, resultType = resultType))
           case (_, conditions)   => {
@@ -931,23 +873,6 @@ object FeatureContextDatastore {
         }
       }).flatten
     }
-
-    /*def optStrategy(feature: String): Option[ContextualFeatureStrategy] = {
-      val maybeConditions = row
-        .optJsArray("conditions")
-        .map(arr => arr.value.map(v => v.as[ActivationCondition]).toSet)
-        .getOrElse(Set.empty)
-      val maybeConfig     = row.optString("config")
-
-      row
-        .optBoolean("enabled")
-        .map(enabled => {
-          (maybeConfig, maybeConditions) match {
-            case (Some(config), _) => LightWeightWasmFeatureStrategy(enabled, config, feature)
-            case (_, conditions)   => ClassicalFeatureStrategy(enabled, conditions, feature)
-          }
-        })
-    }*/
   }
 
 }

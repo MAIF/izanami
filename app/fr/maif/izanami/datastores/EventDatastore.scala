@@ -11,13 +11,13 @@ import fr.maif.izanami.utils.Datastore
 
 import java.time.{Duration, Instant, ZoneOffset}
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, DurationLong}
 
 class EventDatastore(val env: Env) extends Datastore {
   var eventCleanerCancellation: Cancellable    = Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {
-    eventCleanerCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(5.minutes, 5.minutes)(() =>{
+    eventCleanerCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>{
       deleteExpiredEvents(env.configuration.get[Int]("app.audit.events-hours-ttl"))
     })
     Future.successful(())
@@ -41,7 +41,7 @@ class EventDatastore(val env: Env) extends Datastore {
          |DELETE FROM events WHERE EXTRACT(HOUR FROM NOW() - emitted_at) > $$1
          |""".stripMargin,
       params=List(java.lang.Integer.valueOf(hours)),
-      schemas = Set(tenant)
+      schemas = Seq(tenant)
     ){_ => Some(())}
   }
 
@@ -55,7 +55,7 @@ class EventDatastore(val env: Env) extends Datastore {
            |SELECT event FROM ${if (global) "izanami.global_events" else "events"} WHERE id=$$1
            |""".stripMargin,
         List(java.lang.Long.valueOf(id)),
-        schemas = if (global) Set() else Set(tenant)
+        schemas = if (global) Seq() else Seq(tenant)
       ) { r => r.optJsObject("event") }
       .map(o => o.toRight(EventNotFound(tenant, id)))
       .map(e => e.flatMap(js => eventFormat.reads(js).asOpt.toRight(FailedToReadEvent(js.toString()))))
@@ -92,7 +92,7 @@ class EventDatastore(val env: Env) extends Datastore {
         s"""
            |SELECT COUNT(*) as total
            |${body}
-           |""".stripMargin, params = params, schemas = Set(tenant)
+           |""".stripMargin, params = params, schemas = Seq(tenant)
       ) { r => r.optLong("total") }
     } else {
       Future.successful(None)
@@ -110,7 +110,7 @@ class EventDatastore(val env: Env) extends Datastore {
              |LIMIT $$1
              |""".stripMargin,
           params = List(Some(java.lang.Integer.valueOf(request.count)), request.cursor.map(java.lang.Long.valueOf)).collect { case Some(t) => t }.concat(ps),
-          schemas = Set(tenant)
+          schemas = Seq(tenant)
         ) { r => r.optJsObject("event") }
     }.map(jsons => {
       jsons
@@ -159,7 +159,7 @@ class EventDatastore(val env: Env) extends Datastore {
         s"""
            |SELECT COUNT(*) as total
            |${body}
-           |""".stripMargin, params = params, schemas = Set(tenant)
+           |""".stripMargin, params = params, schemas = Seq(tenant)
       ) { r => r.optLong("total") }
     } else {
       Future.successful(None)
@@ -177,7 +177,7 @@ class EventDatastore(val env: Env) extends Datastore {
              |LIMIT $$1
              |""".stripMargin,
           params = List(Some(java.lang.Integer.valueOf(request.count)), request.cursor.map(java.lang.Long.valueOf)).collect { case Some(t) => t }.concat(ps),
-          schemas = Set(tenant)
+          schemas = Seq(tenant)
         ) { r => r.optJsObject("event") }
     }.map(jsons => {
       jsons

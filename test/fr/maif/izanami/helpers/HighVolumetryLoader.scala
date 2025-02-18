@@ -14,7 +14,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object HighVolumetryLoader {
   def main(args: Array[String]): Unit = {
-    cleanUpDB()
+    cleanUpDB(hard = true)
 
     val generex = new Generex("[a-zA-Z0-9:_-]+");
     val projectGenerex = new Generex("[a-zA-Z0-9_-]+");

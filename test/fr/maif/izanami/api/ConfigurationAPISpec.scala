@@ -128,6 +128,7 @@ class ConfigurationAPISpec extends BaseAPISpec {
 
   "Exposition url get endpoint" should {
     "return exposition url" in {
+      val _ = TestSituationBuilder().build()
       val response = await(ws.url(s"${ADMIN_BASE_URL}/exposition").get()).json
 
       (response \ "url").get.as[String] mustEqual "http://localhost:9000"

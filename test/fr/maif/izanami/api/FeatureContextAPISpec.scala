@@ -86,17 +86,14 @@ class FeatureContextAPISpec extends BaseAPISpec {
       response.status mustEqual FORBIDDEN
     }
 
-    "Make subcontext of a protected context protected" in {
+    "Prevent creating unprotected context as child of protected context" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjects(TestProject("project").withContexts(TestFeatureContext("protectedParent", isProtected = true))))
         .loggedInWithAdminRights()
         .build()
 
       val response = situation.createContext("tenant", project = "project", name = "subctx", parents = "protectedParent", isProtected = false)
-      response.status mustEqual CREATED
-
-      val ctxs = situation.fetchContexts(tenant = "tenant", project = "project").json.get
-      (ctxs \ 0 \ "children" \ 0 \ "protected").as[Boolean] mustBe true
+      response.status mustEqual BAD_REQUEST
     }
   }
 
@@ -190,17 +187,14 @@ class FeatureContextAPISpec extends BaseAPISpec {
       response.status mustEqual FORBIDDEN
     }
 
-    "Make subcontext of a protected context protected" in {
+    "Prevent creating unprotected context as child of a protected context" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("protectedParent", isProtected = true)))
         .loggedInWithAdminRights()
         .build()
 
       val response = situation.createGlobalContext("tenant", name = "subctx", parents = "protectedParent", isProtected = false)
-      response.status mustEqual CREATED
-
-      val ctxs = situation.fetchGlobalContext(tenant = "tenant").json.get
-      (ctxs \ 0 \ "children" \ 0 \ "protected").as[Boolean] mustBe true
+      response.status mustEqual BAD_REQUEST
     }
 
 

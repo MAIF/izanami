@@ -14,7 +14,7 @@ import io.vertx.pgclient.{PgConnectOptions, PgException, PgPool, SslMode}
 import io.vertx.sqlclient.{PoolOptions, Row, RowSet, SqlConnection}
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.exception.FlywayValidateException
-import play.api.libs.json.{JsArray, JsObject, Json}
+import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 import play.api.{Configuration, Logger}
 
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
@@ -176,7 +176,7 @@ class Postgresql(env: Env) {
               .baselineOnMigrate(true)
               .schemas(tenant.name)
               .placeholders(
-                java.util.Map.of("extensions_schema", env.extensionsSchema)
+                java.util.Map.of("extensions_schema", env.extensionsSchema, "schema", tenant.name)
               )
               .load()
             Try {
@@ -211,8 +211,7 @@ class Postgresql(env: Env) {
   }
 
   def onStop(): Future[Unit] = {
-    pool.close()
-    FastFuture.successful(())
+    pool.close().scala.map(_ => ())(env.executionContext)
   }
 
   def updateSearchPath(searchPath: String, conn: SqlConnection): Future[Unit] = {
@@ -225,7 +224,7 @@ class Postgresql(env: Env) {
       .scala
   }
 
-  private def setSearchPath(schemas: Set[String], conn: SqlConnection): io.vertx.core.Future[RowSet[Row]] = {
+  private def setSearchPath(schemas: Seq[String], conn: SqlConnection): io.vertx.core.Future[RowSet[Row]] = {
     if (schemas.nonEmpty) {
       conn
         .preparedQuery(f"SELECT set_config('search_path', $$1, true)")
@@ -235,11 +234,11 @@ class Postgresql(env: Env) {
     }
   }
 
-  def executeInTransaction[T](callback: SqlConnection => Future[T], schemas: Set[String] = Set()): Future[T] = {
+  def executeInTransaction[T](callback: SqlConnection => Future[T], schemas: Seq[String] = Seq()): Future[T] = {
     var future: io.vertx.core.Future[T] = io.vertx.core.Future.succeededFuture()
     pool
       .withTransaction(conn => {
-        var searchPathFuture = setSearchPath(schemas, conn)
+        var searchPathFuture = setSearchPath(schemas.appended(env.extensionsSchema), conn)
         future = searchPathFuture.flatMap(_ => callback(conn).vertx(env.executionContext))
         future
       })
@@ -254,7 +253,7 @@ class Postgresql(env: Env) {
       query: String,
       params: List[AnyRef] = List.empty,
       debug: Boolean = false,
-      schemas: Set[String] = Set(),
+      schemas: Seq[String] = Seq(),
       conn: Option[SqlConnection] = None
   )(
       f: Row => Option[A]
@@ -266,7 +265,7 @@ class Postgresql(env: Env) {
       query: String,
       params: List[AnyRef] = List.empty,
       debug: Boolean = false,
-      schemas: Set[String] = Set(),
+      schemas: Seq[String] = Seq(),
       conn: Option[SqlConnection] = None
   )(
       f: Row => Option[A]
@@ -278,7 +277,7 @@ class Postgresql(env: Env) {
       query: String,
       params: List[AnyRef] = List.empty,
       debug: Boolean = false,
-      schemas: Set[String] = Set(),
+      schemas: Seq[String] = Seq(),
       conn: Option[SqlConnection] = None
   )(
       f: List[Row] => A
@@ -291,7 +290,7 @@ class Postgresql(env: Env) {
           c.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(params.toArray))
         }
         conn
-          .map(conn => setSearchPath(schemas, conn).flatMap(_ => lambda(conn)))
+          .map(conn => setSearchPath(schemas.appended(env.extensionsSchema), conn).flatMap(_ => lambda(conn)))
           .map(f => f.scala)
           .getOrElse(executeInTransaction(lambda(_).scala, schemas))
       case false =>
@@ -352,6 +351,7 @@ class Postgresql(env: Env) {
     case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "personnal_access_tokenstextsize" => PersonnalAccessTokenFieldTooLong
     case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "features_pkey" => FeatureWithThisIdAlreadyExist
     case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "unique_feature_name_for_project" => FeatureWithThisNameAlreadyExist
+    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "new_contexts_pkey" => ContextWithThisNameAlreadyExist
     case ex => InternalServerError("An unexpected error occured")
   }
 
@@ -359,7 +359,7 @@ class Postgresql(env: Env) {
       query: String,
       params: List[AnyRef] = List.empty,
       debug: Boolean = false,
-      schemas: Set[String] = Set(),
+      schemas: Seq[String] = Seq(),
       conn: Option[SqlConnection] = None
   )(
       f: Row => Option[A]
@@ -428,6 +428,9 @@ object pgimplicits {
 
   implicit class EnhancedRow(val row: Row) extends AnyVal {
     def optString(name: String): Option[String] = opt(name, "String", (a, b) => a.getString(b))
+
+    //def optJValueArray(name: String): Option[Array[JsValue]] = opt(name, "String", (a, b) => a.getJsonObject(b))
+
 
     def optStringArray(name: String): Option[Array[String]] = opt(name, "String", (a, b) => a.getArrayOfStrings(b))
 

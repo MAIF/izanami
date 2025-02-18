@@ -67,7 +67,7 @@ class WebhookListener(env: Env, eventService: EventService) {
   def startListening(tenant: String): Unit = {
     logger.info(s"Initializing webhook event listener for tenant $tenant")
     val cancelRef   = new AtomicReference[Cancellable]()
-    val cancellable = env.actorSystem.scheduler.scheduleAtFixedRate(0.minutes, 5.minutes)(() => {
+    val cancellable = env.actorSystem.scheduler.scheduleAtFixedRate(0.minutes, env.houseKeepingIntervalInSeconds.seconds)(() => {
       env.datastores.webhook
         .findAbandoneddWebhooks(tenant)
         .map {

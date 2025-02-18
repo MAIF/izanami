@@ -267,10 +267,7 @@ export class TestSituationBuilder {
   }
 
   async build(page: Page): Promise<TestSituation> {
-    const cookies = await page.context().cookies();
-    console.log("cookies", cookies[0]);
     const cookie = (await page.context().cookies())[0];
-    console.log("done");
     return Promise.all(
       this.tenants.map((t) =>
         this.createTenant(t, cookie)

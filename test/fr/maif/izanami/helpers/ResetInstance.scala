@@ -6,7 +6,7 @@ import java.time.{DayOfWeek, LocalDateTime, LocalTime}
 
 object ResetInstance {
   def main(args: Array[String]): Unit = {
-    cleanUpDB()
+    cleanUpDB(hard = true)
     System.exit(0)
   }
 }
