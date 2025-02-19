@@ -4,9 +4,9 @@ import com.softwaremill.macwire.wire
 import controllers.{Assets, AssetsComponents}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiHttpErrorHandler
-import fr.maif.izanami.events.EventService
+import fr.maif.izanami.services.FeatureService
 import fr.maif.izanami.v1.WasmManagerClient
-import fr.maif.izanami.web.{ClientApiKeyAction, _}
+import fr.maif.izanami.web._
 import play.api.ApplicationLoader.Context
 import play.api._
 import play.api.http.{DefaultHttpFilters, HttpErrorHandler}
@@ -15,11 +15,10 @@ import play.api.mvc.EssentialFilter
 import play.api.routing.Router
 import play.filters.HttpFiltersComponents
 import play.filters.cors.{CORSConfig, CORSFilter}
-import play.filters.csp.{CSPComponents, CSPFilter, CSPResultProcessor}
+import play.filters.csp.CSPComponents
 import play.filters.csrf.CSRFFilter
 import play.filters.gzip.GzipFilterComponents
-import play.filters.headers.{SecurityHeadersConfig, SecurityHeadersFilter}
-import play.filters.https.{RedirectHttpsComponents, RedirectHttpsConfiguration, RedirectHttpsFilter}
+import play.filters.https.RedirectHttpsComponents
 import router.Routes
 
 import scala.concurrent.duration.DurationInt
@@ -76,6 +75,8 @@ class IzanamiComponentsInstances(
   lazy val webhookAuthAction                = wire[WebhookAuthActionFactory]
   lazy val validatePasswordAction           = wire[ValidatePasswordActionFactory]
   lazy val tokenOrCookieAuthActionForTenant = wire[PersonnalAccessTokenTenantAuthActionFactory]
+
+  lazy val featureService = wire[FeatureService]
 
   lazy val featureController              = wire[FeatureController]
   lazy val tenantController               = wire[TenantController]
