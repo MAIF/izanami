@@ -97,6 +97,7 @@ GET           /api/admin/tenants/:tenant/local-scripts/:script                  
 PUT           /api/admin/tenants/:tenant/local-scripts/:script                                     fr.maif.izanami.web.PluginController.updateScript(tenant: String, script: String)
 DELETE        /api/admin/local-scripts/_cache                                                      fr.maif.izanami.web.PluginController.clearWasmCache()
 DELETE        /api/admin/tenants/:tenant/local-scripts/:script                                     fr.maif.izanami.web.PluginController.deleteScript(tenant: String, script: String)
+GET           /api/admin/tenants/:tenant/stale-features                                            fr.maif.izanami.web.StaleFeatureController.staleFeatures(tenant: String, for: Option[java.time.Duration])
 
 POST          /api/admin/tenants/:tenant/_import                                                   fr.maif.izanami.web.ImportController.importData(version: Int, tenant: String, conflict: String, timezone: Option[String], deduceProject: Boolean ?= false, create: Option[Boolean], project: Option[String], projectPartSize: Option[Int], inlineScript: Option[Boolean])
 GET           /api/admin/tenants/:tenant/_import/:id                                               fr.maif.izanami.web.ImportController.readImportStatus(tenant: String, id: String)
