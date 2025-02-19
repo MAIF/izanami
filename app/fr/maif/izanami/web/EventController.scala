@@ -6,16 +6,28 @@ import akka.stream.Materializer
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.events.EventService.internalToExternalEvent
 import fr.maif.izanami.events._
-import fr.maif.izanami.models.{Feature, FeatureRequest, RequestContext}
+import fr.maif.izanami.models.features.{ActivationCondition, ResultType}
+import fr.maif.izanami.models.{
+  CompleteFeature,
+  CompleteWasmFeature,
+  EvaluatedCompleteFeature,
+  Feature,
+  FeatureRequest,
+  RequestContext,
+  SingleConditionFeature
+}
+import fr.maif.izanami.services.FeatureService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.V1FeatureEvents.{createEvent, deleteEvent, keepAliveEvent, updateEvent}
 import fr.maif.izanami.v1.V2FeatureEvents._
 import play.api.http.ContentTypes
 import play.api.libs.EventSource
 import play.api.libs.EventSource.{EventDataExtractor, EventIdExtractor, EventNameExtractor}
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.Json.JsValueWrapper
+import play.api.libs.json.{JsObject, JsValue, Json, Writes}
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
+import java.time.Instant
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -23,7 +35,8 @@ import scala.util.{Failure, Success}
 class EventController(
     val controllerComponents: ControllerComponents,
     val clientKeyAction: ClientApiKeyAction,
-    val adminAuthAction: AdminAuthAction
+    val adminAuthAction: AdminAuthAction,
+    featureService: FeatureService
 )(implicit
     val env: Env
 ) extends BaseController {
@@ -47,7 +60,7 @@ class EventController(
         createEvent(event.id, Feature.writeFeatureInLegacyFormat(strategiesByContext.get("").get))
       case FeatureUpdated(_, _, _, _, _, Some(strategiesByContext), _, _, _, _) =>
         updateEvent(event.id, Feature.writeFeatureInLegacyFormat(strategiesByContext.get("").get))
-      case _                                                           => deleteEvent(event.id)
+      case _                                                                    => deleteEvent(event.id)
     }
   }
 
@@ -141,19 +154,7 @@ class EventController(
             .filter(_.isDefined)
             .map(_.get)
 
-          val refreshProvider = () =>
-            FeatureController
-              .queryFeatures(
-                user,
-                conditions,
-                None,
-                clientRequest,
-                request.key.clientId,
-                request.key.clientSecret,
-                maybeBody,
-                env
-              )
-              .map(either => either.fold(err => errorEvent(err.message), json => initialEvent(json)))
+          val refreshProvider = () => evaluateFeatures(tenant, user, conditions, clientRequest, request, maybeBody)
           val refreshSource   = if (refreshInterval > 0) {
             Source
               .tick(refreshInterval.seconds, refreshInterval.seconds, 1)
@@ -188,4 +189,78 @@ class EventController(
     NoContent.future
   }
 
+  private def evaluateFeatures(
+      tenant: String,
+      user: String,
+      conditions: Boolean,
+      featureRequest: FeatureRequest,
+      request: ClientKeyRequest[AnyContent],
+      maybeBody: Option[JsObject]
+  ): Future[JsObject] = {
+    val requestContext = RequestContext(
+      tenant = tenant,
+      user = user,
+      now = Instant.now(),
+      context = FeatureContextPath(featureRequest.context),
+      data = maybeBody.getOrElse(Json.obj())
+    )
+    featureService
+      .evaluateFeatures(conditions, requestContext, featureRequest, request.key.clientId, request.key.clientSecret)
+      .map(either =>
+        either
+          .fold(err => errorEvent(err.message), features => initialEvent(formatFeatureResponse(features, conditions)))
+      )
+  }
+
+  // FIXME dedupe serde code with FeatureController
+  private def formatFeatureResponse(
+      evaluatedCompleteFeatures: Seq[EvaluatedCompleteFeature],
+      conditions: Boolean
+  ): JsValue = {
+    val fields = evaluatedCompleteFeatures
+      .map(evaluated => {
+        val active: JsValueWrapper = evaluated.result
+        var baseJson               = Json.obj(
+          "name"    -> evaluated.baseFeature.name,
+          "active"  -> active,
+          "project" -> evaluated.baseFeature.project
+        )
+
+        if (conditions) {
+          val jsonStrategies = Json
+            .toJson(evaluated.featureStrategies.strategies.map {
+              case (ctx, feature) => {
+                (
+                  ctx.replace("_", "/"),
+                  writeConditions(feature)
+                )
+              }
+            })
+            .as[JsObject]
+          baseJson = baseJson + ("conditions" -> jsonStrategies)
+        }
+        (evaluated.baseFeature.id, baseJson)
+      })
+      .toMap
+    Json.toJson(fields)
+  }
+
+  // FIXME dedupe serde code with FeatureController
+  private def writeConditions(f: CompleteFeature): JsObject = {
+    val resultType: JsValueWrapper = Json.toJson(f.resultType)(ResultType.resultTypeWrites)
+    val baseJson                   = Json.obj(
+      "enabled"    -> f.enabled,
+      "resultType" -> resultType
+    )
+    f match {
+      case w: CompleteWasmFeature => baseJson + ("wasmConfig" -> Json.obj("name" -> w.wasmConfig.name))
+      case f                      => {
+        val conditions = f match {
+          case s: SingleConditionFeature => s.toModernFeature.resultDescriptor.conditions
+          case f: Feature                => f.resultDescriptor.conditions
+        }
+        baseJson + ("conditions" -> Json.toJson(conditions)(Writes.seq(ActivationCondition.activationConditionWrite)))
+      }
+    }
+  }
 }
