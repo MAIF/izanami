@@ -30,7 +30,7 @@ class FeatureService(env: Env) {
       clientSecret: String
   ): Future[Either[IzanamiError, Seq[EvaluatedCompleteFeature]]] = {
 
-    val features = retrieveFeatureFromQuery(conditions, featureRequest, clientId, clientSecret)
+    val features = retrieveFeatureFromQuery(conditions, requestContext, featureRequest, clientId, clientSecret)
     features.flatMap {
       case Left(error) => Left(error).future
       case Right(f)    => evaluate(f, requestContext, env)
@@ -40,66 +40,56 @@ class FeatureService(env: Env) {
 
   private def retrieveFeatureFromQuery(
       conditions: Boolean,
+      requestContext: RequestContext,
       featureRequest: FeatureRequest,
       clientId: String,
       clientSecret: String
   ): Future[Either[IzanamiError, Seq[FeatureStrategies]]] = {
 
-    val futureMaybeTenant = ApiKey
-      .extractTenant(clientId)
-      .map(t => Future.successful(Some(t)))
-      .getOrElse(env.datastores.apiKeys.findLegacyKeyTenant(clientId))
+    if (conditions) {
+      val futureFeaturesByProject =
+        env.datastores.features.doFindByRequestForKey(requestContext.tenant, featureRequest, clientId, clientSecret, true)
+      futureFeaturesByProject.map {
+        case Left(error)                                             => Left(error)
+        case Right(featuresByProjects) if featuresByProjects.isEmpty => Left(IncorrectKey())
+        case Right(featuresByProjects)                               => {
+          val strategies = featuresByProjects.toSeq.flatMap {
+            case (_, features) => {
+              features.map {
+                case (_, featureAndContexts) => {
+                  // TODO turn featureAndContext into instance of FeatureStrategies
+                  val strategyByCtx = featureAndContexts.map {
+                    case (Some(ctx), feat) => (ctx, feat)
+                    case (None, feat)      => ("", feat)
+                  }.toMap
 
-    val result = futureMaybeTenant.flatMap {
-      case None         => Left(IncorrectKey()).future
-      case Some(tenant) => {
-        if (conditions) {
-          val futureFeaturesByProject =
-            env.datastores.features.doFindByRequestForKey(tenant, featureRequest, clientId, clientSecret, true)
-          futureFeaturesByProject.map {
-            case Left(error)                                             => Left(error)
-            case Right(featuresByProjects) if featuresByProjects.isEmpty => Left(IncorrectKey())
-            case Right(featuresByProjects)                               => {
-              val strategies = featuresByProjects.toSeq.flatMap {
-                case (_, features) => {
-                  features.map {
-                    case (_, featureAndContexts) => {
-                      // TODO turn featureAndContext into instance of FeatureStrategies
-                      val strategyByCtx = featureAndContexts.map {
-                        case (Some(ctx), feat) => (ctx, feat)
-                        case (None, feat)      => ("", feat)
-                      }.toMap
-
-                      FeatureStrategies(strategyByCtx)
-                    }
-                  }
+                  FeatureStrategies(strategyByCtx)
                 }
               }
-              Right(strategies)
             }
           }
-        } else {
-          val futureFeaturesByProject = env.datastores.features.findByRequestForKey(
-            tenant,
-            featureRequest,
-            clientId,
-            clientSecret
-          )
+          Right(strategies)
+        }
+      }
+    } else {
+      val futureFeaturesByProject = env.datastores.features.findByRequestForKey(
+        requestContext.tenant,
+        featureRequest,
+        clientId,
+        clientSecret
+      )
 
-          futureFeaturesByProject.map {
-            case Left(error)                                             => Left(error)
-            case Right(featuresByProjects) if featuresByProjects.isEmpty => Left(IncorrectKey())
-            case Right(featuresByProjects)                               => {
-              // TODO turn return type of findByRequestForKey to FeatureStrategies so that we don't have to use
-              //  an empty context here
-              val strategies = featuresByProjects.values.flatten.map(v => FeatureStrategies(v)).toSeq
-              Right(strategies)
-            }
-          }
+      futureFeaturesByProject.map {
+        case Left(error)                                             => Left(error)
+        case Right(featuresByProjects) if featuresByProjects.isEmpty => Left(IncorrectKey())
+        case Right(featuresByProjects)                               => {
+          // TODO turn return type of findByRequestForKey to FeatureStrategies so that we don't have to use
+          //  an empty context here
+          val strategies = featuresByProjects.values.flatten.map(v => FeatureStrategies(v)).toSeq
+          Right(strategies)
         }
       }
     }
-    result
   }
 
   private def evaluate(
