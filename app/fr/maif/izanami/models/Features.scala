@@ -3,7 +3,25 @@ package fr.maif.izanami.models
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
 import fr.maif.izanami.models.Feature.{lightweightFeatureRead, lightweightFeatureWrite}
-import fr.maif.izanami.models.features.{ActivationCondition, ActivationRule, BooleanActivationCondition, BooleanResult, BooleanResultDescriptor, DateRangeActivationCondition, FeaturePeriod, HourPeriod, LegacyCompatibleCondition, NumberResult, ResultDescriptor, ResultType, StringResult, ValuedActivationCondition, ValuedResultDescriptor, ValuedResultType, ZonedHourPeriod}
+import fr.maif.izanami.models.features.{
+  ActivationCondition,
+  ActivationRule,
+  BooleanActivationCondition,
+  BooleanResult,
+  BooleanResultDescriptor,
+  DateRangeActivationCondition,
+  FeaturePeriod,
+  HourPeriod,
+  LegacyCompatibleCondition,
+  NumberResult,
+  ResultDescriptor,
+  ResultType,
+  StringResult,
+  ValuedActivationCondition,
+  ValuedResultDescriptor,
+  ValuedResultType,
+  ZonedHourPeriod
+}
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.v1.OldFeature.oldFeatureReads
 import fr.maif.izanami.v1.{OldFeature, OldGlobalScriptFeature}
@@ -134,7 +152,7 @@ sealed trait LightWeightFeature extends AbstractFeature {
   def withStrategy(strategy: LightweightContextualStrategy): LightWeightFeature = {
     // TODO handle resultType difference
     strategy match {
-      case ClassicalFeatureStrategy(enabled, _, resultDescriptor)    =>
+      case ClassicalFeatureStrategy(enabled, _, resultDescriptor)             =>
         Feature(
           id = id,
           name = name,
@@ -255,11 +273,11 @@ case class Feature(
   override def value(requestContext: RequestContext, env: Env): Future[Either[IzanamiError, JsValue]] = {
     implicit val ec: ExecutionContext = env.executionContext
     Future.successful(Right((enabled, resultDescriptor) match {
-      case (false, r: BooleanResultDescriptor)                  => JsFalse
-      case (false, _)                                           => JsNull
-      case (true, BooleanResultDescriptor(conditions))          =>
+      case (false, r: BooleanResultDescriptor)         => JsFalse
+      case (false, _)                                  => JsNull
+      case (true, BooleanResultDescriptor(conditions)) =>
         JsBoolean(conditions.isEmpty || conditions.exists(c => c.active(requestContext, name)))
-      case (true, v:ValuedResultDescriptor) => {
+      case (true, v: ValuedResultDescriptor)           => {
         v.conditions
           .find(condition => condition.active(requestContext, name))
           .map(condition => condition.jsonValue)
@@ -568,7 +586,6 @@ object Feature {
       }(env.executionContext)
   }
 
-
   def writeFeatureForCheck(
       feature: CompleteFeature,
       context: RequestContext,
@@ -655,8 +672,8 @@ object Feature {
         "resultType"  -> Json.toJson(resultDescriptor.resultType)(ResultType.resultTypeWrites)
       )
       resultDescriptor match {
-        case v:ValuedResultDescriptor => base + ("value" -> v.jsonValue)
-        case BooleanResultDescriptor(conditions)                   => base
+        case v: ValuedResultDescriptor           => base + ("value" -> v.jsonValue)
+        case BooleanResultDescriptor(conditions) => base
       }
     }
     case LightWeightWasmFeature(id, name, project, enabled, wasmConfig, tags, metadata, description, resultType) => {
@@ -695,7 +712,7 @@ object Feature {
         "id"          -> id,
         "project"     -> project,
         "description" -> description,
-        "resultType" -> BooleanResult.toDatabaseName
+        "resultType"  -> BooleanResult.toDatabaseName
       )
     }
   }
@@ -791,7 +808,7 @@ object Feature {
               )
             }
             case (Some(jsonConditions), None, _, _) => {
-              val jsonProject            = json.select("project").asOpt[String].getOrElse(project)
+              val jsonProject = json.select("project").asOpt[String].getOrElse(project)
               resultType match {
                 case resultType: ValuedResultType => {
                   json
@@ -819,21 +836,21 @@ object Feature {
                     .map(json =>
                       json.asOpt[BooleanActivationCondition](ActivationCondition.booleanActivationConditionRead)
                     )
-                  if(maybeBooleanConditions.exists(_.isEmpty)) {
+                  if (maybeBooleanConditions.exists(_.isEmpty)) {
                     JsError("Invalid condition")
                   } else {
-                  JsSuccess(
-                    Feature(
-                      id = id,
-                      name = name,
-                      enabled = enabled,
-                      tags = tags,
-                      metadata = metadata,
-                      project = jsonProject,
-                      description = description,
-                      resultDescriptor = BooleanResultDescriptor(maybeBooleanConditions.flatMap(_.toSeq))
+                    JsSuccess(
+                      Feature(
+                        id = id,
+                        name = name,
+                        enabled = enabled,
+                        tags = tags,
+                        metadata = metadata,
+                        project = jsonProject,
+                        description = description,
+                        resultDescriptor = BooleanResultDescriptor(maybeBooleanConditions.flatMap(_.toSeq))
+                      )
                     )
-                  )
                   }
                 }
               }
@@ -898,6 +915,20 @@ object CustomBinders {
       }
       override def unbind(key: String, request: Instant): String = {
         DateTimeFormatter.ISO_OFFSET_TIME.format(request)
+      }
+    }
+
+  implicit def durationQueryStringBindable(implicit
+      seqBinder: QueryStringBindable[String]
+  ): QueryStringBindable[Duration] =
+    new QueryStringBindable[Duration] {
+      override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Duration]] = {
+        seqBinder
+          .bind("for", params)
+          .map(e => e.map(v => Duration.parse(v)))
+      }
+      override def unbind(key: String, request: Duration): String = {
+        request.toString
       }
     }
 }
