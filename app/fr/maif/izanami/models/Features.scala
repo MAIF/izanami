@@ -110,6 +110,18 @@ sealed trait CompleteFeature extends AbstractFeature {
   }
 }
 
+case class LightWeightFeatureWithUsageInformation(
+     feature: LightWeightFeature,
+     stale: Boolean
+)
+
+object LightWeightFeatureWithUsageInformation {
+  def writeLightWeightFeatureWithUsageInformation: Writes[LightWeightFeatureWithUsageInformation] = feature => {
+    val baseJson = lightweightFeatureWrite.writes(feature.feature).as[JsObject]
+    baseJson + ("stale" -> JsBoolean(feature.stale))
+  }
+}
+
 sealed trait LightWeightFeature extends AbstractFeature {
   override def withProject(project: String): LightWeightFeature
   override def withId(id: String): LightWeightFeature

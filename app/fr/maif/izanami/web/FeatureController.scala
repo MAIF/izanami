@@ -582,6 +582,7 @@ class FeatureController(
     Json.toJson(fields)
   }
 
+  // TODO move this in StaleFeatureService
   private def registerCalls(
       tenant: String,
       key: String,

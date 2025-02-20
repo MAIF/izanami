@@ -5,11 +5,13 @@ import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.{LightWeightFeature, LightWeightFeatureWithUsageInformation}
 
 import java.time.{Duration, Instant}
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
-class StaleFeatureService(env: Env) {
+class FeatureUsageService(env: Env) {
 
+  private implicit val executionContext: ExecutionContext = env.executionContext
   private val featureCalls = env.datastores.featureCalls
+  private val staleDelay = Duration.ofHours(env.configuration.get[Long]("app.feature.stale-hours-delay"))
 
   def reportStaleFeatures(tenant: String, delay: Duration): Future[Either[IzanamiError, List[String]]] = {
     val nowMinusDelay = Instant.now().minus(delay)
@@ -17,8 +19,14 @@ class StaleFeatureService(env: Env) {
   }
 
 
-  def determineStaleStatus(feature: LightWeightFeature): LightWeightFeatureWithUsageInformation = {
-
+  def determineStaleStatus(tenant: String, features: Seq[LightWeightFeature]): Future[Either[IzanamiError, Seq[LightWeightFeatureWithUsageInformation]]] = {
+    featureCalls.findLastCallOrCreationDate(tenant, features.map(_.id)).map(either => either.map(lastCallOrCreationDateByFeature => {
+      features.map(feature => {
+        val lastCallOrCreationDate = lastCallOrCreationDateByFeature(feature.id)
+        val isStale = Duration.between(lastCallOrCreationDate, Instant.now()).compareTo(staleDelay) > 0
+        LightWeightFeatureWithUsageInformation(feature = feature, stale = isStale)
+      })
+    }))
   }
 
 }

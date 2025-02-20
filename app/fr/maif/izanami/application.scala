@@ -4,7 +4,7 @@ import com.softwaremill.macwire.wire
 import controllers.{Assets, AssetsComponents}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiHttpErrorHandler
-import fr.maif.izanami.services.{FeatureService, StaleFeatureService}
+import fr.maif.izanami.services.{FeatureService, FeatureUsageService}
 import fr.maif.izanami.v1.WasmManagerClient
 import fr.maif.izanami.web._
 import play.api.ApplicationLoader.Context
@@ -77,7 +77,7 @@ class IzanamiComponentsInstances(
   lazy val tokenOrCookieAuthActionForTenant = wire[PersonnalAccessTokenTenantAuthActionFactory]
 
   lazy val featureService      = wire[FeatureService]
-  lazy val staleFeatureService = wire[StaleFeatureService]
+  lazy val staleFeatureService = wire[FeatureUsageService]
 
   lazy val featureController              = wire[FeatureController]
   lazy val staleFeatureController         = wire[StaleFeatureController]

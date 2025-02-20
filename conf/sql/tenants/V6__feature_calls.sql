@@ -4,3 +4,5 @@ CREATE TABLE feature_calls (
   date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   value JSONB
 );
+
+ALTER TABLE features ADD created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();

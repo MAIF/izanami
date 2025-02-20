@@ -3,8 +3,10 @@ package fr.maif.izanami.web
 import fr.maif.izanami.datastores.EventDatastore.{AscOrder, FeatureEventRequest, parseSortOrder}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.events.{EventAuthentication, EventService, FeatureEvent, TenantCreated, TenantDeleted}
+import fr.maif.izanami.models.ProjectWithUsageInformation.projectWithUsageInformationWrites
 import fr.maif.izanami.models.RightLevels.RightLevel
-import fr.maif.izanami.models.{Project, RightLevels}
+import fr.maif.izanami.models.{Project, ProjectWithUsageInformation, RightLevels}
+import fr.maif.izanami.services.FeatureUsageService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ProjectController.parseStringSet
 import play.api.libs.json.{JsError, JsNull, JsNumber, JsObject, JsSuccess, JsValue, Json, Writes}
@@ -20,7 +22,8 @@ class ProjectController(
     val tenantAuthAction: TenantAuthActionFactory,
     val projectAuthAction: ProjectAuthActionFactory,
     val validatePasswordAction: ValidatePasswordActionFactory,
-    val detailledRightForTenanFactory: DetailledRightForTenantFactory
+    val detailledRightForTenanFactory: DetailledRightForTenantFactory,
+    val featureUsageService: FeatureUsageService
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
 
@@ -125,10 +128,18 @@ class ProjectController(
     projectAuthAction(tenant, project, RightLevels.Read).async { implicit request =>
       env.datastores.projects
         .readProject(tenant, project)
-        .map(maybeProject => {
+        .flatMap(maybeProject => {
           maybeProject.fold(
-            err => Results.Status(err.status)(Json.toJson(err)),
-            project => Ok(Json.toJson(project))
+            err => Results.Status(err.status)(Json.toJson(err)).future,
+            project => {
+              featureUsageService.determineStaleStatus(tenant, project.features).map {
+                case Left(err) => err.toHttpResponse
+                case Right(featuresWithUsageInformation) => {
+                  val projectWithUsageInformation = ProjectWithUsageInformation.fromProject(project = project, features = featuresWithUsageInformation.toList)
+                  Ok(Json.toJson(projectWithUsageInformation)(projectWithUsageInformationWrites))
+                }
+              }
+            }
           )
         })
     }

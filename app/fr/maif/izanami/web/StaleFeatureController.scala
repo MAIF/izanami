@@ -1,7 +1,7 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.services.StaleFeatureService
+import fr.maif.izanami.services.FeatureUsageService
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
@@ -9,9 +9,9 @@ import java.time.Duration
 import scala.concurrent.ExecutionContext
 
 class StaleFeatureController(
-    env: Env,
-    staleFeatureService: StaleFeatureService,
-    val controllerComponents: ControllerComponents
+                              env: Env,
+                              staleFeatureService: FeatureUsageService,
+                              val controllerComponents: ControllerComponents
 ) extends BaseController {
 
   implicit val ec: ExecutionContext = env.executionContext

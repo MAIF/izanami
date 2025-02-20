@@ -1,7 +1,7 @@
 package fr.maif.izanami.datastores
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
@@ -50,6 +50,34 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
         schemas = Set(tenant)
       ) { r => r.optString("feature") }
       .map(features => Right(features))
+      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+  }
+
+  /**
+   * Find last call date of given features, or their creation dates if there is no last call traces
+   * @param tenant tenant name
+   * @param featureIds feature ids
+   * @return either last call dates or feature creation dates
+   */
+  def findLastCallOrCreationDate(tenant: String, featureIds: Seq[String]): Future[Either[IzanamiError, Map[String, Instant]]] = {
+    env.postgresql
+      .queryAll(
+        query = s"""
+         |SELECT COALESCE(MAX(fc.date), f.created_at) AS last_call, f.id
+         |FROM features f
+         |LEFT JOIN feature_calls fc ON fc.feature = f.id
+         |WHERE f.id = ANY($$1)
+         |GROUP BY f.id
+         |""".stripMargin,
+        params = List(featureIds.toArray),
+        schemas = Set(tenant)
+      ) { r => {
+        for(
+          date <- r.optOffsetDatetime("last_call").map(_.toInstant);
+          id <- r.optString("id")
+        ) yield (id, date)
+      }}
+      .map(ls => Right(ls.toMap))
       .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
   }
 }
