@@ -39,7 +39,7 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
     env.postgresql
       .queryAll(
         query = s"""
-         |SELECT feature
+         |SELECT feature, MAX(date) AS last_call
          |FROM feature_calls
          |GROUP BY feature
          |HAVING MAX(date) < $$1

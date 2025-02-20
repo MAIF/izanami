@@ -13,8 +13,7 @@ import play.api.libs.json.Reads.{localDateTimeReads, localTimeReads, max, min}
 import play.api.libs.json._
 
 import java.time.format.DateTimeFormatter
-import java.time.{LocalDateTime, LocalTime, ZoneId}
-import scala.runtime.RichBoolean
+import java.time.{Instant, LocalDateTime, LocalTime, ZoneId}
 
 sealed trait OldFeature {
   def id: String
@@ -25,7 +24,8 @@ sealed trait OldFeature {
   def toFeature(
       project: String,
       zone: ZoneId,
-      globalScriptById: Map[String, OldGlobalScript]
+      globalScriptById: Map[String, OldGlobalScript],
+      lastCall: Option[Instant]
   ): Either[String, (CompleteFeature, Option[OldScript])] = {
     this match {
       case OldDefaultFeature(id, name, enabled, description, tags, _)                   =>
@@ -38,7 +38,8 @@ sealed trait OldFeature {
               project = project,
               condition = All,
               description = description.getOrElse(""),
-              tags = tags
+              tags = tags,
+              lastCall = lastCall
             ),
             None
           )
@@ -57,7 +58,8 @@ sealed trait OldFeature {
                 timezone = zone
               ),
               description = description.getOrElse(""),
-              tags = tags
+              tags = tags,
+              lastCall = lastCall,
             ),
             None
           )
@@ -72,7 +74,8 @@ sealed trait OldFeature {
               project = project,
               condition = DateRangeActivationCondition(begin = Option(date.atZone(zone).toInstant), timezone = zone),
               description = description.getOrElse(""),
-              tags = tags
+              tags = tags,
+              lastCall = lastCall
             ),
             None
           )
@@ -88,7 +91,8 @@ sealed trait OldFeature {
               condition =
                 ZonedHourPeriod(timezone = zone, hourPeriod = HourPeriod(startTime = startAt, endTime = endAt)),
               description = description.getOrElse(""),
-              tags = tags
+              tags = tags,
+              lastCall = lastCall
             ),
             None
           )
@@ -103,7 +107,8 @@ sealed trait OldFeature {
               project = project,
               condition = UserPercentage(percentage = percentage),
               description = description.getOrElse(""),
-              tags = tags
+              tags = tags,
+              lastCall = lastCall
             ),
             None
           )
@@ -118,7 +123,8 @@ sealed trait OldFeature {
               project = project,
               condition = UserList(users = customers.toSet),
               description = description.getOrElse(""),
-              tags = tags
+              tags = tags,
+              lastCall = lastCall
             ),
             None
           )
@@ -140,7 +146,8 @@ sealed trait OldFeature {
                 functionName = Some("execute"),
                 wasi = true
               ),
-              resultType = BooleanResult
+              resultType = BooleanResult,
+              lastCall = lastCall
             ),
             Some(script)
           )
@@ -165,7 +172,8 @@ sealed trait OldFeature {
                     functionName = Some("execute"),
                     wasi = true
                   ),
-                  resultType = BooleanResult
+                  resultType = BooleanResult,
+                  lastCall = lastCall
                 ),
                 None
               )

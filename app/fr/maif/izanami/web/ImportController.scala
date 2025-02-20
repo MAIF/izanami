@@ -5,14 +5,14 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, PartialImportFailure}
 import fr.maif.izanami.models.ExportedType.parseExportedType
 import fr.maif.izanami.models.features.{BooleanResult, BooleanResultDescriptor}
-import fr.maif.izanami.models.{AbstractFeature, ApiKey, CompleteFeature, CompleteWasmFeature, ExportedType, Feature, FeatureType, GlobalContextType, Import, KeyType, LocalContextType, OverloadType, RightLevels, UserWithRights}
+import fr.maif.izanami.models._
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldKey.{oldKeyReads, toNewKey}
 import fr.maif.izanami.v1.OldScripts.doesUseHttp
 import fr.maif.izanami.v1.OldUsers.{oldUserReads, toNewUser}
 import fr.maif.izanami.v1.{JavaScript, OldFeature, OldGlobalScript, WasmManagerClient}
 import fr.maif.izanami.wasm.WasmConfig
-import fr.maif.izanami.web.ImportController.{extractProjectAndName, parseStrategy, readFile, scriptIdToNodeCompatibleName, unnest}
+import fr.maif.izanami.web.ImportController._
 import fr.maif.izanami.web.ImportState.importResultWrites
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.{Base64, Wasmo}
 import play.api.libs.Files
@@ -22,7 +22,6 @@ import play.api.mvc._
 import java.net.URI
 import java.time.ZoneId
 import java.util.UUID
-import scala.collection.immutable.Seq
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Source
@@ -280,12 +279,12 @@ class ImportController(
     overloads = overloads.map(json => {
       val maybeGlobalCtx = (json \ "global_context").asOpt[String]
       maybeGlobalCtx match {
-        case Some(c) if !c.startsWith(s"${tenant}_")=> {
-          val tail = c.split("_").toList.tail.mkString("_")
+        case Some(c) if !c.startsWith(s"${tenant}_") => {
+          val tail      = c.split("_").toList.tail.mkString("_")
           val newParent = s"${tenant}_" + tail
           json + ("global_context" -> JsString(newParent))
         }
-        case _ => json
+        case _                                       => json
       }
     })
 
@@ -311,7 +310,7 @@ class ImportController(
     var globalContexts = data.getOrElse(GlobalContextType, Seq())
     globalContexts = globalContexts.map(json => {
       var id = (json \ "id").as[String]
-      if(!id.startsWith(s"${tenant}_")) {
+      if (!id.startsWith(s"${tenant}_")) {
         val tail = id.split("_").toList.tail.mkString("_")
         id = s"${tenant}_" + tail
         json + ("id" -> JsString(id))
@@ -324,17 +323,19 @@ class ImportController(
     localContexts = localContexts.map(json => {
       val maybeGlobalParent = (json \ "global_parent").asOpt[String]
       maybeGlobalParent match {
-        case Some(p) if !p.startsWith(s"${tenant}_")=> {
-          val tail = p.split("_").toList.tail.mkString("_")
+        case Some(p) if !p.startsWith(s"${tenant}_") => {
+          val tail      = p.split("_").toList.tail.mkString("_")
           val newParent = s"${tenant}_" + tail
           json + ("global_parent" -> JsString(newParent))
         }
-        case _ => json
+        case _                                       => json
       }
     })
 
-
-    (messages.toSeq, data + (FeatureType -> features, OverloadType -> overloads, KeyType -> keys, GlobalContextType -> globalContexts, LocalContextType -> localContexts))
+    (
+      messages.toSeq,
+      data + (FeatureType -> features, OverloadType -> overloads, KeyType -> keys, GlobalContextType -> globalContexts, LocalContextType -> localContexts)
+    )
   }
 
   def importV1Data(
@@ -387,7 +388,7 @@ class ImportController(
               features.map(feature => {
                 extractProjectAndName(feature, projectChoiceStrategy)
                   .flatMap { case (project, name) =>
-                    feature.toFeature(project, ZoneId.of(timezone), globalScriptById).map {
+                    feature.toFeature(project, ZoneId.of(timezone), globalScriptById, lastCall = None).map {
                       case (feature, maybeScript) => (feature.withName(name), maybeScript)
                     }
                   }
@@ -469,7 +470,8 @@ class ImportController(
                           tags,
                           metadata,
                           description,
-                          resultType
+                          resultType,
+                          lastCall
                         ) if !compatibleScripts.exists(s => s.id == scriptName) =>
                       Feature(
                         id = id,
@@ -481,7 +483,8 @@ class ImportController(
                         description = description,
                         resultDescriptor = BooleanResultDescriptor(
                           conditions = Seq()
-                        )
+                        ),
+                        lastCall = lastCall
                       )
                     case f @ _ => f
                   },
@@ -516,39 +519,20 @@ class ImportController(
                 case Left(err)        => ImportFailure(id, Seq(err.message)).future
                 case Right(scriptIds) => {
                   val featureWithCorrectPath = features.map {
-                    case f @ CompleteWasmFeature(
-                          id,
-                          name,
-                          project,
-                          enabled,
-                          w @ WasmConfig(
-                            scriptName,
-                            source,
-                            memoryPages,
-                            functionName,
-                            config,
-                            allowedPaths,
-                            wasi,
-                            opa,
-                            instances,
-                            killOptions
-                          ),
-                          tags,
-                          metadata,
-                          description,
-                          resultType
-                        ) =>
+                    case f: CompleteWasmFeature =>
+                      val wasmConfig = f.wasmConfig
                       f.copy(wasmConfig =
-                        w.copy(source =
-                          w.source.copy(
+                        wasmConfig.copy(source =
+                          wasmConfig.source.copy(
                             kind = if (isBase64) Base64 else Wasmo,
                             path =
-                              if (isBase64) java.util.Base64.getEncoder.encodeToString(scriptIds(scriptName)._2.toArray)
-                              else scriptIds(scriptName)._1
+                              if (isBase64)
+                                java.util.Base64.getEncoder.encodeToString(scriptIds(wasmConfig.name)._2.toArray)
+                              else scriptIds(wasmConfig.name)._1
                           )
                         )
                       )
-                    case f => f
+                    case f                      => f
                   }
 
                   env.datastores.features
@@ -591,7 +575,7 @@ class ImportController(
       }
     }
 
-    if(request.body.files.isEmpty) {
+    if (request.body.files.isEmpty) {
       Future.successful(BadRequest(Json.obj("message" -> "No files provided")))
     } else {
       env.datastores.tenants
