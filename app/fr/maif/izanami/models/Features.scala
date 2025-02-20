@@ -3,25 +3,7 @@ package fr.maif.izanami.models
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
 import fr.maif.izanami.models.Feature.{lightweightFeatureRead, lightweightFeatureWrite}
-import fr.maif.izanami.models.features.{
-  ActivationCondition,
-  ActivationRule,
-  BooleanActivationCondition,
-  BooleanResult,
-  BooleanResultDescriptor,
-  DateRangeActivationCondition,
-  FeaturePeriod,
-  HourPeriod,
-  LegacyCompatibleCondition,
-  NumberResult,
-  ResultDescriptor,
-  ResultType,
-  StringResult,
-  ValuedActivationCondition,
-  ValuedResultDescriptor,
-  ValuedResultType,
-  ZonedHourPeriod
-}
+import fr.maif.izanami.models.features._
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.v1.OldFeature.oldFeatureReads
 import fr.maif.izanami.v1.{OldFeature, OldGlobalScriptFeature}
@@ -34,7 +16,6 @@ import java.time._
 import java.time.format.DateTimeFormatter
 import java.util.{Objects, UUID}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.runtime.RichBoolean
 import scala.util.hashing.MurmurHash3
 import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}
@@ -100,7 +81,18 @@ sealed trait CompleteFeature extends AbstractFeature {
 
   def toLightWeightFeature: LightWeightFeature = {
     this match {
-      case CompleteWasmFeature(id, name, project, enabled, wasmConfig, tags, metadata, description, resultType) =>
+      case CompleteWasmFeature(
+            id,
+            name,
+            project,
+            enabled,
+            wasmConfig,
+            tags,
+            metadata,
+            description,
+            resultType,
+            lastCall
+          ) =>
         LightWeightWasmFeature(
           id = id,
           name = name,
@@ -110,9 +102,10 @@ sealed trait CompleteFeature extends AbstractFeature {
           tags = tags,
           metadata = metadata,
           description = description,
-          resultType = resultType
+          resultType = resultType,
+          lastCall = lastCall
         )
-      case f: LightWeightFeature                                                                                => f
+      case f: LightWeightFeature => f
     }
   }
 }
@@ -140,7 +133,8 @@ sealed trait LightWeightFeature extends AbstractFeature {
                   tags = tags,
                   metadata = metadata,
                   description = description,
-                  resultType = resultType
+                  resultType = resultType,
+                  lastCall = lastCall
                 )
               )
             case None             => Left(InternalServerError(s"Failed to find wasm script config ${f.wasmConfigName}"))
@@ -161,7 +155,8 @@ sealed trait LightWeightFeature extends AbstractFeature {
           enabled = enabled,
           tags = tags,
           metadata = metadata,
-          resultDescriptor = resultDescriptor
+          resultDescriptor = resultDescriptor,
+          lastCall = lastCall
         )
       case LightWeightWasmFeatureStrategy(enabled, wasmConfig, _, resultType) =>
         LightWeightWasmFeature(
@@ -173,7 +168,8 @@ sealed trait LightWeightFeature extends AbstractFeature {
           tags = tags,
           metadata = metadata,
           wasmConfigName = wasmConfig,
-          resultType = resultType
+          resultType = resultType,
+          lastCall = lastCall
         )
     }
   }
@@ -197,6 +193,7 @@ sealed trait AbstractFeature {
   val enabled: Boolean
   val tags: Set[String]  = Set()
   val metadata: JsObject = JsObject.empty
+  val lastCall: Option[Instant]
 
   def resultType: ResultType
   def withProject(project: String): AbstractFeature
@@ -213,7 +210,8 @@ case class SingleConditionFeature(
     override val enabled: Boolean,
     override val tags: Set[String] = Set(),
     override val metadata: JsObject = JsObject.empty,
-    override val description: String
+    override val description: String,
+    override val lastCall: Option[Instant]
 ) extends CompleteFeature
     with LightWeightFeature {
   override val resultType: ResultType = BooleanResult
@@ -242,7 +240,8 @@ case class SingleConditionFeature(
       tags = tags,
       metadata = metadata,
       description = description,
-      resultDescriptor = BooleanResultDescriptor(Seq(activationCondition))
+      resultDescriptor = BooleanResultDescriptor(Seq(activationCondition)),
+      lastCall = lastCall
     )
   }
 
@@ -266,7 +265,8 @@ case class Feature(
     override val tags: Set[String] = Set(),
     override val metadata: JsObject = JsObject.empty,
     override val description: String,
-    resultDescriptor: ResultDescriptor
+    resultDescriptor: ResultDescriptor,
+    override val lastCall: Option[Instant]
 ) extends LightWeightFeature
     with CompleteFeature {
   override def withEnabled(enabled: Boolean): Feature = copy(enabled = enabled)
@@ -302,7 +302,8 @@ case class LightWeightWasmFeature(
     override val tags: Set[String] = Set(),
     override val metadata: JsObject = JsObject.empty,
     override val description: String,
-    override val resultType: ResultType
+    override val resultType: ResultType,
+    override val lastCall: Option[Instant]
 ) extends LightWeightFeature {
   override def withEnabled(enabled: Boolean): LightWeightWasmFeature = copy(enabled = enabled)
   def toCompleteWasmFeature(tenant: String, env: Env): Future[Either[IzanamiError, CompleteWasmFeature]] = {
@@ -320,7 +321,8 @@ case class LightWeightWasmFeature(
               tags = tags,
               metadata = metadata,
               description = description,
-              resultType = resultType
+              resultType = resultType,
+              lastCall = lastCall
             )
           )
         case None             => Left(InternalServerError(s"Wasm script $wasmConfigName not found"))
@@ -340,7 +342,8 @@ case class CompleteWasmFeature(
     override val tags: Set[String] = Set(),
     override val metadata: JsObject = JsObject.empty,
     override val description: String,
-    override val resultType: ResultType
+    override val resultType: ResultType,
+    override val lastCall: Option[Instant]
 ) extends CompleteFeature {
   override def withEnabled(enabled: Boolean): CompleteWasmFeature = copy(enabled = enabled)
   override def value(requestContext: RequestContext, env: Env): Future[Either[IzanamiError, JsValue]] = {
@@ -378,7 +381,8 @@ object LightWeightWasmFeature {
         metadata = (json \ "metadata").asOpt[JsObject].getOrElse(Json.obj()),
         tags = (json \ "tags").asOpt[Set[String]].getOrElse(Set.empty[String]),
         description = (json \ "description").asOpt[String].getOrElse(""),
-        resultType = (json \ "resultType").as[ResultType](ResultType.resultTypeReads)
+        resultType = (json \ "resultType").as[ResultType](ResultType.resultTypeReads),
+        lastCall = (json \ "lastCall").asOpt[Instant]
       )
     } match {
       case Failure(ex)    => JsError(ex.getMessage)
@@ -407,7 +411,8 @@ object LightWeightWasmFeature {
         metadata = (json \ "metadata").asOpt[JsObject].getOrElse(Json.obj()),
         tags = (json \ "tags").asOpt[Set[String]].getOrElse(Set.empty[String]),
         description = (json \ "description").asOpt[String].getOrElse(""),
-        resultType = (json \ "resultType").as[ResultType](ResultType.resultTypeReads)
+        resultType = (json \ "resultType").as[ResultType](ResultType.resultTypeReads),
+        lastCall = (json \ "lastCall").asOpt[Instant]
       )
     } match {
       case Failure(ex)    => JsError(ex.getMessage)
@@ -659,7 +664,7 @@ object Feature {
   def lightweightFeatureWrite: Writes[LightWeightFeature] = f => featureWrite.writes(f)
 
   def featureWrite: Writes[AbstractFeature] = Writes[AbstractFeature] {
-    case Feature(id, name, project, enabled, tags, metadata, description, resultDescriptor)                      => {
+    case Feature(id, name, project, enabled, tags, metadata, description, resultDescriptor, lastCall) => {
       val base = Json.obj(
         "name"        -> name,
         "enabled"     -> enabled,
@@ -669,14 +674,26 @@ object Feature {
         "id"          -> id,
         "project"     -> project,
         "description" -> description,
-        "resultType"  -> Json.toJson(resultDescriptor.resultType)(ResultType.resultTypeWrites)
+        "resultType"  -> Json.toJson(resultDescriptor.resultType)(ResultType.resultTypeWrites),
+        "lastCall"    -> lastCall
       )
       resultDescriptor match {
         case v: ValuedResultDescriptor           => base + ("value" -> v.jsonValue)
         case BooleanResultDescriptor(conditions) => base
       }
     }
-    case LightWeightWasmFeature(id, name, project, enabled, wasmConfig, tags, metadata, description, resultType) => {
+    case LightWeightWasmFeature(
+          id,
+          name,
+          project,
+          enabled,
+          wasmConfig,
+          tags,
+          metadata,
+          description,
+          resultType,
+          lastCall
+        ) => {
       Json.obj(
         "name"        -> name,
         "enabled"     -> enabled,
@@ -686,10 +703,22 @@ object Feature {
         "id"          -> id,
         "project"     -> project,
         "description" -> description,
-        "resultType"  -> Json.toJson(resultType)(ResultType.resultTypeWrites)
+        "resultType"  -> Json.toJson(resultType)(ResultType.resultTypeWrites),
+        "lastCall"    -> lastCall
       )
     }
-    case CompleteWasmFeature(id, name, project, enabled, wasmConfig, tags, metadata, description, resultType)    => {
+    case CompleteWasmFeature(
+          id,
+          name,
+          project,
+          enabled,
+          wasmConfig,
+          tags,
+          metadata,
+          description,
+          resultType,
+          lastCall
+        ) => {
       Json.obj(
         "name"        -> name,
         "enabled"     -> enabled,
@@ -699,10 +728,11 @@ object Feature {
         "id"          -> id,
         "project"     -> project,
         "description" -> description,
-        "resultType"  -> Json.toJson(resultType)(ResultType.resultTypeWrites)
+        "resultType"  -> Json.toJson(resultType)(ResultType.resultTypeWrites),
+        "lastCall"    -> lastCall
       )
     }
-    case SingleConditionFeature(id, name, project, condition, enabled, tags, metadata, description)              => {
+    case SingleConditionFeature(id, name, project, condition, enabled, tags, metadata, description, lastCall)   => {
       Json.obj(
         "name"        -> name,
         "enabled"     -> enabled,
@@ -712,7 +742,8 @@ object Feature {
         "id"          -> id,
         "project"     -> project,
         "description" -> description,
-        "resultType"  -> BooleanResult.toDatabaseName
+        "resultType"  -> BooleanResult.toDatabaseName,
+        "lastCall"    -> lastCall
       )
     }
   }
@@ -724,6 +755,7 @@ object Feature {
     val metadata    = json.select("metadata").asOpt[JsObject].getOrElse(JsObject.empty)
     val id          = json.select("id").asOpt[String].orNull
     val description = json.select("description").asOpt[String].getOrElse("")
+    val lastCall    = json.select("lastCall").asOpt[Instant]
     val tags        = (json \ "tags")
       .asOpt[Set[String]]
       .getOrElse(Set())
@@ -773,6 +805,7 @@ object Feature {
                   condition = legacyCondition,
                   tags = tags,
                   metadata = metadata,
+                  lastCall = lastCall,
                   project = jsonProject,
                   description = description
                 )
@@ -788,7 +821,8 @@ object Feature {
                   tags = tags,
                   metadata = metadata,
                   description = description,
-                  resultType = resultType
+                  resultType = resultType,
+                  lastCall = lastCall
                 )
               )
             }
@@ -803,7 +837,8 @@ object Feature {
                   tags = tags,
                   metadata = metadata,
                   description = description,
-                  resultType = resultType
+                  resultType = resultType,
+                  lastCall = lastCall
                 )
               )
             }
@@ -825,7 +860,8 @@ object Feature {
                           metadata = metadata,
                           project = jsonProject,
                           description = description,
-                          resultDescriptor = rd
+                          resultDescriptor = rd,
+                          lastCall = lastCall
                         )
                       )
                     )
@@ -848,7 +884,8 @@ object Feature {
                         metadata = metadata,
                         project = jsonProject,
                         description = description,
-                        resultDescriptor = BooleanResultDescriptor(maybeBooleanConditions.flatMap(_.toSeq))
+                        resultDescriptor = BooleanResultDescriptor(maybeBooleanConditions.flatMap(_.toSeq)),
+                        lastCall = lastCall
                       )
                     )
                   }
@@ -860,7 +897,7 @@ object Feature {
                 .reads(json)
                 .flatMap(f => {
                   // TODO handle missing timezon
-                  f.toFeature(project, (json \ "timezone").asOpt[ZoneId].orNull, Map()) match {
+                  f.toFeature(project, (json \ "timezone").asOpt[ZoneId].orNull, Map(), lastCall) match {
                     case Left(err)           => JsError(err)
                     case Right((feature, _)) => JsSuccess(feature)
                   }
@@ -876,29 +913,17 @@ object Feature {
     readFeature(json, project).flatMap {
       case f: SingleConditionFeature => JsSuccess(f)
       case f: Feature                => JsSuccess(f)
-      case LightWeightWasmFeature(
-            id,
-            name,
-            project,
-            enabled,
-            wasmConfigName,
-            tags,
-            metadata,
-            description,
-            resultType
-          ) =>
-        JsError("LightWeightWasmFeature can't be evaluated")
+      case _: LightWeightWasmFeature => JsError("LightWeightWasmFeature can't be evaluated")
       case f: CompleteWasmFeature    => JsSuccess(f)
     }
   }
 
   def readLightWeightFeature(json: JsValue, project: String = null): JsResult[LightWeightFeature] = {
     readFeature(json, project).flatMap {
-      case f: SingleConditionFeature                                                                                => JsSuccess(f)
-      case f: Feature                                                                                               => JsSuccess(f)
-      case CompleteWasmFeature(id, name, project, enabled, wasmConfigName, tags, metadata, description, resultType) =>
-        JsError("Expected light feature, got complete")
-      case f: LightWeightWasmFeature                                                                                => JsSuccess(f)
+      case f: SingleConditionFeature => JsSuccess(f)
+      case f: Feature                => JsSuccess(f)
+      case _: CompleteWasmFeature    => JsError("Expected light feature, got complete")
+      case f: LightWeightWasmFeature => JsSuccess(f)
     }
   }
 }

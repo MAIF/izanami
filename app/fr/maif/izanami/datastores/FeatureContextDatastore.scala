@@ -9,7 +9,7 @@ import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.SourceFeatureUpdated
 import fr.maif.izanami.models.FeatureContext.generateSubContextId
 import fr.maif.izanami.models._
-import fr.maif.izanami.models.features.{ActivationCondition, BooleanActivationCondition, BooleanResult, BooleanResultDescriptor, NumberActivationCondition, NumberResult, NumberResultDescriptor, ResultType, StringActivationCondition, StringResult, StringResultDescriptor, ValuedActivationCondition, ValuedResultDescriptor, ValuedResultType}
+import fr.maif.izanami.models.features._
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.WasmConfig
@@ -18,7 +18,7 @@ import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import io.vertx.core.json.JsonArray
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
-import play.api.libs.json.{JsArray, JsValue, Json, Reads, Writes}
+import play.api.libs.json.{JsArray, Json, Writes}
 
 import java.util.Objects
 import scala.concurrent.Future
@@ -263,6 +263,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
 
   def readGlobalFeatureContexts(tenant: String): Future[Seq[FeatureContext]] = {
     env.postgresql.queryAll(
+      // TODO add last call
       s"""
          |SELECT c.name, c.parent, c.id, NULL as project, COALESCE(
          |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'project', f.project, 'description', f.description , 'wasm', s.script_config)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
@@ -533,13 +534,21 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                     .recover {
                       case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
                         Left(TenantDoesNotExists(tenant))
-                      case f: PgException if (f.getSqlState == FOREIGN_KEY_VIOLATION && f.getConstraint == "feature_contexts_strategies_feature_project_fkey") =>
-                        Left(NoFeatureMatchingOverloadDefinition(tenant = tenant, project = project, feature = feature, resultType = strategy.resultType.toDatabaseName))
+                      case f: PgException
+                          if f.getSqlState == FOREIGN_KEY_VIOLATION && f.getConstraint == "feature_contexts_strategies_feature_project_fkey" =>
+                        Left(
+                          NoFeatureMatchingOverloadDefinition(
+                            tenant = tenant,
+                            project = project,
+                            feature = feature,
+                            resultType = strategy.resultType.toDatabaseName
+                          )
+                        )
                       case f: PgException if f.getSqlState == FOREIGN_KEY_VIOLATION    =>
                         Left(FeatureContextDoesNotExist(path.mkString("/")))
                       case _                                                           => Left(InternalServerError())
                     }
-                case f @ (_: CompleteWasmFeatureStrategy)                            => {
+                case f @ (_: CompleteWasmFeatureStrategy)                   => {
                   (f match {
                     case f: CompleteWasmFeatureStrategy if f.wasmConfig.source.kind != WasmSourceKind.Local =>
                       env.datastores.features.createWasmScriptIfNeeded(tenant, f.wasmConfig, Some(conn))
@@ -641,7 +650,9 @@ object FeatureContextDatastore {
                         project = project,
                         wasmConfigName = wasmConfig,
                         description = description,
-                        resultType = resultType
+                        resultType = resultType,
+                        // TODO lastCall
+                        lastCall = None
                       )
                     )
                   case (None, Some(conditions)) => {
@@ -656,7 +667,9 @@ object FeatureContextDatastore {
                               id = id,
                               project = project,
                               description = description,
-                              resultDescriptor = rd
+                              resultDescriptor = rd,
+                              // TODO lastCall
+                              lastCall = None
                             )
                           })
                       }
@@ -671,7 +684,9 @@ object FeatureContextDatastore {
                             id = id,
                             project = project,
                             description = description,
-                            resultDescriptor = BooleanResultDescriptor(conds.toSeq)
+                            resultDescriptor = BooleanResultDescriptor(conds.toSeq),
+                            // TODO lastCall
+                            lastCall = None
                           )
                         )
                       }
@@ -702,10 +717,10 @@ object FeatureContextDatastore {
         resultTypeStr <- row.optString("result_type");
         resultType    <- ResultType.parseResultType(resultTypeStr)
       ) yield {
-        val maybeConditions                     = row
+        val maybeConditions = row
           .optJsArray("conditions")
           .getOrElse(JsArray.empty)
-        val maybeConfig                         = row.optJsObject("config").flatMap(obj => obj.asOpt(WasmConfig.format))
+        val maybeConfig     = row.optJsObject("config").flatMap(obj => obj.asOpt(WasmConfig.format))
         (maybeConfig, maybeConditions) match {
           case (Some(config), _) => Some(CompleteWasmFeatureStrategy(enabled, config, feature, resultType = resultType))
           case (_, conditions)   => {
