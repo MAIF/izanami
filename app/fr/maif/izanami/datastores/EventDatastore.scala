@@ -76,7 +76,7 @@ class EventDatastore(val env: Env) extends Datastore {
            |${if (request.eventTypes.nonEmpty) s"AND e.event_type = ANY($$${index += 1; index}::izanami.LOCAL_EVENT_TYPES[])" else ""}
            |${if (entityIds.nonEmpty) s"""AND (
               |  e.entity_id=ANY($$${index += 1; index})
-              |${if(request.projects.nonEmpty) s" OR (e.event_type IN ('FEATURE_CREATED', 'FEATURE_UPDATED', 'FEATURE_DELETED') AND e.event->>'projectId'=ANY($$${index += 1; index}::TEXT[]))"}
+              |${if(request.projects.nonEmpty) s" OR (e.event_type IN ('FEATURE_CREATED', 'FEATURE_UPDATED', 'FEATURE_DELETED') AND e.event->>'projectId'=ANY($$${index += 1; index}::TEXT[]))" else ""}
               |)""".stripMargin
               else ""}
            |""".stripMargin

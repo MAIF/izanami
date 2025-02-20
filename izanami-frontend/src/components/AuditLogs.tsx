@@ -70,7 +70,6 @@ function extractSearchQueryFromUrlParams(
 
   const additionalFields = Object.fromEntries(
     Object.entries(rest).map(([key, value]) => {
-      console.log("value", value);
       return [key, JSON.parse(value)];
     })
   );
@@ -138,9 +137,7 @@ export function fetchLogs(
     cursor: cursor,
   })
     .map(([key, value]) => {
-      console.log({ key, value });
       if (!value || (Array.isArray(value) && value.length === 0)) {
-        console.log("empty");
         return "";
       } else if ((key === "start" || key === "end") && value) {
         return `${key}=${encodeURIComponent(
@@ -192,9 +189,15 @@ export function AuditLog(props: AuditLogProps) {
       return key < otherKey ? 1 : -1;
     })
     .filter(([key, value]) => value !== undefined)
-    .map(([key, value]) => `${key}:${value}`)
+    .map(([key, value]) => {
+      if (key === "additionalFields") {
+        return `${key}:${JSON.stringify(value)}`;
+      } else {
+        return `${key}:${value}`;
+      }
+    })
     .join("-");
-
+  console.log("key", key);
   const {
     data,
     error,
@@ -263,7 +266,6 @@ export function AuditLog(props: AuditLogProps) {
               }
             )
           );
-          console.log("param", param);
           queryClient.invalidateQueries({
             // TODO combine eventUrl with params
             queryKey: "",
@@ -408,7 +410,6 @@ export function AuditLog(props: AuditLogProps) {
                     id: "eventId",
                     cell: (info) => {
                       const rowValue = info.row.original;
-                      console.log("rowValue", rowValue);
                       const type = rowValue.type;
                       // TODO refactor this
                       if (
