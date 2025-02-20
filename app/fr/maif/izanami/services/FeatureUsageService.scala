@@ -2,6 +2,7 @@ package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.models.{LightWeightFeature, LightWeightFeatureWithUsageInformation}
 
 import java.time.{Duration, Instant}
 import scala.concurrent.Future
@@ -13,6 +14,11 @@ class StaleFeatureService(env: Env) {
   def reportStaleFeatures(tenant: String, delay: Duration): Future[Either[IzanamiError, List[String]]] = {
     val nowMinusDelay = Instant.now().minus(delay)
     featureCalls.findFeatureWithoutCallSince(tenant, nowMinusDelay)
+  }
+
+
+  def determineStaleStatus(feature: LightWeightFeature): LightWeightFeatureWithUsageInformation = {
+
   }
 
 }
