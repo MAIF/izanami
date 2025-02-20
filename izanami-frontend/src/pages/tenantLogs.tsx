@@ -100,7 +100,6 @@ function EntitySelector(props: {
 
     Promise.all(promises)
       .then(([features, projects]) => {
-        console.log("[features, projects]", [features, projects]);
         return features
           .filter((f) => Boolean(f))
           .map((f: any) => ({
@@ -126,7 +125,6 @@ function EntitySelector(props: {
       })
       .then((options) => setReady({ ready: true, data: options }));
   }, []);
-  console.log("data", ready.data);
   return !ready.ready ? (
     <Loader message="Loading..." />
   ) : (

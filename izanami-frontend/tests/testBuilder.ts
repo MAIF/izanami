@@ -322,7 +322,6 @@ export class TestSituationBuilder {
       .then((pairs) => new Map(pairs.flat().flat()))
       .then((m) => new TestSituation(m))
       .catch((err) => {
-        console.log(err);
         throw err;
       });
   }
