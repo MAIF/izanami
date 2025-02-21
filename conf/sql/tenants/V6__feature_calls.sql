@@ -1,6 +1,6 @@
 CREATE TABLE feature_calls (
-  feature TEXT REFERENCES features (id),
-  apikey TEXT REFERENCES apikeys (clientId),
+  feature TEXT REFERENCES features (id) ON UPDATE CASCADE ON DELETE CASCADE,
+  apikey TEXT REFERENCES apikeys (clientId) ON UPDATE CASCADE ON DELETE CASCADE,
   date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   value JSONB
 );

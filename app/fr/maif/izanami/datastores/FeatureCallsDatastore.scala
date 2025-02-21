@@ -60,7 +60,7 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
    * @param featureIds feature ids
    * @return feature last call, creation date and last values
    */
-  def findLastCallAndCreationDate(tenant: String, featureIds: Seq[String], valuesSince :Instant ): Future[Either[IzanamiError, Map[String, FeatureUsage]]] = {
+  def findFeatureUsages(tenant: String, featureIds: Seq[String], valuesSince :Instant ): Future[Either[IzanamiError, Map[String, FeatureUsage]]] = {
     env.postgresql
       .queryAll(
         query = s"""

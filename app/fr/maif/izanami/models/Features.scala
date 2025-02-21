@@ -157,8 +157,8 @@ object LightWeightFeatureWithUsageInformation {
 
 case class FeatureUsage(
                                     lastCall: Option[Instant],
-                                    lastValues: Set[JsValue],
-                                    creationDate: Instant
+                                    creationDate: Instant,
+                                    lastValues: Set[JsValue]
                                   )
 
 sealed trait LightWeightFeature extends AbstractFeature {
