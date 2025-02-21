@@ -379,6 +379,10 @@ function ConditionInput(props: { index: number }) {
           <label className="mt-3">
             Users that should activate feature
             <Controller
+              rules={{
+                required: "At least one user should be specified",
+                minLength: 1,
+              }}
               name={`conditions.${index}.rule.users`}
               control={control}
               render={({ field: { onChange, value } }) => (
@@ -392,6 +396,9 @@ function ConditionInput(props: { index: number }) {
                   isClearable
                 />
               )}
+            />
+            <ErrorDisplay
+              error={(errors?.conditions?.[index]?.rule as any)?.users}
             />
           </label>
         )}
@@ -424,8 +431,11 @@ function Period(props: { index: number }) {
                       : ""
                   }
                   onChange={(e) => {
+                    const value = e.target?.value;
                     onChange(
-                      parse(e.target.value, "yyyy-MM-dd'T'HH:mm", new Date())
+                      value
+                        ? parse(value, "yyyy-MM-dd'T'HH:mm", new Date())
+                        : null
                     );
                   }}
                   type="datetime-local"
@@ -449,8 +459,15 @@ function Period(props: { index: number }) {
                       : ""
                   }
                   onChange={(e) => {
+                    const value = e.target?.value;
                     onChange(
-                      parse(e.target.value, "yyyy-MM-dd'T'HH:mm", new Date())
+                      value
+                        ? parse(
+                            e.target.value,
+                            "yyyy-MM-dd'T'HH:mm",
+                            new Date()
+                          )
+                        : null
                     );
                   }}
                   type="datetime-local"
@@ -480,7 +497,11 @@ function Period(props: { index: number }) {
           control={control}
           render={({ field: { onChange, value } }) => (
             <Select
-              value={value?.days.map((v) => ({ value: v, label: v }))}
+              value={value?.days
+                .sort((v1, v2) => {
+                  return DAYS.indexOf(v1) - DAYS.indexOf(v2);
+                })
+                .map((v) => ({ value: v, label: v }))}
               onChange={(e) => {
                 onChange({
                   days: e.map((v) => v.value),
@@ -496,6 +517,9 @@ function Period(props: { index: number }) {
               isClearable
             />
           )}
+        />
+        <ErrorDisplay
+          error={errors?.conditions?.[index]?.period?.activationDays}
         />
       </label>
 

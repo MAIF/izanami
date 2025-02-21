@@ -124,15 +124,20 @@ object FeaturePeriod {
     val maybeEnd            = (json \ "end").asOpt[Instant](instantReads(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
     val maybeZone           = (json \ "timezone").asOpt[String].map(str => ZoneId.of(str))
 
-    JsSuccess(
-      FeaturePeriod(
-        begin = maybeBegin,
-        end = maybeEnd,
-        hourPeriods = maybeHourPeriod,
-        days = maybeActivationDays,
-        timezone = maybeZone.getOrElse(ZoneId.systemDefault()) // TODO should this be allowed ?
+    if(maybeActivationDays.toSeq.flatMap(_.days).isEmpty) {
+      JsError("A period should be active on at least one day of week")
+    } else {
+      JsSuccess(
+        FeaturePeriod(
+          begin = maybeBegin,
+          end = maybeEnd,
+          hourPeriods = maybeHourPeriod,
+          days = maybeActivationDays,
+          timezone = maybeZone.getOrElse(ZoneId.systemDefault()) // TODO should this be allowed ?
+        )
       )
-    )
+    }
+
   }
 
   implicit val featurePeriodeWrite: Writes[FeaturePeriod] = Writes[FeaturePeriod] { period =>
@@ -157,7 +162,7 @@ object ActivationRule {
     } else {
       (for (percentage <- (json \ "percentage").asOpt[Int]) yield UserPercentage(percentage = percentage))
         .orElse(
-          for (users <- (json \ "users").asOpt[Seq[String]]) yield UserList(users = users.toSet)
+          for (users <- (json \ "users").asOpt[Seq[String]].filter(_.nonEmpty)) yield UserList(users = users.toSet)
         )
         .map(JsSuccess(_))
         .getOrElse(JsError("Invalid activation rule"))
