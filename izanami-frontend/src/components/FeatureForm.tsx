@@ -519,6 +519,10 @@ function LegacyFeatureForm(props: {
                 <Controller
                   name="parameters.customers"
                   control={control}
+                  rules={{
+                    required: "At least one user should be specified",
+                    minLength: 1,
+                  }}
                   render={({ field: { onChange, value } }) => (
                     <CreatableSelect
                       value={value?.map((v) => ({ value: v, label: v }))}
@@ -530,6 +534,12 @@ function LegacyFeatureForm(props: {
                       isClearable
                     />
                   )}
+                />
+                <ErrorDisplay
+                  error={
+                    (errors as FieldErrors<CustomerListFeature>)?.parameters
+                      ?.customers
+                  }
                 />
               </label>
             )}
@@ -1034,6 +1044,17 @@ export function V2FeatureForm(props: {
                 });
                 data.conditions.forEach(
                   (cond: TClassicalCondition, index: number) => {
+                    if (cond?.period) {
+                      const period = cond.period;
+                      if ((period?.activationDays?.days || []).length === 0) {
+                        setError(`conditions.${index}.period.activationDays`, {
+                          type: "custom",
+                          message: "At least one day should be selected.",
+                        });
+                        error = error || true;
+                      }
+                    }
+
                     if (
                       cond?.period?.begin &&
                       cond?.period?.end &&
