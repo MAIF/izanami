@@ -3,9 +3,10 @@ package fr.maif.izanami.web
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{FeatureNotFound, IncorrectKey, IzanamiError, TagDoesNotExists}
 import fr.maif.izanami.models.Feature._
+import fr.maif.izanami.models.LightWeightFeatureWithUsageInformation.writeLightWeightFeatureWithUsageInformation
 import fr.maif.izanami.models._
 import fr.maif.izanami.models.features._
-import fr.maif.izanami.services.FeatureService
+import fr.maif.izanami.services.{FeatureService, FeatureUsageService}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import play.api.libs.json.Format.GenericFormat
@@ -23,7 +24,8 @@ class FeatureController(
     val projectAuthAction: ProjectAuthActionFactory,
     val authenticatedAction: AuthenticatedAction,
     val detailledRightForTenanFactory: DetailledRightForTenantFactory,
-    featureService: FeatureService
+    featureService: FeatureService,
+    featureUsageService: FeatureUsageService
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
 
@@ -207,7 +209,14 @@ class FeatureController(
     implicit request =>
       env.datastores.features
         .searchFeature(tenant, if (tag.isBlank) Set() else Set(tag))
-        .map(features => Ok(Json.toJson(features)(Writes.seq(lightweightFeatureWrite))))
+        .flatMap(features => {
+          featureUsageService.determineStaleStatus(tenant, features).map {
+            case Left(err) => err.toHttpResponse
+            case Right(featuresWithUsageInformation) => {
+              Ok(Json.toJson(featuresWithUsageInformation)(Writes.seq(writeLightWeightFeatureWithUsageInformation)))
+            }
+          }
+        })
   }
 
   def evaluateFeaturesForContext(

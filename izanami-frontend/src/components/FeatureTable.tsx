@@ -1779,6 +1779,26 @@ export function FeatureTable(props: {
     onSuccess: () => refresh(),
   });
 
+  const displayFeature = (feature: TLightFeature) => {
+    const stale = feature.stale;
+    const staleMessage = feature.lastCall
+      ? `Feature has not been called since ${format(feature.lastCall, "PPPp")}`
+      : `Feature has not been called since its creation at ${format(
+          feature.creationDate,
+          "PPPp"
+        )}`;
+    return (
+      <>
+        <span style={{ textOverflow: "ellipsis" }}>{feature.name}</span>
+        {stale && (
+          <Pill criticity="warning" tooltip={staleMessage}>
+            <i className="fa-solid fa-triangle-exclamation"></i>
+          </Pill>
+        )}
+      </>
+    );
+  };
+
   if (fields.includes("name") && fields.includes("overloadCount")) {
     columns.push({
       accessorKey: "name",
@@ -1787,27 +1807,7 @@ export function FeatureTable(props: {
       size: 20,
       cell: (props: { row: Row<any> }) => {
         const feature: TLightFeature = props.row.original;
-        const stale = feature.stale;
-
-        const staleMessage = feature.lastCall
-          ? `Feature has not been called since ${format(
-              feature.lastCall,
-              "PPPp"
-            )}`
-          : `Feature has not been called since its creation at ${format(
-              feature.creationDate,
-              "PPPp"
-            )}`;
-        const featureNameBase = (
-          <>
-            <span style={{ textOverflow: "ellipsis" }}>{feature.name}</span>
-            {stale && (
-              <Pill criticity="warning" tooltip={staleMessage}>
-                <i className="fa-solid fa-triangle-exclamation"></i>
-              </Pill>
-            )}
-          </>
-        );
+        const featureNameBase = displayFeature(feature);
 
         if (contextQueries.some((q) => q.isLoading)) {
           return (
@@ -1873,8 +1873,7 @@ export function FeatureTable(props: {
         const feature = props.row.original;
         return (
           <div className="d-flex justify-start align-items-center">
-            <ResultTypeIcon resultType={feature.resultType} />
-            <span className="px-1">{feature.name}</span>
+            {displayFeature(feature)}
           </div>
         );
       },
