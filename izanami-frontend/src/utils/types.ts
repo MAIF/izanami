@@ -175,17 +175,17 @@ export interface SingleConditionFeature {
 }
 
 export type NeverCalled = {
-  kind: "NeverCalled";
+  because: "NeverCalled";
   since: Date;
 };
 
 export type NoCall = {
-  kind: "NoCall";
+  because: "NoCall";
   since: Date;
 };
 
 export type NoValueChange = {
-  kind: "NoValueChange";
+  because: "NoValueChange";
   since: Date;
   value: string | number | boolean;
 };

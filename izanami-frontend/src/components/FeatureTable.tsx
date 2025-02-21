@@ -1780,7 +1780,7 @@ export function FeatureTable(props: {
   });
 
   const staleMessage = (stale?: StaleStatus) => {
-    switch (stale?.kind) {
+    switch (stale?.because) {
       case "NoCall":
         return `Feature has not been called since ${format(
           stale?.since,
