@@ -5,6 +5,7 @@ import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
+import fr.maif.izanami.models.LastCallAndCreationDate
 import play.api.libs.json.JsValue
 
 import java.time.{Instant, ZoneOffset}
@@ -54,16 +55,16 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
   }
 
   /**
-   * Find last call date of given features, or their creation dates if there is no last call traces
+   * Find last call date of given features and their creation dates.
    * @param tenant tenant name
    * @param featureIds feature ids
-   * @return either last call dates or feature creation dates
+   * @return feature last call and creation dates
    */
-  def findLastCallOrCreationDate(tenant: String, featureIds: Seq[String]): Future[Either[IzanamiError, Map[String, Instant]]] = {
+  def findLastCallAndCreationDate(tenant: String, featureIds: Seq[String]): Future[Either[IzanamiError, Map[String, LastCallAndCreationDate]]] = {
     env.postgresql
       .queryAll(
         query = s"""
-         |SELECT COALESCE(MAX(fc.date), f.created_at) AS last_call, f.id
+         |SELECT MAX(fc.date) AS last_call, f.created_at, f.id
          |FROM features f
          |LEFT JOIN feature_calls fc ON fc.feature = f.id
          |WHERE f.id = ANY($$1)
@@ -72,10 +73,11 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
         params = List(featureIds.toArray),
         schemas = Set(tenant)
       ) { r => {
+        val lastCall = r.optOffsetDatetime("last_call").map(_.toInstant)
         for(
-          date <- r.optOffsetDatetime("last_call").map(_.toInstant);
+          createdAt <- r.optOffsetDatetime("created_at").map(_.toInstant);
           id <- r.optString("id")
-        ) yield (id, date)
+        ) yield (id, LastCallAndCreationDate(creationDate = createdAt, lastCall = lastCall))
       }}
       .map(ls => Right(ls.toMap))
       .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))

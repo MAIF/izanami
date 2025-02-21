@@ -18,13 +18,12 @@ class FeatureUsageService(env: Env) {
     featureCalls.findFeatureWithoutCallSince(tenant, nowMinusDelay)
   }
 
-
   def determineStaleStatus(tenant: String, features: Seq[LightWeightFeature]): Future[Either[IzanamiError, Seq[LightWeightFeatureWithUsageInformation]]] = {
-    featureCalls.findLastCallOrCreationDate(tenant, features.map(_.id)).map(either => either.map(lastCallOrCreationDateByFeature => {
+    featureCalls.findLastCallAndCreationDate(tenant, features.map(_.id)).map(either => either.map(lastCallAndCreationDateByFeature => {
       features.map(feature => {
-        val lastCallOrCreationDate = lastCallOrCreationDateByFeature(feature.id)
-        val isStale = Duration.between(lastCallOrCreationDate, Instant.now()).compareTo(staleDelay) > 0
-        LightWeightFeatureWithUsageInformation(feature = feature, stale = isStale)
+        val lastCallAndCreationDate = lastCallAndCreationDateByFeature(feature.id)
+        val isStale = Duration.between(lastCallAndCreationDate.lastCallOrCreationDate, Instant.now()).compareTo(staleDelay) > 0
+        LightWeightFeatureWithUsageInformation(feature = feature, stale = isStale, creationDate = lastCallAndCreationDate.creationDate, lastCall = lastCallAndCreationDate.lastCall)
       })
     }))
   }

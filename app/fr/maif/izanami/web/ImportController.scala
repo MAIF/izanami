@@ -388,7 +388,7 @@ class ImportController(
               features.map(feature => {
                 extractProjectAndName(feature, projectChoiceStrategy)
                   .flatMap { case (project, name) =>
-                    feature.toFeature(project, ZoneId.of(timezone), globalScriptById, lastCall = None).map {
+                    feature.toFeature(project, ZoneId.of(timezone), globalScriptById).map {
                       case (feature, maybeScript) => (feature.withName(name), maybeScript)
                     }
                   }
@@ -470,8 +470,7 @@ class ImportController(
                           tags,
                           metadata,
                           description,
-                          resultType,
-                          lastCall
+                          resultType
                         ) if !compatibleScripts.exists(s => s.id == scriptName) =>
                       Feature(
                         id = id,
@@ -483,8 +482,7 @@ class ImportController(
                         description = description,
                         resultDescriptor = BooleanResultDescriptor(
                           conditions = Seq()
-                        ),
-                        lastCall = lastCall
+                        )
                       )
                     case f @ _ => f
                   },

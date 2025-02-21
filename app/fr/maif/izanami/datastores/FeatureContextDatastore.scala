@@ -650,9 +650,7 @@ object FeatureContextDatastore {
                         project = project,
                         wasmConfigName = wasmConfig,
                         description = description,
-                        resultType = resultType,
-                        // TODO lastCall
-                        lastCall = None
+                        resultType = resultType
                       )
                     )
                   case (None, Some(conditions)) => {
@@ -667,9 +665,7 @@ object FeatureContextDatastore {
                               id = id,
                               project = project,
                               description = description,
-                              resultDescriptor = rd,
-                              // TODO lastCall
-                              lastCall = None
+                              resultDescriptor = rd
                             )
                           })
                       }
@@ -684,9 +680,7 @@ object FeatureContextDatastore {
                             id = id,
                             project = project,
                             description = description,
-                            resultDescriptor = BooleanResultDescriptor(conds.toSeq),
-                            // TODO lastCall
-                            lastCall = None
+                            resultDescriptor = BooleanResultDescriptor(conds.toSeq)
                           )
                         )
                       }

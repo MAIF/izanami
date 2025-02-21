@@ -148,8 +148,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                                           tags = feature.tags,
                                           metadata = feature.metadata,
                                           description = feature.description,
-                                          resultDescriptor = rs,
-                                          lastCall = feature.lastCall
+                                          resultDescriptor = rs
                                         )
                                       })
 
@@ -165,8 +164,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                                           tags = feature.tags,
                                           metadata = feature.metadata,
                                           description = feature.description,
-                                          resultType = feature.resultType,
-                                          lastCall = feature.lastCall
+                                          resultType = feature.resultType
                                         )
                                       )
                                     )
@@ -285,8 +283,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                                     tags = feature.tags,
                                     metadata = feature.metadata,
                                     description = feature.description,
-                                    resultDescriptor = rs,
-                                    lastCall = feature.lastCall
+                                    resultDescriptor = rs
                                   )
                                 })
 
@@ -302,8 +299,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                                     tags = feature.tags,
                                     metadata = feature.metadata,
                                     description = feature.description,
-                                    resultType = resultType,
-                                    lastCall = feature.lastCall
+                                    resultType = resultType
                                   )
                                 )
                               )
@@ -1253,7 +1249,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     }
 
     val legacyFeatureParams = unzip7(legacyFeatures.map {
-      case SingleConditionFeature(id, name, project, conditions, enabled, tags, metadata, description, _) =>
+      case SingleConditionFeature(id, name, project, conditions, enabled, tags, metadata, description) =>
         (
           Option(id).getOrElse(UUID.randomUUID().toString),
           name,
@@ -1266,7 +1262,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     })
 
     val modernFeatureParams = unzip9(
-      modernFeatures.map { case Feature(id, name, project, enabled, tags, metadata, description, resultDescriptor, _) =>
+      modernFeatures.map { case Feature(id, name, project, enabled, tags, metadata, description, resultDescriptor) =>
         (
           Option(id).getOrElse(UUID.randomUUID().toString),
           name,
@@ -1286,7 +1282,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
 
     val wasmFeatureParams = unzip8(
       wasmFeatures.map {
-        case CompleteWasmFeature(id, name, project, enabled, wasmConfig, tags, metadata, description, resultType, _) =>
+        case CompleteWasmFeature(id, name, project, enabled, wasmConfig, tags, metadata, description, resultType) =>
           (
             Option(id).getOrElse(UUID.randomUUID().toString),
             name,
@@ -1601,7 +1597,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       conn: SqlConnection
   ): Future[Either[IzanamiError, String]] = {
     val (request, params) = feature match {
-      case SingleConditionFeature(id, name, project, conditions, enabled, _, metadata, description, _)      =>
+      case SingleConditionFeature(id, name, project, conditions, enabled, _, metadata, description)      =>
         (
           s"""INSERT INTO features (id, name, project, enabled, conditions, metadata, description, result_type)
              |VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7, $$8)
@@ -1617,7 +1613,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
             BooleanResult.toDatabaseName
           )
         )
-      case Feature(id, name, project, enabled, _, metadata, description, resultDescriptor, _)               =>
+      case Feature(id, name, project, enabled, _, metadata, description, resultDescriptor)               =>
         (
           s"""INSERT INTO features (id, name, project, enabled, conditions, metadata, description, result_type, value)
            |VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7, $$8, $$9)
@@ -1637,7 +1633,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
             }
           )
         )
-      case CompleteWasmFeature(id, name, project, enabled, config, _, metadata, description, resultType, _) =>
+      case CompleteWasmFeature(id, name, project, enabled, config, _, metadata, description, resultType) =>
         (
           s"""INSERT INTO features (id, name, project, enabled, script_config, metadata, description, result_type)
             |VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7, $$8)
@@ -1706,7 +1702,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       maybeDeleteFuture.flatMap(_ => {
 
         val (request, params) = feature match {
-          case SingleConditionFeature(id, name, project, conditions, enabled, tags, metadata, description, _) =>
+          case SingleConditionFeature(id, name, project, conditions, enabled, tags, metadata, description) =>
             (
               s"""update features
                  |SET name=$$1, enabled=$$2, conditions=$$3, script_config=NULL, description=$$5, project=$$6, result_type='boolean' WHERE id=$$4 returning id""".stripMargin,
@@ -1719,7 +1715,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 project
               )
             )
-          case Feature(_, name, project, enabled, _, _, description, resultDescriptor, _)                     =>
+          case Feature(_, name, project, enabled, _, _, description, resultDescriptor)                     =>
             (
               s"""update features
                  |SET name=$$1, enabled=$$2, conditions=$$3, script_config=NULL, description=$$5, project=$$6, result_type=$$7, value=$$8  WHERE id=$$4 returning id""".stripMargin,
@@ -1737,7 +1733,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 }
               )
             )
-          case CompleteWasmFeature(_, name, project, enabled, wasmConfig, _, _, description, resultType, _)   =>
+          case CompleteWasmFeature(_, name, project, enabled, wasmConfig, _, _, description, resultType)   =>
             (
               s"""update features
                  |SET name=$$1, enabled=$$2, script_config=$$4, conditions=NULL, description=$$5, project=$$6, result_type=$$7, value=null  WHERE id=$$3 returning id""".stripMargin,
@@ -1918,7 +1914,6 @@ object featureImplicits {
     def optCompleteFeature(): Option[CompleteFeature] = {
       val tags     =
         row.optJsArray("tags").map(array => array.value.map(v => v.as[String]).toSet).getOrElse(Set())
-      val lastCall = row.optOffsetDatetime("last_call").map(_.toInstant)
 
       for (
         name        <- row.optString("name");
@@ -1962,8 +1957,7 @@ object featureImplicits {
                     resultDescriptor = NumberResultDescriptor(
                       value = row.optString("value").map(v => BigDecimal(v)).get,
                       conditions = conds
-                    ),
-                    lastCall = lastCall
+                    )
                   )
                 }
                 case StringResult  => {
@@ -1981,8 +1975,7 @@ object featureImplicits {
                     resultDescriptor = StringResultDescriptor(
                       value = row.optString("value").get,
                       conditions = conds
-                    ),
-                    lastCall = lastCall
+                    )
                   )
                 }
                 case BooleanResult => {
@@ -2001,8 +1994,7 @@ object featureImplicits {
                     description = description,
                     resultDescriptor = BooleanResultDescriptor(
                       conditions = conds
-                    ),
-                    lastCall = lastCall
+                    )
                   )
                 }
               }
@@ -2017,8 +2009,7 @@ object featureImplicits {
                 condition = legacyCompatibleCondition,
                 metadata = metadata,
                 tags = tags,
-                description = description,
-                lastCall = lastCall
+                description = description
               )
             }
             case (_, _, Some(wasmConfig))                => {
@@ -2031,8 +2022,7 @@ object featureImplicits {
                 metadata = metadata,
                 tags = tags,
                 description = description,
-                resultType = resultType,
-                lastCall = lastCall
+                resultType = resultType
               )
             }
             case _                                       => throw new RuntimeException("Failed to read feature " + id)
@@ -2043,7 +2033,6 @@ object featureImplicits {
     def optFeature(): Option[LightWeightFeature] = {
       val tags               =
         row.optJsArray("tags").map(array => array.value.map(v => v.as[String]).toSet).getOrElse(Set())
-      val lastCall           = row.optOffsetDatetime("last_call").map(_.toInstant)
       lazy val maybeWasmName = row.optString("config")
 
       for (
@@ -2082,8 +2071,7 @@ object featureImplicits {
                     resultDescriptor = NumberResultDescriptor(
                       value = row.optString("value").map(v => BigDecimal(v)).get,
                       conditions = conds
-                    ),
-                    lastCall = lastCall
+                    )
                   )
                 }
                 case StringResult  => {
@@ -2101,8 +2089,7 @@ object featureImplicits {
                     resultDescriptor = StringResultDescriptor(
                       value = row.optString("value").get,
                       conditions = conds
-                    ),
-                    lastCall = lastCall
+                    )
                   )
                 }
                 case BooleanResult => {
@@ -2121,8 +2108,7 @@ object featureImplicits {
                     description = description,
                     resultDescriptor = BooleanResultDescriptor(
                       conditions = conds
-                    ),
-                    lastCall = lastCall
+                    )
                   )
                 }
               }
@@ -2136,8 +2122,7 @@ object featureImplicits {
                 condition = legacyCompatibleCondition,
                 metadata = metadata,
                 tags = tags,
-                description = description,
-                lastCall = lastCall
+                description = description
               )
             }
             case (_, _, Some(wasmConfig))                => {
@@ -2150,8 +2135,7 @@ object featureImplicits {
                 metadata = metadata,
                 tags = tags,
                 description = description,
-                resultType = resultType,
-                lastCall = lastCall
+                resultType = resultType
               )
             }
             case _                                       => throw new RuntimeException("Failed to read feature " + id)

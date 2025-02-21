@@ -24,8 +24,7 @@ sealed trait OldFeature {
   def toFeature(
       project: String,
       zone: ZoneId,
-      globalScriptById: Map[String, OldGlobalScript],
-      lastCall: Option[Instant]
+      globalScriptById: Map[String, OldGlobalScript]
   ): Either[String, (CompleteFeature, Option[OldScript])] = {
     this match {
       case OldDefaultFeature(id, name, enabled, description, tags, _)                   =>
@@ -38,8 +37,7 @@ sealed trait OldFeature {
               project = project,
               condition = All,
               description = description.getOrElse(""),
-              tags = tags,
-              lastCall = lastCall
+              tags = tags
             ),
             None
           )
@@ -58,8 +56,7 @@ sealed trait OldFeature {
                 timezone = zone
               ),
               description = description.getOrElse(""),
-              tags = tags,
-              lastCall = lastCall,
+              tags = tags
             ),
             None
           )
@@ -74,8 +71,7 @@ sealed trait OldFeature {
               project = project,
               condition = DateRangeActivationCondition(begin = Option(date.atZone(zone).toInstant), timezone = zone),
               description = description.getOrElse(""),
-              tags = tags,
-              lastCall = lastCall
+              tags = tags
             ),
             None
           )
@@ -91,8 +87,7 @@ sealed trait OldFeature {
               condition =
                 ZonedHourPeriod(timezone = zone, hourPeriod = HourPeriod(startTime = startAt, endTime = endAt)),
               description = description.getOrElse(""),
-              tags = tags,
-              lastCall = lastCall
+              tags = tags
             ),
             None
           )
@@ -107,8 +102,7 @@ sealed trait OldFeature {
               project = project,
               condition = UserPercentage(percentage = percentage),
               description = description.getOrElse(""),
-              tags = tags,
-              lastCall = lastCall
+              tags = tags
             ),
             None
           )
@@ -123,8 +117,7 @@ sealed trait OldFeature {
               project = project,
               condition = UserList(users = customers.toSet),
               description = description.getOrElse(""),
-              tags = tags,
-              lastCall = lastCall
+              tags = tags
             ),
             None
           )
@@ -146,8 +139,7 @@ sealed trait OldFeature {
                 functionName = Some("execute"),
                 wasi = true
               ),
-              resultType = BooleanResult,
-              lastCall = lastCall
+              resultType = BooleanResult
             ),
             Some(script)
           )
@@ -172,8 +164,7 @@ sealed trait OldFeature {
                     functionName = Some("execute"),
                     wasi = true
                   ),
-                  resultType = BooleanResult,
-                  lastCall = lastCall
+                  resultType = BooleanResult
                 ),
                 None
               )
