@@ -171,28 +171,26 @@ export interface SingleConditionFeature {
   project?: string;
   conditions: Record<string, any>;
   resultType: "boolean";
-  stale: boolean;
-  creationDate: Date;
-  lastCall?: Date;
+  stale?: StaleStatus;
 }
 
-type NeverCalled = {
+export type NeverCalled = {
   kind: "NeverCalled";
   since: Date;
 };
 
-type NoCall = {
+export type NoCall = {
   kind: "NoCall";
   since: Date;
 };
 
-type NoValueChange = {
+export type NoValueChange = {
   kind: "NoValueChange";
   since: Date;
   value: string | number | boolean;
 };
 
-type StaleStatus = NeverCalled | NoCall | NoValueChange;
+export type StaleStatus = NeverCalled | NoCall | NoValueChange;
 
 export interface SinglePercentageConditionFeature
   extends SingleConditionFeature {
@@ -288,9 +286,7 @@ interface ClassicalFeatureBase<TypeName extends FeatureTypeName> {
   project?: string;
   conditions: TClassicalCondition[];
   resultType: TypeName;
-  stale: boolean;
-  lastCall?: Date;
-  creationDate: Date;
+  stale?: StaleStatus;
 }
 
 interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> {}
@@ -330,9 +326,7 @@ export interface LightWasmFeature {
   project?: string;
   wasmConfig: string;
   resultType: FeatureTypeName;
-  stale: boolean;
-  creationDate: Date;
-  lastCall?: Date;
+  stale?: StaleStatus;
 }
 
 export interface TWasmConfig {

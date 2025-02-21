@@ -128,13 +128,13 @@ sealed trait StaleStatus
 object StaleStatus {
   def staleStatusWrites: Writes[StaleStatus] = {
     case NoValueChange(since, value) => {
-      Json.obj("kind" -> "NoValueChange" ,"since" -> since, "value" -> value)
+      Json.obj("because" -> "NoValueChange" ,"since" -> since, "value" -> value)
     }
     case NoCall(since) => {
-      Json.obj("kind" -> "NoCall" ,"since" -> since)
+      Json.obj("because" -> "NoCall" ,"since" -> since)
     }
     case NeverCalled(since) => {
-      Json.obj("kind" -> "NeverCalled" ,"since" -> since)
+      Json.obj("because" -> "NeverCalled" ,"since" -> since)
     }
   }
 }
@@ -151,7 +151,7 @@ case class LightWeightFeatureWithUsageInformation(
 object LightWeightFeatureWithUsageInformation {
   def writeLightWeightFeatureWithUsageInformation: Writes[LightWeightFeatureWithUsageInformation] = feature => {
     val baseJson = lightweightFeatureWrite.writes(feature.feature).as[JsObject]
-    baseJson.applyOnWithOpt(feature.staleStatus)((json, staleStatus) => json + ("staleStatus" -> Json.toJson(staleStatus)(staleStatusWrites)))
+    baseJson.applyOnWithOpt(feature.staleStatus)((json, staleStatus) => json + ("stale" -> Json.toJson(staleStatus)(staleStatusWrites)))
   }
 }
 

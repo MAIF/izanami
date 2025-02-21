@@ -21,7 +21,7 @@ import {
   isLightWasmFeature,
   TValuedCondition,
   TClassicalCondition,
-  FeatureTypeName,
+  StaleStatus,
 } from "../utils/types";
 import { format, parse } from "date-fns";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
@@ -1527,21 +1527,21 @@ export function FeatureTestForm(props: {
           .then((result) => {
             setMessage(result);
             /*if (props.feature.resultType === "boolean") {
-                                                  setMessage(
-                                                    `feature ${props.feature.name} would be ${
-                                                      active ? "active" : "inactive"
-                                                    } on ${format(date, "yyyy-MM-dd")}${
-                                                      user ? ` for user ${user}` : ""
-                                                    }${context ? ` for context ${context}` : ""}`
-                                                  );
-                                                } else {
-                                                  setMessage(
-                                                    `feature ${props.feature.name} value would be ${active}
-                                                     on ${format(date, "yyyy-MM-dd")}${
-                                                      user ? ` for user ${user}` : ""
-                                                    }${context ? ` for context ${context}` : ""}`
-                                                  );
-                                                }*/
+                                                              setMessage(
+                                                                `feature ${props.feature.name} would be ${
+                                                                  active ? "active" : "inactive"
+                                                                } on ${format(date, "yyyy-MM-dd")}${
+                                                                  user ? ` for user ${user}` : ""
+                                                                }${context ? ` for context ${context}` : ""}`
+                                                              );
+                                                            } else {
+                                                              setMessage(
+                                                                `feature ${props.feature.name} value would be ${active}
+                                                                 on ${format(date, "yyyy-MM-dd")}${
+                                                                  user ? ` for user ${user}` : ""
+                                                                }${context ? ` for context ${context}` : ""}`
+                                                              );
+                                                            }*/
           });
       })}
       className="d-flex flex-column"
@@ -1779,19 +1779,32 @@ export function FeatureTable(props: {
     onSuccess: () => refresh(),
   });
 
-  const displayFeature = (feature: TLightFeature) => {
-    const stale = feature.staleStatus;
-    const staleMessage = feature.lastCall
-      ? `Feature has not been called since ${format(feature.lastCall, "PPPp")}`
-      : `Feature has not been called since its creation at ${format(
-          feature.creationDate,
+  const staleMessage = (stale?: StaleStatus) => {
+    switch (stale?.kind) {
+      case "NoCall":
+        return `Feature has not been called since ${format(
+          stale?.since,
           "PPPp"
         )}`;
+      case "NeverCalled":
+        return `Feature has never been called since its creation at ${format(
+          stale?.since,
+          "PPPp"
+        )}`;
+      case "NoValueChange":
+        return `Feature value has not changed to its last value ${
+          stale.value
+        } since ${format(stale?.since, "PPPp")}`;
+    }
+    return "";
+  };
+
+  const displayFeature = (feature: TLightFeature) => {
     return (
       <>
         <span style={{ textOverflow: "ellipsis" }}>{feature.name}</span>
-        {stale && (
-          <Pill criticity="warning" tooltip={staleMessage}>
+        {feature.stale && (
+          <Pill criticity="warning" tooltip={staleMessage(feature.stale)}>
             <i className="fa-solid fa-triangle-exclamation"></i>
           </Pill>
         )}
