@@ -1,4 +1,5 @@
 import { isArray } from "lodash";
+import { NotifyOnChangeProps } from "@tanstack/react-query";
 
 export const featureEventTypeOptions = [
   { label: "Created", value: "FEATURE_CREATED" },
@@ -175,6 +176,24 @@ export interface SingleConditionFeature {
   lastCall?: Date;
 }
 
+type NeverCalled = {
+  kind: "NeverCalled";
+  since: Date;
+};
+
+type NoCall = {
+  kind: "NoCall";
+  since: Date;
+};
+
+type NoValueChange = {
+  kind: "NoValueChange";
+  since: Date;
+  value: string | number | boolean;
+};
+
+type StaleStatus = NeverCalled | NoCall | NoValueChange;
+
 export interface SinglePercentageConditionFeature
   extends SingleConditionFeature {
   conditions: {
@@ -275,10 +294,12 @@ interface ClassicalFeatureBase<TypeName extends FeatureTypeName> {
 }
 
 interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> {}
+
 interface ClassicalStringFeature extends ClassicalFeatureBase<"string"> {
   value: string;
   conditions: TValuedCondition<string>[];
 }
+
 interface ClassicalNumberFeature extends ClassicalFeatureBase<"number"> {
   value: number;
   conditions: TValuedCondition<number>[];

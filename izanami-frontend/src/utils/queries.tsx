@@ -1060,12 +1060,8 @@ function castDateIfNeeded(feat: any): void {
     }
   }
 
-  if (feat.creationDate) {
-    feat.creationDate = new Date(feat.creationDate);
-  }
-
-  if (feat.lastCall) {
-    feat.lastCall = new Date(feat.lastCall);
+  if (feat?.staleStatus?.since) {
+    feat.staleStatus.since = new Date(feat.staleStatus.since);
   }
 }
 

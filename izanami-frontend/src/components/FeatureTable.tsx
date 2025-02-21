@@ -1780,7 +1780,7 @@ export function FeatureTable(props: {
   });
 
   const displayFeature = (feature: TLightFeature) => {
-    const stale = feature.stale;
+    const stale = feature.staleStatus;
     const staleMessage = feature.lastCall
       ? `Feature has not been called since ${format(feature.lastCall, "PPPp")}`
       : `Feature has not been called since its creation at ${format(

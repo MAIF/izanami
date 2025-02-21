@@ -3,6 +3,7 @@ package fr.maif.izanami.models
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
 import fr.maif.izanami.models.Feature.{lightweightFeatureRead, lightweightFeatureWrite}
+import fr.maif.izanami.models.StaleStatus.staleStatusWrites
 import fr.maif.izanami.models.features._
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.v1.OldFeature.oldFeatureReads
@@ -122,18 +123,35 @@ sealed trait CompleteFeature extends AbstractFeature {
   }
 }
 
+sealed trait StaleStatus
+
+object StaleStatus {
+  def staleStatusWrites: Writes[StaleStatus] = {
+    case NoValueChange(since, value) => {
+      Json.obj("kind" -> "NoValueChange" ,"since" -> since, "value" -> value)
+    }
+    case NoCall(since) => {
+      Json.obj("kind" -> "NoCall" ,"since" -> since)
+    }
+    case NeverCalled(since) => {
+      Json.obj("kind" -> "NeverCalled" ,"since" -> since)
+    }
+  }
+}
+
+case class NeverCalled(since: Instant) extends StaleStatus
+case class NoCall(since: Instant) extends StaleStatus
+case class NoValueChange(since: Instant, value: JsValue) extends StaleStatus
+
 case class LightWeightFeatureWithUsageInformation(
                                                    feature: LightWeightFeature,
-                                                   stale: Boolean,
-                                                   lastCall: Option[Instant],
-                                                   creationDate: Instant
+                                                   staleStatus: Option[StaleStatus]
                                                  )
 
 object LightWeightFeatureWithUsageInformation {
   def writeLightWeightFeatureWithUsageInformation: Writes[LightWeightFeatureWithUsageInformation] = feature => {
     val baseJson = lightweightFeatureWrite.writes(feature.feature).as[JsObject]
-    val jsonWithCreatedAndStaleInformation = baseJson + ("stale" -> JsBoolean(feature.stale)) + ("creationDate" -> Json.toJson(feature.creationDate))
-    jsonWithCreatedAndStaleInformation.applyOnWithOpt(feature.lastCall)((json, lastCall) => json + ("lastCall" -> Json.toJson(lastCall)))
+    baseJson.applyOnWithOpt(feature.staleStatus)((json, staleStatus) => json + ("staleStatus" -> Json.toJson(staleStatus)(staleStatusWrites)))
   }
 }
 
