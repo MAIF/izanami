@@ -1,6 +1,6 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{TestCondition, TestDateTimePeriod, TestFeature, TestFeatureContext, TestFeaturePatch, TestProject, TestSituationBuilder, TestTenant, TestUser, TestUserListRule, TestWasmConfig, disabledFeatureBase64, enabledFeatureBase64}
+import fr.maif.izanami.api.BaseAPISpec.{TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestFeaturePatch, TestProject, TestSituationBuilder, TestTenant, TestUser, TestUserListRule, TestWasmConfig, disabledFeatureBase64, enabledFeatureBase64}
 import play.api.libs.json.{JsArray, JsBoolean, JsDefined, JsFalse, JsNull, JsNumber, JsObject, JsString, JsTrue, Json}
 import play.api.test.Helpers._
 
@@ -273,6 +273,49 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature POST endpoint" should {
+    "prevent creating a feature with empty user list" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+            .withProjectNames("bar")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      var result = testSituation.createFeature(
+        "my feature",
+        project = "bar",
+        tenant = "foo",
+        conditions = Set(TestCondition(rule=TestUserListRule(Set())))
+      )
+      result.status mustBe BAD_REQUEST
+    }
+    "prevent creating a feature with empty period" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+            .withProjectNames("bar")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      var result = testSituation.createFeature(
+        "my feature",
+        project = "bar",
+        tenant = "foo",
+        conditions = Set(TestCondition(period = TestDateTimePeriod()))
+      )
+      result.status mustBe BAD_REQUEST
+
+      result = testSituation.createFeature(
+        "my feature",
+        project = "bar",
+        tenant = "foo",
+        conditions = Set(TestCondition(period = TestDateTimePeriod(hourPeriods=Seq(), days = TestDayPeriod(days=Set()))))
+      )
+      result.status mustBe BAD_REQUEST
+    }
+
     "prevent creating a feature with empty string as id" in {
       val testSituation = TestSituationBuilder()
         .withTenants(
