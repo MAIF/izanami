@@ -155,14 +155,11 @@ object LightWeightFeatureWithUsageInformation {
   }
 }
 
-case class LastCallAndCreationDate(
+case class FeatureUsage(
                                     lastCall: Option[Instant],
+                                    lastValues: Set[JsValue],
                                     creationDate: Instant
-                                  ) {
-  def lastCallOrCreationDate: Instant = {
-    lastCall.getOrElse(creationDate)
-  }
-}
+                                  )
 
 sealed trait LightWeightFeature extends AbstractFeature {
   override def withProject(project: String): LightWeightFeature

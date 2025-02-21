@@ -2,7 +2,7 @@ package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.models.{LastCallAndCreationDate, LightWeightFeature, LightWeightFeatureWithUsageInformation, NeverCalled, NoCall}
+import fr.maif.izanami.models.{FeatureUsage, LightWeightFeature, LightWeightFeatureWithUsageInformation, NeverCalled, NoCall}
 
 import java.time.{Duration, Instant}
 import scala.concurrent.{ExecutionContext, Future}
@@ -19,12 +19,12 @@ class FeatureUsageService(env: Env) {
   }
 
   def determineStaleStatus(tenant: String, features: Seq[LightWeightFeature]): Future[Either[IzanamiError, Seq[LightWeightFeatureWithUsageInformation]]] = {
-    featureCalls.findLastCallAndCreationDate(tenant, features.map(_.id)).map(either => either.map(lastCallAndCreationDateByFeature => {
+    featureCalls.findLastCallAndCreationDate(tenant, features.map(_.id), Instant.now().minus(staleDelay)).map(either => either.map(lastCallAndCreationDateByFeature => {
       features.map(feature => {
         val lastCallAndCreationDate = lastCallAndCreationDateByFeature(feature.id)
         val staleStatus = lastCallAndCreationDate match {
-          case LastCallAndCreationDate(Some(lastCall), _) if isTooOld(lastCall) => Some(NoCall(since = lastCall))
-          case LastCallAndCreationDate(None, creationDate) if isTooOld(creationDate) => Some(NeverCalled(since = creationDate))
+          case FeatureUsage(Some(lastCall), _) if isTooOld(lastCall) => Some(NoCall(since = lastCall))
+          case FeatureUsage(None, creationDate) if isTooOld(creationDate) => Some(NeverCalled(since = creationDate))
           case _ => None
         }
         LightWeightFeatureWithUsageInformation(feature = feature, staleStatus = staleStatus)

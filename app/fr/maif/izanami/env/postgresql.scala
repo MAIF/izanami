@@ -14,7 +14,7 @@ import io.vertx.pgclient.{PgConnectOptions, PgException, PgPool, SslMode}
 import io.vertx.sqlclient.{PoolOptions, Row, RowSet, SqlConnection}
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.exception.FlywayValidateException
-import play.api.libs.json.{JsArray, JsObject, Json}
+import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 import play.api.{Configuration, Logger}
 
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
@@ -427,6 +427,9 @@ object pgimplicits {
 
   implicit class EnhancedRow(val row: Row) extends AnyVal {
     def optString(name: String): Option[String] = opt(name, "String", (a, b) => a.getString(b))
+
+    //def optJValueArray(name: String): Option[Array[JsValue]] = opt(name, "String", (a, b) => a.getJsonObject(b))
+
 
     def optStringArray(name: String): Option[Array[String]] = opt(name, "String", (a, b) => a.getArrayOfStrings(b))
 
