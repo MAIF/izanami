@@ -64,23 +64,23 @@ interface FeatureDeleted extends FeatureLogEntryBase {
 
 export type PersonnalAccessToken =
   | {
-    id: string;
-    name: string;
-    expiresAt: Date;
-    expirationTimezone: string;
-    createdAt: Date;
-    username: string;
-    allRights: boolean;
-    rights: TokenTenantRights;
-  }
+      id: string;
+      name: string;
+      expiresAt: Date;
+      expirationTimezone: string;
+      createdAt: Date;
+      username: string;
+      allRights: boolean;
+      rights: TokenTenantRights;
+    }
   | {
-    id: string;
-    name: string;
-    createdAt: Date;
-    username: string;
-    allRights: boolean;
-    rights: TokenTenantRights;
-  };
+      id: string;
+      name: string;
+      createdAt: Date;
+      username: string;
+      allRights: boolean;
+      rights: TokenTenantRights;
+    };
 
 export interface TenantInCreationType {
   name: string;
@@ -170,6 +170,9 @@ export interface SingleConditionFeature {
   project?: string;
   conditions: Record<string, any>;
   resultType: "boolean";
+  stale: boolean;
+  creationDate: Date;
+  lastCall?: Date;
 }
 
 export interface SinglePercentageConditionFeature
@@ -266,9 +269,12 @@ interface ClassicalFeatureBase<TypeName extends FeatureTypeName> {
   project?: string;
   conditions: TClassicalCondition[];
   resultType: TypeName;
+  stale: boolean;
+  lastCall?: Date;
+  creationDate: Date;
 }
 
-interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> { }
+interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> {}
 interface ClassicalStringFeature extends ClassicalFeatureBase<"string"> {
   value: string;
   conditions: TValuedCondition<string>[];
@@ -303,6 +309,9 @@ export interface LightWasmFeature {
   project?: string;
   wasmConfig: string;
   resultType: FeatureTypeName;
+  stale: boolean;
+  creationDate: Date;
+  lastCall?: Date;
 }
 
 export interface TWasmConfig {
@@ -523,7 +532,7 @@ export interface TContextOverloadBase<FeatureTypeName> {
 }
 
 export interface TBooleanContextOverload
-  extends TContextOverloadBase<"boolean"> { }
+  extends TContextOverloadBase<"boolean"> {}
 
 export interface TNumberContextOverload extends TContextOverloadBase<"number"> {
   conditions: TValuedCondition<number>[];
@@ -677,14 +686,14 @@ export interface SearchEntityResponse {
 
 export type SearchResult = {
   type:
-  | "feature"
-  | "project"
-  | "key"
-  | "tag"
-  | "script"
-  | "global_context"
-  | "local_context"
-  | "webhook";
+    | "feature"
+    | "project"
+    | "key"
+    | "tag"
+    | "script"
+    | "global_context"
+    | "local_context"
+    | "webhook";
   name: string;
   path: SearchResultPathElement[];
   tenant: string;

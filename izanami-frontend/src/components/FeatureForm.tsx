@@ -234,7 +234,7 @@ export function toLegacyFeatureFormat(
 
 function toSingleConditionFeatureFormat(
   feature: LegacyFeature
-): SingleConditionFeature {
+): Omit<SingleConditionFeature, "stale" | "creationDate"> {
   const { id, name, description, enabled, tags, project } = feature;
   const base = {
     id,
@@ -798,10 +798,10 @@ function LegacyFeatureForm(props: {
 
 export function FeatureForm(props: {
   cancel: () => void;
-  submit: (overload: TCompleteFeature) => void;
+  submit: (overload: Omit<TCompleteFeature, "stale" | "creationDate">) => void;
   defaultValue?: TLightFeature;
   additionalFields?: () => JSX.Element;
-  displayId?: Boolean;
+  displayId?: boolean;
 }) {
   const { tenant } = useParams();
   const { defaultValue, submit, ...rest } = props;
@@ -839,10 +839,9 @@ export function FeatureForm(props: {
         />
       );
     } else {
-      const { defaultValue: df, ...rest } = props;
       form = (
         <V2FeatureForm
-          {...rest}
+          {...props}
           defaultValue={convertedValue ? convertedValue : defaultValue}
         />
       );
@@ -948,7 +947,7 @@ export function V2FeatureForm(props: {
   submit: (overload: TCompleteFeature) => void;
   defaultValue?: TCompleteFeature;
   additionalFields?: () => JSX.Element;
-  displayId?: Boolean;
+  displayId?: boolean;
 }) {
   const { cancel, submit, defaultValue, additionalFields } = props;
   const methods = useForm<TCompleteFeature>({
@@ -958,7 +957,7 @@ export function V2FeatureForm(props: {
   const canDisplayId = Boolean(props.displayId);
   const isWasm = defaultValue && isWasmFeature(defaultValue);
   const [type, setType] = useState(isWasm ? "Existing WASM script" : "Classic");
-  const [idFieldDisplayed, setIdFieldDisplayed] = useState<Boolean>(false);
+  const [idFieldDisplayed, setIdFieldDisplayed] = useState<boolean>(false);
   const tagQuery = useQuery({
     queryKey: [tagsQueryKey(tenant!)],
     queryFn: () => queryTags(tenant!),
