@@ -57,7 +57,7 @@ export function FeatureContexts(props: {
   const [creating, setCreating] = useState(false);
   const contextQuery = useQuery({
     queryKey: [refreshKey],
-    queryFn: () => fetchContexts()
+    queryFn: () => fetchContexts(),
   });
 
   const { askConfirmation } = React.useContext(IzanamiContext);
@@ -192,11 +192,6 @@ function Overloads({
       }}
     >
       <a
-        style={
-          {
-            //color: overloads.length > 0 ? "auto" : "grey",
-          }
-        }
         href="#"
         onClick={(e) => {
           e.preventDefault();
@@ -339,16 +334,20 @@ function FeatureContextTree(props: {
           <>{node.name}</>
         );
       }}
-      payloadRender={({ payload: { context, path, parents } }) => (
-        <Overloads
-          context={context}
-          path={path}
-          spacing={spacing}
-          parents={parents}
-          defaultOpen={isOpenExact(path, open)}
-          overloadRender={overloadRender}
-        />
-      )}
+      payloadRender={
+        overloadRender
+          ? ({ payload: { context, path, parents } }) => (
+              <Overloads
+                context={context}
+                path={path}
+                spacing={spacing}
+                parents={parents}
+                defaultOpen={isOpenExact(path, open)}
+                overloadRender={overloadRender}
+              />
+            )
+          : undefined
+      }
       spacing={spacing}
       fontSize={20}
     />
@@ -376,7 +375,7 @@ function TreeRoot<T>({
   ...props
 }: {
   nodes: TreeNode<T>[];
-  payloadRender: (props: { payload: T }) => JSX.Element;
+  payloadRender?: (props: { payload: T }) => JSX.Element;
   labelRender?: (node: TreeNode<T>) => JSX.Element;
   spacing: number;
   fontSize: number;
@@ -407,7 +406,7 @@ function EditableTree<T>({
   ...props
 }: {
   node: TreeNode<T>;
-  payloadRender: (props: { payload: T }) => JSX.Element;
+  payloadRender?: (props: { payload: T }) => JSX.Element;
   spacing: number;
   root?: boolean;
   fontSize: number;
@@ -422,6 +421,7 @@ function EditableTree<T>({
   >(() => defaultForm);
 
   const icon = isOpen ? "bi-caret-down anim__rotate" : "bi-caret-right";
+  const isOpenable = Boolean(payloadRender || node?.children?.length > 0);
 
   return (
     <div
@@ -433,14 +433,21 @@ function EditableTree<T>({
       <div>
         <div>
           <a
+            className={`${isOpenable ? "" : "disabled"}`}
             style={{ fontSize: `${fontSize}px` }}
             href="#"
             onClick={(e) => {
               e.preventDefault();
-              setOpen((open) => !open);
+              if (isOpenable) {
+                setOpen((open) => !open);
+              }
             }}
           >
-            <i className={`bi ${icon}`} aria-hidden></i>{" "}
+            <i
+              className={`bi ${icon}`}
+              style={isOpenable ? {} : { opacity: "0.5" }}
+              aria-hidden
+            ></i>{" "}
             {labelRender ? labelRender(node) : name}
           </a>{" "}
           {node.options?.length > 0 && (
@@ -491,6 +498,7 @@ function EditableTree<T>({
         </div>
         {isOpen && (
           <>
+            {payloadRender?.({ payload: node.payload })}
             {node.children.map((child, index) => (
               <>
                 <EditableTree
@@ -503,7 +511,6 @@ function EditableTree<T>({
                 />
               </>
             ))}
-            {payloadRender({ payload: node.payload })}
           </>
         )}
         <div style={{ marginLeft: `${spacing}px` }}>

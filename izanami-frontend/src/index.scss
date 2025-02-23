@@ -196,6 +196,16 @@ thead th {
   margin-top: 10px;
 }
 
+.izanami-tree-node a.disabled:hover,
+.izanami-tree-node a.disabled:visited {
+  color: inherit !important;
+  cursor: not-allowed;
+
+  & svg .icon_context {
+    fill: var(--color_level1) !important;
+  }
+}
+
 .izanami-tree-node.open {
   position: relative;
 }
