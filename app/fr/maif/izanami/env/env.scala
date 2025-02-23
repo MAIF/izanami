@@ -26,6 +26,7 @@ class Datastores(env: Env) {
   private implicit val ec: ExecutionContext = env.executionContext
 
   val features: FeaturesDatastore = new FeaturesDatastore(env)
+  val featureCalls: FeatureCallsDatastore = new FeatureCallsDatastore(env)
   val tenants: TenantsDatastore = new TenantsDatastore(env)
   val projects: ProjectsDatastore = new ProjectsDatastore(env)
   val tags: TagsDatastore = new TagsDatastore(env)

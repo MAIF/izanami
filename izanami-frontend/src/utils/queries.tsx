@@ -1041,7 +1041,6 @@ export function queryTagFeatures(
 }
 
 function castDateIfNeeded(feat: any): void {
-  // TODO
   if (isArray(feat?.conditions)) {
     feat?.conditions?.map((cond: any) => {
       if (cond?.period?.begin) {
@@ -1059,6 +1058,10 @@ function castDateIfNeeded(feat: any): void {
     if (feat.conditions.end) {
       feat.conditions.end = new Date(feat.conditions.end);
     }
+  }
+
+  if (feat?.stale?.since) {
+    feat.stale.since = new Date(feat.stale.since);
   }
 }
 

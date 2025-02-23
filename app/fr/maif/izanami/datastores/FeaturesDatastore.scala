@@ -2,17 +2,16 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.featureImplicits.FeatureRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{CHECK_VIOLATION, FOREIGN_KEY_VIOLATION, NOT_NULL_VIOLATION, RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
+import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, NOT_NULL_VIOLATION, RELATION_DOES_NOT_EXISTS}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
 import fr.maif.izanami.events.EventAuthentication.BackOfficeAuthentication
 import fr.maif.izanami.events.EventOrigin.{ImportOrigin, NormalOrigin}
-import fr.maif.izanami.events.{EventOrigin, EventService, SourceFeatureCreated, SourceFeatureDeleted, SourceFeatureUpdated}
+import fr.maif.izanami.events.{SourceFeatureCreated, SourceFeatureDeleted, SourceFeatureUpdated}
 import fr.maif.izanami.models._
-import fr.maif.izanami.models.features.{ActivationCondition, BooleanActivationCondition, BooleanResult, BooleanResultDescriptor, EnabledFeaturePatch, FeaturePatch, LegacyCompatibleCondition, NumberActivationCondition, NumberResult, NumberResultDescriptor, ProjectFeaturePatch, RemoveFeaturePatch, ResultType, StringActivationCondition, StringResult, StringResultDescriptor, TagsFeaturePatch, ValuedResultDescriptor, ValuedResultType}
+import fr.maif.izanami.models.features._
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterListEither, BetterSyntax}
-import fr.maif.izanami.v1.V1FeatureEvents
 import fr.maif.izanami.wasm.{WasmConfig, WasmConfigWithFeatures, WasmScriptAssociatedFeatures}
 import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
 import fr.maif.izanami.web.UserInformation
@@ -21,12 +20,9 @@ import io.vertx.core.json.{JsonArray, JsonObject}
 import io.vertx.core.shareddata.ClusterSerializable
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
-import org.postgresql.xml.LegacyInsecurePGXmlFactoryFactory
-import play.api.libs.json.{JsArray, JsObject, JsValue, Json, Reads}
+import play.api.libs.json._
 
-import java.lang
 import java.util.UUID
-import scala.collection.immutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.reflect.ClassTag
@@ -227,7 +223,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |GROUP BY f.id""".stripMargin,
         params = List(ids.toArray),
         schemas = Set(tenant),
-        conn=conn
+        conn = conn
       ) { r =>
         {
           val maybeTuple = r
@@ -374,7 +370,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     }
   }
 
-  def applyPatch(tenant: String, operations: Seq[FeaturePatch], user: UserInformation): Future[Either[IzanamiError, Unit]] = {
+  def applyPatch(
+      tenant: String,
+      operations: Seq[FeaturePatch],
+      user: UserInformation
+  ): Future[Either[IzanamiError, Unit]] = {
     val featureToUpdateIds = operations.collect {
       case p: EnabledFeaturePatch => p.id
       case p: ProjectFeaturePatch => p.id
@@ -403,8 +403,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                     .flatMap {
                       case Some((id, name, project, enabled)) => {
                         val completeFeatureStrategies = FeatureWithOverloads(oldFeatures(id))
-                        val hasChanged = completeFeatureStrategies.baseFeature().enabled != value
-                        if(hasChanged) {
+                        val hasChanged                = completeFeatureStrategies.baseFeature().enabled != value
+                        if (hasChanged) {
                           env.eventService.emitEvent(
                             channel = tenant,
                             event = SourceFeatureUpdated(
@@ -423,7 +423,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                         }
                       }
                       case None                               => Future.successful(())
-                    }.map(_ => Right(()))
+                    }
+                    .map(_ => Right(()))
                 }
                 case ProjectFeaturePatch(value, id) => {
                   env.postgresql
@@ -455,7 +456,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                           )
                         )(conn)
                       case None                               => Future.successful(())
-                    }.map(_ => Right(()))
+                    }
+                    .map(_ => Right(()))
                 }
                 case TagsFeaturePatch(value, id)    =>
                   findById(tenant, id).flatMap {
@@ -476,13 +478,14 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                         }
                         .flatMap {
                           case Left(err) => Future.successful(Left(err))
-                          case Right(_) => env.postgresql
-                            .queryOne(
-                              s"""delete from features_tags where feature=$$1""",
-                              List(id),
-                              conn = Some(conn)
-                            ) { _ => Some(id) }
-                            .flatMap(maybeId => insertIntoFeatureTags(tenant, id, value, Some(conn)))
+                          case Right(_)  =>
+                            env.postgresql
+                              .queryOne(
+                                s"""delete from features_tags where feature=$$1""",
+                                List(id),
+                                conn = Some(conn)
+                              ) { _ => Some(id) }
+                              .flatMap(maybeId => insertIntoFeatureTags(tenant, id, value, Some(conn)))
                         }
                     case Left(err)               => Future.successful(Left(err))
                     case Right(None)             => Future.successful(Left(FeatureDoesNotExist(name = id)))
@@ -505,10 +508,19 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                       case Some((id, name, project, enabled)) =>
                         env.eventService.emitEvent(
                           channel = tenant,
-                          event = SourceFeatureDeleted(id = id, project = project, tenant = tenant, user = user.username, name=name, origin = NormalOrigin, authentication = BackOfficeAuthentication)
+                          event = SourceFeatureDeleted(
+                            id = id,
+                            project = project,
+                            tenant = tenant,
+                            user = user.username,
+                            name = name,
+                            origin = NormalOrigin,
+                            authentication = BackOfficeAuthentication
+                          )
                         )(conn)
                       case None                               => Future.successful(())
-                    }.map(_ => Right(()))
+                    }
+                    .map(_ => Right(()))
                 }
               })
               .map(maybeErrors => {
@@ -660,7 +672,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     ) { r => r.optString("project") }
   }
 
-  def findById(tenant: String, id: String, conn: Option[SqlConnection] = None): Future[Either[IzanamiError, Option[CompleteFeature]]] = {
+  def findById(
+      tenant: String,
+      id: String,
+      conn: Option[SqlConnection] = None
+  ): Future[Either[IzanamiError, Option[CompleteFeature]]] = {
     env.postgresql
       .queryOne(
         s"""select f.*, s.config AS wasm, COALESCE(json_agg(ft.tag) FILTER (WHERE ft.tag IS NOT NULL), '[]') AS tags
@@ -1140,9 +1156,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
 
     val wasmConfigs = features
       .map {
-        case Feature(_, _, _, _, _, _, _, _)                         => None
-        case CompleteWasmFeature(_, _, _, _, wasmConfig, _, _, _, _) => Some(wasmConfig)
-        case s: SingleConditionFeature                               => None
+        case wf: CompleteWasmFeature => Some(wf.wasmConfig)
+        case _                       => None
       }
       .flatMap(o => o.toList)
 
@@ -1228,12 +1243,9 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         ArrayBuffer[SingleConditionFeature]
     ) = (ArrayBuffer(), ArrayBuffer(), ArrayBuffer())
     features.foreach {
-      case f @ Feature(_, _, _, _, _, _, _, _)                 =>
-        modernFeatures.addOne(f)
-      case wf @ CompleteWasmFeature(_, _, _, _, _, _, _, _, _) =>
-        wasmFeatures.addOne(wf)
-      case s: SingleConditionFeature                           =>
-        legacyFeatures.addOne(s)
+      case f: Feature                => modernFeatures.addOne(f)
+      case wf: CompleteWasmFeature   => wasmFeatures.addOne(wf)
+      case s: SingleConditionFeature => legacyFeatures.addOne(s)
     }
 
     val legacyFeatureParams = unzip7(legacyFeatures.map {
@@ -1372,10 +1384,10 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       user: UserInformation
   ): Future[Either[IzanamiError, String]] = {
     (feature match {
-      case Feature(_, _, _, _, _, _, _, _)                         => Future(Right(()))
-      case CompleteWasmFeature(_, _, _, _, wasmConfig, _, _, _, _) =>
-        createWasmScriptIfNeeded(tenant, wasmConfig, conn = Some(conn))
-      case s: SingleConditionFeature                               => Future(Right(()))
+      case _: Feature                => Future(Right(()))
+      case cwf: CompleteWasmFeature  =>
+        createWasmScriptIfNeeded(tenant, cwf.wasmConfig, conn = Some(conn))
+      case s: SingleConditionFeature => Future(Right(()))
     }).flatMap {
       case Left(err) => Left(err).future
       case Right(_)  => {
@@ -1487,7 +1499,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           .recover {
             case f: PgException if f.getSqlState == FOREIGN_KEY_VIOLATION =>
               Left(WasmScriptAlreadyExists(wasmConfig.source.path))
-          }.recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+          }
+          .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
           .flatMap(either => {
             // TODO this should be elsewhere
             wasmConfig.source.getWasm()(env.wasmIntegration.context, env.executionContext).map(_ => either)
@@ -1737,14 +1750,15 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         }
 
         (feature match {
-          case feat @ CompleteWasmFeature(_, _, _, _, wasmConfig, _, _, _, _)
-              if wasmConfig.source.kind != WasmSourceKind.Local =>
-            createWasmScriptIfNeeded(tenant, wasmConfig, Some(conn)).map(e => e.map(_ => ()))
-          case _ => Future(Right(()))
+          case feat: CompleteWasmFeature if feat.wasmConfig.source.kind != WasmSourceKind.Local =>
+            createWasmScriptIfNeeded(tenant, feat.wasmConfig, Some(conn)).map(e => e.map(_ => ()))
+          case _                                                                                => Future(Right(()))
         }).flatMap {
-            case Left(err) => Future.successful(Left(err))
-            case Right(_) => env.postgresql.queryRaw(
-              s"""
+          case Left(err) => Future.successful(Left(err))
+          case Right(_)  =>
+            env.postgresql
+              .queryRaw(
+                s"""
                  |DELETE FROM feature_contexts_strategies fc USING features f
                  |WHERE fc.feature=f.name
                  |AND fc.project=f.project
@@ -1752,9 +1766,9 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                  |AND f.project != $$2
                  |AND fc.local_context IS NOT NULL
                  |""".stripMargin,
-              List(id, feature.project),
-              conn = Some(conn)
-            ) { _ => Some(()) }
+                List(id, feature.project),
+                conn = Some(conn)
+              ) { _ => Some(()) }
               .flatMap(_ =>
                 env.postgresql
                   .queryOne(
@@ -1765,7 +1779,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                   .map(maybeId => maybeId.toRight(InternalServerError()))
                   .recover {
                     case f: PgException if f.getSqlState == NOT_NULL_VIOLATION => Left(MissingFeatureFields())
-                  }.recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+                  }
+                  .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
                   .flatMap(either => {
                     either.fold(
                       err => Future.successful(Left(err)),
@@ -1804,7 +1819,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 case Right(_)                                                                 => Future.successful(Right(id))
                 case Left(err)                                                                => Future.successful(Left(err))
               }
-          }
+        }
       })
     }
     // TODO allow updating metadata
@@ -1863,7 +1878,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           for (
             id      <- row.optString("id");
             project <- row.optString("project");
-            name <- row.optString("name")
+            name    <- row.optString("name")
           ) yield (id, project, name)
         }
         .map { _.toRight(InternalServerError()) }
@@ -1872,12 +1887,20 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           case _                                                             => Left(InternalServerError())
         }
         .flatMap {
-          case l @ Left(err)        => Future.successful(Left(err))
+          case l @ Left(err)              => Future.successful(Left(err))
           case Right((id, project, name)) =>
             env.eventService
               .emitEvent(
                 channel = tenant,
-                event = SourceFeatureDeleted(id = id, project = project, tenant = tenant, user = user.username, name=name, authentication = user.authentication, origin = NormalOrigin)
+                event = SourceFeatureDeleted(
+                  id = id,
+                  project = project,
+                  tenant = tenant,
+                  user = user.username,
+                  name = name,
+                  authentication = user.authentication,
+                  origin = NormalOrigin
+                )
               )(conn)
               .map(_ => Right(id))
         }
@@ -1889,7 +1912,7 @@ object featureImplicits {
   implicit class FeatureRow(val row: Row) extends AnyVal {
     // TODO deduplicate with below
     def optCompleteFeature(): Option[CompleteFeature] = {
-      val tags =
+      val tags     =
         row.optJsArray("tags").map(array => array.value.map(v => v.as[String]).toSet).getOrElse(Set())
 
       for (
@@ -2008,9 +2031,8 @@ object featureImplicits {
     }
 
     def optFeature(): Option[LightWeightFeature] = {
-      val tags =
+      val tags               =
         row.optJsArray("tags").map(array => array.value.map(v => v.as[String]).toSet).getOrElse(Set())
-
       lazy val maybeWasmName = row.optString("config")
 
       for (
