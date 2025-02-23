@@ -71,19 +71,6 @@ function GlobalFeatureContexts(props: { tenant: string; open: string }) {
         }
         fetchContexts={() => queryGlobalContexts(tenant)}
         refreshKey={globalContextKey(tenant)}
-        overloadRender={(
-          context: TContext,
-          parents: TContext[],
-          path: string
-        ) => {
-          return (
-            <GlobalContextOverloadTable
-              overloads={context.overloads}
-              path={path}
-              tenant={tenant}
-            />
-          );
-        }}
       />
     );
   } else {
