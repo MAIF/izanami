@@ -38,7 +38,8 @@ class Postgresql(env: Env) {
 
     val maybePgConfig = for(
       database <- configuration.getOptional[String]("app.pg.database");
-      user <- configuration.getOptional[String]("app.pg.user");
+      // Retro compatibility : user became username
+      user <- configuration.getOptional[String]("app.pg.username").orElse(configuration.getOptional[String]("app.pg.user"));
       password <- configuration.getOptional[String]("app.pg.password");
       host <- configuration.getOptional[String]("app.pg.host");
       port <- configuration.getOptional[Int]("app.pg.port")
