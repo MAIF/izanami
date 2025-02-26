@@ -60,6 +60,15 @@ class UsersAPISpec extends BaseAPISpec {
       (response.json.get \ "password").asOpt[String] mustBe None
     }
 
+    "allow user creation with mail as username" in {
+      val situation = TestSituationBuilder().loggedInWithAdminRights().build()
+      val response = situation.createUser(user = "benjamin.bar@foo.com", password = "12345678")
+
+      response.status mustBe CREATED
+      (response.json.get \ "username").as[String] mustEqual "benjamin.bar@foo.com"
+      (response.json.get \ "password").asOpt[String] mustBe None
+    }
+
     "prevent user creation is username or password is too long" in {
       val situation = TestSituationBuilder().loggedInWithAdminRights().build()
 
