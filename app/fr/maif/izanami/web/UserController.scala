@@ -362,7 +362,7 @@ class UserController(
     val result =
       for (
         username    <-
-          (request.body \ "username").asOpt[String].filter(name => NAME_REGEXP.pattern.matcher(name).matches());
+          (request.body \ "username").asOpt[String].filter(name => USERNAME_REGEXP.pattern.matcher(name).matches());
         password    <-
           (request.body \ "password").asOpt[String].filter(name => PASSWORD_REGEXP.pattern.matcher(name).matches());
         token       <- (request.body \ "token").asOpt[String];

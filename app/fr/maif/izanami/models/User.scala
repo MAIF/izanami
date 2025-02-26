@@ -442,8 +442,8 @@ object User {
   implicit val rightWrite: Writes[Rights] = Json.writes[Rights]
 
   implicit val userReads: Reads[User] = (
-    (__ \ "username").read[String].filter(name => NAME_REGEXP.pattern.matcher(name).matches()) and
-      (__ \ "email").read[String].filter(name => NAME_REGEXP.pattern.matcher(name).matches()) and
+    (__ \ "username").read[String].filter(name => USERNAME_REGEXP.pattern.matcher(name).matches()) and
+      (__ \ "email").read[String].filter(name => USERNAME_REGEXP.pattern.matcher(name).matches()) and
       (__ \ "password").read[String].filter(name => PASSWORD_REGEXP.pattern.matcher(name).matches()) and
       (__ \ "admin").readWithDefault[Boolean](false) and
       (__ \ "defaultTenant").readNullable[String]
@@ -527,7 +527,7 @@ object User {
     (__ \ "admin").readNullable[Boolean])((rights, admin) => UserRightsUpdateRequest(rights = rights, admin = admin))
 
   implicit val userUpdateReads: Reads[UserInformationUpdateRequest] =
-    ((__ \ "username").read[String].filter(name => NAME_REGEXP.pattern.matcher(name).matches()) and
+    ((__ \ "username").read[String].filter(name => USERNAME_REGEXP.pattern.matcher(name).matches()) and
       (__ \ "email").read[String].filter(Constraints.emailAddress.apply(_) == Valid) and
       (__ \ "defaultTenant").readNullable[String] and
       (__ \ "password").read[String])((name, email, defaultTenant, password) =>
