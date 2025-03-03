@@ -339,7 +339,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |left join apikeys a on a.clientid=$$1
          |left join apikeys_projects ap on (ap.project=f.project and ap.apikey=a.name)
          |where f.id LIKE $$2
-         |and (f.conditions is null or f.conditions is json object)
+         |and (f.conditions is null or jsonb_typeof(f.conditions) = 'object')
          |and (ap.project is not null or a.admin=true)
          |""".stripMargin,
       List(clientId, pattern.replaceAll("\\*", "%")),
@@ -356,7 +356,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |left join apikeys a on a.clientid=$$1
          |left join apikeys_projects ap on (ap.project=f.project and ap.apikey=a.name)
          |where f.id LIKE $$2
-         |and (f.conditions is null or f.conditions is json object)
+         |and (f.conditions is null or jsonb_typeof(f.conditions) = 'object')
          |and (ap.project is not null or a.admin=true)
          |group by f.id, wasm
          |order by f.id

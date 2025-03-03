@@ -303,14 +303,6 @@ class FeatureAPISpec extends BaseAPISpec {
         "my feature",
         project = "bar",
         tenant = "foo",
-        conditions = Set(TestCondition(period = TestDateTimePeriod()))
-      )
-      result.status mustBe BAD_REQUEST
-
-      result = testSituation.createFeature(
-        "my feature",
-        project = "bar",
-        tenant = "foo",
         conditions = Set(TestCondition(period = TestDateTimePeriod(hourPeriods=Seq(), days = TestDayPeriod(days=Set()))))
       )
       result.status mustBe BAD_REQUEST
@@ -1117,7 +1109,7 @@ class FeatureAPISpec extends BaseAPISpec {
         tenantName,
         featureResponse.id.get,
         Json.parse(
-          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": false, "resultType": "boolean", "conditions": [{"period": {"type": "DATETIME", "begin": "1993-09-19T01:12:01Z"}}]}"""
+          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": false, "resultType": "boolean", "conditions": [{"period": {"type": "DATETIME", "begin": "1993-09-19T01:12:01Z", "activationDays": {"days": [ "FRIDAY", "SATURDAY", "MONDAY", "TUESDAY", "THURSDAY", "SUNDAY", "WEDNESDAY"]}}}]}""".stripMargin
         )
       )
 
@@ -1150,7 +1142,7 @@ class FeatureAPISpec extends BaseAPISpec {
         tenantName,
         featureResponse.id.get,
         Json.parse(
-          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": false, "resultType": "boolean", "conditions": [{"period": {"type": "DATETIME", "begin": "1992-08-19T00:10:00Z", "end": "2100-08-19T00:10:00Z"}}]}"""
+          s"""{"id": "${featureResponse.id.get}", "project": "${projectName}", "name": "feature-name", "enabled": false, "resultType": "boolean", "conditions": [{"period": {"type": "DATETIME", "begin": "1992-08-19T00:10:00Z", "end": "2100-08-19T00:10:00Z", "activationDays": {"days": [ "FRIDAY", "SATURDAY", "MONDAY", "TUESDAY", "THURSDAY", "SUNDAY", "WEDNESDAY"]}}}]}"""
         )
       )
 
