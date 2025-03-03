@@ -519,7 +519,8 @@ function Period(props: { index: number }) {
           )}
         />
         <ErrorDisplay
-          error={errors?.conditions?.[index]?.period?.activationDays}
+          name={`conditions.[${index}].period.activationDays`}
+          errors={errors}
         />
       </label>
 

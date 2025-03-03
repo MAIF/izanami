@@ -26,6 +26,7 @@ import {
   FieldErrors,
   FieldError,
 } from "react-hook-form";
+import { ErrorMessage } from "@hookform/error-message";
 import { ConditionsInput } from "./ConditionInput";
 import Select from "react-select";
 import { ExistingScript, WasmInput } from "./WasmInput";
@@ -305,17 +306,38 @@ function toSingleConditionFeatureFormat(
   throw new Error("TODO");
 }
 
-export function ErrorDisplay({ error }: { error?: FieldError }) {
-  if (!error) {
-    return <></>;
+type ErrorDisplayProps =
+  | {
+      errors: FieldErrors;
+      name: string;
+    }
+  | { error: FieldError | undefined };
+
+export function ErrorDisplay(props: ErrorDisplayProps) {
+  if ("error" in props) {
+    if (!props.error) {
+      return <></>;
+    } else {
+      return (
+        <div className="error-message">
+          <i className="fa-solid fa-circle-exclamation" aria-hidden />
+          &nbsp;
+          {props.error.message || "Incorrect value"}
+        </div>
+      );
+    }
   } else {
-    return (
-      <div className="error-message">
-        <i className="fa-solid fa-circle-exclamation" aria-hidden />
-        &nbsp;
-        {error.message || "Incorrect value"}
-      </div>
-    );
+    if (!props.errors || Object.keys(props.errors).length === 0) {
+      return <></>;
+    } else {
+      return (
+        <div className="error-message">
+          <i className="fa-solid fa-circle-exclamation" aria-hidden />
+          &nbsp;
+          <ErrorMessage errors={props.errors} name={props.name} />
+        </div>
+      );
+    }
   }
 }
 
@@ -535,12 +557,7 @@ function LegacyFeatureForm(props: {
                     />
                   )}
                 />
-                <ErrorDisplay
-                  error={
-                    (errors as FieldErrors<CustomerListFeature>)?.parameters
-                      ?.customers
-                  }
-                />
+                <ErrorDisplay name="parameters.customers" errors={errors} />
               </label>
             )}
             {strategy === "RELEASE_DATE" && (
@@ -577,12 +594,7 @@ function LegacyFeatureForm(props: {
                     }}
                   />
                 </label>
-                <ErrorDisplay
-                  error={
-                    (errors as FieldErrors<ReleaseDateFeature>)?.parameters
-                      ?.date
-                  }
-                />
+                <ErrorDisplay name="parameters.date" errors={errors} />
                 <label className="mt-3">
                   Timezone
                   <Controller
@@ -664,16 +676,8 @@ function LegacyFeatureForm(props: {
                     />
                   </label>
                 </div>
-                <ErrorDisplay
-                  error={
-                    (errors as FieldErrors<DateRangeFeature>)?.parameters?.from
-                  }
-                />
-                <ErrorDisplay
-                  error={
-                    (errors as FieldErrors<DateRangeFeature>)?.parameters?.to
-                  }
-                />
+                <ErrorDisplay name="parameters.from" errors={errors} />
+                <ErrorDisplay name="parameters.to" errors={errors} />
                 <label className="mt-3">
                   Timezone
                   <Controller

@@ -38,7 +38,7 @@ export function FeatureContexts(props: {
   deleteContext: (path: string) => Promise<void>;
   createSubContext: (path: string, name: string) => Promise<void>;
   fetchContexts: () => Promise<TContext[]>;
-  overloadRender: TOverloadRender;
+  overloadRender?: TOverloadRender;
   refreshKey: string;
   modificationRight: boolean;
   allowGlobalContextDelete: boolean;
@@ -216,7 +216,7 @@ function Overloads({
 
 function FeatureContextTree(props: {
   contexts: TContext[];
-  overloadRender: TOverloadRender;
+  overloadRender?: TOverloadRender;
   allowGlobalContextDelete: boolean;
 }): JSX.Element {
   const { contexts, overloadRender, allowGlobalContextDelete } = props;
