@@ -1342,7 +1342,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       begin: LocalDateTime = null,
       end: LocalDateTime = null,
       hourPeriods: Seq[TestHourPeriod] = Seq(),
-      days: TestDayPeriod = null,
+      days: TestDayPeriod = TestDayPeriod(days = DayOfWeek.values().toSet),
       timezone: ZoneId = TimeZone.getDefault().toZoneId
   ) extends TestPeriod {
     def json: JsObject = {
