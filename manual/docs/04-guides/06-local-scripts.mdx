@@ -89,50 +89,28 @@ can_access if {
 package main
 
 import (
-    "github.com/extism/go-pdk"
-    "github.com/buger/jsonparser"
+  "github.com/extism/go-pdk"
+  "slices"
 )
 
-func containsString(arr []string, s string) string {
-    for _, v := range arr {
-        if v == s {
-            return "true"
-        }
-    }
-    return "false"
+type Input struct {
+  ExecutionContext []string `json:"executionContext"`
 }
 
-
-func bytesToString(bytes []byte) []string {
-  var context []string
-  jsonparser.ArrayEach(bytes, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-      if err != nil {
-      }
-      context = append(context, string(value))
-  })
-
-  return context
+type Output struct {
+  Active bool `json:"active"`
 }
 
 //export execute
 func execute() int32 {
-    input := pdk.Input()
+  input := Input{}
+  _ = pdk.InputJSON(&input)
 
-    var values, dataType, offset, err = jsonparser.Get(input, "executionContext")
+  active := slices.Contains(input.ExecutionContext, "mobile")
 
-    _ = dataType
-    _ = offset
-
-    if err != nil {}
-
-    var context = bytesToString(values)
-
-    mem := pdk.AllocateString(`{
-      "active": `+ containsString(context, "mobile") + `
-    }`)
-    pdk.OutputMemory(mem)
-
-    return 0
+  output := Output{active}
+  _ = pdk.OutputJSON(&output)
+  return 0
 }
 
 func main() {}
@@ -141,8 +119,8 @@ func main() {}
 This code may seem obscure at first, however it does a quite basic task :
 
 1.  It reads `executionContext` fields provided by Izanami, that indicates the context that was used for querying Izanami.
-2.  It converts `executionContext` content from bytes to array of string (data are transferred as byte from Izanami to WASM).
-3.  It checks if `mobile` contexts is present somewhere in context path
+2.  It checks if `mobile` contexts is present somewhere in context path
+3.  It writes the result within the `active` field of the output
 
   </div>
   </TabItem>
