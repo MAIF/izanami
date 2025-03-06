@@ -41,8 +41,10 @@ class TenantController(
                             count: Int,
                             total: Option[Boolean],
                             features: Option[String],
-                            projects: Option[String]
+                            projects: Option[String],
+                            unknownIds: Option[String]
                           ): Action[AnyContent] = tenantAuthAction(tenant, RightLevels.Read).async { implicit request =>
+    val unknownIdsAsSet = parseStringSet(unknownIds)
     env.datastores.events
       .listEventsForTenant(tenant, TenantEventRequest(
         sortOrder = order.flatMap(o => parseSortOrder(o)).getOrElse(AscOrder),
@@ -53,8 +55,8 @@ class TenantController(
         end = end.flatMap(e => Try{Instant.parse(e)}.toOption),
         eventTypes = parseStringSet(types).map(t => EventService.parseEventType(t)).collect{case Some(t) => t},
         total = total.getOrElse(false),
-        features = parseStringSet(features),
-        projects = parseStringSet(projects)
+        features = parseStringSet(features).concat(unknownIdsAsSet),
+        projects = parseStringSet(projects).concat(unknownIdsAsSet),
       ))
       .flatMap{case (events, maybeCount) => {
         val tokenIds = events.map(_.authentication).collect {

@@ -114,7 +114,7 @@ PUT           /api/admin/tenants/:tenant/webhooks/:id                           
 GET           /api/admin/tenants/:tenant/webhooks/:id/users                                        fr.maif.izanami.web.UserController.readUsersForWebhook(tenant: String, id: String)
 PUT           /api/admin/tenants/:tenant/webhooks/:webhook/users/:user/rights                      fr.maif.izanami.web.UserController.updateUserRightsForWebhook(tenant: String, webhook: String, user: String)
 
-GET           /api/admin/tenants/:tenant/logs                                                      fr.maif.izanami.web.TenantController.readEventsForTenant(tenant: String, order: Option[String], users: Option[String], types: Option[String], start: Option[String], end: Option[String], cursor:Option[Long], count: Int ?= 50, total: Option[Boolean], features: Option[String], projects: Option[String])
+GET           /api/admin/tenants/:tenant/logs                                                      fr.maif.izanami.web.TenantController.readEventsForTenant(tenant: String, order: Option[String], users: Option[String], types: Option[String], start: Option[String], end: Option[String], cursor:Option[Long], count: Int ?= 50, total: Option[Boolean], features: Option[String], projects: Option[String], unknownIds: Option[String])
 
 
 # Search application endpoints

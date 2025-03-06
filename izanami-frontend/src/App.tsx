@@ -277,6 +277,7 @@ const router = createBrowserRouter([
                     <NavLink
                       className={() => ""}
                       to={`/tenants/${data.tenant}/projects/${data.project}/logs`}
+                      aria-label={`${data.project} logs`}
                     >
                       <i className="fa-solid fa-timeline" aria-hidden></i>
                       &nbsp;Logs

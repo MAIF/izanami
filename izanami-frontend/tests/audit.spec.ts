@@ -11,7 +11,7 @@ test.use({
   headless: true,
 });
 
-test.describe("Audit screen should", () => {
+test.describe("Project audit screen should", () => {
   test("display log events", async ({ page, tenantName, browser, context }) => {
     const situation = await testBuilder()
       .withTenant(
@@ -52,7 +52,7 @@ test.describe("Audit screen should", () => {
     await page.getByRole("option", { name: "Delete" }).click();
     await page.getByRole("button", { name: "Delete 3 features" }).click();
     await page.getByLabel("Confirm").click();
-    await page.getByRole("link", { name: "Logs" }).click();
+    await page.getByRole("link", { name: "project logs" }).click();
     await expect(page.getByText("12 results")).toBeVisible();
 
     await expect(page.getByRole("cell", { name: "Deleted" })).toHaveCount(3);
@@ -87,7 +87,7 @@ test.describe("Audit screen should", () => {
     await page.getByRole("option", { name: "Enable" }).click();
     await page.getByRole("button", { name: "Enable 6 features" }).click();
     await expect(page.getByRole("cell", { name: "Enabled" })).toHaveCount(6);
-    await page.getByRole("link", { name: "Logs" }).click();
+    await page.getByRole("link", { name: "project logs" }).click();
     await expect(page.getByText("30 results")).toBeVisible();
     await expect(page.locator("li").filter({ hasText: "..." })).toBeVisible();
     await expect(page.getByRole("cell", { name: "Updated" })).toHaveCount(18);
