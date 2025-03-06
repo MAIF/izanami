@@ -40,15 +40,15 @@ const loadEntities = (tenant: string) => (input: string) => {
         if (type === "feature") {
           label = (
             <span>
-              <i className="fas fa-rocket" />
-              &nbsp;{name} (<i className="fas fa-building" />{" "}
+              <i className="fas fa-rocket" aria-hidden />
+              &nbsp;{name} (<i className="fas fa-building" aria-hidden />{" "}
               {rest.path?.[0]?.name})
             </span>
           );
         } else if (type === "project") {
           label = (
             <span>
-              <i className="fas fa-building" />
+              <i className="fas fa-building" aria-hidden />
               &nbsp;{name}
             </span>
           );
@@ -63,7 +63,11 @@ function EntitySelector(props: {
   tenant: string;
   onChange: (v: any) => void;
   clear: () => void;
-  defaultValue?: { features?: string[]; projects?: string[] };
+  defaultValue?: {
+    features?: string[];
+    projects?: string[];
+    unknownIds?: string[];
+  };
 }) {
   const [ready, setReady] = useState<
     | {
@@ -75,8 +79,19 @@ function EntitySelector(props: {
   useEffect(() => {
     const featureToFetch = props?.defaultValue?.features || [];
     const projectTofetch = props?.defaultValue?.projects || [];
+    const unknwown = props?.defaultValue?.unknownIds || [];
+    const unknownOptions = unknwown.map((p: any) => ({
+      label: (
+        <span>
+          <i className="fas fa-question" aria-hidden />
+          &nbsp;{p}
+        </span>
+      ),
+      value: p,
+      type: "unknownIds",
+    }));
     if (featureToFetch.length === 0 && projectTofetch.length === 0) {
-      setReady({ ready: true, data: [] });
+      setReady({ ready: true, data: unknownOptions });
     }
 
     let promises = [];
@@ -100,42 +115,58 @@ function EntitySelector(props: {
 
     Promise.all(promises)
       .then(([features, projects]) => {
+        console.log({ features, projects });
         return features
           .filter((f) => Boolean(f))
           .map((f: any) => ({
             label: (
               <span>
-                <i className="fas fa-rocket" />
-                &nbsp;{f.name} (<i className="fas fa-building" /> {f.project})
+                <i className="fas fa-rocket" aria-hidden />
+                &nbsp;{f.name} (<i className="fas fa-building" aria-hidden />{" "}
+                {f.project})
               </span>
             ),
             value: f.id,
+            type: "feature",
           }))
           .concat(
             projects.map((p: any) => ({
               label: (
                 <span>
-                  <i className="fas fa-building" />
+                  <i className="fas fa-building" aria-hidden />
                   &nbsp;{p.name}
                 </span>
               ),
               value: p.id,
+              type: "project",
             }))
-          );
+          )
+          .concat(unknownOptions);
       })
-      .then((options) => setReady({ ready: true, data: options }));
+      .then((options) => {
+        console.log("options", options);
+        setReady({ ready: true, data: options });
+      });
   }, []);
+  console.log("data", ready.data);
   return !ready.ready ? (
     <Loader message="Loading..." />
   ) : (
     <AsyncCreatableSelect
+      aria-label="Select entity to search for"
       loadOptions={loadEntities(props.tenant)}
+      onCreateOption={(option) => {
+        console.log("option", option);
+        return option;
+      }}
       styles={customStyles}
       defaultValue={ready.data}
       isMulti
+      createOptionPosition="first"
       onChange={(selected) => {
         const value = selected.reduce((acc: any, { type, value }) => {
           let typeNameForQuery: string = type;
+          console.log("type", type);
           switch (type) {
             case "feature":
               typeNameForQuery = "features";
@@ -143,6 +174,8 @@ function EntitySelector(props: {
             case "project":
               typeNameForQuery = "projects";
               break;
+            default:
+              typeNameForQuery = "unknownIds";
           }
           if (!acc[typeNameForQuery]) {
             acc[typeNameForQuery] = [];
@@ -151,6 +184,7 @@ function EntitySelector(props: {
 
           return acc;
         }, {});
+        console.log("changed", value);
         props?.onChange(value);
       }}
     />

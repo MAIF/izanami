@@ -584,7 +584,12 @@ function PageSelector(props: {
           })}
           {afterMax && (
             <li className="page-item disabled">
-              <a className="page-link" href="#" aria-label="Next">
+              <a
+                className="page-link"
+                href="#"
+                aria-label="more pages are available"
+                aria-disabled
+              >
                 ...
               </a>
             </li>

@@ -490,7 +490,7 @@ function OperationTransferForm(props: {
             label: () => "",
             type: "string",
             format: "select",
-            props: { styles: customStyles },
+            props: { styles: customStyles, "aria-label": "Target project" },
             placeholder: "Select target project...",
             options: projectQuery.data?.projects
               ?.filter(({ name }) => selectedRowProject.indexOf(name) === -1)

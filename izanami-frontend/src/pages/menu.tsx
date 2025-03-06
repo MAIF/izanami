@@ -217,6 +217,7 @@ export function Menu(props: {
                         to={`/tenants/${tenant}/projects/${project}/logs`}
                         className={() => ""}
                         onClick={() => hideSidebar()}
+                        aria-label={`${project} logs`}
                       >
                         Logs
                       </NavLink>
