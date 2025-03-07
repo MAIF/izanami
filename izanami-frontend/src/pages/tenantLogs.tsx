@@ -155,10 +155,6 @@ function EntitySelector(props: {
     <AsyncCreatableSelect
       aria-label="Select entity to search for"
       loadOptions={loadEntities(props.tenant)}
-      onCreateOption={(option) => {
-        console.log("option", option);
-        return option;
-      }}
       styles={customStyles}
       defaultValue={ready.data}
       isMulti

@@ -62,7 +62,7 @@ function extractSearchQueryFromUrlParams(
     types,
     order,
     pageSize,
-    begin,
+    start,
     end,
     tenant: t,
     ...rest
@@ -82,9 +82,9 @@ function extractSearchQueryFromUrlParams(
       params.get("pageSize") && Number(params.get("pageSize"))
         ? Number(params.get("pageSize"))
         : DEFAULT_PAGE_SIZE,
-    begin: params.get("begin")
+    start: params.get("start")
       ? parse(
-          decodeURIComponent(params.get("begin")!),
+          decodeURIComponent(params.get("start")!),
           "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
           new Date()
         )
@@ -110,7 +110,7 @@ const logQueryKey = (
     query.users.join(""),
     query.types.join(""),
     query.features.join(""),
-    String(query.begin),
+    String(query.start),
     String(query.end),
     query.order,
   ];
@@ -209,6 +209,7 @@ export function AuditLog(props: AuditLogProps) {
   } = useInfiniteQuery({
     queryKey: [eventUrl, key],
     queryFn: ({ pageParam }) => {
+      console.log("query", query);
       return fetchLogs(eventUrl, pageParam, {
         ...query,
         total: totalRef.current === undefined,
@@ -274,9 +275,9 @@ export function AuditLog(props: AuditLogProps) {
             search: `?${createSearchParams({
               ...param,
               pageSize: "" + DEFAULT_PAGE_SIZE,
-              begin: query?.begin
+              start: query?.start
                 ? encodeURIComponent(
-                    format(query?.begin, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+                    format(query?.start, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
                   )
                 : "",
               end: query?.end
@@ -358,10 +359,10 @@ export function AuditLog(props: AuditLogProps) {
                                 types: query.types.join(","),
                                 pageSize: "" + query.pageSize,
                                 order: newState,
-                                begin: query.begin
+                                start: query.start
                                   ? encodeURIComponent(
                                       format(
-                                        query.begin,
+                                        query.start,
                                         "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
                                       )
                                     )
@@ -642,7 +643,7 @@ function SearchCriterions(props: {
     defaultValues: props.defaultValue || {
       users: [],
       types: [],
-      begin: undefined,
+      start: undefined,
       end: undefined,
     },
   });
@@ -724,7 +725,7 @@ function SearchCriterions(props: {
               >
                 <div>Period start</div>
                 <Controller
-                  name="begin"
+                  name="start"
                   control={control}
                   render={({ field: { onChange, value } }) => {
                     return (
