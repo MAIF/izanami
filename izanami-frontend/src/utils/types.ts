@@ -23,7 +23,7 @@ export type TTenantEventTypes = typeof tenantEventTypeOptions[number]["value"];
 type LogSearchQueryBase = {
   users: string[];
   types: EventType[];
-  begin?: Date;
+  start?: Date;
   end?: Date;
   order: "asc" | "desc";
   total: boolean;
