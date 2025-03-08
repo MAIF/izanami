@@ -11,8 +11,13 @@ test.use({
   headless: true,
 });
 
-test.describe("Project audit screen should", () => {
-  test("display log events", async ({ page, tenantName, browser, context }) => {
+test.describe("Tenant audit screen should", () => {
+  test("display log events for tenant", async ({
+    page,
+    tenantName,
+    browser,
+    context,
+  }) => {
     let tenant = testTenant(tenantName);
     for (let i = 0; i < 10; i++) {
       let project = testProject(`project-${i}`);
