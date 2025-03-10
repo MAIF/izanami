@@ -155,8 +155,6 @@ services:
       - 1080:1080
   wasm-manager:
     image: maif/wasmo:1.2.1
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - manager-network
     #entrypoint: ["/bin/sh", "-c", "npm config set strict-ssl false"]
@@ -173,7 +171,7 @@ services:
       AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       AWS_DEFAULT_REGION: us-east-1
       S3_FORCE_PATH_STYLE: 1
-      S3_ENDPOINT: http://host.docker.internal:8000
+      S3_ENDPOINT: http://ninjaS3:9000
       S3_BUCKET: wasm-manager
       STORAGE: DOCKER_S3
       LOCAL_WASM_JOB_CLEANING: 60000
@@ -183,8 +181,6 @@ services:
     depends_on:
       ninjaS3:
         condition: service_healthy
-    links:
-      - ninjaS3 #s3Mock
 #  s3:
 #    image: scality/s3server
 #    networks:
