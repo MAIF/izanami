@@ -62,7 +62,7 @@ test.describe("Project audit screen should", () => {
     await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.getByText("3 results")).toBeVisible();
 
-    await page.getByLabel("Feature").click();
+    await page.getByLabel("Features").click();
     const id = await (
       await page.evaluateHandle(() => navigator.clipboard.readText())
     ).jsonValue();

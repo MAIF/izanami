@@ -72,7 +72,7 @@ import Logo from "../izanami.png";
 import { SearchModal } from "./components/SearchComponant/SearchModal";
 import { WebHooks } from "./pages/webhooks";
 import { PasswordModal } from "./components/PasswordModal";
-import { ProjectLogs } from "./pages/projectLogs";
+import { ProjectAudit, ProjectLogs } from "./pages/projectLogs";
 import { TenantAudit } from "./pages/tenantLogs";
 
 function Wrapper({
@@ -271,7 +271,7 @@ const router = createBrowserRouter([
               },
               {
                 path: "/tenants/:tenant/projects/:project/logs",
-                element: <Wrapper element={ProjectLogs} />,
+                element: <Wrapper element={ProjectAudit} />,
                 handle: {
                   crumb: (data: any) => (
                     <NavLink

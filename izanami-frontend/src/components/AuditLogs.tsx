@@ -25,6 +25,7 @@ import {
   ProjectLogSearchQuery,
   ProjectUpdated,
   tenantEventTypeOptions,
+  TFeatureEventTypes,
 } from "../utils/types";
 import { useState } from "react";
 import { isEqual, range } from "lodash";
@@ -123,6 +124,7 @@ type AuditLogProps = {
     clear: () => undefined,
     defaultValue: { [x: string]: any }
   ) => React.ReactNode;
+  eventTypes?: TFeatureEventTypes[];
 };
 
 export function fetchLogs(
@@ -244,6 +246,7 @@ export function AuditLog(props: AuditLogProps) {
   return (
     <>
       <SearchCriterions
+        eventTypes={props?.eventTypes}
         customSearchFields={customSearchFields}
         defaultValue={query}
         onSubmit={(query) => {
@@ -627,6 +630,7 @@ const loadOptions = (
 };
 
 function SearchCriterions(props: {
+  eventTypes?: TFeatureEventTypes[];
   onSubmit: (
     query: Omit<LogSearchQuery, "order" | "total" | "pageSize">
   ) => void;
@@ -637,6 +641,9 @@ function SearchCriterions(props: {
     defaultValue: { [x: string]: any }
   ) => React.ReactNode;
 }) {
+  const eventOptions = tenantEventTypeOptions.filter(({ label, value }) => {
+    return props?.eventTypes ? props.eventTypes.includes(value) : true;
+  });
   const methods = useForm<
     Omit<LogSearchQuery, "order" | "total" | "pageSize"> & { [x: string]: any }
   >({
@@ -703,10 +710,10 @@ function SearchCriterions(props: {
               control={control}
               render={({ field: { onChange, value } }) => (
                 <Select
-                  value={tenantEventTypeOptions.filter((base) =>
+                  value={eventOptions.filter((base) =>
                     value.includes(base.value)
                   )}
-                  options={tenantEventTypeOptions}
+                  options={eventOptions}
                   styles={customStyles}
                   isMulti
                   onChange={(selected) =>
