@@ -13,7 +13,7 @@ import fr.maif.izanami.models.features.{ActivationCondition, BooleanActivationCo
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.WasmConfig
-import fr.maif.izanami.web.UserInformation
+import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import io.vertx.core.json.JsonArray
 import io.vertx.pgclient.PgException
@@ -25,16 +25,19 @@ import scala.concurrent.Future
 
 class FeatureContextDatastore(val env: Env) extends Datastore {
 
-  def updateLocalFeatureContext(tenant: String, project: String, name: String, isProtected: Boolean): Future[Either[IzanamiError, Unit]] = {
+  def updateLocalFeatureContext(tenant: String, project: String, name: String, isProtected: Boolean, parents: FeatureContextPath): Future[Either[IzanamiError, Unit]] = {
+
+    val parentPart = if(parents.elements.nonEmpty) s"${parents.elements.mkString("_")}_" else ""
+
+    val id = s"${project}_${parentPart}${name}"
     env.postgresql.queryOne(
       s"""
          |UPDATE feature_contexts
          |SET protected=$$1
-         |WHERE name=$$2
-         |AND project=$$3
+         |WHERE id=$$2
          |RETURNING *
          |""".stripMargin,
-      List(java.lang.Boolean.valueOf(isProtected), name, project),
+      List(java.lang.Boolean.valueOf(isProtected), id),
       schemas = Set(tenant)
     ){_ => Some(())}
       .map(o => o.toRight(FeatureContextDoesNotExist(name)))
@@ -300,7 +303,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
          |SELECT name, parent, id, protected, true as global, null as project
          |FROM global_feature_contexts
          |UNION ALL
-         |SELECT name, COALESCE(parent, global_parent) as parent, id, false as global, project
+         |SELECT name, COALESCE(parent, global_parent) as parent, id, protected, false as global, project
          |FROM feature_contexts
          |""".stripMargin,
       schemas = Set(tenant)

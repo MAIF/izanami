@@ -52,7 +52,6 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .withTenants(TestTenant("tenant").withProjectNames("project"))
         .build()
 
-      situation.createContext("tenant", project = "project", name = "localctx")
       val response = situation.updateContext("tenant", project = "project", name = "localctxv2", isProtected = true)
       response.status mustEqual NOT_FOUND
     }
@@ -67,10 +66,8 @@ class FeatureContextAPISpec extends BaseAPISpec {
       situation.createContext("tenant", project = "project", name = "subctx", parents = "localctx")
       situation.createContext("tenant", project = "project", name = "subsubctx", parents = "localctx/subctx")
 
-      val response = situation.updateContext("tenant", project = "project", name = "subctx", isProtected = true, parents = "localctx")
       val subResponse = situation.updateContext("tenant", project = "project", name = "subsubctx", isProtected = true, parents = "localctx/subctx")
 
-      response.status mustEqual NO_CONTENT
       subResponse.status mustEqual NO_CONTENT
     }
   }

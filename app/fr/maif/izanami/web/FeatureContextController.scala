@@ -17,11 +17,13 @@ class FeatureContextController(
   implicit val ec: ExecutionContext = env.executionContext
   def createFeatureContext(tenant: String, project: String): Action[JsValue] = createSubContext(tenant, project, FeatureContextPath(Seq()))
 
-  def updateFeatureContext(tenant: String, project: String, name: String): Action[JsValue] = authAction(tenant, project, RightLevels.Admin).async(parse.json) {
+  def updateFeatureContext(tenant: String, project: String, name: String): Action[JsValue] = updateFeatureSubContext(tenant, project, parents = FeatureContextPath(Seq()), name = name)
+
+  def updateFeatureSubContext(tenant: String, project: String, parents: FeatureContextPath, name: String): Action[JsValue] = authAction(tenant, project, RightLevels.Admin).async(parse.json) {
     implicit request => {
       val json = request.body
       (json \ "protected").asOpt[Boolean] match {
-        case Some(isProtected) => env.datastores.featureContext.updateLocalFeatureContext(tenant, project = project, name = name, isProtected = isProtected).map {
+        case Some(isProtected) => env.datastores.featureContext.updateLocalFeatureContext(tenant, project = project, name = name, isProtected = isProtected, parents = parents).map {
           case Left(err) => err.toHttpResponse
           case Right(_) => NoContent
         }

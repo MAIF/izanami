@@ -179,10 +179,10 @@ object FeatureContext {
   def readFeatureContext(json: JsValue, global: Boolean): JsResult[FeatureContext] = {
     val name = (json \ "name").asOpt[String].filter(id => CONTEXT_REGEXP.pattern.matcher(id).matches())
     val id   = (json \ "id").asOpt[String]
-    val isProtected   = (json \ "protected").asOpt[Boolean]
+    val isProtected   = (json \ "protected").asOpt[Boolean].getOrElse(false)
 
     name
-      .map(n => FeatureContext(id.orNull, n, global = global, isProtected = isProtected.get))
+      .map(n => FeatureContext(id.orNull, n, global = global, isProtected = isProtected))
       .map(JsSuccess(_))
       .getOrElse(JsError("Error reading context"))
 
