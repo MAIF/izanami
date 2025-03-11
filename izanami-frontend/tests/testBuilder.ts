@@ -3,8 +3,10 @@ import {
   handleFetchJsonResponse,
   handleFetchWithoutResponse,
 } from "../src/utils/queries";
+import { TLevel } from "../src/utils/types";
 
 type featureIdByName = [string, string];
+export const DEFAULT_TEST_PASSWORD = "notARealPassword";
 
 export class TestSituationBuilder {
   tenants: TestTenant[] = [];
@@ -38,7 +40,10 @@ export class TestSituationBuilder {
         }/contexts${parent.length > 0 ? `/${parent}` : ""}`,
         {
           method: "POST",
-          body: JSON.stringify({ name: context.name }),
+          body: JSON.stringify({
+            name: context.name,
+            protected: context.isProtected,
+          }),
           headers: {
             "Content-Type": "application/json",
             cookie: cookie,
@@ -64,7 +69,11 @@ export class TestSituationBuilder {
     const cookie = await this.cookie(page);
     const email = `${user.name}@imaginarymail.com`;
     return fetch(`http://localhost:9000/api/admin/invitation`, {
-      body: JSON.stringify({ email, admin: user.admin }),
+      body: JSON.stringify({
+        email,
+        admin: user.admin,
+        rights: { tenants: user.rights },
+      }),
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -78,7 +87,7 @@ export class TestSituationBuilder {
         fetch(`http://localhost:9000/api/admin/users`, {
           body: JSON.stringify({
             username: user.name,
-            password: "notARealPassword",
+            password: DEFAULT_TEST_PASSWORD,
             token,
           }),
           method: "POST",
@@ -103,7 +112,10 @@ export class TestSituationBuilder {
         }`,
         {
           method: "POST",
-          body: JSON.stringify({ name: context.name }),
+          body: JSON.stringify({
+            name: context.name,
+            protected: context.isProtected,
+          }),
           headers: {
             "Content-Type": "application/json",
             cookie: cookie,
@@ -376,6 +388,10 @@ export function testUser(name: string, admin: boolean = false) {
   return new TestUser(name, admin);
 }
 
+export function testTenantRight(level: TLevel): TestTenantRight {
+  return new TestTenantRight(level);
+}
+
 export function testOverload(
   contextPath: string,
   enabled = false
@@ -408,13 +424,42 @@ class TestKey {
   }
 }
 
+class TestProjectRight {
+  level: TLevel;
+  constructor(level: TLevel) {
+    this.level = level;
+  }
+}
+
+class TestTenantRight {
+  level: TLevel;
+  projects: { [x: string]: TestProjectRight };
+
+  constructor(level: TLevel) {
+    this.level = level;
+    this.projects = {};
+  }
+
+  withProjectRight(project: string, level: TLevel): TestTenantRight {
+    this.projects[project] = new TestProjectRight(level);
+    return this;
+  }
+}
+
 class TestUser {
   name: string;
   admin: boolean;
+  rights: { [x: string]: TestTenantRight };
 
   constructor(name: string, admin: boolean) {
     this.name = name;
     this.admin = admin;
+    this.rights = {};
+  }
+
+  withTenantRight(name: string, right: TestTenantRight): TestUser {
+    this.rights[name] = right;
+    return this;
   }
 }
 
@@ -586,6 +631,7 @@ class TestGlobalContext implements TestContext {
   name: string;
   subcontexts: TestGlobalContext[] = [];
   localSubContexts: TestLocalContext[] = [];
+  isProtected: boolean;
 
   constructor(name: string) {
     this.name = name;
@@ -600,10 +646,16 @@ class TestGlobalContext implements TestContext {
     this.localSubContexts.push(context);
     return this;
   }
+
+  withProtectedStatus(isProtected: boolean): TestGlobalContext {
+    this.isProtected = isProtected;
+    return this;
+  }
 }
 
 class TestLocalContext implements TestContext {
   name: string;
+  isProtected: boolean;
   subcontexts: TestLocalContext[] = [];
 
   constructor(name: string) {
@@ -612,6 +664,11 @@ class TestLocalContext implements TestContext {
 
   withSubContext(context: TestLocalContext): TestLocalContext {
     this.subcontexts.push(context);
+    return this;
+  }
+
+  withProtectedStatus(isProtected: boolean): TestLocalContext {
+    this.isProtected = isProtected;
     return this;
   }
 }

@@ -4,13 +4,76 @@ import {
   testFeature,
   testTenant,
   testProject,
+  testLocalContext,
+  testUser,
+  testTenantRight,
 } from "./testBuilder";
+import { logAsInNewPage } from "./utils";
 
 test.use({
   headless: true,
 });
 
 test.describe("Project context screen should", () => {
+  test("hide protected contexts delete and unprotect button if user doesn't have right to see them", async ({
+    page,
+    tenantName,
+    browser,
+  }) => {
+    const situation = await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project").withContext(
+            testLocalContext("ctx").withProtectedStatus(true)
+          )
+        )
+      )
+      .withUser(
+        testUser("testu", false).withTenantRight(
+          tenantName,
+          testTenantRight("Write").withProjectRight("project", "Write")
+        )
+      )
+      .build(page);
+
+    await page.goto(`/tenants/${tenantName}/projects/project/contexts`);
+
+    const otherPage = await logAsInNewPage(browser, "testu");
+    await otherPage.goto(`/tenants/${tenantName}/projects/project/contexts`);
+
+    await expect(
+      otherPage.getByRole("button", { name: "actions" })
+    ).not.toBeAttached();
+  });
+
+  test("allow toggling context protection if user is admin", async ({
+    page,
+    tenantName,
+  }) => {
+    const situation = await testBuilder()
+      .withTenant(testTenant(tenantName).withProject(testProject("project")))
+      .build(page);
+    await page.goto(`/tenants/${tenantName}/projects/project/contexts`);
+
+    await page.getByRole("button", { name: "Create new context" }).click();
+    await page.getByPlaceholder("Context name").fill("prod");
+    await page.getByPlaceholder("Context name").press("Enter");
+    await page.getByRole("button", { name: "actions" }).click();
+    await page.getByRole("link", { name: "Protect context" }).click();
+    await page.getByLabel("Confirm").click();
+
+    await expect(
+      page.getByRole("link", { name: "prod protected" })
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "actions" }).click();
+    await page.getByRole("link", { name: "Unprotect context" }).click();
+    await page.getByLabel("Confirm").click();
+    await expect(
+      page.getByRole("link", { name: "prod", exact: true })
+    ).toBeVisible();
+  });
+
   test("allow to create root context", async ({ page, tenantName }) => {
     const situation = await testBuilder()
       .withTenant(testTenant(tenantName).withProject(testProject("project")))

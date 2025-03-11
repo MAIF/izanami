@@ -116,6 +116,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "guides/protected-contexts",
+              "path": "/izanami/docs/guides/protected-contexts",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "guides/query-builder",
               "path": "/izanami/docs/guides/query-builder",
               "sidebar": "tutorialSidebar"

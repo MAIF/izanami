@@ -7,7 +7,203 @@ import play.api.libs.json.{JsArray, JsObject, JsUndefined, Json}
 import java.time.LocalDateTime
 
 class FeatureContextAPISpec extends BaseAPISpec {
+  "Local context PUT endpoint" should {
+    "Allow to protect/unprotect local context if user is project admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .withUsers(TestUser("padmin").withTenantReadRight("tenant").withProjectAdminRight("project", tenant = "tenant"))
+        .loggedAs("padmin")
+        .build()
+
+      situation.createContext("tenant", project = "project", name = "localctx")
+      var response = situation.updateContext("tenant", project = "project", name = "localctx", isProtected = true)
+      response.status mustEqual NO_CONTENT
+
+      var ctxs = situation.fetchContexts(tenant = "tenant", project = "project").json.get
+      (ctxs \ 0 \ "protected").as[Boolean] mustBe true
+
+      response = situation.updateContext("tenant", project = "project", name = "localctx", isProtected = false)
+      response.status mustEqual NO_CONTENT
+
+      ctxs = situation.fetchContexts(tenant = "tenant", project = "project").json.get
+      (ctxs \ 0 \ "protected").as[Boolean] mustBe false
+    }
+
+    "Prevent to protect/unprotect local context if user is not project admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .withUsers(TestUser(username = "noadmin")
+          .withTenantReadWriteRight("tenant")
+          .withProjectReadWriteRight("project", "tenant")
+        )
+        .loggedAs("noadmin")
+        .build()
+
+      situation.createContext("tenant", project = "project", name = "localctx")
+      val response = situation.updateContext("tenant", project = "project", name = "localctx", isProtected = true)
+      response.status mustEqual FORBIDDEN
+
+      val ctxs = situation.fetchContexts(tenant = "tenant", project = "project").json.get
+      (ctxs \ 0 \ "protected").as[Boolean] mustBe false
+    }
+
+    "Return not found if context does not exist" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .build()
+
+      val response = situation.updateContext("tenant", project = "project", name = "localctxv2", isProtected = true)
+      response.status mustEqual NOT_FOUND
+    }
+
+    "Allow to protect/unprotect subcontext" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .build()
+
+      situation.createContext("tenant", project = "project", name = "localctx")
+      situation.createContext("tenant", project = "project", name = "subctx", parents = "localctx")
+      situation.createContext("tenant", project = "project", name = "subsubctx", parents = "localctx/subctx")
+
+      val subResponse = situation.updateContext("tenant", project = "project", name = "subsubctx", isProtected = true, parents = "localctx/subctx")
+
+      subResponse.status mustEqual NO_CONTENT
+    }
+
+    "Prevent subcontext creation if parent context is protected and user is not project admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjects(TestProject("project").withContexts(TestFeatureContext("protectedParent", isProtected = true))))
+        .withUsers(TestUser(username = "noadmin")
+          .withTenantReadWriteRight("tenant")
+          .withProjectReadWriteRight("project", "tenant")
+        )
+        .loggedAs("noadmin")
+        .build()
+
+      val response = situation.createContext("tenant", project = "project", name = "subctx", parents = "protectedParent")
+      response.status mustEqual FORBIDDEN
+    }
+
+    "Make subcontext of a protected context protected" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjects(TestProject("project").withContexts(TestFeatureContext("protectedParent", isProtected = true))))
+        .loggedInWithAdminRights()
+        .build()
+
+      val response = situation.createContext("tenant", project = "project", name = "subctx", parents = "protectedParent", isProtected = false)
+      response.status mustEqual CREATED
+
+      val ctxs = situation.fetchContexts(tenant = "tenant", project = "project").json.get
+      (ctxs \ 0 \ "children" \ 0 \ "protected").as[Boolean] mustBe true
+    }
+  }
+
+  "Global context PUT endpoint" should {
+    "Should protect existing subcontexts when protecting parent context" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withGlobalContext(
+          TestFeatureContext("global")
+            .withSubContexts(TestFeatureContext("subglobal"))
+        ).withProjects(TestProject("project")))
+        .loggedInWithAdminRights()
+        .build()
+
+      situation.createContext("tenant", project = "project", name = "sublocal", parents = "global")
+      situation.createContext("tenant", project = "project", name = "subglobalsublocal", parents = "global/subglobal")
+      situation.createContext("tenant", project = "project", name = "subsublocal", parents = "global/sublocal")
+
+      situation.updateGlobalContext("tenant", name = "global", isProtected = true)
+      val ctxs = situation.fetchGlobalContext(tenant = "tenant", all = true).json.get
+      val protecteds = (ctxs \\ "protected").map(js => js.as[Boolean])
+      protecteds must contain only true
+    }
+
+
+    "Allow to protect/unprotect local context if user is tenant admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("globalCtx")))
+        .withUsers(TestUser("tadmin").withTenantAdminRight("tenant"))
+        .loggedAs("tadmin")
+        .build()
+
+      val response = situation.updateGlobalContext("tenant", name = "globalCtx", isProtected = true)
+      response.status mustEqual NO_CONTENT
+    }
+
+    "Prevent to protect/unprotect local context if user is not tenant admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("globalctx")))
+        .withUsers(TestUser(username = "noadmin")
+          .withTenantReadWriteRight("tenant")
+        )
+        .loggedAs("noadmin")
+        .build()
+
+      val response = situation.updateContext("tenant", project = "project", name = "globalctx", isProtected = true)
+      response.status mustEqual FORBIDDEN
+
+      val ctxs = situation.fetchGlobalContext(tenant = "tenant").json.get
+      (ctxs \ 0 \ "protected").as[Boolean] mustBe false
+    }
+
+    "Return not found if context does not exist" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(TestTenant("tenant"))
+        .build()
+
+      val response = situation.updateGlobalContext("tenant", name = "globalCtx", isProtected = true)
+      response.status mustEqual NOT_FOUND
+    }
+
+    "Allow to protect/unprotect subcontext" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(TestTenant("tenant")
+          .withGlobalContext(
+            TestFeatureContext("localctx")
+              .withSubContexts(TestFeatureContext("subctx")
+                .withSubContexts(TestFeatureContext("subsubctx"))
+              )
+          ))
+        .build()
+
+      val subResponse = situation.updateGlobalContext("tenant", name = "subsubctx", isProtected = true, parents = "localctx/subctx")
+
+      subResponse.status mustEqual NO_CONTENT
+    }
+  }
+
   "Global context POST endpoint" should {
+    "Prevent subcontext creation if parent context is protected and user is not tenant admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("protectedParent", isProtected = true)))
+        .withUsers(TestUser(username = "noadmin")
+          .withTenantReadWriteRight("tenant")
+        )
+        .loggedAs("noadmin")
+        .build()
+
+      val response = situation.createGlobalContext("tenant", name = "subctx", parents = "protectedParent")
+      response.status mustEqual FORBIDDEN
+    }
+
+    "Make subcontext of a protected context protected" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("protectedParent", isProtected = true)))
+        .loggedInWithAdminRights()
+        .build()
+
+      val response = situation.createGlobalContext("tenant", name = "subctx", parents = "protectedParent", isProtected = false)
+      response.status mustEqual CREATED
+
+      val ctxs = situation.fetchGlobalContext(tenant = "tenant").json.get
+      (ctxs \ 0 \ "children" \ 0 \ "protected").as[Boolean] mustBe true
+    }
+
+
     "Prevent global context creation if name is too long" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjectNames("project"))
@@ -83,6 +279,51 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Global context DELETE endpoint" should {
+    "prevent global context delete if context has protected subcontexts" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("notprotected", isProtected = false)
+          .withSubContexts(TestFeatureContext("protectedchildren", isProtected = true))
+        ))
+        .withUsers(TestUser(username = "noadmin")
+          .withTenantReadWriteRight("tenant")
+        )
+        .loggedAs("noadmin")
+        .build()
+
+      val response = situation.deleteGlobalContext(tenant = "tenant", path = "notprotected")
+      response.status mustBe FORBIDDEN
+    }
+
+    "prevent global context delete if context is protected and user is not tenant admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("protected", isProtected = true)))
+        .withUsers(TestUser(username = "noadmin")
+          .withTenantReadWriteRight("tenant")
+        )
+        .loggedAs("noadmin")
+        .build()
+
+      val response = situation.deleteGlobalContext(tenant = "tenant", path = "protected")
+      response.status mustBe FORBIDDEN
+    }
+
+    "prevent global subcontext delete if subcontext is protected and user is not tenant admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withGlobalContext(
+            TestFeatureContext("unprotectedparent", isProtected = false)
+              .withSubContexts(TestFeatureContext("protected", isProtected = true))
+          )
+        )
+        .withUsers(TestUser(username = "noadmin")
+          .withTenantReadWriteRight("tenant")
+        )
+        .loggedAs("noadmin")
+        .build()
+
+      val response = situation.deleteGlobalContext(tenant = "tenant", path = "unprotectedparent/protected")
+      response.status mustBe FORBIDDEN
+    }
+
     "Allow to delete global context" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("context")).withProjectNames("project"))
@@ -412,6 +653,59 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Feature context DELETE endpoint" should {
+    "prevent context delete if context has protected subcontexts" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant")
+          .withProjects(TestProject("proj")
+            .withContexts(TestFeatureContext("parent")
+              .withSubContexts(TestFeatureContext("subcontext", isProtected = true)))
+          )
+        )
+        .withUsers(TestUser(username = "noadmin")
+          .withTenantReadWriteRight("tenant")
+          .withProjectReadWriteRight("proj", tenant = "tenant")
+        )
+        .loggedAs("noadmin")
+        .build()
+
+      val response = situation.deleteContext(tenant = "tenant", project = "proj", path = "parent")
+      response.status mustBe FORBIDDEN
+    }
+
+    "prevent context delete if context is protected and user is not project admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjects(TestProject("project").withContexts(TestFeatureContext("protected", isProtected = true))))
+        .withUsers(TestUser(username = "noadmin")
+          .withTenantReadWriteRight("tenant")
+          .withProjectReadWriteRight("project", "tenant")
+        )
+        .loggedAs("noadmin")
+        .build()
+
+      val response = situation.deleteContext(tenant = "tenant", project = "project", path = "protected")
+      response.status mustBe FORBIDDEN
+    }
+
+
+    "prevent subcontext delete if subcontext is protected and user is not project admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjects(TestProject("project")
+          .withContexts(
+            TestFeatureContext("unprotectedparent", isProtected = false)
+              .withSubContexts(TestFeatureContext("protected", isProtected = true))
+          )
+        ))
+        .withUsers(TestUser(username = "noadmin")
+          .withTenantReadWriteRight("tenant")
+          .withProjectReadWriteRight("project", "tenant")
+        )
+        .loggedAs("noadmin")
+        .build()
+
+      val response = situation.deleteContext(tenant = "tenant", project = "project", path = "unprotectedparent/protected")
+      response.status mustBe FORBIDDEN
+    }
+
     "allow to delete context if user has project write right" in {
       val situation = TestSituationBuilder()
         .withUsers(
@@ -435,6 +729,29 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Overloaded feature DELETE endpoint" should {
+    "prevent deleting an overload in protected context if user it not project admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(TestFeature(name = "F1", enabled = false))
+                .withContexts(TestFeatureContext("context", isProtected = true).withFeatureOverload(TestFeature("F1", enabled = true)))
+            )
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "project", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build()
+
+      val response = situation.deleteFeatureOverload("tenant", "project", "context", "F1")
+
+      response.status mustBe FORBIDDEN
+    }
+
 
     "delete feature context if user has project write right" in {
       val situation = TestSituationBuilder()
@@ -665,14 +982,14 @@ class FeatureContextAPISpec extends BaseAPISpec {
       res.status mustBe NOT_FOUND
     }
 
-    "Return 403 if project does not exist" in {
+    "Return 404 if project does not exist" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(TestTenant("tenant"))
         .build()
       val res       = situation.changeFeatureStrategyForContext("tenant", "project", "context", "F1", enabled = true)
 
-      res.status mustBe FORBIDDEN
+      res.status mustBe NOT_FOUND
     }
 
     "Return 404 if context does not exist" in {
@@ -729,6 +1046,55 @@ class FeatureContextAPISpec extends BaseAPISpec {
 
       (json \ 0 \ "overloads").as[JsArray].value must not be empty
 
+    }
+
+    "Prevent overload creation on protected context if user is not project admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withContexts(TestFeatureContext("ctx", isProtected = true))
+                .withFeatures(TestFeature(name = "F1", enabled = false))
+            )
+        )
+        .withUsers(TestUser("notAdmin").withTenantReadRight("tenant").withProjectReadWriteRight("project", tenant = "tenant"))
+        .loggedAs("notAdmin")
+        .build()
+
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "ctx",
+        "F1",
+        enabled = true
+      )
+
+      res.status mustBe FORBIDDEN
+    }
+
+    "Prevent overload creation on protected global context if user is not tenant admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(TestFeature(name = "F1", enabled = false))
+            ).withGlobalContext(TestFeatureContext("ctx", isProtected = true))
+        )
+        .withUsers(TestUser("notAdmin").withTenantReadRight("tenant"))
+        .loggedAs("notAdmin")
+        .build()
+
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "ctx",
+        "F1",
+        enabled = true
+      )
+
+      res.status mustBe FORBIDDEN
     }
 
     "Allow to add overload on local context that inherit global context" in {

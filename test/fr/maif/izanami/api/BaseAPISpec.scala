@@ -774,7 +774,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       parents: Seq[String] = Seq(),
       cookies: Seq[WSCookie] = Seq()
   ): Future[Unit] = {
-    createContextAsync(tenant, project, name = context.name, parents = parents.mkString("/"), cookies = cookies)
+    createContextAsync(tenant, project, name = context.name, parents = parents.mkString("/"), isProtected = context.isProtected, cookies = cookies)
       .map(res => {
         if (res.status >= 400) {
           throw new RuntimeException("Failed to create context")
@@ -818,7 +818,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       parents: Seq[String] = Seq(),
       cookies: Seq[WSCookie] = Seq()
   ): Future[Unit] = {
-    createGlobalContextAsync(tenant, name = context.name, parents = parents.mkString("/"), cookies = cookies)
+    createGlobalContextAsync(tenant, name = context.name, parents = parents.mkString("/"), isProtected = context.isProtected, cookies = cookies)
       .map(result => {
         if (result.status >= 400) {
           throw new RuntimeException("Failed to create context")
@@ -839,9 +839,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       project: String,
       name: String,
       parents: String = "",
+      isProtected: Boolean = false,
       cookies: Seq[WSCookie] = Seq()
   ) = {
-    val response = await(BaseAPISpec.createContextAsync(tenant, project, name, parents, cookies))
+    val response = await(BaseAPISpec.createContextAsync(tenant, project, name, parents, isProtected, cookies))
 
     val jsonTry = Try {
       response.json
@@ -849,11 +850,60 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     RequestResult(json = jsonTry, status = response.status, idField = "name")
   }
 
+  def updateContext(
+                     tenant: String,
+                     project: String,
+                     name: String,
+                     isProtected: Boolean,
+                     parents: String = "",
+                     cookies: Seq[WSCookie] = Seq()
+                   ) = {
+    val response = await(ws.url(s"""${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/contexts${if (parents.nonEmpty) s"/${parents}"
+      else ""}/$name""")
+      .withCookies(cookies: _*)
+      .put(
+        Json.parse(s"""
+                      |{
+                      | "protected": $isProtected
+                      |}
+                      |""".stripMargin)
+      ))
+
+    val jsonTry = Try {
+      response.json
+    }
+    RequestResult(json = jsonTry, status = response.status)
+  }
+
+  def updateGlobalContext(
+                     tenant: String,
+                     name: String,
+                     isProtected: Boolean,
+                     parents: String = "",
+                     cookies: Seq[WSCookie] = Seq()
+                   ) = {
+    val response = await(ws.url(s"""${ADMIN_BASE_URL}/tenants/${tenant}/contexts${if (parents.nonEmpty) s"/${parents}"
+      else ""}/$name""")
+      .withCookies(cookies: _*)
+      .put(
+        Json.parse(s"""
+                      |{
+                      | "protected": $isProtected
+                      |}
+                      |""".stripMargin)
+      ))
+    val jsonTry = Try {
+      response.json
+    }
+    RequestResult(json = jsonTry, status = response.status)
+  }
+
   def createContextAsync(
       tenant: String,
       project: String,
       name: String,
       parents: String = "",
+      isProtected: Boolean = false,
       cookies: Seq[WSCookie] = Seq()
   ): Future[WSResponse] = {
     ws.url(s"""${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/contexts${if (parents.nonEmpty) s"/${parents}"
@@ -862,7 +912,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       .post(
         Json.parse(s"""
              |{
-             | "name": "${name}"
+             | "name": "${name}",
+             | "protected": ${isProtected}
              |}
              |""".stripMargin)
       )
@@ -872,9 +923,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       tenant: String,
       name: String,
       parents: String = "",
+      isProtected: Boolean = false,
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
-    val response = await(createGlobalContextAsync(tenant, name, parents, cookies))
+    val response = await(createGlobalContextAsync(tenant, name, parents, isProtected, cookies))
 
     val jsonTry = Try {
       response.json
@@ -886,6 +938,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       tenant: String,
       name: String,
       parents: String = "",
+      isProtected: Boolean = false,
       cookies: Seq[WSCookie] = Seq()
   ): Future[WSResponse] = {
     ws.url(s"""${ADMIN_BASE_URL}/tenants/${tenant}/contexts${if (parents.nonEmpty) s"/${parents}"
@@ -894,7 +947,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       .post(
         Json.parse(s"""
                |{
-               | "name": "${name}"
+               | "name": "${name}",
+               | "protected": $isProtected
                |}
                |""".stripMargin)
       )
@@ -1405,7 +1459,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   case class TestFeatureContext(
       name: String,
       subContext: Set[TestFeatureContext] = Set(),
-      overloads: Seq[TestFeature] = Seq()
+      overloads: Seq[TestFeature] = Seq(),
+      isProtected: Boolean = false
   ) {
 
     def withSubContexts(contexts: TestFeatureContext*): TestFeatureContext = {
@@ -1420,6 +1475,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         feature: TestFeature
     ): TestFeatureContext = {
       copy(overloads = overloads.appended(feature))
+    }
+
+    def withProtected(isProtected: Boolean): TestFeatureContext = {
+      copy(isProtected = isProtected)
     }
   }
 
@@ -2294,17 +2353,38 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         tenant: String,
         project: String,
         name: String,
-        parents: String = ""
+        parents: String = "",
+        isProtected: Boolean = false
     ): RequestResult = {
-      BaseAPISpec.this.createContext(tenant, project, name, parents, cookies)
+      BaseAPISpec.this.createContext(tenant, project, name, parents, isProtected, cookies)
+    }
+
+    def updateContext(
+                       tenant: String,
+                       project: String,
+                       name: String,
+                       isProtected: Boolean = false,
+                       parents: String = ""
+                     ): RequestResult = {
+      BaseAPISpec.this.updateContext(tenant, project, name, isProtected, parents, cookies)
+    }
+
+    def updateGlobalContext(
+                       tenant: String,
+                       name: String,
+                       isProtected: Boolean = false,
+                       parents: String = ""
+                     ): RequestResult = {
+      BaseAPISpec.this.updateGlobalContext(tenant, name, isProtected, parents, cookies)
     }
 
     def createGlobalContext(
         tenant: String,
         name: String,
-        parents: String = ""
+        parents: String = "",
+        isProtected: Boolean = false
     ): RequestResult = {
-      BaseAPISpec.this.createGlobalContext(tenant, name, parents, cookies)
+      BaseAPISpec.this.createGlobalContext(tenant, name, parents, isProtected, cookies)
     }
 
     def fetchTag(tenant: String, name: String): RequestResult = {

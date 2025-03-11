@@ -34,7 +34,7 @@ import {
   FeatureLogEntry,
   ProjectLogSearchQuery,
 } from "./types";
-import { isArray } from "lodash";
+import { isArray, method } from "lodash";
 import toast from "react-hot-toast";
 import * as React from "react";
 
@@ -1460,4 +1460,37 @@ export function fetchProjectLogs(
     });
     return logs;
   });
+}
+
+export function changeProtectionStatusForLocalContext(
+  tenant: string,
+  project: string,
+  path: string,
+  isProtected: boolean
+): Promise<undefined> {
+  return handleFetchWithoutResponse(
+    fetch(`/api/admin/tenants/${tenant}/projects/${project}/contexts${path}`, {
+      method: "PUT",
+      body: JSON.stringify({ protected: isProtected }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+  );
+}
+
+export function changeProtectionStatusForGlobalContext(
+  tenant: string,
+  path: string,
+  isProtected: boolean
+): Promise<undefined> {
+  return handleFetchWithoutResponse(
+    fetch(`/api/admin/tenants/${tenant}/contexts${path}`, {
+      method: "PUT",
+      body: JSON.stringify({ protected: isProtected }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+  );
 }

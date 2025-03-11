@@ -1,3 +1,15 @@
+.icon_context {
+  fill: var(--color_level1);
+}
+
+form .icon_context {
+  fill: var(--color_level3);
+}
+
+form *[role="option"]:hover .icon_context {
+  fill: var(--color_level1);
+}
+
 h1,
 h2 {
   color: var(--color_level1);
@@ -33,9 +45,13 @@ main a.white-link:active,
 main a.white-link:hover,
 main a.white-link:focus {
   color: $primaryColor;
-  & svg .icon_context {
+  & svg.icon_context {
     fill: $primaryColor !important;
   }
+}
+
+main a svg.icon_context {
+  fill: var(--color_level1) !important;
 }
 
 .breadcrumb a {
@@ -50,8 +66,8 @@ main a.white-link:focus {
 .breadcrumb-item + .breadcrumb-item::before {
   color: var(--color_level1);
 }
-.breadcrumb svg .icon_context,
-.izanami-tree-node svg .icon_context {
+.breadcrumb svg.icon_context,
+.izanami-tree-node svg.icon_context {
   fill: var(--color_level1) !important;
 }
 
@@ -201,7 +217,7 @@ thead th {
   color: inherit !important;
   cursor: not-allowed;
 
-  & svg .icon_context {
+  & svg.icon_context {
     fill: var(--color_level1) !important;
   }
 }

@@ -319,7 +319,7 @@ test.describe("Multi type features", () => {
     await page.getByLabel("Name*").fill("str feature");
     await page.getByLabel("Enabled").check();
     await page.getByRole("combobox", { name: "Feature result type" }).click();
-    await page.getByText("string").click();
+    await page.getByText("string", { exact: true }).click();
     await page.getByLabel("Base value*").fill("foo");
     await page
       .getByRole("button", { name: "Test feature", exact: true })

@@ -1,8 +1,19 @@
-import { Locator, Page } from "@playwright/test";
+import { Browser, Locator, Page } from "@playwright/test";
 import { Client } from "pg";
 import { expect } from "./izanami-test";
+import { DEFAULT_TEST_PASSWORD } from "./testBuilder";
 
 export const PASSWORD = "ADMIN_DEFAULT_PASSWORD";
+
+export async function logAsInNewPage(browser: Browser, user: string) {
+  const page = await (await browser.newContext()).newPage();
+  await page.goto("/login");
+  await page.getByLabel("Username").fill(user);
+  await page.getByLabel("Password").fill(DEFAULT_TEST_PASSWORD);
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page.getByRole("button", { name: user })).toBeVisible();
+  return page;
+}
 
 export async function clickAction(
   page: Page,

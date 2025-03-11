@@ -1,7 +1,9 @@
 import * as React from "react";
-import { FeatureContexts } from "../components/FeatureContexts";
+import { FeatureContexts, LocalContext } from "../components/FeatureContexts";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
+  changeProtectionStatusForGlobalContext,
+  changeProtectionStatusForLocalContext,
   createContext,
   deleteContext,
   projectContextKey,
@@ -46,6 +48,37 @@ export function ProjectContexts(props: {
     },
   });
 
+  const contextProtectionUpdateMutation = useMutation({
+    mutationFn: (data: {
+      name: string;
+      path: string;
+      protected: boolean;
+      global: boolean;
+    }) => {
+      const { name, path, protected: isProtected, global } = data;
+      if (global) {
+        return changeProtectionStatusForGlobalContext(
+          tenant,
+          `${path}/${name}`,
+          isProtected
+        );
+      } else {
+        return changeProtectionStatusForLocalContext(
+          tenant,
+          project,
+          `${path}/${name}`,
+          isProtected
+        );
+      }
+    },
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [projectContextKey(tenant, project)],
+      });
+    },
+  });
+
   const createContextMutation = useMutation({
     mutationFn: (data: {
       tenant: string;
@@ -64,12 +97,17 @@ export function ProjectContexts(props: {
   });
 
   const modificationRight = useProjectRight(tenant, project, TLevel.Write);
+  const protectedUpdateRight = useProjectRight(tenant, project, TLevel.Admin);
 
   return (
     <>
       <FeatureContexts
+        allowProtectedContextUpdate={protectedUpdateRight}
         allowGlobalContextDelete={false}
         open={open ? JSON.parse(open) : []}
+        updateContextProtection={(v) => {
+          return contextProtectionUpdateMutation.mutateAsync(v);
+        }}
         deleteContext={(path) =>
           deleteContextMutation.mutateAsync({ tenant, project, path })
         }
@@ -146,6 +184,7 @@ function ProjectOverloadTable({
   const [creating, setCreating] = React.useState(false);
   const [displayingAllFeatures, displayAllFeatures] = useState(false);
   const editionRight = useProjectRight(tenant, project, TLevel.Write);
+  const { allContexts } = React.useContext(LocalContext);
   if (projectQuery.data) {
     return (
       <>
@@ -200,6 +239,7 @@ function ProjectOverloadTable({
           </span>
         </label>
         <OverloadTable
+          contexts={allContexts}
           project={project!}
           actions={(o) =>
             editionRight && o.path === path.substring(1)
