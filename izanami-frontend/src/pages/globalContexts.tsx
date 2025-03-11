@@ -7,6 +7,7 @@ import {
 import { TContext, TContextOverload, TLevel } from "../utils/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
+  changeProtectionStatusForGlobalContext,
   createGlobalContext,
   deleteGlobalContext,
   globalContextKey,
@@ -26,6 +27,7 @@ export function GlobalContexts(props: { tenant: string; open: string }) {
 function GlobalFeatureContexts(props: { tenant: string; open: string }) {
   const { tenant, open } = props;
   const modificationRight = useTenantRight(tenant, TLevel.Write);
+  const protectedContextRight = useTenantRight(tenant, TLevel.Admin) || false;
   const contextQuery = useQuery({
     queryKey: [globalContextKey(tenant)],
 
@@ -43,12 +45,30 @@ function GlobalFeatureContexts(props: { tenant: string; open: string }) {
     },
   });
 
+  const globalContextProtectionUpdateMutation = useMutation({
+    mutationFn: (data: {
+      name: string;
+      path: string;
+      protected: boolean;
+      global: boolean;
+    }) => {
+      const { name, path, protected: isProtected } = data;
+      return changeProtectionStatusForGlobalContext(
+        tenant,
+        `${path}/${name}`,
+        isProtected
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [globalContextKey(tenant)] });
+    },
+  });
+
   const createGlobalSubContextMutation = useMutation({
     mutationFn: (data: { tenant: string; path: string; name: string }) => {
       const { tenant, path, name } = data;
       return createGlobalContext(tenant, path, name);
     },
-
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [globalContextKey(tenant)] });
     },
@@ -57,11 +77,14 @@ function GlobalFeatureContexts(props: { tenant: string; open: string }) {
   if (contextQuery.isLoading) {
     return <Loader message="Loading global contexts ..." />;
   } else if (contextQuery.data) {
-    // handle opening
     return (
       <FeatureContexts
+        allowProtectedContextUpdate={protectedContextRight}
         allowGlobalContextDelete={true}
         open={open ? JSON.parse(open) : []}
+        updateContextProtection={(v) =>
+          globalContextProtectionUpdateMutation.mutateAsync(v)
+        }
         modificationRight={modificationRight || false}
         deleteContext={(path: string) =>
           deleteContextMutation.mutateAsync({ tenant, path })
@@ -76,37 +99,4 @@ function GlobalFeatureContexts(props: { tenant: string; open: string }) {
   } else {
     return <div>Failed to fetch global contexts</div>;
   }
-}
-
-function GlobalContextOverloadTable({
-  tenant,
-  overloads,
-  path,
-}: {
-  tenant: string;
-  overloads: TContextOverload[];
-  path: string;
-}) {
-  const { user } = React.useContext(IzanamiContext);
-  return (
-    <>
-      <h4>Feature overloads </h4>
-      <OverloadTable
-        overloads={overloads.map((o) => ({ ...o, path: path.slice(1) }))}
-        fields={["name", "enabled", "details"]}
-        actions={(o) => {
-          if (hasRightForProject(user!, TLevel.Write, o.project!, tenant)) {
-            return ["edit", "test", "delete"];
-          } else {
-            return [];
-          }
-        }}
-        refresh={() => {
-          queryClient.invalidateQueries({
-            queryKey: [globalContextKey(tenant)],
-          });
-        }}
-      />
-    </>
-  );
 }

@@ -34,8 +34,8 @@
               },
               "sidebar": "tutorialSidebar",
               "previous": {
-                "title": "Audit logs",
-                "permalink": "/izanami/docs/guides/audit-logs"
+                "title": "Protected contexts",
+                "permalink": "/izanami/docs/guides/protected-contexts"
               },
               "next": {
                 "title": "Java client",
@@ -234,8 +234,8 @@
                 "permalink": "/izanami/docs/guides/personnal-access-tokens"
               },
               "next": {
-                "title": "Clients",
-                "permalink": "/izanami/docs/clients/"
+                "title": "Protected contexts",
+                "permalink": "/izanami/docs/guides/protected-contexts"
               }
             },
             {
@@ -547,6 +547,32 @@
               "next": {
                 "title": "Audit logs",
                 "permalink": "/izanami/docs/guides/audit-logs"
+              }
+            },
+            {
+              "id": "guides/protected-contexts",
+              "title": "Protected contexts",
+              "description": "Contexts allow to define a different behavior / value for your flags. It can be usefull to handle environments.",
+              "source": "@site/docs/04-guides/18-protected-contexts.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/protected-contexts",
+              "permalink": "/izanami/docs/guides/protected-contexts",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 18,
+              "frontMatter": {
+                "title": "Protected contexts"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Audit logs",
+                "permalink": "/izanami/docs/guides/audit-logs"
+              },
+              "next": {
+                "title": "Clients",
+                "permalink": "/izanami/docs/clients/"
               }
             },
             {
@@ -923,6 +949,10 @@
                   {
                     "type": "doc",
                     "id": "guides/audit-logs"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/protected-contexts"
                   }
                 ],
                 "link": {

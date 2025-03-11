@@ -9,13 +9,23 @@ import { useQuery } from "@tanstack/react-query";
 import { GlobalContextIcon } from "../utils/icons";
 import { FEATURE_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "./Loader";
+import { useParams } from "react-router-dom";
 
-const LocalContext = React.createContext<{
+export const LocalContext = React.createContext<{
   open: string[];
   deleteContextCallback: (path: string) => void;
   createSubContextCallback: (path: string, name: string) => Promise<any>;
+  updateContextProtection: (v: {
+    path: string;
+    name: string;
+    protected: boolean;
+    global: boolean;
+  }) => Promise<any>;
   hasUpdateDeleteRight: boolean;
+  hasRightOverProtectedContexts: boolean;
+  allContexts: TContext[];
 }>({
+  allContexts: [],
   open: [],
   deleteContextCallback: () => {
     /**/
@@ -23,7 +33,11 @@ const LocalContext = React.createContext<{
   createSubContextCallback: () => {
     return Promise.resolve();
   },
+  updateContextProtection: () => {
+    return Promise.resolve();
+  },
   hasUpdateDeleteRight: false,
+  hasRightOverProtectedContexts: false,
 });
 
 type TOverloadRender = (
@@ -37,11 +51,18 @@ export function FeatureContexts(props: {
   open: string[];
   deleteContext: (path: string) => Promise<void>;
   createSubContext: (path: string, name: string) => Promise<void>;
+  updateContextProtection: (v: {
+    path: string;
+    name: string;
+    protected: boolean;
+    global: boolean;
+  }) => Promise<void>;
   fetchContexts: () => Promise<TContext[]>;
   overloadRender?: TOverloadRender;
   refreshKey: string;
   modificationRight: boolean;
   allowGlobalContextDelete: boolean;
+  allowProtectedContextUpdate: boolean;
 }): JSX.Element {
   const {
     open,
@@ -52,6 +73,8 @@ export function FeatureContexts(props: {
     overloadRender,
     refreshKey,
     allowGlobalContextDelete,
+    updateContextProtection,
+    allowProtectedContextUpdate,
   } = props;
 
   const [creating, setCreating] = useState(false);
@@ -60,23 +83,28 @@ export function FeatureContexts(props: {
     queryFn: () => fetchContexts(),
   });
 
-  const { askConfirmation } = React.useContext(IzanamiContext);
+  const { askConfirmation, user } = React.useContext(IzanamiContext);
 
   if (contextQuery.data) {
     return (
       <LocalContext.Provider
         value={{
+          allContexts: contextQuery.data,
+          hasRightOverProtectedContexts: allowProtectedContextUpdate,
           hasUpdateDeleteRight: modificationRight,
           open,
           createSubContextCallback: (path, name) => {
             return createSubContext(path, name);
+          },
+          updateContextProtection(v) {
+            return updateContextProtection(v);
           },
           deleteContextCallback: (path) =>
             askConfirmation(
               <>
                 Are you sure you want to delete context {path} ?
                 <br />
-                All subcontexts will be lost !
+                All subcontexts and their overloads will be lost !
               </>,
               () => deleteContext(path)
             ),
@@ -220,9 +248,16 @@ function FeatureContextTree(props: {
   allowGlobalContextDelete: boolean;
 }): JSX.Element {
   const { contexts, overloadRender, allowGlobalContextDelete } = props;
-  const { hasUpdateDeleteRight, open, deleteContextCallback } =
-    React.useContext(LocalContext);
+  const {
+    hasUpdateDeleteRight,
+    open,
+    deleteContextCallback,
+    updateContextProtection,
+    hasRightOverProtectedContexts,
+  } = React.useContext(LocalContext);
   const spacing = 20;
+
+  const { askConfirmation } = React.useContext(IzanamiContext);
 
   function contextToTreeNode(
     contexts: TContext[],
@@ -233,6 +268,7 @@ function FeatureContextTree(props: {
     path: string;
     parents: TContext[];
   }>[] {
+    const { tenant } = useParams();
     return contexts.map((ctx) => {
       const nonLeafChildren = contextToTreeNode(
         ctx.children,
@@ -242,63 +278,136 @@ function FeatureContextTree(props: {
       return {
         options: hasUpdateDeleteRight
           ? [
-              {
-                icon: <>Add subcontext</>,
-                form: (submit, cancel) => {
-                  const { createSubContextCallback } =
-                    React.useContext(LocalContext);
-                  return (
-                    <div className="sub_container anim__popUp mt-2">
-                      <h4>Add subcontext</h4>
-                      <Form
-                        schema={{
-                          name: {
-                            type: type.string,
-                            label: "Name",
-                            placeholder: "Context name",
-                            required: true,
-                            constraints: [
-                              constraints.matches(
-                                FEATURE_NAME_REGEXP,
-                                `Context name must match ${FEATURE_NAME_REGEXP} regex`
-                              ),
-                            ],
-                            props: {
-                              autoFocus: true,
-                            },
-                          },
-                        }}
-                        footer={({ valid }: { valid: () => void }) => {
-                          return (
-                            <div className="d-flex justify-content-end">
-                              <button
-                                type="button"
-                                className="btn btn-danger-light m-2"
-                                onClick={() => cancel()}
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                className="btn btn-primary m-2"
-                                onClick={valid}
-                              >
-                                Save
-                              </button>
-                            </div>
+              ...(hasRightOverProtectedContexts &&
+              (!ctx.global || allowGlobalContextDelete)
+                ? [
+                    {
+                      icon: <>Add subcontext</>,
+                      form: (submit, cancel) => {
+                        const { createSubContextCallback } =
+                          React.useContext(LocalContext);
+                        return (
+                          <div className="sub_container anim__popUp mt-2">
+                            <h4>Add subcontext</h4>
+                            <Form
+                              schema={{
+                                name: {
+                                  type: type.string,
+                                  label: "Name",
+                                  placeholder: "Context name",
+                                  required: true,
+                                  constraints: [
+                                    constraints.matches(
+                                      FEATURE_NAME_REGEXP,
+                                      `Context name must match ${FEATURE_NAME_REGEXP} regex`
+                                    ),
+                                  ],
+                                  props: {
+                                    autoFocus: true,
+                                  },
+                                },
+                              }}
+                              footer={({ valid }: { valid: () => void }) => {
+                                return (
+                                  <div className="d-flex justify-content-end">
+                                    <button
+                                      type="button"
+                                      className="btn btn-danger-light m-2"
+                                      onClick={() => cancel()}
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      className="btn btn-primary m-2"
+                                      onClick={valid}
+                                    >
+                                      Save
+                                    </button>
+                                  </div>
+                                );
+                              }}
+                              onSubmit={({ name }) =>
+                                createSubContextCallback(
+                                  `${path}/${ctx.name}`,
+                                  name
+                                ).then(() => submit())
+                              }
+                            />
+                          </div>
+                        );
+                      },
+                    },
+                  ]
+                : []),
+              ...(hasRightOverProtectedContexts &&
+              (!ctx.global || allowGlobalContextDelete)
+                ? [
+                    {
+                      icon: (
+                        <>
+                          {ctx.protected
+                            ? "Unprotect context"
+                            : "Protect context"}
+                        </>
+                      ),
+                      action: () => {
+                        let message = <></>;
+                        if (ctx.protected) {
+                          message = (
+                            <>
+                              Are you sure you want to unprotected context{" "}
+                              {ctx.name} ?<br />
+                              This will allow any user with at least "Write"
+                              right {ctx.global
+                                ? "on tenant"
+                                : "on project"}{" "}
+                              to:
+                              <ul>
+                                <li>
+                                  Add, edit or delete overload for this context
+                                </li>
+                                <li>
+                                  Delete this context and every subcontexts with
+                                  their overloads (except if one subcontext is
+                                  protected).
+                                </li>
+                              </ul>
+                            </>
                           );
-                        }}
-                        onSubmit={({ name }) =>
-                          createSubContextCallback(
-                            `${path}/${ctx.name}`,
-                            name
-                          ).then(() => submit())
+                        } else {
+                          message = (
+                            <>
+                              Are you sure you want to protect context{" "}
+                              {ctx.name} ?<br />
+                              Only users with Admin right{" "}
+                              {ctx.global ? "on tenant" : "on project"} will be
+                              able to:
+                              <ul>
+                                <li>
+                                  Add, edit or delete overload for this context
+                                </li>
+                                <li>
+                                  Delete this context and every subcontexts
+                                  their overloads.
+                                </li>
+                              </ul>
+                            </>
+                          );
                         }
-                      />
-                    </div>
-                  );
-                },
-              },
-              ...(ctx.global && !allowGlobalContextDelete
+                        return askConfirmation(message, () => {
+                          return updateContextProtection({
+                            path: path,
+                            name: ctx.name,
+                            protected: !ctx.protected,
+                            global: ctx.global,
+                          });
+                        });
+                      },
+                    },
+                  ]
+                : []),
+              ...((ctx.global && !allowGlobalContextDelete) ||
+              (ctx.protected && !hasRightOverProtectedContexts)
                 ? []
                 : [
                     {
@@ -325,13 +434,19 @@ function FeatureContextTree(props: {
     <TreeRoot
       nodes={contextToTreeNode(contexts, "", [])}
       labelRender={(node) => {
-        return node.payload.context.global ? (
-          <span>
-            <GlobalContextIcon />
-            &nbsp;{node.name}
-          </span>
+        const protectedIcon = node.payload.context.protected ? (
+          <>
+            <i className="fa-solid fa-lock fs-6" aria-label="protected"></i>
+          </>
         ) : (
-          <>{node.name}</>
+          <></>
+        );
+        return (
+          <span style={{ display: "flex", gap: "5px", alignItems: "center" }}>
+            {node.name}
+            {node.payload.context.global && <GlobalContextIcon />}
+            {protectedIcon}
+          </span>
         );
       }}
       payloadRender={
@@ -431,9 +546,11 @@ function EditableTree<T>({
       }}
     >
       <div>
-        <div>
+        <div className="d-flex align-items-center gap-1">
           <a
-            className={`${isOpenable ? "" : "disabled"}`}
+            className={`${
+              isOpenable ? "" : "disabled"
+            } d-flex flex-row justify-content-center align-items-center gap-1`}
             style={{ fontSize: `${fontSize}px` }}
             href="#"
             onClick={(e) => {
@@ -520,7 +637,6 @@ function EditableTree<T>({
               setForm(() => defaultForm);
             },
             () => {
-              setOpen(true);
               setForm(() => defaultForm);
             }
           )}

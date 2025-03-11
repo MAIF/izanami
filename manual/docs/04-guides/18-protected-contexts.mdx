@@ -1,0 +1,76 @@
+---
+title: Protected contexts
+---
+
+import { Note } from "@site/src/components/Note";
+import protectContext from "@site/static/img/screenshots/protected-context/protect-context.png";
+import unprotectContext from "@site/static/img/screenshots/protected-context/unprotect-context.png";
+
+Contexts allow to define a different behavior / value for your flags. It can be usefull to handle environments.
+To learn more about contexts, read the [context guide](./env-contexts).
+
+It is sometimes usefull to "protect" contexts to avoid accidental modifications,
+for instance to avoir updating a flag activation in production by mistake.
+
+For such cases, Izanami allows to "protect" a context.
+
+<Note>Audit log for features are available from Izanmi 2.9.0</Note>
+
+
+## Rights on protected contexts
+
+Operation on protected contexts are restricted to users with *admin* rights on either project or tenant, depending if context is local or global.
+
+Protected contexts and associated overloads remain visible to any user with read right on project / tenant.
+
+### Global contexts
+
+Below array details right change regarding global protected contexts.
+
+|                                                           | User with admin rights on tenant | User with write rights on tenant | User without write right on tenant |
+|-----------------------------------------------------------|:--------------------------------:|:--------------------------------:|:----------------------------------:|
+| Read overloads of protected or unprotected context        | ✅                               | ✅                                | ✅                                 |
+| Create / delete / update overloads on unprotected contexts| ✅                               | ✅                                | ❌                                 |
+| Delete unprotected context                                | ✅                               | ✅                                | ❌                                 |
+| Protect / unprotect context                               | ✅                               | ❌                                | ❌                                 |
+| Create / delete / update overloads on protected contexts  | ✅                               | ❌                                | ❌                                 |
+| Delete protected context                                  | ✅                               | ❌                                | ❌                                 |
+
+### Local contexts
+
+Below array details right change regarding project local protected contexts.
+
+|                                                           | User with admin rights on project | User with write rights on project | User without write right on project |
+|-----------------------------------------------------------|:---------------------------------:|:---------------------------------:|:-----------------------------------:|
+| Read overloads of protected or unprotected context        | ✅                                | ✅                                | ✅                                   |
+| Create / delete / update overloads on unprotected contexts| ✅                                | ✅                                | ❌                                   |
+| Delete unprotected context                                | ✅                                | ✅                                | ❌                                   |
+| Protect / unprotect context                               | ✅                                | ❌                                | ❌                                   |
+| Create / delete / update overloads on protected contexts  | ✅                                | ❌                                | ❌                                   |
+| Delete protected context                                  | ✅                                | ❌                                | ❌                                   |
+
+
+## Protecting a context
+
+To protect a context, you'll have to go to context page, either global context page (for global contexts) or project context page (for local contexts).
+
+Then click on the "3 dots" icons and choose "protect context" option.
+
+<img src={protectContext} />
+
+Once you've confirmed, context is protected.
+
+⚠️⚠️⚠️ When protecting a context all subcontexts automatically get protected as well. ⚠️⚠️⚠️
+
+
+## Unprotecting a context
+
+As for protecting context, you'll have to go to context page (project context page for local context, tenant context page for global context).
+
+Then click on the "3 dots" icons and choose "unprotect context" option.
+
+<img src={unprotectContext} />
+
+Once you've confirmed, context is unprotected.
+
+⚠️⚠️⚠️ Unlike context protection, unprotecting context DOES NOT unprotect subcontexts. ⚠️⚠️⚠️

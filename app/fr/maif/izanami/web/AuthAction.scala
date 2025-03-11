@@ -29,8 +29,9 @@ case class UserRequestWithCompleteRights[A](request: Request[A], user: UserWithR
     extends WrappedRequest[A](request)
 case class UserRequestWithTenantRights[A](request: Request[A], user: UserWithTenantRights, authentication: EventAuthentication)
     extends WrappedRequest[A](request)
-case class UserRequestWithCompleteRightForOneTenant[A](request: Request[A], user: UserWithCompleteRightForOneTenant, authentication: EventAuthentication)
-    extends WrappedRequest[A](request)
+case class UserRequestWithCompleteRightForOneTenant[A](request: Request[A], user: UserWithCompleteRightForOneTenant, authentication: EventAuthentication) extends WrappedRequest[A](request) {
+  def userInformation: UserInformation = UserInformation(username = user.username, authentication = authentication)
+}
 case class UserNameRequest[A](request: Request[A], user: UserInformation)                   extends WrappedRequest[A](request)
 case class ProjectIdUserNameRequest[A](request: Request[A], user: UserInformation, projectId: UUID) extends WrappedRequest[A](request)
 

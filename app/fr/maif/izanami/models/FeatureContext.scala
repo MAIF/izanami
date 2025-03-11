@@ -26,7 +26,8 @@ case class FeatureContext(
     children: Seq[FeatureContext] = Seq(),
     overloads: Seq[AbstractFeature] = Seq(),
     global: Boolean,
-    project: Option[String] = None
+    project: Option[String] = None,
+    isProtected: Boolean
 )
 
 sealed trait LightweightContextualStrategy extends ContextualFeatureStrategy
@@ -169,6 +170,7 @@ object FeatureContext {
       "overloads" -> { context.overloads.map(f => Feature.featureWrite.writes(f)) },
       "children"  -> { context.children.map(f => FeatureContext.featureContextWrites.writes(f)) },
       "global"    -> context.global,
+      "protected" -> context.isProtected,
       "project"   -> context.project
     )
   }
@@ -177,9 +179,10 @@ object FeatureContext {
   def readFeatureContext(json: JsValue, global: Boolean): JsResult[FeatureContext] = {
     val name = (json \ "name").asOpt[String].filter(id => CONTEXT_REGEXP.pattern.matcher(id).matches())
     val id   = (json \ "id").asOpt[String]
+    val isProtected   = (json \ "protected").asOpt[Boolean].getOrElse(false)
 
     name
-      .map(n => FeatureContext(id.orNull, n, global = global)) // TODO CHANGEME
+      .map(n => FeatureContext(id.orNull, n, global = global, isProtected = isProtected))
       .map(JsSuccess(_))
       .getOrElse(JsError("Error reading context"))
 

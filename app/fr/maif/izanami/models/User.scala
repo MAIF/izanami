@@ -195,8 +195,12 @@ case class UserWithCompleteRightForOneTenant(
       .getOrElse(
         tenantRight
           .flatMap(tr => tr.projects.get(project))
-          .exists(r => RightLevels.superiorOrEqualLevels(r.level).contains(level))
+          .exists(r => RightLevels.superiorOrEqualLevels(level).contains(r.level))
       )
+  }
+
+  def hasRightForTenant(level: RightLevel): Boolean = {
+    admin || tenantRight.exists(t => RightLevels.superiorOrEqualLevels(level).contains(t.level))
   }
 }
 

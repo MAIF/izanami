@@ -152,13 +152,6 @@ case class WasmResultParsingError(expected: String, found: JsValue)
       message = s"""Declared feature result type ($expected) does not match script result $found""",
       status = BAD_REQUEST
     )
-case class MissingProjectRight(projects: Set[String])
-    extends IzanamiError(message = s"""You're not allowed for projects ${projects.mkString(",")}""", status = FORBIDDEN)
-case class MissingFeatureRight(features: Set[String])
-    extends IzanamiError(
-      message = s"""You're not allowed for features ${features.mkString(",")}, you don't have right for this project""",
-      status = FORBIDDEN
-    )
 case class IncorrectKey()             extends IzanamiError(message = "Incorrect key provided", status = FORBIDDEN)
 case class BadEventFormat(override val message: String = "Bad event format")
     extends IzanamiError(message, status = FORBIDDEN)
@@ -200,6 +193,7 @@ case class ImportError(table: String, json: String, errorMessage: String)
       message = s"Error key while inserting into table $table with error $errorMessage values $json : ",
       status = 400
     )
+case class NoProtectedContextAccess(context: String) extends IzanamiError(message = s"You don't have enough rights to perform operation on protected context $context", status = 403)
 case class ErrorAggregator(errors: Seq[IzanamiError]) extends IzanamiError(message = errors.map(err => err.message).mkString("\n"), status = errors.map(err => err.status).sorted(Ordering[Int]).headOption.getOrElse(INTERNAL_SERVER_ERROR)) {}
 
 object ErrorAggregator {

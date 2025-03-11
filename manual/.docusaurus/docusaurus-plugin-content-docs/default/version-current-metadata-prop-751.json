@@ -184,6 +184,13 @@
             "href": "/izanami/docs/guides/audit-logs",
             "docId": "guides/audit-logs",
             "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Protected contexts",
+            "href": "/izanami/docs/guides/protected-contexts",
+            "docId": "guides/protected-contexts",
+            "unlisted": false
           }
         ],
         "href": "/izanami/docs/guides/"
@@ -361,6 +368,12 @@
       "id": "guides/personnal-access-tokens",
       "title": "Access tokens",
       "description": "Izanami UI is the main channel to manage your features. However sometimes you need to automatize some operations.",
+      "sidebar": "tutorialSidebar"
+    },
+    "guides/protected-contexts": {
+      "id": "guides/protected-contexts",
+      "title": "Protected contexts",
+      "description": "Contexts allow to define a different behavior / value for your flags. It can be usefull to handle environments.",
       "sidebar": "tutorialSidebar"
     },
     "guides/query-builder": {

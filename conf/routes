@@ -12,6 +12,7 @@ DELETE        /api/admin/tenants/:name                                          
 
 POST          /api/admin/tenants/:tenant/contexts/*parents                                         fr.maif.izanami.web.FeatureContextController.createGlobalSubContext(tenant: String, parents: fr.maif.izanami.web.FeatureContextPath)
 POST          /api/admin/tenants/:tenant/contexts                                                  fr.maif.izanami.web.FeatureContextController.createGlobalRootSubContext(tenant: String)
+PUT           /api/admin/tenants/:tenant/contexts/*context                                         fr.maif.izanami.web.FeatureContextController.updateGlobalContext(tenant: String, context: fr.maif.izanami.web.FeatureContextPath)
 GET           /api/admin/tenants/:tenant/contexts                                                  fr.maif.izanami.web.FeatureContextController.readGlobalContexts(tenant: String, all: Boolean ?= false)
 DELETE        /api/admin/tenants/:tenant/contexts/*context                                         fr.maif.izanami.web.FeatureContextController.deleteGlobalFeatureContext(tenant: String, context: fr.maif.izanami.web.FeatureContextPath)
 
@@ -48,7 +49,9 @@ PUT           /api/admin/tenants/:tenant/keys/:name/users/:user/rights          
 
 
 POST          /api/admin/tenants/:tenant/projects/:project/contexts                                fr.maif.izanami.web.FeatureContextController.createFeatureContext(tenant: String, project: String)
+PUT           /api/admin/tenants/:tenant/projects/:project/contexts/:name                          fr.maif.izanami.web.FeatureContextController.updateFeatureContext(tenant: String, project: String, name: String)
 PUT           /api/admin/tenants/:tenant/projects/:project/contexts/*parents/features/:name        fr.maif.izanami.web.FeatureContextController.createFeatureStrategy(tenant: String, project: String, parents: fr.maif.izanami.web.FeatureContextPath, name: String)
+PUT           /api/admin/tenants/:tenant/projects/:project/contexts/*parents/:name                 fr.maif.izanami.web.FeatureContextController.updateFeatureSubContext(tenant: String, project: String, parents: fr.maif.izanami.web.FeatureContextPath,name: String)
 DELETE        /api/admin/tenants/:tenant/projects/:project/contexts/*parents/features/:name        fr.maif.izanami.web.FeatureContextController.deleteFeatureStrategy(tenant: String, project: String, parents: fr.maif.izanami.web.FeatureContextPath, name: String)
 POST          /api/admin/tenants/:tenant/projects/:project/contexts/*parents                       fr.maif.izanami.web.FeatureContextController.createSubContext(tenant: String, project: String, parents: fr.maif.izanami.web.FeatureContextPath)
 DELETE        /api/admin/tenants/:tenant/projects/:project/contexts/*context                       fr.maif.izanami.web.FeatureContextController.deleteFeatureContext(tenant: String, project: String, context: fr.maif.izanami.web.FeatureContextPath)

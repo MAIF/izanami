@@ -13,6 +13,7 @@ import { generate as webhookGenerate } from "./webhooks";
 import { generate as exportImportV2 } from "./export-import-v2";
 import { generate as nonBooleanFeatureGenerate } from "./non-boolean-features";
 import { generate as auditLogGenerate } from "./audit-logs";
+import { generate as protectedContextGenerate } from "./protected-contexts";
 
 async function generateAll() {
   await apiKeyGenerate();
@@ -30,6 +31,7 @@ async function generateAll() {
   await exportImportV2();
   await nonBooleanFeatureGenerate();
   await auditLogGenerate();
+  await protectedContextGenerate();
 }
 
 generateAll();
