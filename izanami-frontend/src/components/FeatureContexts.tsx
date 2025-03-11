@@ -224,6 +224,8 @@ function FeatureContextTree(props: {
     React.useContext(LocalContext);
   const spacing = 20;
 
+  const { askConfirmation } = React.useContext(IzanamiContext);
+
   function contextToTreeNode(
     contexts: TContext[],
     path = "",
@@ -302,9 +304,7 @@ function FeatureContextTree(props: {
                 icon: (
                   <>{ctx.protected ? "Unprotect context" : "Protect context"}</>
                 ),
-                form: (submit, cancel) => {
-                  return <div>Creation form</div>;
-                },
+                action: () => askConfirmation("coucou"),
               },
               ...(ctx.global && !allowGlobalContextDelete
                 ? []
