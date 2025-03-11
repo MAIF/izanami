@@ -17,12 +17,25 @@ class FeatureContextController(
   implicit val ec: ExecutionContext = env.executionContext
   def createFeatureContext(tenant: String, project: String): Action[JsValue] = createSubContext(tenant, project, FeatureContextPath(Seq()))
 
+  def updateFeatureContext(tenant: String, project: String, name: String): Action[JsValue] = authAction(tenant, project, RightLevels.Admin).async(parse.json) {
+    implicit request => {
+      val json = request.body
+      (json \ "protected").asOpt[Boolean] match {
+        case Some(isProtected) => env.datastores.featureContext.updateLocalFeatureContext(tenant, project = project, name = name, isProtected = isProtected).map {
+          case Left(err) => err.toHttpResponse
+          case Right(_) => NoContent
+        }
+        case None => BadRequest(Json.obj("message" -> "protected attribute is missing from body")).future
+      }
+    }
+  }
+
   def createSubContext(tenant: String, project: String, parents: FeatureContextPath): Action[JsValue] = authAction(tenant, project, RightLevels.Write).async(parse.json) {
     implicit request =>
       FeatureContext.readFeatureContext(request.body, global=false) match {
         case JsSuccess(value, _) =>
           env.datastores.featureContext
-            .createFeatureSubContext(tenant, project, parents.elements, value.name)
+            .createFeatureSubContext(tenant, project, parents.elements, value.name, value.isProtected)
             .map(either => {
               either.fold(
                 err => Results.Status(err.status)(Json.toJson(err)),
@@ -102,6 +115,10 @@ class FeatureContextController(
   }
 
   def createGlobalRootSubContext(tenant: String): Action[JsValue]  = createGlobalSubContext(tenant, FeatureContextPath())
+
+  def updateGlobalRootSubContext(tenant: String, parents: FeatureContextPath=FeatureContextPath(), name: String):  Action[JsValue] = tenantAuthAction(tenant, RightLevels.Write).async(parse.json) {
+    ???
+  }
 
   def readGlobalContexts(tenant: String, all: Boolean): Action[AnyContent]  = tenantAuthAction(tenant, RightLevels.Read).async {
     implicit request => {

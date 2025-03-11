@@ -7,6 +7,74 @@ import play.api.libs.json.{JsArray, JsObject, JsUndefined, Json}
 import java.time.LocalDateTime
 
 class FeatureContextAPISpec extends BaseAPISpec {
+  "Local context PUT endpoint" should {
+    "Allow to protect/unprotect local context if user is admin" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .build()
+
+      situation.createContext("tenant", project = "project", name = "localctx")
+      var response = situation.updateContext("tenant", project = "project", name = "localctx", isProtected = true)
+      response.status mustEqual NO_CONTENT
+
+      var ctxs = situation.fetchContexts(tenant = "tenant", project = "project").json.get
+      (ctxs \ 0 \ "protected").as[Boolean] mustBe true
+
+      response = situation.updateContext("tenant", project = "project", name = "localctx", isProtected = false)
+      response.status mustEqual NO_CONTENT
+
+      ctxs = situation.fetchContexts(tenant = "tenant", project = "project").json.get
+      (ctxs \ 0 \ "protected").as[Boolean] mustBe false
+    }
+
+    "Prevent to protect/unprotect local context if user is not admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .withUsers(TestUser(username = "noadmin")
+          .withTenantReadWriteRight("tenant")
+          .withProjectReadWriteRight("project", "tenant")
+        )
+        .loggedAs("noadmin")
+        .build()
+
+      situation.createContext("tenant", project = "project", name = "localctx")
+      val response = situation.updateContext("tenant", project = "project", name = "localctx", isProtected = true)
+      response.status mustEqual FORBIDDEN
+
+      val ctxs = situation.fetchContexts(tenant = "tenant", project = "project").json.get
+      (ctxs \ 0 \ "protected").as[Boolean] mustBe false
+    }
+
+    "Return not found if context does not exist" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .build()
+
+      situation.createContext("tenant", project = "project", name = "localctx")
+      val response = situation.updateContext("tenant", project = "project", name = "localctxv2", isProtected = true)
+      response.status mustEqual NOT_FOUND
+    }
+
+    "Allow to protect/unprotect subcontext" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .build()
+
+      situation.createContext("tenant", project = "project", name = "localctx")
+      situation.createContext("tenant", project = "project", name = "subctx", parents = "localctx")
+      situation.createContext("tenant", project = "project", name = "subsubctx", parents = "localctx/subctx")
+
+      val response = situation.updateContext("tenant", project = "project", name = "subctx", isProtected = true, parents = "localctx")
+      val subResponse = situation.updateContext("tenant", project = "project", name = "subsubctx", isProtected = true, parents = "localctx/subctx")
+
+      response.status mustEqual NO_CONTENT
+      subResponse.status mustEqual NO_CONTENT
+    }
+  }
+
   "Global context POST endpoint" should {
     "Prevent global context creation if name is too long" in {
       val situation = TestSituationBuilder()

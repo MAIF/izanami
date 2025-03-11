@@ -24,6 +24,22 @@ import java.util.Objects
 import scala.concurrent.Future
 
 class FeatureContextDatastore(val env: Env) extends Datastore {
+
+  def updateLocalFeatureContext(tenant: String, project: String, name: String, isProtected: Boolean): Future[Either[IzanamiError, Unit]] = {
+    env.postgresql.queryOne(
+      s"""
+         |UPDATE feature_contexts
+         |SET protected=$$1
+         |WHERE name=$$2
+         |AND project=$$3
+         |RETURNING *
+         |""".stripMargin,
+      List(java.lang.Boolean.valueOf(isProtected), name, project),
+      schemas = Set(tenant)
+    ){_ => Some(())}
+      .map(o => o.toRight(FeatureContextDoesNotExist(name)))
+  }
+
   def deleteGlobalFeatureContext(tenant: String, path: Seq[String]): Future[Either[IzanamiError, Unit]] = {
     val ctxName    = path.last
     val parentPart = path.init
@@ -156,10 +172,11 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       tenant: String,
       project: String,
       parents: Seq[String],
-      name: String
+      name: String,
+      isProtected: Boolean
   ): Future[Either[IzanamiError, FeatureContext]] = {
     if (parents.isEmpty) {
-      createFeatureContext(tenant, project, FeatureContext(id = null, name, global = true))
+      createFeatureContext(tenant, project, FeatureContext(id = null, name, global = true, isProtected = isProtected))
     } else {
       val id      = generateSubContextId(project, name, parents)
       val isLocal = env.postgresql
@@ -264,7 +281,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
   def readGlobalFeatureContexts(tenant: String): Future[Seq[FeatureContext]] = {
     env.postgresql.queryAll(
       s"""
-         |SELECT c.name, c.parent, c.id, NULL as project, COALESCE(
+         |SELECT c.name, c.parent, c.id, NULL as project, c.protected, COALESCE(
          |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'project', f.project, 'description', f.description , 'wasm', s.script_config)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
          |) as overloads
          |FROM global_feature_contexts c
@@ -280,7 +297,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
   def readAllLocalFeatureContexts(tenant: String): Future[Seq[FeatureContext]] = {
     env.postgresql.queryAll(
       s"""
-         |SELECT name, parent, id, true as global, null as project
+         |SELECT name, parent, id, protected, true as global, null as project
          |FROM global_feature_contexts
          |UNION ALL
          |SELECT name, COALESCE(parent, global_parent) as parent, id, false as global, project
@@ -291,15 +308,16 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       for (
         id     <- r.optString("id");
         name   <- r.optString("name");
-        global <- r.optBoolean("global")
-      ) yield FeatureContext(id, name, r.optString("parent").orNull, global = global, project = r.optString("project"))
+        global <- r.optBoolean("global");
+        isProtected <- r.optBoolean("protected")
+      ) yield FeatureContext(id, name, r.optString("parent").orNull, global = global, project = r.optString("project"), isProtected = isProtected)
     }
   }
 
   def readFeatureContexts(tenant: String, project: String): Future[Seq[FeatureContext]] = {
     env.postgresql.queryAll(
       s"""
-         |SELECT c.name, COALESCE(c.parent, c.global_parent) as parent, c.id, c.project, COALESCE(
+         |SELECT c.name, COALESCE(c.parent, c.global_parent) as parent, c.id, c.project, c.protected, COALESCE(
          |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'description', f.description, 'project', f.project, 'wasm', s.script_config, 'value', s.value, 'resultType', s.result_type)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
          |) as overloads
          |FROM feature_contexts c
@@ -308,7 +326,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
          |WHERE c.project=$$1
          |GROUP BY (c.name, parent, c.id, c.project)
          |UNION ALL
-         |SELECT c.name, c.parent, c.id, NULL as project, COALESCE(
+         |SELECT c.name, c.parent, c.id, NULL as project, c.protected, COALESCE(
          |  json_agg(json_build_object('feature', s.feature, 'enabled', s.enabled, 'conditions', s.conditions, 'id', f.id, 'description', f.description, 'project', f.project, 'wasm', s.script_config, 'value', s.value, 'resultType', s.result_type)) FILTER (WHERE s.feature IS NOT NULL) , '[]'
          |) as overloads
          |FROM global_feature_contexts c
@@ -691,8 +709,9 @@ object FeatureContextDatastore {
           parent = row.getString("parent"),
           project = if (global) None else row.optString("project"),
           overloads = features.toSeq,
-          global = global
-        )
+          global = global,
+          isProtected = row.getBoolean("protected")
+      )
       )
     }
 

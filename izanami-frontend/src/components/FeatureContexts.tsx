@@ -298,6 +298,14 @@ function FeatureContextTree(props: {
                   );
                 },
               },
+              {
+                icon: (
+                  <>{ctx.protected ? "Unprotect context" : "Protect context"}</>
+                ),
+                form: (submit, cancel) => {
+                  return <div>Creation form</div>;
+                },
+              },
               ...(ctx.global && !allowGlobalContextDelete
                 ? []
                 : [
