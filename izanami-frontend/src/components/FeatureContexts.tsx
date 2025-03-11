@@ -333,13 +333,24 @@ function FeatureContextTree(props: {
     <TreeRoot
       nodes={contextToTreeNode(contexts, "", [])}
       labelRender={(node) => {
+        const protectedIcon = node.payload.context.protected ? (
+          <>
+            <i className="fa-solid fa-lock fs-6"></i>
+          </>
+        ) : (
+          <></>
+        );
         return node.payload.context.global ? (
           <span>
             <GlobalContextIcon />
-            &nbsp;{node.name}
+            {node.name}
+            {protectedIcon}
           </span>
         ) : (
-          <>{node.name}</>
+          <>
+            {node.name}
+            {protectedIcon}
+          </>
         );
       }}
       payloadRender={
@@ -439,9 +450,11 @@ function EditableTree<T>({
       }}
     >
       <div>
-        <div>
+        <div className="d-flex align-items-center gap-1">
           <a
-            className={`${isOpenable ? "" : "disabled"}`}
+            className={`${
+              isOpenable ? "" : "disabled"
+            } d-flex flex-row justify-content-center align-items-center gap-1`}
             style={{ fontSize: `${fontSize}px` }}
             href="#"
             onClick={(e) => {
