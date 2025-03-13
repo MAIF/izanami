@@ -197,12 +197,26 @@ class FeatureContextController(
 
   def createGlobalRootSubContext(tenant: String): Action[JsValue] = createGlobalSubContext(tenant, FeatureContextPath())
 
-  def updateGlobalRootSubContext(
+  def updateGlobalContext(
                                   tenant: String,
-                                  parents: FeatureContextPath = FeatureContextPath(),
-                                  name: String
-                                ): Action[JsValue] = tenantAuthAction(tenant, RightLevels.Write).async(parse.json) {
-    ???
+                                  context: FeatureContextPath = FeatureContextPath()
+                                ): Action[JsValue] = tenantAuthAction(tenant, RightLevels.Admin).async(parse.json) {
+    implicit request => {
+      val json = request.body
+      (json \ "protected").asOpt[Boolean] match {
+        case Some(isProtected) =>
+          datastore.updateGlobalFeatureContext(
+              tenant,
+              context = context,
+              isProtected = isProtected
+            )
+            .map {
+              case Left(err) => err.toHttpResponse
+              case Right(_) => NoContent
+            }
+        case None => BadRequest(Json.obj("message" -> "protected attribute is missing from body")).future
+      }
+    }
   }
 
   def readGlobalContexts(tenant: String, all: Boolean): Action[AnyContent] =

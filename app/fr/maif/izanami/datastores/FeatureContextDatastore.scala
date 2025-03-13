@@ -52,6 +52,21 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
     }
   }
 
+
+  def updateGlobalFeatureContext(tenant: String, context: FeatureContextPath, isProtected: Boolean): Future[Either[IzanamiError, Unit]] = {
+    env.postgresql.queryOne(
+        s"""
+           |UPDATE global_feature_contexts
+           |SET protected=$$1
+           |WHERE id=$$2
+           |RETURNING *
+           |""".stripMargin,
+        List(java.lang.Boolean.valueOf(isProtected), context.toDBPath(tenant)),
+        schemas = Set(tenant)
+      ){_ => Some(())}
+      .map(o => o.toRight(FeatureContextDoesNotExist(context.toUserPath)))
+  }
+
   def updateLocalFeatureContext(tenant: String, project: String, name: String, isProtected: Boolean, parents: FeatureContextPath): Future[Either[IzanamiError, Unit]] = {
 
     val parentPart = if(parents.elements.nonEmpty) s"${parents.elements.mkString("_")}_" else ""

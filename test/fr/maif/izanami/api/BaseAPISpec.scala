@@ -875,6 +875,29 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     RequestResult(json = jsonTry, status = response.status)
   }
 
+  def updateGlobalContext(
+                     tenant: String,
+                     name: String,
+                     isProtected: Boolean,
+                     parents: String = "",
+                     cookies: Seq[WSCookie] = Seq()
+                   ) = {
+    val response = await(ws.url(s"""${ADMIN_BASE_URL}/tenants/${tenant}/contexts${if (parents.nonEmpty) s"/${parents}"
+      else ""}/$name""")
+      .withCookies(cookies: _*)
+      .put(
+        Json.parse(s"""
+                      |{
+                      | "protected": $isProtected
+                      |}
+                      |""".stripMargin)
+      ))
+    val jsonTry = Try {
+      response.json
+    }
+    RequestResult(json = jsonTry, status = response.status)
+  }
+
   def createContextAsync(
       tenant: String,
       project: String,
@@ -2341,6 +2364,15 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                        parents: String = ""
                      ): RequestResult = {
       BaseAPISpec.this.updateContext(tenant, project, name, isProtected, parents, cookies)
+    }
+
+    def updateGlobalContext(
+                       tenant: String,
+                       name: String,
+                       isProtected: Boolean = false,
+                       parents: String = ""
+                     ): RequestResult = {
+      BaseAPISpec.this.updateGobalContext(tenant, name, isProtected, parents, cookies)
     }
 
     def createGlobalContext(
