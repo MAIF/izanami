@@ -818,7 +818,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       parents: Seq[String] = Seq(),
       cookies: Seq[WSCookie] = Seq()
   ): Future[Unit] = {
-    createGlobalContextAsync(tenant, name = context.name, parents = parents.mkString("/"), cookies = cookies)
+    createGlobalContextAsync(tenant, name = context.name, parents = parents.mkString("/"), isProtected = context.isProtected, cookies = cookies)
       .map(result => {
         if (result.status >= 400) {
           throw new RuntimeException("Failed to create context")
@@ -923,9 +923,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       tenant: String,
       name: String,
       parents: String = "",
+      isProtected: Boolean = false,
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
-    val response = await(createGlobalContextAsync(tenant, name, parents, cookies))
+    val response = await(createGlobalContextAsync(tenant, name, parents, isProtected, cookies))
 
     val jsonTry = Try {
       response.json
@@ -937,6 +938,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       tenant: String,
       name: String,
       parents: String = "",
+      isProtected: Boolean = false,
       cookies: Seq[WSCookie] = Seq()
   ): Future[WSResponse] = {
     ws.url(s"""${ADMIN_BASE_URL}/tenants/${tenant}/contexts${if (parents.nonEmpty) s"/${parents}"
@@ -945,7 +947,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       .post(
         Json.parse(s"""
                |{
-               | "name": "${name}"
+               | "name": "${name}",
+               | "protected": $isProtected
                |}
                |""".stripMargin)
       )
@@ -2372,15 +2375,16 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                        isProtected: Boolean = false,
                        parents: String = ""
                      ): RequestResult = {
-      BaseAPISpec.this.updateGobalContext(tenant, name, isProtected, parents, cookies)
+      BaseAPISpec.this.updateGlobalContext(tenant, name, isProtected, parents, cookies)
     }
 
     def createGlobalContext(
         tenant: String,
         name: String,
-        parents: String = ""
+        parents: String = "",
+        isProtected: Boolean = false
     ): RequestResult = {
-      BaseAPISpec.this.createGlobalContext(tenant, name, parents, cookies)
+      BaseAPISpec.this.createGlobalContext(tenant, name, parents, isProtected, cookies)
     }
 
     def fetchTag(tenant: String, name: String): RequestResult = {

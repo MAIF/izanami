@@ -101,90 +101,89 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Global context PUT endpoint" should {
-    "Allow to protect/unprotect local context if user is project admin" in {
+    "Allow to protect/unprotect local context if user is tenant admin" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withProjectNames("project"))
-        .withUsers(TestUser("padmin").withTenantReadRight("tenant").withProjectAdminRight("project", tenant = "tenant"))
-        .loggedAs("padmin")
+        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("globalCtx")))
+        .withUsers(TestUser("tadmin").withTenantAdminRight("tenant"))
+        .loggedAs("tadmin")
         .build()
 
-      situation.createGlobalContext("tenant", name = "localctx")
-      val response = situation.updateGlobalContext("tenant", name = "localctx", isProtected = true)
+      val response = situation.updateGlobalContext("tenant", name = "globalCtx", isProtected = true)
       response.status mustEqual NO_CONTENT
     }
 
-    "Prevent to protect/unprotect local context if user is not project admin" in {
+    "Prevent to protect/unprotect local context if user is not tenant admin" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("globalctx")))
         .withUsers(TestUser(username = "noadmin")
           .withTenantReadWriteRight("tenant")
-          .withProjectReadWriteRight("project", "tenant")
         )
         .loggedAs("noadmin")
         .build()
 
-      situation.createContext("tenant", project = "project", name = "localctx")
-      val response = situation.updateContext("tenant", project = "project", name = "localctx", isProtected = true)
+      val response = situation.updateContext("tenant", project = "project", name = "globalctx", isProtected = true)
       response.status mustEqual FORBIDDEN
 
-      val ctxs = situation.fetchContexts(tenant = "tenant", project = "project").json.get
+      val ctxs = situation.fetchGlobalContext(tenant = "tenant").json.get
       (ctxs \ 0 \ "protected").as[Boolean] mustBe false
     }
 
     "Return not found if context does not exist" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .withTenants(TestTenant("tenant"))
         .build()
 
-      val response = situation.updateContext("tenant", project = "project", name = "localctxv2", isProtected = true)
+      val response = situation.updateGlobalContext("tenant", name = "globalCtx", isProtected = true)
       response.status mustEqual NOT_FOUND
     }
 
     "Allow to protect/unprotect subcontext" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .withTenants(TestTenant("tenant")
+          .withGlobalContext(
+            TestFeatureContext("localctx")
+              .withSubContexts(TestFeatureContext("subctx")
+                .withSubContexts(TestFeatureContext("subsubctx"))
+              )
+          ))
         .build()
 
-      situation.createContext("tenant", project = "project", name = "localctx")
-      situation.createContext("tenant", project = "project", name = "subctx", parents = "localctx")
-      situation.createContext("tenant", project = "project", name = "subsubctx", parents = "localctx/subctx")
-
-      val subResponse = situation.updateContext("tenant", project = "project", name = "subsubctx", isProtected = true, parents = "localctx/subctx")
+      val subResponse = situation.updateGlobalContext("tenant", name = "subsubctx", isProtected = true, parents = "localctx/subctx")
 
       subResponse.status mustEqual NO_CONTENT
     }
+  }
 
-    "Prevent subcontext creation if parent context is protected and user is not project admin" in {
+  "Global context POST endpoint" should {
+    "Prevent subcontext creation if parent context is protected and user is not tenant admin" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withProjects(TestProject("project").withContexts(TestFeatureContext("protectedParent", isProtected = true))))
+        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("protectedParent", isProtected = true)))
         .withUsers(TestUser(username = "noadmin")
           .withTenantReadWriteRight("tenant")
-          .withProjectReadWriteRight("project", "tenant")
         )
         .loggedAs("noadmin")
         .build()
 
-      val response = situation.createContext("tenant", project = "project", name = "subctx", parents = "protectedParent")
+      val response = situation.createGlobalContext("tenant", name = "subctx", parents = "protectedParent")
       response.status mustEqual FORBIDDEN
     }
 
     "Make subcontext of a protected context protected" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withProjects(TestProject("project").withContexts(TestFeatureContext("protectedParent", isProtected = true))))
+        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("protectedParent", isProtected = true)))
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.createContext("tenant", project = "project", name = "subctx", parents = "protectedParent", isProtected = false)
+      val response = situation.createGlobalContext("tenant", name = "subctx", parents = "protectedParent", isProtected = false)
       response.status mustEqual CREATED
 
-      val ctxs = situation.fetchContexts(tenant = "tenant", project = "project").json.get
+      val ctxs = situation.fetchGlobalContext(tenant = "tenant").json.get
       (ctxs \ 0 \ "children" \ 0 \ "protected").as[Boolean] mustBe true
     }
-  }
 
-  "Global context POST endpoint" should {
+
     "Prevent global context creation if name is too long" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjectNames("project"))
