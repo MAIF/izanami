@@ -161,11 +161,11 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       env.postgresql
         .queryOne(
           s"""
-             |INSERT INTO feature_contexts (id, name, project)
-             |VALUES ($$1, $$2, $$3)
+             |INSERT INTO feature_contexts (id, name, project, protected)
+             |VALUES ($$1, $$2, $$3, $$4)
              |RETURNING *
              |""".stripMargin,
-          List(id, featureContext.name, project),
+          List(id, featureContext.name, project, java.lang.Boolean.valueOf(featureContext.isProtected)),
           schemas = Set(tenant),
           conn = Some(conn)
         ) { row => row.optFeatureContext(global = false) }

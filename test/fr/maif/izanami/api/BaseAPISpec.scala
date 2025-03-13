@@ -774,7 +774,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       parents: Seq[String] = Seq(),
       cookies: Seq[WSCookie] = Seq()
   ): Future[Unit] = {
-    createContextAsync(tenant, project, name = context.name, parents = parents.mkString("/"), cookies = cookies)
+    createContextAsync(tenant, project, name = context.name, parents = parents.mkString("/"), isProtected = context.isProtected, cookies = cookies)
       .map(res => {
         if (res.status >= 400) {
           throw new RuntimeException("Failed to create context")
@@ -839,9 +839,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       project: String,
       name: String,
       parents: String = "",
+      isProtected: Boolean = false,
       cookies: Seq[WSCookie] = Seq()
   ) = {
-    val response = await(BaseAPISpec.createContextAsync(tenant, project, name, parents, cookies))
+    val response = await(BaseAPISpec.createContextAsync(tenant, project, name, parents, isProtected, cookies))
 
     val jsonTry = Try {
       response.json
@@ -879,6 +880,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       project: String,
       name: String,
       parents: String = "",
+      isProtected: Boolean = false,
       cookies: Seq[WSCookie] = Seq()
   ): Future[WSResponse] = {
     ws.url(s"""${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/contexts${if (parents.nonEmpty) s"/${parents}"
@@ -888,7 +890,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         Json.parse(s"""
              |{
              | "name": "${name}",
-             | "protected": false
+             | "protected": ${isProtected}
              |}
              |""".stripMargin)
       )
@@ -1431,7 +1433,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   case class TestFeatureContext(
       name: String,
       subContext: Set[TestFeatureContext] = Set(),
-      overloads: Seq[TestFeature] = Seq()
+      overloads: Seq[TestFeature] = Seq(),
+      isProtected: Boolean = false
   ) {
 
     def withSubContexts(contexts: TestFeatureContext*): TestFeatureContext = {
@@ -1446,6 +1449,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         feature: TestFeature
     ): TestFeatureContext = {
       copy(overloads = overloads.appended(feature))
+    }
+
+    def withProtected(isProtected: Boolean): TestFeatureContext = {
+      copy(isProtected = isProtected)
     }
   }
 
@@ -2320,9 +2327,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         tenant: String,
         project: String,
         name: String,
-        parents: String = ""
+        parents: String = "",
+        isProtected: Boolean = false
     ): RequestResult = {
-      BaseAPISpec.this.createContext(tenant, project, name, parents, cookies)
+      BaseAPISpec.this.createContext(tenant, project, name, parents, isProtected, cookies)
     }
 
     def updateContext(

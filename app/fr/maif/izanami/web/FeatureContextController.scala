@@ -67,17 +67,15 @@ class FeatureContextController(
               }
           }
 
-          
-          val isTenantAdmin = request.user.tenantRight.exists(right => right.level == RightLevels.Admin)
-          val isAdmin       = request.user.admin || isTenantAdmin
-          if (value.isProtected && !isAdmin) {
+          val canCreateProtectedContexts = request.user.hasRightForProject(project, RightLevels.Admin)
+          if (value.isProtected && !canCreateProtectedContexts) {
             Forbidden(Json.obj("message" -> "You are not allowed to create a protected context")).future
           } else {
             isParentProtected.flatMap {
               case Left(err)              => {
                 err.toHttpResponse.future
               }
-              case Right(true) if !isAdmin => {
+              case Right(true) if !canCreateProtectedContexts => {
                 Forbidden(
                   Json.obj("message" -> "You are not allowed to create a context under a protected context")
                 ).future
