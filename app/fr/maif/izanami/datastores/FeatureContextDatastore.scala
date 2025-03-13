@@ -25,6 +25,8 @@ import scala.concurrent.Future
 
 class FeatureContextDatastore(val env: Env) extends Datastore {
 
+  def getFeatureContext(tenant: String, project: String, path: Seq[String]) = getParentFeatureContext(tenant, project, path)
+
   def getParentFeatureContext(tenant: String, project: String, parents: Seq[String]) = {
     val localParentId = generateSubContextId(project, parents)
     val globalParentId = generateSubContextId(tenant, parents)

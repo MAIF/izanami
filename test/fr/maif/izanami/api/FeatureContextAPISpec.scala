@@ -562,6 +562,29 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Overloaded feature DELETE endpoint" should {
+    "prevent deleting an overload in protected context if user it not project admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(TestFeature(name = "F1", enabled = false))
+                .withContexts(TestFeatureContext("context", isProtected = true).withFeatureOverload(TestFeature("F1", enabled = true)))
+            )
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "project", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build()
+
+      val response = situation.deleteFeatureOverload("tenant", "project", "context", "F1")
+
+      response.status mustBe FORBIDDEN
+    }
+
 
     "delete feature context if user has project write right" in {
       val situation = TestSituationBuilder()
@@ -792,14 +815,14 @@ class FeatureContextAPISpec extends BaseAPISpec {
       res.status mustBe NOT_FOUND
     }
 
-    "Return 403 if project does not exist" in {
+    "Return 404 if project does not exist" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(TestTenant("tenant"))
         .build()
       val res       = situation.changeFeatureStrategyForContext("tenant", "project", "context", "F1", enabled = true)
 
-      res.status mustBe FORBIDDEN
+      res.status mustBe NOT_FOUND
     }
 
     "Return 404 if context does not exist" in {
@@ -856,6 +879,31 @@ class FeatureContextAPISpec extends BaseAPISpec {
 
       (json \ 0 \ "overloads").as[JsArray].value must not be empty
 
+    }
+
+    "Prevent overload creation on protected context if user is not project admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withContexts(TestFeatureContext("ctx", isProtected = true))
+                .withFeatures(TestFeature(name = "F1", enabled = false))
+            )
+        )
+        .withUsers(TestUser("notAdmin").withTenantReadRight("tenant").withProjectReadWriteRight("project", tenant = "tenant"))
+        .loggedAs("notAdmin")
+        .build()
+
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "ctx",
+        "F1",
+        enabled = true
+      )
+
+      res.status mustBe FORBIDDEN
     }
 
     "Allow to add overload on local context that inherit global context" in {
