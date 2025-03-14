@@ -69,6 +69,7 @@ import MultiSelect, { Option } from "./MultiSelect";
 import { constraints } from "@maif/react-forms";
 import { ResultTypeIcon } from "./ResultTypeIcon";
 import { json } from "@codemirror/lang-json";
+import { GlobalContextIcon } from "../utils/icons";
 
 type FeatureFields =
   | "id"
@@ -1012,26 +1013,49 @@ function OverloadDetails(props: {
                   styles={customStyles}
                   options={allContexts
                     .filter(({ path }) => !excluded.includes(path))
-                    .filter(({ context }) => {
+                    .map(({ path, context }) => {
+                      return { path: path.substring(1), context: context };
+                    })
+                    .sort((c1, c2) => {
+                      return c1.path.localeCompare(c2.path);
+                    })
+                    .map(({ path, context }) => {
+                      let isAllowed = true;
                       if (context.global && context.protected) {
-                        return canOverloadForGlobalProtectedContexts;
+                        isAllowed = canOverloadForGlobalProtectedContexts!;
                       } else if (context.protected) {
-                        return (
+                        isAllowed =
                           canOverloadForGlobalProtectedContexts ||
                           hasRightForProject(
                             user!,
                             TLevel.Admin,
                             context.project,
                             tenant!
-                          )
-                        );
-                      } else {
-                        return true;
+                          );
                       }
-                    })
-                    .map(({ path }) => path.substring(1))
-                    .sort()
-                    .map((c) => ({ value: c, label: c }))}
+
+                      return {
+                        isDisabled: !isAllowed,
+                        value: path,
+                        label: (
+                          <>
+                            {path}
+                            {context.global && (
+                              <>
+                                &nbsp;
+                                <GlobalContextIcon />
+                              </>
+                            )}
+                            {context.protected && (
+                              <>
+                                &nbsp;<i className="fa-solid fa-lock fs-6"></i>
+                              </>
+                            )}
+                          </>
+                        ),
+                      };
+                    })}
+                  isOptionDisabled={({ isDisabled }) => isDisabled}
                   onChange={(e) => selectContext(e?.value)}
                 />
               </label>
