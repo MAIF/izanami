@@ -26,6 +26,7 @@ export const customStyles: object = {
     } else {
       return {
         ...provided,
+        cursor: isDisabled ? "not-allowed" : "pointer",
         backgroundColor: isDisabled
           ? null
           : isSelected
