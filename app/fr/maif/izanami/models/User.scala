@@ -198,6 +198,10 @@ case class UserWithCompleteRightForOneTenant(
           .exists(r => RightLevels.superiorOrEqualLevels(level).contains(r.level))
       )
   }
+
+  def hasRightForTenant(level: RightLevel): Boolean = {
+    admin || tenantRight.exists(t => RightLevels.superiorOrEqualLevels(level).contains(t.level))
+  }
 }
 
 case class AtomicRight(level: RightLevel)

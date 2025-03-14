@@ -9,12 +9,24 @@ import { useQuery } from "@tanstack/react-query";
 import { GlobalContextIcon } from "../utils/icons";
 import { FEATURE_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "./Loader";
+import { useParams } from "react-router-dom";
+import {
+  changeProtectionStatusForGlobalContext,
+  changeProtectionStatusForLocalContext,
+} from "../utils/queries";
 
 const LocalContext = React.createContext<{
   open: string[];
   deleteContextCallback: (path: string) => void;
   createSubContextCallback: (path: string, name: string) => Promise<any>;
+  updateContextProtection: (v: {
+    path: string;
+    name: string;
+    protected: boolean;
+    global: boolean;
+  }) => Promise<any>;
   hasUpdateDeleteRight: boolean;
+  hasRightOverProtectedContexts: boolean;
 }>({
   open: [],
   deleteContextCallback: () => {
@@ -23,7 +35,11 @@ const LocalContext = React.createContext<{
   createSubContextCallback: () => {
     return Promise.resolve();
   },
+  updateContextProtection: () => {
+    return Promise.resolve();
+  },
   hasUpdateDeleteRight: false,
+  hasRightOverProtectedContexts: false,
 });
 
 type TOverloadRender = (
@@ -37,11 +53,18 @@ export function FeatureContexts(props: {
   open: string[];
   deleteContext: (path: string) => Promise<void>;
   createSubContext: (path: string, name: string) => Promise<void>;
+  updateContextProtection: (v: {
+    path: string;
+    name: string;
+    protected: boolean;
+    global: boolean;
+  }) => Promise<void>;
   fetchContexts: () => Promise<TContext[]>;
   overloadRender?: TOverloadRender;
   refreshKey: string;
   modificationRight: boolean;
   allowGlobalContextDelete: boolean;
+  allowProtectedContextUpdate: boolean;
 }): JSX.Element {
   const {
     open,
@@ -52,6 +75,8 @@ export function FeatureContexts(props: {
     overloadRender,
     refreshKey,
     allowGlobalContextDelete,
+    updateContextProtection,
+    allowProtectedContextUpdate,
   } = props;
 
   const [creating, setCreating] = useState(false);
@@ -60,16 +85,20 @@ export function FeatureContexts(props: {
     queryFn: () => fetchContexts(),
   });
 
-  const { askConfirmation } = React.useContext(IzanamiContext);
+  const { askConfirmation, user } = React.useContext(IzanamiContext);
 
   if (contextQuery.data) {
     return (
       <LocalContext.Provider
         value={{
+          hasRightOverProtectedContexts: allowProtectedContextUpdate,
           hasUpdateDeleteRight: modificationRight,
           open,
           createSubContextCallback: (path, name) => {
             return createSubContext(path, name);
+          },
+          updateContextProtection(v) {
+            return updateContextProtection(v);
           },
           deleteContextCallback: (path) =>
             askConfirmation(
@@ -220,8 +249,13 @@ function FeatureContextTree(props: {
   allowGlobalContextDelete: boolean;
 }): JSX.Element {
   const { contexts, overloadRender, allowGlobalContextDelete } = props;
-  const { hasUpdateDeleteRight, open, deleteContextCallback } =
-    React.useContext(LocalContext);
+  const {
+    hasUpdateDeleteRight,
+    open,
+    deleteContextCallback,
+    updateContextProtection,
+    hasRightOverProtectedContexts,
+  } = React.useContext(LocalContext);
   const spacing = 20;
 
   const { askConfirmation } = React.useContext(IzanamiContext);
@@ -235,6 +269,7 @@ function FeatureContextTree(props: {
     path: string;
     parents: TContext[];
   }>[] {
+    const { tenant } = useParams();
     return contexts.map((ctx) => {
       const nonLeafChildren = contextToTreeNode(
         ctx.children,
@@ -300,12 +335,39 @@ function FeatureContextTree(props: {
                   );
                 },
               },
-              {
-                icon: (
-                  <>{ctx.protected ? "Unprotect context" : "Protect context"}</>
-                ),
-                action: () => askConfirmation("coucou"),
-              },
+              ...(hasRightOverProtectedContexts &&
+              (!ctx.global || allowGlobalContextDelete)
+                ? [
+                    {
+                      icon: (
+                        <>
+                          {ctx.protected
+                            ? "Unprotect context"
+                            : "Protect context"}
+                        </>
+                      ),
+                      action: () =>
+                        askConfirmation(
+                          <>
+                            Are you sure you want to{" "}
+                            {ctx.protected ? "unprotect" : "protect"} context{" "}
+                            {ctx.name} ?{" "}
+                            {ctx.protected ? "All users" : "Only admin users"}{" "}
+                            will be able to create / update / delete features
+                            overloads.
+                          </>,
+                          () => {
+                            return updateContextProtection({
+                              path: path,
+                              name: ctx.name,
+                              protected: !ctx.protected,
+                              global: ctx.global,
+                            });
+                          }
+                        ),
+                    },
+                  ]
+                : []),
               ...(ctx.global && !allowGlobalContextDelete
                 ? []
                 : [

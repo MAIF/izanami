@@ -7,6 +7,7 @@ import {
 import { TContext, TContextOverload, TLevel } from "../utils/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
+  changeProtectionStatusForGlobalContext,
   createGlobalContext,
   deleteGlobalContext,
   globalContextKey,
@@ -26,6 +27,7 @@ export function GlobalContexts(props: { tenant: string; open: string }) {
 function GlobalFeatureContexts(props: { tenant: string; open: string }) {
   const { tenant, open } = props;
   const modificationRight = useTenantRight(tenant, TLevel.Write);
+  const protectedContextRight = useTenantRight(tenant, TLevel.Admin) || false;
   const contextQuery = useQuery({
     queryKey: [globalContextKey(tenant)],
 
@@ -38,6 +40,25 @@ function GlobalFeatureContexts(props: { tenant: string; open: string }) {
       return deleteGlobalContext(tenant, path);
     },
 
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [globalContextKey(tenant)] });
+    },
+  });
+
+  const globalContextProtectionUpdateMutation = useMutation({
+    mutationFn: (data: {
+      name: string;
+      path: string;
+      protected: boolean;
+      global: boolean;
+    }) => {
+      const { name, path, protected: isProtected } = data;
+      return changeProtectionStatusForGlobalContext(
+        tenant,
+        `${path}/${name}`,
+        isProtected
+      );
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [globalContextKey(tenant)] });
     },
@@ -60,8 +81,12 @@ function GlobalFeatureContexts(props: { tenant: string; open: string }) {
     // handle opening
     return (
       <FeatureContexts
+        allowProtectedContextUpdate={protectedContextRight}
         allowGlobalContextDelete={true}
         open={open ? JSON.parse(open) : []}
+        updateContextProtection={(v) =>
+          globalContextProtectionUpdateMutation.mutateAsync(v)
+        }
         modificationRight={modificationRight || false}
         deleteContext={(path: string) =>
           deleteContextMutation.mutateAsync({ tenant, path })

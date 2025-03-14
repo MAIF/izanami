@@ -65,7 +65,7 @@ class FeatureContextController(
                 Left(NotEnoughRights()).future
               }
             } else {
-              readContextIfPermitted(tenant, project, request.user, parents).map(either => either.map(ctx => ctx.isProtected))
+              readLocalContextIfPermitted(tenant, project, request.user, parents).map(either => either.map(ctx => ctx.isProtected))
             }
 
           parentProtected.flatMap {
@@ -99,7 +99,7 @@ class FeatureContextController(
                              name: String
                            ): Action[AnyContent] = detailledRightForTenantFactory(tenant).async { // TODO check that user has write right on project
     implicit request =>
-      readContextIfPermitted(tenant, project, request.user, context).flatMap {
+      readLocalContextIfPermitted(tenant, project, request.user, context).flatMap {
         case Left(err) => err.toHttpResponse.future
         case Right(_) => {
           datastore
@@ -114,7 +114,7 @@ class FeatureContextController(
 
   def deleteFeatureContext(tenant: String, project: String, context: FeatureContextPath): Action[AnyContent] =
     detailledRightForTenantFactory(tenant).async { implicit request =>
-      readContextIfPermitted(tenant, project, request.user, context).flatMap {
+      readLocalContextIfPermitted(tenant, project, request.user, context).flatMap {
         case Left(err) => err.toHttpResponse.future
         case Right(_) => {
           datastore
@@ -184,13 +184,28 @@ class FeatureContextController(
   }
 
   def createGlobalSubContext(tenant: String, parents: FeatureContextPath = FeatureContextPath()): Action[JsValue] =
-    tenantAuthAction(tenant, RightLevels.Write).async(parse.json) { implicit request =>
+    detailledRightForTenantFactory(tenant).async(parse.json) { implicit request =>
       FeatureContext.readFeatureContext(request.body, global = true) match {
-        case JsSuccess(ctx, _) =>
-          datastore.createGlobalFeatureContext(tenant, parents.elements, ctx) map {
-            case Left(err)     => err.toHttpResponse
-            case Right(result) => Created(Json.toJson(result))
+        case JsSuccess(ctx, _) => {
+          type ProtectedStatus = Boolean
+          val isParentProtected: Future[Either[IzanamiError, ProtectedStatus]] = if(parents.elements.isEmpty) {
+            if(!request.user.hasRightForTenant(RightLevels.Write)) {
+              Left(NotEnoughRights()).future
+            } else {
+              Right(false).future
+            }
+          } else {
+            readGlobalContextIfPermitted(tenant, request.user, parents).map(either => either.map(c => c.isProtected))
           }
+
+          isParentProtected.flatMap {
+            case Left(err) => err.toHttpResponse.future
+            case Right(parentProtected) => datastore.createGlobalFeatureContext(tenant, parents.elements, ctx.copy(isProtected = ctx.isProtected || parentProtected)) map {
+              case Left(err)     => err.toHttpResponse
+              case Right(result) => Created(Json.toJson(result))
+            }
+          }
+        }
         case JsError(error)    => BadBodyFormat().toHttpResponse.future
       }
     }
@@ -237,16 +252,19 @@ class FeatureContextController(
     }
 
   def deleteGlobalFeatureContext(tenant: String, context: fr.maif.izanami.web.FeatureContextPath): Action[AnyContent] =
-    tenantAuthAction(tenant, RightLevels.Write).async { implicit request =>
-      datastore.deleteGlobalFeatureContext(tenant, context.elements).map {
-        case Left(err) => err.toHttpResponse
-        case Right(_)  => NoContent
+    detailledRightForTenantFactory(tenant).async { implicit request =>
+      readGlobalContextIfPermitted(tenant, request.user, context).flatMap {
+        case Left(err) => err.toHttpResponse.future
+        case Right(_) => datastore.deleteGlobalFeatureContext(tenant, context.elements).map {
+          case Left(err) => err.toHttpResponse
+          case Right(_)  => NoContent
+        }
       }
     }
 
 
 
-  def readContextIfPermitted(tenant: String, project: String, user: UserWithCompleteRightForOneTenant, contextPath: FeatureContextPath): Future[Either[IzanamiError, FeatureContext]] = {
+  def readLocalContextIfPermitted(tenant: String, project: String, user: UserWithCompleteRightForOneTenant, contextPath: FeatureContextPath): Future[Either[IzanamiError, FeatureContext]] = {
     // TODO this may be a dedicated Action
     datastore.getFeatureContext(tenant, project, contextPath.elements)
       .map {
@@ -262,4 +280,22 @@ class FeatureContextController(
         case Some(ctx) => Right(ctx)
       }
   }
+
+  def readGlobalContextIfPermitted(tenant: String, user: UserWithCompleteRightForOneTenant, contextPath: FeatureContextPath): Future[Either[IzanamiError, FeatureContext]] = {
+    // TODO this may be a dedicated Action
+    datastore.getGlobalFeatureContext(tenant, contextPath.elements)
+      .map {
+        case None => {
+          Left(FeatureContextDoesNotExist(contextPath.toUserPath))
+        }
+        case Some(ctx) if (ctx.isProtected && !user.hasRightForTenant(RightLevels.Admin)) => {
+          Left(NoProtectedContextAccess(contextPath.toUserPath))
+        }
+        case Some(_) if(!user.hasRightForTenant(RightLevels.Write)) => {
+          Left(NotEnoughRights())
+        }
+        case Some(ctx) => Right(ctx)
+      }
+  }
+
 }

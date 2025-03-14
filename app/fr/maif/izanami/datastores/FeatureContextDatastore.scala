@@ -25,9 +25,53 @@ import scala.concurrent.Future
 
 class FeatureContextDatastore(val env: Env) extends Datastore {
 
-  def getFeatureContext(tenant: String, project: String, path: Seq[String]) = getParentFeatureContext(tenant, project, path)
+  def getFeatureContext(tenant: String, project: String, parents: Seq[String]) = {
+    val localParentId = generateSubContextId(project, parents)
+    val globalParentId = generateSubContextId(tenant, parents)
+    env.postgresql.queryOne(
+      s"""
+         |SELECT id, name, parent, project, false as global, protected
+         |FROM feature_contexts
+         |WHERE id=$$1
+         |UNION ALL
+         |SELECT id, name, parent, null as project, true as global, protected
+         |FROM global_feature_contexts
+         |WHERE id=$$2
+         |""".stripMargin,
+      List(localParentId, globalParentId),
+      schemas = Set(tenant)
+    ) {r =>
+      for (
+        id     <- r.optString("id");
+        name   <- r.optString("name");
+        global <- r.optBoolean("global");
+        isProtected <- r.optBoolean("protected")
+      ) yield FeatureContext(id, name, r.optString("parent").orNull, global = global, project = r.optString("project"), isProtected = isProtected)
+    }
+  }
 
-  def getParentFeatureContext(tenant: String, project: String, parents: Seq[String]) = {
+
+  def getGlobalFeatureContext(tenant: String, parents: Seq[String]) = {
+    val globalParentId = generateSubContextId(tenant, parents)
+    env.postgresql.queryOne(
+      s"""
+         |SELECT id, name, parent, null as project, true as global, protected
+         |FROM global_feature_contexts
+         |WHERE id=$$1
+         |""".stripMargin,
+      List(globalParentId),
+      schemas = Set(tenant)
+    ) {r =>
+      for (
+        id     <- r.optString("id");
+        name   <- r.optString("name");
+        global <- r.optBoolean("global");
+        isProtected <- r.optBoolean("protected")
+      ) yield FeatureContext(id, name, r.optString("parent").orNull, global = global, project = r.optString("project"), isProtected = isProtected)
+    }
+  }
+
+  private def doGetFeatureContext(tenant: String, project: String, parents: Seq[String]) = {
     val localParentId = generateSubContextId(project, parents)
     val globalParentId = generateSubContextId(tenant, parents)
     env.postgresql.queryOne(
