@@ -18,8 +18,7 @@ export function AllContexts(props: {
   const contextQuery = useQuery({
     queryKey: [globalContextKey(tenant!)],
 
-    queryFn: () =>
-      queryGlobalContexts(tenant!, true)
+    queryFn: () => queryGlobalContexts(tenant!, true),
   });
 
   if (contextQuery.error) {

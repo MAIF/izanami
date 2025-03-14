@@ -46,6 +46,7 @@ import {
   IzanamiContext,
   Modes,
   hasRightForProject,
+  hasRightForTenant,
   useProjectRight,
 } from "../securityContext";
 import { GenericTable, TCustomAction } from "./GenericTable";
@@ -189,12 +190,15 @@ export function Rule(props: { rule: TFeatureRule }): JSX.Element {
     return <>for all users</>;
   }
 }
-export function possiblePaths(contexts: TContext[], path = ""): string[] {
+function possiblePaths(
+  contexts: TContext[],
+  path = ""
+): { path: string; context: TContext }[] {
   return contexts.flatMap((ctx) => {
     if (ctx.children) {
       return [
         ...possiblePaths(ctx.children, path + "/" + ctx.name),
-        path + "/" + ctx.name,
+        { path: path + "/" + ctx.name, context: ctx },
       ];
     } else {
       return [];
@@ -811,7 +815,9 @@ function FeatureUrl(props: {
   if (contextQuery.error) {
     return <div>Failed to fetch contexts</div>;
   } else if (contextQuery.data) {
-    const allContexts = possiblePaths(contextQuery.data);
+    const allContexts = possiblePaths(contextQuery.data).map(
+      ({ path }) => path
+    );
 
     return (
       <>
@@ -916,6 +922,12 @@ function OverloadDetails(props: {
 }) {
   const [creating, setCreating] = useState(false);
   const { tenant } = useParams();
+  const { user } = React.useContext(IzanamiContext);
+  const canOverloadForGlobalProtectedContexts = hasRightForTenant(
+    user!,
+    tenant!,
+    TLevel.Admin
+  );
   const { feature, cancel } = props;
   const contextQuery = useQuery({
     queryKey: [projectContextKey(tenant!, feature.project!)],
@@ -999,8 +1011,25 @@ function OverloadDetails(props: {
                 <Select
                   styles={customStyles}
                   options={allContexts
-                    .filter((ctx) => !excluded.includes(ctx))
-                    .map((c) => c.substring(1))
+                    .filter(({ path }) => !excluded.includes(path))
+                    .filter(({ context }) => {
+                      if (context.global && context.protected) {
+                        return canOverloadForGlobalProtectedContexts;
+                      } else if (context.protected) {
+                        return (
+                          canOverloadForGlobalProtectedContexts ||
+                          hasRightForProject(
+                            user!,
+                            TLevel.Admin,
+                            context.project,
+                            tenant!
+                          )
+                        );
+                      } else {
+                        return true;
+                      }
+                    })
+                    .map(({ path }) => path.substring(1))
                     .sort()
                     .map((c) => ({ value: c, label: c }))}
                   onChange={(e) => selectContext(e?.value)}
@@ -1068,7 +1097,9 @@ function ExistingFeatureTestForm(props: {
   if (contextQuery.error) {
     return <div>Error while fetching contexts</div>;
   } else if (contextQuery.data) {
-    const allContexts = possiblePaths(contextQuery.data);
+    const allContexts = possiblePaths(contextQuery.data).map(
+      ({ path }) => path
+    );
     return (
       <div className="position-relative">
         <div className="position-absolute top-0 end-0 px-3">
