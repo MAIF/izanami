@@ -101,6 +101,26 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Global context PUT endpoint" should {
+    "Should protect existing subcontexts when protecting parent context" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withGlobalContext(
+          TestFeatureContext("global")
+            .withSubContexts(TestFeatureContext("subglobal"))
+        ).withProjects(TestProject("project")))
+        .loggedInWithAdminRights()
+        .build()
+
+      situation.createContext("tenant", project = "project", name = "sublocal", parents = "global")
+      situation.createContext("tenant", project = "project", name = "subglobalsublocal", parents = "global/subglobal")
+      situation.createContext("tenant", project = "project", name = "subsublocal", parents = "global/sublocal")
+
+      situation.updateGlobalContext("tenant", name = "global", isProtected = true)
+      val ctxs = situation.fetchGlobalContext(tenant = "tenant", all = true).json.get
+      val protecteds = (ctxs \\ "protected").map(js => js.as[Boolean])
+      protecteds must contain only true
+    }
+
+
     "Allow to protect/unprotect local context if user is tenant admin" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("globalCtx")))

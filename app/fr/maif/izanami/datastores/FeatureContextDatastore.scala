@@ -98,32 +98,67 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
 
 
   def updateGlobalFeatureContext(tenant: String, context: FeatureContextPath, isProtected: Boolean): Future[Either[IzanamiError, Unit]] = {
-    env.postgresql.queryOne(
-        s"""
-           |UPDATE global_feature_contexts
-           |SET protected=$$1
-           |WHERE id=$$2
-           |RETURNING *
-           |""".stripMargin,
-        List(java.lang.Boolean.valueOf(isProtected), context.toDBPath(tenant)),
-        schemas = Set(tenant)
-      ){_ => Some(())}
-      .map(o => o.toRight(FeatureContextDoesNotExist(context.toUserPath)))
+    val id = context.toDBPath(tenant)
+    val idForLikeClause = s"${id}_%"
+    val params = if(isProtected) {
+      List(java.lang.Boolean.valueOf(isProtected), id, idForLikeClause)
+    } else {
+      List(java.lang.Boolean.valueOf(isProtected), id)
+    }
+
+    env.postgresql.executeInTransaction(implicit conn => {
+      env.postgresql.queryOne(
+          s"""
+             |UPDATE global_feature_contexts
+             |SET protected=$$1
+             |WHERE id=$$2
+             |${if(isProtected) s"OR parent LIKE $$3 OR parent = $$2" else ""}
+             |RETURNING *
+             |""".stripMargin,
+          params,
+          conn = Some(conn)
+        ){_ => Some(())}
+        .map(o => o.toRight(FeatureContextDoesNotExist(context.toUserPath)))
+        .flatMap {
+          case Left(err) => Left(err).future
+          case Right(_) if isProtected => {
+            env.postgresql.queryAll(
+              s"""
+                 |UPDATE feature_contexts
+                 |SET protected=$$1
+                 |WHERE global_parent LIKE $$2
+                 |OR global_parent = $$3
+                 |OR parent LIKE CONCAT(project, '_', $$4::TEXT, '_%')
+                 |""".stripMargin,
+              List(java.lang.Boolean.valueOf(isProtected), idForLikeClause, id, context.toUnprefixedDBPath),
+              conn = Some(conn)
+            ){_ => Some(()) }
+              .map(_ => Right(()))
+          }
+          case _ => Right(()).future
+        }
+    }, schemas=Set(tenant))
   }
 
   def updateLocalFeatureContext(tenant: String, project: String, name: String, isProtected: Boolean, parents: FeatureContextPath): Future[Either[IzanamiError, Unit]] = {
-
     val parentPart = if(parents.elements.nonEmpty) s"${parents.elements.mkString("_")}_" else ""
-
     val id = s"${project}_${parentPart}${name}"
+
+    val params = if(isProtected) {
+      List(java.lang.Boolean.valueOf(isProtected), id, s"${id}_%")
+    } else {
+      List(java.lang.Boolean.valueOf(isProtected), id)
+    }
+
     env.postgresql.queryOne(
         s"""
            |UPDATE feature_contexts
            |SET protected=$$1
            |WHERE id=$$2
+           |${if(isProtected) s"OR parent LIKE $$3 OR PARENT = $$2" else ""}
            |RETURNING *
            |""".stripMargin,
-        List(java.lang.Boolean.valueOf(isProtected), id),
+        params,
         schemas = Set(tenant)
       ){_ => Some(())}
       .map(o => o.toRight(FeatureContextDoesNotExist(name)))
