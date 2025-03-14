@@ -402,18 +402,13 @@ function FeatureContextTree(props: {
         ) : (
           <></>
         );
-        return node.payload.context.global ? (
-          <span>
-            <GlobalContextIcon />
+        return (
+          <span style={{ display: 'flex', gap: '5px', alignItems:'center' }}>
+            { node.payload.context.global && <GlobalContextIcon /> }
             {node.name}
             {protectedIcon}
           </span>
-        ) : (
-          <>
-            {node.name}
-            {protectedIcon}
-          </>
-        );
+        )
       }}
       payloadRender={
         overloadRender

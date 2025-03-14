@@ -1038,20 +1038,15 @@ function OverloadDetails(props: {
                         isDisabled: !isAllowed,
                         value: path,
                         label: (
-                          <>
+                          <span style={{ display: 'flex', gap: '5px', alignItems:'center' }}>
                             {path}
                             {context.global && (
-                              <>
-                                &nbsp;
                                 <GlobalContextIcon />
-                              </>
                             )}
                             {context.protected && (
-                              <>
-                                &nbsp;<i className="fa-solid fa-lock fs-6"></i>
-                              </>
+                                <i className="fa-solid fa-lock fs-6 ml-5"></i>
                             )}
-                          </>
+                          </span>
                         ),
                       };
                     })}
