@@ -218,7 +218,11 @@ class ProjectsDatastore(val env: Env) extends Datastore {
          |          WHERE ft.feature = f.id
          |          GROUP BY ft.tag
          |        )
-         |      ), 'wasmConfig', f.script_config))::jsonb)
+         |      ), 'wasmConfig', f.script_config,
+         |      'lastCall', (SELECT max(fc.date)
+         |                   from feature_calls fc
+         |                   where fc.feature = f.id)
+         |      ))::jsonb)
          |      FILTER (WHERE f.id IS NOT NULL), '[]'
          |  ) as "features"
          |from projects p

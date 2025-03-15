@@ -1,17 +1,29 @@
 package fr.maif.izanami.models
 
+import fr.maif.izanami.models.LightWeightFeatureWithUsageInformation.writeLightWeightFeatureWithUsageInformation
 import play.api.libs.json.Format.GenericFormat
-import play.api.libs.json.OFormat.oFormatFromReadsAndOWrites
 import play.api.libs.json._
 
 import java.util.UUID
 import scala.util.matching.Regex
 
-trait ProjectQueryResult
 
-case class Project(id: UUID, name: String, features: List[LightWeightFeature] = List(), description: String) extends ProjectQueryResult
+case class Project(id: UUID, name: String, features: List[LightWeightFeature] = List(), description: String)
+case class ProjectWithUsageInformation(id: UUID, name: String, features: List[LightWeightFeatureWithUsageInformation] = List(), description: String)
+object ProjectWithUsageInformation {
+  def fromProject(project: Project, features: List[LightWeightFeatureWithUsageInformation]): ProjectWithUsageInformation = {
+    ProjectWithUsageInformation(id = project.id, name = project.name, features = features, description = project.description)
+  }
 
-case class EmptyProjectRow() extends ProjectQueryResult
+  def projectWithUsageInformationWrites: Writes[ProjectWithUsageInformation] = project => {
+    Json.obj(
+      "id" -> project.id,
+      "description" -> project.description,
+      "name" -> project.name,
+      "features" -> Json.toJson(project.features)(Writes.list(writeLightWeightFeatureWithUsageInformation))
+    )
+  }
+}
 
 case class ProjectCreationRequest(name: String, description: String)
 

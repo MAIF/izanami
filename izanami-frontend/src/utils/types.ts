@@ -1,4 +1,5 @@
 import { isArray } from "lodash";
+import { NotifyOnChangeProps } from "@tanstack/react-query";
 
 export const featureEventTypeOptions = [
   { label: "Created", value: "FEATURE_CREATED" },
@@ -64,23 +65,23 @@ interface FeatureDeleted extends FeatureLogEntryBase {
 
 export type PersonnalAccessToken =
   | {
-    id: string;
-    name: string;
-    expiresAt: Date;
-    expirationTimezone: string;
-    createdAt: Date;
-    username: string;
-    allRights: boolean;
-    rights: TokenTenantRights;
-  }
+      id: string;
+      name: string;
+      expiresAt: Date;
+      expirationTimezone: string;
+      createdAt: Date;
+      username: string;
+      allRights: boolean;
+      rights: TokenTenantRights;
+    }
   | {
-    id: string;
-    name: string;
-    createdAt: Date;
-    username: string;
-    allRights: boolean;
-    rights: TokenTenantRights;
-  };
+      id: string;
+      name: string;
+      createdAt: Date;
+      username: string;
+      allRights: boolean;
+      rights: TokenTenantRights;
+    };
 
 export interface TenantInCreationType {
   name: string;
@@ -170,7 +171,26 @@ export interface SingleConditionFeature {
   project?: string;
   conditions: Record<string, any>;
   resultType: "boolean";
+  stale?: StaleStatus;
 }
+
+export type NeverCalled = {
+  because: "NeverCalled";
+  since: Date;
+};
+
+export type NoCall = {
+  because: "NoCall";
+  since: Date;
+};
+
+export type NoValueChange = {
+  because: "NoValueChange";
+  since: Date;
+  value: string | number | boolean;
+};
+
+export type StaleStatus = NeverCalled | NoCall | NoValueChange;
 
 export interface SinglePercentageConditionFeature
   extends SingleConditionFeature {
@@ -266,13 +286,16 @@ interface ClassicalFeatureBase<TypeName extends FeatureTypeName> {
   project?: string;
   conditions: TClassicalCondition[];
   resultType: TypeName;
+  stale?: StaleStatus;
 }
 
-interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> { }
+interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> {}
+
 interface ClassicalStringFeature extends ClassicalFeatureBase<"string"> {
   value: string;
   conditions: TValuedCondition<string>[];
 }
+
 interface ClassicalNumberFeature extends ClassicalFeatureBase<"number"> {
   value: number;
   conditions: TValuedCondition<number>[];
@@ -303,6 +326,7 @@ export interface LightWasmFeature {
   project?: string;
   wasmConfig: string;
   resultType: FeatureTypeName;
+  stale?: StaleStatus;
 }
 
 export interface TWasmConfig {
@@ -523,7 +547,7 @@ export interface TContextOverloadBase<FeatureTypeName> {
 }
 
 export interface TBooleanContextOverload
-  extends TContextOverloadBase<"boolean"> { }
+  extends TContextOverloadBase<"boolean"> {}
 
 export interface TNumberContextOverload extends TContextOverloadBase<"number"> {
   conditions: TValuedCondition<number>[];
@@ -677,14 +701,14 @@ export interface SearchEntityResponse {
 
 export type SearchResult = {
   type:
-  | "feature"
-  | "project"
-  | "key"
-  | "tag"
-  | "script"
-  | "global_context"
-  | "local_context"
-  | "webhook";
+    | "feature"
+    | "project"
+    | "key"
+    | "tag"
+    | "script"
+    | "global_context"
+    | "local_context"
+    | "webhook";
   name: string;
   path: SearchResultPathElement[];
   tenant: string;
