@@ -346,25 +346,59 @@ function FeatureContextTree(props: {
                             : "Protect context"}
                         </>
                       ),
-                      action: () =>
-                        askConfirmation(
-                          <>
-                            Are you sure you want to{" "}
-                            {ctx.protected ? "unprotect" : "protect"} context{" "}
-                            {ctx.name} ?{" "}
-                            {ctx.protected ? "All users" : "Only admin users"}{" "}
-                            will be able to create / update / delete features
-                            overloads.
-                          </>,
-                          () => {
-                            return updateContextProtection({
-                              path: path,
-                              name: ctx.name,
-                              protected: !ctx.protected,
-                              global: ctx.global,
-                            });
-                          }
-                        ),
+                      action: () => {
+                        let message = <></>;
+                        if (ctx.protected) {
+                          message = (
+                            <>
+                              Are you sure you want to unprotected context{" "}
+                              {ctx.name} ?<br />
+                              This will allow any user with at least "Write"
+                              right {ctx.global
+                                ? "on tenant"
+                                : "on project"}{" "}
+                              to:
+                              <ul>
+                                <li>
+                                  Add, edit or delete overload for this context
+                                </li>
+                                <li>
+                                  Delete this context and every subcontexts with
+                                  their overloads (except if one subcontext is
+                                  protected).
+                                </li>
+                              </ul>
+                            </>
+                          );
+                        } else {
+                          message = (
+                            <>
+                              Are you sure you want to protect context{" "}
+                              {ctx.name} ?<br />
+                              Only users with Admin right{" "}
+                              {ctx.global ? "on tenant" : "on project"} will be
+                              able to:
+                              <ul>
+                                <li>
+                                  Add, edit or delete overload for this context
+                                </li>
+                                <li>
+                                  Delete this context and every subcontexts
+                                  their overloads.
+                                </li>
+                              </ul>
+                            </>
+                          );
+                        }
+                        return askConfirmation(message, () => {
+                          return updateContextProtection({
+                            path: path,
+                            name: ctx.name,
+                            protected: !ctx.protected,
+                            global: ctx.global,
+                          });
+                        });
+                      },
                     },
                   ]
                 : []),
@@ -403,12 +437,12 @@ function FeatureContextTree(props: {
           <></>
         );
         return (
-          <span style={{ display: 'flex', gap: '5px', alignItems:'center' }}>
-            { node.payload.context.global && <GlobalContextIcon /> }
+          <span style={{ display: "flex", gap: "5px", alignItems: "center" }}>
+            {node.payload.context.global && <GlobalContextIcon />}
             {node.name}
             {protectedIcon}
           </span>
-        )
+        );
       }}
       payloadRender={
         overloadRender
