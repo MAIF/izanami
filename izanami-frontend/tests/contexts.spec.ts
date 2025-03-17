@@ -5,7 +5,10 @@ import {
   testTenant,
   testProject,
   testLocalContext,
+  testUser,
+  testTenantRight,
 } from "./testBuilder";
+import { logAsInNewPage } from "./utils";
 
 test.use({
   headless: true,
@@ -15,6 +18,7 @@ test.describe("Project context screen should", () => {
   test("hide protected contexts delete button if user doesn't have right to see them", async ({
     page,
     tenantName,
+    browser,
   }) => {
     const situation = await testBuilder()
       .withTenant(
@@ -24,11 +28,23 @@ test.describe("Project context screen should", () => {
           )
         )
       )
+      .withUser(
+        testUser("testu", false).withTenantRight(
+          tenantName,
+          testTenantRight("Write").withProjectRight("project", "Write")
+        )
+      )
       .build(page);
 
     await page.goto(`/tenants/${tenantName}/projects/project/contexts`);
 
-    // TODO
+    const otherPage = await logAsInNewPage(browser, "testu");
+    await otherPage.goto(`/tenants/${tenantName}/projects/project/contexts`);
+
+    await otherPage.getByRole("button", { name: "actions" }).click();
+    await expect(
+      otherPage.getByRole("link", { name: "Protect context" })
+    ).not.toBeAttached();
   });
 
   test("allow toggling context protection if user is admin", async ({
