@@ -279,6 +279,21 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Global context DELETE endpoint" should {
+    "prevent global context delete if context has protected subcontexts" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("notprotected", isProtected = false)
+          .withSubContexts(TestFeatureContext("protectedchildren", isProtected = true))
+        ))
+        .withUsers(TestUser(username = "noadmin")
+          .withTenantReadWriteRight("tenant")
+        )
+        .loggedAs("noadmin")
+        .build()
+
+      val response = situation.deleteGlobalContext(tenant = "tenant", path = "notprotected")
+      response.status mustBe FORBIDDEN
+    }
+
     "prevent global context delete if context is protected and user is not tenant admin" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("protected", isProtected = true)))
@@ -638,6 +653,25 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Feature context DELETE endpoint" should {
+    "prevent context delete if context has protected subcontexts" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant")
+          .withProjects(TestProject("proj")
+            .withContexts(TestFeatureContext("parent")
+              .withSubContexts(TestFeatureContext("subcontext", isProtected = true)))
+          )
+        )
+        .withUsers(TestUser(username = "noadmin")
+          .withTenantReadWriteRight("tenant")
+          .withProjectReadWriteRight("proj", tenant = "tenant")
+        )
+        .loggedAs("noadmin")
+        .build()
+
+      val response = situation.deleteContext(tenant = "tenant", project = "proj", path = "parent")
+      response.status mustBe FORBIDDEN
+    }
+
     "prevent context delete if context is protected and user is not project admin" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjects(TestProject("project").withContexts(TestFeatureContext("protected", isProtected = true))))

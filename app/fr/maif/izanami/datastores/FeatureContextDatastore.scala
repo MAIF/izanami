@@ -164,6 +164,40 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       .map(o => o.toRight(FeatureContextDoesNotExist(name)))
   }
 
+  def findChildrenForGlobalContext(tenant: String, path: FeatureContextPath): Future[Seq[FeatureContext]] = {
+    val id = path.toDBPath(tenant)
+    val parentStart = s"${path.toDBPath(tenant)}_%"
+    env.postgresql.queryAll(
+      s"""
+         |SELECT id, name, parent, null as project, true as global, protected
+         |FROM global_feature_contexts gfc
+         |WHERE gfc.parent LIKE $$1 OR gfc.parent LIKE $$2
+         |UNION
+         |SELECT id, name, COALESCE(fc.parent, fc.global_parent) as parent, project, false as global, protected
+         |FROM feature_contexts fc
+         |WHERE parent LIKE $$1 OR parent LIKE concat(project, '_', $$3::TEXT, '_%')
+         |""".stripMargin,
+      List(id, parentStart, path.toUnprefixedDBPath),
+      schemas = Set(tenant)){r => {
+      r.optFeatureContext(r.optBoolean("global").get)
+    }}
+  }
+
+  def findChildrenForLocalContext(tenant: String, project: String, path: FeatureContextPath): Future[Seq[FeatureContext]] = {
+    val id = path.toDBPath(project)
+    val parentStart = s"${path.toDBPath(project)}_%"
+    env.postgresql.queryAll(
+      s"""
+         |SELECT id, name, parent, project, false as global, protected
+         |FROM feature_contexts
+         |WHERE parent LIKE $$1 OR parent LIKE $$2
+         |""".stripMargin,
+      List(id, parentStart),
+      schemas = Set(tenant)){r => {
+      r.optFeatureContext(r.optBoolean("global").get)
+    }}
+  }
+
   def deleteGlobalFeatureContext(tenant: String, path: Seq[String]): Future[Either[IzanamiError, Unit]] = {
     val ctxName    = path.last
     val parentPart = path.init
@@ -421,11 +455,11 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
   def readAllLocalFeatureContexts(tenant: String): Future[Seq[FeatureContext]] = {
     env.postgresql.queryAll(
       s"""
-         |SELECT name, parent, id, protected, true as global, null as project
-         |FROM global_feature_contexts
+         |SELECT name, gfc.parent, id, protected, true as global, null as project
+         |FROM global_feature_contexts gfc
          |UNION ALL
-         |SELECT name, COALESCE(parent, global_parent) as parent, id, protected, false as global, project
-         |FROM feature_contexts
+         |SELECT name, COALESCE(fc.parent, fc.global_parent) as parent, id, protected, false as global, project
+         |FROM feature_contexts fc
          |""".stripMargin,
       schemas = Set(tenant)
     ) { r =>
