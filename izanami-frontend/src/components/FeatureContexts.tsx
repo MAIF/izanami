@@ -402,7 +402,8 @@ function FeatureContextTree(props: {
                     },
                   ]
                 : []),
-              ...(ctx.global && !allowGlobalContextDelete
+              ...((ctx.global && !allowGlobalContextDelete) ||
+              (ctx.protected && !hasRightOverProtectedContexts)
                 ? []
                 : [
                     {

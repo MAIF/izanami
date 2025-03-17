@@ -45,6 +45,10 @@ test.describe("Project context screen should", () => {
     await expect(
       otherPage.getByRole("link", { name: "Protect context" })
     ).not.toBeAttached();
+
+    await expect(
+      otherPage.getByRole("link", { name: "Delete", exact: true })
+    ).not.toBeAttached();
   });
 
   test("allow toggling context protection if user is admin", async ({
