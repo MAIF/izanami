@@ -15,7 +15,7 @@ test.use({
 });
 
 test.describe("Project context screen should", () => {
-  test("hide protected contexts delete button if user doesn't have right to see them", async ({
+  test("hide protected contexts delete and unprotect button if user doesn't have right to see them", async ({
     page,
     tenantName,
     browser,
@@ -43,7 +43,7 @@ test.describe("Project context screen should", () => {
 
     await otherPage.getByRole("button", { name: "actions" }).click();
     await expect(
-      otherPage.getByRole("link", { name: "Protect context" })
+      otherPage.getByRole("link", { name: "Unprotect context" })
     ).not.toBeAttached();
 
     await expect(
