@@ -38,7 +38,10 @@ export class TestSituationBuilder {
         }/contexts${parent.length > 0 ? `/${parent}` : ""}`,
         {
           method: "POST",
-          body: JSON.stringify({ name: context.name }),
+          body: JSON.stringify({
+            name: context.name,
+            protected: context.isProtected,
+          }),
           headers: {
             "Content-Type": "application/json",
             cookie: cookie,
@@ -604,6 +607,7 @@ class TestGlobalContext implements TestContext {
 
 class TestLocalContext implements TestContext {
   name: string;
+  isProtected: boolean;
   subcontexts: TestLocalContext[] = [];
 
   constructor(name: string) {
@@ -612,6 +616,11 @@ class TestLocalContext implements TestContext {
 
   withSubContext(context: TestLocalContext): TestLocalContext {
     this.subcontexts.push(context);
+    return this;
+  }
+
+  withProtectedStatus(isProtected: boolean): TestLocalContext {
+    this.isProtected = isProtected;
     return this;
   }
 }

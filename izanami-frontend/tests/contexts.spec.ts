@@ -4,6 +4,7 @@ import {
   testFeature,
   testTenant,
   testProject,
+  testLocalContext,
 } from "./testBuilder";
 
 test.use({
@@ -11,6 +12,53 @@ test.use({
 });
 
 test.describe("Project context screen should", () => {
+  test("hide protected contexts delete button if user doesn't have right to see them", async ({
+    page,
+    tenantName,
+  }) => {
+    const situation = await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project").withContext(
+            testLocalContext("ctx").withProtectedStatus(true)
+          )
+        )
+      )
+      .build(page);
+
+    await page.goto(`/tenants/${tenantName}/projects/project/contexts`);
+
+    // TODO
+  });
+
+  test("allow toggling context protection if user is admin", async ({
+    page,
+    tenantName,
+  }) => {
+    const situation = await testBuilder()
+      .withTenant(testTenant(tenantName).withProject(testProject("project")))
+      .build(page);
+    await page.goto(`/tenants/${tenantName}/projects/project/contexts`);
+
+    await page.getByRole("button", { name: "Create new context" }).click();
+    await page.getByPlaceholder("Context name").fill("prod");
+    await page.getByPlaceholder("Context name").press("Enter");
+    await page.getByRole("button", { name: "actions" }).click();
+    await page.getByRole("link", { name: "Protect context" }).click();
+    await page.getByLabel("Confirm").click();
+
+    await expect(
+      page.getByRole("link", { name: "prod protected" })
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "actions" }).click();
+    await page.getByRole("link", { name: "Unprotect context" }).click();
+    await page.getByLabel("Confirm").click();
+    await expect(
+      page.getByRole("link", { name: "prod", exact: true })
+    ).toBeVisible();
+  });
+
   test("allow to create root context", async ({ page, tenantName }) => {
     const situation = await testBuilder()
       .withTenant(testTenant(tenantName).withProject(testProject("project")))

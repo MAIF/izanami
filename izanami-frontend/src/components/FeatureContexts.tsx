@@ -105,7 +105,7 @@ export function FeatureContexts(props: {
               <>
                 Are you sure you want to delete context {path} ?
                 <br />
-                All subcontexts will be lost !
+                All subcontexts and their overloads will be lost !
               </>,
               () => deleteContext(path)
             ),
@@ -431,7 +431,7 @@ function FeatureContextTree(props: {
       labelRender={(node) => {
         const protectedIcon = node.payload.context.protected ? (
           <>
-            <i className="fa-solid fa-lock fs-6"></i>
+            <i className="fa-solid fa-lock fs-6" aria-label="protected"></i>
           </>
         ) : (
           <></>
