@@ -102,36 +102,3 @@ function GlobalFeatureContexts(props: { tenant: string; open: string }) {
     return <div>Failed to fetch global contexts</div>;
   }
 }
-
-function GlobalContextOverloadTable({
-  tenant,
-  overloads,
-  path,
-}: {
-  tenant: string;
-  overloads: TContextOverload[];
-  path: string;
-}) {
-  const { user } = React.useContext(IzanamiContext);
-  return (
-    <>
-      <h4>Feature overloads </h4>
-      <OverloadTable
-        overloads={overloads.map((o) => ({ ...o, path: path.slice(1) }))}
-        fields={["name", "enabled", "details"]}
-        actions={(o) => {
-          if (hasRightForProject(user!, TLevel.Write, o.project!, tenant)) {
-            return ["edit", "test", "delete"];
-          } else {
-            return [];
-          }
-        }}
-        refresh={() => {
-          queryClient.invalidateQueries({
-            queryKey: [globalContextKey(tenant)],
-          });
-        }}
-      />
-    </>
-  );
-}

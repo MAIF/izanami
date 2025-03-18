@@ -901,6 +901,7 @@ function OverloadTableForFeature(props: {
     const overloads = findOverloadsForFeature(name, contextQuery.data);
     return (
       <OverloadTable
+        contexts={contextQuery.data}
         overloads={overloads}
         project={project!}
         refresh={() =>
@@ -1323,15 +1324,35 @@ function ExistingFeatureTestForm(props: {
   }
 }
 
+function findContextForPath(path: string, contexts: TContext[]) {
+  const strippedPath = path.startsWith("/") ? path.substring(1) : path;
+  const firstSlashIndex = path.indexOf("/");
+  const firstPart =
+    firstSlashIndex !== -1
+      ? strippedPath.substring(0, firstSlashIndex)
+      : strippedPath;
+  const nextContext = contexts.find((ctx) => ctx.name == firstPart);
+
+  if (nextContext && firstSlashIndex == -1) {
+    return nextContext;
+  } else if (nextContext) {
+    const nextPath = strippedPath.substring(firstSlashIndex + 1);
+    return findContextForPath(nextPath, nextContext.children);
+  } else {
+    return null;
+  }
+}
+
 export function OverloadTable(props: {
   project?: string;
   overloads: TContextOverload[];
   fields: OverloadFields[];
   actions: (t: TContextOverload) => OverloadActionNames[];
   refresh: () => any;
+  contexts: TContext[];
 }) {
   const { tenant } = useParams();
-  const { fields, overloads, actions, refresh, project } = props;
+  const { fields, overloads, actions, refresh, project, contexts } = props;
   const columns: ColumnDef<TContextOverload>[] = [];
   const updateStrategyMutation = useMutation({
     mutationFn: (
@@ -1373,6 +1394,11 @@ export function OverloadTable(props: {
   });
 
   const { askConfirmation } = React.useContext(IzanamiContext);
+  const contextByPath = new Map(
+    overloads
+      .map((o) => o.path)
+      .map((p) => [p, findContextForPath(p, contexts)])
+  );
 
   const hasPath = fields.includes("path");
   const hasLinkedPath = fields.includes("linkedPath");
@@ -1380,16 +1406,31 @@ export function OverloadTable(props: {
     columns.push({
       accessorKey: "path",
       header: () => "Overload path",
-      cell: (info: any) =>
-        hasLinkedPath ? (
+      cell: (info: any) => {
+        const context = contextByPath.get(info.getValue);
+
+        return hasLinkedPath ? (
           <NavLink
             to={`/tenants/${tenant}/projects/${project}/contexts?open=["${info.getValue()}"]`}
           >
             {info.getValue()}
+            {context?.protected && (
+              <>
+                &nbsp;
+                <i className="fa-solid fa-lock fs-6" aria-label="protected"></i>
+              </>
+            )}
+            {context?.global && (
+              <>
+                &nbsp;
+                <GlobalContextIcon />
+              </>
+            )}
           </NavLink>
         ) : (
           info.getValue()
-        ),
+        );
+      },
       minSize: 350,
       size: 15,
     });
@@ -1445,7 +1486,21 @@ export function OverloadTable(props: {
         </>
       ),
       hasRight: (user: TUser, overload: TContextOverload) => {
-        return actions(overload).includes("edit");
+        const canEdit = actions(overload).includes("edit");
+        const context = contextByPath.get(overload.path);
+        if (context?.protected) {
+          if (context.global && hasRightForTenant(user, tenant!, "Admin")) {
+            return canEdit;
+          } else if (
+            hasRightForProject(user, "Admin", overload.project!, tenant!)
+          ) {
+            return canEdit;
+          } else {
+            return false;
+          }
+        } else {
+          return canEdit;
+        }
       },
       customForm: (datum: TContextOverload, cancel: () => void) => {
         return (
@@ -1499,7 +1554,21 @@ export function OverloadTable(props: {
         </>
       ),
       hasRight: (user: TUser, overload: TContextOverload) => {
-        return actions(overload).includes("delete");
+        const context = contextByPath.get(overload.path);
+        const canDelete = actions(overload).includes("delete");
+        if (context?.protected) {
+          if (context.global && hasRightForTenant(user, tenant!, "Admin")) {
+            return canDelete;
+          } else if (
+            hasRightForProject(user, "Admin", overload.project!, tenant!)
+          ) {
+            return canDelete;
+          } else {
+            return false;
+          }
+        } else {
+          return canDelete;
+        }
       },
       action: (overload: TContextOverload) =>
         askConfirmation(

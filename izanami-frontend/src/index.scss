@@ -38,6 +38,10 @@ main a.white-link:focus {
   }
 }
 
+main a svg .icon_context {
+  fill: var(--color_level1) !important;
+}
+
 .breadcrumb a {
   color: $primaryColor;
   text-decoration: none;

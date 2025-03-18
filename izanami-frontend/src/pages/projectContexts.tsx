@@ -1,5 +1,5 @@
 import * as React from "react";
-import { FeatureContexts } from "../components/FeatureContexts";
+import { FeatureContexts, LocalContext } from "../components/FeatureContexts";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   changeProtectionStatusForGlobalContext,
@@ -184,6 +184,7 @@ function ProjectOverloadTable({
   const [creating, setCreating] = React.useState(false);
   const [displayingAllFeatures, displayAllFeatures] = useState(false);
   const editionRight = useProjectRight(tenant, project, TLevel.Write);
+  const { allContexts } = React.useContext(LocalContext);
   if (projectQuery.data) {
     return (
       <>
@@ -238,6 +239,7 @@ function ProjectOverloadTable({
           </span>
         </label>
         <OverloadTable
+          contexts={allContexts}
           project={project!}
           actions={(o) =>
             editionRight && o.path === path.substring(1)

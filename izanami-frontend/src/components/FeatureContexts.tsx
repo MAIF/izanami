@@ -15,7 +15,7 @@ import {
   changeProtectionStatusForLocalContext,
 } from "../utils/queries";
 
-const LocalContext = React.createContext<{
+export const LocalContext = React.createContext<{
   open: string[];
   deleteContextCallback: (path: string) => void;
   createSubContextCallback: (path: string, name: string) => Promise<any>;
@@ -27,7 +27,9 @@ const LocalContext = React.createContext<{
   }) => Promise<any>;
   hasUpdateDeleteRight: boolean;
   hasRightOverProtectedContexts: boolean;
+  allContexts: TContext[];
 }>({
+  allContexts: [],
   open: [],
   deleteContextCallback: () => {
     /**/
@@ -91,6 +93,7 @@ export function FeatureContexts(props: {
     return (
       <LocalContext.Provider
         value={{
+          allContexts: contextQuery.data,
           hasRightOverProtectedContexts: allowProtectedContextUpdate,
           hasUpdateDeleteRight: modificationRight,
           open,
