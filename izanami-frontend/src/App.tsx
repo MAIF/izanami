@@ -73,6 +73,7 @@ import { SearchModal } from "./components/SearchComponant/SearchModal";
 import { WebHooks } from "./pages/webhooks";
 import { PasswordModal } from "./components/PasswordModal";
 import { ProjectLogs } from "./pages/projectLogs";
+import { Icons } from "./Icons";
 
 function Wrapper({
   element,
@@ -891,6 +892,7 @@ export class App extends Component {
 
     return (
       <>
+        <Icons />
         <IzanamiContext.Provider value={this.state}>
           <QueryClientProvider client={queryClient}>
             <RouterProvider router={router} />
