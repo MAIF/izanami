@@ -1407,8 +1407,7 @@ export function OverloadTable(props: {
       accessorKey: "path",
       header: () => "Overload path",
       cell: (info: any) => {
-        const context = contextByPath.get(info.getValue);
-
+        const context = contextByPath.get(info.getValue());
         return hasLinkedPath ? (
           <NavLink
             to={`/tenants/${tenant}/projects/${project}/contexts?open=["${info.getValue()}"]`}

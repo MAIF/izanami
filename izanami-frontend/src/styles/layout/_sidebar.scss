@@ -27,7 +27,7 @@
   .icon_context {
     fill: var(--color_level2) !important;
   }
-  .active svg .icon_context {
+  .active svg.icon_context {
     fill: $primaryColor !important;
     transition: 1s;
   }
