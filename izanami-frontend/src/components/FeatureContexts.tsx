@@ -10,10 +10,6 @@ import { GlobalContextIcon } from "../utils/icons";
 import { FEATURE_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "./Loader";
 import { useParams } from "react-router-dom";
-import {
-  changeProtectionStatusForGlobalContext,
-  changeProtectionStatusForLocalContext,
-} from "../utils/queries";
 
 export const LocalContext = React.createContext<{
   open: string[];
@@ -442,8 +438,8 @@ function FeatureContextTree(props: {
         );
         return (
           <span style={{ display: "flex", gap: "5px", alignItems: "center" }}>
-            {node.payload.context.global && <GlobalContextIcon />}
             {node.name}
+            {node.payload.context.global && <GlobalContextIcon />}
             {protectedIcon}
           </span>
         );
