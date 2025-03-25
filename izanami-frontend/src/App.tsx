@@ -73,7 +73,7 @@ import { SearchModal } from "./components/SearchComponant/SearchModal";
 import { WebHooks } from "./pages/webhooks";
 import { PasswordModal } from "./components/PasswordModal";
 import { Icons } from "./Icons";
-import { ProjectAudit, ProjectLogs } from "./pages/projectLogs";
+import { ProjectAudit } from "./pages/projectLogs";
 import { TenantAudit } from "./pages/tenantLogs";
 
 function Wrapper({
