@@ -1,5 +1,5 @@
 import * as React from "react";
-import { FeatureContexts, LocalContext } from "../components/FeatureContexts";
+import { FeatureContexts } from "../components/FeatureContexts";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   changeProtectionStatusForGlobalContext,
@@ -27,6 +27,7 @@ import { OverloadCreationForm } from "../components/OverloadCreationForm";
 import { useParams } from "react-router-dom";
 import { useState } from "react";
 import { Loader } from "../components/Loader";
+import { LocalContext } from "../components/ContextTreeLocalContext";
 
 export function ProjectContexts(props: {
   tenant: string;

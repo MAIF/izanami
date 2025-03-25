@@ -1,5 +1,5 @@
 import React, { ReactElement } from "react";
-import { useForm, FormProvider, useFormContext } from "react-hook-form";
+import { useForm, FormProvider } from "react-hook-form";
 import { Modal } from "./Modal";
 import { PASSWORD_REGEXP } from "../utils/patterns";
 

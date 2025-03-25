@@ -31,10 +31,8 @@ import {
   PersonnalAccessToken,
   TokenTenantRight,
   OIDCSettings,
-  FeatureLogEntry,
-  ProjectLogSearchQuery,
 } from "./types";
-import { isArray, method } from "lodash";
+import { isArray } from "lodash";
 import toast from "react-hot-toast";
 import * as React from "react";
 
@@ -1440,54 +1438,6 @@ export function fetchFeature(
     } else {
       return Promise.resolve(undefined);
     }
-  });
-}
-
-export function fetchProjectLogs(
-  tenant: string,
-  project: string,
-  cursor: number | null,
-  query: ProjectLogSearchQuery
-): Promise<{ events: FeatureLogEntry[]; count: number | null }> {
-  const { users, features, types } = query;
-  return handleFetchJsonResponse(
-    fetch(
-      `/api/admin/tenants/${tenant}/projects/${project}/logs?order=${
-        query.order
-      }&total=${query.total}${
-        cursor === null ? "" : `&cursor=${cursor}`
-      }&count=${query.pageSize}${
-        users.length > 0 ? `&users=${users.join(",")}` : ""
-      }${features.length > 0 ? `&features=${features.join(",")}` : ""}${
-        types.length > 0 ? `&types=${types.join(",")}` : ""
-      }${
-        query.begin
-          ? `&start=${encodeURIComponent(
-              format(query.begin, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
-            )}`
-          : ""
-      }${
-        query.end
-          ? `&end=${encodeURIComponent(
-              format(query.end, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
-            )}`
-          : ""
-      }`
-    )
-  ).then((logs) => {
-    logs.events.forEach((log: FeatureLogEntry) => {
-      if (log.emittedAt) {
-        log.emittedAt = new Date(log.emittedAt);
-      }
-      if ("conditions" in log) {
-        Object.values(log.conditions).map((f) => castDateIfNeeded(f));
-      }
-      if ("previousConditions" in log) {
-        Object.values(log.previousConditions).map((f) => castDateIfNeeded(f));
-      }
-      return log;
-    });
-    return logs;
   });
 }
 

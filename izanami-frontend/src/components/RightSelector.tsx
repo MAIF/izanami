@@ -22,6 +22,7 @@ import {
 } from "../utils/queries";
 import { TLevel, TRights } from "../utils/types";
 import { Loader } from "./Loader";
+import { State } from "../utils/rightUtils";
 
 const EventType = {
   SelectTenant: "SelectTenant",
@@ -137,50 +138,6 @@ type EventTypes =
   | WebhookSelectionEvent
   | WebhookLevelEvent
   | WebhookDeleteEvent;
-
-export type State = {
-  name: string;
-  level?: TLevel;
-  projects: {
-    name: string;
-    level?: TLevel;
-  }[];
-  keys: {
-    name: string;
-    level?: TLevel;
-  }[];
-  webhooks: {
-    name: string;
-    level?: TLevel;
-  }[];
-}[];
-
-function projectOrKeyArrayToObject(arr: { name: string; level?: TLevel }[]) {
-  return arr.reduce((acc, { name, level }) => {
-    acc[name] = { level };
-    return acc;
-  }, {} as { [x: string]: any });
-}
-
-export function rightStateArrayToBackendMap(state?: State): TRights {
-  if (!state) {
-    return { tenants: {} };
-  }
-  const backendRights = state.reduce(
-    (acc, { name, level, projects, keys, webhooks }) => {
-      acc[name] = {
-        level,
-        projects: projectOrKeyArrayToObject(projects),
-        keys: projectOrKeyArrayToObject(keys),
-        webhooks: projectOrKeyArrayToObject(webhooks),
-      };
-      return acc;
-    },
-    {} as { [x: string]: any }
-  );
-
-  return { tenants: backendRights };
-}
 
 const reducer = function reducer(state: State, event: EventTypes): State {
   switch (event.type) {
@@ -350,7 +307,7 @@ const reducer = function reducer(state: State, event: EventTypes): State {
   }
 };
 
-export function isValid(state: State): boolean {
+function isValid(state: State): boolean {
   return state.every(({ name, level, projects, keys }) => {
     return (
       name &&

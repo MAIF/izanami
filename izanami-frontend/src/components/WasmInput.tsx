@@ -1,7 +1,7 @@
 import * as React from "react";
 import { customStyles } from "../styles/reactSelect";
 import Select from "react-select";
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from "@tanstack/react-query";
 import {
   Controller,
   FieldErrors,
@@ -87,8 +87,8 @@ function KindOptions() {
     formState: { errors },
   } = useFormContext<TContextOverload>();
   const query = useQuery({
-    queryKey: ['WASMSCRIPTS'],
-    queryFn: () => loadWasmManagerScripts()
+    queryKey: ["WASMSCRIPTS"],
+    queryFn: () => loadWasmManagerScripts(),
   });
   const { integrations } = React.useContext(IzanamiContext);
 
@@ -301,9 +301,10 @@ function loadWasmManagerScripts() {
         plugins
           .map(
             (plugin: { versions: object[]; pluginId: string }) =>
-              plugin.versions?.map(
-                (version) => ({ ...version, id: plugin.pluginId } || [])
-              ) || []
+              plugin.versions?.map((version) => ({
+                ...version,
+                id: plugin.pluginId,
+              })) || []
           )
           .flat()
           // FIXME TS
@@ -419,14 +420,14 @@ export function ExistingScript() {
   } = useFormContext<TContextOverload>();
 
   const query = useQuery({
-    queryKey: ['LOCAL_SCRIPTS'],
+    queryKey: ["LOCAL_SCRIPTS"],
 
     queryFn: () =>
       fetch(`/api/admin/tenants/${tenant}/local-scripts`)
         .then((resp) => resp.json())
         .then((ws) =>
           ws.map(({ name }: { name: string }) => ({ label: name, value: name }))
-        )
+        ),
   });
 
   if (query.error) {

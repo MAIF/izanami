@@ -1,7 +1,6 @@
 import * as React from "react";
 import {
   ClassicalFeature,
-  DAYS,
   FeatureTypeName,
   SingleConditionFeature,
   TClassicalCondition,
@@ -10,11 +9,6 @@ import {
   ValuedFeature,
   isPercentageRule,
   isSingleConditionFeature,
-  isSingleCustomerConditionFeature,
-  isSingleDateRangeConditionFeature,
-  isSingleHourRangeConditionFeature,
-  isSingleNoStrategyConditionFeature,
-  isSinglePercentageConditionFeature,
   isWasmFeature,
 } from "../utils/types";
 import {
@@ -39,10 +33,12 @@ import { FeatureTestForm } from "./FeatureTable";
 import CreatableSelect from "react-select/creatable";
 import { FEATURE_NAME_REGEXP, LEGACY_ID_REGEXP } from "../utils/patterns";
 import { format, isBefore, parse } from "date-fns";
-import { DEFAULT_TIMEZONE, TimeZoneSelect } from "./TimeZoneSelect";
+import { TimeZoneSelect } from "./TimeZoneSelect";
 import { Tooltip } from "./Tooltip";
 import { Loader } from "./Loader";
 import { ResultTypeIcon } from "./ResultTypeIcon";
+import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
+import { toLegacyFeatureFormat, toModernFeature } from "../utils/featureUtils";
 
 export type LegacyFeature =
   | NoStrategyFeature
@@ -112,126 +108,6 @@ const LegacyStrategies = [
 ] as const;
 
 type TLegacyStrategy = typeof LegacyStrategies[number];
-
-export function toModernFeature(feature: SingleConditionFeature) {
-  if (!feature) {
-    return {} as ClassicalFeature;
-  }
-  const { id, name, description, enabled, tags, project } = feature;
-  const base = { id, name, description, enabled, tags, project };
-  if (isSingleCustomerConditionFeature(feature)) {
-    return {
-      ...base,
-      conditions: [{ rule: { users: feature.conditions.users } }],
-    };
-  } else if (isSinglePercentageConditionFeature(feature)) {
-    return {
-      ...base,
-      conditions: [{ rule: { percentage: feature.conditions.percentage } }],
-    };
-  } else if (isSingleDateRangeConditionFeature(feature)) {
-    return {
-      ...base,
-      conditions: [
-        {
-          period: {
-            begin: feature.conditions.begin,
-            end: feature.conditions.end,
-            timezone: feature.conditions.timezone,
-            activationDays: { days: DAYS },
-          },
-        },
-      ],
-    };
-  } else if (isSingleHourRangeConditionFeature(feature)) {
-    return {
-      ...base,
-      conditions: [
-        {
-          period: {
-            timezeon: feature.conditions.timezone,
-            activationDays: { days: DAYS },
-            hourPeriods: [
-              {
-                startTime: feature.conditions.startTime,
-                endTime: feature.conditions.endTime,
-              },
-            ],
-          },
-        },
-      ],
-    };
-  } else {
-    return base;
-  }
-}
-
-export function toLegacyFeatureFormat(
-  feature: SingleConditionFeature
-): LegacyFeature {
-  if (!feature) {
-    return { activationStrategy: "NO_STRATEGY" } as LegacyFeature;
-  }
-  const { id, name, description, enabled, tags, project } = feature;
-  const base = { id, name, description, enabled, tags, project };
-  if (isSinglePercentageConditionFeature(feature)) {
-    return {
-      ...base,
-      activationStrategy: "PERCENTAGE",
-      parameters: {
-        percentage: feature.conditions.percentage,
-      },
-    };
-  } else if (isSingleCustomerConditionFeature(feature)) {
-    return {
-      ...base,
-      activationStrategy: "CUSTOMERS_LIST",
-      parameters: {
-        customers: feature.conditions.users,
-      },
-    };
-  } else if (isSingleHourRangeConditionFeature(feature)) {
-    return {
-      ...base,
-      activationStrategy: "HOUR_RANGE",
-      parameters: {
-        startAt: feature.conditions.startTime,
-        endAt: feature.conditions.endTime,
-        timezone: feature.conditions.timezone,
-      },
-    };
-  } else if (isSingleDateRangeConditionFeature(feature)) {
-    if (feature.conditions.end === undefined) {
-      return {
-        ...base,
-        activationStrategy: "RELEASE_DATE",
-        parameters: {
-          date: feature.conditions.begin,
-          timezone: feature.conditions.timezone,
-        },
-      };
-    } else {
-      return {
-        ...base,
-        activationStrategy: "DATE_RANGE",
-        parameters: {
-          from: feature.conditions.begin,
-          to: feature.conditions.end,
-          timezone: feature.conditions.timezone,
-        },
-      };
-    }
-  } else if (isSingleNoStrategyConditionFeature(feature)) {
-    return {
-      ...base,
-      activationStrategy: "NO_STRATEGY",
-    };
-  } else {
-    throw new Error(
-      "Failed to convert SingleConditionFeature to legacy feature"
-    );
-  }
-}
 
 function toSingleConditionFeatureFormat(
   feature: LegacyFeature
@@ -815,7 +691,7 @@ export function FeatureForm(props: {
   submit: (overload: TCompleteFeature) => void;
   defaultValue?: TLightFeature;
   additionalFields?: () => JSX.Element;
-  displayId?: Boolean;
+  displayId?: boolean;
 }) {
   const { tenant } = useParams();
   const { defaultValue, submit, ...rest } = props;
@@ -962,7 +838,7 @@ export function V2FeatureForm(props: {
   submit: (overload: TCompleteFeature) => void;
   defaultValue?: TCompleteFeature;
   additionalFields?: () => JSX.Element;
-  displayId?: Boolean;
+  displayId?: boolean;
 }) {
   const { cancel, submit, defaultValue, additionalFields } = props;
   const methods = useForm<TCompleteFeature>({
@@ -972,7 +848,7 @@ export function V2FeatureForm(props: {
   const canDisplayId = Boolean(props.displayId);
   const isWasm = defaultValue && isWasmFeature(defaultValue);
   const [type, setType] = useState(isWasm ? "Existing WASM script" : "Classic");
-  const [idFieldDisplayed, setIdFieldDisplayed] = useState<Boolean>(false);
+  const [idFieldDisplayed, setIdFieldDisplayed] = useState<boolean>(false);
   const tagQuery = useQuery({
     queryKey: [tagsQueryKey(tenant!)],
     queryFn: () => queryTags(tenant!),

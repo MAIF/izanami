@@ -2,7 +2,7 @@ import { addYears, format, parse } from "date-fns";
 import * as React from "react";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import { TOKEN_NAME_REGEXP } from "../utils/patterns";
-import { DEFAULT_TIMEZONE, TimeZoneSelect } from "./TimeZoneSelect";
+import { TimeZoneSelect } from "./TimeZoneSelect";
 import { ErrorDisplay } from "./FeatureForm";
 import { MutationNames, queryTenants } from "../utils/queries";
 import { useQuery } from "@tanstack/react-query";
@@ -12,12 +12,12 @@ import Select from "react-select";
 import {
   POSSIBLE_TOKEN_RIGHTS,
   TokenTenantRight,
-  TokenTenantRights,
   TokenTenantRightsArray,
 } from "../utils/types";
 import { customStyles } from "../styles/reactSelect";
 import { hasRightForTenant, IzanamiContext } from "../securityContext";
 import { Tooltip } from "./Tooltip";
+import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
 
 export type PesonnalTokenFormType =
   | LimitedRightsPesonnalTokenFormType
@@ -39,23 +39,6 @@ export type AllRightsPesonnalTokenFormType = {
 };
 
 const DEFAULT_RIGHTS_VALUE: () => TokenTenantRightsArray = () => [[null, []]];
-
-export function tokenRightsToArray(
-  rights: TokenTenantRights
-): TokenTenantRightsArray {
-  return Object.entries(rights);
-}
-
-export function tokenRightsToObject(
-  rights: TokenTenantRightsArray
-): TokenTenantRights {
-  return rights.reduce((acc, [tenant, rights]) => {
-    if (tenant && rights && rights.length > 0) {
-      acc[tenant] = rights;
-    }
-    return acc;
-  }, {} as TokenTenantRights);
-}
 
 export function TokenForm(props: {
   onSubmit: (data: PesonnalTokenFormType) => void;
@@ -222,7 +205,7 @@ function TenantRightSelector(props: {
 }) {
   const tenantQuery = useQuery({
     queryKey: [MutationNames.TENANTS],
-    queryFn: () => queryTenants()
+    queryFn: () => queryTenants(),
   });
   const { value, onChange } = props;
   const { user } = React.useContext(IzanamiContext);

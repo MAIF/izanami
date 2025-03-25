@@ -1,10 +1,8 @@
 import { useParams } from "react-router-dom";
 import { AuditLog } from "../components/AuditLogs";
-import { Controller, useFormContext } from "react-hook-form";
 import AsyncCreatableSelect from "react-select/async-creatable";
 import {
   fetchFeature,
-  queryProject,
   queryProjectById,
   searchEntitiesByTenant,
 } from "../utils/queries";
@@ -72,7 +70,7 @@ function EntitySelector(props: {
   const [ready, setReady] = useState<
     | {
         ready: true;
-        data: { label: string; value: string }[];
+        data: { label: string | JSX.Element; value: string }[];
       }
     | { ready: false }
   >({ ready: false });
@@ -157,7 +155,7 @@ function EntitySelector(props: {
       defaultValue={ready.data}
       isMulti
       onChange={(selected) => {
-        const value = selected.reduce((acc: any, { type, value }) => {
+        const value = selected.reduce((acc: any, { type, value }: any) => {
           let typeNameForQuery: string = type;
           switch (type) {
             case "feature":

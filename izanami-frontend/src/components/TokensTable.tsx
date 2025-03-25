@@ -1,7 +1,6 @@
 import * as React from "react";
 import {
   PersonnalAccessToken,
-  TokenTenantRight,
   TokenTenantRights,
   TokenTenantRightsArray,
 } from "../utils/types";
@@ -14,17 +13,18 @@ import {
   queryPersonnalAccessTokens,
   updatePersonnalAccessToken,
 } from "../utils/queries";
-import {
-  TokenForm,
-  tokenRightsToArray,
-  tokenRightsToObject,
-} from "./TokenForm";
+import { TokenForm } from "./TokenForm";
 import queryClient from "../queryClient";
 import { IzanamiContext } from "../securityContext";
 import { ColumnDef } from "@tanstack/react-table";
 import { Loader } from "./Loader";
 import { Link } from "react-router-dom";
 import { CopyButton } from "./FeatureTable";
+import { tokenRightsToObject } from "../utils/rightUtils";
+
+function tokenRightsToArray(rights: TokenTenantRights): TokenTenantRightsArray {
+  return Object.entries(rights);
+}
 
 const columns: ColumnDef<PersonnalAccessToken>[] = [
   {

@@ -1,28 +1,19 @@
 import * as React from "react";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import {
   createSearchParams,
   useNavigate,
-  useParams,
   useSearchParams,
 } from "react-router-dom";
-import {
-  castDateIfNeeded,
-  fetchProjectLogs,
-  handleFetchJsonResponse,
-  projectLogQueryKey,
-} from "../utils/queries";
+import { castDateIfNeeded, handleFetchJsonResponse } from "../utils/queries";
 import { GenericTable } from "../components/GenericTable";
 import { format, parse, isValid } from "date-fns";
 import { FeatureDetails } from "../components/FeatureTable";
 import {
   FeatureCreated,
-  featureEventTypeOptions,
   FeatureUpdated,
   LogEntry,
   LogSearchQuery,
-  ProjectCreated,
-  ProjectLogSearchQuery,
   ProjectUpdated,
   tenantEventTypeOptions,
   TFeatureEventTypes,
@@ -39,7 +30,6 @@ import AsyncCreatableSelect from "react-select/async-creatable";
 import { customStyles } from "../styles/reactSelect";
 import { ErrorMessage } from "@hookform/error-message";
 import Select from "react-select";
-import { FeatureSelector } from "../components/FeatureSelector";
 import { Tooltip } from "../components/Tooltip";
 import { URLSearchParams } from "url";
 import queryClient from "../queryClient";
@@ -98,24 +88,8 @@ function extractSearchQueryFromUrlParams(
         )
       : undefined,
     additionalFields: additionalFields,
-  };
+  } as any;
 }
-
-const logQueryKey = (
-  tenant: string,
-  project: string,
-  query: Omit<Omit<ProjectLogSearchQuery, "total">, "pageSize">
-): string[] => {
-  return [
-    projectLogQueryKey(tenant!, project!),
-    query.users.join(""),
-    query.types.join(""),
-    query.features.join(""),
-    String(query.start),
-    String(query.end),
-    query.order,
-  ];
-};
 
 type AuditLogProps = {
   eventUrl: string;
@@ -127,7 +101,7 @@ type AuditLogProps = {
   eventTypes?: TFeatureEventTypes[];
 };
 
-export function fetchLogs(
+function fetchLogs(
   eventUrl: string,
   cursor: number | null,
   query: LogSearchQuery
@@ -174,20 +148,9 @@ export function fetchLogs(
   });
 }
 
-export function AuditLog(props: AuditLogProps) {
-  const { tenant } = useParams();
-  const { eventUrl } = props;
-  const customSearchFields = props.customSearchFields;
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const query = {
-    ...extractSearchQueryFromUrlParams(searchParams),
-    tenant: tenant!,
-  };
-  const [page, setPage] = useState(0);
-  const totalRef = React.useRef<number | undefined>(undefined);
-  const key = Object.entries(query)
-    .sort(([key, value], [otherKey, otherValue]) => {
+function queryKey(query: Omit<LogSearchQuery, "total">): string {
+  return Object.entries(query)
+    .sort(([key], [otherKey]) => {
       return key < otherKey ? 1 : -1;
     })
     .filter(([key, value]) => value !== undefined)
@@ -199,9 +162,21 @@ export function AuditLog(props: AuditLogProps) {
       }
     })
     .join("-");
+}
+
+export function AuditLog(props: AuditLogProps) {
+  const { eventUrl } = props;
+  const customSearchFields = props.customSearchFields;
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const query: Omit<LogSearchQuery, "total"> =
+    extractSearchQueryFromUrlParams(searchParams);
+
+  const [page, setPage] = useState(0);
+  const totalRef = React.useRef<number | undefined>(undefined);
+  const key = queryKey(query);
   const {
     data,
-    error,
     fetchNextPage,
     hasNextPage,
     isFetching,
@@ -210,10 +185,11 @@ export function AuditLog(props: AuditLogProps) {
   } = useInfiniteQuery({
     queryKey: [eventUrl, key],
     queryFn: ({ pageParam }) => {
-      return fetchLogs(eventUrl, pageParam, {
+      const logQuery: LogSearchQuery = {
         ...query,
         total: totalRef.current === undefined,
-      }).then((res) => {
+      } as LogSearchQuery;
+      return fetchLogs(eventUrl, pageParam, logQuery).then((res) => {
         if (res.count) {
           totalRef.current = res.count;
         }
@@ -226,16 +202,10 @@ export function AuditLog(props: AuditLogProps) {
         return undefined;
       }
       if (query.order === "asc") {
-        const next = Math.max.apply(
-          Math,
-          lastPage.events.map((log) => log.eventId)
-        );
+        const next = Math.max(...lastPage.events.map((log) => log.eventId));
         return next;
       } else {
-        const next = Math.min.apply(
-          Math,
-          lastPage.events.map((log) => log.eventId)
-        );
+        const next = Math.min(...lastPage.events.map((log) => log.eventId));
         return next;
       }
     },
@@ -248,7 +218,13 @@ export function AuditLog(props: AuditLogProps) {
         customSearchFields={customSearchFields}
         defaultValue={query}
         onSubmit={(query) => {
+          console.log("q", query);
+          const skey = queryKey(query);
           totalRef.current = undefined;
+          if (skey === key) {
+            queryClient.invalidateQueries({ queryKey: [eventUrl, skey] });
+          }
+
           const { additionalFields, ...rest } = query;
 
           const serializedAdditionalFields = Object.fromEntries(
@@ -260,7 +236,7 @@ export function AuditLog(props: AuditLogProps) {
           const param = Object.fromEntries(
             Object.entries({ ...serializedAdditionalFields, ...rest }).map(
               ([key, value]) => {
-                let v = value;
+                let v: any = value;
                 if (Array.isArray(value)) {
                   v = value.join(",");
                 }
@@ -550,7 +526,7 @@ function PageSelector(props: {
           </li>
           {Array.from({ length: page }, (_, index) => index + 1).map((p) => {
             return (
-              <li className="page-item">
+              <li className="page-item" key={`page-${p}`}>
                 <a
                   className="page-link log-page"
                   href="#"
@@ -570,7 +546,7 @@ function PageSelector(props: {
           </li>
           {range(page + 2, max + 1).map((p) => {
             return (
-              <li className="page-item">
+              <li className="page-item" key={`next-${p}`}>
                 <a
                   className="page-link log-page"
                   href="#"
@@ -628,38 +604,33 @@ const loadOptions = (
 
 function SearchCriterions(props: {
   eventTypes?: TFeatureEventTypes[];
-  onSubmit: (
-    query: Omit<LogSearchQuery, "order" | "total" | "pageSize">
-  ) => void;
-  defaultValue?: Omit<LogSearchQuery, "order" | "total" | "pageSize">;
+  onSubmit: (query: Omit<LogSearchQuery, "total">) => void;
+  defaultValue?: Omit<LogSearchQuery, "total">;
   customSearchFields?: (
     onChange: (value: { [x: string]: any }) => undefined,
     clear: () => undefined,
     defaultValue: { [x: string]: any }
   ) => React.ReactNode;
 }) {
-  const eventOptions = tenantEventTypeOptions.filter(({ label, value }) => {
+  const eventOptions = tenantEventTypeOptions.filter(({ value }) => {
     return props?.eventTypes ? props.eventTypes.includes(value as any) : true;
   });
-  const methods = useForm<
-    Omit<LogSearchQuery, "order" | "total" | "pageSize"> & { [x: string]: any }
-  >({
-    defaultValues: props.defaultValue || {
-      users: [],
-      types: [],
-      start: undefined,
-      end: undefined,
-    },
-  });
+  const methods = useForm<Omit<LogSearchQuery, "total"> & { [x: string]: any }>(
+    {
+      defaultValues: props.defaultValue || {
+        users: [],
+        types: [],
+        start: undefined,
+        end: undefined,
+      },
+    }
+  );
   const customSearchFields = props.customSearchFields;
 
   const {
     control,
-    register,
     handleSubmit,
-    watch,
     formState: { errors },
-    setError,
     setValue,
   } = methods;
 

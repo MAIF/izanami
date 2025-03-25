@@ -3,9 +3,7 @@ import { useContext, useState } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
 import { IzanamiContext, MODE_KEY, Modes } from "../securityContext";
 import Logo from "../../izanami.png";
-import { Configuration, TUser } from "../utils/types";
-import { useMutation } from "@tanstack/react-query";
-import { updateConfiguration } from "../utils/queries";
+import { TUser } from "../utils/types";
 import { Loader } from "../components/Loader";
 
 export function Login(props: any) {
@@ -146,7 +144,7 @@ function LoginForm(props: { req?: string }) {
             type="text"
             name="login"
             className="form-control"
-            onChange={(e) => {
+            onChange={() => {
               if (error) {
                 setError("");
               }
@@ -159,7 +157,7 @@ function LoginForm(props: { req?: string }) {
             name="password"
             type="password"
             className="form-control"
-            onChange={(e) => {
+            onChange={() => {
               if (error) {
                 setError("");
               }

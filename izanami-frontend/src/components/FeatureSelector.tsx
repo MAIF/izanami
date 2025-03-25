@@ -46,8 +46,8 @@ export function FeatureSelector(props: {
 
     const selectProps = {
       defaultValue: props?.defaultValue
-        ? options?.filter(({ label, value }) => {
-            return props.defaultValue?.includes(value);
+        ? options?.filter(({ value }) => {
+            return value && props.defaultValue?.includes(value);
           })
         : undefined,
       inputId: props.id ?? undefined,

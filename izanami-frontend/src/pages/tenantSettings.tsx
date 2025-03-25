@@ -43,8 +43,9 @@ import { TENANT_NAME_REGEXP } from "../utils/patterns";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import { Tooltip } from "../components/Tooltip";
 import { customStyles } from "../styles/reactSelect";
-import { DEFAULT_TIMEZONE, TimeZoneSelect } from "../components/TimeZoneSelect";
+import { TimeZoneSelect } from "../components/TimeZoneSelect";
 import { Loader } from "../components/Loader";
+import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
 
 export function TenantSettings(props: { tenant: string }) {
   const { tenant } = props;

@@ -7,6 +7,7 @@ import { customStyles } from "../styles/reactSelect";
 import { GlobalContextIcon } from "../utils/icons";
 import { Loader } from "./Loader";
 import { TContext } from "../utils/types";
+import { possiblePaths } from "../utils/contextUtils";
 
 export function AllContexts(props: {
   id: string;
@@ -75,20 +76,4 @@ function contextHierarchyToSelectOption(contextHierarchy: TContext[]) {
 
       return { label, value: path };
     });
-}
-
-export function possiblePaths(
-  contexts: TContext[],
-  path = ""
-): { path: string; context: TContext }[] {
-  return contexts.flatMap((ctx) => {
-    if (ctx.children) {
-      return [
-        ...possiblePaths(ctx.children, path + "/" + ctx.name),
-        { context: ctx, path: path + "/" + ctx.name },
-      ];
-    } else {
-      return [];
-    }
-  });
 }

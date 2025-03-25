@@ -1,10 +1,5 @@
-import * as React from "react";
-import {
-  IzanamiContext,
-  hasRightForProject,
-  useTenantRight,
-} from "../securityContext";
-import { TContext, TContextOverload, TLevel } from "../utils/types";
+import { useTenantRight } from "../securityContext";
+import { TLevel } from "../utils/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   changeProtectionStatusForGlobalContext,
@@ -15,7 +10,6 @@ import {
 } from "../utils/queries";
 import { FeatureContexts } from "../components/FeatureContexts";
 import queryClient from "../queryClient";
-import { OverloadTable } from "../components/FeatureTable";
 import { Loader } from "../components/Loader";
 
 export function GlobalContexts(props: { tenant: string; open: string }) {
