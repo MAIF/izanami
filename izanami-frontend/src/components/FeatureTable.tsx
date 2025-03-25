@@ -1302,7 +1302,10 @@ function ExistingFeatureTestForm(props: {
   }
 }
 
-function findContextForPath(path: string, contexts: TContext[]) {
+function findContextForPath(
+  path: string,
+  contexts: TContext[]
+): TContext | null {
   const strippedPath = path.startsWith("/") ? path.substring(1) : path;
   const firstSlashIndex = path.indexOf("/");
   const firstPart =

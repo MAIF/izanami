@@ -113,7 +113,7 @@ function EntitySelector(props: {
 
     Promise.all(promises)
       .then(([features, projects]) => {
-        return features
+        return (features as any[])
           .filter((f) => Boolean(f))
           .map((f: any) => ({
             label: (

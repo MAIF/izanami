@@ -153,7 +153,7 @@ function queryKey(query: Omit<LogSearchQuery, "total">): string {
     .sort(([key], [otherKey]) => {
       return key < otherKey ? 1 : -1;
     })
-    .filter(([key, value]) => value !== undefined)
+    .filter(([, value]) => value !== undefined)
     .map(([key, value]) => {
       if (key === "additionalFields") {
         return `${key}:${JSON.stringify(value)}`;
@@ -197,7 +197,7 @@ export function AuditLog(props: AuditLogProps) {
       });
     },
     initialPageParam: null as number | null,
-    getNextPageParam: (lastPage, pages) => {
+    getNextPageParam: (lastPage) => {
       if (lastPage.events.length < query.pageSize) {
         return undefined;
       }
@@ -607,8 +607,8 @@ function SearchCriterions(props: {
   onSubmit: (query: Omit<LogSearchQuery, "total">) => void;
   defaultValue?: Omit<LogSearchQuery, "total">;
   customSearchFields?: (
-    onChange: (value: { [x: string]: any }) => undefined,
-    clear: () => undefined,
+    onChange: (value: { [x: string]: any }) => any,
+    clear: () => any,
     defaultValue: { [x: string]: any }
   ) => React.ReactNode;
 }) {
