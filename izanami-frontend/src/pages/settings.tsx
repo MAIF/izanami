@@ -17,10 +17,7 @@ import { Configuration } from "../utils/types";
 import { customStyles } from "../styles/reactSelect";
 import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
-import {
-  RightSelector,
-  rightStateArrayToBackendMap,
-} from "../components/RightSelector";
+import { RightSelector } from "../components/RightSelector";
 import {
   Controller,
   FormProvider,
@@ -29,6 +26,7 @@ import {
 } from "react-hook-form";
 import { Tooltip } from "../components/Tooltip";
 import { ErrorMessage } from "../components/HookFormErrorMessage";
+import { rightStateArrayToBackendMap } from "../utils/rightUtils";
 
 const MAILER_OPTIONS = [
   { label: "MailJet", value: "MailJet" },
@@ -40,18 +38,6 @@ const MAILER_OPTIONS = [
   },
 ];
 
-// TODO centralize this in utils package
-export function yupValidationToStringError(
-  yupValidation: () => any,
-  error: string
-): string | null {
-  try {
-    yupValidation();
-    return null;
-  } catch (e) {
-    return error;
-  }
-}
 type StatsResultStatus =
   | { state: "SUCCESS"; results: any }
   | { state: "ERROR"; error: string }
@@ -443,7 +429,6 @@ function SMTPFormV2() {
   const {
     register,
     formState: { errors },
-    control,
   } = useFormContext<Configuration>();
   return (
     <fieldset>
@@ -567,7 +552,7 @@ function OIDCForm() {
 
         setOIDCModal({ visible: false });
       })
-      .catch((err) =>
+      .catch(() =>
         setOIDCModal({
           visible: true,
           error: "Failed to retrieve configuration",

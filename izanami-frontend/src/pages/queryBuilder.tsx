@@ -1,10 +1,5 @@
 import * as React from "react";
-import {
-  globalContextKey,
-  queryGlobalContexts,
-  queryTags,
-  tagsQueryKey,
-} from "../utils/queries";
+import { queryTags, tagsQueryKey } from "../utils/queries";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, useParams } from "react-router-dom";
 import Select from "react-select";
@@ -13,7 +8,6 @@ import { customStyles } from "../styles/reactSelect";
 import { IzanamiContext } from "../securityContext";
 import { GenericTable } from "../components/GenericTable";
 import { format, parse } from "date-fns";
-import { TContext } from "../utils/types";
 import { CopyButton } from "../components/CopyButton";
 import { Tooltip } from "../components/Tooltip";
 import { useRef } from "react";
@@ -28,7 +22,7 @@ export function QueryBuilder() {
 
   const tagQuery = useQuery({
     queryKey: [tagsQueryKey(tenant!)],
-    queryFn: () => queryTags(tenant!)
+    queryFn: () => queryTags(tenant!),
   });
   const [selectedProjects, setSelectedProjects] = React.useState<
     readonly string[]
@@ -523,22 +517,6 @@ export function QueryBuilder() {
   } else {
     return <Loader message="Loading..." />;
   }
-}
-
-export function possiblePaths(
-  contexts: TContext[],
-  path = ""
-): { path: string; context: TContext }[] {
-  return contexts.flatMap((ctx) => {
-    if (ctx.children) {
-      return [
-        ...possiblePaths(ctx.children, path + "/" + ctx.name),
-        { context: ctx, path: path + "/" + ctx.name },
-      ];
-    } else {
-      return [];
-    }
-  });
 }
 
 const URL_REGEXP =

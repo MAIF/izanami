@@ -56,13 +56,13 @@ export interface TFormCustomAction<T> extends TFormCustomActionParent<T> {
   customForm: (data: any, cancel: () => void) => JSX.Element;
 }
 
-export function isCustomActionWithoutForm<T>(
+function isCustomActionWithoutForm<T>(
   action: TCustomAction<T>
 ): action is TCustomActionWithoutForm<T> {
   return (action as TCustomActionWithoutForm<T>).action !== undefined;
 }
 
-export function isFormCustomAction<T>(
+function isFormCustomAction<T>(
   action: TCustomAction<T>
 ): action is TFormCustomAction<T> {
   return (action as TFormCustomAction<T>).customForm !== undefined;
@@ -137,7 +137,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
       const element: T = props.row.original!;
       const actionList = [
         ...Object.entries(customRowActions || {})
-          .filter(([osef, value]) => {
+          .filter(([, value]) => {
             return value.hasRight ? value.hasRight(user, element) : true;
           })
           .map(([key, action]) => {

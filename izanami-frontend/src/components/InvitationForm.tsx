@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import { TLevel } from "../utils/types";
 import AsyncSelect from "react-select/async";
 import Select from "react-select";

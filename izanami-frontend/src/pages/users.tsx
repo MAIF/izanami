@@ -21,16 +21,14 @@ import {
 } from "../utils/queries";
 import { Link } from "react-router-dom";
 import { isEqual } from "lodash";
-import {
-  RightSelector,
-  rightStateArrayToBackendMap,
-} from "../components/RightSelector";
+import { RightSelector } from "../components/RightSelector";
 import { TLevel, TRights, TTenantRight, TUser, UserType } from "../utils/types";
 import { Modal } from "../components/Modal";
 import { constraints } from "@maif/react-forms";
 import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
 import { TokensTable } from "../components/TokensTable";
+import { rightStateArrayToBackendMap } from "../utils/rightUtils";
 
 export function Users() {
   const [creationUrl, setCreationUrl] = useState<string | undefined>(undefined);

@@ -18,8 +18,9 @@ import { PASSWORD_REGEXP, USERNAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
 import queryClient from "../queryClient";
 import { TokensTable } from "../components/TokensTable";
-import { TokenForm, tokenRightsToObject } from "../components/TokenForm";
+import { TokenForm } from "../components/TokenForm";
 import { TokenTenantRight } from "../utils/types";
+import { tokenRightsToObject } from "../utils/rightUtils";
 
 export function Profile() {
   const ctx = React.useContext(IzanamiContext);

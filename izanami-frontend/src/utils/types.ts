@@ -20,7 +20,7 @@ export type TFeatureEventTypes =
 
 export type TTenantEventTypes = typeof tenantEventTypeOptions[number]["value"];
 
-type LogSearchQueryBase = {
+export type LogSearchQuery = {
   users: string[];
   types: EventType[];
   start?: Date;
@@ -31,25 +31,13 @@ type LogSearchQueryBase = {
   additionalFields: { [x: string]: any };
 };
 
-export type ProjectLogSearchQuery = LogSearchQueryBase & {
-  tenant: string;
-  project: string;
-  types: TFeatureEventTypes[];
-  features: string[];
-};
-export type TenantLogSearchQuery = LogSearchQueryBase & {
-  tenant: string;
-};
-
-export type LogSearchQuery = ProjectLogSearchQuery | TenantLogSearchQuery;
-
 export const POSSIBLE_TOKEN_RIGHTS = ["EXPORT", "IMPORT"] as const;
 export type TokenTenantRight = typeof POSSIBLE_TOKEN_RIGHTS[number];
 
 export type TokenTenantRightsArray = [string | null, TokenTenantRight[]][];
 export type TokenTenantRights = { [tenant: string]: TokenTenantRight[] };
 
-type EventType = TTenantEventTypes;
+export type EventType = TTenantEventTypes;
 export type LogEntry =
   | FeatureLogEntry
   | ProjectCreated

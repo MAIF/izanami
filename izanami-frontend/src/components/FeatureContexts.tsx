@@ -9,36 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { GlobalContextIcon } from "../utils/icons";
 import { FEATURE_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "./Loader";
-import { useParams } from "react-router-dom";
-
-export const LocalContext = React.createContext<{
-  open: string[];
-  deleteContextCallback: (path: string) => void;
-  createSubContextCallback: (path: string, name: string) => Promise<any>;
-  updateContextProtection: (v: {
-    path: string;
-    name: string;
-    protected: boolean;
-    global: boolean;
-  }) => Promise<any>;
-  hasUpdateDeleteRight: boolean;
-  hasRightOverProtectedContexts: boolean;
-  allContexts: TContext[];
-}>({
-  allContexts: [],
-  open: [],
-  deleteContextCallback: () => {
-    /**/
-  },
-  createSubContextCallback: () => {
-    return Promise.resolve();
-  },
-  updateContextProtection: () => {
-    return Promise.resolve();
-  },
-  hasUpdateDeleteRight: false,
-  hasRightOverProtectedContexts: false,
-});
+import { LocalContext } from "./ContextTreeLocalContext";
 
 type TOverloadRender = (
   context: TContext,
@@ -83,7 +54,7 @@ export function FeatureContexts(props: {
     queryFn: () => fetchContexts(),
   });
 
-  const { askConfirmation, user } = React.useContext(IzanamiContext);
+  const { askConfirmation } = React.useContext(IzanamiContext);
 
   if (contextQuery.data) {
     return (
@@ -268,7 +239,6 @@ function FeatureContextTree(props: {
     path: string;
     parents: TContext[];
   }>[] {
-    const { tenant } = useParams();
     return contexts.map((ctx) => {
       const nonLeafChildren = contextToTreeNode(
         ctx.children,
@@ -283,7 +253,7 @@ function FeatureContextTree(props: {
                 ? [
                     {
                       icon: <>Add subcontext</>,
-                      form: (submit, cancel) => {
+                      form: (submit: any, cancel: any) => {
                         const { createSubContextCallback } =
                           React.useContext(LocalContext);
                         return (

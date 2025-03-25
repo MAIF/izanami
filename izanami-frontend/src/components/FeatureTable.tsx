@@ -21,7 +21,6 @@ import {
   isLightWasmFeature,
   TValuedCondition,
   TClassicalCondition,
-  FeatureTypeName,
 } from "../utils/types";
 import { format, parse } from "date-fns";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
@@ -52,11 +51,7 @@ import {
 import { GenericTable, TCustomAction } from "./GenericTable";
 import { ColumnDef, Row } from "@tanstack/react-table";
 import queryClient from "../queryClient";
-import {
-  FeatureForm,
-  LegacyFeature,
-  toLegacyFeatureFormat,
-} from "./FeatureForm";
+import { FeatureForm, LegacyFeature } from "./FeatureForm";
 import { OverloadCreationForm } from "./OverloadCreationForm";
 import { useForm, Controller } from "react-hook-form";
 import Select from "react-select";
@@ -70,6 +65,8 @@ import { constraints } from "@maif/react-forms";
 import { ResultTypeIcon } from "./ResultTypeIcon";
 import { json } from "@codemirror/lang-json";
 import { GlobalContextIcon } from "../utils/icons";
+import { possiblePaths } from "../utils/contextUtils";
+import { toLegacyFeatureFormat } from "../utils/featureUtils";
 
 type FeatureFields =
   | "id"
@@ -116,10 +113,6 @@ const BULK_OPERATIONS = [
   "Transfer",
   "Apply Tags",
 ] as const;
-
-export function isAString(variable: any) {
-  return typeof variable === "string" || variable instanceof String;
-}
 
 function days(days: TDayOfWeepPeriod): string {
   return `on ${days.days
@@ -191,21 +184,6 @@ export function Rule(props: { rule: TFeatureRule }): JSX.Element {
     return <>for all users</>;
   }
 }
-function possiblePaths(
-  contexts: TContext[],
-  path = ""
-): { path: string; context: TContext }[] {
-  return contexts.flatMap((ctx) => {
-    if (ctx.children) {
-      return [
-        ...possiblePaths(ctx.children, path + "/" + ctx.name),
-        { path: path + "/" + ctx.name, context: ctx },
-      ];
-    } else {
-      return [];
-    }
-  });
-}
 
 function ScriptDetails({ config }: { config: string }) {
   return <div>Depends on script {config}</div>;
@@ -255,7 +233,7 @@ function NonBooleanConditionsDetails({
     <>
       {conditions.map((cond, idx) => {
         return (
-          <div>
+          <div key={idx}>
             <NonBooleanConditionDetails key={idx} condition={cond} />
             <div className="feature-separator">-OR-</div>
           </div>

@@ -4,7 +4,6 @@ import {
   TClassicalCondition,
   TClassicalContextOverload,
   THourPeriod,
-  TValuedCondition,
   ValuedFeature,
 } from "../utils/types";
 import Select from "react-select";
@@ -17,15 +16,15 @@ import {
   Controller,
   useFormContext,
   FieldErrors,
-  useWatch,
 } from "react-hook-form";
 import { format, parse, startOfDay } from "date-fns";
-import { DEFAULT_TIMEZONE, TimeZoneSelect } from "./TimeZoneSelect";
+import { TimeZoneSelect } from "./TimeZoneSelect";
 import { ErrorDisplay } from "./FeatureForm";
 import { Tooltip } from "./Tooltip";
+import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
 
 export function ConditionsInput(props: { folded: boolean }) {
-  const { control, watch, getValues } = useFormContext();
+  const { control, watch } = useFormContext();
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -46,7 +45,7 @@ export function ConditionsInput(props: { folded: boolean }) {
       {fields.map(({ id }, index) => {
         const condition = conditions?.[index];
         const emptyCondition =
-          Object.entries(condition).filter(([key, value]) => value !== "")
+          Object.entries(condition).filter(([, value]) => value !== "")
             .length === 0;
 
         return (
@@ -100,7 +99,7 @@ export function ConditionsInput(props: { folded: boolean }) {
                     <button
                       className="btn btn-danger btn-sm"
                       type="button"
-                      onClick={(e) => {
+                      onClick={() => {
                         remove(index);
                       }}
                     >

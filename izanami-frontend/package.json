@@ -48,6 +48,7 @@
     "buffer": "^6.0.3",
     "eslint": "^8.16.0",
     "eslint-plugin-react": "^7.30.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
     "pg": "^8.11.3",
     "prettier": "2.6.2",
     "process": "^0.11.10",

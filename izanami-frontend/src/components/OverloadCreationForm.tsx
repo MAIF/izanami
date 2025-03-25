@@ -1,9 +1,7 @@
 import * as React from "react";
 import {
-  FeatureType,
   FeatureTypeName,
   TContextOverload,
-  TContextOverloadBase,
   TStringContextOverload,
 } from "../utils/types";
 import {
@@ -67,8 +65,7 @@ export function OverloadCreationForm(props: {
   const projectQuery = useQuery({
     queryKey: [projectQueryKey(tenant!, project)],
 
-    queryFn: () =>
-      queryProject(tenant!, project)
+    queryFn: () => queryProject(tenant!, project),
   });
 
   if (projectQuery.isError) {

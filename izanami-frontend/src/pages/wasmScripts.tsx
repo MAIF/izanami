@@ -7,7 +7,7 @@ import {
   updateScript,
 } from "../utils/queries";
 import { GenericTable } from "../components/GenericTable";
-import { NavLink, useLocation, useSearchParams } from "react-router-dom";
+import { NavLink, useSearchParams } from "react-router-dom";
 import { TLevel, TUser, TWasmConfig } from "../utils/types";
 import { IzanamiContext, hasRightForTenant } from "../securityContext";
 import queryClient from "../queryClient";

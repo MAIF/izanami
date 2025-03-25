@@ -1,9 +1,8 @@
 import * as React from "react";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
+import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
 
-export const DEFAULT_TIMEZONE =
-  Intl.DateTimeFormat().resolvedOptions().timeZone;
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 const possibleTimezones: string[] = Intl.supportedValuesOf("timeZone");
