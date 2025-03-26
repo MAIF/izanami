@@ -10,7 +10,7 @@ import {
   SearchResultStatus,
   FilterOptions,
   Option,
-} from "../../utils/searchUtils";
+} from "./searchUtils";
 
 export function SearchModalContent({
   tenant,

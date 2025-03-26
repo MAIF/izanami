@@ -6,7 +6,7 @@ import {
   typeDisplayInformation,
   SearchResultStatus,
   SearchModalStatus,
-} from "../../utils/searchUtils";
+} from "./searchUtils";
 import { IzanamiContext } from "../../securityContext";
 
 interface SearchResultsProps {

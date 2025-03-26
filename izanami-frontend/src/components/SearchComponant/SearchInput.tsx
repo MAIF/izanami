@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { SearchResultStatus } from "../../utils/searchUtils";
+import { SearchResultStatus } from "./searchUtils";
 
 interface SearchInputProps {
   modalStatus: { all: boolean; tenant?: string };

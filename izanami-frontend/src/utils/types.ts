@@ -1,5 +1,10 @@
 import { isArray } from "lodash";
 
+export interface Option {
+  value: string;
+  label: string;
+}
+
 export const featureEventTypeOptions = [
   { label: "Created", value: "FEATURE_CREATED" },
   { label: "Updated", value: "FEATURE_UPDATED" },

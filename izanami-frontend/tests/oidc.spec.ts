@@ -1,7 +1,8 @@
 import test, { expect } from "@playwright/test";
 
 test.describe("OIDC should", () => {
-  test("allow external login", async ({ page }) => {
+  test("allow external login", async ({ browser }) => {
+    const page = await (await browser.newContext()).newPage();
     await page.goto("/login");
     await page.getByRole("button", { name: "OpenId connect" }).click();
     await expect(page).toHaveURL(

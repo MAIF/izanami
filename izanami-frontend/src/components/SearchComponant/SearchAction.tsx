@@ -1,7 +1,7 @@
 import * as React from "react";
 import Select, { components } from "react-select";
 import { customStyles } from "../../styles/reactSelect";
-import { SearchModalStatus, Option } from "../../utils/searchUtils";
+import { SearchModalStatus, Option } from "./searchUtils";
 interface SearchActionProps {
   tenant?: string;
   allTenants?: string[];
