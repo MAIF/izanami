@@ -12,7 +12,7 @@ export function GlobalContextIcon(props: { className?: string }) {
   );
 }
 
-export function StringIcon(props: object) {
+export function StringIcon() {
   return (
     <svg
       style={{ marginTop: "-3px" }}

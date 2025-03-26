@@ -242,7 +242,6 @@ export function Users() {
           valueType: "discrete",
         },
         cell: (props: { row: any }) => {
-          // FIXME TS
           const user = props.row.original!;
           return Object.keys(user?.tenantRights || {}).map(
             (tenantName: string) => (

@@ -442,7 +442,7 @@ function RedirectToFirstTenant(): JSX.Element {
 
 type AppLoadingState = "Loading" | "Error" | "Success";
 
-function Layout() {
+export function Layout() {
   const {
     user,
     setUser,
