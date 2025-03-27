@@ -134,6 +134,10 @@ class BaseAPISpec
   }
 
   override def afterEach(): Unit = {
+    val maybeWasmManager = maybeContainers.get.getContainerByServiceName("wasm-manager")
+    maybeWasmManager.ifPresent(wm => {
+      println("WASM MANAGER LOGS :",  wm.getLogs)
+    })
     if (shouldCleanUpMails) {
       Option(mailjetMockServer).filter(_.isRunning).foreach(_.resetAll())
       Option(mailjetExtension).foreach(_.reset())
@@ -174,7 +178,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   val DEFAULT_OIDC_CONFIG = Json.obj(
     "pkce"-> JsNull,
     "method"-> JsString("BASIC"),
-    "scopes"-> JsString("email profile"),
+    "scopes"-> JsString("openid email profile"),
     "enabled"-> JsBoolean(true),
     "clientId"-> JsString("foo"),
     "tokenUrl"-> JsString("http://localhost:9001/connect/token"),

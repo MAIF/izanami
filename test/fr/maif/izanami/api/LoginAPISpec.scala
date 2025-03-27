@@ -105,7 +105,7 @@ class LoginAPISpec extends BaseAPISpec {
       result
         .headers()
         .firstValue("location")
-        .get() mustEqual "http://localhost:9001/connect/authorize?scope=email%20profile%20openid&client_id=foo&response_type=code&redirect_uri=http://localhost:3000/login"
+        .get() mustEqual "http://localhost:9001/connect/authorize?scope=openid%20email%20profile&client_id=foo&response_type=code&redirect_uri=http://localhost:3000/login"
     }
   }
 }
