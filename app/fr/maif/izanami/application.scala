@@ -81,7 +81,6 @@ class IzanamiComponentsInstances(
   lazy val staleFeatureService = wire[FeatureUsageService]
 
   lazy val featureController              = wire[FeatureController]
-  lazy val staleFeatureController         = wire[StaleFeatureController]
   lazy val tenantController               = wire[TenantController]
   lazy val projectController              = wire[ProjectController]
   lazy val tagController                  = wire[TagController]

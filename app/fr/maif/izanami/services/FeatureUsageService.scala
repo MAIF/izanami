@@ -13,11 +13,6 @@ class FeatureUsageService(env: Env) {
   private val featureCalls = env.datastores.featureCalls
   private val staleDelay = Duration.ofHours(env.configuration.get[Long]("app.feature.stale-hours-delay"))
 
-  def reportStaleFeatures(tenant: String, delay: Duration): Future[Either[IzanamiError, List[String]]] = {
-    val nowMinusDelay = Instant.now().minus(delay)
-    featureCalls.findFeatureWithoutCallSince(tenant, nowMinusDelay)
-  }
-
   def determineStaleStatus(tenant: String, features: Seq[LightWeightFeature]): Future[Either[IzanamiError, Seq[LightWeightFeatureWithUsageInformation]]] = {
     val valueSearchStateDate = Instant.now().minus(staleDelay)
     featureCalls.findFeatureUsages(tenant, features.map(_.id), valueSearchStateDate).map(either => either.map(lastCallAndCreationDateByFeature => {
