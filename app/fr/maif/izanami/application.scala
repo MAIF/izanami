@@ -107,9 +107,9 @@ class IzanamiComponentsInstances(
   }
 
   def onStart(): Future[Unit] = {
-    applicationLifecycle.addStopHook { () =>
+    applicationLifecycle.addStopHook { () => {
       env.onStop()
-    }
+    }}
     env
       .onStart()
   }

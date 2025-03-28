@@ -94,6 +94,7 @@ class LoginAPISpec extends BaseAPISpec {
   "Openidconnect endpoints" should {
     "redirect to authentication provider" in {
       // Using java http client since WSClient timeout in this case
+      TestSituationBuilder().build()
       val request = HttpRequest
         .newBuilder()
         .uri(new URI(s"""${ADMIN_BASE_URL}/openid-connect"""))

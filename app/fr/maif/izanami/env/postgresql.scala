@@ -211,8 +211,7 @@ class Postgresql(env: Env) {
   }
 
   def onStop(): Future[Unit] = {
-    pool.close()
-    FastFuture.successful(())
+    pool.close().scala.map(_ => ())(env.executionContext)
   }
 
   def updateSearchPath(searchPath: String, conn: SqlConnection): Future[Unit] = {
