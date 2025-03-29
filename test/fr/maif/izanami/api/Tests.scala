@@ -2,19 +2,24 @@ package fr.maif.izanami.api
 
 import com.typesafe.config.ConfigFactory
 import fr.maif.izanami.IzanamiLoader
-import fr.maif.izanami.api.Tests.{isAvailable, startServer}
+import fr.maif.izanami.api.Tests.{isAvailable}
+import org.awaitility.Awaitility.await
 import org.scalatest._
 import org.slf4j.LoggerFactory
 import org.testcontainers.containers.DockerComposeContainer
 import org.testcontainers.containers.output.Slf4jLogConsumer
 import play.api.ApplicationLoader.Context
 import play.api.inject.DefaultApplicationLifecycle
+import play.api.libs.ws.WSClient
 import play.api.test.{DefaultTestServerFactory, RunningServer}
 import play.api.{Application, Configuration, Environment, Mode}
 import play.core.server.ServerConfig
 
 import java.io.{File, IOException}
 import java.net.Socket
+import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.SECONDS
 
 class IzanamiServerFactory extends DefaultTestServerFactory {
   override def serverConfig(app: Application): ServerConfig = {
@@ -34,10 +39,14 @@ trait IzanamiServerTest extends TestSuiteMixin { this: TestSuite =>
 
       containers.start()
       maybeContainers = Some(containers)
+      val maybeWasmManager = containers.getContainerByServiceName("wasm-manager")
+
+      await atMost (30, SECONDS) until (() =>java.lang.Boolean.valueOf(maybeWasmManager.get.isHealthy))
+      BaseAPISpec.shouldCleanUpWasmServer = false
     } else {
       println("Port 5432 is taken, assuming that docker containers are already running")
     }
-    if(isAvailable(9000)) {
+    /*if(isAvailable(9000)) {
       println("Port 9000 is available, starting server for the current suite")
       val runningServer = startServer()
       try {
@@ -53,7 +62,19 @@ trait IzanamiServerTest extends TestSuiteMixin { this: TestSuite =>
       }
     } else {
       println("Port 9000 is taken, assuming that Izanami is running")
-    }
+    }*/
+
+    try {
+      status.whenCompleted { result => {
+        println("Completed with ", result)
+        maybeContainers.foreach(_.close())
+      }}
+    } catch { // In case the suite aborts, ensure the server is stopped
+      case ex: Throwable => {
+        println("Exception was thrown ", ex)
+        maybeContainers.foreach(_.close())
+        throw ex
+      }}
 
     status
   }
@@ -72,12 +93,11 @@ object Tests {
     }
   }
 
-  def startServer(): RunningServer = {
-    lazy val config = ConfigFactory.parseFile(new File("conf/dev.conf")).resolve()
+  /*def startServer(httpClient: WSClient): RunningServer = {
+    val config = ConfigFactory.parseFile(new File("conf/dev.conf")).resolve()
 
-    lazy val configuration: Configuration =
-      Configuration.load(Environment.simple(), Map.empty[String, AnyRef]).withFallback(Configuration(config))
-
+    val configuration: Configuration =
+      Configuration.load(Environment.simple(), Map("config.file" -> "conf/dev.conf")).withFallback(Configuration(config))
     lazy val application = new IzanamiLoader().load(
       Context(
         environment = Environment.simple(),
@@ -89,14 +109,19 @@ object Tests {
 
     lazy val server = new IzanamiServerFactory()
 
-    server.start(application)
-  }
+    val runningServer = server.start(application)
+    def isHealthyFuture = httpClient.url("http://localhost:9000/api/_health")
+      .get().map(r => r.status == 200)(ExecutionContext.global)
+    await atMost (10, SECONDS) until (isHealthyFuture.isCompleted)
+  }*/
 }
-/*
-class Tests
+
+/*class Tests
     extends Suites(
       new ApplicationKeysAPISpec(),
       new ConfigurationAPISpec(),
+      new EventsAPISpec(),
+      new ExportAPISpec(),
       new FeatureAPISpec(),
       new FeatureClientAPISpec(),
       new FeatureContextAPISpec(),
@@ -104,10 +129,13 @@ class Tests
       new LoginAPISpec(),
       new PluginAPISpec(),
       new ProjectAPISpec(),
+      new SearchAPISpec(),
       new TagAPISpec(),
       new TenantAPISpec(),
+      new TokenAPISpec(),
       new UsersAPISpec(),
-      new V1CompatibilityTest()
+      new V1CompatibilityTest(),
+      new WebhookAPISpec()
     )
     with BeforeAndAfterAll {
 
@@ -118,8 +146,15 @@ class Tests
     super.beforeAll()
     if (isAvailable(5432)) {
       println("Port 5432 is available, starting docker-compose once for all suites")
-      val containers = new DockerComposeContainer(new File("docker-compose.yml"))
+      var containers = new DockerComposeContainer(new File("docker-compose.yml"))
+
+      containers = containers.withLocalCompose(true).asInstanceOf[DockerComposeContainer[Nothing]]
+
       containers.start()
+      maybeContainers = Some(containers)
+      val maybeWasmManager = containers.getContainerByServiceName("wasm-manager")
+
+      await atMost (10, SECONDS) until (() =>java.lang.Boolean.valueOf(maybeWasmManager.get.isHealthy))
     } else {
       println("Port 5432 is busy, assuming that docker-compose is already started")
     }

@@ -111,7 +111,7 @@ type TLegacyStrategy = typeof LegacyStrategies[number];
 
 function toSingleConditionFeatureFormat(
   feature: LegacyFeature
-): SingleConditionFeature {
+): Omit<SingleConditionFeature, "stale" | "creationDate"> {
   const { id, name, description, enabled, tags, project } = feature;
   const base = {
     id,
@@ -688,7 +688,7 @@ function LegacyFeatureForm(props: {
 
 export function FeatureForm(props: {
   cancel: () => void;
-  submit: (overload: TCompleteFeature) => void;
+  submit: (overload: Omit<TCompleteFeature, "stale" | "creationDate">) => void;
   defaultValue?: TLightFeature;
   additionalFields?: () => JSX.Element;
   displayId?: boolean;
@@ -729,10 +729,9 @@ export function FeatureForm(props: {
         />
       );
     } else {
-      const { defaultValue: df, ...rest } = props;
       form = (
         <V2FeatureForm
-          {...rest}
+          {...props}
           defaultValue={convertedValue ? convertedValue : defaultValue}
         />
       );

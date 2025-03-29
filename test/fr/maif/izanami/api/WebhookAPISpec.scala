@@ -412,7 +412,6 @@ class WebhookAPISpec extends BaseAPISpec {
 
     def awaitRequests(port: Int, eventType: String, count: Int = 1): mutable.Seq[(Request, HttpHeaders)] = {
       val requests = getWebhookServerRequests(port)
-      Thread.sleep(2000)
       await atMost (10, SECONDS) until {
         requests.count { case (request, _) =>
           request.getBodyAsString.contains(eventType)
@@ -950,6 +949,10 @@ class WebhookAPISpec extends BaseAPISpec {
               )
             )
         )
+        .withCustomConfiguration(Map(
+          "app.webhooks.retry.intial-delay" -> java.lang.Integer.valueOf(1),
+          "app.webhooks.retry.multiplier" -> java.lang.Integer.valueOf(1)
+        ))
         .withWebhookServer(port = 9988, responseCode = INTERNAL_SERVER_ERROR)
         .build()
 
@@ -960,8 +963,6 @@ class WebhookAPISpec extends BaseAPISpec {
           req.getBodyAsString.contains("FEATURE_UPDATED")
         } >= 2
       }
-
-      Thread.sleep(5000)
     }
 
     "Stop retrying after sucess" in {
@@ -983,6 +984,10 @@ class WebhookAPISpec extends BaseAPISpec {
               )
             )
         )
+        .withCustomConfiguration(Map(
+          "app.webhooks.retry.intial-delay" -> java.lang.Integer.valueOf(1),
+          "app.webhooks.retry.multiplier" -> java.lang.Integer.valueOf(1)
+        ))
         .withWebhookServer(port = 9996, responseCode = INTERNAL_SERVER_ERROR)
         .build()
 
@@ -992,12 +997,12 @@ class WebhookAPISpec extends BaseAPISpec {
 
       BaseAPISpec.setupWebhookServer(9996, OK)
 
-      Thread.sleep(20000)
 
-      getWebhookServerRequests(9996).count { case (req, _) =>
-        req.getBodyAsString.contains("FEATURE_UPDATED")
-      } mustEqual 2
-
+      await atMost (20, SECONDS) until {
+        getWebhookServerRequests(9996).count { case (req, _) =>
+          req.getBodyAsString.contains("FEATURE_UPDATED")
+        } == 2
+      }
     }
 
     "Respect given template" in {

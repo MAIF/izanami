@@ -1072,6 +1072,10 @@ export function castDateIfNeeded(feat: any): void {
       feat.conditions.end = new Date(feat.conditions.end);
     }
   }
+
+  if (feat?.stale?.since) {
+    feat.stale.since = new Date(feat.stale.since);
+  }
 }
 
 export function fetchWasmScripts(tenant: string): Promise<
