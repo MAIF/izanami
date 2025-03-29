@@ -12,12 +12,12 @@ import akka.stream.scaladsl.{FileIO, Keep, Sink, Source}
 import akka.util.Timeout
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
-import com.github.tomakehurst.wiremock.client.WireMock.aResponse
+import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, configure}
 import com.github.tomakehurst.wiremock.core.{Container, WireMockConfiguration}
 import com.github.tomakehurst.wiremock.http.{HttpHeaders, Request}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import fr.maif.izanami.IzanamiLoader
-import fr.maif.izanami.api.BaseAPISpec.{cleanUpDB, eventKillSwitch, izanamiInstance, login, shouldCleanUpEvents, shouldCleanUpMails, shouldCleanUpWasmServer, webhookServers, ws}
+import fr.maif.izanami.api.BaseAPISpec.{cleanUpDB, eventKillSwitch, izanamiInstance, login, shouldCleanUpEvents, shouldCleanUpMails, shouldCleanUpWasmServer, shouldRestartInstance, webhookServers, ws}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.utils.{WasmManagerClient, WiremockResponseDefinitionTransformer}
 import org.awaitility.scala.AwaitilitySupport
@@ -111,26 +111,20 @@ class BaseAPISpec
     }*/
 
     if(izanamiInstance != null) {
-      if(shouldCleanUpEvents) {
-        val shutdownF = cleanEvents.map(_ => {
+      val baseFuture = if(shouldCleanUpEvents) cleanEvents else Future.successful()
+
+      val res = baseFuture.map(_ => {
+        /*if(shouldRestartInstance) {
           println("Izanami instance is running from previous test, stopping it...")
-          izanamiInstance.stopServer.close()
-          izanamiInstance = null
-
-          org.awaitility.Awaitility.await atMost (30, SECONDS) until {
-            val res = Try {
-              val b = await(ws.url("http://localhost:9000/api/_health").get().map(r => r.status != 200))
-              b
-            }.getOrElse(true)
-            res
-          }
+          BaseAPISpec.stopServer
           println("Izanami is stopped")
-        })
+        } else {
+          println("An izanami instance is already running, and no custom configuration was provided, no need to shut it down")
+        }*/
+        BaseAPISpec.stopServer()
+      })
 
-        futures.appended(shutdownF)
-      }
-
-
+      futures = futures.appended(res)
     }
 
     if (Objects.nonNull(eventKillSwitch)) {
@@ -218,25 +212,37 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   var shouldCleanUpWasmServer           = true
   var shouldCleanUpMails                = true
   var shouldCleanUpEvents               = true
+  var shouldRestartInstance             = false
   var eventKillSwitch: UniqueKillSwitch = null
   var izanamiInstance: RunningServer = null
 
   val webhookServers: scala.collection.mutable.Map[Int, StubServer] = scala.collection.mutable.Map()
 
+  def stopServer(): Unit = {
+    izanamiInstance.stopServer.close()
+    izanamiInstance = null
 
-  def startServer: RunningServer = {
-    val config = ConfigFactory.parseFile(new File("conf/dev.conf")).resolve()
+    org.awaitility.Awaitility.await atMost (30, SECONDS) until (() => {
+      val res = Try {
+        val b = await(ws.url("http://localhost:9000/api/_health").get().map(r => r.status != 200))
+        b
+      }.getOrElse(true)
+      res
+    })
+  }
 
+  def startServer(customConfig: Map[String, AnyRef]): RunningServer = {
     val configuration: Configuration = Configuration.load(Environment.simple(), Map("config.file" -> "conf/dev.conf"))
-    //val underlyingConfig = configuration.underlying.withValue("app.pg.port", ConfigValueFactory.fromAnyRef(5433))
+    var updatedConfig = customConfig.foldLeft(configuration.underlying)((conf, entry) => {
+      conf.withValue(entry._1, ConfigValueFactory.fromAnyRef(entry._2))
+    })
 
     lazy val application = new IzanamiLoader().load(
       Context(
         environment = Environment.simple(),
         devContext = None,
         lifecycle = new DefaultApplicationLifecycle(),
-        //initialConfiguration = Configuration(underlyingConfig)
-        initialConfiguration = configuration
+        initialConfiguration = Configuration(updatedConfig)
       )
     )
 
@@ -3109,7 +3115,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         TestConfiguration(mailerConfiguration = Json.obj("mailer" -> "Console"), invitationMode = "Response", originEmail = null, oidcConfiguration = DEFAULT_OIDC_CONFIG),
       wasmScripts: Seq[TestWasmScript] = Seq(),
       webhookServers: Map[Int, (Int, String)] = Map(),
-      personnalAccessTokens: Set[TestPersonnalAccessToken] = Set()
+      personnalAccessTokens: Set[TestPersonnalAccessToken] = Set(),
+      customConfiguration: Map[String, AnyRef] = Map()
   ) {
 
     def withWebhookServer(port: Int, responseCode: Int = OK, path: String = "/"): TestSituationBuilder = {
@@ -3194,8 +3201,27 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       copy(tenants = this.tenants ++ tenants.map(t => TestTenant(name = t)))
     }
 
+    def withCustomConfiguration(config: Map[String, AnyRef]): TestSituationBuilder = {
+      copy(customConfiguration = config)
+    }
+
     def build(): TestSituation = {
-      val runningServer = startServer
+      /*if(customConfiguration.nonEmpty) {
+        BaseAPISpec.this.shouldRestartInstance = true
+      }
+
+      val runningServer = if(izanamiInstance == null || customConfiguration.nonEmpty) {
+        if(izanamiInstance != null && customConfiguration.nonEmpty) {
+          println("Custom configuration was provided, restarting already running Izanami instance")
+          stopServer()
+          println("Already running instance was stopped, restarting new instance with custom config")
+        }
+        startServer(customConfiguration)
+      } else {
+        BaseAPISpec.this.izanamiInstance
+      }*/
+      val runningServer = startServer(customConfiguration)
+
       var scriptIds: Map[String, String]                                              = Map()
       var keyData: Map[String, TestSituationKey]                                      = Map()
       val featuresData: TrieMap[String, TrieMap[
