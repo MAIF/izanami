@@ -1,12 +1,3 @@
---CREATE TABLE feature_calls (
---  id UUID DEFAULT gen_random_uuid () PRIMARY KEY,
---  feature TEXT REFERENCES features (id) ON UPDATE CASCADE ON DELETE CASCADE,
---  apikey TEXT REFERENCES apikeys (clientId) ON UPDATE CASCADE ON DELETE CASCADE,
---  date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
---  value JSONB,
---  context ${extensions_schema}.ltree
---);
-
 ALTER TABLE features ADD created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 
 CREATE TABLE feature_calls (
