@@ -57,7 +57,6 @@ DECLARE
 parent_project TEXT;
 parent_global BOOLEAN;
 BEGIN
-    -- 1. Vérification : un contexte non global doit avoir le même projet que son parent
     IF NEW.global = false AND NEW.parent IS NOT NULL THEN
         SELECT project, global INTO parent_project, parent_global
         FROM new_contexts
@@ -68,7 +67,6 @@ BEGIN
         END IF;
     END IF;
 
-    -- 2. Vérification : interdiction de changer de projet une fois défini
     IF TG_OP = 'UPDATE' THEN
         IF OLD.project IS DISTINCT FROM NEW.project THEN
             RAISE EXCEPTION 'Project change forbidden for context %: % -> %', NEW.ctx_path, OLD.project, NEW.project;
@@ -90,7 +88,6 @@ CREATE OR REPLACE FUNCTION enforce_protection_cascade() RETURNS trigger AS $enfo
     DECLARE
     parent_protected BOOLEAN;
     BEGIN
-        -- Vérifier qu'on ne désactive pas protected sous un parent protégé
         IF NEW.protected = false AND NEW.parent IS NOT NULL THEN
             SELECT protected INTO parent_protected
             FROM new_contexts
@@ -101,9 +98,7 @@ CREATE OR REPLACE FUNCTION enforce_protection_cascade() RETURNS trigger AS $enfo
             END IF;
         END IF;
 
-        -- Si on active la protection sur ce contexte
         IF NEW.protected = true AND (OLD.protected IS DISTINCT FROM true OR TG_OP = 'INSERT') THEN
-            -- Propager la protection à tous les enfants
             UPDATE new_contexts
             SET protected = true
             WHERE ctx_path <@ NEW.ctx_path
