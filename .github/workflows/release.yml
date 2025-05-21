@@ -40,7 +40,7 @@ jobs:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
         run: |
-          echo $PGP_SECRET | base64 --decode | gpg  --batch --import 2> /dev/null
+          echo $PGP_SECRET | base64 --decode | gpg --verbose  --batch --import 2> /dev/null
           git checkout .
           git config --global user.email "izanami-release-bot@users.noreply.github.com"
           git config --global user.name "izanami-release-bot"
