@@ -489,7 +489,7 @@ export function queryProjectById(
 export function updateFeature(
   tenant: string,
   id: string,
-  feature: TCompleteFeature
+  feature: Omit<TCompleteFeature, "stale" | "creationDate">
 ): Promise<TCompleteFeature> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/features/${id}`, {

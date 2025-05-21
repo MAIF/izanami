@@ -1,7 +1,7 @@
 import { constraints, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
 import * as React from "react";
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { IzanamiContext } from "../securityContext";
 
 import { TContext } from "../utils/types";

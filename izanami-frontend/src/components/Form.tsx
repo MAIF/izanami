@@ -6,7 +6,7 @@ import {
   SchemaEntry,
   constraints,
 } from "@maif/react-forms";
-import { MutableRefObject } from "react";
+import { JSX, MutableRefObject } from "react";
 import { Form as MaifReactForm } from "@maif/react-forms";
 import * as React from "react";
 import { Loader } from "./Loader";

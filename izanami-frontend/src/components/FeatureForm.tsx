@@ -24,7 +24,7 @@ import { ErrorMessage } from "@hookform/error-message";
 import { ConditionsInput } from "./ConditionInput";
 import Select from "react-select";
 import { ExistingScript, WasmInput } from "./WasmInput";
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { customStyles } from "../styles/reactSelect";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";

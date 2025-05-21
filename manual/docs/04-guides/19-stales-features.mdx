@@ -1,0 +1,48 @@
+---
+title: Stale feature detection
+---
+
+import { Note } from "@site/src/components/Note";
+import staleIndicator from "@site/static/img/screenshots/stale-features/stale-indicator.png";
+
+
+<Note>
+Stale feature detection is currently in alpha, and disabled by default.
+You can enable it by setting `app.experimental.stale-tracking.enabled` (or `IZANAMI_EXPERIMENTAL_STALE_TRACKING_ENABLED` env variable) to true.
+Please open an issue if you encounter any bugs or have any improvement ideas.
+</Note>
+
+Removing flags that are not used anymore is the key to keeping your application code simple.
+Indeed, flag accumulation leads to codebases that are hard to test, hard to understand, and hard to maintain.
+
+Identifying flags that are not used or useful is, however, a challenge.
+To ease this task, Izanami offers some hints on features that might be "stale".
+
+# Stale rules
+
+Izanami considers that a feature is "stale" if one of the below conditions matches:
+
+- feature has not been called since 2190 hours  (~3 months), this value can be adjusted by specifying `app.feature.stale-hours-delay` (`IZANAMI_FEATURE_STALE_HOURS_DELAY` env var).
+- feature always returned the same value in the past 2190 hours (~3 months), this value can be changed as above.
+
+<Note>
+Please be aware that even if Izanami returns the same value all the time, a different value can be evaluated locally (especially if you use an izanami client).
+Making client send local evaluation results to Izanami is planned for a future version.
+</Note>
+
+# Stale indication
+
+When a feature matches one of the above rules, Izanami indicates it in project view with a dedicated badge. Hovering the badge gives you some information about the stale cause.
+
+<img src={staleIndicator} />
+
+
+# Roadmap
+
+This feature is still in alpha version, and some enhancements are planned; if you have other ideas, please (submit an issue)[https://github.com/MAIF/izanami/issues].
+
+- Allow tracking stale features only in some contexts
+- Allow izanami clients to send local evaluation results to izanami
+- Allow to see who calls a feature (which api key)
+- Allow to mute stale warning for some features (useful for "panic button" features)
+- Allow mail based stale alerting.

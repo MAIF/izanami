@@ -23,6 +23,7 @@ import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { useParams } from "react-router-dom";
 import { Loader } from "../components/Loader";
+import { JSX } from "react";
 
 export function Tag(prop: { tag: string; tenant: string }) {
   const { tag, tenant } = prop;

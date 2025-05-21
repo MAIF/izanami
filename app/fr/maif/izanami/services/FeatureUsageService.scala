@@ -16,7 +16,7 @@ class FeatureUsageService(env: Env) {
   private implicit val executionContext: ExecutionContext      = env.executionContext
   private val featureCalls                                     = env.datastores.featureCalls
   private val staleDelay                                       = Duration.ofHours(env.configuration.get[Long]("app.feature.stale-hours-delay"))
-  private val isStatusTrackingActive: Boolean                  = env.configuration.get[Boolean]("app.experimental.feature-request.enabled")
+  private val isStatusTrackingActive: Boolean                  = env.configuration.get[Boolean]("app.experimental.stale-tracking.enabled")
   private val callRegistrationIntervalInSeconds: Long          = env.configuration.get[Long]("app.feature.call-records.call-register-interval-in-seconds")
   private val callAggregator: FeatureCallAggregator            = FeatureCallAggregator()
   private var callAggregationRegisterCancellation: Cancellable = Cancellable.alreadyCancelled

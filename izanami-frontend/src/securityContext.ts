@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { JSX, useContext } from "react";
 import { TLevel, TRights, TUser } from "./utils/types";
 
 export const MODE_KEY = "izanami-dark-light-mode";

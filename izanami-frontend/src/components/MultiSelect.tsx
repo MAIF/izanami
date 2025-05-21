@@ -55,6 +55,8 @@ const MultiSelect = (props: ISelectProps) => {
     }, [state]);
 
     return (
+      <>
+      {/* @ts-expect-error("this works...") */}
       <components.Option {...props}>
         <div className="d-flex align-items-center">
           <input
@@ -66,14 +68,18 @@ const MultiSelect = (props: ISelectProps) => {
           <label style={{ marginLeft: "5px" }}>{props.label}</label>
         </div>
       </components.Option>
+      </>
     );
   };
 
   const MultiValue = (props: any) => {
     return (
+      <>
+      {/* @ts-expect-error("this works...") */}
       <components.MultiValue {...props}>
         <span>{props.data.label}</span>
       </components.MultiValue>
+      </>
     );
   };
 

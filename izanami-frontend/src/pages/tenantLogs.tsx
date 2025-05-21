@@ -7,7 +7,7 @@ import {
   searchEntitiesByTenant,
 } from "../utils/queries";
 import { customStyles } from "../styles/reactSelect";
-import { useEffect, useState } from "react";
+import { JSX, useEffect, useState } from "react";
 import { Loader } from "../components/Loader";
 
 export function TenantAudit() {

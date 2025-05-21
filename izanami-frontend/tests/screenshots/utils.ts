@@ -1,5 +1,5 @@
 import { Page, chromium, Locator } from "playwright";
-import { cleanup } from "../utils.js";
+import { cleanup, executeInDatabase } from "../utils.js";
 
 export function screenshotBuilder(folder) {
   return function (page) {
@@ -88,4 +88,17 @@ export async function createProject(name, page) {
     .click();
   await page.getByLabel("Project name").fill(name);
   await page.getByRole("button", { name: "Save" }).click();
+}
+
+// expected date format : 2024-05-20 15:00:00+00
+export async function updateFeatureCreationDate(
+  tenant: string,
+  feature: string,
+  date: string
+) {
+  return executeInDatabase(async (client) => {
+    return client.query(
+      `UPDATE "${tenant}".features SET created_at='${date}'::timestamptz WHERE id='${feature}'`
+    );
+  });
 }
