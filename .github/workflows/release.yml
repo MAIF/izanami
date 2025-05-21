@@ -18,7 +18,7 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
       - uses: sbt/setup-sbt@v1
-      - uses: coursier/cache-action@v5
+      - uses: coursier/cache-action@v6
       # install node lts
       - name: setup node
         uses: actions/setup-node@v3
