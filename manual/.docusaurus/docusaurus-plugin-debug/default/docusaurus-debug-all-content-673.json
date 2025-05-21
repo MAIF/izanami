@@ -34,8 +34,8 @@
               },
               "sidebar": "tutorialSidebar",
               "previous": {
-                "title": "Protected contexts",
-                "permalink": "/izanami/docs/guides/protected-contexts"
+                "title": "Stale feature detection",
+                "permalink": "/izanami/docs/guides/stales-features"
               },
               "next": {
                 "title": "Java client",
@@ -571,8 +571,8 @@
                 "permalink": "/izanami/docs/guides/audit-logs"
               },
               "next": {
-                "title": "Clients",
-                "permalink": "/izanami/docs/clients/"
+                "title": "Stale feature detection",
+                "permalink": "/izanami/docs/guides/stales-features"
               }
             },
             {
@@ -625,6 +625,32 @@
               "next": {
                 "title": "Http calls in scripts",
                 "permalink": "/izanami/docs/guides/http-calls-in-scripts"
+              }
+            },
+            {
+              "id": "guides/stales-features",
+              "title": "Stale feature detection",
+              "description": "Stale feature detection is currently in alpha, and disabled by default.",
+              "source": "@site/docs/04-guides/19-stales-features.mdx",
+              "sourceDirName": "04-guides",
+              "slug": "/guides/stales-features",
+              "permalink": "/izanami/docs/guides/stales-features",
+              "draft": false,
+              "unlisted": false,
+              "tags": [],
+              "version": "current",
+              "sidebarPosition": 19,
+              "frontMatter": {
+                "title": "Stale feature detection"
+              },
+              "sidebar": "tutorialSidebar",
+              "previous": {
+                "title": "Protected contexts",
+                "permalink": "/izanami/docs/guides/protected-contexts"
+              },
+              "next": {
+                "title": "Clients",
+                "permalink": "/izanami/docs/clients/"
               }
             },
             {
@@ -953,6 +979,10 @@
                   {
                     "type": "doc",
                     "id": "guides/protected-contexts"
+                  },
+                  {
+                    "type": "doc",
+                    "id": "guides/stales-features"
                   }
                 ],
                 "link": {

@@ -131,6 +131,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "guides/stales-features",
+              "path": "/izanami/docs/guides/stales-features",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "guides/transfer-data",
               "path": "/izanami/docs/guides/transfer-data",
               "sidebar": "tutorialSidebar"

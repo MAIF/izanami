@@ -7,7 +7,7 @@ export function CopyButton(props: {
   secondary?: boolean;
 }) {
   const [validCheckMark, setValidCheckmark] = React.useState(false);
-  const timeRef = React.useRef<NodeJS.Timeout>();
+  const timeRef = React.useRef<undefined | NodeJS.Timeout>(undefined);
 
   return (
     <button

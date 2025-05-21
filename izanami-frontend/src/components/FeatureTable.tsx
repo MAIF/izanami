@@ -1618,7 +1618,7 @@ export function FeatureTestForm(props: {
         if (payload) {
           try {
             json = JSON.parse(payload);
-          } catch (err) {
+          } catch {
             console.error("Failed to parse json payload", payload);
           }
         }
@@ -1854,8 +1854,10 @@ export function FeatureTable(props: {
   const { askConfirmation, user } = React.useContext(IzanamiContext);
 
   const featureUpdateMutation = useMutation({
-    mutationFn: (data: { id: string; feature: TCompleteFeature }) =>
-      updateFeature(tenant!, data.id, data.feature),
+    mutationFn: (data: {
+      id: string;
+      feature: Omit<TCompleteFeature, "stale" | "creationDate">;
+    }) => updateFeature(tenant!, data.id, data.feature),
 
     onSuccess: () => {
       refresh();
@@ -1913,8 +1915,12 @@ export function FeatureTable(props: {
       <>
         <span style={{ textOverflow: "ellipsis" }}>{feature.name}</span>
         {feature.stale && (
-          <Pill criticity="warning" tooltip={staleMessage(feature.stale)}>
-            <i className="fa-solid fa-triangle-exclamation"></i>
+          <Pill
+            criticity="warning"
+            tooltip={staleMessage(feature.stale)}
+            ariaLabel={`${feature.name} is stale`}
+          >
+            <i className="fa-solid fa-triangle-exclamation" aria-hidden></i>
           </Pill>
         )}
       </>

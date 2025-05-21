@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { IzanamiContext } from "../securityContext";

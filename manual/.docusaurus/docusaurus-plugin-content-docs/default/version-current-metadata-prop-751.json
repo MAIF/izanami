@@ -191,6 +191,13 @@
             "href": "/izanami/docs/guides/protected-contexts",
             "docId": "guides/protected-contexts",
             "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Stale feature detection",
+            "href": "/izanami/docs/guides/stales-features",
+            "docId": "guides/stales-features",
+            "unlisted": false
           }
         ],
         "href": "/izanami/docs/guides/"
@@ -386,6 +393,12 @@
       "id": "guides/remote-script",
       "title": "Remote script features",
       "description": "To use remote script feature (in opposition to local script features, that we've seen previously), you'll need to instantiate WASMO in alongside Izanami.",
+      "sidebar": "tutorialSidebar"
+    },
+    "guides/stales-features": {
+      "id": "guides/stales-features",
+      "title": "Stale feature detection",
+      "description": "Stale feature detection is currently in alpha, and disabled by default.",
       "sidebar": "tutorialSidebar"
     },
     "guides/transfer-data": {

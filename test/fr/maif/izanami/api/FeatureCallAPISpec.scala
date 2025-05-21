@@ -13,7 +13,7 @@ class FeatureCallAPISpec extends BaseAPISpec {
         .withProjects(TestProject("proj")
           .withFeatureNames("feat")
         )
-      ).withCustomConfiguration(Map("app.experimental.feature-request.enabled" -> "false"))
+      ).withCustomConfiguration(Map("app.experimental.stale-tracking.enabled" -> "false"))
         .loggedInWithAdminRights()
         .build()
 
@@ -28,7 +28,7 @@ class FeatureCallAPISpec extends BaseAPISpec {
           .withProjects(TestProject("proj")
             .withFeatureNames("feat")
           )
-        ).withCustomConfiguration(Map("app.experimental.feature-request.enabled" -> "true"))
+        ).withCustomConfiguration(Map("app.experimental.stale-tracking.enabled" -> "true"))
         .loggedInWithAdminRights()
         .build()
 

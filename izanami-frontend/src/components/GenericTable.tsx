@@ -15,7 +15,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
-import React, { useContext, useEffect, useState } from "react";
+import React, { JSX, useContext, useEffect, useState } from "react";
 import Select from "react-select";
 import { IzanamiContext } from "../securityContext";
 import { customStyles } from "../styles/reactSelect";

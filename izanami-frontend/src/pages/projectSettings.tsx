@@ -59,7 +59,7 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
 
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: projectUserQueryKey(tenant, project),
+        queryKey: [projectUserQueryKey(tenant, project)],
       });
     },
   });
@@ -202,7 +202,7 @@ function ProjectUsers(props: {
                       onSuccess: () => {
                         cancel();
                         queryClient.invalidateQueries({
-                          queryKey: projectUserQueryKey(tenant, project),
+                          queryKey: [projectUserQueryKey(tenant, project)],
                         });
                       },
                     }

@@ -13,10 +13,13 @@ interface SearchActionProps {
 
 const CustomOption = (props: any) => {
   return (
+    <>
+    {/* @ts-expect-error("this works") */}
     <components.Option {...props}>
       <span style={{ marginRight: 1 }}>{props.data.icon}</span>
       {props.data.label}
     </components.Option>
+    </>
   );
 };
 

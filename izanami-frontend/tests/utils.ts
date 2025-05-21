@@ -70,6 +70,25 @@ const clearWasmo = async () => {
     });
 };
 
+export const executeInDatabase = async (
+  callback: (c: Client) => Promise<any>
+) => {
+  const client = new Client({
+    host: "localhost",
+    port: 5432,
+    database: "postgres",
+    user: "postgres",
+    password: "postgres",
+  });
+  await client.connect();
+
+  try {
+    await callback(client);
+  } finally {
+    await client.end();
+  }
+};
+
 export const cleanup = async () => {
   await clearWasmo();
   const client = new Client({
