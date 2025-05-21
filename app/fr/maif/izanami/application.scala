@@ -32,7 +32,7 @@ class IzanamiLoader extends ApplicationLoader {
       _.configure(context.environment, context.initialConfiguration, Map.empty)
     }
     val components = new IzanamiComponentsInstances(context)
-    Await.result(components.onStart(), 10.seconds)
+    Await.result(components.onStart(), 120.seconds)
     components.application
   }
 }
