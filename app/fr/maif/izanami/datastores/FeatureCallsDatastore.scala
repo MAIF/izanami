@@ -71,7 +71,9 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
         callSeq.map(_._1.feature).toArray,
         callSeq.map(_._1.key).toArray,
         callSeq.map(_._1.context.toDBPath).toArray,
-        callSeq.map(_._1.result.vertxJsValue).toArray,
+        callSeq.map(_._1.result).map(v => {
+          Json.obj("value" -> v).vertxJsValue
+        }).toArray,
         callSeq.map(_._1.rangeStart).map(s => s.atOffset(ZoneOffset.UTC)).toArray,
         callSeq.map(_._1.rangeStart).map(s => s.atOffset(ZoneOffset.UTC).plusMinutes(rangeDurationInMinutes)).toArray,
         callSeq.map(_._2).map(l => l.asInstanceOf[Number]).toArray
@@ -112,7 +114,7 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
         schemas = Seq(tenant)
       ) { r => {
         val lastCall = r.optOffsetDatetime("last_call").map(_.toInstant)
-        val values = r.optStringArray("values").map(vs => vs.map(str => Json.parse(str)).toSet).getOrElse(Set.empty)
+        val values = r.optStringArray("values").map(vs => vs.map(str => Json.parse(str)).map(json => (json \ "value").as[JsValue]).toSet).getOrElse(Set.empty)
         for(
           createdAt <- r.optOffsetDatetime("created_at").map(_.toInstant);
           id <- r.optString("id")
