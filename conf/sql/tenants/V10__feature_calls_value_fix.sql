@@ -1,0 +1,1 @@
+UPDATE feature_calls SET value=json_build_object('value', value);
