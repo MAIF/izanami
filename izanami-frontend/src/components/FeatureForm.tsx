@@ -1106,11 +1106,7 @@ export function V2FeatureForm(props: {
                 <label className="mt-3  col-6">
                   Base value*
                   {resultType === "string" ? (
-                    <input
-                      type="text"
-                      className="form-control"
-                      {...register("value")}
-                    />
+                    <textarea className="form-control" {...register("value")} />
                   ) : (
                     <input
                       type="number"
