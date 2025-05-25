@@ -43,7 +43,7 @@ export function WebHooks(props: { tenant: string }) {
   const selectedSearchRow = searchParams.get("filter");
   const tenant = props.tenant;
   const [creating, setCreating] = React.useState(false);
-  const { refreshUser, askPasswordConfirmation } =
+  const { refreshUser, askInputConfirmation } =
     React.useContext(IzanamiContext);
   const hasTenantWriteLevel = useTenantRight(tenant, TLevel.Write);
 
@@ -66,8 +66,7 @@ export function WebHooks(props: { tenant: string }) {
   });
 
   const webhookDeletion = useMutation({
-    mutationFn: (data: { id: string; password: string }) =>
-      deleteWebhook(tenant!, data.id, data.password),
+    mutationFn: (data: { id: string }) => deleteWebhook(tenant!, data.id),
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [webhookQueryKey(tenant)] });
@@ -311,19 +310,24 @@ export function WebHooks(props: { tenant: string }) {
                   </>
                 ),
                 action: (webhook: Webhook) => {
-                  askPasswordConfirmation(
-                    `Are you sure you want to delete webhook ${webhook.name}?`,
-                    async (password: string) => {
+                  askInputConfirmation(
+                    <>
+                      Are you sure you want to delete webhook ${webhook.name}?
+                      This can't be undone.
+                      <br />
+                      Please confirm by typing webhook name below.
+                    </>,
+                    async () => {
                       try {
                         await webhookDeletion.mutateAsync({
                           id: webhook.id,
-                          password: password,
                         });
                       } catch (error) {
                         console.error("Error deleting:", error);
                         throw error;
                       }
-                    }
+                    },
+                    webhook.name
                   );
                 },
 

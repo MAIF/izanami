@@ -23,9 +23,10 @@ export interface TIzanamiContext {
     closeButtonText?: string,
     confirmButtonText?: string
   ) => Promise<void>;
-  askPasswordConfirmation: (
+  askInputConfirmation: (
     message: JSX.Element | JSX.Element[] | string,
-    onConfirm: (password: string) => Promise<void>,
+    onConfirm: () => Promise<void>,
+    expectedValue: string,
     title?: string
   ) => Promise<void>;
   refreshUser: () => void;
@@ -51,7 +52,7 @@ export const IzanamiContext = React.createContext<TIzanamiContext>({
     return Promise.resolve();
   },
   displayModal: () => Promise.resolve(),
-  askPasswordConfirmation: () => {
+  askInputConfirmation: () => {
     return Promise.resolve();
   },
   refreshUser: () => {

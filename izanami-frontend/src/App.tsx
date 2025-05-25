@@ -72,7 +72,7 @@ import { Loader } from "./components/Loader";
 import Logo from "../izanami.png";
 import { SearchModal } from "./components/SearchComponant/SearchModal";
 import { WebHooks } from "./pages/webhooks";
-import { PasswordModal } from "./components/PasswordModal";
+import { InputConfirmationModal } from "./components/PasswordModal";
 import { Icons } from "./Icons";
 import { ProjectAudit } from "./pages/projectLogs";
 import { TenantAudit } from "./pages/tenantLogs";
@@ -654,9 +654,10 @@ export class App extends Component {
       confirmButtonText?: string;
       noFooter?: boolean;
     };
-    passwordConfirmation?: {
+    inputConfirmation?: {
       message: JSX.Element | JSX.Element[] | string;
       callback: (password: string) => Promise<void>;
+      expectedValue: string;
       title?: string;
     };
   };
@@ -805,17 +806,18 @@ export class App extends Component {
           });
         });
       },
-      askPasswordConfirmation: (
+      askInputConfirmation: (
         message: JSX.Element | JSX.Element[] | string,
-        onConfirm: (password: string) => Promise<void>,
+        onConfirm: () => Promise<void>,
+        expectedValue: string,
         title?: string
       ) => {
         return new Promise((resolve) => {
           this.setState({
-            passwordConfirmation: {
+            inputConfirmation: {
               message,
-              callback: (password: string) =>
-                onConfirm(password).finally(() => resolve()),
+              expectedValue,
+              callback: () => onConfirm().then(() => resolve()),
               title,
             },
           });
@@ -852,7 +854,7 @@ export class App extends Component {
 
   componentDidUpdate(): void {
     this.fetchIntegrationsIfNeeded();
-    this.fetchExpositionUrlIfNeeded;
+    this.fetchExpositionUrlIfNeeded();
   }
 
   render() {
@@ -876,21 +878,22 @@ export class App extends Component {
       closeButtonText: this.state.confirmation?.closeButtonText,
       confirmButtonText: this.state.confirmation?.confirmButtonText,
     };
-    const modalPasswordProps = {
-      title: this.state.passwordConfirmation?.title,
-      isOpenModal: !!this.state.passwordConfirmation,
+    const inputConfirmationProps = {
+      title: this.state.inputConfirmation?.title,
+      isOpenModal: !!this.state.inputConfirmation,
+      expectedValue: this.state.inputConfirmation?.expectedValue,
       onClose: () => {
         this.setState({
-          passwordConfirmation: undefined,
+          inputConfirmation: undefined,
         });
       },
       onConfirm: (password: string) => {
-        if (this.state.passwordConfirmation?.callback) {
-          this.state.passwordConfirmation
+        if (this.state.inputConfirmation?.callback) {
+          this.state.inputConfirmation
             ?.callback(password)
-            .then(() => this.setState({ passwordConfirmation: undefined }));
+            .then(() => this.setState({ inputConfirmation: undefined }));
         } else {
-          this.setState({ passwordConfirmation: undefined });
+          this.setState({ inputConfirmation: undefined });
         }
       },
     };
@@ -918,10 +921,10 @@ export class App extends Component {
           <QueryClientProvider client={queryClient}>
             <RouterProvider router={router} />
             {modalPart}
-            {this.state.passwordConfirmation && (
-              <PasswordModal {...modalPasswordProps}>
-                {this.state.passwordConfirmation.message}
-              </PasswordModal>
+            {this.state.inputConfirmation && (
+              <InputConfirmationModal {...inputConfirmationProps}>
+                {this.state.inputConfirmation.message}
+              </InputConfirmationModal>
             )}
           </QueryClientProvider>
         </IzanamiContext.Provider>

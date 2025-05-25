@@ -55,7 +55,7 @@ test.describe("Project setting screen should", () => {
     await page.goto(`/tenants/${tenantName}/projects/project`);
     await page.getByLabel("Project settings").click();
     await page.getByRole("button", { name: "Delete project" }).click();
-    await page.getByLabel("Password").fill(PASSWORD);
+    await page.getByRole("textbox", { name: "Confirmation" }).fill("project");
     await page.getByRole("button", { name: "Confirm" }).click();
     await expect(page).toHaveURL(`/tenants/${tenantName}`);
     await expect(page.getByRole("link", { name: "foo" })).toHaveCount(0);

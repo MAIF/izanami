@@ -336,38 +336,12 @@ class WebhookAPISpec extends BaseAPISpec {
 
       val id = (response.json.get \ "id").as[String]
 
-      val deleteResponse = situation.deleteWebhook("tenant", id, "barfoofoo")
+      val deleteResponse = situation.deleteWebhook("tenant", id)
       deleteResponse.status mustBe NO_CONTENT
 
       situation.listWebhook("tenant").json.get.as[JsArray].value mustBe empty
     }
-    "prevent deleting webhook if user password is not valid" in {
-      val situation = TestSituationBuilder()
-        .loggedInWithAdminRights()
-        .withTenants(
-          TestTenant("tenant")
-            .withProjects(
-              TestProject("project").withFeatures(
-                TestFeature("f1", enabled = false)
-              )
-            )
-        )
-        .build()
 
-      val response = situation.createWebhook(
-        "tenant",
-        TestWebhook(
-          name = "my-hook",
-          url = "http://localhost:3000",
-          features = Set(situation.findFeatureId("tenant", "project", "f1").get)
-        )
-      )
-
-      val id = (response.json.get \ "id").as[String]
-      val deleteResponse = situation.deleteWebhook("tenant", id, "foobarbar")
-      deleteResponse.status mustBe UNAUTHORIZED
-
-    }
     "prevent deleting webhook if user has not enough rights" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -402,7 +376,7 @@ class WebhookAPISpec extends BaseAPISpec {
       situation.logout()
       val newSituation = situation.loggedAs("testu", "foofoo123")
 
-      val deleteResponse = newSituation.deleteWebhook("tenant", id, "foofoo123")
+      val deleteResponse = newSituation.deleteWebhook("tenant", id)
 
       deleteResponse.status mustBe UNAUTHORIZED
     }
@@ -452,7 +426,6 @@ class WebhookAPISpec extends BaseAPISpec {
 
       Thread.sleep(1000)
     }
-
 
     "trigger when a targeted feature name is updated" in {
       val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
@@ -580,7 +553,6 @@ class WebhookAPISpec extends BaseAPISpec {
       Thread.sleep(1000)
     }
 
-
     "triggers if feature overload is deleted" in {
       val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
@@ -612,11 +584,8 @@ class WebhookAPISpec extends BaseAPISpec {
         feature = "f1"
       )
 
-      val deleteResponse = situation.deleteFeatureOverload(tenant = tenant,
-        project = "project",
-        path = "prod",
-        feature = "f1"
-      )
+      val deleteResponse =
+        situation.deleteFeatureOverload(tenant = tenant, project = "project", path = "prod", feature = "f1")
 
       response.status mustEqual NO_CONTENT
       deleteResponse.status mustEqual NO_CONTENT
@@ -949,10 +918,12 @@ class WebhookAPISpec extends BaseAPISpec {
               )
             )
         )
-        .withCustomConfiguration(Map(
-          "app.webhooks.retry.intial-delay" -> java.lang.Integer.valueOf(1),
-          "app.webhooks.retry.multiplier" -> java.lang.Integer.valueOf(1)
-        ))
+        .withCustomConfiguration(
+          Map(
+            "app.webhooks.retry.intial-delay" -> java.lang.Integer.valueOf(1),
+            "app.webhooks.retry.multiplier"   -> java.lang.Integer.valueOf(1)
+          )
+        )
         .withWebhookServer(port = 9988, responseCode = INTERNAL_SERVER_ERROR)
         .build()
 
@@ -984,10 +955,12 @@ class WebhookAPISpec extends BaseAPISpec {
               )
             )
         )
-        .withCustomConfiguration(Map(
-          "app.webhooks.retry.intial-delay" -> java.lang.Integer.valueOf(1),
-          "app.webhooks.retry.multiplier" -> java.lang.Integer.valueOf(1)
-        ))
+        .withCustomConfiguration(
+          Map(
+            "app.webhooks.retry.intial-delay" -> java.lang.Integer.valueOf(1),
+            "app.webhooks.retry.multiplier"   -> java.lang.Integer.valueOf(1)
+          )
+        )
         .withWebhookServer(port = 9996, responseCode = INTERNAL_SERVER_ERROR)
         .build()
 
@@ -996,7 +969,6 @@ class WebhookAPISpec extends BaseAPISpec {
       Thread.sleep(500)
 
       BaseAPISpec.setupWebhookServer(9996, OK)
-
 
       await atMost (20, SECONDS) until {
         getWebhookServerRequests(9996).count { case (req, _) =>
@@ -1122,15 +1094,15 @@ class WebhookAPISpec extends BaseAPISpec {
         id = webhookId,
         transformer = json => {
           val result: JsObject = json +
-            ("name"        -> Json.toJson("abcdefghij")) +
-            ("features"    -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
-            ("projects"    -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
-            ("headers"     -> Json.obj("foo" -> "bar")) +
-            ("url"         -> Json.toJson(s"http://localhost:9000")) +
-            ("description" -> Json.toJson("abcdefghij")) +
-            ("context"     -> Json.toJson("My new context")) +
-            ("bodyTemplate"  -> Json.toJson(body)) +
-            ("user"        -> Json.toJson("My new user"))
+            ("name"         -> Json.toJson("abcdefghij")) +
+            ("features"     -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
+            ("projects"     -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
+            ("headers"      -> Json.obj("foo" -> "bar")) +
+            ("url"          -> Json.toJson(s"http://localhost:9000")) +
+            ("description"  -> Json.toJson("abcdefghij")) +
+            ("context"      -> Json.toJson("My new context")) +
+            ("bodyTemplate" -> Json.toJson(body)) +
+            ("user"         -> Json.toJson("My new user"))
           result
         }
       )

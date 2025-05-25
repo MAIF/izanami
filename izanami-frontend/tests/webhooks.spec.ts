@@ -125,7 +125,7 @@ test.describe("Webhook screen should", () => {
     await page.goto(`/tenants/${tenantName}/webhooks`);
     await webhookAction(page, "Delete");
 
-    await page.getByLabel("Password").fill(PASSWORD);
+    await page.getByRole("textbox", { name: "Confirmation" }).fill("webhook1");
     await page.getByRole("button", { name: "Confirm" }).click();
 
     await expect(

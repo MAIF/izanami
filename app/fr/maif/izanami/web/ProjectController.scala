@@ -1,6 +1,6 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.EventDatastore.{AscOrder, FeatureEventRequest, parseSortOrder}
+import fr.maif.izanami.datastores.EventDatastore.{parseSortOrder, AscOrder, FeatureEventRequest}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.ProjectDoesNotExists
 import fr.maif.izanami.events.{EventAuthentication, EventService, FeatureEvent, TenantCreated, TenantDeleted}
@@ -24,60 +24,75 @@ class ProjectController(
     val tenantAuthAction: TenantAuthActionFactory,
     val projectAuthAction: ProjectAuthActionFactory,
     val projectAuthActionById: ProjectAuthActionByIdFactory,
-    val validatePasswordAction: ValidatePasswordActionFactory,
     val detailledRightForTenanFactory: DetailledRightForTenantFactory,
     val featureUsageService: FeatureUsageService
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
 
   def readEventsForProject(
-        tenant: String,
-        project: String,
-        order: Option[String],
-        users: Option[String],
-        types: Option[String],
-        features: Option[String],
-        start: Option[String],
-        end: Option[String],
-        cursor: Option[Long],
-        count: Int,
-        total: Option[Boolean]
-    ): Action[AnyContent] =
+      tenant: String,
+      project: String,
+      order: Option[String],
+      users: Option[String],
+      types: Option[String],
+      features: Option[String],
+      start: Option[String],
+      end: Option[String],
+      cursor: Option[Long],
+      count: Int,
+      total: Option[Boolean]
+  ): Action[AnyContent] =
     projectAuthAction(tenant, project, RightLevels.Read).async { implicit request =>
       env.datastores.events
-        .listEventsForProject(tenant, project, FeatureEventRequest(
-          sortOrder = order.flatMap(o => parseSortOrder(o)).getOrElse(AscOrder),
-          cursor = cursor,
-          count = count,
-          users = parseStringSet(users),
-          begin = start.flatMap(s => Try{Instant.parse(s)}.toOption),
-          end = end.flatMap(e => Try{Instant.parse(e)}.toOption),
-          eventTypes = parseStringSet(types).map(t => EventService.parseEventType(t)).collect{case Some(t) => t},
-          features = parseStringSet(features),
-          total = total.getOrElse(false)
-        ))
-        .flatMap{case (events, maybeCount) => {
-          val tokenIds = events.map(_.authentication).collect {
-            case EventAuthentication.TokenAuthentication(tokenId) => tokenId
-          }.toSet
-
-          env.datastores.personnalAccessToken.findAccessTokenByIds(tokenIds).map(tokenNamesByIds => {
-            (events.map(e => {
-              val json = Json.toJson(e)(EventService.eventFormat.writes).as[JsObject]
-              e.authentication match {
-                case EventAuthentication.TokenAuthentication(tokenId) => {
-                    val tokenName = tokenNamesByIds.getOrElse(tokenId, s"<Deleted token> (token id was $tokenId)")
-                    json ++ Json.obj("tokenName" -> tokenName)
-                }
-                case EventAuthentication.BackOfficeAuthentication => json
+        .listEventsForProject(
+          tenant,
+          project,
+          FeatureEventRequest(
+            sortOrder = order.flatMap(o => parseSortOrder(o)).getOrElse(AscOrder),
+            cursor = cursor,
+            count = count,
+            users = parseStringSet(users),
+            begin = start.flatMap(s => Try { Instant.parse(s) }.toOption),
+            end = end.flatMap(e => Try { Instant.parse(e) }.toOption),
+            eventTypes = parseStringSet(types).map(t => EventService.parseEventType(t)).collect { case Some(t) => t },
+            features = parseStringSet(features),
+            total = total.getOrElse(false)
+          )
+        )
+        .flatMap {
+          case (events, maybeCount) => {
+            val tokenIds = events
+              .map(_.authentication)
+              .collect { case EventAuthentication.TokenAuthentication(tokenId) =>
+                tokenId
               }
-            }), maybeCount)
-          })
-        }}
-        .map{ case (events, maybeCount) => {
-          val jsonCount = maybeCount.map(JsNumber(_)).getOrElse(JsNull)
-          Ok(Json.obj("events" -> Json.toJson(events), "count" -> jsonCount))
-        }}
+              .toSet
+
+            env.datastores.personnalAccessToken
+              .findAccessTokenByIds(tokenIds)
+              .map(tokenNamesByIds => {
+                (
+                  events.map(e => {
+                    val json = Json.toJson(e)(EventService.eventFormat.writes).as[JsObject]
+                    e.authentication match {
+                      case EventAuthentication.TokenAuthentication(tokenId) => {
+                        val tokenName = tokenNamesByIds.getOrElse(tokenId, s"<Deleted token> (token id was $tokenId)")
+                        json ++ Json.obj("tokenName" -> tokenName)
+                      }
+                      case EventAuthentication.BackOfficeAuthentication     => json
+                    }
+                  }),
+                  maybeCount
+                )
+              })
+          }
+        }
+        .map {
+          case (events, maybeCount) => {
+            val jsonCount = maybeCount.map(JsNumber(_)).getOrElse(JsNull)
+            Ok(Json.obj("events" -> Json.toJson(events), "count" -> jsonCount))
+          }
+        }
     }
 
   def createProject(tenant: String): Action[JsValue] = tenantAuthAction(tenant, RightLevels.Write).async(parse.json) {
@@ -103,7 +118,7 @@ class ProjectController(
         case JsSuccess(updatedProject, _) =>
           env.datastores.projects.updateProject(tenant, project, updatedProject, request.user).map {
             case Left(value) => value.toHttpResponse
-            case Right(_) => NoContent
+            case Right(_)    => NoContent
           }
         case JsError(_)                   => BadRequest(Json.obj("message" -> "bad body format")).future
       }
@@ -136,9 +151,10 @@ class ProjectController(
             err => Results.Status(err.status)(Json.toJson(err)).future,
             project => {
               featureUsageService.determineStaleStatus(tenant, project.features).map {
-                case Left(err) => err.toHttpResponse
+                case Left(err)                           => err.toHttpResponse
                 case Right(featuresWithUsageInformation) => {
-                  val projectWithUsageInformation = ProjectWithUsageInformation.fromProject(project = project, features = featuresWithUsageInformation.toList)
+                  val projectWithUsageInformation = ProjectWithUsageInformation
+                    .fromProject(project = project, features = featuresWithUsageInformation.toList)
                   Ok(Json.toJson(projectWithUsageInformation)(projectWithUsageInformationWrites))
                 }
               }
@@ -153,21 +169,22 @@ class ProjectController(
       env.datastores.projects
         .readProjectsById(tenant, Set(projectId))
         .map(projectMap => {
-          projectMap.get(projectId).fold(
-            ProjectDoesNotExists(id).toHttpResponse
-          )(project => Ok(Json.toJson(project)))
+          projectMap
+            .get(projectId)
+            .fold(
+              ProjectDoesNotExists(id).toHttpResponse
+            )(project => Ok(Json.toJson(project)))
         })
     }
 
-  def deleteProject(tenant: String, project: String): Action[JsValue] =
-    (projectAuthAction(tenant, project, RightLevels.Admin) andThen validatePasswordAction()).async(parse.json) {
-      implicit request =>
-        env.datastores.projects
-          .deleteProject(tenant, project, request.user)
-          .map {
-            case Left(err)    => err.toHttpResponse
-            case Right(value) => NoContent
-          }
+  def deleteProject(tenant: String, project: String): Action[AnyContent] =
+    (projectAuthAction(tenant, project, RightLevels.Admin)).async { implicit request =>
+      env.datastores.projects
+        .deleteProject(tenant, project, request.user)
+        .map {
+          case Left(err)    => err.toHttpResponse
+          case Right(value) => NoContent
+        }
 
     }
 }

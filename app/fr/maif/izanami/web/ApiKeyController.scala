@@ -11,7 +11,6 @@ import scala.concurrent.{ExecutionContext, Future}
 class ApiKeyController(
     val controllerComponents: ControllerComponents,
     val tenantAuthAction: TenantAuthActionFactory,
-    val validatePasswordAction: ValidatePasswordActionFactory,
     val keyAuthAction: KeyAuthActionFactory
 )(implicit val env: Env)
     extends BaseController {
@@ -26,12 +25,20 @@ class ApiKeyController(
             .hasRightFor(
               tenant,
               username = request.user.username,
-              rights = key.projects.map(p => RightUnit(name = p, rightType = RightTypes.Project, rightLevel = RightLevels.Write)),
-              tenantLevel = if(key.admin) Some(RightLevels.Admin) else None
+              rights = key.projects
+                .map(p => RightUnit(name = p, rightType = RightTypes.Project, rightLevel = RightLevels.Write)),
+              tenantLevel = if (key.admin) Some(RightLevels.Admin) else None
             )
             .flatMap(authorized => {
-              if(!authorized) {
-                Future.successful(Forbidden(Json.obj("message" -> s"${request.user} does not have right on one or more of these projects : ${key.projects.mkString(",")} or is not tenant admin (if admin key was required)")))
+              if (!authorized) {
+                Future.successful(
+                  Forbidden(
+                    Json.obj(
+                      "message" -> s"${request.user} does not have right on one or more of these projects : ${key.projects
+                        .mkString(",")} or is not tenant admin (if admin key was required)"
+                    )
+                  )
+                )
               } else {
                 env.datastores.apiKeys
                   .createApiKey(
@@ -67,28 +74,40 @@ class ApiKeyController(
             .flatMap(eitherRightChanges =>
               eitherRightChanges.map {
                 case (newProjects, false) if newProjects.isEmpty => Future.successful(true)
-                case (newProjects, adminChanged) => {env.datastores.users
-                  .hasRightFor(
-                    tenant,
-                    username = request.user.username,
-                    rights = newProjects.map(p => RightUnit(name = p, rightType = RightTypes.Project, rightLevel = RightLevels.Write)),
-                    tenantLevel = if(adminChanged) Some(RightLevels.Admin) else None
-                  )}
+                case (newProjects, adminChanged)                 => {
+                  env.datastores.users
+                    .hasRightFor(
+                      tenant,
+                      username = request.user.username,
+                      rights = newProjects.map(p =>
+                        RightUnit(name = p, rightType = RightTypes.Project, rightLevel = RightLevels.Write)
+                      ),
+                      tenantLevel = if (adminChanged) Some(RightLevels.Admin) else None
+                    )
+                }
               } match {
-                case Left(err) => Future.successful(Left(err))
+                case Left(err)     => Future.successful(Left(err))
                 case Right(future) => future.map(Right(_))
               }
-            ).map(eitherAuthorized => eitherAuthorized.filterOrElse(b => b, Forbidden(Json.obj("message" -> s"${request.user} does not have right on key projects"))))
-            .flatMap(e => e.map(_ => {
-              env.datastores.apiKeys
-                .updateApiKey(tenant, name, key)
-                .map(eitherName => {
-                  eitherName.fold(
-                    err => err.toHttpResponse,
-                    _ => NoContent
-                  )
-                })
-            }) fold(r => Future(r), r => r))
+            )
+            .map(eitherAuthorized =>
+              eitherAuthorized.filterOrElse(
+                b => b,
+                Forbidden(Json.obj("message" -> s"${request.user} does not have right on key projects"))
+              )
+            )
+            .flatMap(e =>
+              e.map(_ => {
+                env.datastores.apiKeys
+                  .updateApiKey(tenant, name, key)
+                  .map(eitherName => {
+                    eitherName.fold(
+                      err => err.toHttpResponse,
+                      _ => NoContent
+                    )
+                  })
+              }) fold (r => Future(r), r => r)
+            )
         })
         .recoverTotal(jsError => Future.successful(BadRequest(toJson(jsError))))
     }
@@ -100,13 +119,11 @@ class ApiKeyController(
         .map(keys => Ok(Json.toJson(keys)))
   }
 
-  def deleteApiKey(tenant: String, name: String): Action[JsValue] = (keyAuthAction(tenant, name, RightLevels.Admin) andThen validatePasswordAction()).async(parse.json) {
-    implicit request =>
-
+  def deleteApiKey(tenant: String, name: String): Action[AnyContent] =
+    (keyAuthAction(tenant, name, RightLevels.Admin)).async { implicit request =>
       env.datastores.apiKeys
         .deleteApiKey(tenant, name)
         .map(either => either.fold(err => Results.Status(err.status)(Json.toJson(err)), key => NoContent))
 
-
-  }
+    }
 }

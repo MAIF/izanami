@@ -218,7 +218,6 @@ export function AuditLog(props: AuditLogProps) {
         customSearchFields={customSearchFields}
         defaultValue={query}
         onSubmit={(query) => {
-          console.log("q", query);
           const skey = queryKey(query);
           totalRef.current = undefined;
           if (skey === key) {
