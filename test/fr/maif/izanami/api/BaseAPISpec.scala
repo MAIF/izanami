@@ -17,7 +17,21 @@ import com.github.tomakehurst.wiremock.core.{Container, WireMockConfiguration}
 import com.github.tomakehurst.wiremock.http.{HttpHeaders, Request}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import fr.maif.izanami.IzanamiLoader
-import fr.maif.izanami.api.BaseAPISpec.{cleanUpDB, eventKillSwitch, isAvailable, izanamiInstance, login, maybeContainers, shouldCleanUpEvents, shouldCleanUpMails, shouldCleanUpWasmServer, shouldRestartInstance, startContainers, webhookServers, ws}
+import fr.maif.izanami.api.BaseAPISpec.{
+  cleanUpDB,
+  eventKillSwitch,
+  isAvailable,
+  izanamiInstance,
+  login,
+  maybeContainers,
+  shouldCleanUpEvents,
+  shouldCleanUpMails,
+  shouldCleanUpWasmServer,
+  shouldRestartInstance,
+  startContainers,
+  webhookServers,
+  ws
+}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.utils.{WasmManagerClient, WiremockResponseDefinitionTransformer}
 import org.awaitility.scala.AwaitilitySupport
@@ -31,7 +45,7 @@ import play.api.{Application, Configuration, Environment, Mode}
 import play.api.libs.json._
 import play.api.libs.ws.ahc.{AhcWSClient, StandaloneAhcWSClient}
 import play.api.libs.ws.{WSAuthScheme, WSClient, WSCookie, WSResponse}
-import play.api.test.Helpers.{OK, await}
+import play.api.test.Helpers.{await, OK}
 import play.api.mvc.MultipartFormData.FilePart
 import play.api.test.{DefaultAwaitTimeout, DefaultTestServerFactory, RunningServer}
 import play.core.server.ServerConfig
@@ -90,10 +104,9 @@ class BaseAPISpec
   }
 
   override def beforeEach(): Unit = {
-    if(isAvailable(5432) && maybeContainers.isEmpty) {
+    if (isAvailable(5432) && maybeContainers.isEmpty) {
       startContainers()
     }
-
 
     var futures: Seq[Future[Any]] = Seq()
 
@@ -118,18 +131,20 @@ class BaseAPISpec
       shouldCleanUpEvents = false
     }*/
 
-    if(izanamiInstance != null) {
-      val baseFuture = if(shouldCleanUpEvents) cleanEvents else Future.successful()
+    if (izanamiInstance != null) {
+      val baseFuture = if (shouldCleanUpEvents) cleanEvents else Future.successful()
 
       val res = baseFuture.map(_ => {
-        if(shouldRestartInstance) {
+        if (shouldRestartInstance) {
           shouldRestartInstance = false
           println("Izanami instance is running from previous test, stopping it...")
           BaseAPISpec.stopServer()
           println("Izanami is stopped")
           cleanUpDB(hard = true)
         } else {
-          println("An izanami instance is already running, and no custom configuration was provided, no need to shut it down")
+          println(
+            "An izanami instance is already running, and no custom configuration was provided, no need to shut it down"
+          )
           cleanUpDB(hard = false)
         }
       })
@@ -212,33 +227,31 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   val DATE_TIME_FORMATTER                            = DateTimeFormatter.ISO_INSTANT
   val TIME_FORMATTER                                 = DateTimeFormatter.ISO_TIME
   val TEST_SECRET                                    = "supersafesecret"
-  val DEFAULT_OIDC_CONFIG = Json.obj(
-    "pkce"-> JsNull,
-    "method"-> JsString("BASIC"),
-    "scopes"-> JsString("openid email profile"),
-    "enabled"-> JsBoolean(true),
-    "clientId"-> JsString("foo"),
-    "tokenUrl"-> JsString("http://localhost:9001/connect/token"),
-    "nameField"-> JsString("name"),
-    "emailField"-> JsString("email"),
-    "callbackUrl"-> JsString("http://localhost:3000/login"),
-    "authorizeUrl"-> JsString("http://localhost:9001/connect/authorize"),
-    "clientSecret"-> JsString("bar"),
-    "defaultOIDCUserRights"-> Json.obj("tenants" -> Json.obj())
+  val DEFAULT_OIDC_CONFIG                            = Json.obj(
+    "pkce"                  -> JsNull,
+    "method"                -> JsString("BASIC"),
+    "scopes"                -> JsString("openid email profile"),
+    "enabled"               -> JsBoolean(true),
+    "clientId"              -> JsString("foo"),
+    "tokenUrl"              -> JsString("http://localhost:9001/connect/token"),
+    "nameField"             -> JsString("name"),
+    "emailField"            -> JsString("email"),
+    "callbackUrl"           -> JsString("http://localhost:3000/login"),
+    "authorizeUrl"          -> JsString("http://localhost:9001/connect/authorize"),
+    "clientSecret"          -> JsString("bar"),
+    "defaultOIDCUserRights" -> Json.obj("tenants" -> Json.obj())
   )
-  val dbConnectionChain = "jdbc:postgresql://localhost:5432/postgres?user=postgres&password=postgres"
+  val dbConnectionChain                              = "jdbc:postgresql://localhost:5432/postgres?user=postgres&password=postgres"
 
-
-  var shouldCleanUpWasmServer           = true
-  var shouldCleanUpMails                = true
-  var shouldCleanUpEvents               = true
-  var shouldRestartInstance             = false
-  var eventKillSwitch: UniqueKillSwitch = null
-  var izanamiInstance: RunningServer = null
+  var shouldCleanUpWasmServer                                  = true
+  var shouldCleanUpMails                                       = true
+  var shouldCleanUpEvents                                      = true
+  var shouldRestartInstance                                    = false
+  var eventKillSwitch: UniqueKillSwitch                        = null
+  var izanamiInstance: RunningServer                           = null
   var maybeContainers: Option[DockerComposeContainer[Nothing]] = None
 
   val webhookServers: scala.collection.mutable.Map[Int, StubServer] = scala.collection.mutable.Map()
-
 
   def isAvailable(port: Int): Boolean = {
     var socket: Option[Socket] = None
@@ -265,9 +278,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     })
   }
 
-
   def startContainers(): Unit = {
-    if(isAvailable(5432)) {
+    if (isAvailable(5432)) {
       println("Port 5432 is available, starting docker-compose for the current suite")
       var containers = new DockerComposeContainer(new File("docker-compose.yml"))
       containers = containers.withLocalCompose(true).asInstanceOf[DockerComposeContainer[Nothing]]
@@ -276,7 +288,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       maybeContainers = Some(containers)
       val maybeWasmManager = containers.getContainerByServiceName("wasm-manager")
 
-      org.awaitility.Awaitility.await atMost (30, SECONDS) until (() =>java.lang.Boolean.valueOf(maybeWasmManager.get.isHealthy))
+      org.awaitility.Awaitility.await atMost (30, SECONDS) until (() =>
+        java.lang.Boolean.valueOf(maybeWasmManager.get.isHealthy)
+      )
       BaseAPISpec.shouldCleanUpWasmServer = false
     } else {
       println("Port 5432 is taken, assuming that docker containers are already running")
@@ -291,12 +305,13 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         println("Exception was thrown ", ex)
         maybeContainers.foreach(_.close())
         throw ex
-      }}
+      }
+    }
   }
 
   def startServer(customConfig: Map[String, AnyRef]): RunningServer = {
     val configuration: Configuration = Configuration.load(Environment.simple(), Map("config.file" -> "conf/dev.conf"))
-    var updatedConfig = customConfig.foldLeft(configuration.underlying)((conf, entry) => {
+    var updatedConfig                = customConfig.foldLeft(configuration.underlying)((conf, entry) => {
       conf.withValue(entry._1, ConfigValueFactory.fromAnyRef(entry._2))
     })
 
@@ -314,8 +329,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     println("Starting server")
     val runningServer = server.start(application)
     org.awaitility.Awaitility.await atMost (30, SECONDS) until (() => {
-      val b = await(ws.url("http://localhost:9000/api/_health")
-        .get().map(r => r.status == 200))
+      val b = await(
+        ws.url("http://localhost:9000/api/_health")
+          .get()
+          .map(r => r.status == 200)
+      )
       b
     })
     println("Server started")
@@ -380,7 +398,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
            |    AND backend_type = 'client backend'
            |    AND ((query LIKE 'LISTEN%'
            |    AND query <> 'LISTEN "izanami"')
-           |    ${if(hard) "OR application_name = 'vertx-pg-client'" else ""})
+           |    ${if (hard) "OR application_name = 'vertx-pg-client'" else ""})
            |""".stripMargin)
 
       while (result.next()) {
@@ -416,9 +434,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     }
   }
 
-  def enabledFeatureBase64  = {
+  def enabledFeatureBase64 = {
     val arch = System.getProperty("os.arch")
-    if(arch == "aarch64") {
+    if (arch == "aarch64") {
       scala.io.Source.fromResource("enabled_script_feature_base64").getLines().mkString("")
     } else {
       scala.io.Source.fromResource("enabled_script_feature_base64_intel").getLines().mkString("")
@@ -427,7 +445,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
   def disabledFeatureBase64 = {
     val arch = System.getProperty("os.arch")
-    if(arch == "aarch64") {
+    if (arch == "aarch64") {
       scala.io.Source.fromResource("disabled_script_feature_base64").getLines().mkString("")
     } else {
       scala.io.Source.fromResource("disabled_script_feature_base64_intel").getLines().mkString("")
@@ -450,7 +468,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   def updateFeatureCreationDateInDB(tenant: String, feature: String, newDate: LocalDateTime) = {
     val dtf = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
     executeInDatabase(conn => {
-      conn.createStatement().execute(s"""UPDATE ${tenant}.features SET created_at='${newDate.atOffset(ZoneOffset.UTC).format(dtf)}' WHERE id='${feature}'""")
+      conn
+        .createStatement()
+        .execute(s"""UPDATE ${tenant}.features SET created_at='${newDate
+          .atOffset(ZoneOffset.UTC)
+          .format(dtf)}' WHERE id='${feature}'""")
     })
   }
 
@@ -818,11 +840,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     RequestResult(json = jsonTry, status = response.status)
   }
 
-  def deleteAPIKey(tenant: String, name: String, cookies: Seq[WSCookie] = Seq(), password: String): RequestResult = {
+  def deleteAPIKey(tenant: String, name: String, cookies: Seq[WSCookie] = Seq()): RequestResult = {
     val response = await(
       ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/keys/${name}")
         .withCookies(cookies: _*)
-        .withBody(Json.obj("password" -> password))
         .delete()
     )
 
@@ -869,7 +890,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       oidcConfiguration: JsObject = DEFAULT_OIDC_CONFIG,
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
-    val response = await(updateConfigurationAsync(mailerConfiguration, invitationMode, originEmail, oidcConfiguration, cookies))
+    val response = await(
+      updateConfigurationAsync(mailerConfiguration, invitationMode, originEmail, oidcConfiguration, cookies)
+    )
     RequestResult(json = Try { response.json }, status = response.status)
   }
 
@@ -888,20 +911,20 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       .put(
         if (Objects.isNull(originEmail)) {
           Json.obj(
-            "mailerConfiguration"                 -> mailerConfiguration,
+            "mailerConfiguration"    -> mailerConfiguration,
             "invitationMode"         -> invitationMode,
             "anonymousReporting"     -> anonymousReporting,
             "anonymousReportingDate" -> dateStr,
-            "oidcConfiguration" -> oidcConfiguration
+            "oidcConfiguration"      -> oidcConfiguration
           )
         } else {
           Json.obj(
-            "mailerConfiguration"                 -> mailerConfiguration,
+            "mailerConfiguration"    -> mailerConfiguration,
             "invitationMode"         -> invitationMode,
             "originEmail"            -> originEmail,
             "anonymousReporting"     -> anonymousReporting,
             "anonymousReportingDate" -> dateStr,
-            "oidcConfiguration" -> oidcConfiguration
+            "oidcConfiguration"      -> oidcConfiguration
           )
         }
       )
@@ -924,7 +947,14 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       parents: Seq[String] = Seq(),
       cookies: Seq[WSCookie] = Seq()
   ): Future[Unit] = {
-    createContextAsync(tenant, project, name = context.name, parents = parents.mkString("/"), isProtected = context.isProtected, cookies = cookies)
+    createContextAsync(
+      tenant,
+      project,
+      name = context.name,
+      parents = parents.mkString("/"),
+      isProtected = context.isProtected,
+      cookies = cookies
+    )
       .map(res => {
         if (res.status >= 400) {
           throw new RuntimeException("Failed to create context")
@@ -968,7 +998,13 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       parents: Seq[String] = Seq(),
       cookies: Seq[WSCookie] = Seq()
   ): Future[Unit] = {
-    createGlobalContextAsync(tenant, name = context.name, parents = parents.mkString("/"), isProtected = context.isProtected, cookies = cookies)
+    createGlobalContextAsync(
+      tenant,
+      name = context.name,
+      parents = parents.mkString("/"),
+      isProtected = context.isProtected,
+      cookies = cookies
+    )
       .map(result => {
         if (result.status >= 400) {
           throw new RuntimeException("Failed to create context")
@@ -1001,23 +1037,25 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
 
   def updateContext(
-                     tenant: String,
-                     project: String,
-                     name: String,
-                     isProtected: Boolean,
-                     parents: String = "",
-                     cookies: Seq[WSCookie] = Seq()
-                   ) = {
-    val response = await(ws.url(s"""${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/contexts${if (parents.nonEmpty) s"/${parents}"
+      tenant: String,
+      project: String,
+      name: String,
+      isProtected: Boolean,
+      parents: String = "",
+      cookies: Seq[WSCookie] = Seq()
+  ) = {
+    val response = await(
+      ws.url(s"""${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/contexts${if (parents.nonEmpty) s"/${parents}"
       else ""}/$name""")
-      .withCookies(cookies: _*)
-      .put(
-        Json.parse(s"""
+        .withCookies(cookies: _*)
+        .put(
+          Json.parse(s"""
                       |{
                       | "protected": $isProtected
                       |}
                       |""".stripMargin)
-      ))
+        )
+    )
 
     val jsonTry = Try {
       response.json
@@ -1026,23 +1064,25 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
 
   def updateGlobalContext(
-                     tenant: String,
-                     name: String,
-                     isProtected: Boolean,
-                     parents: String = "",
-                     cookies: Seq[WSCookie] = Seq()
-                   ) = {
-    val response = await(ws.url(s"""${ADMIN_BASE_URL}/tenants/${tenant}/contexts${if (parents.nonEmpty) s"/${parents}"
+      tenant: String,
+      name: String,
+      isProtected: Boolean,
+      parents: String = "",
+      cookies: Seq[WSCookie] = Seq()
+  ) = {
+    val response = await(
+      ws.url(s"""${ADMIN_BASE_URL}/tenants/${tenant}/contexts${if (parents.nonEmpty) s"/${parents}"
       else ""}/$name""")
-      .withCookies(cookies: _*)
-      .put(
-        Json.parse(s"""
+        .withCookies(cookies: _*)
+        .put(
+          Json.parse(s"""
                       |{
                       | "protected": $isProtected
                       |}
                       |""".stripMargin)
-      ))
-    val jsonTry = Try {
+        )
+    )
+    val jsonTry  = Try {
       response.json
     }
     RequestResult(json = jsonTry, status = response.status)
@@ -1134,9 +1174,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       else s""" "value": "${feature.value}", """
     } else ""}
                                     |"conditions": ${Json.toJson(feature.conditions.map(c => c.json))}
-                                    |${if (Objects.nonNull(feature.wasmConfig)) s""" ,"wasmConfig": ${feature.wasmConfig.json} """ else ""}
+                                    |${if (Objects.nonNull(feature.wasmConfig))
+      s""" ,"wasmConfig": ${feature.wasmConfig.json} """
+    else ""}
                                     |}""".stripMargin);
-    val response = await(
+    val response    = await(
       ws.url(s"""${ADMIN_BASE_URL}/tenants/$tenant/test?date=${DateTimeFormatter.ISO_INSTANT.format(date)}${if (
         user != null
       )
@@ -1366,7 +1408,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       data: Seq[String] = Seq()
   ): RequestResult = {
     val dataFile = writeTemporaryFile("export", "ndjson", data)
-    val auth = Base64.getEncoder.encodeToString(s"${username}:$token".getBytes(StandardCharsets.UTF_8))
+    val auth     = Base64.getEncoder.encodeToString(s"${username}:$token".getBytes(StandardCharsets.UTF_8))
     val response = await(
       ws.url(
         s"${ADMIN_BASE_URL}/tenants/${tenant}/_import?version=2&conflict=${conflictStrategy}"
@@ -1925,11 +1967,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
     }
 
-    def deleteWebhook(tenant: String, webhook: String, password: String): RequestResult = {
+    def deleteWebhook(tenant: String, webhook: String): RequestResult = {
       val response = await(
         ws.url(s"${ADMIN_BASE_URL}/tenants/$tenant/webhooks/$webhook")
           .withCookies(cookies: _*)
-          .withBody(Json.obj("password" -> password))
           .delete()
       )
 
@@ -2304,7 +2345,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         id: String = null,
         resultType: String = "boolean",
         value: String = null,
-        description: String = null,
+        description: String = null
     ): RequestResult = {
       BaseAPISpec.this.createFeature(
         name,
@@ -2353,8 +2394,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       BaseAPISpec.this.updateAPIKey(tenant, currentName, newName, description, projects, enabled, admin, cookies)
     }
 
-    def deleteAPIKey(tenant: String, name: String, password: String): RequestResult = {
-      BaseAPISpec.this.deleteAPIKey(tenant, name, cookies, password)
+    def deleteAPIKey(tenant: String, name: String): RequestResult = {
+      BaseAPISpec.this.deleteAPIKey(tenant, name, cookies)
     }
 
     def fetchWasmManagerScripts(): RequestResult = {
@@ -2512,21 +2553,21 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     }
 
     def updateContext(
-                       tenant: String,
-                       project: String,
-                       name: String,
-                       isProtected: Boolean = false,
-                       parents: String = ""
-                     ): RequestResult = {
+        tenant: String,
+        project: String,
+        name: String,
+        isProtected: Boolean = false,
+        parents: String = ""
+    ): RequestResult = {
       BaseAPISpec.this.updateContext(tenant, project, name, isProtected, parents, cookies)
     }
 
     def updateGlobalContext(
-                       tenant: String,
-                       name: String,
-                       isProtected: Boolean = false,
-                       parents: String = ""
-                     ): RequestResult = {
+        tenant: String,
+        name: String,
+        isProtected: Boolean = false,
+        parents: String = ""
+    ): RequestResult = {
       BaseAPISpec.this.updateGlobalContext(tenant, name, isProtected, parents, cookies)
     }
 
@@ -2943,21 +2984,19 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       RequestResult(json = Try { response.json }, status = response.status)
     }
 
-    def deleteTenant(tenant: String, password: String): RequestResult = {
+    def deleteTenant(tenant: String): RequestResult = {
       val response = await(
         ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}")
           .withCookies(cookies: _*)
-          .withBody(Json.obj("password" -> password))
           .delete()
       )
       RequestResult(json = Try { response.json }, status = response.status)
     }
 
-    def deleteProject(project: String, tenant: String, password: String): RequestResult = {
+    def deleteProject(project: String, tenant: String): RequestResult = {
       val response = await(
         ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}")
           .withCookies(cookies: _*)
-          .withBody(Json.obj("password" -> password))
           .delete()
       )
       RequestResult(json = Try { response.json }, status = response.status)
@@ -3183,7 +3222,12 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     }
   }
 
-  case class TestConfiguration(mailerConfiguration: JsObject, invitationMode: String, originEmail: String, oidcConfiguration: JsObject)
+  case class TestConfiguration(
+      mailerConfiguration: JsObject,
+      invitationMode: String,
+      originEmail: String,
+      oidcConfiguration: JsObject
+  )
 
   case class TestWasmScript(name: String, content: String)
 
@@ -3194,8 +3238,12 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       tenants: Set[TestTenant] = Set(),
       users: Set[TestUser] = Set(),
       loggedInUser: Option[String] = None,
-      configuration: TestConfiguration =
-        TestConfiguration(mailerConfiguration = Json.obj("mailer" -> "Console"), invitationMode = "Response", originEmail = null, oidcConfiguration = DEFAULT_OIDC_CONFIG),
+      configuration: TestConfiguration = TestConfiguration(
+        mailerConfiguration = Json.obj("mailer" -> "Console"),
+        invitationMode = "Response",
+        originEmail = null,
+        oidcConfiguration = DEFAULT_OIDC_CONFIG
+      ),
       wasmScripts: Seq[TestWasmScript] = Seq(),
       webhookServers: Map[Int, (Int, String)] = Map(),
       personnalAccessTokens: Set[TestPersonnalAccessToken] = Set(),
@@ -3252,7 +3300,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
     def withMailerConfiguration(mailer: String, configuration: JsObject): TestSituationBuilder = {
       BaseAPISpec.this.shouldCleanUpMails = true
-      copy(configuration = this.configuration.copy(mailerConfiguration = configuration + ("mailer" -> JsString(mailer))))
+      copy(configuration =
+        this.configuration.copy(mailerConfiguration = configuration + ("mailer" -> JsString(mailer)))
+      )
     }
 
     def withInvitationMode(invitationMode: String): TestSituationBuilder = {
@@ -3289,13 +3339,13 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     }
 
     def build(): TestSituation = {
-      if(customConfiguration.nonEmpty) {
+      if (customConfiguration.nonEmpty) {
         BaseAPISpec.this.shouldRestartInstance = true
       }
 
-      val runningServer = if(izanamiInstance == null) {
+      val runningServer = if (izanamiInstance == null) {
         startServer(customConfiguration)
-      } else if(customConfiguration.nonEmpty) {
+      } else if (customConfiguration.nonEmpty) {
         println("Custom configuration was provided, restarting already running Izanami instance")
         stopServer()
         println("Already running instance was stopped, restarting new instance with custom config")
@@ -3427,35 +3477,37 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                         map
                       }
                     )
-                    Future.sequence(
-                      project.features
-                        .map(feature => {
-                          createFeatureAsync(
-                            name = feature.name,
-                            project = project.name,
-                            tenant = tenant.name,
-                            enabled = feature.enabled,
-                            tags = feature.tags,
-                            metadata = feature.metadata,
-                            conditions = feature.conditions,
-                            wasmConfig = feature.wasmConfig,
-                            id = feature.id,
-                            cookies = buildCookies,
-                            resultType = feature.resultType,
-                            value = feature.value
-                          ).map(res => {
-                            if (res.status >= 400) {
-                              throw new RuntimeException("Failed to create features")
-                            } else {
-                              projectMap.put(feature.name, (res.json \ "id").as[String])
-                            }
+                    Future
+                      .sequence(
+                        project.features
+                          .map(feature => {
+                            createFeatureAsync(
+                              name = feature.name,
+                              project = project.name,
+                              tenant = tenant.name,
+                              enabled = feature.enabled,
+                              tags = feature.tags,
+                              metadata = feature.metadata,
+                              conditions = feature.conditions,
+                              wasmConfig = feature.wasmConfig,
+                              id = feature.id,
+                              cookies = buildCookies,
+                              resultType = feature.resultType,
+                              value = feature.value
+                            ).map(res => {
+                              if (res.status >= 400) {
+                                throw new RuntimeException("Failed to create features")
+                              } else {
+                                projectMap.put(feature.name, (res.json \ "id").as[String])
+                              }
+                            })
                           })
-                        })
-                    ).flatMap(_ => {
-                      Future.sequence(project.contexts.map(context => {
-                        createContextHierarchyAsync(tenant.name, project.name, context, cookies = buildCookies)
-                      }))
-                    })
+                      )
+                      .flatMap(_ => {
+                        Future.sequence(project.contexts.map(context => {
+                          createContextHierarchyAsync(tenant.name, project.name, context, cookies = buildCookies)
+                        }))
+                      })
                   })
                 }))
               )

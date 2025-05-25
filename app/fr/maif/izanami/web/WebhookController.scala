@@ -14,7 +14,6 @@ import scala.util.Try
 class WebhookController(
     val controllerComponents: ControllerComponents,
     val tenantAuthAction: TenantAuthActionFactory,
-    val validatePasswordAction: ValidatePasswordActionFactory,
     val webhookAuthAction: WebhookAuthActionFactory
 )(implicit val env: Env)
     extends BaseController {
@@ -61,16 +60,15 @@ class WebhookController(
       env.datastores.webhook.listWebhook(tenant, request.user.username).map(ws => Ok(Json.toJson(ws)))
   }
 
-  def deleteWebhook(tenant: String, id: String): Action[JsValue] =
-    (webhookAuthAction(tenant = tenant, webhook = id, minimumLevel = RightLevels.Admin) andThen validatePasswordAction()).async(parse.json) { implicit request =>
+  def deleteWebhook(tenant: String, id: String): Action[AnyContent] =
+    (webhookAuthAction(tenant = tenant, webhook = id, minimumLevel = RightLevels.Admin)).async { implicit request =>
       env.datastores.webhook
         .deleteWebhook(tenant, id)
         .map {
           case Left(err) => err.toHttpResponse
-          case Right(_) => NoContent
+          case Right(_)  => NoContent
         }
     }
-
 
   def updateWebhook(tenant: String, id: String): Action[JsValue] =
     webhookAuthAction(tenant = tenant, webhook = id, minimumLevel = RightLevels.Write).async(parse.json) {

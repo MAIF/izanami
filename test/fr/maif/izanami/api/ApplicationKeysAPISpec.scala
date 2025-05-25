@@ -7,17 +7,16 @@ import play.api.libs.json.JsArray
 class ApplicationKeysAPISpec extends BaseAPISpec {
   "API key POST endpoint" should {
     "prevent api key creation if name or description is too long" in {
-      val situation   = TestSituationBuilder()
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenantNames("my-tenant")
         .build()
 
-      var response    =
+      var response =
         situation.createAPIKey(tenant = "my-tenant", name = "abcdefghij" * 21, description = "my long description")
       response.status mustBe BAD_REQUEST
 
-      response    =
-        situation.createAPIKey(tenant = "my-tenant", name = "abcdefghij", description = "abcdefghij" * 51)
+      response = situation.createAPIKey(tenant = "my-tenant", name = "abcdefghij", description = "abcdefghij" * 51)
       response.status mustBe BAD_REQUEST
     }
 
@@ -39,9 +38,9 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
     "allow to create admin API key" in {
       val situation = TestSituationBuilder().withTenantNames("tenant").loggedInWithAdminRights().build()
 
-      val response = situation.createAPIKey("tenant", "my-key", admin=true)
+      val response = situation.createAPIKey("tenant", "my-key", admin = true)
       response.status mustBe CREATED
-      val keyJson = situation.fetchAPIKeys("tenant").json.get
+      val keyJson  = situation.fetchAPIKeys("tenant").json.get
 
       (keyJson \\ "admin").head.as[Boolean] mustBe true
     }
@@ -62,12 +61,13 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
     }
 
     "prevent admin API key creation if user is not tenant admin" in {
-      val situation = TestSituationBuilder().withTenantNames("tenant")
+      val situation = TestSituationBuilder()
+        .withTenantNames("tenant")
         .withUsers(TestUser("testu").withTenantReadWriteRight("tenant"))
         .loggedAs("testu")
         .build()
 
-      val response = situation.createAPIKey("tenant", name="my-key", admin=true)
+      val response = situation.createAPIKey("tenant", name = "my-key", admin = true)
 
       response.status mustBe FORBIDDEN
     }
@@ -119,13 +119,14 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .build();
 
       val description = "my long description"
-      val response =
+      val response    =
         situation.createAPIKey(tenant = "my-tenant", name = "my-api-key", description = "my long description")
 
       response.status mustBe CREATED
 
       val rightResponse = situation.fetchUserRights()
-      (rightResponse.json.get \ "rights" \ "tenants" \ "my-tenant" \ "keys" \ "my-api-key" \ "level").as[String] mustEqual "Admin"
+      (rightResponse.json.get \ "rights" \ "tenants" \ "my-tenant" \ "keys" \ "my-api-key" \ "level")
+        .as[String] mustEqual "Admin"
     }
   }
 
@@ -191,7 +192,7 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .loggedAs("admin")
         .build()
 
-      val response    = situation.deleteAPIKey("my-tenant", "key1", "barfoofoo")
+      val response    = situation.deleteAPIKey("my-tenant", "key1")
       val keyResponse = situation.fetchAPIKeys("my-tenant")
 
       response.status mustBe NO_CONTENT
@@ -213,7 +214,7 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .loggedAs("admin")
         .build()
 
-      val response = situation.deleteAPIKey("my-tenant", "key2", "barfoofoo" )
+      val response = situation.deleteAPIKey("my-tenant", "key2")
 
       response.status mustBe NOT_FOUND
     }
@@ -231,33 +232,16 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .loggedAs("test-u")
         .build()
 
-      val response = situation.deleteAPIKey("my-tenant", "key1", "barbar123")
+      val response = situation.deleteAPIKey("my-tenant", "key1")
 
       response.status mustBe FORBIDDEN
     }
 
-    "prevent key suppression if user password is not valid" in {
-
-      val situation = TestSituationBuilder()
-        .withUsers(TestUser(username = "admin", admin = true, password = "barfoofoo"))
-        .withTenants(
-          TestTenant("my-tenant")
-            .withProjectNames("project1")
-            .withApiKeys(
-              TestApiKey(name = "key1", projects = Seq("project1"))
-            )
-        )
-        .loggedAs("admin")
-        .build()
-
-      val response = situation.deleteAPIKey("my-tenant", "key1", "barbar123")
-
-      response.status mustBe  UNAUTHORIZED
-    }
-
     "allow key suppression from key creator (since it should be made admin by creation)" in {
       val situation = TestSituationBuilder()
-        .withUsers(TestUser("test-u").withTenantReadWriteRight("my-tenant").withProjectReadWriteRight("project1", "my-tenant"))
+        .withUsers(
+          TestUser("test-u").withTenantReadWriteRight("my-tenant").withProjectReadWriteRight("project1", "my-tenant")
+        )
         .withTenants(
           TestTenant("my-tenant")
             .withProjectNames("project1")
@@ -266,7 +250,7 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .build()
 
       situation.createAPIKey("my-tenant", "key1", projects = Seq("project1"))
-      val response = situation.deleteAPIKey("my-tenant", "key1", "barbar123")
+      val response = situation.deleteAPIKey("my-tenant", "key1")
 
       response.status mustBe NO_CONTENT
     }
@@ -289,7 +273,7 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         projects = Seq("project1"),
         description = "",
         enabled = false,
-        admin=false,
+        admin = false,
         newName = "abcdefghij" * 21
       )
       result.status mustBe BAD_REQUEST
@@ -300,7 +284,7 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         projects = Seq("project1"),
         description = "abcdefghij" * 51,
         enabled = false,
-        admin=false,
+        admin = false,
         newName = "abcdefghij"
       )
 
@@ -323,7 +307,7 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         projects = Seq("project1"),
         description = "",
         enabled = false,
-        admin=false
+        admin = false
       )
 
       result.status mustBe NO_CONTENT
@@ -347,8 +331,8 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         currentName = "my-key",
         projects = Seq("project1", "project2"),
         description = "Bar",
-        enabled=true,
-        admin=false
+        enabled = true,
+        admin = false
       )
 
       result.status mustBe NO_CONTENT
@@ -373,8 +357,8 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         newName = "my-key2",
         projects = Seq("project1", "project2"),
         description = "Foo",
-        enabled=true,
-        admin=false
+        enabled = true,
+        admin = false
       )
 
       result.status mustBe NO_CONTENT
@@ -406,8 +390,8 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         currentName = "my-key",
         projects = Seq("project1", "project2", "project3"),
         description = "Foo",
-        enabled=true,
-        admin=false
+        enabled = true,
+        admin = false
       )
 
       result.status mustBe FORBIDDEN
@@ -435,8 +419,8 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         currentName = "my-key",
         projects = Seq("project1", "project2", "project3"),
         description = "Foo",
-        enabled=true,
-        admin=false
+        enabled = true,
+        admin = false
       )
 
       result.status mustBe NO_CONTENT
@@ -447,7 +431,7 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant(name = "my-tenant")
-            .withApiKeys(TestApiKey("my-key", admin=false, enabled=true))
+            .withApiKeys(TestApiKey("my-key", admin = false, enabled = true))
         )
         .loggedInWithAdminRights()
         .build()
@@ -455,10 +439,10 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
       val result = situation.updateAPIKey(
         "my-tenant",
         currentName = "my-key",
-        description="",
-        projects=Seq(),
-        enabled=true,
-        admin=true
+        description = "",
+        projects = Seq(),
+        enabled = true,
+        admin = true
       )
 
       result.status mustBe NO_CONTENT
@@ -470,9 +454,10 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
           TestTenant(name = "tenant")
             .withApiKeys(TestApiKey("my-key", admin = false, enabled = true))
         )
-        .withUsers(TestUser("testu")
-          .withTenantReadWriteRight("tenant")
-          .withApiKeyAdminRight(tenant="tenant", key="my-key")
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadWriteRight("tenant")
+            .withApiKeyAdminRight(tenant = "tenant", key = "my-key")
         )
         .loggedAs("testu")
         .build()

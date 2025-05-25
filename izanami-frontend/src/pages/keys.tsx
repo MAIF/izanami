@@ -95,14 +95,13 @@ export default function Keys(props: { tenant: string }) {
   });
   const hasTenantWriteRight = useTenantRight(tenant, TLevel.Write);
   const [creating, setCreating] = React.useState(false);
-  const { refreshUser, askPasswordConfirmation } =
+  const { refreshUser, askInputConfirmation } =
     React.useContext(IzanamiContext);
 
   const keyDeleteMutation = useMutation({
     mutationKey: [tenantKeyQueryKey(tenant)],
 
-    mutationFn: (params: { name: string; password: string }) =>
-      deleteKey(tenant, params.name, params.password),
+    mutationFn: (params: { name: string }) => deleteKey(tenant, params.name),
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [tenantKeyQueryKey(tenant)] });
@@ -355,19 +354,24 @@ export default function Keys(props: { tenant: string }) {
                   </>
                 ),
                 action: (key: TKey) => {
-                  askPasswordConfirmation(
-                    `Are you sure you want to delete key ${key.name}?`,
-                    async (password: string) => {
+                  askInputConfirmation(
+                    <>
+                      Are you sure you want to delete key {key.name}? This can't
+                      be undone.
+                      <br />
+                      Please confirm by typing key name below.
+                    </>,
+                    async () => {
                       try {
                         await keyDeleteMutation.mutateAsync({
                           name: key.name,
-                          password: password,
                         });
                       } catch (error) {
                         console.error("Error deleting:", error);
                         throw error;
                       }
-                    }
+                    },
+                    key.name
                   );
                 },
               },

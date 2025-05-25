@@ -181,9 +181,10 @@ test.describe("Global settings page should", () => {
       .click();
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Delete Tenant" }).click();
-    await page.getByLabel("Password").click();
-    await page.getByLabel("Password").fill("ADMIN_DEFAULT_PASSWORD");
-    await page.getByLabel("Password").press("Enter");
+    await page
+      .getByRole("textbox", { name: "Confirmation" })
+      .fill("chromium-allow-to-update-oidc-rights2");
+    await page.getByRole("button", { name: "Confirm" }).click();
 
     await page
       .getByRole("link", {
@@ -194,13 +195,12 @@ test.describe("Global settings page should", () => {
     await page.getByRole("link", { name: "project2" }).click();
     await page.getByLabel("Project settings").click();
     await page.getByRole("button", { name: "Delete project" }).click();
-    await page.getByLabel("Password").click();
-    await page.getByLabel("Password").fill("ADMIN_DEFAULT_PASSWORD");
-    await page.getByLabel("Password").press("Enter");
+    await page.getByRole("textbox", { name: "Confirmation" }).fill("project2");
+    await page.getByRole("button", { name: "Confirm" }).click();
     await page.getByRole("link", { name: "Keys" }).click();
     await clickAction(page, "Delete", "key2");
-    await page.getByLabel("Password").fill("ADMIN_DEFAULT_PASSWORD");
-    await page.getByLabel("Password").press("Enter");
+    await page.getByRole("textbox", { name: "Confirmation" }).fill("key2");
+    await page.getByRole("button", { name: "Confirm" }).click();
 
     await page.getByRole("link", { name: "Global settings" }).click();
     await page.getByRole("button", { name: "Default rights" }).click();

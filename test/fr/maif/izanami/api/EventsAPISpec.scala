@@ -537,7 +537,7 @@ class EventsAPISpec extends BaseAPISpec {
       )
       Thread.sleep(2000)
 
-      situation.deleteProject(project = "project", tenant = tenant, ALL_RIGHTS_USERNAME_PASSWORD)
+      situation.deleteProject(project = "project", tenant = tenant)
       await atMost (10, SECONDS) until {
         evts.exists(s => s.eventType.get == "FEATURE_DELETED")
       }

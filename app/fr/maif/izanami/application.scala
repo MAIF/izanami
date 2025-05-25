@@ -74,7 +74,6 @@ class IzanamiComponentsInstances(
   lazy val wasmManagerClient                = wire[WasmManagerClient]
   lazy val clientApiKeyAction               = wire[ClientApiKeyAction]
   lazy val webhookAuthAction                = wire[WebhookAuthActionFactory]
-  lazy val validatePasswordAction           = wire[ValidatePasswordActionFactory]
   lazy val tokenOrCookieAuthActionForTenant = wire[PersonnalAccessTokenTenantAuthActionFactory]
 
   lazy val featureService      = wire[FeatureService]

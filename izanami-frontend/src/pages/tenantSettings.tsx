@@ -49,7 +49,7 @@ import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
 
 export function TenantSettings(props: { tenant: string }) {
   const { tenant } = props;
-  const { askConfirmation, askPasswordConfirmation } =
+  const { askConfirmation, askInputConfirmation } =
     React.useContext(IzanamiContext);
   const [inviting, setInviting] = React.useState(false);
   const [v1ImportDisplayed, setV1ImportDisplayed] = React.useState(false);
@@ -67,7 +67,7 @@ export function TenantSettings(props: { tenant: string }) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (password: string) => deleteTenant(password, props.tenant),
+    mutationFn: () => deleteTenant(props.tenant),
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [MutationNames.TENANTS] });
@@ -147,16 +147,21 @@ export function TenantSettings(props: { tenant: string }) {
           <button
             className="btn btn-danger m-2 btn-sm"
             onClick={() =>
-              askPasswordConfirmation(
-                `All projects and keys will be deleted. This cannot be undone.`,
-                async (password: string) => {
+              askInputConfirmation(
+                <>
+                  All projects and keys will be deleted. This cannot be undone.
+                  <br />
+                  Please confirm by typing tenant name below.
+                </>,
+                async () => {
                   try {
-                    await deleteMutation.mutateAsync(password);
+                    await deleteMutation.mutateAsync();
                   } catch (error) {
                     console.error("Error deleting:", error);
                     throw error;
                   }
                 },
+                tenant,
                 `Delete Tenant / ${tenant}`
               )
             }

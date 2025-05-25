@@ -27,7 +27,7 @@ import { IzanamiContext } from "../securityContext";
 
 export function ProjectSettings(props: { project: string; tenant: string }) {
   const { project, tenant } = props;
-  const { askPasswordConfirmation } = React.useContext(IzanamiContext);
+  const { askInputConfirmation } = React.useContext(IzanamiContext);
   const queryKey = projectQueryKey(tenant, project);
   const projectQuery = useQuery({
     queryKey: [queryKey],
@@ -43,8 +43,8 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
   const navigate = useNavigate();
 
   const projectDelete = useMutation({
-    mutationFn: (data: { tenant: string; project: string; password: string }) =>
-      deleteProject(data.tenant, data.project, data.password),
+    mutationFn: (data: { tenant: string; project: string }) =>
+      deleteProject(data.tenant, data.project),
 
     onSuccess: () => {
       navigate(`/tenants/${tenant}`);
@@ -130,20 +130,24 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
               type="button"
               className="btn btn-sm btn-danger"
               onClick={() =>
-                askPasswordConfirmation(
-                  `All features will be deleted, this cannot be undone.`,
-                  async (password: string) => {
+                askInputConfirmation(
+                  <>
+                    All features will be deleted, this cannot be undone.
+                    <br />
+                    Please confirm by typing project name below.
+                  </>,
+                  async () => {
                     try {
                       await projectDelete.mutateAsync({
                         project,
                         tenant,
-                        password,
                       });
                     } catch (error) {
                       console.error("Error deleting:", error);
                       throw error;
                     }
                   },
+                  project,
                   `Delete project / ${project}`
                 )
               }
