@@ -54,7 +54,8 @@ export function FeatureContexts(props: {
     queryFn: () => fetchContexts(),
   });
 
-  const { askConfirmation } = React.useContext(IzanamiContext);
+  const { askConfirmation, askInputConfirmation } =
+    React.useContext(IzanamiContext);
 
   if (contextQuery.data) {
     return (
@@ -70,15 +71,30 @@ export function FeatureContexts(props: {
           updateContextProtection(v) {
             return updateContextProtection(v);
           },
-          deleteContextCallback: (path) =>
-            askConfirmation(
-              <>
-                Are you sure you want to delete context {path} ?
-                <br />
-                All subcontexts and their overloads will be lost !
-              </>,
-              () => deleteContext(path)
-            ),
+          deleteContextCallback: (path, context) => {
+            if (context.protected) {
+              return askInputConfirmation(
+                <>
+                  Are you sure you want to delete context {path} ?
+                  <br />
+                  All subcontexts and their overloads will be lost !<br />
+                  Please confirm by typing context name below.
+                </>,
+                () => deleteContext(path),
+                context.name,
+                `Delete context ${context.name}`
+              );
+            } else {
+              return askConfirmation(
+                <>
+                  Are you sure you want to delete context {path} ?
+                  <br />
+                  All subcontexts and their overloads will be lost !
+                </>,
+                () => deleteContext(path)
+              );
+            }
+          },
         }}
       >
         <div className="d-flex align-items-center">
@@ -228,7 +244,8 @@ function FeatureContextTree(props: {
   } = React.useContext(LocalContext);
   const spacing = 20;
 
-  const { askConfirmation } = React.useContext(IzanamiContext);
+  const { askConfirmation, askInputConfirmation } =
+    React.useContext(IzanamiContext);
 
   function contextToTreeNode(
     contexts: TContext[],
@@ -320,9 +337,8 @@ function FeatureContextTree(props: {
                         </>
                       ),
                       action: () => {
-                        let message = <></>;
                         if (ctx.protected) {
-                          message = (
+                          return askInputConfirmation(
                             <>
                               Are you sure you want to unprotected context{" "}
                               {ctx.name} ?<br />
@@ -341,10 +357,20 @@ function FeatureContextTree(props: {
                                   protected).
                                 </li>
                               </ul>
-                            </>
+                              Please confirm by typing context name below.
+                            </>,
+                            () => {
+                              return updateContextProtection({
+                                path: path,
+                                name: ctx.name,
+                                protected: !ctx.protected,
+                                global: ctx.global,
+                              });
+                            },
+                            ctx.name
                           );
                         } else {
-                          message = (
+                          return askConfirmation(
                             <>
                               Are you sure you want to protect context{" "}
                               {ctx.name} ?<br />
@@ -360,17 +386,17 @@ function FeatureContextTree(props: {
                                   their overloads.
                                 </li>
                               </ul>
-                            </>
+                            </>,
+                            () => {
+                              return updateContextProtection({
+                                path: path,
+                                name: ctx.name,
+                                protected: !ctx.protected,
+                                global: ctx.global,
+                              });
+                            }
                           );
                         }
-                        return askConfirmation(message, () => {
-                          return updateContextProtection({
-                            path: path,
-                            name: ctx.name,
-                            protected: !ctx.protected,
-                            global: ctx.global,
-                          });
-                        });
                       },
                     },
                   ]
@@ -382,7 +408,7 @@ function FeatureContextTree(props: {
                     {
                       icon: <>Delete</>,
                       action: () =>
-                        deleteContextCallback(`${path}/${ctx.name}`),
+                        deleteContextCallback(`${path}/${ctx.name}`, ctx),
                     },
                   ]),
             ]
