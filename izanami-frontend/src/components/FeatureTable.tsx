@@ -1382,7 +1382,8 @@ export function OverloadTable(props: {
     },
   });
 
-  const { askConfirmation } = React.useContext(IzanamiContext);
+  const { askConfirmation, askInputConfirmation } =
+    React.useContext(IzanamiContext);
   const contextByPath = new Map(
     overloads
       .map((o) => o.path)
@@ -1558,16 +1559,39 @@ export function OverloadTable(props: {
           return canDelete;
         }
       },
-      action: (overload: TContextOverload) =>
-        askConfirmation(
-          `Are you sure you want to delete overload ${overload.name} ?`,
-          () =>
-            deleteStrategyMutation.mutateAsync({
-              feature: overload.name,
-              path: overload.path!,
-              project: overload.project as any,
-            })
-        ),
+      action: (overload: TContextOverload) => {
+        const context = contextByPath.get(overload.path);
+        if (context?.protected) {
+          return askInputConfirmation(
+            <>
+              Are you sure you want to delete feature {overload.name} overload
+              for context {context?.name} ?<br />
+              Please confirm by typing feature name below.
+              <LocalToolTip id="overload-delete-confirmation">
+                Typing feature name is required since this overload is for a
+                protected context.
+              </LocalToolTip>
+            </>,
+            () =>
+              deleteStrategyMutation.mutateAsync({
+                feature: overload.name,
+                path: overload.path!,
+                project: overload.project as any,
+              }),
+            overload.name
+          );
+        } else {
+          return askConfirmation(
+            `Are you sure you want to delete feature ${overload.name} overload for context ${context?.name} ?`,
+            () =>
+              deleteStrategyMutation.mutateAsync({
+                feature: overload.name,
+                path: overload.path!,
+                project: overload.project as any,
+              })
+          );
+        }
+      },
     },
   };
 
