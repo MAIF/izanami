@@ -3,7 +3,7 @@ import { TContext } from "../utils/types";
 
 export const LocalContext = React.createContext<{
   open: string[];
-  deleteContextCallback: (path: string) => void;
+  deleteContextCallback: (path: string, context: TContext) => void;
   createSubContextCallback: (path: string, name: string) => Promise<any>;
   updateContextProtection: (v: {
     path: string;

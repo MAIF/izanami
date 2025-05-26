@@ -68,7 +68,8 @@ test.describe("Project context screen should", () => {
 
     await page.getByRole("button", { name: "actions" }).click();
     await page.getByRole("link", { name: "Unprotect context" }).click();
-    await page.getByLabel("Confirm").click();
+    await page.getByRole("textbox", { name: "Confirmation" }).fill("prod");
+    await page.getByRole("button", { name: "Confirm" }).click();
     await expect(
       page.getByRole("link", { name: "prod", exact: true })
     ).toBeVisible();
