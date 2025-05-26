@@ -10,6 +10,7 @@ import { GlobalContextIcon } from "../utils/icons";
 import { FEATURE_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "./Loader";
 import { LocalContext } from "./ContextTreeLocalContext";
+import { Tooltip } from "./Tooltip";
 
 type TOverloadRender = (
   context: TContext,
@@ -75,10 +76,14 @@ export function FeatureContexts(props: {
             if (context.protected) {
               return askInputConfirmation(
                 <>
-                  Are you sure you want to delete context {path} ?
+                  Are you sure you want to delete protected context {path} ?
                   <br />
                   All subcontexts and their overloads will be lost !<br />
                   Please confirm by typing context name below.
+                  <Tooltip id="protected-context-delete-confirmation">
+                    Typing context name is required since this context is
+                    protected.
+                  </Tooltip>
                 </>,
                 () => deleteContext(path),
                 context.name,

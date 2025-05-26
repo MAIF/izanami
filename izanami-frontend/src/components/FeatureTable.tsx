@@ -1492,6 +1492,7 @@ export function OverloadTable(props: {
         }
       },
       customForm: (datum: TContextOverload, cancel: () => void) => {
+        const context = contextByPath.get(datum.path);
         return (
           <>
             <h4>Edit overload</h4>
@@ -1499,17 +1500,44 @@ export function OverloadTable(props: {
               resultType={datum.resultType}
               project={datum.project!}
               defaultValue={datum}
-              submit={(overload) =>
-                updateStrategyMutation.mutateAsync(
-                  {
-                    feature: overload.name,
-                    ...overload,
-                  } as any,
-                  {
-                    onSuccess: () => cancel(),
-                  }
-                )
-              }
+              submit={(overload) => {
+                if (context?.protected) {
+                  askInputConfirmation(
+                    <>
+                      Updating this overload will impact protected context{" "}
+                      {context.name}.<br />
+                      Please type feature name below to confirm.
+                      <LocalToolTip id="overload-update-confirmation">
+                        Typing feature name is required since this overload is
+                        for a protected context.
+                      </LocalToolTip>
+                    </>,
+                    () => {
+                      return updateStrategyMutation.mutateAsync(
+                        {
+                          feature: overload.name,
+                          ...overload,
+                        } as any,
+                        {
+                          onSuccess: () => cancel(),
+                        }
+                      );
+                    },
+                    datum.name,
+                    `Updating feature ${datum}`
+                  );
+                } else {
+                  return updateStrategyMutation.mutateAsync(
+                    {
+                      feature: overload.name,
+                      ...overload,
+                    } as any,
+                    {
+                      onSuccess: () => cancel(),
+                    }
+                  );
+                }
+              }}
               cancel={cancel}
               noName
             />
@@ -2287,11 +2315,12 @@ export function FeatureTable(props: {
       hasRight: (user: TUser, feature: TLightFeature) => {
         return actions(feature).includes("delete");
       },
-      action: (feature: TLightFeature) =>
-        askConfirmation(
+      action: (feature: TLightFeature) => {
+        return askConfirmation(
           `Are you sure you want to delete feature ${feature.name} ?`,
           () => featureDeleteMutation.mutateAsync(feature.id!)
-        ),
+        );
+      },
     },
     url: {
       icon: (
