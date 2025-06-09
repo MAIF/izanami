@@ -1799,14 +1799,7 @@ export function FeatureTestForm(props: {
 export function FeatureDetails({ feature }: { feature: TLightFeature }) {
   return (
     <div className="d-flex">
-      <ResultTypeIcon resultType={feature.resultType} />
-      <div
-        style={{
-          paddingLeft: "0.5rem",
-          marginLeft: "0.25rem",
-          borderLeft: "1px solid var(--color_level1)",
-        }}
-      >
+      <div>
         <TextualFeatureDetails feature={feature} />
       </div>
     </div>
@@ -2067,13 +2060,52 @@ export function FeatureTable(props: {
   if (fields.includes("enabled")) {
     columns.push({
       accessorKey: "enabled",
-      header: () => "Enabled",
-      cell: (info: any) =>
-        info.getValue() ? (
-          <span className="activation-status">Enabled</span>
-        ) : (
-          <span className="activation-status disabled-status">Disabled</span>
-        ),
+      header: () => "Status",
+      cell: (info: any) => {
+        const feature = info.row.original as TCompleteFeature;
+        const isEnabled = feature.enabled;
+
+        return (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <input
+              checked={isEnabled ? true : false}
+              type="checkbox"
+              className="izanami-checkbox"
+              style={{ marginTop: 0 }}
+              aria-label={`${isEnabled ? "Disable" : "Enable"} ${feature.name}`}
+              onChange={() => {
+                askConfirmation(
+                  `Are you sure you want to ${
+                    isEnabled ? "disable" : "enable"
+                  } feature ${feature.name} ?`,
+                  () =>
+                    featureUpdateMutation.mutateAsync({
+                      id: feature.id!,
+                      feature: {
+                        ...feature,
+                        enabled: !isEnabled,
+                      },
+                    })
+                );
+              }}
+            />
+            &nbsp;
+            <span
+              className={`activation-status ${
+                isEnabled ? "enabled" : "disabled"
+              }-status`}
+            >
+              {isEnabled ? "Enabled" : "Disabled"}
+            </span>
+          </div>
+        );
+      },
       minSize: 150,
       size: 5,
       meta: {
