@@ -235,11 +235,12 @@ thead th {
   top: 24px;
 }
 
-.activation-status {
-  // font-weight: bold;
+.activation-status.enabled-status {
+  font-weight: bold;
+  color: $primaryColor;
 }
 
-.disabled-status {
+.activation-status.disabled-status {
   opacity: 0.5;
 }
 
