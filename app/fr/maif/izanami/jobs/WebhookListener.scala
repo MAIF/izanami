@@ -24,22 +24,10 @@ class WebhookListener(env: Env, eventService: EventService) {
   private implicit val ec: ExecutionContext          = env.executionContext
   private implicit val actorSystem: ActorSystem      = env.actorSystem
   private val cancelSwitch: Map[String, Cancellable] = Map()
-  private val retryCount: Long                       = env.configuration.getOptional[Long]("app.webhooks.retry.count").getOrElse {
-    logger.warn("Failed to parse app.webhooks.retry.count as long, will use 5 as default value")
-    5L
-  }
-  private val retryInitialDelay                      = env.configuration.getOptional[Long]("app.webhooks.retry.intial-delay").getOrElse {
-    logger.warn("Failed to parse app.webhooks.retry.intial-delay as long, will use 5 as default value")
-    5L
-  }
-  private val retryMaxDelay                          = env.configuration.getOptional[Long]("app.webhooks.retry.max-delay").getOrElse {
-    logger.warn("Failed to parse app.webhooks.retry.max-delay as long, will use 600 as default value")
-    600L
-  }
-  private val retryMultiplier                        = env.configuration.getOptional[Long]("app.webhooks.retry.multiplier").getOrElse {
-    logger.warn("Failed to parse app.webhooks.retry.multiplier as long, will use 2 as default value")
-    2L
-  }
+  private val retryCount: Long                       = env.typedConfiguration.webhooks.retry.count
+  private val retryInitialDelay                      = env.typedConfiguration.webhooks.retry.intialDelay
+  private val retryMaxDelay                          = env.typedConfiguration.webhooks.retry.maxDelay
+  private val retryMultiplier                        = env.typedConfiguration.webhooks.retry.multiplier
 
   def onStart(): Future[Unit] = {
     env.datastores.tenants

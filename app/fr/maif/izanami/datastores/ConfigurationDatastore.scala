@@ -87,11 +87,12 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
   }
 
   def readWasmConfiguration(): Option[WasmoSettings] = {
+    val wasmoConf = env.typedConfiguration.wasmo;
     for (
-      url <- env.configuration.getOptional[String]("app.wasmo.url");
-      clientId <- env.configuration.getOptional[String]("app.wasmo.client-id");
-      clientSecret <- env.configuration.getOptional[String]("app.wasmo.client-secret")
-    ) yield WasmoSettings(url, clientId, clientSecret = clientSecret)
+      url <- wasmoConf.url;
+      clientId <- wasmoConf.clientId;
+      clientSecret <- wasmoConf.clientSecret
+    ) yield WasmoSettings(url.toString, clientId, clientSecret = clientSecret)
   }
 
   def readFullConfiguration(): Future[Either[IzanamiError, FullIzanamiConfiguration]] = {

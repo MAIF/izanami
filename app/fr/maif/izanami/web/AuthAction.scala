@@ -92,7 +92,7 @@ class TenantRightsAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
       request: Request[A],
       block: UserRequestWithTenantRights[A] => Future[Result]
   ): Future[Result] = {
-    extractClaims(request, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
+    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized("")))(subject => {
         env.datastores.users
@@ -115,7 +115,7 @@ class DetailledAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
       request: Request[A],
       block: UserRequestWithCompleteRights[A] => Future[Result]
   ): Future[Result] = {
-    extractClaims(request, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
+    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
         env.datastores.users
@@ -135,7 +135,7 @@ class AdminAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec:
   override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
-    extractClaims(request, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
+    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
         env.datastores.users
@@ -161,7 +161,7 @@ class AuthenticatedAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
   override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
-    extractClaims(request, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
+    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(sessionId =>
         env.datastores.users.findSession(sessionId).flatMap {
@@ -185,7 +185,7 @@ class AuthenticatedSessionAction(bodyParser: BodyParser[AnyContent], env: Env)(i
   override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](request: Request[A], block: SessionIdRequest[A] => Future[Result]): Future[Result] = {
-    extractClaims(request, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
+    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(sessionId =>
         block(SessionIdRequest(request = request, sessionId = sessionId))
@@ -204,7 +204,7 @@ class DetailledRightForTenantAction(bodyParser: BodyParser[AnyContent], env: Env
       request: Request[A],
       block: UserRequestWithCompleteRightForOneTenant[A] => Future[Result]
   ): Future[Result] = {
-    extractClaims(request, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
+    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
         env.datastores.users
@@ -262,7 +262,7 @@ class PersonnalAccessTokenTenantAuthAction(
     }
 
     def maybeCookieAuth: Future[Either[Result, String]] = {
-      extractClaims(request, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
+      extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
         .flatMap(claims => claims.subject)
         .fold(Future.successful(Left(Unauthorized(Json.obj("message" -> "Invalid token"))): Either[Result, String]))(
           subject => {
@@ -302,7 +302,7 @@ class TenantAuthAction(bodyParser: BodyParser[AnyContent], env: Env, tenant: Str
   override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
-    extractClaims(request, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
+    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
         env.datastores.users
@@ -382,7 +382,7 @@ class ProjectAuthAction(
       request: Request[A],
       block: ProjectIdUserNameRequest[A] => Future[Result]
   ): Future[Result] = {
-    extractClaims(request, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
+    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
         env.datastores.users
@@ -425,7 +425,7 @@ class WebhookAuthAction(
       request: Request[A],
       block: HookAndUserNameRequest[A] => Future[Result]
   ): Future[Result] = {
-    extractClaims(request, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
+    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
         env.datastores.users
@@ -465,7 +465,7 @@ class KeyAuthAction(
   override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
-    extractClaims(request, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
+    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
         env.datastores.users

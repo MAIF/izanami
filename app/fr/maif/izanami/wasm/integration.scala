@@ -23,8 +23,8 @@ class IzanamiWasmIntegrationContext(env: Env) extends WasmIntegrationContext {
   val materializer: Materializer = env.materializer
   val executionContext: ExecutionContext = env.executionContext
   val selfRefreshingPools: Boolean = false
-  val wasmCacheTtl: Long = env.wasmCacheTtl
-  val wasmQueueBufferSize: Int = env.wasmQueueBufferSize
+  val wasmCacheTtl: Long = env.typedConfiguration.wasm.cache.ttl
+  val wasmQueueBufferSize: Int = env.typedConfiguration.wasm.queue.buffer.size
   val wasmScriptCache: TrieMap[String, CacheableWasmScript] = new TrieMap[String, CacheableWasmScript]()
   val wasmExecutor: ExecutionContext = ExecutionContext.fromExecutorService(
     Executors.newWorkStealingPool(Math.max(32, (Runtime.getRuntime.availableProcessors * 4) + 1))

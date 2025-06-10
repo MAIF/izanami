@@ -8,7 +8,7 @@ import fr.maif.izanami.web.SearchController.{SearchEntityObject, SearchEntityTyp
 
 import scala.concurrent.Future
 class SearchDatastore(val env: Env) extends Datastore {
-  private val similarityThresholdParam  =  env.configuration.get[Int]("app.search.similarity-threshold")
+  private val similarityThresholdParam  =  env.typedConfiguration.search.similarityThreshold
   def tenantSearch(
       tenant: String,
       username: String,

@@ -25,13 +25,13 @@ class JwtService(env: Env) {
     claim = Option(content).map(c => claim.withContent(c.toString())).getOrElse(claim)
     encrypt(JwtJson.encode(
       claim,
-      env.configuration.get[String]("app.authentication.secret"),
+      env.typedConfiguration.authentication.secret,
       JwtAlgorithm.HS256
     ), env.encryptionKey)
   }
 
   def parseJWT(token: String): Try[JwtClaim] =
-    decodeJWT(token, env.configuration.get[String]("app.authentication.secret"), env.encryptionKey)
+    decodeJWT(token, env.typedConfiguration.authentication.secret, env.encryptionKey)
 }
 
 object JwtService {

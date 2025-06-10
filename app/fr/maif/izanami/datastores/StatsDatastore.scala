@@ -38,7 +38,7 @@ class StatsDatastore(val env: Env) extends Datastore {
 
   def sendAnonymousReporting(): Future[Unit] = {
     retrieveStats().flatMap(json => {
-      env.Ws.url(env.configuration.get[String]("app.reporting.url")).post(json)
+      env.Ws.url(env.typedConfiguration.reporting.url.toString).post(json)
     }).map(_ => ())
   }
 
@@ -68,7 +68,7 @@ class StatsDatastore(val env: Env) extends Datastore {
     })
   }
 
-  def isContainerized: Boolean = env.configuration.get[Boolean]("app.containerized")
+  def isContainerized: Boolean = env.typedConfiguration.containerized
 
   def retrieveRunInformations(): Future[JsObject] = {
     val now = Instant.now()

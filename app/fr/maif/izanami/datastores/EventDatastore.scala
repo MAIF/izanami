@@ -18,7 +18,7 @@ class EventDatastore(val env: Env) extends Datastore {
 
   override def onStart(): Future[Unit] = {
     eventCleanerCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>{
-      deleteExpiredEvents(env.configuration.get[Int]("app.audit.events-hours-ttl"))
+      deleteExpiredEvents(env.typedConfiguration.audit.eventsHoursTtl)
     })
     Future.successful(())
   }

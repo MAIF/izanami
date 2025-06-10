@@ -285,7 +285,7 @@ class LoginController(
                 value = token,
                 httpOnly = false,
                 sameSite = Some(SameSite.Strict),
-                maxAge = Some(env.configuration.get[Int]("app.sessions.ttl") - 120)
+                maxAge = Some(env.typedConfiguration.sessions.ttl - 120)
               )
             )
         }

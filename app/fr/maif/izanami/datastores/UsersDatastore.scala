@@ -29,13 +29,13 @@ class UsersDatastore(val env: Env) extends Datastore {
 
   override def onStart(): Future[Unit] = {
     sessionExpirationCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
-      deleteExpiredSessions(env.configuration.get[Int]("app.sessions.ttl"))
+      deleteExpiredSessions(env.typedConfiguration.sessions.ttl)
     )
     invitationExpirationCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
-      deleteExpiredInvitations(env.configuration.get[Int]("app.invitations.ttl"))
+      deleteExpiredInvitations(env.typedConfiguration.invitations.ttl)
     )
     passwordResetRequestCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
-      deleteExpiredPasswordResetRequests(env.configuration.get[Int]("app.password-reset-requests.ttl"))
+      deleteExpiredPasswordResetRequests(env.typedConfiguration.passwordResetRequests.ttl)
     )
     Future.successful(())
   }
