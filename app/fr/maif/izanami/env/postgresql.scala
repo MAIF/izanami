@@ -14,7 +14,7 @@ import io.vertx.pgclient.{PgConnectOptions, PgException, PgPool, SslMode}
 import io.vertx.sqlclient.{PoolOptions, Row, RowSet, SqlConnection}
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.exception.FlywayValidateException
-import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
+import play.api.libs.json.{JsArray, JsObject, Json}
 import play.api.{Configuration, Logger}
 
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
@@ -29,74 +29,85 @@ class Postgresql(env: Env) {
   import scala.jdk.CollectionConverters._
 
   private val logger = Logger("izanami")
-
-  lazy val connectOptions      = if (configuration.has("app.pg.uri")) {
-    logger.info(s"Postgres URI : ${configuration.get[String]("app.pg.uri")}")
-    val opts = PgConnectOptions.fromUri(configuration.get[String]("app.pg.uri"))
+  val pgConfiguration = env.typedConfiguration.pg
+  val sslConfiguration        = pgConfiguration.ssl
+  lazy val connectOptions      = if (pgConfiguration.uri.isDefined) {
+    val uri = pgConfiguration.uri.get
+    logger.info(s"Postgres URI : ${uri}")
+    val opts = PgConnectOptions.fromUri(uri.toString)
     opts
   } else {
 
     val maybePgConfig = for(
-      database <- configuration.getOptional[String]("app.pg.database");
+      database <- pgConfiguration.database;
       // Retro compatibility : user became username
-      user <- configuration.getOptional[String]("app.pg.username").orElse(configuration.getOptional[String]("app.pg.user"));
-      password <- configuration.getOptional[String]("app.pg.password");
-      host <- configuration.getOptional[String]("app.pg.host");
-      port <- configuration.getOptional[Int]("app.pg.port")
+      user <- pgConfiguration.username.orElse(pgConfiguration.user)
     ) yield {
-      val ssl        = configuration.getOptional[Configuration]("app.pg.ssl").getOrElse(Configuration.empty)
-      val sslEnabled = ssl.getOptional[Boolean]("enabled").getOrElse(false)
+
+      val sslEnabled = sslConfiguration.enabled
       new PgConnectOptions()
-        .applyOnWithOpt(configuration.getOptional[Int]("connect-timeout"))((p, v) => p.setConnectTimeout(v))
-        .applyOnWithOpt(configuration.getOptional[Int]("idle-timeout"))((p, v) => p.setIdleTimeout(v))
-        .applyOnWithOpt(configuration.getOptional[Boolean]("log-activity"))((p, v) => p.setLogActivity(v))
-        .applyOnWithOpt(configuration.getOptional[Int]("pipelining-limit"))((p, v) => p.setPipeliningLimit(v))
-        .setPort(port)
-        .setHost(host)
+        .applyOnWithOpt(pgConfiguration.connectTimeout)((p, v) => p.setConnectTimeout(v))
+        .applyOnWithOpt(pgConfiguration.idleTimeout)((p, v) => p.setIdleTimeout(v))
+        .applyOnWithOpt(pgConfiguration.logActivity)((p, v) => p.setLogActivity(v))
+        .applyOnWithOpt(pgConfiguration.pipeliningLimit)((p, v) => p.setPipeliningLimit(v))
+        .setPort(pgConfiguration.port)
+        .setHost(pgConfiguration.host)
         .setDatabase(database)
         .setUser(user)
-        .setPassword(password)
+        .setPassword(pgConfiguration.password)
         .applyOnIf(sslEnabled) { pgopt =>
           pgopt.setSsl(true)
-          val mode = SslMode.of(ssl.get[String]("mode"))
+          val mode = SslMode.of(sslConfiguration.mode)
           val pemTrustOptions = new PemTrustOptions()
           val pemKeyCertOptions = new PemKeyCertOptions()
           pgopt.setSslMode(mode)
 
-          pgopt.applyOnWithOpt(ssl.getOptional[Int]("ssl-handshake-timeout"))((p, v) => p.setSslHandshakeTimeout(v))
-          ssl.getOptional[Seq[String]]("trustedCertsPath").map { pathes =>
-            pathes.map(p => pemTrustOptions.addCertPath(p))
-            pgopt.setPemTrustOptions(pemTrustOptions)
+          pgopt.applyOnWithOpt(sslConfiguration.sslHandshakeTimeout)((p, v) => p.setSslHandshakeTimeout(v))
+          sslConfiguration.trustedCertsPath match {
+            case Nil => ()
+            case pathes => {
+              pathes.map(p => pemTrustOptions.addCertPath(p))
+              pgopt.setPemTrustOptions(pemTrustOptions)
+            }
           }
-          ssl.getOptional[String]("trusted-cert-path").map { path =>
+          sslConfiguration.trustedCertPath.map { path =>
             pemTrustOptions.addCertPath(path)
             pgopt.setPemTrustOptions(pemTrustOptions)
           }
-          ssl.getOptional[Seq[String]]("trusted-certs").map { certs =>
-            certs.map(p => pemTrustOptions.addCertValue(Buffer.buffer(p)))
-            pgopt.setPemTrustOptions(pemTrustOptions)
+          sslConfiguration.trustedCerts match {
+            case Nil =>
+            case certs => {
+              certs.map(p => pemTrustOptions.addCertValue(Buffer.buffer(p)))
+              pgopt.setPemTrustOptions(pemTrustOptions)
+            }
           }
-          ssl.getOptional[String]("trusted-cert").map { path =>
+          sslConfiguration.trustedCert.map { path =>
             pemTrustOptions.addCertValue(Buffer.buffer(path))
             pgopt.setPemTrustOptions(pemTrustOptions)
           }
-          ssl.getOptional[Seq[String]]("client-certs-path").map { pathes =>
-            pathes.map(p => pemKeyCertOptions.addCertPath(p))
-            pgopt.setPemKeyCertOptions(pemKeyCertOptions)
+          sslConfiguration.clientCertsPath match{
+            case Nil => ()
+            case pathes => {
+              pathes.map(p => pemKeyCertOptions.addCertPath(p))
+              pgopt.setPemKeyCertOptions(pemKeyCertOptions)
+            }
           }
-          ssl.getOptional[Seq[String]]("client-certs").map { certs =>
-            certs.map(p => pemKeyCertOptions.addCertValue(Buffer.buffer(p)))
-            pgopt.setPemKeyCertOptions(pemKeyCertOptions)
+          sslConfiguration.clientCerts match {
+            case Nil => ()
+            case certs => {
+              certs.map(p => pemKeyCertOptions.addCertValue(Buffer.buffer(p)))
+              pgopt.setPemKeyCertOptions(pemKeyCertOptions)
+            }
           }
-          ssl.getOptional[String]("client-cert-path").map { path =>
+          sslConfiguration.clientCertPath.map { path =>
             pemKeyCertOptions.addCertPath(path)
             pgopt.setPemKeyCertOptions(pemKeyCertOptions)
           }
-          ssl.getOptional[String]("client-cert").map { path =>
+          sslConfiguration.clientCert.map { path =>
             pemKeyCertOptions.addCertValue(Buffer.buffer(path))
             pgopt.setPemKeyCertOptions(pemKeyCertOptions)
           }
-          ssl.getOptional[Boolean]("trust-all").map { v =>
+          sslConfiguration.trustAll.map { v =>
             pgopt.setTrustAll(v)
           }
 
@@ -107,14 +118,14 @@ class Postgresql(env: Env) {
     maybePgConfig.getOrElse(throw new IllegalArgumentException("No suitable postgres configuration provided, you need to provide either Postgres URI or Postgres database, user and password (see https://maif.github.io/izanami/docs/guides/configuration#database for details)"))
   }
   lazy val vertx               = Vertx.vertx()
+
   private lazy val poolOptions = new PoolOptions()
-    .setMaxSize(configuration.get[Int]("app.pg.pool-size"))
-    .applyOnWithOpt(configuration.getOptional[Int]("idle-timeout"))((p, v) => p.setIdleTimeout(v))
-    .applyOnWithOpt(configuration.getOptional[Int]("max-lifetime"))((p, v) => p.setMaxLifetime(v))
+    .setMaxSize(pgConfiguration.poolSize)
+    .applyOnWithOpt(pgConfiguration.idleTimeout)((p, v) => p.setIdleTimeout(v))
+    .applyOnWithOpt(pgConfiguration.maxLifetime)((p, v) => p.setMaxLifetime(v))
 
   private lazy val pool = PgPool.pool(connectOptions, poolOptions)
 
-  private val configuration = env.configuration
 
   def onStart(): Future[Unit] = {
     updateSchema()
@@ -130,14 +141,13 @@ class Postgresql(env: Env) {
     config.setPassword(connectOptions.getPassword)
     config.setMaximumPoolSize(2)
 
-    val ssl        = configuration.getOptional[Configuration]("app.pg.ssl").getOrElse(Configuration.empty)
-    val sslEnabled = ssl.getOptional[Boolean]("enabled").getOrElse(false)
+    val sslEnabled = sslConfiguration.enabled
     config.applyOnIf(sslEnabled) { config =>
       val mode = SslMode.of("REQUIRE")
       config.addDataSourceProperty("sslmode", mode.toString)
       config.addDataSourceProperty("ssl", true)
 
-      if(ssl.getOptional[Boolean]("trust-all").getOrElse(false)) {
+      if(sslConfiguration.trustAll.getOrElse(false)) {
         config.addDataSourceProperty("sslfactory", "org.postgresql.ssl.NonValidatingFactory")
       }
       config
@@ -157,7 +167,7 @@ class Postgresql(env: Env) {
 
     val migrationResult = flyway.migrate()
     if (migrationResult.initialSchemaVersion == null) {
-      val isPasswordProvided = configuration.getOptional[String]("app.admin.password").isDefined
+      val isPasswordProvided = env.typedConfiguration.admin.password.isDefined
       if (!isPasswordProvided) {
         logger.warn(
           s"No password provided in app.admin.password env variable. Therefore password ${password} has been automatically generated for RESERVED_ADMIN_USER account"
@@ -200,14 +210,12 @@ class Postgresql(env: Env) {
   }
 
   def defaultPassword: String = {
-    val maybeUserProvidedPassword = configuration.getOptional[String]("app.admin.password")
+    val maybeUserProvidedPassword = env.typedConfiguration.admin.password
     maybeUserProvidedPassword.getOrElse(IdGenerator.token(24))
   }
 
   def defaultUser: String = {
-    val maybeUserAdminUser = configuration.getOptional[String]("app.admin.username")
-      .orElse(configuration.getOptional[String]("app.admin.user"))
-    maybeUserAdminUser.getOrElse("RESERVED_ADMIN_USER")
+    env.typedConfiguration.admin.username
   }
 
   def onStop(): Future[Unit] = {

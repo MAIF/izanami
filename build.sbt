@@ -53,6 +53,7 @@ libraryDependencies += "com.typesafe.akka"    %% "akka-http"                  % 
 libraryDependencies += "com.github.jknack"     % "handlebars"                 % "4.4.0"
 libraryDependencies += "com.github.jknack"     % "handlebars-jackson"         % "4.4.0" excludeAll (excludesJackson: _*)
 libraryDependencies += "net.logstash.logback"  % "logstash-logback-encoder"   % "8.0" excludeAll (excludesJackson: _*)
+libraryDependencies += "com.github.pureconfig" %% "pureconfig" % "0.17.9"
 
 libraryDependencies += "org.scalatestplus.play"       %% "scalatestplus-play"   % "5.0.0"    % Test
 libraryDependencies += "org.scalatest"                %% "scalatest-flatspec"   % "3.2.12"   % "test"

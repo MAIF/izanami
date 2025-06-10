@@ -7,13 +7,11 @@ import fr.maif.izanami.datastores._
 import fr.maif.izanami.events.EventService
 import fr.maif.izanami.jobs.WebhookListener
 import fr.maif.izanami.mail.Mails
-import fr.maif.izanami.models.{OAuth2Configuration, PKCEConfig, User}
-import fr.maif.izanami.models.OAuth2Configuration.{OAuth2BASICMethod, OAuth2MethodReads, OAuth2RawMethodConvert}
+import fr.maif.izanami.models.OAuth2Configuration.OAuth2RawMethodConvert
+import fr.maif.izanami.models.{OAuth2Configuration, PKCEConfig}
 import fr.maif.izanami.security.JwtService
 import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
-import io.otoroshi.wasm4s.scaladsl.WasmIntegration
-import play.api.libs.json.Json
-import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
+import fr.maif.izanami.{AppConf, PlayRoot}
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 import play.api.libs.ws.WSClient
 import play.api.{Configuration, Environment, Logger}
@@ -25,21 +23,21 @@ class Datastores(env: Env) {
 
   private implicit val ec: ExecutionContext = env.executionContext
 
-  val features: FeaturesDatastore = new FeaturesDatastore(env)
-  val featureCalls: FeatureCallsDatastore = new FeatureCallsDatastore(env)
-  val tenants: TenantsDatastore = new TenantsDatastore(env)
-  val projects: ProjectsDatastore = new ProjectsDatastore(env)
-  val tags: TagsDatastore = new TagsDatastore(env)
-  val apiKeys: ApiKeyDatastore = new ApiKeyDatastore(env)
-  val featureContext: FeatureContextDatastore = new FeatureContextDatastore(env)
-  val users: UsersDatastore = new UsersDatastore(env)
-  val configuration: ConfigurationDatastore = new ConfigurationDatastore(env)
-  val webhook: WebhooksDatastore = new WebhooksDatastore(env)
-  val stats: StatsDatastore = new StatsDatastore(env)
-  val exportDatastore: ImportExportDatastore = new ImportExportDatastore(env)
-  val search: SearchDatastore = new SearchDatastore(env)
+  val features: FeaturesDatastore                         = new FeaturesDatastore(env)
+  val featureCalls: FeatureCallsDatastore                 = new FeatureCallsDatastore(env)
+  val tenants: TenantsDatastore                           = new TenantsDatastore(env)
+  val projects: ProjectsDatastore                         = new ProjectsDatastore(env)
+  val tags: TagsDatastore                                 = new TagsDatastore(env)
+  val apiKeys: ApiKeyDatastore                            = new ApiKeyDatastore(env)
+  val featureContext: FeatureContextDatastore             = new FeatureContextDatastore(env)
+  val users: UsersDatastore                               = new UsersDatastore(env)
+  val configuration: ConfigurationDatastore               = new ConfigurationDatastore(env)
+  val webhook: WebhooksDatastore                          = new WebhooksDatastore(env)
+  val stats: StatsDatastore                               = new StatsDatastore(env)
+  val exportDatastore: ImportExportDatastore              = new ImportExportDatastore(env)
+  val search: SearchDatastore                             = new SearchDatastore(env)
   val personnalAccessToken: PersonnalAccessTokenDatastore = new PersonnalAccessTokenDatastore(env)
-  val events: EventDatastore = new EventDatastore(env)
+  val events: EventDatastore                              = new EventDatastore(env)
 
   def onStart(): Future[Unit] = {
     for {
@@ -58,104 +56,88 @@ class Datastores(env: Env) {
   }
 }
 
-class Env(val configuration: Configuration, val environment: Environment, val Ws: WSClient) {
+class Env(
+    val environment: Environment,
+    val Ws: WSClient,
+    val typedConfiguration: AppConf,
+    val rawConfiguration: Configuration,
+    playConfiguration: PlayRoot
+) {
   // TODO variablize with izanami
-  lazy val wasmCacheTtl: Int =
-    configuration.getOptional[Int]("app.wasm.cache.ttl").filter(_ >= 5000).getOrElse(60000)
-  lazy val wasmQueueBufferSize: Int =
-    configuration.getOptional[Int]("app.wasm.queue.buffer.size").getOrElse(2048)
-
-  val logger = Logger("izanami")
-  val defaultSecret = configuration.get[String]("app.default-secret")
-  val secret = configuration.get[String]("app.secret")
-  val extensionsSchema = configuration.get[String]("app.pg.extensions-schema")
-  val houseKeepingStartDelayInSeconds = configuration.get[Long]("app.housekeeping.start-delay-in-seconds")
-  val houseKeepingIntervalInSeconds = configuration.get[Long]("app.housekeeping.interval-in-seconds")
+  val logger: Logger                        = Logger("izanami")
+  private val defaultSecret                 = typedConfiguration.defaultSecret
+  val secret: String                        = typedConfiguration.secret
+  val extensionsSchema: String              = typedConfiguration.pg.extensionsSchema
+  val houseKeepingStartDelayInSeconds: Long = typedConfiguration.housekeeping.startDelayInSeconds
+  val houseKeepingIntervalInSeconds: Long   = typedConfiguration.housekeeping.intervalInSeconds
 
   if (defaultSecret == secret) {
-    logger.warn("You're using Izanami default secret, which is not safe for production. Please generate a new secret and provide it to Izanami (see https://maif.github.io/izanami/docs/guides/configuration#secret for details).")
+    logger.warn(
+      "You're using Izanami default secret, which is not safe for production. Please generate a new secret and provide it to Izanami (see https://maif.github.io/izanami/docs/guides/configuration#secret for details)."
+    )
   }
 
   lazy val encryptionKey = new SecretKeySpec(
-    configuration.get[String]("app.authentication.token-body-secret").padTo(16, "0").mkString("").take(16).getBytes,
+    typedConfiguration.authentication.tokenBodySecret.padTo(16, "0").mkString("").take(16).getBytes,
     "AES"
   )
 
-  lazy val expositionUrl = configuration
-    .getOptional[String]("app.exposition.url")
-    .getOrElse(s"http://localhost:${configuration.getOptional[Int]("http.port").getOrElse(9000)}")
+  lazy val expositionUrl = typedConfiguration.exposition.url.map(_.toString)
+    .getOrElse(s"http://localhost:${playConfiguration.server. http.port}")
 
   val actorSystem: ActorSystem = ActorSystem(
     "app-actor-system",
-    configuration
-      .getOptional[Configuration]("app.actorsystem")
-      .map(_.underlying)
-      .getOrElse(ConfigFactory.empty)
+    ConfigFactory.empty
   )
 
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
-  val scheduler: Scheduler = actorSystem.scheduler
-  val materializer: Materializer = Materializer(actorSystem)
+  val scheduler: Scheduler                        = actorSystem.scheduler
+  val materializer: Materializer                  = Materializer(actorSystem)
 
   // init subsystems
-  val eventService = new EventService(this)
+  val eventService    = new EventService(this)
   val webhookListener = new WebhookListener(this, eventService)
-  val postgresql = new Postgresql(this)
-  val datastores = new Datastores(this)
-  val mails = new Mails(this)
-  val jwtService = new JwtService(this)
+  val postgresql      = new Postgresql(this)
+  val datastores      = new Datastores(this)
+  val mails           = new Mails(this)
+  val jwtService      = new JwtService(this)
   val wasmIntegration = WasmIntegration(new IzanamiWasmIntegrationContext(this))
-  val jobs = new Jobs(this)
+  val jobs            = new Jobs(this)
 
-  def isOIDCConfigurationEditable: Boolean = (for (
-    _ <- configuration.getOptional[String]("app.openid.client-id");
-    _ <- configuration.getOptional[String]("app.openid.client-secret");
-    _ <- configuration.getOptional[String]("app.openid.authorize-url");
-    _ <- configuration.getOptional[String]("app.openid.token-url");
-    _ <- configuration.getOptional[String]("app.openid.username-field");
-    _ <- configuration.getOptional[String]("app.openid.email-field");
-    _ <- configuration.getOptional[String]("app.openid.scopes").map(_.replace("\"", ""))
-  ) yield true).isEmpty
+  val oidcConfig = typedConfiguration.openid
+
+  def isOIDCConfigurationEditable: Boolean =
+    Seq(oidcConfig.clientId, oidcConfig.clientSecret, oidcConfig.authorizeUrl, oidcConfig.tokenUrl).forall(o =>
+      o.isDefined
+    )
 
   def oidcConfigurationMigration() = {
     datastores.configuration
       .readFullConfiguration()
       .map {
-        case Left(err) =>
+        case Left(err)            =>
         case Right(configuration) =>
           for (
-            clientId <- this.configuration.getOptional[String]("app.openid.client-id");
-            clientSecret <- this.configuration.getOptional[String]("app.openid.client-secret");
-            authorizeUrl <- this.configuration.getOptional[String]("app.openid.authorize-url");
-            tokenUrl <- this.configuration.getOptional[String]("app.openid.token-url");
-            usernameField <- this.configuration.getOptional[String]("app.openid.username-field");
-            emailField <- this.configuration.getOptional[String]("app.openid.email-field");
-            scopes <- this.configuration.getOptional[String]("app.openid.scopes").map(_.replace("\"", ""))
+            clientId      <- oidcConfig.clientId;
+            clientSecret  <- oidcConfig.clientSecret;
+            authorizeUrl  <- oidcConfig.authorizeUrl;
+            tokenUrl      <- oidcConfig.tokenUrl
           ) yield {
-            val enabled = this.configuration.getOptional[Boolean]("app.openid.enabled").getOrElse(true)
-
-            val pkceEnabled = this.configuration.getOptional[Boolean]("app.openid.pkce.enabled").getOrElse(false)
-            val pkceAlgorithm = this.configuration.getOptional[String]("app.openid.pkce.algorithm")
-            val method = this.configuration.getOptional[String]("app.openid.method")
-
-            val redirectUrl = this.configuration.getOptional[String]("app.openid.redirect-url")
-            val callbackUrl = this.configuration.getOptional[String]("app.openid.callback-url")
-
             logger.info("The OIDC configuration has been register in database from environments variables")
 
             val oauth = OAuth2Configuration(
               clientId = clientId,
               clientSecret = clientSecret,
-              authorizeUrl = authorizeUrl,
-              tokenUrl = tokenUrl,
-              callbackUrl = redirectUrl.orElse(callbackUrl).getOrElse(""),
-              emailField = emailField,
-              nameField = usernameField,
-              scopes = scopes,
-              method = OAuth2RawMethodConvert(method.getOrElse("BASIC")),
-              enabled = enabled,
-              pkce = if (pkceEnabled) {
-                Some(PKCEConfig(enabled = pkceEnabled, algorithm = pkceAlgorithm.getOrElse("S256")))
+              authorizeUrl = authorizeUrl.toString, // TODO propagate URL type
+              tokenUrl = tokenUrl.toString,
+              callbackUrl = oidcConfig.redirectUrl.orElse(oidcConfig.callbackUrl).map(_.toString).getOrElse(""),
+              emailField = oidcConfig.emailField,
+              nameField = oidcConfig.usernameField,
+              scopes = oidcConfig.scopes.replace("\"", ""),
+              method = OAuth2RawMethodConvert(oidcConfig.method),
+              enabled = oidcConfig.enabled,
+              pkce = if (oidcConfig.pkce.enabled) {
+                Some(PKCEConfig(enabled = oidcConfig.pkce.enabled, algorithm = oidcConfig.pkce.algorithm.getOrElse("S256")))
               } else {
                 None
               }
@@ -184,6 +166,4 @@ class Env(val configuration: Configuration, val environment: Environment, val Ws
       _ <- jobs.onStop()
     } yield ()
   }
-
-  def isDev: Boolean = configuration.getOptional[String]("app.config.mode").exists(mode => mode.equals("dev"))
 }

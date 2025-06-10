@@ -16,7 +16,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.{DurationInt, DurationLong}
 
 class FeatureCallsDatastore(val env: Env) extends Datastore {
-  private val callRetentionDelayInHours: Long = env.configuration.get[Long]("app.feature.call-records.call-retention-time-in-hours")
+  private val callRetentionDelayInHours: Long = env.typedConfiguration.feature.callRecords.callRetentionTimeInHours
   private var outDatedCallDeleteCancellation: Cancellable = Cancellable.alreadyCancelled
   override def onStart(): Future[Unit] = {
     outDatedCallDeleteCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() => {

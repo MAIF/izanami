@@ -19,7 +19,10 @@ import play.filters.csp.CSPComponents
 import play.filters.csrf.CSRFFilter
 import play.filters.gzip.GzipFilterComponents
 import play.filters.https.RedirectHttpsComponents
+import pureconfig.ConfigSource
 import router.Routes
+import pureconfig._
+import pureconfig.generic.auto._
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
@@ -53,11 +56,27 @@ class IzanamiComponentsInstances(
   } :+ corsFilter :+ /*cspFilter :+ redirectHttpsFilter :*/ gzipFilter
   override lazy val httpErrorHandler: HttpErrorHandler = wire[IzanamiHttpErrorHandler]
 
-  implicit lazy val env: Env = new Env(
-    configuration = configuration,
-    environment = environment,
-    Ws = wsClient
-  )
+  implicit lazy val env: Env = ConfigSource
+    .fromConfig(configuration.underlying)
+    .load[IzanamiTypedConfiguration]
+    .map(conf => {
+      new Env(
+        environment = environment,
+        Ws = wsClient,
+        typedConfiguration = conf.app,
+        playConfiguration = conf.play,
+        rawConfiguration = configuration
+      )
+    })
+    .fold(
+      failures =>
+        throw new RuntimeException(
+          s"Failed to load configuration : ${failures.toList
+            .flatMap(f => s"${f.description} - ${f.origin.map(_.description()).getOrElse("")}".toList)
+            .mkString(",")}"
+        ),
+      c => c
+    )
 
   lazy val filters = new DefaultHttpFilters(httpFilters: _*)
 
@@ -106,13 +125,15 @@ class IzanamiComponentsInstances(
   }
 
   def onStart(): Future[Unit] = {
-    applicationLifecycle.addStopHook { () => {
-      for {
-        _ <- env.onStop()
-        _ <- staleFeatureService.onStop()
-      } yield ()
+    applicationLifecycle.addStopHook { () =>
+      {
+        for {
+          _ <- env.onStop()
+          _ <- staleFeatureService.onStop()
+        } yield ()
 
-    }}
+      }
+    }
     for {
       _ <- env.onStart()
       _ <- staleFeatureService.onStart()
@@ -120,7 +141,7 @@ class IzanamiComponentsInstances(
   }
 
   def corsFilter: CORSFilter = {
-    new CORSFilter(CORSConfig.fromConfiguration(env.configuration))
+    new CORSFilter(CORSConfig.fromConfiguration(env.rawConfiguration))
   }
 
   /*def redirectHttpsFilter: RedirectHttpsFilter = {
