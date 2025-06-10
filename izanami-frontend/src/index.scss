@@ -236,12 +236,12 @@ thead th {
 }
 
 .activation-status.enabled-status {
-  font-weight: bold;
   color: $primaryColor;
 }
 
 .activation-status.disabled-status {
   opacity: 0.5;
+  color: white;
 }
 
 .current-context-overload {
