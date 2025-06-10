@@ -2066,8 +2066,9 @@ export function FeatureTable(props: {
         const isEnabled = feature.enabled;
 
         return (
-          <div
+          <label
             style={{
+              cursor: "pointer",
               display: "flex",
               flexDirection: "row",
               alignItems: "center",
@@ -2103,7 +2104,7 @@ export function FeatureTable(props: {
             >
               {isEnabled ? "Enabled" : "Disabled"}
             </span>
-          </div>
+          </label>
         );
       },
       minSize: 150,
