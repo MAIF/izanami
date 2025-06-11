@@ -28,8 +28,8 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
+      - uses: docker/setup-compose-action@v1
       - uses: sbt/setup-sbt@v1
-      #test DK
       - uses: coursier/cache-action@v6
       - name: test
         id: test
