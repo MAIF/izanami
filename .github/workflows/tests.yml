@@ -27,6 +27,8 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
         cache: 'sbt'
+    - uses: sbt/setup-sbt@v1
+    - uses: coursier/cache-action@v6
     #- name: Start docker
     #  run: docker-compose up -d
     #- name: debug wasmo
