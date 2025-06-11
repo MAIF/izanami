@@ -279,10 +279,12 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
 
   def startContainers(): Unit = {
+    val ciEnvVariable = System.getenv("CI");
+    val isCi          = Option(ciEnvVariable).map(_.toUpperCase).contains("TRUE")
     if (isAvailable(5432)) {
       println("Port 5432 is available, starting docker-compose for the current suite")
       var containers = new DockerComposeContainer(new File("docker-compose.yml"))
-      containers = containers.withLocalCompose(true).asInstanceOf[DockerComposeContainer[Nothing]]
+      containers = containers.withLocalCompose(!isCi).asInstanceOf[DockerComposeContainer[Nothing]]
 
       containers.start()
       maybeContainers = Some(containers)
