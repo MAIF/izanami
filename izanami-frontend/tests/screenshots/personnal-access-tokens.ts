@@ -16,7 +16,7 @@ export async function generate() {
     .withUser(testUser("benjamin", true))
     .build(page);
 
-  await page.goto("http://localhost:3000/profile");
+  await page.goto("/profile");
 
   await page
     .getByRole("button", { name: "Create new token" })
@@ -62,13 +62,13 @@ export async function generate() {
 
   const page2 = await (await browser.newContext()).newPage();
   const screenshot2 = screenshotBase(page2);
-  await page2.goto("http://localhost:3000/login");
+  await page2.goto("/login");
   await page2.getByLabel("Username").fill("benjamin");
   await page2.getByLabel("Password").fill(DEFAULT_TEST_PASSWORD);
   await page2.getByRole("button", { name: "Login" }).click();
 
-  await page2.waitForURL("http://localhost:3000/tenants/bookstore");
-  await page2.goto("http://localhost:3000/users");
+  await page2.waitForURL("/tenants/bookstore");
+  await page2.goto("/users");
 
   await featureAction(page2, "Tokens");
   await page2.getByRole("rowheader", { name: "another-token" }).click();

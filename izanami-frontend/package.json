@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "tsc && vite build && mkdir -p ../public && rm -rf ../public/* &&  cp -r ./dist/* ../public/ && cp ../swagger.json ../public/",
     "preview": "vite preview",
-    "test": "playwright test --workers 1 --trace on",
+    "test": "BACKEND_URL=http://localhost:9000 playwright test --workers 1 --trace on",
+    "test:ci": "playwright test --workers 1 --trace on",
     "screenshots": "npx tsx ./tests/screenshots/index.ts",
     "lint": "eslint ./src --ext .js,.jsx,.ts,.tsx"
   },

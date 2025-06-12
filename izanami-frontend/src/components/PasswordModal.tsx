@@ -1,7 +1,5 @@
 import React, { ReactElement, useState } from "react";
-import { useForm, FormProvider } from "react-hook-form";
 import { Modal } from "./Modal";
-import { PASSWORD_REGEXP } from "../utils/patterns";
 
 export function InputConfirmationModal(props: {
   title?: string;
@@ -9,7 +7,7 @@ export function InputConfirmationModal(props: {
   onClose: () => void;
   onConfirm: () => void;
   children: ReactElement | ReactElement[] | string;
-  expectedValue: string;
+  expectedValue?: string;
 }) {
   const { isOpenModal, title, onClose, onConfirm, children, expectedValue } =
     props;
@@ -38,7 +36,7 @@ export function InputConfirmationModal(props: {
           autoComplete="off"
           onSubmit={(e) => {
             e.preventDefault();
-            const input = e?.target?.confirmation.value;
+            const input = (e?.target as any)?.confirmation.value;
             if (input === expectedValue) {
               onConfirm();
               setInput("");

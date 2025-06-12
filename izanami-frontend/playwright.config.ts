@@ -2,7 +2,6 @@ import { defineConfig, devices } from "@playwright/test";
 import path from "path";
 
 export const STORAGE_STATE = path.join(__dirname, "playwright/.auth/user.json");
-
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
@@ -88,11 +87,13 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://127.0.0.1:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
+  webServer: process.env.CI
+    ? {
+        command: `PLAY_HTTP_PORT=3000 java -jar -Dconfig.resource=dev.conf -Dapp.exposition.backend="http://localhost:3000" ./target/izanami.jar`,
+        url: "http://127.0.0.1:3000",
+        reuseExistingServer: true,
+      }
+    : undefined,
 });
 
 /*

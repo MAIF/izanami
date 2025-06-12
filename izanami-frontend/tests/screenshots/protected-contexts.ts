@@ -26,7 +26,7 @@ export async function generate() {
     )
     .build(page);
 
-  await page.goto("http://localhost:3000/tenants/bookstore/contexts");
+  await page.goto("/tenants/bookstore/contexts");
   await page.getByRole("button", { name: "actions" }).first().click();
   await page.getByRole("link", { name: "Protect context" }).hover();
   await screenshot("protect-context");

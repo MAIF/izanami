@@ -6,7 +6,7 @@ export async function generate() {
   const screenshot = screenshotBuilder("import-v1")(page);
 
   await testBuilder().withTenant(testTenant("bookstore")).build(page);
-  await page.goto("http://localhost:3000/tenants/bookstore/settings");
+  await page.goto("/tenants/bookstore/settings");
   const importFormButtonLocator = page.getByRole("button", {
     name: "Import V1 data",
   });
@@ -24,7 +24,7 @@ export async function generate() {
   await page.getByRole("button", { name: "Import", exact: true }).click();
   await page.getByText("Import succeeded !").waitFor();
   await screenshot("import-confirmed");
-  await page.goto("http://localhost:3000/tenants/bookstore/projects/website");
+  await page.goto("/tenants/bookstore/projects/website");
   await page.getByRole("rowheader", { name: "summer-sales" }).waitFor();
   await screenshot("created-feature");
 

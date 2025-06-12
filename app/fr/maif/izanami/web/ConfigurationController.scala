@@ -86,7 +86,6 @@ class ConfigurationController(
 
   def readExpositionUrl(): Action[AnyContent] = Action { implicit request =>
     val url = env.typedConfiguration.exposition.backend
-      .map(_.toString)
       .getOrElse(env.expositionUrl)
     Ok(Json.obj("url" -> url))
   }

@@ -4,6 +4,7 @@ import {
   handleFetchWithoutResponse,
 } from "../src/utils/queries";
 import { TLevel } from "../src/utils/types";
+import { backendUrl } from "./utils";
 
 type featureIdByName = [string, string];
 export const DEFAULT_TEST_PASSWORD = "notARealPassword";
@@ -30,12 +31,13 @@ export class TestSituationBuilder {
     tenant: TestTenant,
     project: TestProject,
     context: TestLocalContext,
+    url: string,
     parent = ""
   ): Promise<any> {
     const cookie = await this.cookie(page);
     await handleFetchJsonResponse(
       fetch(
-        `http://localhost:9000/api/admin/tenants/${tenant.name}/projects/${
+        `${url}/api/admin/tenants/${tenant.name}/projects/${
           project.name
         }/contexts${parent.length > 0 ? `/${parent}` : ""}`,
         {
@@ -59,16 +61,17 @@ export class TestSituationBuilder {
           tenant,
           project,
           c,
+          url,
           `${parent}/${context.name}`
         )
       )
     );
   }
 
-  async createUser(page: Page, user: TestUser): Promise<any> {
+  async createUser(page: Page, user: TestUser, baseUrl: string): Promise<any> {
     const cookie = await this.cookie(page);
     const email = `${user.name}@imaginarymail.com`;
-    return fetch(`http://localhost:9000/api/admin/invitation`, {
+    return fetch(`${baseUrl}/api/admin/invitation`, {
       body: JSON.stringify({
         email,
         admin: user.admin,
@@ -80,11 +83,15 @@ export class TestSituationBuilder {
         cookie: cookie,
       },
     })
+      .then((resp) => {
+        console.log("status1", resp.status);
+        return resp;
+      })
       .then((userResponse) => userResponse.json())
       .then((json) => {
         const url = json.invitationUrl;
         const token = url.split("token=")[1];
-        fetch(`http://localhost:9000/api/admin/users`, {
+        return fetch(`${baseUrl}/api/admin/users`, {
           body: JSON.stringify({
             username: user.name,
             password: DEFAULT_TEST_PASSWORD,
@@ -102,12 +109,13 @@ export class TestSituationBuilder {
     page: Page,
     tenant: TestTenant,
     context: TestGlobalContext,
+    url: string,
     parent = ""
   ): Promise<any> {
     const cookie = await this.cookie(page);
     await handleFetchJsonResponse(
       fetch(
-        `http://localhost:9000/api/admin/tenants/${tenant.name}/contexts${
+        `${url}/api/admin/tenants/${tenant.name}/contexts${
           parent.length > 0 ? `${parent}` : ""
         }`,
         {
@@ -136,9 +144,13 @@ export class TestSituationBuilder {
     return `${cookies[0].name}=${cookies[0].value}`;
   }
 
-  async createTenant(tenant: TestTenant, cookie: Cookie): Promise<any> {
+  async createTenant(
+    tenant: TestTenant,
+    cookie: Cookie,
+    url: string
+  ): Promise<any> {
     return handleFetchJsonResponse(
-      fetch(`http://localhost:9000/api/admin/tenants`, {
+      fetch(`${url}/api/admin/tenants`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -152,10 +164,11 @@ export class TestSituationBuilder {
   async createTag(
     tenant: TestTenant,
     tag: TestTag,
-    cookie: Cookie
+    cookie: Cookie,
+    url: string
   ): Promise<any> {
     return handleFetchJsonResponse(
-      fetch(`http://localhost:9000/api/admin/tenants/${tenant.name}/tags`, {
+      fetch(`${url}/api/admin/tenants/${tenant.name}/tags`, {
         method: "POST",
         body: JSON.stringify(tag),
         headers: {
@@ -169,10 +182,11 @@ export class TestSituationBuilder {
   async createProject(
     tenant: TestTenant,
     project: TestProject,
-    cookie: Cookie
+    cookie: Cookie,
+    url: string
   ): Promise<any> {
     return handleFetchJsonResponse(
-      fetch(`http://localhost:9000/api/admin/tenants/${tenant.name}/projects`, {
+      fetch(`${url}/api/admin/tenants/${tenant.name}/projects`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -187,11 +201,12 @@ export class TestSituationBuilder {
     tenant: TestTenant,
     project: TestProject,
     feature: TestFeature,
-    cookie: Cookie
+    cookie: Cookie,
+    url: string
   ): Promise<any> {
     return handleFetchJsonResponse(
       fetch(
-        `http://localhost:9000/api/admin/tenants/${tenant.name}/projects/${project.name}/features`,
+        `${url}/api/admin/tenants/${tenant.name}/projects/${project.name}/features`,
         {
           method: "POST",
           body: JSON.stringify(feature),
@@ -207,10 +222,11 @@ export class TestSituationBuilder {
   async createKey(
     tenant: TestTenant,
     key: TestKey,
-    cookie: Cookie
+    cookie: Cookie,
+    url: string
   ): Promise<any> {
     return handleFetchJsonResponse(
-      fetch(`http://localhost:9000/api/admin/tenants/${tenant.name}/keys`, {
+      fetch(`${url}/api/admin/tenants/${tenant.name}/keys`, {
         method: "POST",
         body: JSON.stringify(key),
         headers: {
@@ -224,10 +240,11 @@ export class TestSituationBuilder {
   async createWebhook(
     tenant: TestTenant,
     webhook: TestWebhook,
-    cookie: Cookie
+    cookie: Cookie,
+    url: string
   ): Promise<any> {
     return handleFetchJsonResponse(
-      fetch(`http://localhost:9000/api/admin/tenants/${tenant.name}/webhooks`, {
+      fetch(`${url}/api/admin/tenants/${tenant.name}/webhooks`, {
         method: "POST",
         body: JSON.stringify(webhook),
         headers: {
@@ -243,13 +260,14 @@ export class TestSituationBuilder {
     project: TestProject,
     feature: TestFeature,
     overload: TestOverload,
-    cookie: Cookie
+    cookie: Cookie,
+    url: string
   ): Promise<any> {
     const { contextPath, ...rest } = overload;
 
     return handleFetchWithoutResponse(
       fetch(
-        `http://localhost:9000/api/admin/tenants/${tenant.name}/projects/${
+        `${url}/api/admin/tenants/${tenant.name}/projects/${
           project.name
         }/contexts${contextPath ? `/${contextPath}` : ""}/features/${
           feature.name
@@ -268,53 +286,56 @@ export class TestSituationBuilder {
 
   async build(page: Page): Promise<TestSituation> {
     const cookie = (await page.context().cookies())[0];
+    const url = backendUrl();
     return Promise.all(
       this.tenants.map((t) =>
-        this.createTenant(t, cookie)
+        this.createTenant(t, cookie, url)
           .then(() => {
             Promise.all(
               t.contexts.map((c) => {
-                return this.buildContextHierarchy(page, t, c);
+                return this.buildContextHierarchy(page, t, c, url);
               })
             );
           })
           .then(() => {
             return Promise.all(
               t.webhooks.map((webhook) =>
-                this.createWebhook(t, webhook, cookie)
+                this.createWebhook(t, webhook, cookie, url)
               )
             );
           })
           .then(() =>
-            Promise.all(t.tags.map((tag) => this.createTag(t, tag, cookie)))
+            Promise.all(
+              t.tags.map((tag) => this.createTag(t, tag, cookie, url))
+            )
           )
           .then(() => {
             return Promise.all(
-              t.keys.map((key) => this.createKey(t, key, cookie))
+              t.keys.map((key) => this.createKey(t, key, cookie, url))
             );
           })
           .then(() =>
             Promise.all(
               t.projects.map((p) =>
-                this.createProject(t, p, cookie)
+                this.createProject(t, p, cookie, url)
                   .then(() =>
                     Promise.all(
                       p.contexts.map((c) =>
-                        this.buildLocalContextHierarchy(page, t, p, c)
+                        this.buildLocalContextHierarchy(page, t, p, c, url)
                       )
                     )
                   )
                   .then(() =>
                     Promise.all(
                       p.features.map((f) =>
-                        this.createFeature(t, p, f, cookie)
+                        this.createFeature(t, p, f, cookie, url)
                           .then(
                             ({ id, name }) => [name, id!] as featureIdByName
                           )
                           .then((featureIds) => {
                             return Promise.all(
                               f.overloads.map((o) =>
-                                this.createOverload(t, p, f, o, cookie)
+                                this.createOverload(t, p, f, o, cookie, url)
                               )
                             ).then(() => featureIds);
                           })
@@ -328,7 +349,7 @@ export class TestSituationBuilder {
     )
       .then((pairs) => {
         return Promise.all(
-          this.users.map((user) => this.createUser(page, user))
+          this.users.map((user) => this.createUser(page, user, url))
         ).then(() => pairs);
       })
       .then((pairs) => new Map(pairs.flat().flat()))

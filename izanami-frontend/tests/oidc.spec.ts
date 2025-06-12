@@ -11,7 +11,6 @@ test.describe("OIDC should", () => {
     await page.getByLabel("Username").fill("User1");
     await page.getByLabel("Password").fill("pwd");
     await page.getByRole("button", { name: "Login" }).click();
-    await expect(page).toHaveURL(/http:\/\/localhost:3000\/.*/);
     await expect(
       page.getByRole("button", { name: "Sam Tailor" })
     ).toBeVisible();

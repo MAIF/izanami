@@ -23,7 +23,7 @@ export async function generate() {
     )
     .build(page);
 
-  await page.goto("http://localhost:3000/tenants/bookstore/projects/website");
+  await page.goto("/tenants/bookstore/projects/website");
 
   await page.getByRole("checkbox", { name: "select comments" }).check();
   await page.getByRole("checkbox", { name: "select summer-sales" }).check();

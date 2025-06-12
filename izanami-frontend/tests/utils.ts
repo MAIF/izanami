@@ -2,6 +2,7 @@ import { Browser, Locator, Page } from "@playwright/test";
 import { Client } from "pg";
 import { expect } from "./izanami-test";
 import { DEFAULT_TEST_PASSWORD } from "./testBuilder";
+import playwrightConfig from "../playwright.config";
 
 export const PASSWORD = "ADMIN_DEFAULT_PASSWORD";
 
@@ -169,7 +170,7 @@ export async function createProject(
   await page.getByRole("button", { name: "Create new project" }).click();
   await page.getByLabel("Project name").fill(project);
   await page.getByRole("button", { name: "Save" }).click();
-  await page.waitForURL(/http:\/\/localhost:3000\/tenants\/.*\/projects\/.*/);
+  await page.waitForURL(/.*\/tenants\/.*\/projects\/.*/);
 }
 
 export async function createTenantThenProject(
@@ -181,7 +182,7 @@ export async function createTenantThenProject(
   await page.getByRole("button", { name: "Create new project" }).click();
   await page.getByLabel("Project name").fill(project);
   await page.getByRole("button", { name: "Save" }).click();
-  await page.waitForURL(/http:\/\/localhost:3000\/tenants\/.*\/projects\/.*/);
+  await page.waitForURL(/.*\/tenants\/.*\/projects\/.*/);
 }
 
 // TODO replace with test builder pattern
@@ -195,11 +196,20 @@ export async function createTenantThenProjectThenFeatures(
   await page.getByRole("button", { name: "Create new project" }).click();
   await page.getByLabel("Project name").fill(project);
   await page.getByRole("button", { name: "Save" }).click();
-  await page.waitForURL(/http:\/\/localhost:3000\/tenants\/.*\/projects\/.*/);
+  await page.waitForURL(/.*\/tenants\/.*\/projects\/.*/);
   for (const feature of features) {
     await page.getByRole("button", { name: "Create new feature" }).click();
     await page.getByLabel("Name").fill(feature);
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("row", { name: feature })).toBeVisible();
+  }
+}
+
+export function backendUrl(): string {
+  const envUrl = process.env.BACKEND_URL;
+  if (!envUrl) {
+    return playwrightConfig.use!.baseURL!;
+  } else {
+    return envUrl;
   }
 }

@@ -9,7 +9,7 @@ export async function generate() {
     .withTenant(testTenant("bookstore").withProject(testProject("website")))
     .build(page);
 
-  await page.goto("http://localhost:3000/tenants/bookstore/projects/website");
+  await page.goto("/tenants/bookstore/projects/website");
   await page
     .getByRole("button", {
       name: "Create new feature",

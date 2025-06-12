@@ -24,7 +24,7 @@ export async function generate() {
     )
     .build(page);
 
-  await page.goto("http://localhost:3000/tenants/bookstore/webhooks");
+  await page.goto("/tenants/bookstore/webhooks");
   await screenshot("webhook-page");
   await page
     .getByRole("button", {

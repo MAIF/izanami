@@ -31,7 +31,7 @@ test.describe("Tenant audit screen should", () => {
 
     const situation = await testBuilder().withTenant(tenant).build(page);
 
-    await page.goto(`http://localhost:3000/tenants/${tenantName}`);
+    await page.goto(`/tenants/${tenantName}`);
 
     await page.getByRole("link", { name: "project-1" }).click();
     await page.getByRole("checkbox", { name: "select p1 feature 0" }).check();

@@ -30,7 +30,7 @@ export async function generate() {
     )
     .withTenant(testTenant("target-bookstore"))
     .build(page);
-  await page.goto("http://localhost:3000/tenants/bookstore/settings");
+  await page.goto("/tenants/bookstore/settings");
   const exportFormButtonLocator = page.getByRole("button", {
     name: "Export data",
   });
@@ -47,7 +47,7 @@ export async function generate() {
   const filepath = "/tmp/" + download.suggestedFilename();
   await download.saveAs(filepath);
 
-  await page.goto(`http://localhost:3000/tenants/target-bookstore/settings`);
+  await page.goto(`/tenants/target-bookstore/settings`);
 
   const importLocator = page.getByRole("button", { name: "Import data" });
   await importLocator.focus();
@@ -61,7 +61,7 @@ export async function generate() {
     state: "hidden",
   });
 
-  await page.goto(`http://localhost:3000/tenants/target-bookstore`);
+  await page.goto(`/tenants/target-bookstore`);
   await screenshot("imported-project");
 
   await browser.close();
