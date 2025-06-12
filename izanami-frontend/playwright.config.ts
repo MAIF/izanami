@@ -92,6 +92,8 @@ export default defineConfig({
         command: `PLAY_HTTP_PORT=3000 java -jar -Dconfig.resource=dev.conf -Dapp.exposition.backend="http://localhost:3000" ../target/izanami.jar`,
         url: "http://127.0.0.1:3000",
         reuseExistingServer: true,
+        stderr: "pipe",
+        stdout: "pipe",
       }
     : undefined,
 });
