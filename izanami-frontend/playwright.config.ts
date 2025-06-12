@@ -89,7 +89,7 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: process.env.CI
     ? {
-        command: `PLAY_HTTP_PORT=3000 java -jar -Dconfig.resource=dev.conf -Dapp.exposition.backend="http://localhost:3000" ./target/izanami.jar`,
+        command: `PLAY_HTTP_PORT=3000 java -jar -Dconfig.resource=dev.conf -Dapp.exposition.backend="http://localhost:3000" ../target/izanami.jar`,
         url: "http://127.0.0.1:3000",
         reuseExistingServer: true,
       }
