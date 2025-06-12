@@ -30,15 +30,14 @@ jobs:
           node-version: '20.x'
           cache: 'npm'
           cache-dependency-path: izanami-frontend/package-lock.json
-      - name: build frontend
+      - name: build frontend & install playwright
         run: |
           cd izanami-frontend
           npm ci --force
+          npx playwright install --with-deps
           npm run build
       - name: build backend
         run: sbt "set test in assembly := {}" clean assembly
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
       - name: Run docker compose
         uses: hoverkraft-tech/compose-action@v2.2.0
       - name: run tests
