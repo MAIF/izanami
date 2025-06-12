@@ -37,6 +37,8 @@ jobs:
           npm run build
       - name: build backend
         run: sbt "set test in assembly := {}" clean assembly
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
       - name: Run docker compose
         uses: hoverkraft-tech/compose-action@v2.2.0
       - name: run tests
