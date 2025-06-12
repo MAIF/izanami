@@ -24,7 +24,7 @@ export async function generate() {
     )
     .build(page);
 
-  await page.goto("http://localhost:3000/tenants/bookstore/projects/website");
+  await page.goto("/tenants/bookstore/projects/website");
 
   await page.getByRole("checkbox", { name: "select all rows" }).check();
   await page.getByLabel("Bulk action").click();
@@ -44,9 +44,7 @@ export async function generate() {
   await page.getByLabel("Confirm").click();
   await expect(page.getByRole("cell", { name: "Disabled" })).toHaveCount(0);
 
-  await page.goto(
-    "http://localhost:3000/tenants/bookstore/projects/website/logs"
-  );
+  await page.goto("/tenants/bookstore/projects/website/logs");
 
   await page
     .getByRole("columnheader", { name: "User" })

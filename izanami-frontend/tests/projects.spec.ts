@@ -11,7 +11,7 @@ async function createProject(page: Page, name: string) {
   await page.getByRole("button", { name: "Create new project" }).click();
   await page.getByLabel("Project name").fill(name);
   await page.getByRole("button", { name: "Save" }).click();
-  await page.waitForURL(/http:\/\/localhost:3000\/tenants\/.*\/projects\/.*/);
+  await page.waitForURL(/.*\/tenants\/.*\/projects\/.*/);
 }
 
 test.describe("Tenant screen should", () => {

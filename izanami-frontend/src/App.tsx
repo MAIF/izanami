@@ -656,8 +656,8 @@ export class App extends Component {
     };
     inputConfirmation?: {
       message: JSX.Element | JSX.Element[] | string;
-      callback: (password: string) => Promise<void>;
-      expectedValue: string;
+      callback: () => Promise<void>;
+      expectedValue?: string;
       title?: string;
     };
   };
@@ -809,7 +809,7 @@ export class App extends Component {
       askInputConfirmation: (
         message: JSX.Element | JSX.Element[] | string,
         onConfirm: () => Promise<void>,
-        expectedValue: string,
+        expectedValue?: string,
         title?: string
       ) => {
         return new Promise((resolve) => {
@@ -887,14 +887,10 @@ export class App extends Component {
           inputConfirmation: undefined,
         });
       },
-      onConfirm: (password: string) => {
-        if (this.state.inputConfirmation?.callback) {
-          this.state.inputConfirmation
-            ?.callback(password)
-            .then(() => this.setState({ inputConfirmation: undefined }));
-        } else {
-          this.setState({ inputConfirmation: undefined });
-        }
+      onConfirm: () => {
+        this.state.inputConfirmation
+          ?.callback()
+          .then(() => this.setState({ inputConfirmation: undefined }));
       },
     };
 

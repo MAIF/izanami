@@ -63,7 +63,7 @@ export async function generate() {
     .getByText("[RELEASE] You can now use the")
     .click({ timeout: 120000 });
   await screenshot("plugin-builded");
-  await page.goto("http://localhost:3000/tenants/bookstore/projects/website/");
+  await page.goto("/tenants/bookstore/projects/website/");
 
   await page.getByRole("button", { name: "Create new feature" }).click();
   await page.getByLabel("Name").fill("wasmobile");

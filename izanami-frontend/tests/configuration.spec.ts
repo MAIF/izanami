@@ -229,7 +229,7 @@ test.describe("Global settings page should", () => {
     ).toBeHidden();
 
     const page1 = await (await browser.newContext()).newPage();
-    await page1.goto("http://localhost:3000/login");
+    await page1.goto("/login");
     await page1.getByRole("button", { name: "OpenId connect" }).click();
     await expect(page1).toHaveURL(/http:\/\/localhost:9001\/Account\/Login.*/);
     await page1.getByLabel("Username").fill("User1");

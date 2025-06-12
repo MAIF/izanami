@@ -6,7 +6,7 @@ import {
   testProject,
   testFeature,
 } from "./testBuilder";
-import { clickAction } from "./utils";
+import { backendUrl, clickAction } from "./utils";
 
 test.use({
   headless: true,
@@ -15,7 +15,7 @@ test.use({
 test.describe("Personnal access token", () => {
   test("should work", async ({ page, tenantName }) => {
     function exportRequest() {
-      const callUrl = `http://localhost:9000/api/admin/tenants/${tenantName}/_export`;
+      const callUrl = `${backendUrl()}/api/admin/tenants/${tenantName}/_export`;
       return fetch(callUrl, {
         method: "POST",
         body: JSON.stringify({

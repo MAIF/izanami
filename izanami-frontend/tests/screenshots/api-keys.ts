@@ -23,7 +23,7 @@ export async function generate() {
     )
     .build(page);
 
-  await page.goto("http://localhost:3000/tenants/bookstore/keys");
+  await page.goto("/tenants/bookstore/keys");
 
   await page.getByRole("button", { name: "Create new key" }).hover();
   await screenshot("key-empty-form");

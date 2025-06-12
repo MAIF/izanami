@@ -24,7 +24,7 @@ export async function generate() {
     )
     .build(page);
 
-  await page.goto("http://localhost:3000/");
+  await page.goto("/");
   await page.getByRole("link", { name: "Users" }).click();
   await page.getByRole("button", { name: "Invite new user" }).click();
   await page.getByRole("button", { name: "Invite new user" }).hover();
@@ -65,7 +65,7 @@ export async function generate() {
   await screenshotNonPageDependant(newPage)("new-user-form");
   await userCreationLocator.click();
 
-  await newPage.goto("http://localhost:3000");
+  await newPage.goto("/");
   await newPage.getByLabel("Username").fill(`foobar`);
   await newPage.getByLabel("Password").fill(`foobarbar`);
   //await screenshotNonPageDependant(newPage)("login-form");
