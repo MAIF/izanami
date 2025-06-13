@@ -418,7 +418,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                               origin = NormalOrigin,
                               authentication = user.authentication
                             )
-                          )
+                          )(conn)
                         } else {
                           Future.successful(())
                         }
