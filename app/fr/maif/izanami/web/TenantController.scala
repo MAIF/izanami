@@ -3,7 +3,7 @@ package fr.maif.izanami.web
 import fr.maif.izanami.datastores.EventDatastore.{parseSortOrder, AscOrder, TenantEventRequest}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.events.{EventAuthentication, EventService}
-import fr.maif.izanami.models.RightLevels.{superiorOrEqualLevels, RightLevel}
+import fr.maif.izanami.models.RightLevel.{superiorOrEqualLevels}
 import fr.maif.izanami.models._
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.WasmManagerClient
@@ -42,7 +42,7 @@ class TenantController(
       features: Option[String],
       projects: Option[String],
       unknownIds: Option[String]
-  ): Action[AnyContent] = tenantAuthAction(tenant, RightLevels.Read).async { implicit request =>
+  ): Action[AnyContent] = tenantAuthAction(tenant, RightLevel.Read).async { implicit request =>
     val unknownIdsAsSet = parseStringSet(unknownIds)
     env.datastores.events
       .listEventsForTenant(
@@ -96,7 +96,7 @@ class TenantController(
       }
   }
 
-  def updateTenant(name: String): Action[JsValue] = tenantAuthAction(name, RightLevels.Admin).async(parse.json) {
+  def updateTenant(name: String): Action[JsValue] = tenantAuthAction(name, RightLevel.Admin).async(parse.json) {
     implicit request =>
       Tenant.tenantReads.reads(request.body) match {
         case JsSuccess(value, _) =>
@@ -134,7 +134,7 @@ class TenantController(
         .readTenants()
         .map(tenants => Ok(Json.toJson(tenants)))
     } else {
-      val minimumRightLevel = right.getOrElse(RightLevels.Read)
+      val minimumRightLevel = right.getOrElse(RightLevel.Read)
       val allowedTenants    = Option(request.user.tenantRights)
         .map(m =>
           m.filter { case (name, level) => superiorOrEqualLevels(minimumRightLevel).contains(level) }.keys.toSet
@@ -147,14 +147,14 @@ class TenantController(
   }
 
   def deleteTenant(name: String): Action[AnyContent] =
-    (tenantAuthAction(name, RightLevels.Admin)).async { implicit request =>
+    (tenantAuthAction(name, RightLevel.Admin)).async { implicit request =>
       env.datastores.tenants.deleteTenant(name, request.user).map {
         case Left(err) => err.toHttpResponse
         case Right(_)  => NoContent
       }
     }
 
-  def readTenant(name: String): Action[AnyContent] = tenantAuthAction(name, RightLevels.Read).async {
+  def readTenant(name: String): Action[AnyContent] = tenantAuthAction(name, RightLevel.Read).async {
     implicit request =>
       env.datastores.tenants
         .readTenantByName(name)

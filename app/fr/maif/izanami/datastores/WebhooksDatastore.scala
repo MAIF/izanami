@@ -6,7 +6,7 @@ import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{IzanamiError, WebhookCreationFailed, WebhookDoesNotExists}
 import fr.maif.izanami.events.{EventService, IzanamiEvent}
-import fr.maif.izanami.models.RightLevels.RightLevel
+import fr.maif.izanami.models.RightLevel
 import fr.maif.izanami.models.{LightWebhook, Webhook, WebhookFeature, WebhookProject}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue

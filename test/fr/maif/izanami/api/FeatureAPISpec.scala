@@ -273,6 +273,25 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature POST endpoint" should {
+    "prevent to creating a feature if user has update role on project" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+            .withProjectNames("bar")
+        )
+        .withUsers(TestUser("updateRight").withTenantReadRight("foo").withProjectReadUpdateRight(project = "bar", tenant = "foo"))
+        .loggedAs("updateRight")
+        .build()
+
+      var result = testSituation.createFeature(
+        "my feature",
+        project = "bar",
+        tenant = "foo",
+        conditions = Set(TestCondition(rule=TestUserListRule(Set())))
+      )
+      result.status mustBe FORBIDDEN
+    }
+
     "prevent creating a feature with empty user list" in {
       val testSituation = TestSituationBuilder()
         .withTenants(
@@ -783,6 +802,30 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature PUT endpoint" should {
+    "allow to update feature activation is user has update role on project" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = false)))
+        )
+        .withUsers(TestUser("updateUser").withTenantReadRight("tenant").withProjectReadUpdateRight(project = "foo", tenant = "tenant"))
+        .loggedAs("updateUser")
+        .build();
+
+      val projectResponse = situation.fetchProject("tenant", "foo")
+      val jsonFeature     = (projectResponse.json.get \ "features" \ 0).as[JsObject]
+
+      val newFeature = jsonFeature ++ Json.obj("enabled" -> true)
+
+      val updateResponse = situation.updateFeature("tenant", (jsonFeature \ "id").as[String], newFeature)
+
+      updateResponse.status mustBe OK
+
+      val feature = situation.fetchProject("tenant", "foo").json.get \ "features" \ 0
+      (feature \ "enabled").as[Boolean] mustEqual true
+
+    }
+
     "prevent feature update if new wasm script name is too long" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjectNames("foo"))
@@ -1232,6 +1275,26 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature DELETE endpoint" should {
+    "prevent feature deletion if user has update right on project" in {
+      val tenant    = "my-tenant"
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant(tenant)
+            .withProjects(TestProject("my-project").withFeatureNames("my-feature"))
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadWriteRight(tenant)
+            .withProjectReadUpdateRight("my-project", tenant)
+        )
+        .loggedAs("testu")
+        .build()
+
+      val featureToDeleteId = situation.findFeatureId(tenant, "my-project", "my-feature").get
+      val deleteResult      = situation.deleteFeature(tenant, featureToDeleteId)
+
+      deleteResult.status mustBe FORBIDDEN
+    }
     "delete existing feature" in {
       val tenantName     = "my-tenant"
       val projectName    = "my-project"

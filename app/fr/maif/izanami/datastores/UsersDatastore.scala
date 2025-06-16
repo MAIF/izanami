@@ -1,21 +1,22 @@
 package fr.maif.izanami.datastores
 
 import akka.actor.Cancellable
-import fr.maif.izanami.datastores.userImplicits.{UserRow, dbUserTypeToUserType, rightRead}
+import fr.maif.izanami.datastores.userImplicits.{UserRow, dbUserTypeToUserType, projectRightRead, rightRead}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
-import fr.maif.izanami.models.RightLevels.{RightLevel, superiorOrEqualLevels}
+import fr.maif.izanami.models.ProjectRightLevel
+import fr.maif.izanami.models.RightLevel.superiorOrEqualLevels
 import fr.maif.izanami.models.Rights.TenantRightDiff
-import fr.maif.izanami.models.User.{rightLevelReads, tenantRightReads}
+import fr.maif.izanami.models.User.tenantRightReads
 import fr.maif.izanami.models._
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
-import play.api.libs.json.{JsError, JsSuccess, Reads}
+import play.api.libs.json.{JsError, JsSuccess, Reads, Writes}
 
 import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
@@ -28,15 +29,18 @@ class UsersDatastore(val env: Env) extends Datastore {
   var passwordResetRequestCancellation: Cancellable = Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {
-    sessionExpirationCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
-      deleteExpiredSessions(env.typedConfiguration.sessions.ttl)
-    )
-    invitationExpirationCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
-      deleteExpiredInvitations(env.typedConfiguration.invitations.ttl)
-    )
-    passwordResetRequestCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
-      deleteExpiredPasswordResetRequests(env.typedConfiguration.passwordResetRequests.ttl)
-    )
+    sessionExpirationCancellation = env.actorSystem.scheduler
+      .scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
+        deleteExpiredSessions(env.typedConfiguration.sessions.ttl)
+      )
+    invitationExpirationCancellation = env.actorSystem.scheduler
+      .scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
+        deleteExpiredInvitations(env.typedConfiguration.invitations.ttl)
+      )
+    passwordResetRequestCancellation = env.actorSystem.scheduler
+      .scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
+        deleteExpiredPasswordResetRequests(env.typedConfiguration.passwordResetRequests.ttl)
+      )
     Future.successful(())
   }
 
@@ -198,7 +202,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       username: String,
       tenant: String,
       project: String,
-      right: RightLevel
+      right: ProjectRightLevel
   ): Future[Unit] = {
     env.postgresql
       .queryOne(
@@ -299,7 +303,7 @@ class UsersDatastore(val env: Env) extends Datastore {
                       env.postgresql.queryOne(
                         s"""
                                |INSERT INTO users_projects_rights(username, project, level)
-                               |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
+                               |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.project_right_level[]))
                                |RETURNING username
                                |""".stripMargin,
                         List(
@@ -460,7 +464,7 @@ class UsersDatastore(val env: Env) extends Datastore {
                                   .queryOne(
                                     s"""
                                   |INSERT INTO users_projects_rights(username, project, level)
-                                  |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
+                                  |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.project_right_level[]))
                                   |RETURNING username
                                   |""".stripMargin,
                                     List(
@@ -557,7 +561,7 @@ class UsersDatastore(val env: Env) extends Datastore {
         .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
         .flatMap {
           case Left(err) => Future.successful(Left(err))
-          case Right(_) => {
+          case Right(_)  => {
             val base = users.flatMap(u => u.rights.tenants.map { case (tenant, right) => (tenant, u.username, right) })
             base
               .filter { case (_, _, r) => r.projects.nonEmpty }
@@ -622,14 +626,15 @@ class UsersDatastore(val env: Env) extends Datastore {
                   .toArray
                   .unzip3
 
-                env.postgresql.queryRaw(
-                  s"""
+                env.postgresql
+                  .queryRaw(
+                    s"""
                      |INSERT INTO izanami.users_tenants_rights (username, tenant, level)
                      |VALUES (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
                      |${importConflictStrategy match {
-                    case Fail           => ""
-                    case MergeOverwrite =>
-                      """
+                      case Fail           => ""
+                      case MergeOverwrite =>
+                        """
                      | ON CONFLICT(username, tenant) DO UPDATE SET level = CASE
                      | WHEN users_keys_rights.level = 'READ' THEN excluded.level
                      | WHEN (users_keys_rights.level = 'WRITE' AND excluded.level = 'ADMIN') THEN 'ADMIN'
@@ -637,14 +642,14 @@ class UsersDatastore(val env: Env) extends Datastore {
                      | ELSE users_keys_rights.level
                      | END
                      |""".stripMargin
-                    case Skip           => " ON CONFLICT(username, tenant) DO NOTHING "
-                  }}
+                      case Skip           => " ON CONFLICT(username, tenant) DO NOTHING "
+                    }}
                      |returning username
                      |""".stripMargin,
-                  List(usernames, tenants, levels.map(l => l.toString.toUpperCase())),
-                  conn = Some(conn)
-                ) { _ => Some(()) }
-                .map(_ => Right(()))
+                    List(usernames, tenants, levels.map(l => l.toString.toUpperCase())),
+                    conn = Some(conn)
+                  ) { _ => Some(()) }
+                  .map(_ => Right(()))
               })
           }
         }
@@ -749,7 +754,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       session: String,
       tenant: String,
       projectIdOrName: Either[UUID, String],
-      level: RightLevel
+      level: ProjectRightLevel
   ): Future[Either[IzanamiError, Option[(String, UUID)]]] = {
     env.postgresql
       .queryOne(
@@ -767,7 +772,12 @@ class UsersDatastore(val env: Env) extends Datastore {
            |)
            |AND ${projectIdOrName.fold(_ => s"p.id=$$3", _ => s"p.name=$$3")}
            |""".stripMargin,
-        List(session, tenant, projectIdOrName.fold(identity, identity), superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray),
+        List(
+          session,
+          tenant,
+          projectIdOrName.fold(identity, identity),
+          ProjectRightLevel.superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray
+        ),
         schemas = Seq(tenant)
       ) { r =>
         {
@@ -783,8 +793,6 @@ class UsersDatastore(val env: Env) extends Datastore {
         case _                                                           => Left(InternalServerError())
       }
   }
-
-
 
   // TODO merge with hasRight
   def hasRightForTenant(session: String, tenant: String, level: RightLevel): Future[Option[String]] = {
@@ -811,12 +819,10 @@ class UsersDatastore(val env: Env) extends Datastore {
       rights: Set[RightUnit],
       tenantLevel: Option[RightLevel] = Option.empty
   ) = {
-    val (keys, projects): (Set[String], Set[String]) = rights.partitionMap(r => {
-      r.rightType match {
-        case RightTypes.Key     => Left(r.name)
-        case RightTypes.Project => Right(r.name)
-      }
-    })
+    val (keys, projects): (Set[String], Set[String]) = rights.partitionMap {
+      case r: KeyRightUnit     => Left(r.name)
+      case r: ProjectRightUnit => Right(r.name)
+    }
 
     var index      = 2
     val subQueries = ArrayBuffer[String]()
@@ -867,9 +873,24 @@ class UsersDatastore(val env: Env) extends Datastore {
         schemas = Seq(tenant)
       ) { r =>
         {
-          val admin            = r.getBoolean("admin")
-          val tenantRightLevel = r.optRightLevel("level")
-          val extractedRights  = r
+          val admin             = r.getBoolean("admin")
+          val actualTenantRight = r.optRightLevel("level")
+          val jsonRights        = r.optJsObject("rights")
+          val userProjectRights = jsonRights
+            .flatMap(obj => {
+              (obj \ "projects")
+                .asOpt[Set[ProjectRightValue]](Reads.set(projectRightRead))
+            })
+            .getOrElse(Set())
+
+          val userKeyRights = jsonRights
+            .flatMap(obj => {
+              (obj \ "keys")
+                .asOpt[Set[KeyRightValue]](Reads.set(rightRead))
+            })
+            .getOrElse(Set())
+
+          /*val extractedRights  = r
             .optJsObject("rights")
             .map(obj => {
               (obj \ "projects")
@@ -883,26 +904,40 @@ class UsersDatastore(val env: Env) extends Datastore {
             .getOrElse(Set())
             .groupBy(t => (t._1, t._3))
             .view
-            .mapValues(s => s.map(t => t._2))
+            .mapValues(s => s.map(t => t._2))*/
 
-          val projectKeyRightMatches = rights
-            .map(r => (r.rightType, r.rightLevel, r.name))
-            .forall(t => {
-              val maybeExtractedLevels = extractedRights.get((t._1, t._3))
-              val acceptableLevels     = RightLevels.superiorOrEqualLevels(t._2)
-              maybeExtractedLevels
-                .exists(levels => levels.intersect(acceptableLevels).nonEmpty)
+          val hasRightForProjects = rights
+            .collect { case p: ProjectRightUnit =>
+              p
+            }
+            .forall(requestedRight => {
+              userProjectRights.exists(actualRight => {
+                actualRight.name == requestedRight.name &&
+                ProjectRightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(actualRight.level)
+              })
             })
+
+          val hasRightForKeys = rights
+            .collect { case k: KeyRightUnit =>
+              k
+            }
+            .forall(requestedRight => {
+              userKeyRights.exists(actualRight => {
+                actualRight.name == requestedRight.name &&
+                RightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(actualRight.level)
+              })
+            })
+
           Some(
             admin ||
-            tenantRightLevel.contains(RightLevels.Admin) ||
+            actualTenantRight.contains(RightLevel.Admin) ||
             tenantLevel
               .map(tLevel => {
-                tenantRightLevel.exists(extractedLevel =>
+                actualTenantRight.exists(extractedLevel =>
                   superiorOrEqualLevels(tLevel).contains(extractedLevel)
-                ) && projectKeyRightMatches
+                ) && hasRightForProjects && hasRightForKeys
               })
-              .getOrElse(projectKeyRightMatches)
+              .getOrElse(hasRightForProjects && hasRightForKeys)
           )
         }
       }
@@ -1004,7 +1039,7 @@ class UsersDatastore(val env: Env) extends Datastore {
 
   def createProjectRights(
       tenant: String,
-      rights: Seq[(String, String, RightLevel)],
+      rights: Seq[(String, String, ProjectRightLevel)],
       conn: SqlConnection,
       conflictStrategy: ImportConflictStrategy = Fail
   ): Future[Unit] = {
@@ -1015,7 +1050,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     env.postgresql.queryRaw(
       s"""
            |INSERT INTO users_projects_rights(username, project, level)
-           |VALUES (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
+           |VALUES (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::izanami.project_right_level[]))
            |${conflictStrategy match {
         case Fail           => ""
         case MergeOverwrite => """
@@ -1132,7 +1167,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           rights   <- row.optJsObject("tenants");
           userType <- row.optString("user_type").map(dbUserTypeToUserType)
         ) yield {
-          val tenantRights = rights.asOpt[Map[String, RightLevel]].getOrElse(Map())
+          val tenantRights = rights.asOpt[Map[String, RightLevel]](Reads.map(RightLevel.rightLevelReads)).getOrElse(Map())
           UserWithTenantRights(
             username = username,
             email = row.optString("email").orNull,
@@ -1213,7 +1248,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           rights   <- row.optJsObject("tenants");
           userType <- row.optString("user_type").map(dbUserTypeToUserType)
         ) yield {
-          val tenantRights = rights.asOpt[Map[String, RightLevel]].getOrElse(Map())
+          val tenantRights = rights.asOpt[Map[String, RightLevel]](Reads.map(RightLevel.rightLevelReads)).getOrElse(Map())
           UserWithTenantRights(
             username = username,
             email = row.optString("email").orNull,
@@ -1295,7 +1330,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     }
   }
 
-  def findUsersForWebhook(tenant: String, webhook: String): Future[List[UserWithSingleScopedRight]] = {
+  def findUsersForWebhook(tenant: String, webhook: String): Future[List[SingleItemScopedUser]] = {
     env.postgresql.queryAll(
       s"""
          |SELECT
@@ -1321,16 +1356,16 @@ class UsersDatastore(val env: Env) extends Datastore {
         r.optUser()
           .map(u => {
             val maybeTenantRight = r.optRightLevel("tenant_right")
-            u.withSingleTenantScopedRightLevel(
+            u.withWebhookOrKeyRight(
               r.optRightLevel("level").orNull,
-              maybeTenantRight.contains(RightLevels.Admin)
+              maybeTenantRight.contains(RightLevel.Admin)
             )
           })
       }
     }
   }
 
-  def findUsersForProject(tenant: String, project: String): Future[List[UserWithSingleScopedRight]] = {
+  def findUsersForProject(tenant: String, project: String): Future[List[ProjectScopedUser]] = {
     env.postgresql.queryAll(
       s"""
          |SELECT u.username, u.email, u.admin, u.user_type, u.default_tenant, r.level, tr.level as tenant_right
@@ -1347,15 +1382,15 @@ class UsersDatastore(val env: Env) extends Datastore {
       r.optUser()
         .map(u => {
           val maybeTenantRight = r.optRightLevel("tenant_right")
-          u.withSingleTenantScopedRightLevel(
-            r.optRightLevel("level").orNull,
-            maybeTenantRight.contains(RightLevels.Admin)
+          u.withProjectScopedRight(
+            r.optProjectRightLevel("level").orNull,
+            maybeTenantRight.contains(RightLevel.Admin)
           )
         })
     }
   }
 
-  def findUsersForKey(tenant: String, key: String): Future[List[UserWithSingleScopedRight]] = {
+  def findUsersForKey(tenant: String, key: String): Future[List[SingleItemScopedUser]] = {
     env.postgresql.queryAll(
       s"""
          |SELECT
@@ -1381,9 +1416,9 @@ class UsersDatastore(val env: Env) extends Datastore {
         r.optUser()
           .map(u => {
             val maybeTenantRight = r.optRightLevel("tenant_right")
-            u.withSingleTenantScopedRightLevel(
+            u.withWebhookOrKeyRight(
               r.optRightLevel("level").orNull,
-              maybeTenantRight.contains(RightLevels.Admin)
+              maybeTenantRight.contains(RightLevel.Admin)
             )
           })
       }
@@ -1502,7 +1537,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           .queryOne(
             s"""
              |INSERT INTO users_projects_rights (project, username, level)
-             |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
+             |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.project_right_level[]))
              |ON CONFLICT (username, project) DO NOTHING
              |""".stripMargin,
             List(project, users.map(_._1).toArray, users.map(_._2.toString.toUpperCase).toArray),
@@ -1563,7 +1598,8 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 }
 
-case class RightValue(name: String, level: RightLevel)
+case class ProjectRightValue(name: String, level: ProjectRightLevel)
+case class KeyRightValue(name: String, level: RightLevel)
 
 object userImplicits {
   implicit class UserRow(val row: Row) extends AnyVal {
@@ -1575,6 +1611,11 @@ object userImplicits {
       row.optString(field).map(dbRightToRight)
     }
 
+
+    def optProjectRightLevel(field: String): Option[ProjectRightLevel] = {
+      row.optString(field).map(dbProjectRightToProjectRight)
+    }
+
     def optUserWithTenantRights(): Option[UserWithTenantRights] = {
       for (
         username <- row.optString("username");
@@ -1582,7 +1623,7 @@ object userImplicits {
         admin    <- row.optBoolean("admin");
         rights   <- row.optJsObject("tenants")
       ) yield {
-        val tenantRights = rights.asOpt[Map[String, RightLevel]].getOrElse(Map())
+        val tenantRights = rights.asOpt[Map[String, RightLevel]](Reads.map(RightLevel.rightLevelReads)).getOrElse(Map())
         UserWithTenantRights(
           username = username,
           email = row.optString("email").orNull,
@@ -1629,23 +1670,44 @@ object userImplicits {
     }
   }
 
-  implicit val rightRead: Reads[RightValue] = { json =>
+  implicit val projectRightRead: Reads[ProjectRightValue] = { json =>
+    {
+      for (
+        name  <- (json \ "name").asOpt[String];
+        level <- (json \ "level").asOpt[String]
+      ) yield {
+        val right = dbProjectRightToProjectRight(level)
+        JsSuccess(ProjectRightValue(name = name, level = right))
+      }
+    }.getOrElse(JsError("Failed to read rights"))
+  }
+
+  implicit val rightRead: Reads[KeyRightValue] = { json =>
     {
       for (
         name  <- (json \ "name").asOpt[String];
         level <- (json \ "level").asOpt[String]
       ) yield {
         val right = dbRightToRight(level)
-        JsSuccess(RightValue(name = name, level = right))
+        JsSuccess(KeyRightValue(name = name, level = right))
       }
     }.getOrElse(JsError("Failed to read rights"))
   }
 
   def dbRightToRight(dbRight: String): RightLevel = {
     dbRight match {
-      case "ADMIN" => RightLevels.Admin
-      case "READ"  => RightLevels.Read
-      case "WRITE" => RightLevels.Write
+      case "ADMIN" => RightLevel.Admin
+      case "READ"  => RightLevel.Read
+      case "WRITE" => RightLevel.Write
+    }
+  }
+
+  def dbProjectRightToProjectRight(dbRight: String): ProjectRightLevel = {
+    dbRight match {
+      case "ADMIN"  => ProjectRightLevel.Admin
+      case "READ"   => ProjectRightLevel.Read
+      case "UPDATE" => ProjectRightLevel.Update
+      case "WRITE"  => ProjectRightLevel.Write
     }
   }
 

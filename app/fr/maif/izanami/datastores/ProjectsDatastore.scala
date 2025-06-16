@@ -7,7 +7,7 @@ import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.{PreviousProject, SourceFeatureDeleted, SourceProjectCreated, SourceProjectDeleted, SourceProjectUpdated}
-import fr.maif.izanami.models.{Feature, Project, ProjectCreationRequest, RightLevels}
+import fr.maif.izanami.models.{Feature, Project, ProjectCreationRequest, RightLevel}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.{ImportController, UserInformation}
@@ -73,7 +73,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
                |ON CONFLICT(username, project) DO NOTHING
                |RETURNING 1
                |""".stripMargin,
-            List(user.username, names.toArray, RightLevels.Admin.toString.toUpperCase),
+            List(user.username, names.toArray, RightLevel.Admin.toString.toUpperCase),
             conn = Some(conn)
           ) { _ => Some(ls) }
           .map(o => {
@@ -131,7 +131,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
               env.postgresql
                 .queryOne(
                   s"""INSERT INTO users_projects_rights (username, project, level) VALUES ($$1, $$2, $$3) RETURNING project""",
-                  List(user.username, projectCreationRequest.name, RightLevels.Admin.toString.toUpperCase),
+                  List(user.username, projectCreationRequest.name, RightLevel.Admin.toString.toUpperCase),
                   conn = Some(conn)
                 ) { _ => Some(proj) }
                 .map(_.toRight(InternalServerError()))

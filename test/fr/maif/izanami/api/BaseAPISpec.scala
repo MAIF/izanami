@@ -3205,6 +3205,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     def withProjectReadRight(project: String, tenant: String) = {
       copy(rights = rights.addProjectRight(project, tenant, "Read"))
     }
+    def withProjectReadUpdateRight(project: String, tenant: String) = {
+      copy(rights = rights.addProjectRight(project, tenant, "Update"))
+    }
     def withProjectReadWriteRight(project: String, tenant: String) = {
       copy(rights = rights.addProjectRight(project, tenant, "Write"))
     }

@@ -172,17 +172,23 @@ class FeatureController(
           futureTenant
             .flatMap {
               case Some(tenant) =>
-                queryFeatures(conditions = false, RequestContext(
-                  tenant = tenant,
-                  user = user,
-                  context = context,
-                  data = maybeBody.getOrElse(Json.obj())
-                ), FeatureRequest(features = Set(id), context=context.elements), clientId, clientSecret , origin = FeatureCall.Sse // FIXME context is passed twice
+                queryFeatures(
+                  conditions = false,
+                  RequestContext(
+                    tenant = tenant,
+                    user = user,
+                    context = context,
+                    data = maybeBody.getOrElse(Json.obj())
+                  ),
+                  FeatureRequest(features = Set(id), context = context.elements),
+                  clientId,
+                  clientSecret,
+                  origin = FeatureCall.Sse // FIXME context is passed twice
                 ).map {
-                  case Left(err) => err.toHttpResponse
+                  case Left(err)   => err.toHttpResponse
                   case Right(json) => (json \ id).asOpt[JsValue].map(json => Ok(json)).getOrElse(NotFound)
                 }
-              case None                    => Unauthorized(Json.obj("message" -> "Key does not authorize read for this feature")).future
+              case None         => Unauthorized(Json.obj("message" -> "Key does not authorize read for this feature")).future
             }
         }
         case None                           => Unauthorized(Json.obj("message" -> "Missing or incorrect authorization headers")).future
@@ -200,7 +206,7 @@ class FeatureController(
         .searchFeature(tenant, if (tag.isBlank) Set() else Set(tag))
         .flatMap(features => {
           featureUsageService.determineStaleStatus(tenant, features).map {
-            case Left(err) => err.toHttpResponse
+            case Left(err)                           => err.toHttpResponse
             case Right(featuresWithUsageInformation) => {
               Ok(Json.toJson(featuresWithUsageInformation)(Writes.seq(writeLightWeightFeatureWithUsageInformation)))
             }
@@ -339,7 +345,7 @@ class FeatureController(
             })
             .flatMap(projects => {
               val unauthorizedProjects =
-                projects.filter(project => !request.user.hasRightForProject(project, RightLevels.Write))
+                projects.filter(project => !request.user.hasRightForProject(project, ProjectRightLevel.Write))
               if (unauthorizedProjects.nonEmpty) {
                 Forbidden(
                   Json.obj(
@@ -364,7 +370,7 @@ class FeatureController(
   }
 
   def createFeature(tenant: String, project: String): Action[JsValue] =
-    projectAuthAction(tenant, project, RightLevels.Write).async(parse.json) { implicit request =>
+    projectAuthAction(tenant, project, ProjectRightLevel.Write).async(parse.json) { implicit request =>
       Feature.readCompleteFeature(request.body, project) match {
         case JsError(e)                                                                                => BadRequest(Json.obj("message" -> "bad body format")).future
         case JsSuccess(f: CompleteWasmFeature, _) if f.resultType != BooleanResult && f.wasmConfig.opa =>
@@ -436,8 +442,8 @@ class FeatureController(
                       .flatMap {
                         case Left(err)                                                                      => err.toHttpResponse.future
                         case Right(None)                                                                    => NotFound("").toFuture
-                        case Right(Some(oldFeature)) if !canCreateOrModifyFeature(oldFeature, request.user) =>
-                          Forbidden("Your are not allowed to modify this feature").toFuture
+                        case Right(Some(oldFeature)) if !canUpdateFeature(oldFeature, request.user) =>
+                          Forbidden(Json.obj("message" -> "Your are not allowed to update this feature")).toFuture
                         case Right(Some(oldFeature))                                                        => {
                           env.datastores.features
                             .update(
@@ -487,24 +493,39 @@ class FeatureController(
       )
   }
 
-  def canCreateOrModifyFeature(feature: AbstractFeature, user: UserWithCompleteRightForOneTenant): Boolean = {
+  def canUpdateFeature(feature: AbstractFeature, user: UserWithCompleteRightForOneTenant): Boolean = {
     if (user.admin) {
       true
     } else {
       val projectRight = user.tenantRight.flatMap(tr => tr.projects.get(feature.project))
       projectRight.exists(currentRight =>
-        RightLevels.superiorOrEqualLevels(RightLevels.Write).contains(currentRight.level)
+        ProjectRightLevel.superiorOrEqualLevels(ProjectRightLevel.Update).contains(currentRight.level)
+      )
+    }
+  }
+
+  def canCreateOrDeleteFeature(feature: AbstractFeature, user: UserWithCompleteRightForOneTenant): Boolean = {
+    if (user.admin) {
+      true
+    } else {
+      val projectRight = user.tenantRight.flatMap(tr => tr.projects.get(feature.project))
+      projectRight.exists(currentRight =>
+        ProjectRightLevel.superiorOrEqualLevels(ProjectRightLevel.Write).contains(currentRight.level)
       )
     }
   }
 
   def findFeature(tenant: String, id: String): Action[AnyContent] = detailledRightForTenanFactory(tenant).async {
-    implicit request => env.datastores.features
-      .findByIdLightweight(tenant, id)
-      .map(o => o
-        .filter(f => request.user.hasRightForProject(f.project, RightLevels.Read))
-        .fold(NotFound(Json.obj("message" -> s"Either this feature does not exist, or you don't have right to see it")))(f => Ok(Json.toJson(f)(Feature.lightweightFeatureWrite)))
-      )
+    implicit request =>
+      env.datastores.features
+        .findByIdLightweight(tenant, id)
+        .map(o =>
+          o
+            .filter(f => request.user.hasRightForProject(f.project, ProjectRightLevel.Read))
+            .fold(
+              NotFound(Json.obj("message" -> s"Either this feature does not exist, or you don't have right to see it"))
+            )(f => Ok(Json.toJson(f)(Feature.lightweightFeatureWrite)))
+        )
   }
 
   def deleteFeature(tenant: String, id: String): Action[AnyContent] = detailledRightForTenanFactory(tenant).async {
@@ -516,7 +537,7 @@ class FeatureController(
           case Right(None)          => NotFound("").toFuture
           case Right(Some(feature)) => {
 
-            if (canCreateOrModifyFeature(feature, request.user)) {
+            if (canCreateOrDeleteFeature(feature, request.user)) {
               env.datastores.features
                 .delete(
                   tenant,
@@ -551,7 +572,13 @@ class FeatureController(
       case Left(error)                      => Left(error)
       case Right(evaluatedCompleteFeatures) =>
         val response = formatFeatureResponse(evaluatedCompleteFeatures, conditions)
-        featureUsageService.registerCalls(requestContext.tenant, clientId, evaluatedCompleteFeatures, requestContext.context, origin)
+        featureUsageService.registerCalls(
+          requestContext.tenant,
+          clientId,
+          evaluatedCompleteFeatures,
+          requestContext.context,
+          origin
+        )
         // TODO handle error
         Right(response)
     }

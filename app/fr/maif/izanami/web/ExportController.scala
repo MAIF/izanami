@@ -3,7 +3,7 @@ package fr.maif.izanami.web
 import akka.util.ByteString
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.models.Feature.lightweightFeatureWrite
-import fr.maif.izanami.models.{Export, LightWeightFeature, RightLevels}
+import fr.maif.izanami.models.{Export, LightWeightFeature, RightLevel}
 import play.api.http.HttpEntity
 import play.api.libs.json._
 import play.api.mvc._
@@ -17,7 +17,7 @@ class ExportController(
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
 
-  def exportTenantData(tenant: String): Action[JsValue] = authAction(tenant, RightLevels.Admin, Export).async(parse.json) {
+  def exportTenantData(tenant: String): Action[JsValue] = authAction(tenant, RightLevel.Admin, Export).async(parse.json) {
     implicit request =>
       {
         ExportController.tenantExportRequestReads

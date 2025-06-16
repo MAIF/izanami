@@ -1,7 +1,7 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.models.RightLevels
+import fr.maif.izanami.models.RightLevel
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.{WasmConfig, WasmConfigWithFeatures}
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
@@ -34,7 +34,7 @@ class PluginController(
     }
   }
 
-  def readScript(tenant: String, script: String) = authAction(tenant, RightLevels.Read).async { implicit request =>
+  def readScript(tenant: String, script: String) = authAction(tenant, RightLevel.Read).async { implicit request =>
     env.datastores.features
       .readWasmScript(tenant, script)
       .map(maybeConfig =>
@@ -44,7 +44,7 @@ class PluginController(
       )
   }
 
-  def deleteScript(tenant: String, script: String): Action[AnyContent] = authAction(tenant, RightLevels.Write).async {
+  def deleteScript(tenant: String, script: String): Action[AnyContent] = authAction(tenant, RightLevel.Write).async {
     implicit request =>
       env.datastores.features.deleteLocalScript(tenant, script).map {
         case Left(err) => err.toHttpResponse
@@ -53,7 +53,7 @@ class PluginController(
   }
 
   def updateScript(tenant: String, script: String): Action[JsValue] =
-    authAction(tenant, RightLevels.Write).async(parse.json) { implicit request =>
+    authAction(tenant, RightLevel.Write).async(parse.json) { implicit request =>
       request.body.asOpt[WasmConfig](WasmConfig.format) match {
         case Some(value) => env.datastores.features.updateWasmScript(tenant, script, value).map(_ => NoContent)
         case None        => BadRequest(Json.obj("message" -> "Bad body format")).future

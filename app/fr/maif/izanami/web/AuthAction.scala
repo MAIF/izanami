@@ -5,16 +5,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.UserNotFound
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.events.EventAuthentication.{BackOfficeAuthentication, TokenAuthentication}
-import fr.maif.izanami.models.RightLevels.RightLevel
-import fr.maif.izanami.models.{
-  ApiKey,
-  ApiKeyWithCompleteRights,
-  RightLevels,
-  TenantTokenRights,
-  UserWithCompleteRightForOneTenant,
-  UserWithRights,
-  UserWithTenantRights
-}
+import fr.maif.izanami.models.{ApiKey, ApiKeyWithCompleteRights, ProjectRightLevel, RightLevel, TenantTokenRights, UserWithCompleteRightForOneTenant, UserWithRights, UserWithTenantRights}
 import fr.maif.izanami.security.JwtService.decodeJWT
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.AuthAction.{extractAndCheckPersonnalAccessToken, extractClaims}
@@ -251,7 +242,7 @@ class PersonnalAccessTokenTenantAuthAction(
                 case Some(user)
                     if user.admin || user.tenantRights
                       .get(tenant)
-                      .exists(r => RightLevels.superiorOrEqualLevels(minimumLevel).contains(r)) =>
+                      .exists(r => RightLevel.superiorOrEqualLevels(minimumLevel).contains(r)) =>
                   Right(UserInformation(username = username, TokenAuthentication(tokenId = tokenId)))
                 case Some(user) =>
                   Left(Forbidden(Json.obj("message" -> "User does not have enough rights for this operation")))
@@ -371,7 +362,7 @@ class ProjectAuthAction(
     env: Env,
     tenant: String,
     projectIdOrName: Either[UUID, String],
-    minimumLevel: RightLevel
+    minimumLevel: ProjectRightLevel
 )(implicit ec: ExecutionContext)
     extends ActionBuilder[ProjectIdUserNameRequest, AnyContent] {
 
@@ -507,12 +498,12 @@ class WebhookAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(imp
 }
 
 class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
-  def apply(tenant: String, project: String, minimumLevel: RightLevel): ProjectAuthAction =
+  def apply(tenant: String, project: String, minimumLevel: ProjectRightLevel): ProjectAuthAction =
     new ProjectAuthAction(bodyParser, env, tenant, Right(project), minimumLevel)
 }
 
 class ProjectAuthActionByIdFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
-  def apply(tenant: String, project: UUID, minimumLevel: RightLevel): ProjectAuthAction =
+  def apply(tenant: String, project: UUID, minimumLevel: ProjectRightLevel): ProjectAuthAction =
     new ProjectAuthAction(bodyParser, env, tenant, Left(project), minimumLevel)
 }
 

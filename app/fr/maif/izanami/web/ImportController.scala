@@ -155,14 +155,14 @@ class ImportController(
   implicit val ec: ExecutionContext = env.executionContext;
 
   def deleteImportStatus(tenant: String, id: String): Action[AnyContent] =
-    maybeTokenAuthAction(tenant, RightLevels.Admin, Import).async { implicit request =>
+    maybeTokenAuthAction(tenant, RightLevel.Admin, Import).async { implicit request =>
       {
         env.datastores.tenants.deleteImportStatus(UUID.fromString(id)).map(_ => NoContent)
       }
     }
 
   def readImportStatus(tenant: String, id: String): Action[AnyContent] =
-    maybeTokenAuthAction(tenant, RightLevels.Admin, Import).async { implicit request =>
+    maybeTokenAuthAction(tenant, RightLevel.Admin, Import).async { implicit request =>
       {
         env.datastores.tenants.readImportStatus(UUID.fromString(id)).map {
           case Some(importResult) => Ok(Json.toJson(importResult)(importResultWrites))
@@ -182,7 +182,7 @@ class ImportController(
       projectPartSize: Option[Int],
       inlineScript: Option[Boolean]
   ): Action[MultipartFormData[Files.TemporaryFile]] =
-    maybeTokenAuthAction(tenant, RightLevels.Admin, Import).async(parse.multipartFormData) { implicit request =>
+    maybeTokenAuthAction(tenant, RightLevel.Admin, Import).async(parse.multipartFormData) { implicit request =>
       if (version == 1) {
         timezone
           .map(tz => {

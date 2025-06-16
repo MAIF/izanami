@@ -1,7 +1,7 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.models.{ApiKey, RightLevels, RightTypes, RightUnit}
+import fr.maif.izanami.models.{ApiKey, ProjectRightLevel, ProjectRightUnit, RightLevel, RightTypes, RightUnit}
 import play.api.libs.json.JsError.toJson
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
@@ -16,7 +16,7 @@ class ApiKeyController(
     extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
 
-  def createApiKey(tenant: String): Action[JsValue] = tenantAuthAction(tenant, RightLevels.Write).async(parse.json) {
+  def createApiKey(tenant: String): Action[JsValue] = tenantAuthAction(tenant, RightLevel.Write).async(parse.json) {
     implicit request =>
       ApiKey
         .read(request.body, tenant)
@@ -26,8 +26,8 @@ class ApiKeyController(
               tenant,
               username = request.user.username,
               rights = key.projects
-                .map(p => RightUnit(name = p, rightType = RightTypes.Project, rightLevel = RightLevels.Write)),
-              tenantLevel = if (key.admin) Some(RightLevels.Admin) else None
+                .map(p => ProjectRightUnit(name = p, rightLevel = ProjectRightLevel.Write)),
+              tenantLevel = if (key.admin) Some(RightLevel.Admin) else None
             )
             .flatMap(authorized => {
               if (!authorized) {
@@ -60,7 +60,7 @@ class ApiKeyController(
   }
 
   def updateApiKey(tenant: String, name: String): Action[JsValue] =
-    keyAuthAction(tenant, name, RightLevels.Write).async(parse.json) { implicit request: UserNameRequest[JsValue] =>
+    keyAuthAction(tenant, name, RightLevel.Write).async(parse.json) { implicit request: UserNameRequest[JsValue] =>
       ApiKey
         .read(request.body, tenant)
         .map(key => {
@@ -80,9 +80,9 @@ class ApiKeyController(
                       tenant,
                       username = request.user.username,
                       rights = newProjects.map(p =>
-                        RightUnit(name = p, rightType = RightTypes.Project, rightLevel = RightLevels.Write)
+                        ProjectRightUnit(name = p, rightLevel = ProjectRightLevel.Write)
                       ),
-                      tenantLevel = if (adminChanged) Some(RightLevels.Admin) else None
+                      tenantLevel = if (adminChanged) Some(RightLevel.Admin) else None
                     )
                 }
               } match {
@@ -112,7 +112,7 @@ class ApiKeyController(
         .recoverTotal(jsError => Future.successful(BadRequest(toJson(jsError))))
     }
 
-  def readApiKey(tenant: String): Action[AnyContent] = tenantAuthAction(tenant, RightLevels.Read).async {
+  def readApiKey(tenant: String): Action[AnyContent] = tenantAuthAction(tenant, RightLevel.Read).async {
     implicit request: UserNameRequest[AnyContent] =>
       env.datastores.apiKeys
         .readApiKeys(tenant, request.user.username)
@@ -120,7 +120,7 @@ class ApiKeyController(
   }
 
   def deleteApiKey(tenant: String, name: String): Action[AnyContent] =
-    (keyAuthAction(tenant, name, RightLevels.Admin)).async { implicit request =>
+    (keyAuthAction(tenant, name, RightLevel.Admin)).async { implicit request =>
       env.datastores.apiKeys
         .deleteApiKey(tenant, name)
         .map(either => either.fold(err => Results.Status(err.status)(Json.toJson(err)), key => NoContent))

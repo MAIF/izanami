@@ -1,12 +1,11 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.EventDatastore.{parseSortOrder, AscOrder, FeatureEventRequest}
+import fr.maif.izanami.datastores.EventDatastore.{AscOrder, FeatureEventRequest, parseSortOrder}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.ProjectDoesNotExists
 import fr.maif.izanami.events.{EventAuthentication, EventService, FeatureEvent, TenantCreated, TenantDeleted}
 import fr.maif.izanami.models.ProjectWithUsageInformation.projectWithUsageInformationWrites
-import fr.maif.izanami.models.RightLevels.RightLevel
-import fr.maif.izanami.models.{Project, ProjectWithUsageInformation, RightLevels}
+import fr.maif.izanami.models.{Project, ProjectRightLevel, ProjectWithUsageInformation, RightLevel}
 import fr.maif.izanami.services.FeatureUsageService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ProjectController.parseStringSet
@@ -42,7 +41,7 @@ class ProjectController(
       count: Int,
       total: Option[Boolean]
   ): Action[AnyContent] =
-    projectAuthAction(tenant, project, RightLevels.Read).async { implicit request =>
+    projectAuthAction(tenant, project, ProjectRightLevel.Read).async { implicit request =>
       env.datastores.events
         .listEventsForProject(
           tenant,
@@ -95,7 +94,7 @@ class ProjectController(
         }
     }
 
-  def createProject(tenant: String): Action[JsValue] = tenantAuthAction(tenant, RightLevels.Write).async(parse.json) {
+  def createProject(tenant: String): Action[JsValue] = tenantAuthAction(tenant, RightLevel.Write).async(parse.json) {
     implicit request =>
       Project.projectReads.reads(request.body) match {
         case JsError(e)            => BadRequest(Json.obj("message" -> "bad body format")).future
@@ -113,7 +112,7 @@ class ProjectController(
   }
 
   def updateProject(tenant: String, project: String): Action[JsValue] =
-    projectAuthAction(tenant, project, RightLevels.Admin).async(parse.json) { implicit request =>
+    projectAuthAction(tenant, project, ProjectRightLevel.Admin).async(parse.json) { implicit request =>
       Project.projectReads.reads(request.body) match {
         case JsSuccess(updatedProject, _) =>
           env.datastores.projects.updateProject(tenant, project, updatedProject, request.user).map {
@@ -126,7 +125,7 @@ class ProjectController(
 
   def readProjects(tenant: String): Action[AnyContent] = detailledRightForTenanFactory(tenant).async {
     implicit request =>
-      val isTenantAdmin = request.user.tenantRight.exists(right => right.level == RightLevels.Admin)
+      val isTenantAdmin = request.user.tenantRight.exists(right => right.level == RightLevel.Admin)
       if (request.user.admin || isTenantAdmin) {
         env.datastores.projects
           .readProjects(tenant)
@@ -143,7 +142,7 @@ class ProjectController(
   }
 
   def readProject(tenant: String, project: String): Action[AnyContent] =
-    projectAuthAction(tenant, project, RightLevels.Read).async { implicit request =>
+    projectAuthAction(tenant, project, ProjectRightLevel.Read).async { implicit request =>
       env.datastores.projects
         .readProject(tenant, project)
         .flatMap(maybeProject => {
@@ -164,7 +163,7 @@ class ProjectController(
     }
 
   def readProjectById(tenant: String, id: String): Action[AnyContent] =
-    projectAuthActionById(tenant, UUID.fromString(id), RightLevels.Read).async { implicit request =>
+    projectAuthActionById(tenant, UUID.fromString(id), ProjectRightLevel.Read).async { implicit request =>
       val projectId = UUID.fromString(id)
       env.datastores.projects
         .readProjectsById(tenant, Set(projectId))
@@ -178,7 +177,7 @@ class ProjectController(
     }
 
   def deleteProject(tenant: String, project: String): Action[AnyContent] =
-    (projectAuthAction(tenant, project, RightLevels.Admin)).async { implicit request =>
+    (projectAuthAction(tenant, project, ProjectRightLevel.Admin)).async { implicit request =>
       env.datastores.projects
         .deleteProject(tenant, project, request.user)
         .map {

@@ -1,6 +1,6 @@
 package fr.maif.izanami.v1
 
-import fr.maif.izanami.models.{ApiKey, RightLevels}
+import fr.maif.izanami.models.{ApiKey}
 import fr.maif.izanami.v1.OldCommons.{authorizedPatternReads, filterProjects, oldRightToNewRight, toNewRights}
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.{Reads, __}

@@ -53,7 +53,7 @@ class UsersAPISpec extends BaseAPISpec {
   "User POST endpoint" should {
     "allow user creation" in {
       val situation = TestSituationBuilder().loggedInWithAdminRights().build()
-      val response = situation.createUser(user = "benjamin", password = "12345678")
+      val response  = situation.createUser(user = "benjamin", password = "12345678")
 
       response.status mustBe CREATED
       (response.json.get \ "username").as[String] mustEqual "benjamin"
@@ -62,7 +62,7 @@ class UsersAPISpec extends BaseAPISpec {
 
     "allow user creation with mail as username" in {
       val situation = TestSituationBuilder().loggedInWithAdminRights().build()
-      val response = situation.createUser(user = "benjamin.bar@foo.com", password = "12345678")
+      val response  = situation.createUser(user = "benjamin.bar@foo.com", password = "12345678")
 
       response.status mustBe CREATED
       (response.json.get \ "username").as[String] mustEqual "benjamin.bar@foo.com"
@@ -196,7 +196,6 @@ class UsersAPISpec extends BaseAPISpec {
       (result.json.get \ "rights" \ "tenants" \ "my-tenant" \ "keys" \ "my-key" \ "level").as[String] mustBe "Admin"
     }
   }
-
 
   "Users GET endpoint by name" should {
     "Retrieve user and right information if requester is admin" in {
@@ -369,9 +368,9 @@ class UsersAPISpec extends BaseAPISpec {
       val (request, headers) = mailjetRequests().head
       val mailJetRequestBody = Json.parse(request.getBodyAsString)
       // TODO make this a bit cleaner
-      val token = (mailJetRequestBody \ "Messages" \\ "HTMLPart").head.toString().split("token=")(1).split("\\\\").head
-      val response = situation.createUserWithToken("foo", "barbar123", token)
-      val expectedValue = Base64.getEncoder.encodeToString("foooo:baaaaaar".getBytes(StandardCharsets.UTF_8))
+      val token              = (mailJetRequestBody \ "Messages" \\ "HTMLPart").head.toString().split("token=")(1).split("\\\\").head
+      val response           = situation.createUserWithToken("foo", "barbar123", token)
+      val expectedValue      = Base64.getEncoder.encodeToString("foooo:baaaaaar".getBytes(StandardCharsets.UTF_8))
       response.status mustBe CREATED
       headers.getHeader("Authorization").firstValue() mustBe s"""Basic ${expectedValue}"""
     }
@@ -396,10 +395,10 @@ class UsersAPISpec extends BaseAPISpec {
 
       invitationResponse.status mustBe NO_CONTENT
       val (request, headers) = mailgunRequests().head
-      val body = java.net.URLDecoder.decode(request.getBodyAsString, StandardCharsets.UTF_8.name());
-      val token = body.split("token=")(1).split("\"")(0)
-      val response = situation.createUserWithToken("foo", "barbar123", token)
-      val expectedValue = Base64.getEncoder.encodeToString("api:foooo".getBytes(StandardCharsets.UTF_8))
+      val body               = java.net.URLDecoder.decode(request.getBodyAsString, StandardCharsets.UTF_8.name());
+      val token              = body.split("token=")(1).split("\"")(0)
+      val response           = situation.createUserWithToken("foo", "barbar123", token)
+      val expectedValue      = Base64.getEncoder.encodeToString("api:foooo".getBytes(StandardCharsets.UTF_8))
       response.status mustBe CREATED
       headers.getHeader("Authorization").firstValue() mustBe s"""Basic ${expectedValue}"""
     }
@@ -423,13 +422,13 @@ class UsersAPISpec extends BaseAPISpec {
         rights = TestRights().addTenantRight("my-tenant", "Read").addProjectRight("my-project", "my-tenant", "Read")
       )
       invitationResponse.status mustBe NO_CONTENT
-      val response = await(
+      val response           = await(
         ws.url("http://localhost:1080/api/emails")
           .get()
       )
-      val html = (response.json \ 0 \ "html").as[String]
+      val html               = (response.json \ 0 \ "html").as[String]
 
-      val token = html.split("token=")(1).split("\"")(0)
+      val token            = html.split("token=")(1).split("\"")(0)
       val creationResponse = situation.createUserWithToken("foo", "barbar123", token)
       creationResponse.status mustBe CREATED
     }
@@ -447,8 +446,8 @@ class UsersAPISpec extends BaseAPISpec {
         rights = TestRights().addTenantRight("my-tenant", "Read").addProjectRight("my-project", "my-tenant", "Read")
       )
       invitationResponse.status mustBe CREATED
-      val token = (invitationResponse.json.get \ "invitationUrl").as[String].split("token=")(1)
-      val response = situation.createUserWithToken("foo", "barbar123", token)
+      val token              = (invitationResponse.json.get \ "invitationUrl").as[String].split("token=")(1)
+      val response           = situation.createUserWithToken("foo", "barbar123", token)
 
       response.status mustBe CREATED
     }
@@ -460,9 +459,9 @@ class UsersAPISpec extends BaseAPISpec {
         .build()
 
       val result = situation.sendInvitation("foo@imaginaryemail.afezrfr", admin = false)
-      val token = (result.json.get \ "invitationUrl").as[String].split("token=")(1)
+      val token  = (result.json.get \ "invitationUrl").as[String].split("token=")(1)
 
-      val result2 = situation.sendInvitation("foo@imaginaryemail.afezrfr", admin = true)
+      val result2  = situation.sendInvitation("foo@imaginaryemail.afezrfr", admin = true)
       result2.status mustBe CREATED
       val response = situation.createUserWithToken("foo", "barbar123", token)
 
@@ -477,7 +476,7 @@ class UsersAPISpec extends BaseAPISpec {
         .build()
 
       val result = situation.sendInvitation("foo@imaginaryemail.afezrfr", admin = false)
-      val token = (result.json.get \ "invitationUrl").as[String].split("token=")(1)
+      val token  = (result.json.get \ "invitationUrl").as[String].split("token=")(1)
 
       situation.loggedAs("baz", "foobarbar").deleteUser("bar")
 
@@ -489,7 +488,7 @@ class UsersAPISpec extends BaseAPISpec {
 
   "User rights update endpoint for tenant" should {
     "Prevent tenant right modification if logged in user is not admin nor tenant admin" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights()
@@ -512,7 +511,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Prevent tenant right addition if logged in user is not admin nor tenant admin" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights()
@@ -536,7 +535,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Allow tenant right modification if logged in user is tenant admin" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights()
@@ -559,7 +558,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Allow project right modification if logged in user is project admin" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights()
@@ -586,7 +585,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Prevent project right modification if logged in user is not project admin nor tenant admin nor admin" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights()
@@ -615,7 +614,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Allow key right modification if logged in user is key admin" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights()
@@ -642,7 +641,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Prevent key right modification if logged in user is not key admin nor tenant admin or admin" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights()
@@ -670,11 +669,37 @@ class UsersAPISpec extends BaseAPISpec {
   }
 
   "User right update endpoint for project" should {
+    "allow to use special 'Update' right for project" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .withUsers(
+          TestUser("user")
+            .withTenantReadRight("tenant")
+            .withProjectReadRight("project", tenant = "tenant")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val response =
+        situation.updateUserRightsForProject("user", tenant = "tenant", project = "project", level = "Update")
+      response.status mustBe NO_CONTENT
+
+      val checkResponse = situation.fetchUsersForProject("tenant", "project")
+      (checkResponse.json.get
+        .as[JsArray]
+        .value
+        .find(jsValue => (jsValue \ "username").as[String] == "user")
+        .get \ "right").as[String] mustEqual "Update"
+    }
+
     "delete user right for project if payload is empty" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjectNames("project"))
-        .withUsers(TestUser("user").withTenantReadRight("tenant")
-          .withProjectAdminRight("project", tenant = "tenant"))
+        .withUsers(
+          TestUser("user")
+            .withTenantReadRight("tenant")
+            .withProjectAdminRight("project", tenant = "tenant")
+        )
         .loggedInWithAdminRights()
         .build()
 
@@ -683,23 +708,31 @@ class UsersAPISpec extends BaseAPISpec {
 
       val checkResponse = situation.fetchUsersForProject("tenant", "project")
 
-      (checkResponse.json.get \\ "username").map(jsValue => jsValue.as[String]) must not contain ("user")
+      (checkResponse.json.get \\ "username").map(jsValue => jsValue.as[String]) must not contain "user"
 
     }
 
     "update right for given user" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjectNames("project"))
-        .withUsers(TestUser("user").withTenantReadRight("tenant")
-          .withProjectReadRight("project", tenant = "tenant"))
+        .withUsers(
+          TestUser("user")
+            .withTenantReadRight("tenant")
+            .withProjectReadRight("project", tenant = "tenant")
+        )
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.updateUserRightsForProject("user", tenant = "tenant", project = "project", level = "Admin")
+      val response =
+        situation.updateUserRightsForProject("user", tenant = "tenant", project = "project", level = "Admin")
       response.status mustBe NO_CONTENT
 
       val checkResponse = situation.fetchUsersForProject("tenant", "project")
-      (checkResponse.json.get.as[JsArray].value.find(jsValue => (jsValue \ "username").as[String] == "user").get \ "right").as[String] mustEqual "Admin"
+      (checkResponse.json.get
+        .as[JsArray]
+        .value
+        .find(jsValue => (jsValue \ "username").as[String] == "user")
+        .get \ "right").as[String] mustEqual "Admin"
     }
 
     "give right to current user if it previously has no right on project" in {
@@ -709,11 +742,16 @@ class UsersAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.updateUserRightsForProject("user", tenant = "tenant", project = "project", level = "Admin")
+      val response =
+        situation.updateUserRightsForProject("user", tenant = "tenant", project = "project", level = "Admin")
       response.status mustBe NO_CONTENT
 
       val checkResponse = situation.fetchUsersForProject("tenant", "project")
-      (checkResponse.json.get.as[JsArray].value.find(jsValue => (jsValue \ "username").as[String] == "user").get \ "right").as[String] mustEqual "Admin"
+      (checkResponse.json.get
+        .as[JsArray]
+        .value
+        .find(jsValue => (jsValue \ "username").as[String] == "user")
+        .get \ "right").as[String] mustEqual "Admin"
     }
 
     "give right to current user if it previously has no right on project AND tenant" in {
@@ -723,11 +761,16 @@ class UsersAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.updateUserRightsForProject("user", tenant = "tenant", project = "project", level = "Admin")
+      val response =
+        situation.updateUserRightsForProject("user", tenant = "tenant", project = "project", level = "Admin")
       response.status mustBe NO_CONTENT
 
       val checkResponse = situation.fetchUsersForProject("tenant", "project")
-      (checkResponse.json.get.as[JsArray].value.find(jsValue => (jsValue \ "username").as[String] == "user").get \ "right").as[String] mustEqual "Admin"
+      (checkResponse.json.get
+        .as[JsArray]
+        .value
+        .find(jsValue => (jsValue \ "username").as[String] == "user")
+        .get \ "right").as[String] mustEqual "Admin"
     }
   }
 
@@ -739,12 +782,13 @@ class UsersAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.inviteUsersToTenants("tenant", Seq(("user1", "Read"), ("user2", "Write"), ("user3", "Admin")))
+      val response =
+        situation.inviteUsersToTenants("tenant", Seq(("user1", "Read"), ("user2", "Write"), ("user3", "Admin")))
 
       response.status mustEqual NO_CONTENT
 
       val projectResponse = situation.fetchUsersForTenant("tenant")
-      (projectResponse.json.get \\ "username").map(v => v.as[String]) must contain allOf("user1", "user2", "user3")
+      (projectResponse.json.get \\ "username").map(v => v.as[String]) must contain allOf ("user1", "user2", "user3")
     }
   }
 
@@ -756,12 +800,16 @@ class UsersAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.inviteUsersToProject("tenant", "project", Seq(("user1", "Read"), ("user2", "Write"), ("user3", "Admin")))
+      val response = situation.inviteUsersToProject(
+        "tenant",
+        "project",
+        Seq(("user1", "Read"), ("user2", "Write"), ("user3", "Admin"))
+      )
 
       response.status mustEqual NO_CONTENT
 
       val projectResponse = situation.fetchUsersForProject("tenant", "project")
-      (projectResponse.json.get \\ "username").map(v => v.as[String]) must contain allOf("user1", "user2", "user3")
+      (projectResponse.json.get \\ "username").map(v => v.as[String]) must contain allOf ("user1", "user2", "user3")
     }
 
     "ignore users that already have rights for this project" in {
@@ -771,17 +819,27 @@ class UsersAPISpec extends BaseAPISpec {
           TestUser("user1"),
           TestUser("user2"),
           TestUser("user3").withTenantReadRight("tenant").withProjectReadWriteRight("project", tenant = "tenant"),
-          TestUser("user4"))
+          TestUser("user4")
+        )
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.inviteUsersToProject("tenant", "project", Seq(("user1", "Read"), ("user2", "Write"), ("user3", "Read")))
+      val response = situation.inviteUsersToProject(
+        "tenant",
+        "project",
+        Seq(("user1", "Read"), ("user2", "Write"), ("user3", "Read"))
+      )
 
       response.status mustEqual NO_CONTENT
 
       val projectResponse = situation.fetchUsersForProject("tenant", "project")
-      (projectResponse.json.get \\ "username").map(v => v.as[String]) must contain allOf("user1", "user2", "user3")
-      val user3Right = projectResponse.json.get.as[JsArray].value.filter(v => (v \ "username").as[String] == "user3").map(v => (v \ "right").as[String]).head
+      (projectResponse.json.get \\ "username").map(v => v.as[String]) must contain allOf ("user1", "user2", "user3")
+      val user3Right      = projectResponse.json.get
+        .as[JsArray]
+        .value
+        .filter(v => (v \ "username").as[String] == "user3")
+        .map(v => (v \ "right").as[String])
+        .head
 
       user3Right mustBe "Write"
     }
@@ -789,9 +847,7 @@ class UsersAPISpec extends BaseAPISpec {
     "reject request if logged in user is not project admin" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjectNames("project"))
-        .withUsers(
-          TestUser("user1").withTenantReadWriteRight("tenant"),
-          TestUser("user2"))
+        .withUsers(TestUser("user1").withTenantReadWriteRight("tenant"), TestUser("user2"))
         .loggedAs("user1")
         .build()
 
@@ -803,7 +859,7 @@ class UsersAPISpec extends BaseAPISpec {
 
   "User rights update endpoint" should {
     "Allow to update admin status" in {
-      val user = TestUser(username = "foo", admin = false)
+      val user      = TestUser(username = "foo", admin = false)
       val situation = TestSituationBuilder()
         .withUsers(user)
         .loggedInWithAdminRights()
@@ -819,7 +875,7 @@ class UsersAPISpec extends BaseAPISpec {
       response.status mustBe NO_CONTENT
     }
     "Allow to add project right" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights().addTenantRight("my-tenant", level = "Read")
@@ -848,7 +904,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Allow to add key right" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights().addTenantRight("my-tenant", level = "Read")
@@ -875,7 +931,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Allow to add tenant right" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights().addTenantRight("my-tenant", level = "Read")
@@ -901,7 +957,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Allow to modify tenant right" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights().addTenantRight("my-tenant", level = "Read")
@@ -926,7 +982,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Allow to modify project right" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights()
@@ -957,7 +1013,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Allow to modify key right" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights()
@@ -988,7 +1044,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Prevent admin promotion if logged in user is not admin" in {
-      val user = TestUser(
+      val user      = TestUser(
         username = "foo",
         admin = false,
         rights = TestRights()
@@ -1010,7 +1066,7 @@ class UsersAPISpec extends BaseAPISpec {
 
   "User information update endpoint" should {
     "Prevent update username if username or email is too long" in {
-      val user = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
+      val user      = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
       val situation = TestSituationBuilder().withUsers(user).loggedAs("foo").build()
 
       var result = situation.updateUserInformation(
@@ -1032,7 +1088,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Allow a user to modify its own username" in {
-      val user = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
+      val user      = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
       val situation = TestSituationBuilder().withUsers(user).loggedAs("foo").build()
 
       val result = situation.updateUserInformation(
@@ -1050,7 +1106,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Allow a user to modify its own email" in {
-      val user = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
+      val user      = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
       val situation = TestSituationBuilder().withUsers(user).loggedAs("foo").build()
 
       val result =
@@ -1064,8 +1120,8 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Prevent modification from another account" in {
-      val user = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
-      val admin = TestUser(username = "admin", admin = true, password = "barfoofoo")
+      val user      = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
+      val admin     = TestUser(username = "admin", admin = true, password = "barfoofoo")
       val situation = TestSituationBuilder().withUsers(user, admin).loggedAs("admin").build()
 
       var result =
@@ -1078,7 +1134,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Reject update if new username is taken" in {
-      val user = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
+      val user      = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
       val situation = TestSituationBuilder().withUsers(user, TestUser("bar")).loggedAs("foo").build()
 
       val result = situation.updateUserInformation(
@@ -1091,7 +1147,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Reject update if new email is taken" in {
-      val user = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
+      val user      = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
       val situation =
         TestSituationBuilder().withUsers(user, TestUser("bar", email = "bar.bar@baz.com")).loggedAs("foo").build()
 
@@ -1101,7 +1157,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Reject update if password is wrong" in {
-      val user = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
+      val user      = TestUser(username = "foo", email = "foo.bar@baz.com", password = "barbarfoo")
       val situation = TestSituationBuilder().withUsers(user).loggedAs("foo").build()
 
       val result =
@@ -1112,16 +1168,17 @@ class UsersAPISpec extends BaseAPISpec {
 
   "User password update endpoint" should {
     "prevent password update if it's too long" in {
-      val user = TestUser(username = "foo", password = "barbarfoo")
+      val user      = TestUser(username = "foo", password = "barbarfoo")
       val situation = TestSituationBuilder().withUsers(user).loggedAs("foo").build()
 
-      val response = situation.updateUserPassword(user.username, oldPassword = user.password, newPassword = "abcdefghij" * 60)
+      val response =
+        situation.updateUserPassword(user.username, oldPassword = user.password, newPassword = "abcdefghij" * 60)
 
       response.status mustBe BAD_REQUEST
     }
 
     "Allow user own password modification" in {
-      val user = TestUser(username = "foo", password = "barbarfoo")
+      val user      = TestUser(username = "foo", password = "barbarfoo")
       val situation = TestSituationBuilder().withUsers(user).loggedAs("foo").build()
 
       val response = situation.updateUserPassword(user.username, oldPassword = user.password, newPassword = "barfoofoo")
@@ -1132,7 +1189,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Reject another user password modification" in {
-      val user = TestUser(username = "foo", password = "barfoofoo", admin = true)
+      val user      = TestUser(username = "foo", password = "barfoofoo", admin = true)
       val situation =
         TestSituationBuilder().withUsers(user, TestUser("bar", password = "barbarfoo")).loggedAs("foo").build()
 
@@ -1144,7 +1201,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Reject password modification with incorrect old password" in {
-      val user = TestUser(username = "foo", password = "barbarfoo")
+      val user      = TestUser(username = "foo", password = "barbarfoo")
       val situation = TestSituationBuilder().withUsers(user).loggedAs("foo").build()
 
       val response = situation.updateUserPassword(user.username, oldPassword = "barbarbar", newPassword = "barfoofoo")
@@ -1153,7 +1210,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Reject password modification if new password is incorrect" in {
-      val user = TestUser(username = "foo", password = "barbarfoo")
+      val user      = TestUser(username = "foo", password = "barbarfoo")
       val situation = TestSituationBuilder().withUsers(user).loggedAs("foo").build()
 
       val response = situation.updateUserPassword(user.username, oldPassword = "barbarfoo", newPassword = "aaa")
@@ -1172,7 +1229,7 @@ class UsersAPISpec extends BaseAPISpec {
           Json.obj(
             "apiKey" -> "my-key",
             "secret" -> "my-secret",
-            "url" -> "http://localhost:9998"
+            "url"    -> "http://localhost:9998"
           )
         )
         .build()
@@ -1182,8 +1239,11 @@ class UsersAPISpec extends BaseAPISpec {
 
       val requests = mailjetRequests()
       requests.size mustBe 1
-      val body = requests.head._1.getBodyAsString
-      (Json.parse(body) \\ "To").flatMap(jsValue => (jsValue \\ "Email")).map(v => v.as[String]).head mustBe "foo.bar@baz.com"
+      val body     = requests.head._1.getBodyAsString
+      (Json.parse(body) \\ "To")
+        .flatMap(jsValue => (jsValue \\ "Email"))
+        .map(v => v.as[String])
+        .head mustBe "foo.bar@baz.com"
     }
 
     "Return normally even if email does not exist in DB but don't send mail" in {
@@ -1194,7 +1254,7 @@ class UsersAPISpec extends BaseAPISpec {
           Json.obj(
             "apiKey" -> "my-key",
             "secret" -> "my-secret",
-            "url" -> "http://localhost:9998"
+            "url"    -> "http://localhost:9998"
           )
         )
         .build()
@@ -1209,14 +1269,14 @@ class UsersAPISpec extends BaseAPISpec {
   "Password reinitialisation process" should {
     "Update user password" in {
       var situation = TestSituationBuilder()
-        .withUsers(TestUser("foo", email="foo.bar@baz.bar"))
+        .withUsers(TestUser("foo", email = "foo.bar@baz.bar"))
         .withOriginEmail("izanami@baz.com")
         .withMailerConfiguration(
           "MailJet",
           Json.obj(
             "apiKey" -> "my-key",
             "secret" -> "my-secret",
-            "url" -> "http://localhost:9998"
+            "url"    -> "http://localhost:9998"
           )
         )
         .build()
@@ -1226,7 +1286,7 @@ class UsersAPISpec extends BaseAPISpec {
 
       val mailBody = mailjetRequests().head._1.getBodyAsString
       val htmlMail = (Json.parse(mailBody) \ "Messages" \\ "HTMLPart").head.toString()
-      val token = htmlMail.split("token=")(1).split("\\\\")(0)
+      val token    = htmlMail.split("token=")(1).split("\\\\")(0)
       token must not be empty
 
       val reinitResponse = situation.reinitializePassword(password = "foofoofoo", token = token)
@@ -1239,25 +1299,25 @@ class UsersAPISpec extends BaseAPISpec {
 
     "Invalidate reset request if a new one is sent" in {
       var situation = TestSituationBuilder()
-        .withUsers(TestUser("foo", email="foo.bar@baz.bar"))
+        .withUsers(TestUser("foo", email = "foo.bar@baz.bar"))
         .withOriginEmail("izanami@baz.com")
         .withMailerConfiguration(
           "MailJet",
           Json.obj(
             "apiKey" -> "my-key",
             "secret" -> "my-secret",
-            "url" -> "http://localhost:9998"
+            "url"    -> "http://localhost:9998"
           )
         )
         .build()
 
-      val response = situation.resetPassword("foo.bar@baz.bar")
+      val response      = situation.resetPassword("foo.bar@baz.bar")
       val secondRequest = situation.resetPassword("foo.bar@baz.bar")
       secondRequest.status mustBe NO_CONTENT
 
       val mailBody = mailjetRequests().head._1.getBodyAsString
       val htmlMail = (Json.parse(mailBody) \ "Messages" \\ "HTMLPart").head.toString()
-      val token = htmlMail.split("token=")(1).split("\\\\")(0)
+      val token    = htmlMail.split("token=")(1).split("\\\\")(0)
 
       val reinitResponse = situation.reinitializePassword(password = "foofoofoo", token = token)
 
@@ -1273,7 +1333,8 @@ class UsersAPISpec extends BaseAPISpec {
         .withUsers(
           TestUser("foouser").withTenantReadRight("foo"),
           TestUser("baruser").withTenantReadRight("bar"),
-          TestUser("tenantAdmin").withTenantAdminRight("foo"))
+          TestUser("tenantAdmin").withTenantAdminRight("foo")
+        )
         .loggedAs("tenantAdmin")
         .build()
 
@@ -1282,9 +1343,11 @@ class UsersAPISpec extends BaseAPISpec {
       response.status mustBe OK
       val body = response.json.get
 
-      (body \\ "username").map(_.as[String]) must contain allOf("foouser", "tenantAdmin")
-      (body \\ "email").map(_.as[String]) must contain allOf("foouser@imaginarymail.frfrfezfezrf", "tenantAdmin@imaginarymail.frfrfezfezrf")
-      (body \\ "right").map(_.as[String]) must contain allOf("Read", "Admin")
+      (body \\ "username").map(_.as[String]) must contain allOf ("foouser", "tenantAdmin")
+      (body \\ "email").map(
+        _.as[String]
+      ) must contain allOf ("foouser@imaginarymail.frfrfezfezrf", "tenantAdmin@imaginarymail.frfrfezfezrf")
+      (body \\ "right").map(_.as[String]) must contain allOf ("Read", "Admin")
     }
 
     "return admin users as well" in {
@@ -1293,7 +1356,8 @@ class UsersAPISpec extends BaseAPISpec {
         .withUsers(
           TestUser("foouser").withTenantReadRight("foo"),
           TestUser("baruser").withTenantReadRight("bar"),
-          TestUser("my-admin").withAdminRights)
+          TestUser("my-admin").withAdminRights
+        )
         .loggedInWithAdminRights()
         .build()
 
@@ -1302,7 +1366,7 @@ class UsersAPISpec extends BaseAPISpec {
       response.status mustBe OK
       val body = response.json.get
 
-      (body \\ "username").map(_.as[String]) must contain allOf("foouser", "my-admin")
+      (body \\ "username").map(_.as[String]) must contain allOf ("foouser", "my-admin")
     }
 
     "prevent request if user is not tenant admin" in {
@@ -1311,7 +1375,8 @@ class UsersAPISpec extends BaseAPISpec {
         .withUsers(
           TestUser("foouser").withTenantReadRight("foo"),
           TestUser("baruser").withTenantReadRight("bar"),
-          TestUser("tenantAdmin").withTenantReadWriteRight("foo"))
+          TestUser("tenantAdmin").withTenantReadWriteRight("foo")
+        )
         .loggedAs("tenantAdmin")
         .build()
 
@@ -1323,33 +1388,45 @@ class UsersAPISpec extends BaseAPISpec {
 
   "User get by project endpoint" should {
     "return users that have rights for the project" in {
-      val situation = TestSituationBuilder().withTenants(
-        TestTenant("tenant")
-          .withProjectNames("project")
-      ).withUsers(
-        TestUser("shouldHaveRight").withTenantAdminRight("tenant"),
-        TestUser("shouldHaveRightTwo").withTenantReadRight("tenant")
-          .withProjectReadRight("project", tenant = "tenant"),
-        TestUser("shouldAlsoHaveRight").withAdminRights,
-        TestUser("shouldNotHaveRight").withTenantReadWriteRight("tenant")
-      ).loggedInWithAdminRights().build()
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjectNames("project")
+        )
+        .withUsers(
+          TestUser("shouldHaveRight").withTenantAdminRight("tenant"),
+          TestUser("shouldHaveRightTwo")
+            .withTenantReadRight("tenant")
+            .withProjectReadRight("project", tenant = "tenant"),
+          TestUser("shouldAlsoHaveRight").withAdminRights,
+          TestUser("shouldNotHaveRight").withTenantReadWriteRight("tenant")
+        )
+        .loggedInWithAdminRights()
+        .build()
 
       val response = situation.fetchUsersForProject("tenant", "project")
 
-      (response.json.get \\ "username").map(jsValue => jsValue.as[String]).toSeq must contain allOf("shouldHaveRight", "shouldHaveRightTwo", "shouldAlsoHaveRight")
+      (response.json.get \\ "username")
+        .map(jsValue => jsValue.as[String])
+        .toSeq must contain allOf ("shouldHaveRight", "shouldHaveRightTwo", "shouldAlsoHaveRight")
     }
 
     "reject request if logged in user is not project admin" in {
-      val situation = TestSituationBuilder().withTenants(
-        TestTenant("tenant")
-          .withProjectNames("project")
-      ).withUsers(
-        TestUser("shouldHaveRight").withTenantAdminRight("tenant"),
-        TestUser("shouldHaveRightTwo").withTenantReadRight("tenant")
-          .withProjectReadRight("project", tenant = "tenant"),
-        TestUser("shouldAlsoHaveRight").withAdminRights,
-        TestUser("shouldNotHaveRight").withTenantReadWriteRight("tenant")
-      ).loggedAs("shouldNotHaveRight").build()
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjectNames("project")
+        )
+        .withUsers(
+          TestUser("shouldHaveRight").withTenantAdminRight("tenant"),
+          TestUser("shouldHaveRightTwo")
+            .withTenantReadRight("tenant")
+            .withProjectReadRight("project", tenant = "tenant"),
+          TestUser("shouldAlsoHaveRight").withAdminRights,
+          TestUser("shouldNotHaveRight").withTenantReadWriteRight("tenant")
+        )
+        .loggedAs("shouldNotHaveRight")
+        .build()
 
       val response = situation.fetchUsersForProject("tenant", "project")
       response.status mustEqual FORBIDDEN
@@ -1363,7 +1440,7 @@ class UsersAPISpec extends BaseAPISpec {
           TestUser("myse"),
           TestUser("MYSELF"),
           TestUser("myseff"),
-          TestUser("myseeeef"),
+          TestUser("myseeeef")
         )
         .loggedInWithAdminRights()
         .build()
@@ -1371,7 +1448,11 @@ class UsersAPISpec extends BaseAPISpec {
       val response = situation.searchUsers("mys", count = 3)
       response.status mustBe OK
 
-      response.json.get.as[JsArray].value.map(v => v.as[String]) must contain allElementsOf Seq("myse", "MYSELF", "myseff")
+      response.json.get.as[JsArray].value.map(v => v.as[String]) must contain allElementsOf Seq(
+        "myse",
+        "MYSELF",
+        "myseff"
+      )
     }
   }
 }

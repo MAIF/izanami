@@ -2,7 +2,7 @@ package fr.maif.izanami.web
 
 import com.github.jknack.handlebars.Handlebars
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.models.{LightWebhook, RightLevels, Webhook}
+import fr.maif.izanami.models.{LightWebhook, RightLevel, Webhook}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Json, Reads, Writes}
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
@@ -21,7 +21,7 @@ class WebhookController(
   implicit val lightWebhookRead: Reads[LightWebhook] = LightWebhook.lightWebhookRead
   implicit val webhookWrite: Writes[Webhook]         = Webhook.webhookWrite
   private val handlebars                             = new Handlebars()
-  def createWebhook(tenant: String): Action[JsValue] = tenantAuthAction(tenant, RightLevels.Write).async(parse.json) {
+  def createWebhook(tenant: String): Action[JsValue] = tenantAuthAction(tenant, RightLevel.Write).async(parse.json) {
     implicit request =>
       {
         LightWebhook.lightWebhookRead.reads(request.body) match {
@@ -55,13 +55,13 @@ class WebhookController(
       }
   }
 
-  def listWebhooks(tenant: String): Action[AnyContent] = tenantAuthAction(tenant, RightLevels.Read).async {
+  def listWebhooks(tenant: String): Action[AnyContent] = tenantAuthAction(tenant, RightLevel.Read).async {
     implicit request =>
       env.datastores.webhook.listWebhook(tenant, request.user.username).map(ws => Ok(Json.toJson(ws)))
   }
 
   def deleteWebhook(tenant: String, id: String): Action[AnyContent] =
-    (webhookAuthAction(tenant = tenant, webhook = id, minimumLevel = RightLevels.Admin)).async { implicit request =>
+    (webhookAuthAction(tenant = tenant, webhook = id, minimumLevel = RightLevel.Admin)).async { implicit request =>
       env.datastores.webhook
         .deleteWebhook(tenant, id)
         .map {
@@ -71,7 +71,7 @@ class WebhookController(
     }
 
   def updateWebhook(tenant: String, id: String): Action[JsValue] =
-    webhookAuthAction(tenant = tenant, webhook = id, minimumLevel = RightLevels.Write).async(parse.json) {
+    webhookAuthAction(tenant = tenant, webhook = id, minimumLevel = RightLevel.Write).async(parse.json) {
       implicit request =>
         {
           (for (
