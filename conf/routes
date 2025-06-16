@@ -6,7 +6,7 @@
 # Administration endpoints
 POST          /api/admin/tenants                                                                   fr.maif.izanami.web.TenantController.createTenant()
 PUT           /api/admin/tenants/:name                                                             fr.maif.izanami.web.TenantController.updateTenant(name: String)
-GET           /api/admin/tenants                                                                   fr.maif.izanami.web.TenantController.readTenants(right: Option[fr.maif.izanami.models.RightLevels.RightLevel])
+GET           /api/admin/tenants                                                                   fr.maif.izanami.web.TenantController.readTenants(right: Option[fr.maif.izanami.models.RightLevel])
 GET           /api/admin/tenants/:name                                                             fr.maif.izanami.web.TenantController.readTenant(name: String)
 DELETE        /api/admin/tenants/:name                                                             fr.maif.izanami.web.TenantController.deleteTenant(name: String)
 

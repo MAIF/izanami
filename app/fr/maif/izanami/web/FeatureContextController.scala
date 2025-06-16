@@ -30,7 +30,7 @@ class FeatureContextController(
       project: String,
       parents: FeatureContextPath,
       name: String
-  ): Action[JsValue] = authAction(tenant, project, RightLevels.Admin).async(parse.json) { implicit request =>
+  ): Action[JsValue] = authAction(tenant, project, ProjectRightLevel.Admin).async(parse.json) { implicit request =>
     {
       (request.body \ "protected").asOpt[Boolean] match {
         case Some(isProtected) =>
@@ -54,43 +54,51 @@ class FeatureContextController(
     // TODO allow only write level users on project
     (detailledRightForTenantFactory(tenant)).async(parse.json) { implicit request =>
       {
-        (request.body \ "name").asOpt[String].map(name => {
-          val maybeProtected = (request.body \ "protected").asOpt[Boolean]
+        (request.body \ "name")
+          .asOpt[String]
+          .map(name => {
+            val maybeProtected = (request.body \ "protected").asOpt[Boolean]
             type ProtectedStatus = Boolean
             val parentProtected: Future[Either[IzanamiError, ProtectedStatus]] = if (parents.elements.isEmpty) {
-              if (request.user.hasRightForProject(project, RightLevels.Write)) {
+              if (request.user.hasRightForProject(project, ProjectRightLevel.Write)) {
                 Right(false).future
               } else {
                 Left(NotEnoughRights()).future
               }
             } else {
-              canUpdateContext(tenant, request.user, parents).map(either =>
-                either.map(ctx => ctx.isProtected)
-              )
+              canUpdateContext(tenant, request.user, parents).map(either => either.map(ctx => ctx.isProtected))
             }
 
             parentProtected.flatMap {
-              case Left(err)              => err.toHttpResponse.future
-              case Left(err)              => err.toHttpResponse.future
-              case Right(true) if maybeProtected.exists(p => !p) => BadRequest(Json.obj("message" -> "Can't create an unprotected context as child of protected context")).future
-              case Right(parentProtected) => {
+              case Left(err)                                     => err.toHttpResponse.future
+              case Left(err)                                     => err.toHttpResponse.future
+              case Right(true) if maybeProtected.exists(p => !p) =>
+                BadRequest(
+                  Json.obj("message" -> "Can't create an unprotected context as child of protected context")
+                ).future
+              case Right(parentProtected)                        => {
                 val isProtected = maybeProtected.getOrElse(parentProtected)
-                datastore.createContext(tenant, parents, LocalFeatureContextCreationRequest(
-                    name = name,
-                    parent = parents,
-                    global = false,
-                    project = project,
-                    isProtected = isProtected
-                  ))
+                datastore
+                  .createContext(
+                    tenant,
+                    parents,
+                    LocalFeatureContextCreationRequest(
+                      name = name,
+                      parent = parents,
+                      global = false,
+                      project = project,
+                      isProtected = isProtected
+                    )
+                  )
                   .map {
                     case Left(err)      => err.toHttpResponse
                     case Right(context) => Created(Json.toJson(context)(Context.writes))
                   }
               }
             }
-        })
-        }.getOrElse(BadRequest(Json.obj("message" -> "Bad body format")).future)
-      }
+          })
+      }.getOrElse(BadRequest(Json.obj("message" -> "Bad body format")).future)
+    }
 
   def deleteFeatureStrategy(
       tenant: String,
@@ -123,7 +131,7 @@ class FeatureContextController(
             .flatMap(contexts => {
               if (
                 contexts
-                  .exists(ctx => ctx.isProtected) && !request.user.hasRightForProject(project, RightLevels.Admin)
+                  .exists(ctx => ctx.isProtected) && !request.user.hasRightForProject(project, ProjectRightLevel.Admin)
               ) {
                 val protectedSubContexts =
                   contexts.filter(c => c.isProtected).map(c => c.fullyQualifiedName.mkString("/"))
@@ -145,7 +153,7 @@ class FeatureContextController(
     }
 
   def readFeatureContexts(tenant: String, project: String): Action[AnyContent] =
-    authAction(tenant, project, RightLevels.Read).async { implicit request: Request[AnyContent] =>
+    authAction(tenant, project, ProjectRightLevel.Read).async { implicit request: Request[AnyContent] =>
       datastore
         .readFeatureContexts(tenant, project)
         .map(createFeatureContextHierarchy)
@@ -159,9 +167,9 @@ class FeatureContextController(
     def fillChildren(current: ContextHolder): ContextNode = {
       val children = byParent.getOrElse(current.context.fullyQualifiedName, Seq())
       if (children.isEmpty) {
-        ContextNode(underlying = current, children=Seq())
+        ContextNode(underlying = current, children = Seq())
       } else {
-        ContextNode(underlying = current, children=children.map(g => fillChildren(g)))
+        ContextNode(underlying = current, children = children.map(g => fillChildren(g)))
       }
     }
 
@@ -181,13 +189,14 @@ class FeatureContextController(
           datastore
             .getFeatureContext(tenant, project, parents)
             .flatMap {
-              case None                                                                                         => FeatureContextDoesNotExist(parents.toUserPath).toHttpResponse.future
-              case Some(ctx) if ctx.isProtected && !request.user.hasRightForProject(project, RightLevels.Admin) => {
+              case None    => FeatureContextDoesNotExist(parents.toUserPath).toHttpResponse.future
+              case Some(ctx)
+                  if ctx.isProtected && !request.user.hasRightForProject(project, ProjectRightLevel.Admin) => {
                 Forbidden(
                   Json.obj("message" -> "You are not allowed to create or update a feature stratgy for this context")
                 ).future
               }
-              case Some(_)                                                                                      => {
+              case Some(_) => {
                 datastore
                   .updateFeatureStrategy(tenant, project, parents, name, value, request.userInformation)
                   .map(eitherCreated => {
@@ -205,36 +214,47 @@ class FeatureContextController(
 
   def createGlobalSubContext(tenant: String, parents: FeatureContextPath = FeatureContextPath()): Action[JsValue] =
     detailledRightForTenantFactory(tenant).async(parse.json) { implicit request =>
-      (request.body \ "name").asOpt[String].map(name => {
-        val maybeProtected = (request.body \ "protected").asOpt[Boolean]
+      (request.body \ "name")
+        .asOpt[String]
+        .map(name => {
+          val maybeProtected = (request.body \ "protected").asOpt[Boolean]
 
-        type ProtectedStatus = Boolean
-        val isParentProtected: Future[Either[IzanamiError, ProtectedStatus]] = if (parents.elements.isEmpty) {
-          if (!request.user.hasRightForTenant(RightLevels.Write)) {
-            Left(NotEnoughRights()).future
+          type ProtectedStatus = Boolean
+          val isParentProtected: Future[Either[IzanamiError, ProtectedStatus]] = if (parents.elements.isEmpty) {
+            if (!request.user.hasRightForTenant(RightLevel.Write)) {
+              Left(NotEnoughRights()).future
+            } else {
+              Right(false).future
+            }
           } else {
-            Right(false).future
+            canUpdateContext(tenant, request.user, parents).map(either => either.map(c => c.isProtected))
           }
-        } else {
-          canUpdateContext(tenant, request.user, parents).map(either => either.map(c => c.isProtected))
-        }
 
-        isParentProtected.flatMap {
-          case Left(err)              => err.toHttpResponse.future
-          case Right(true) if maybeProtected.exists(p => !p) => BadRequest(Json.obj("message" -> "Can't create an unprotected context as child of protected context")).future
-          case Right(parentProtected) => {
-            val isProtected = maybeProtected.getOrElse(parentProtected)
-            datastore.createContext(
-              tenant,
-              parents,
-              GlobalFeatureContextCreationRequest(name = name, parent = parents, global = true, isProtected = isProtected)
-            ) map {
-              case Left(err)     => err.toHttpResponse
-              case Right(result) => Created(Json.toJson(result)(Context.writes))
+          isParentProtected.flatMap {
+            case Left(err)                                     => err.toHttpResponse.future
+            case Right(true) if maybeProtected.exists(p => !p) =>
+              BadRequest(
+                Json.obj("message" -> "Can't create an unprotected context as child of protected context")
+              ).future
+            case Right(parentProtected)                        => {
+              val isProtected = maybeProtected.getOrElse(parentProtected)
+              datastore.createContext(
+                tenant,
+                parents,
+                GlobalFeatureContextCreationRequest(
+                  name = name,
+                  parent = parents,
+                  global = true,
+                  isProtected = isProtected
+                )
+              ) map {
+                case Left(err)     => err.toHttpResponse
+                case Right(result) => Created(Json.toJson(result)(Context.writes))
+              }
             }
           }
-        }
-      }).getOrElse(BadBodyFormat().toHttpResponse.future)
+        })
+        .getOrElse(BadBodyFormat().toHttpResponse.future)
     }
 
   def createGlobalRootSubContext(tenant: String): Action[JsValue] = createGlobalSubContext(tenant, FeatureContextPath())
@@ -242,7 +262,7 @@ class FeatureContextController(
   def updateGlobalContext(
       tenant: String,
       context: FeatureContextPath = FeatureContextPath()
-  ): Action[JsValue] = tenantAuthAction(tenant, RightLevels.Admin).async(parse.json) { implicit request =>
+  ): Action[JsValue] = tenantAuthAction(tenant, RightLevel.Admin).async(parse.json) { implicit request =>
     {
       val json = request.body
       (json \ "protected").asOpt[Boolean] match {
@@ -263,7 +283,7 @@ class FeatureContextController(
   }
 
   def readGlobalContexts(tenant: String, all: Boolean): Action[AnyContent] =
-    tenantAuthAction(tenant, RightLevels.Read).async { implicit request =>
+    tenantAuthAction(tenant, RightLevel.Read).async { implicit request =>
       {
         if (all) {
           datastore
@@ -287,7 +307,7 @@ class FeatureContextController(
           datastore
             .findChildrenForGlobalContext(tenant, context)
             .flatMap(ctxs => {
-              if (ctxs.exists(c => c.isProtected) && !request.user.hasRightForTenant(RightLevels.Admin)) {
+              if (ctxs.exists(c => c.isProtected) && !request.user.hasRightForTenant(RightLevel.Admin)) {
                 val protectedSubContexts = ctxs.filter(c => c.isProtected).map(c => c.fullyQualifiedName.mkString("/"))
                 Forbidden(
                   Json.obj("message" -> s"Context can't be deleted since it has following protecting subcontexts : ${protectedSubContexts
@@ -305,20 +325,26 @@ class FeatureContextController(
     }
 
   def canUpdateContext(
-                                 tenant: String,
-                                 user: UserWithCompleteRightForOneTenant,
-                                 contextPath: FeatureContextPath
+      tenant: String,
+      user: UserWithCompleteRightForOneTenant,
+      contextPath: FeatureContextPath
   ): Future[Either[IzanamiError, Context]] = {
-    datastore.readContext(tenant, contextPath).map(o => o.toRight(FeatureContextDoesNotExist(contextPath.toUserPath))).map(e => e.flatMap {
-      case c: GlobalContext if c.isProtected && user.hasRightForTenant(RightLevels.Admin) => Right(c)
-      case c: GlobalContext if c.isProtected => Left(NoProtectedContextAccess(contextPath.toUserPath))
-      case c: GlobalContext if user.hasRightForTenant(RightLevels.Write) => Right(c)
-      case c: GlobalContext => Left(NotEnoughRights())
-      case c: LocalContext if c.isProtected && user.hasRightForProject(c.project, RightLevels.Admin) => Right(c)
-      case c: LocalContext if c.isProtected  => Left(NoProtectedContextAccess(contextPath.toUserPath))
-      case c: LocalContext if user.hasRightForProject(c.project, RightLevels.Write) => Right(c)
-      case _ => Left(NotEnoughRights())
-    })
+    datastore
+      .readContext(tenant, contextPath)
+      .map(o => o.toRight(FeatureContextDoesNotExist(contextPath.toUserPath)))
+      .map(e =>
+        e.flatMap {
+          case c: GlobalContext if c.isProtected && user.hasRightForTenant(RightLevel.Admin)                   => Right(c)
+          case c: GlobalContext if c.isProtected                                                                => Left(NoProtectedContextAccess(contextPath.toUserPath))
+          case c: GlobalContext if user.hasRightForTenant(RightLevel.Write)                                    => Right(c)
+          case c: GlobalContext                                                                                 => Left(NotEnoughRights())
+          case c: LocalContext if c.isProtected && user.hasRightForProject(c.project, ProjectRightLevel.Admin) =>
+            Right(c)
+          case c: LocalContext if c.isProtected                                                                 => Left(NoProtectedContextAccess(contextPath.toUserPath))
+          case c: LocalContext if user.hasRightForProject(c.project, ProjectRightLevel.Write)                  => Right(c)
+          case _                                                                                                => Left(NotEnoughRights())
+        }
+      )
   }
 
 }

@@ -4,7 +4,7 @@ import fr.maif.izanami.models.Project.dbProjectReads
 import play.api.libs.json.Format.GenericFormat
 import play.api.libs.json._
 
-import fr.maif.izanami.models.RightLevels.RightLevel
+import fr.maif.izanami.models.RightLevel
 import scala.util.matching.Regex
 
 case class Tenant(name: String, projects: List[Project] = List(), tags: List[Tag] = List(), description: String = "") {

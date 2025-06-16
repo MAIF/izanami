@@ -9,7 +9,7 @@ import fr.maif.izanami.errors.{FailedToCreateTenantSchema, InternalServerError, 
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.EventService.IZANAMI_CHANNEL
 import fr.maif.izanami.events.{SourceTenantCreated, SourceTenantDeleted}
-import fr.maif.izanami.models.{RightLevels, Tenant, TenantCreationRequest}
+import fr.maif.izanami.models.{RightLevel, Tenant, TenantCreationRequest}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.web.ImportState.{importFailureWrites, importResultReads, importSuccessWrites}
@@ -132,7 +132,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
                | INSERT INTO izanami.users_tenants_rights(username, tenant, level) VALUES ($$1, $$2, $$3)
                | RETURNING username
                |""".stripMargin,
-            List(user.username, value.name, RightLevels.Admin.toString.toUpperCase),
+            List(user.username, value.name, RightLevel.Admin.toString.toUpperCase),
             conn=Some(conn)
           ){_ => Some(value)}
           .map(maybeFeature => maybeFeature.toRight(InternalServerError()))

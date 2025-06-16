@@ -1,7 +1,7 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.models.{RightLevels, Tag}
+import fr.maif.izanami.models.{RightLevel, Tag}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc._
@@ -15,7 +15,7 @@ class TagController(
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
 
-  def createTag(tenant: String): Action[JsValue] = authAction(tenant, RightLevels.Write).async(parse.json) {
+  def createTag(tenant: String): Action[JsValue] = authAction(tenant, RightLevel.Write).async(parse.json) {
     implicit request =>
       Future.successful(Forbidden)
       Tag.tagRequestReads.reads(request.body) match {
@@ -33,14 +33,14 @@ class TagController(
       }
   }
 
-  def deleteTag(tenant: String, name: String): Action[AnyContent] = authAction(tenant, RightLevels.Write).async {
+  def deleteTag(tenant: String, name: String): Action[AnyContent] = authAction(tenant, RightLevel.Write).async {
     implicit request: Request[AnyContent] => env.datastores.tags.deleteTag(tenant, name).map {
       case Left(err) => err.toHttpResponse
       case Right(value) => NoContent
     }
   }
 
-  def readTag(tenant: String, name: String): Action[AnyContent] = authAction(tenant, RightLevels.Read).async {
+  def readTag(tenant: String, name: String): Action[AnyContent] = authAction(tenant, RightLevel.Read).async {
     implicit request: Request[AnyContent] =>
       env.datastores.tags
         .readTag(tenant, name)
@@ -52,11 +52,11 @@ class TagController(
         )
   }
 
-  def readTags(tenant: String): Action[AnyContent] = authAction(tenant, RightLevels.Read).async { implicit request: Request[AnyContent] =>
+  def readTags(tenant: String): Action[AnyContent] = authAction(tenant, RightLevel.Read).async { implicit request: Request[AnyContent] =>
     env.datastores.tags.readTags(tenant).map(tags => Ok(Json.toJson(tags)))
   }
 
-  def updateTag(tenant: String, currentName: String): Action[JsValue] = authAction(tenant, RightLevels.Write).async(parse.json) {
+  def updateTag(tenant: String, currentName: String): Action[JsValue] = authAction(tenant, RightLevel.Write).async(parse.json) {
     implicit request =>
       Tag.tagReads.reads(request.body) match {
         case JsError(e)        => BadRequest(Json.obj("message" -> "bad body format")).future
