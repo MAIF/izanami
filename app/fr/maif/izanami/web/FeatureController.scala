@@ -3,7 +3,7 @@ package fr.maif.izanami.web
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{FeatureNotFound, IncorrectKey, IzanamiError, TagDoesNotExists}
 import fr.maif.izanami.models.Feature._
-import fr.maif.izanami.models.FeatureCall.{FeatureCallOrigin, Sse}
+import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
 import fr.maif.izanami.models.LightWeightFeatureWithUsageInformation.writeLightWeightFeatureWithUsageInformation
 import fr.maif.izanami.models._
 import fr.maif.izanami.models.features._
@@ -337,15 +337,25 @@ class FeatureController(
           env.datastores.features
             .findFeaturesProjects(tenant, fs.map(fp => fp.id).toSet)
             .map(sourceProjects => {
-              sourceProjects.concat(
-                fs.collect { case ProjectFeaturePatch(target, _) =>
-                  target
-                }
-              )
+              sourceProjects ++
+              fs.collect { case ProjectFeaturePatch(target, id) =>
+                id -> target
+              }
             })
-            .flatMap(projects => {
-              val unauthorizedProjects =
-                projects.filter(project => !request.user.hasRightForProject(project, ProjectRightLevel.Write))
+            .flatMap(projectByFeatures => {
+              val requiredRightByFeature = fs
+                .groupMap(_.id)(_.requiredRight)
+
+              val featureByProjects = projectByFeatures.toList.groupMap {case (feature, project) => project}{case (feature, _) => feature}
+              val neededRightByProject = featureByProjects.view
+                .mapValues(features => features.flatMap(f => requiredRightByFeature(f)).max(ProjectRightLevel.ProjectRightOrdering))
+                .toMap
+
+
+
+
+              val unauthorizedProjects   = neededRightByProject.filter {case (project, requiredRight) => !request.user.hasRightForProject(project, requiredRight)}
+
               if (unauthorizedProjects.nonEmpty) {
                 Forbidden(
                   Json.obj(
@@ -440,11 +450,11 @@ class FeatureController(
                     env.datastores.features
                       .findById(tenant, id)
                       .flatMap {
-                        case Left(err)                                                                      => err.toHttpResponse.future
-                        case Right(None)                                                                    => NotFound("").toFuture
+                        case Left(err)                                                              => err.toHttpResponse.future
+                        case Right(None)                                                            => NotFound("").toFuture
                         case Right(Some(oldFeature)) if !canUpdateFeature(oldFeature, request.user) =>
                           Forbidden(Json.obj("message" -> "Your are not allowed to update this feature")).toFuture
-                        case Right(Some(oldFeature))                                                        => {
+                        case Right(Some(oldFeature))                                                => {
                           env.datastores.features
                             .update(
                               tenant = tenant,

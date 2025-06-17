@@ -118,6 +118,8 @@ const BULK_OPERATIONS = [
   "Apply Tags",
 ] as const;
 
+const UPDATE_BULK_OPERATIONS = ["Enable", "Disable", "Apply Tags"] as const;
+
 function days(days: TDayOfWeepPeriod): string {
   return `on ${days.days
     .sort((d1, d2) => {
@@ -2381,9 +2383,14 @@ export function FeatureTable(props: {
   const [bulkOperation, setBulkOperation] = useState<string | undefined>(
     undefined
   );
+
+  const canDeleteSelected = selectedRows
+    .map((f) => f.project!)
+    .every((p) => hasRightForProject(user!, TProjectLevel.Write, p, tenant!));
+
   const selectableRows = features
     .map((f) => f.project!)
-    .some((p) => hasRightForProject(user!, TLevel.Write, p, tenant!));
+    .some((p) => hasRightForProject(user!, TProjectLevel.Update, p, tenant!));
   return (
     <div>
       {selectableRows && (
@@ -2393,7 +2400,10 @@ export function FeatureTable(props: {
           }`}
         >
           <Select
-            options={BULK_OPERATIONS.map((op) => ({ label: op, value: op }))}
+            options={(canDeleteSelected
+              ? BULK_OPERATIONS
+              : UPDATE_BULK_OPERATIONS
+            ).map((op) => ({ label: op, value: op }))}
             value={
               bulkOperation
                 ? { label: bulkOperation, value: bulkOperation }

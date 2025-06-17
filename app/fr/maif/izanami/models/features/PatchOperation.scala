@@ -1,5 +1,7 @@
 package fr.maif.izanami.models.features
 
+import fr.maif.izanami.models.ProjectRightLevel
+import fr.maif.izanami.models.ProjectRightLevel.{Update, Write}
 import play.api.libs.json.{JsError, JsSuccess, Reads}
 
 import scala.util.matching.Regex
@@ -21,26 +23,31 @@ sealed trait FeaturePatch {
   def op: PatchOperation
   def path: PatchPathField
   def id: String
+  def requiredRight: ProjectRightLevel
 }
 
 case class EnabledFeaturePatch(value: Boolean, id: String) extends FeaturePatch {
   override def op: PatchOperation   = Replace
   override def path: PatchPathField = Enabled
+  override def requiredRight: ProjectRightLevel = Update
 }
 
 case class ProjectFeaturePatch(value: String, id: String) extends FeaturePatch {
   override def op: PatchOperation   = Replace
   override def path: PatchPathField = ProjectFeature
+  override def requiredRight: ProjectRightLevel = Write
 }
 
 case class TagsFeaturePatch(value: Set[String], id: String) extends FeaturePatch {
   override def op: PatchOperation   = Replace
   override def path: PatchPathField = TagsFeature
+  override def requiredRight: ProjectRightLevel = Update
 }
 
 case class RemoveFeaturePatch(id: String) extends FeaturePatch {
   override def op: PatchOperation   = Remove
   override def path: PatchPathField = RootFeature
+  override def requiredRight: ProjectRightLevel = Write
 }
 
 object FeaturePatch {

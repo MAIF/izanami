@@ -82,6 +82,21 @@ case object ProjectRightLevel {
   case object Write  extends ProjectRightLevel
   case object Admin  extends ProjectRightLevel
 
+
+  object ProjectRightOrdering extends Ordering[ProjectRightLevel] {
+    def compare(a:ProjectRightLevel, b:ProjectRightLevel): Int = (a, b) match {
+      case (ar, br) if ar == br => 0
+      case (Admin, _) => 1
+      case (_, Admin) => -1
+      case (Write, _) => 1
+      case (_, Write) => -1
+      case (Update, _) => 1
+      case (_, Update) => -1
+      case _ => 1
+    }
+  }
+
+
   val projectRightLevelWrites: Writes[ProjectRightLevel] = {
     case Read   => JsString("Read")
     case Update => JsString("Update")
