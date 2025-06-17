@@ -793,6 +793,25 @@ class UsersAPISpec extends BaseAPISpec {
   }
 
   "User POST endpoint for project" should {
+    "allow to invite existing user to project with update right" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .withUsers(TestUser("user1"))
+        .loggedInWithAdminRights()
+        .build()
+
+      val response = situation.inviteUsersToProject(
+        "tenant",
+        "project",
+        Seq(("user1", "Update"))
+      )
+
+      response.status mustEqual NO_CONTENT
+
+      val projectResponse = situation.fetchUsersForProject("tenant", "project")
+      (projectResponse.json.get \\ "username").map(v => v.as[String]) must contain   ("user1")
+    }
+
     "allow to add new users to project" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjectNames("project"))

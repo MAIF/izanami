@@ -1506,7 +1506,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       .map(_ => ())
   }
 
-  def addUserRightsToProject(tenant: String, project: String, users: Seq[(String, RightLevel)]): Future[Unit] = {
+  def addUserRightsToProject(tenant: String, project: String, users: Seq[(String, ProjectRightLevel)]): Future[Unit] = {
     env.postgresql
       .queryAll(
         s"""

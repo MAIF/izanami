@@ -84,7 +84,6 @@ export class TestSituationBuilder {
       },
     })
       .then((resp) => {
-        console.log("status1", resp.status);
         return resp;
       })
       .then((userResponse) => userResponse.json())
@@ -134,7 +133,13 @@ export class TestSituationBuilder {
 
     Promise.all(
       context.subcontexts.map((c) =>
-        this.buildContextHierarchy(page, tenant, c, `${parent}/${context.name}`)
+        this.buildContextHierarchy(
+          page,
+          tenant,
+          c,
+          url,
+          `${parent}/${context.name}`
+        )
       )
     );
   }

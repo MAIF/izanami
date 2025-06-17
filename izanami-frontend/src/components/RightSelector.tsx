@@ -8,6 +8,8 @@ import {
   findTenantRight,
   rightsBelow,
   IzanamiContext,
+  projectRightsBelowProject,
+  projectRightsBelow,
 } from "../securityContext";
 import { customStyles } from "../styles/reactSelect";
 import {
@@ -20,7 +22,7 @@ import {
   tenantQueryKey,
   webhookQueryKey,
 } from "../utils/queries";
-import { TLevel, TRights } from "../utils/types";
+import { TLevel, TProjectLevel, TRights } from "../utils/types";
 import { Loader } from "./Loader";
 import { State } from "../utils/rightUtils";
 
@@ -76,7 +78,7 @@ interface TenantLevelEvent extends Event {
 
 interface ProjectLevelEvent extends Event {
   type: "SetProjectLevel";
-  level: TLevel;
+  level: TProjectLevel;
   tenant: string;
   name: string;
 }
@@ -494,7 +496,7 @@ export function RightSelector(props: {
 function ProjectSelector(props: {
   tenant: string;
   dispatch: (event: EventTypes) => void;
-  projects: { name: string; level?: TLevel }[];
+  projects: { name: string; level?: TProjectLevel }[];
 }) {
   const [creating, setCreating] = useState(false);
   const { tenant, dispatch, projects } = props;
@@ -527,6 +529,7 @@ function ProjectSelector(props: {
         {projects.map(({ name, level }) => (
           <div className="my-2" key={`${name}-container`}>
             <ItemSelector
+              projectRight={true}
               label={`${tenant} project`}
               key={name}
               userRight={
@@ -767,17 +770,33 @@ function WebhookSelector(props: {
   }
 }
 
-function ItemSelector(props: {
-  choices: string[];
-  userRight?: TLevel;
-  onItemChange: (name: string) => void;
-  onLevelChange?: (level: TLevel) => void;
-  onClear?: () => void;
-  level?: TLevel;
-  name?: string;
-  rightOnly?: boolean;
-  label: string;
-}) {
+type ItemSelectorProps =
+  | {
+      choices: string[];
+      userRight?: TLevel;
+      onItemChange: (name: string) => void;
+      onLevelChange?: (level: TLevel) => void;
+      onClear?: () => void;
+      level?: TLevel;
+      name?: string;
+      rightOnly?: boolean;
+      label: string;
+      projectRight?: false;
+    }
+  | {
+      choices: string[];
+      userRight?: TProjectLevel;
+      onItemChange: (name: string) => void;
+      onLevelChange?: (level: TProjectLevel) => void;
+      onClear?: () => void;
+      level?: TProjectLevel;
+      name?: string;
+      rightOnly?: boolean;
+      label: string;
+      projectRight: true;
+    };
+
+function ItemSelector(props: ItemSelectorProps) {
   const {
     choices,
     onItemChange,
@@ -787,6 +806,7 @@ function ItemSelector(props: {
     level,
     userRight,
     label,
+    projectRight,
   } = props;
 
   const baseAriaLabel = `${label}${name ? ` ${name}` : ""}`;
@@ -809,12 +829,15 @@ function ItemSelector(props: {
         styles={customStyles}
         value={level ? { value: level, label: level } : undefined}
         placeholder="Right level"
-        options={rightsBelow(userRight).map((level) => ({
+        options={(projectRight
+          ? projectRightsBelow(userRight)
+          : rightsBelow(userRight)
+        ).map((level) => ({
           label: level,
           value: level,
         }))}
         onChange={(entry) => {
-          onLevelChange?.(entry!.value!);
+          onLevelChange?.(entry!.value! as any);
         }}
         isDisabled={!name}
       />

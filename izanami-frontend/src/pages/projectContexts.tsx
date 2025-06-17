@@ -19,6 +19,7 @@ import {
   TContext,
   TContextOverload,
   TLevel,
+  TProjectLevel,
   TWasmConfig,
 } from "../utils/types";
 import { useProjectRight } from "../securityContext";
@@ -184,7 +185,12 @@ function ProjectOverloadTable({
 
   const [creating, setCreating] = React.useState(false);
   const [displayingAllFeatures, displayAllFeatures] = useState(false);
-  const editionRight = useProjectRight(tenant, project, TLevel.Write);
+  const createDeleteRight = useProjectRight(
+    tenant,
+    project,
+    TProjectLevel.Write
+  );
+  const updateRight = useProjectRight(tenant, project, TProjectLevel.Update);
   const { allContexts } = React.useContext(LocalContext);
   if (projectQuery.data) {
     return (
@@ -243,8 +249,10 @@ function ProjectOverloadTable({
           contexts={allContexts}
           project={project!}
           actions={(o) =>
-            editionRight && o.path === path.substring(1)
+            createDeleteRight && o.path === path.substring(1)
               ? ["edit", "test", "delete"]
+              : updateRight && o.path === path.substring(1)
+              ? ["edit", "test"]
               : []
           }
           fields={["path", "name", "enabled", "details"]}

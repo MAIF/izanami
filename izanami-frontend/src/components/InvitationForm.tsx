@@ -1,4 +1,4 @@
-import { TLevel } from "../utils/types";
+import { TLevel, TProjectLevel } from "../utils/types";
 import AsyncSelect from "react-select/async";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
@@ -28,11 +28,26 @@ const LEVEL_OPTIONS = Object.values(TLevel).map((n) => ({
   value: n,
 }));
 
-export function InvitationForm(props: {
-  submit: (p: { users: string[]; level: TLevel }) => void;
-  cancel: () => void;
-  invitedUsers?: string[];
-}) {
+const PROJECT_LEVEL_OPTIONS = Object.values(TProjectLevel).map((n) => ({
+  label: n,
+  value: n,
+}));
+
+type InvitationProps =
+  | {
+      submit: (p: { users: string[]; level: TLevel }) => void;
+      cancel: () => void;
+      invitedUsers?: string[];
+      projectRight?: false;
+    }
+  | {
+      submit: (p: { users: string[]; level: TProjectLevel }) => void;
+      cancel: () => void;
+      invitedUsers?: string[];
+      projectRight: true;
+    };
+
+export function InvitationForm(props: InvitationProps) {
   const methods = useForm<{ users: Option[]; level: TLevel }>({
     defaultValues: {},
   });
@@ -41,7 +56,7 @@ export function InvitationForm(props: {
     control,
     formState: { errors },
   } = methods;
-
+  console.log("props?.projectRight", props?.projectRight);
   return (
     <FormProvider {...methods}>
       <form
@@ -95,12 +110,17 @@ export function InvitationForm(props: {
             }}
             render={({ field: { onChange, value } }) => (
               <Select
-                value={LEVEL_OPTIONS.find((o) => o.value === value)}
+                value={(props?.projectRight
+                  ? PROJECT_LEVEL_OPTIONS
+                  : LEVEL_OPTIONS
+                ).find((o) => o.value === value)}
                 onChange={(value) => {
                   onChange(value?.value);
                 }}
                 styles={customStyles}
-                options={LEVEL_OPTIONS}
+                options={
+                  props?.projectRight ? PROJECT_LEVEL_OPTIONS : LEVEL_OPTIONS
+                }
               />
             )}
           />
