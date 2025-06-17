@@ -1,5 +1,5 @@
 import React, { JSX, useContext } from "react";
-import { TLevel, TRights, TUser } from "./utils/types";
+import { TLevel, TProjectLevel, TRights, TUser } from "./utils/types";
 
 export const MODE_KEY = "izanami-dark-light-mode";
 export const Modes = { light: "light", dark: "dark" } as const;
@@ -109,7 +109,7 @@ export function useKeyRight(tenant: string, key: string, level: TLevel) {
 export function useProjectRight(
   tenant: string | undefined,
   project: string | undefined,
-  level: TLevel
+  level: TProjectLevel
 ) {
   const { user } = useContext(IzanamiContext);
   const tenantAdmin = useTenantRight(tenant, TLevel.Admin);
@@ -131,7 +131,7 @@ export function useProjectRight(
     return false;
   }
 
-  return isRightAbove(currentRight, level);
+  return isProjectRightAbove(currentRight, level);
 }
 
 export function hasRightForProject(
@@ -248,6 +248,39 @@ function isRightAbove(currentRight: TLevel, seekedRight: TLevel) {
   }
 }
 
+function isProjectRightAbove(
+  currentRight: TProjectLevel,
+  seekedRight: TProjectLevel
+) {
+  if (!currentRight) {
+    return false;
+  }
+  switch (seekedRight) {
+    case TProjectLevel.Read:
+      return (
+        currentRight === TProjectLevel.Read ||
+        currentRight === TProjectLevel.Update ||
+        currentRight === TProjectLevel.Write ||
+        currentRight === TProjectLevel.Admin
+      );
+    case TProjectLevel.Update:
+      return (
+        currentRight === TProjectLevel.Update ||
+        currentRight === TProjectLevel.Write ||
+        currentRight === TProjectLevel.Admin
+      );
+    case TProjectLevel.Write:
+      return (
+        currentRight === TProjectLevel.Write ||
+        currentRight === TProjectLevel.Admin
+      );
+    case TProjectLevel.Admin:
+      return currentRight === TProjectLevel.Admin;
+    default:
+      return false;
+  }
+}
+
 export function rightsBelow(currentRight?: TLevel): TLevel[] {
   if (!currentRight) {
     return [];
@@ -255,6 +288,22 @@ export function rightsBelow(currentRight?: TLevel): TLevel[] {
   const result = [TLevel.Read, TLevel.Write, TLevel.Admin].filter((level) =>
     isRightAbove(currentRight, level)
   );
+
+  return result;
+}
+
+export function projectRightsBelow(
+  currentRight?: TProjectLevel
+): TProjectLevel[] {
+  if (!currentRight) {
+    return [];
+  }
+  const result = [
+    TProjectLevel.Read,
+    TProjectLevel.Update,
+    TProjectLevel.Write,
+    TProjectLevel.Admin,
+  ].filter((level) => isProjectRightAbove(currentRight, level));
 
   return result;
 }

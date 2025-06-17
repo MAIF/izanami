@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { FeatureTable } from "../components/FeatureTable";
 import { createFeature, projectQueryKey, queryProject } from "../utils/queries";
-import { TLevel } from "../utils/types";
+import { TLevel, TProjectLevel } from "../utils/types";
 import { useProjectRight } from "../securityContext";
 import queryClient from "../queryClient";
 import { FeatureForm } from "../components/FeatureForm";
@@ -29,7 +29,12 @@ export function Project({
   });
   const [creating, setCreating] = useState(false);
 
-  const hasCreationRight = useProjectRight(tenant, project, TLevel.Write);
+  const hasCreationRight = useProjectRight(
+    tenant,
+    project,
+    TProjectLevel.Write
+  );
+  const hasUpdateRight = useProjectRight(tenant, project, TProjectLevel.Update);
 
   const featureCreateMutation = useMutation({
     mutationFn: (data: { project: string; feature: any }) =>
@@ -156,7 +161,9 @@ export function Project({
                     "overloads",
                     "url",
                   ]
-                : ["test", "overloads"]
+                : hasUpdateRight
+                ? ["edit", "test", "overloads", "url"]
+                : ["test", "overloads", "url"]
             }
             refresh={() =>
               queryClient.invalidateQueries({

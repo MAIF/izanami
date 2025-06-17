@@ -430,7 +430,7 @@ class UserController(
             .map(value => {
               for (
                 username <- (value \ "username").asOpt[String];
-                right    <- (value \ "level").asOpt[RightLevel]
+                right    <- (value \ "level").asOpt[ProjectRightLevel]
               ) yield (username, right)
             })
             .filter(_.isDefined)

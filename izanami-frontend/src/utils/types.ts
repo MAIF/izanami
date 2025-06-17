@@ -517,7 +517,16 @@ export const TLevel = {
   Read: "Read",
 } as const;
 
+export const TProjectLevel = {
+  Admin: "Admin",
+  Write: "Write",
+  Update: "Update",
+  Read: "Read",
+} as const;
+
 export type TLevel = typeof TLevel[keyof typeof TLevel];
+
+export type TProjectLevel = typeof TProjectLevel[keyof typeof TProjectLevel];
 
 export interface TUser {
   username: string;

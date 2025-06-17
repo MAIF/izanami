@@ -31,6 +31,7 @@ import {
   PersonnalAccessToken,
   TokenTenantRight,
   OIDCSettings,
+  TProjectLevel,
 } from "./types";
 import { isArray } from "lodash";
 import toast from "react-hot-toast";
@@ -948,7 +949,7 @@ export function inviteUsersToProject(
   tenant: string,
   project: string,
   users: string[],
-  level: TLevel
+  level: TProjectLevel
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/projects/${project}/users`, {

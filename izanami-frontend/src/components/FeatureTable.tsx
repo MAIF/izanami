@@ -22,6 +22,7 @@ import {
   TValuedCondition,
   TClassicalCondition,
   StaleStatus,
+  TProjectLevel,
 } from "../utils/types";
 import { format, parse } from "date-fns";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
@@ -878,7 +879,8 @@ function OverloadTableForFeature(props: {
     queryFn: () => queryContextsForProject(tenant!, project!),
   });
 
-  const hasModificationRight = useProjectRight(tenant, project, TLevel.Write);
+  const hasDeleteRight = useProjectRight(tenant, project, TProjectLevel.Write);
+  const hasUpdateRight = useProjectRight(tenant, project, TProjectLevel.Update);
 
   if (contextQuery.isError) {
     return <div>Failed to fetch overloads</div>;
@@ -895,7 +897,9 @@ function OverloadTableForFeature(props: {
           })
         }
         fields={["linkedPath", "name", "enabled", "details"]}
-        actions={() => (hasModificationRight ? ["edit", "delete"] : [])}
+        actions={() =>
+          hasDeleteRight ? ["edit", "delete"] : hasUpdateRight ? ["edit"] : []
+        }
       />
     );
   } else {

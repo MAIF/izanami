@@ -16,7 +16,7 @@ import queryClient from "../queryClient";
 import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
 import { useState } from "react";
-import { TLevel } from "../utils/types";
+import { TLevel, TProjectLevel } from "../utils/types";
 import { GenericTable } from "../components/GenericTable";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
@@ -52,7 +52,7 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
   });
 
   const inviteUsers = useMutation({
-    mutationFn: (data: { users: string[]; level: TLevel }) => {
+    mutationFn: (data: { users: string[]; level: TProjectLevel }) => {
       const { users, level } = data;
       return inviteUsersToProject(tenant, project, users, level);
     },
@@ -84,6 +84,7 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
         </h2>
         {inviting && (
           <InvitationForm
+            projectRight={true}
             submit={({ users, level }) =>
               inviteUsers
                 .mutateAsync({ users, level })
