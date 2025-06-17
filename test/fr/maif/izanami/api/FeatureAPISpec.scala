@@ -8,6 +8,71 @@ import java.time.{LocalDateTime, OffsetDateTime}
 
 class FeatureAPISpec extends BaseAPISpec {
   "Feature PATCH endpoint" should {
+    "prevent feature delete if user has update right on feature" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("project").withFeatureNames("F1", "F2", "F3"))
+        )
+        .withUsers(TestUser("testu").withTenantReadRight("tenant").withProjectReadUpdateRight(project = "project", tenant="tenant"))
+        .loggedAs("testu")
+        .build()
+
+      val response = situation.patchFeatures(
+        "tenant",
+        patches = Seq(
+          TestFeaturePatch(
+            op = "remove",
+            path = s"/${situation.findFeatureId("tenant", "project", "F1").get}"
+          ),
+          TestFeaturePatch(
+            op = "remove",
+            path = s"/${situation.findFeatureId("tenant", "project", "F3").get}"
+          )
+        )
+      )
+
+      response.status mustEqual FORBIDDEN
+
+      val fetchResponse = situation.fetchProject("tenant", "project")
+      (fetchResponse.json.get \ "features").as[JsArray].value.length mustBe 3
+    }
+
+    "allow to modify feature enabling if user has update right on feature" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false),
+                TestFeature("f2", enabled = false),
+                TestFeature("f3", enabled = true)
+              )
+            )
+        ).withUsers(TestUser("testu").withTenantReadRight("tenant").withProjectReadUpdateRight(project = "project", tenant = "tenant"))
+        .loggedAs("testu")
+        .build()
+
+      val response = situation.patchFeatures(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/${situation.findFeatureId("tenant", "project", "f1").get}/enabled",
+            value = JsBoolean(true)
+          )
+        )
+      )
+
+      response.status mustBe 204
+
+      val project = situation.fetchProject("tenant", "project").json.get
+
+      ((project \ "features").as[Seq[JsObject]].find(obj => (obj \ "name").as[String] == "f1").get \ "enabled")
+        .as[Boolean] mustBe true
+    }
+
     "allow to modify feature enabling" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()

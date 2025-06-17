@@ -657,14 +657,20 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       .map(o => o.map(jsObj => jsObj.as[WasmConfig](WasmConfig.format)))
   }
 
-  def findFeaturesProjects(tenant: String, ids: Set[String]): Future[Seq[String]] = {
+  def findFeaturesProjects(tenant: String, featureIds: Set[String]): Future[Map[String, String]] = {
     env.postgresql.queryAll(
       s"""
-         |SELECT DISTINCT project FROM features WHERE id=ANY($$1)
+         |SELECT DISTINCT id, project FROM features WHERE id=ANY($$1)
          |""".stripMargin,
-      List(ids.toArray),
+      List(featureIds.toArray),
       schemas = Seq(tenant)
-    ) { r => r.optString("project") }
+    ) { r => {
+      for(
+        project <- r.optString("project");
+        id <- r.optString("id")
+      ) yield (id, project)
+    } }
+      .map(_.toMap)
   }
 
   def findByIdLightweight(tenant: String, id: String, conn: Option[SqlConnection] = None): Future[Option[LightWeightFeature]] = {

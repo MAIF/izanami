@@ -136,7 +136,7 @@ export function useProjectRight(
 
 export function hasRightForProject(
   user: TUser,
-  level: TLevel,
+  level: TProjectLevel,
   project: string,
   tenant: string
 ): boolean {
@@ -150,7 +150,7 @@ export function hasRightForProject(
 
   return (
     tenantRight.level === TLevel.Admin ||
-    isRightAbove(tenantRight?.projects?.[project]?.level, level)
+    isProjectRightAbove(tenantRight?.projects?.[project]?.level, level)
   );
 }
 
