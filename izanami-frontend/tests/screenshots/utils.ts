@@ -64,7 +64,7 @@ export async function setup(shouldLogin) {
 }
 
 export async function login(page: Page) {
-  await page.goto("/");
+  await page.goto("http://localhost:3000");
   await page.getByLabel("Username").fill("RESERVED_ADMIN_USER");
   await page.getByLabel("Password").fill("ADMIN_DEFAULT_PASSWORD");
   await page.getByRole("button", { name: "Login" }).click();

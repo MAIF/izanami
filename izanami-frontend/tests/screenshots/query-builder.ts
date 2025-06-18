@@ -27,7 +27,7 @@ export async function generate() {
     )
     .build(page);
 
-  await page.goto("/tenants/bookstore/query-builder");
+  await page.goto("http://localhost:3000/tenants/bookstore/query-builder");
   await page.getByRole("link", { name: "Query builder" }).hover();
   await screenshot("menu-item-hover");
 
