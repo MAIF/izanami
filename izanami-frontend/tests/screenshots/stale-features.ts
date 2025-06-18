@@ -27,7 +27,7 @@ export async function generate() {
     "2020-05-20 15:00:00+00"
   );
 
-  await page.goto("/tenants/bookstore/projects/website");
+  await page.goto("http://localhost:3000/tenants/bookstore/projects/website");
   await page.getByLabel("comments is stale", { exact: true }).hover();
   await page.waitForTimeout(200);
 

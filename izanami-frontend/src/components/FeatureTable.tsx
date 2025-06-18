@@ -898,7 +898,7 @@ function OverloadTableForFeature(props: {
             queryKey: [projectContextKey(tenant!, project!)],
           })
         }
-        fields={["linkedPath", "name", "enabled", "details"]}
+        fields={["linkedPath", "enabled", "details"]}
         actions={() =>
           hasDeleteRight ? ["edit", "delete"] : hasUpdateRight ? ["edit"] : []
         }
@@ -1388,7 +1388,7 @@ export function OverloadTable(props: {
     },
   });
 
-  const { askConfirmation, askInputConfirmation } =
+  const { askConfirmation, askInputConfirmation, user } =
     React.useContext(IzanamiContext);
   const contextByPath = new Map(
     overloads
@@ -1451,12 +1451,65 @@ export function OverloadTable(props: {
     columns.push({
       accessorKey: "enabled",
       header: () => "Enabled",
-      cell: (info: any) =>
-        info.getValue() ? (
-          <span className="activation-status">Enabled</span>
-        ) : (
-          <span className="activation-status disabled-status">Disabled</span>
-        ),
+      cell: (info: any) => {
+        const feature = info.row.original as TContextOverload;
+        const isEnabled = feature.enabled;
+
+        const hasUpdateRight = hasRightForProject(
+          user!,
+          TProjectLevel.Update,
+          feature.project!,
+          tenant!
+        );
+        const context = contextByPath.get(feature.path);
+
+        return (
+          <label
+            style={{
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            {hasUpdateRight && (
+              <>
+                <input
+                  checked={isEnabled ? true : false}
+                  disabled={!hasUpdateRight}
+                  type="checkbox"
+                  className="izanami-checkbox"
+                  style={{ marginTop: 0 }}
+                  aria-label={`${isEnabled ? "Disable" : "Enable"} ${
+                    feature.name
+                  }`}
+                  onChange={() => {
+                    askConfirmation(
+                      `Are you sure you want to ${
+                        isEnabled ? "disable" : "enable"
+                      } feature ${feature.name} for context ${context?.name} ?`,
+                      () =>
+                        updateStrategyMutation.mutateAsync({
+                          feature: feature.name,
+                          ...feature,
+                          enabled: !isEnabled,
+                        } as any)
+                    );
+                  }}
+                />
+                &nbsp;
+              </>
+            )}
+            <span
+              className={`activation-status ${
+                isEnabled ? "enabled" : "disabled"
+              }-status`}
+            >
+              {isEnabled ? "Enabled" : "Disabled"}
+            </span>
+          </label>
+        );
+      },
       minSize: 150,
       size: 5,
       meta: {
@@ -2071,6 +2124,13 @@ export function FeatureTable(props: {
         const feature = info.row.original as TCompleteFeature;
         const isEnabled = feature.enabled;
 
+        const hasUpdateRight = hasRightForProject(
+          user!,
+          TProjectLevel.Update,
+          feature.project!,
+          tenant!
+        );
+
         return (
           <label
             style={{
@@ -2080,29 +2140,36 @@ export function FeatureTable(props: {
               alignItems: "center",
             }}
           >
-            <input
-              checked={isEnabled ? true : false}
-              type="checkbox"
-              className="izanami-checkbox"
-              style={{ marginTop: 0 }}
-              aria-label={`${isEnabled ? "Disable" : "Enable"} ${feature.name}`}
-              onChange={() => {
-                askConfirmation(
-                  `Are you sure you want to ${
-                    isEnabled ? "disable" : "enable"
-                  } feature ${feature.name} ?`,
-                  () =>
-                    featureUpdateMutation.mutateAsync({
-                      id: feature.id!,
-                      feature: {
-                        ...feature,
-                        enabled: !isEnabled,
-                      },
-                    })
-                );
-              }}
-            />
-            &nbsp;
+            {hasUpdateRight && (
+              <>
+                <input
+                  checked={isEnabled ? true : false}
+                  disabled={!hasUpdateRight}
+                  type="checkbox"
+                  className="izanami-checkbox"
+                  style={{ marginTop: 0 }}
+                  aria-label={`${isEnabled ? "Disable" : "Enable"} ${
+                    feature.name
+                  }`}
+                  onChange={() => {
+                    askConfirmation(
+                      `Are you sure you want to ${
+                        isEnabled ? "disable" : "enable"
+                      } feature ${feature.name} ?`,
+                      () =>
+                        featureUpdateMutation.mutateAsync({
+                          id: feature.id!,
+                          feature: {
+                            ...feature,
+                            enabled: !isEnabled,
+                          },
+                        })
+                    );
+                  }}
+                />
+                &nbsp;
+              </>
+            )}
             <span
               className={`activation-status ${
                 isEnabled ? "enabled" : "disabled"

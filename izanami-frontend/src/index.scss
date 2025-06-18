@@ -304,6 +304,8 @@ thead th {
 .izanami-checkbox:disabled:not(:checked)::before,
 .izanami-checkbox:disabled {
   cursor: default !important;
+  opacity: 0.5;
+  border: none;
 }
 
 fieldset {

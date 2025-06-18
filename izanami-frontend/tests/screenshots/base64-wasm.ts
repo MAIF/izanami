@@ -28,7 +28,7 @@ export async function generate() {
     )
     .build(page);
 
-  await page.goto("/tenants/bookstore/projects/website");
+  await page.goto("http://localhost:3000/tenants/bookstore/projects/website");
   await page.getByRole("button", { name: "Create new feature" }).click();
   await page.getByLabel("Name").fill("is-mobile");
   await page.getByLabel("Enabled").check();

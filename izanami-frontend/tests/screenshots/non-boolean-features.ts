@@ -19,14 +19,14 @@ export async function generate() {
     )
     .build(page);
 
-  await page.goto("/tenants/bookstore/projects/website");
+  await page.goto("http://localhost:3000/tenants/bookstore/projects/website");
 
   await page.getByRole("button", { name: "Create new feature" }).click();
   await page.getByLabel("Name").fill("comments");
   await page.getByLabel("Enabled").check();
   await page.getByRole("combobox", { name: "Result type" }).click();
   await screenshot("result-type-menu");
-  await page.getByText("string").click();
+  await page.getByText("string", { exact: true }).click();
   await page.getByLabel("Base value").fill("disabled");
 
   await page.getByRole("button", { name: "Add alternative value" }).click();
