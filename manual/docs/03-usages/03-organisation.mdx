@@ -41,11 +41,12 @@ It has two main usages:
 
 User can have 3 level of rights on tenants:
 
-|       | Access project | Create feature | Edit feature | Delete feature | Modify user rights | Invite users | Update project information | Delete project |
-| ----- | -------------- | -------------- | ------------ | -------------- | ------------------ | ------------ | -------------------------- | -------------- |
-| Read  | ✅             | ❌             | ❌           | ❌             | ❌                 | ❌           | ❌                         | ❌             |
-| Write | ✅             | ✅             | ✅           | ✅             | ❌                 | ❌           | ❌                         | ❌             |
-| Admin | ✅             | ✅             | ✅           | ✅             | ✅                 | ✅           | ✅                         | ✅             |
+|                      | Access project | Edit feature | Create feature | Delete feature | Modify user rights | Invite users | Update project information | Delete project |
+| -------------------- | -------------- | -------------- | ------------ | -------------- | ------------------ | ------------ | -------------------------- | -------------- |
+| Read                 | ✅             | ❌             | ❌           | ❌             | ❌                 | ❌           | ❌                         | ❌             |
+| Update (from 2.10.x) | ✅             | ❌             | ❌           | ❌             | ❌                 | ❌           | ❌                         | ❌             |
+| Write                | ✅             | ✅             | ✅           | ✅             | ❌                 | ❌           | ❌                         | ❌             |
+| Admin                | ✅             | ✅             | ✅           | ✅             | ✅                 | ✅           | ✅                         | ✅             |
 
 <Note>
   If you are a global Izanami admin or admin of the project's tenant you are
