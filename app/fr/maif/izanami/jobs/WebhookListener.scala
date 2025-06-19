@@ -48,29 +48,30 @@ class WebhookListener(env: Env, eventService: EventService) {
     event match {
       case TenantCreated(eventId, tenant, _, _, _, _) => startListening(tenant)
       case TenantDeleted(_, tenant, _, _, _, _)       => cancelSwitch.get(tenant).map(c => c.cancel())
-      case _                                 => ()
+      case _                                          => ()
     }
   }
 
   def startListening(tenant: String): Unit = {
     logger.info(s"Initializing webhook event listener for tenant $tenant")
     val cancelRef   = new AtomicReference[Cancellable]()
-    val cancellable = env.actorSystem.scheduler.scheduleAtFixedRate(0.minutes, env.houseKeepingIntervalInSeconds.seconds)(() => {
-      env.datastores.webhook
-        .findAbandoneddWebhooks(tenant)
-        .map {
-          case Some(s) =>
-            s.filter { case (_, event) =>
-              event.isInstanceOf[FeatureEvent]
-            }.foreach {
-              case (webhook, event) => {
-                logger.info(s"Restarting call for abandonned hook ${webhook.name}")
-                handleEventForHook(tenant, event.asInstanceOf[FeatureEvent], webhook)
+    val cancellable =
+      env.actorSystem.scheduler.scheduleAtFixedRate(0.minutes, env.houseKeepingIntervalInSeconds.seconds)(() => {
+        env.datastores.webhook
+          .findAbandoneddWebhooks(tenant)
+          .map {
+            case Some(s) =>
+              s.filter { case (_, event) =>
+                event.isInstanceOf[FeatureEvent]
+              }.foreach {
+                case (webhook, event) => {
+                  logger.info(s"Restarting call for abandonned hook ${webhook.name}")
+                  handleEventForHook(tenant, event.asInstanceOf[FeatureEvent], webhook)
+                }
               }
-            }
-          case None    => cancelRef.get().cancel()
-        }
-    })
+            case None    => cancelRef.get().cancel()
+          }
+      })
 
     cancelRef.set(cancellable)
     env.eventService
@@ -146,7 +147,7 @@ class WebhookListener(env: Env, eventService: EventService) {
       onFailure().flatMap(_ => {
         logger.error(s"Call failed", e)
         var next: FiniteDuration = Math.round(retryInitialDelay * 1000 * (Math.pow(retryMultiplier, cur))).milliseconds
-        if(next > retryMaxDelay.seconds) {
+        if (next > retryMaxDelay.seconds) {
           next = retryMaxDelay.seconds
         }
 
