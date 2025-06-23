@@ -8,7 +8,6 @@ import {
   findTenantRight,
   rightsBelow,
   IzanamiContext,
-  projectRightsBelowProject,
   projectRightsBelow,
 } from "../securityContext";
 import { customStyles } from "../styles/reactSelect";
@@ -224,7 +223,7 @@ const reducer = function reducer(state: State, event: EventTypes): State {
               }
               return p;
             }),
-          };
+          } as any;
         }
         return el;
       });

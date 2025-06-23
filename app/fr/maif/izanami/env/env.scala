@@ -96,9 +96,9 @@ class Env(
 
   // init subsystems
   val eventService    = new EventService(this)
-  val webhookListener = new WebhookListener(this, eventService)
   val postgresql      = new Postgresql(this)
   val datastores      = new Datastores(this)
+  val webhookListener = new WebhookListener(this, eventService)
   val mails           = new Mails(this)
   val jwtService      = new JwtService(this)
   val wasmIntegration = WasmIntegration(new IzanamiWasmIntegrationContext(this))
@@ -164,6 +164,7 @@ class Env(
       _ <- datastores.onStop()
       _ <- postgresql.onStop()
       _ <- jobs.onStop()
+      _ <- eventService.killAllSources(excludeIzanamiChannel=false)
     } yield ()
   }
 }

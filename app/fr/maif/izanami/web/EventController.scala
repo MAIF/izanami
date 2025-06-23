@@ -185,8 +185,11 @@ class EventController(
     }
 
   def killAllSources(): Action[AnyContent] = adminAuthAction.async { request =>
-    env.eventService.killAllSources()
-    NoContent.future
+    Future.sequence(
+      Seq(env.webhookListener.onStop(),
+      env.eventService.killAllSources(excludeIzanamiChannel=true))
+    ).map(_ => NoContent)
+
   }
 
   private def evaluateFeatures(

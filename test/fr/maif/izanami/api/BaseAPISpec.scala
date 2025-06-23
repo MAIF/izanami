@@ -132,7 +132,8 @@ class BaseAPISpec
     }*/
 
     if (izanamiInstance != null) {
-      val baseFuture = if (shouldCleanUpEvents) cleanEvents else Future.successful()
+      //val baseFuture = if (shouldCleanUpEvents) cleanEvents else Future.successful()
+      val baseFuture = cleanEvents
 
       val res = baseFuture.map(_ => {
         if (shouldRestartInstance) {
@@ -163,7 +164,7 @@ class BaseAPISpec
 
   def cleanEvents: Future[Any] = {
     val res = login("RESERVED_ADMIN_USER", "ADMIN_DEFAULT_PASSWORD")
-    ws.url(s"${BaseAPISpec.ADMIN_BASE_URL}/")
+    ws.url(s"${BaseAPISpec.ADMIN_BASE_URL}/sse")
       .withCookies(res.cookies: _*)
       .delete()
   }

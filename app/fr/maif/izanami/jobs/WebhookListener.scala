@@ -1,33 +1,36 @@
 package fr.maif.izanami.jobs
 
 import akka.actor.{ActorSystem, Cancellable}
-import akka.pattern.Patterns.after
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.github.jknack.handlebars.{Context, Handlebars}
 import com.github.jknack.handlebars.jackson.JsonNodeValueResolver
+import com.github.jknack.handlebars.{Context, Handlebars}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{WebhookCallError, WebhookRetryCountExceeded}
+import fr.maif.izanami.errors.WebhookCallError
 import fr.maif.izanami.events._
 import fr.maif.izanami.models.{LightWebhook, RequestContext}
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.JsValue
 
+import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
-import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 class WebhookListener(env: Env, eventService: EventService) {
-  private val handlebars                             = new Handlebars()
-  private val mapper                                 = new ObjectMapper()
-  private val logger                                 = env.logger
-  private implicit val ec: ExecutionContext          = env.executionContext
-  private implicit val actorSystem: ActorSystem      = env.actorSystem
-  private val cancelSwitch: Map[String, Cancellable] = Map()
-  private val retryCount: Long                       = env.typedConfiguration.webhooks.retry.count
-  private val retryInitialDelay                      = env.typedConfiguration.webhooks.retry.intialDelay
-  private val retryMaxDelay                          = env.typedConfiguration.webhooks.retry.maxDelay
-  private val retryMultiplier                        = env.typedConfiguration.webhooks.retry.multiplier
+  private val handlebars                                                      = new Handlebars()
+  private val mapper                                                          = new ObjectMapper()
+  private val logger                                                          = env.logger
+  private implicit val ec: ExecutionContext                                   = env.executionContext
+  private implicit val actorSystem: ActorSystem                               = env.actorSystem
+  private val cancelSwitch: scala.collection.mutable.Map[String, Cancellable] = scala.collection.mutable.Map()
+  private val datastore                                                       = env.datastores.webhook
+  private val retryConfig                                                     = env.typedConfiguration.webhooks.retry
+
+  def onStop(): Future[Unit] = {
+    cancelSwitch.map(_._2.cancel())
+    Future.successful(())
+  }
 
   def onStart(): Future[Unit] = {
     env.datastores.tenants
@@ -56,24 +59,12 @@ class WebhookListener(env: Env, eventService: EventService) {
     logger.info(s"Initializing webhook event listener for tenant $tenant")
     val cancelRef   = new AtomicReference[Cancellable]()
     val cancellable =
-      env.actorSystem.scheduler.scheduleAtFixedRate(0.minutes, env.houseKeepingIntervalInSeconds.seconds)(() => {
-        env.datastores.webhook
-          .findAbandoneddWebhooks(tenant)
-          .map {
-            case Some(s) =>
-              s.filter { case (_, event) =>
-                event.isInstanceOf[FeatureEvent]
-              }.foreach {
-                case (webhook, event) => {
-                  logger.info(s"Restarting call for abandonned hook ${webhook.name}")
-                  handleEventForHook(tenant, event.asInstanceOf[FeatureEvent], webhook)
-                }
-              }
-            case None    => cancelRef.get().cancel()
-          }
-      })
+      env.actorSystem.scheduler.scheduleAtFixedRate(0.minutes, retryConfig.checkInterval.seconds)(() =>
+        handleFailedHooks(tenant, cancelRef)
+      )
 
     cancelRef.set(cancellable)
+    cancelSwitch.addOne(tenant -> cancellable)
     env.eventService
       .consume(tenant)
       .source
@@ -82,51 +73,109 @@ class WebhookListener(env: Env, eventService: EventService) {
       })
   }
 
-  def handleEventForHook(tenant: String, event: FeatureEvent, hook: LightWebhook): Future[Unit] = {
-    env.datastores.webhook
-      .createWebhookCall(tenant, hook.id.get, event.eventId)
-      .flatMap(created => {
-        if (created) {
-          createFeatureWebhookEvent(tenant, hook, event)
-            .flatMap(maybeJson =>
-              maybeJson
-                .map(json => {
-                  hook.bodyTemplate
-                    .map(bodyTemplate => {
-                      val template    = handlebars.compileInline(bodyTemplate)
-                      val jacksonJson = mapper.readTree(json.toString())
-                      val context     = Context
-                        .newBuilder(jacksonJson)
-                        .resolver(JsonNodeValueResolver.INSTANCE)
-                        .build()
-                      template.apply(context)
-                    })
-                    .getOrElse(json.toString())
-                })
-                .map(json =>
-                  futureWithRetry(
-                    () => callWebhook(hook, json),
-                    () =>
-                      env.datastores.webhook.updateWebhookCallDate(
-                        tenant = tenant,
-                        webhook = hook.id.get,
-                        eventId = event.eventId
-                      )
-                  )
-                )
-                .getOrElse(Future.successful(()))
-            )
-            .flatMap(_ => env.datastores.webhook.deleteWebhookCall(tenant, hook.id.get, event.eventId))
-        } else {
+  private def handleFailedHooks(tenant: String, cancelRef: AtomicReference[Cancellable]): Unit = {
+    datastore
+      .findAbandoneddWebhooks(tenant)
+      .map {
+        case Some(s) =>
+          s.collect {
+            case (hook, f: FeatureEvent, count) => {
+              logger.info(s"Restarting call for previously failed hook ${hook.name}")
+              handleWebhookCall(tenant, f, hook, count)
+            }
+          }
+        case None    => cancelRef.get().cancel()
+      }
+  }
+
+  private def buildHookPayload(tenant: String, event: FeatureEvent, hook: LightWebhook): Future[Option[String]] = {
+    createFeatureWebhookEvent(tenant, hook, event)
+      .map(maybeJson =>
+        maybeJson
+          .map(json => {
+            hook.bodyTemplate
+              .map(bodyTemplate => {
+                val template    = handlebars.compileInline(bodyTemplate)
+                val jacksonJson = mapper.readTree(json.toString())
+                val context     = Context
+                  .newBuilder(jacksonJson)
+                  .resolver(JsonNodeValueResolver.INSTANCE)
+                  .build()
+                template.apply(context)
+              })
+              .getOrElse(json.toString())
+          })
+      )
+  }
+
+  private def handleWebhookCall(
+      tenant: String,
+      event: FeatureEvent,
+      hook: LightWebhook,
+      callCount: Int = 0
+  ): Future[Unit] = {
+    buildHookPayload(tenant, event, hook)
+      .flatMap {
+        case None       => {
+          logger.error(s"Failed to build webhook body for hook ${hook.name}, no call will be performed")
           Future.successful(())
         }
-      })
+        case Some(body) =>
+          callWebhook(hook, body)
+            .transform(t => {
+              t.fold(
+                ex => {
+                  Try(handleHookCallFailure(ex, tenant, hook, event, callCount + 1))
+                },
+                _ => Try(handleHookCallSuccess(tenant, hook, event))
+              )
+            })
+      }
+  }
+
+  def handleEventForHook(tenant: String, event: FeatureEvent, hook: LightWebhook): Future[Unit] = {
+    datastore
+      .createWebhookCall(tenant, hook.id.get, event.eventId)
+      .filter(wasCreated => wasCreated)
+      .flatMap(_ => handleWebhookCall(tenant, event, hook))
+  }
+
+  private def computeNextCallTime(count: Int): Option[Instant] = {
+    if (count > retryConfig.count) {
+      None
+    } else {
+      val theoricalDurationBeforeNextCall =
+        Math.round(retryConfig.intialDelay * 1000 * (Math.pow(retryConfig.multiplier, count))).milliseconds
+      val duration                        = Math.min(
+        theoricalDurationBeforeNextCall.toSeconds,
+        retryConfig.maxDelay
+      )
+      Some(Instant.now().plusSeconds(duration))
+    }
+  }
+
+  private def handleHookCallFailure(
+      ex: Throwable,
+      tenant: String,
+      hook: LightWebhook,
+      event: FeatureEvent,
+      failureCount: Int
+  ): Future[Unit] = {
+    logger.error(s""" Hook "${hook.name}" call failed""", ex)
+    computeNextCallTime(failureCount).fold {
+      logger.error(s"Exceeded max retry for hook ${hook.name} ($failureCount), stopping...")
+      Future.successful(())
+    }(nextCallTime => datastore.registerWebhookFailure(tenant, hook.id.get, event.eventId, failureCount, nextCallTime))
+  }
+
+  private def handleHookCallSuccess(tenant: String, hook: LightWebhook, event: FeatureEvent): Future[Unit] = {
+    datastore.deleteWebhookCall(tenant, hook.id.get, event.eventId)
   }
 
   def handleEvent(tenant: String, event: IzanamiEvent): Future[Unit] = {
     (event match {
       case event: FeatureEvent => {
-        env.datastores.webhook
+        datastore
           .findWebhooksForScope(tenant, featureIds = Set(event.id), projectNames = Set(event.project))
           .flatMap(hooks => {
             Future.sequence(
@@ -138,7 +187,7 @@ class WebhookListener(env: Env, eventService: EventService) {
     }).map(_ => ())
   }
 
-  private def futureWithRetry[T](
+  /*private def futureWithRetry[T](
       expression: () => Future[T],
       onFailure: () => Future[Any],
       cur: Int = 0
@@ -162,7 +211,7 @@ class WebhookListener(env: Env, eventService: EventService) {
         }
       })
     }
-  }
+  }*/
 
   private def createFeatureWebhookEvent(
       tenant: String,
