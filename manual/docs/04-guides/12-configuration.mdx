@@ -165,14 +165,24 @@ Duration is computed as :
 
 `retryDelay = Math.min(initialDelay * Math.pow(multiplier, currentCount), maxDelay)`
 
+Retry delay is a minimal delay, Izanami checks periodically for hooks to retry.
+The interval between two checks is defined by `check-interval`, this means that actual time before a retry is between
+
+`actualDelay = Math.min(initialDelay * Math.pow(multiplier, currentCount), maxDelay)`
+
+and
+
+`actualDelay = Math.min(initialDelay * Math.pow(multiplier, currentCount), maxDelay) + checkInterval`
+
 With configurable values
 
-|                            | Play configuration key          | Environnement variable              |
-| -------------------------- | ------------------------------- | ----------------------------------- |
-| max retry count            | app.webhooks.retry.count        | IZANAMI_WEBHOOK_RETRY_COUNT         |
-| initial delay (in seconds) | app.webhooks.retry.intial-delay | IZANAMI_WEBHOOK_RETRY_INITIAL_DELAY |
-| max delay (in seconds)     | app.webhooks.retry.max-delay    | IZANAMI_WEBHOOK_RETRY_MAX_DELAY     |
-| multiplier                 | app.webhooks.retry.multiplier   | IZANAMI_WEBHOOK_RETRY_MULTIPLIER    |
+|                            | Play configuration key            | Environnement variable              | Defautl value |
+| -------------------------- | ----------------------------------| ----------------------------------- |---------------|
+| max retry count            | app.webhooks.retry.count          | IZANAMI_WEBHOOK_RETRY_COUNT         | 5             |
+| initial delay (in seconds) | app.webhooks.retry.intial-delay   | IZANAMI_WEBHOOK_RETRY_INITIAL_DELAY | 5             |
+| max delay (in seconds)     | app.webhooks.retry.max-delay      | IZANAMI_WEBHOOK_RETRY_MAX_DELAY     | 600           |
+| multiplier                 | app.webhooks.retry.multiplier     | IZANAMI_WEBHOOK_RETRY_MULTIPLIER    | 2             |
+| check interval (in seconds)| app.webhooks.retry.check-interval | IZANAMI_WEBHOOK_RETRY_CHECK_INTERVAL| 30            |
 
 ### SearchBar Parameter: similarity_threshold
 

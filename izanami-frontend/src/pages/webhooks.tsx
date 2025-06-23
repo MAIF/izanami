@@ -312,7 +312,7 @@ export function WebHooks(props: { tenant: string }) {
                 action: (webhook: Webhook) => {
                   askInputConfirmation(
                     <>
-                      Are you sure you want to delete webhook ${webhook.name}?
+                      Are you sure you want to delete webhook {webhook.name}?
                       This can't be undone.
                       <br />
                       Please confirm by typing webhook name below.

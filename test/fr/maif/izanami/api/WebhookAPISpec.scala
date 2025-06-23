@@ -921,7 +921,8 @@ class WebhookAPISpec extends BaseAPISpec {
         .withCustomConfiguration(
           Map(
             "app.webhooks.retry.intial-delay" -> java.lang.Integer.valueOf(1),
-            "app.webhooks.retry.multiplier"   -> java.lang.Integer.valueOf(1)
+            "app.webhooks.retry.multiplier"   -> java.lang.Integer.valueOf(1),
+            "app.webhooks.retry.check-interval"   -> java.lang.Integer.valueOf(1)
           )
         )
         .withWebhookServer(port = 9988, responseCode = INTERNAL_SERVER_ERROR)
@@ -958,7 +959,8 @@ class WebhookAPISpec extends BaseAPISpec {
         .withCustomConfiguration(
           Map(
             "app.webhooks.retry.intial-delay" -> java.lang.Integer.valueOf(1),
-            "app.webhooks.retry.multiplier"   -> java.lang.Integer.valueOf(1)
+            "app.webhooks.retry.multiplier"   -> java.lang.Integer.valueOf(1),
+            "app.webhooks.retry.check-interval"   -> java.lang.Integer.valueOf(1)
           )
         )
         .withWebhookServer(port = 9996, responseCode = INTERNAL_SERVER_ERROR)

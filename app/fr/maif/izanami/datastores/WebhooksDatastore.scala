@@ -6,22 +6,18 @@ import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{IzanamiError, WebhookCreationFailed, WebhookDoesNotExists}
 import fr.maif.izanami.events.{EventService, IzanamiEvent}
-import fr.maif.izanami.models.RightLevel
 import fr.maif.izanami.models.{LightWebhook, Webhook, WebhookFeature, WebhookProject}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import fr.maif.izanami.web.UserInformation
-import io.vertx.core.json.JsonObject
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
 import play.api.libs.json.Json
-import play.api.mvc.Results.InternalServerError
 
-import java.net.{URI, URL}
-import java.util
+import java.net.URI
+import java.time.{Instant, ZoneOffset}
 import java.util.UUID
 import scala.concurrent.Future
-import scala.jdk.CollectionConverters.MapHasAsJava
 
 class WebhooksDatastore(val env: Env) extends Datastore {
 
@@ -45,16 +41,28 @@ class WebhooksDatastore(val env: Env) extends Datastore {
       })
   }
 
-  def updateWebhookCallDate(tenant: String, webhook: UUID, eventId: Long): Future[Unit] = {
+  def registerWebhookFailure(
+      tenant: String,
+      webhook: UUID,
+      eventId: Long,
+      lastCount: Int,
+      nextCall: Instant
+  ): Future[Unit] = {
     env.postgresql
       .queryOne(
         s"""
-           |UPDATE webhooks_call_status SET last_call=NOW()
+           |UPDATE webhooks_call_status SET last_call=NOW(), count=count+1, pending=false, next=$$4
            |WHERE webhook=$$1
            |AND event=$$2
+           |AND count=$$3
            |RETURNING webhook
            |""".stripMargin,
-        List(webhook, java.lang.Long.valueOf(eventId)),
+        List(
+          webhook,
+          java.lang.Long.valueOf(eventId),
+          java.lang.Integer.valueOf(lastCount-1),
+          nextCall.atOffset(ZoneOffset.UTC)
+        ),
         schemas = Seq(tenant)
       ) { r =>
         Some(())
@@ -76,29 +84,30 @@ class WebhooksDatastore(val env: Env) extends Datastore {
       ) { _ => () }
   }
 
-  def findAbandoneddWebhooks(tenant: String): Future[Option[Seq[(LightWebhook, IzanamiEvent)]]] = {
+  def findAbandoneddWebhooks(tenant: String): Future[Option[Seq[(LightWebhook, IzanamiEvent, Int)]]] = {
     env.postgresql
       .queryAll(
         s"""
-         |SELECT w.*, e.event,
+         |SELECT w.*, e.event, wcs.count,
          |  COALESCE(json_agg(wf.feature) FILTER (WHERE wf.feature IS NOT NULL), '[]') as features,
          |  COALESCE(json_agg(wp.project) FILTER (WHERE wp.project IS NOT NULL), '[]') as projects
          |  FROM webhooks_call_status wcs, events e, webhooks w
          |  LEFT JOIN webhooks_features wf ON wf.webhook=w.id
          |  LEFT JOIN webhooks_projects wp ON wp.webhook=w.id
-         |  WHERE EXTRACT(EPOCH FROM (NOW() - wcs.last_call)) > $$1
+         |  WHERE wcs.next < NOW()
          |  AND w.id = wcs.webhook
          |  AND e.id = wcs.event
-         |  GROUP BY w.id, e.event
+         |  GROUP BY w.id, e.event, wcs.count
          |""".stripMargin,
-        List(java.lang.Long.valueOf(300)),
+        List(),
         schemas = Seq(tenant)
       ) { r =>
         for (
           webhook      <- r.optLightWebhook();
           event        <- r.optJsObject("event");
-          izanamiEvent <- event.asOpt[IzanamiEvent](EventService.eventFormat)
-        ) yield (webhook, izanamiEvent)
+          izanamiEvent <- event.asOpt[IzanamiEvent](EventService.eventFormat);
+          count        <- r.optInt("count")
+        ) yield (webhook, izanamiEvent, count)
       }
       .map(s => Some(s))
       .recover {
@@ -317,7 +326,11 @@ class WebhooksDatastore(val env: Env) extends Datastore {
       }
     }
   }
-  def createWebhook(tenant: String, webhook: LightWebhook, user: UserInformation): Future[Either[IzanamiError, String]] = {
+  def createWebhook(
+      tenant: String,
+      webhook: LightWebhook,
+      user: UserInformation
+  ): Future[Either[IzanamiError, String]] = {
     env.postgresql.executeInTransaction(
       conn => {
         env.datastores.featureContext.env.postgresql

@@ -5,9 +5,9 @@ import akka.stream.scaladsl.{BroadcastHub, Keep, Source}
 import akka.stream.{KillSwitches, Materializer, SharedKillSwitch}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.{EnhancedRow, VertxFutureEnhancer}
-import fr.maif.izanami.events.EventAuthentication.{eventAuthenticationReads}
+import fr.maif.izanami.events.EventAuthentication.eventAuthenticationReads
 import fr.maif.izanami.events.EventOrigin.{eventOriginReads, ORIGIN_NAME_MAP}
-import fr.maif.izanami.events.EventService.{sourceEventWrites}
+import fr.maif.izanami.events.EventService.{sourceEventWrites, IZANAMI_CHANNEL}
 import fr.maif.izanami.models.{Feature, FeatureWithOverloads, LightWeightFeature, RequestContext}
 import io.vertx.pgclient.pubsub.PgSubscriber
 import io.vertx.sqlclient.SqlConnection
@@ -941,7 +941,7 @@ class EventService(env: Env) {
     }
   }
 
-  def killSource(tenant: String): Unit = {
+  def killSource(tenant: String): Future[Unit] = {
     sourceMap.get(tenant).map {
       case SourceDescriptor(_, killswitch, pgSuscriber) => {
         sourceMap.remove(tenant)
@@ -952,11 +952,14 @@ class EventService(env: Env) {
           .onComplete(_ => {
             logger.info(s"Done closing PG suscriber for $tenant")
           })
+          .scala
+          .map(_ => ())
       }
-    }
+    }.getOrElse(Future.successful(()))
   }
 
-  def killAllSources(): Unit = {
-    sourceMap.keys.foreach(killSource)
+  def killAllSources(excludeIzanamiChannel: Boolean = false): Future[Unit] = {
+    Future.sequence(sourceMap.keys.filterNot(name => excludeIzanamiChannel && name == IZANAMI_CHANNEL).map(killSource))
+      .map(_ => ())
   }
 }

@@ -128,7 +128,9 @@ test.describe("Project context screen should", () => {
     await page.getByLabel("Enabled").check();
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("cell", { name: "Enabled" })).toBeVisible();
-    await expect(page.getByRole("cell", { name: "testfeature" })).toBeVisible();
+    await expect(
+      page.getByRole("cell", { name: "testfeature", exact: true })
+    ).toBeVisible();
   });
 
   test("allow to display strategy for all features", async ({
@@ -159,7 +161,9 @@ test.describe("Project context screen should", () => {
     await page.keyboard.press("Enter");
     await page.getByLabel("Enabled").check({ force: true });
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByRole("cell", { name: "another" })).toHaveCount(1);
+    await expect(
+      page.getByRole("cell", { name: "anotherfeature", exact: true })
+    ).toHaveCount(1);
     await page
       .getByLabel("Display all features strategy for this context")
       .check();
