@@ -72,8 +72,7 @@ class IzanamiComponentsInstances(
       failures =>
         throw new RuntimeException(
           s"Failed to load configuration : ${failures.toList
-            .flatMap(f => s"${f.description} - ${f.origin.map(_.description()).getOrElse("")}".toList)
-            .mkString(",")}"
+            .map(f => s"${f.description} - ${f.origin.map(_.description()).getOrElse("")}")}"
         ),
       c => c
     )
