@@ -1,5 +1,194 @@
 {
   "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/izanami/docs",
+      "versions": [
+        {
+          "name": "current",
+          "label": "2.x.x",
+          "isLast": true,
+          "path": "/izanami/docs",
+          "mainDocId": "getstarted/index",
+          "docs": [
+            {
+              "id": "clients/index",
+              "path": "/izanami/docs/clients/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "clients/java/cache",
+              "path": "/izanami/docs/clients/java/cache",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "clients/java/error-handling",
+              "path": "/izanami/docs/clients/java/error-handling",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "clients/java/index",
+              "path": "/izanami/docs/clients/java/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "clients/java/sse",
+              "path": "/izanami/docs/clients/java/sse",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "concepts/index",
+              "path": "/izanami/docs/concepts/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "dev/index",
+              "path": "/izanami/docs/dev/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "getstarted/index",
+              "path": "/izanami/docs/getstarted/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/audit-logs",
+              "path": "/izanami/docs/guides/audit-logs",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/bulk-feature-modification",
+              "path": "/izanami/docs/guides/bulk-feature-modification",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/configuration",
+              "path": "/izanami/docs/guides/configuration",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/env-contexts",
+              "path": "/izanami/docs/guides/env-contexts",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/http-calls-in-scripts",
+              "path": "/izanami/docs/guides/http-calls-in-scripts",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/import-from-v1",
+              "path": "/izanami/docs/guides/import-from-v1",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/index",
+              "path": "/izanami/docs/guides/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/key-configuration",
+              "path": "/izanami/docs/guides/key-configuration",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/local-scripts",
+              "path": "/izanami/docs/guides/local-scripts",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/mailer-configuration",
+              "path": "/izanami/docs/guides/mailer-configuration",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/multi-conditions-feature",
+              "path": "/izanami/docs/guides/multi-conditions-feature",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/non-boolean-features",
+              "path": "/izanami/docs/guides/non-boolean-features",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/personnal-access-tokens",
+              "path": "/izanami/docs/guides/personnal-access-tokens",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/protected-contexts",
+              "path": "/izanami/docs/guides/protected-contexts",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/query-builder",
+              "path": "/izanami/docs/guides/query-builder",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/remote-script",
+              "path": "/izanami/docs/guides/remote-script",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/stales-features",
+              "path": "/izanami/docs/guides/stales-features",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/transfer-data",
+              "path": "/izanami/docs/guides/transfer-data",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/user-invitation",
+              "path": "/izanami/docs/guides/user-invitation",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guides/webhooks",
+              "path": "/izanami/docs/guides/webhooks",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "usages/contexts",
+              "path": "/izanami/docs/usages/contexts",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "usages/features",
+              "path": "/izanami/docs/usages/features",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "usages/index",
+              "path": "/izanami/docs/usages/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "usages/organisation",
+              "path": "/izanami/docs/usages/organisation",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "usages/request",
+              "path": "/izanami/docs/usages/request",
+              "sidebar": "tutorialSidebar"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "tutorialSidebar": {
+              "link": {
+                "path": "/izanami/docs/getstarted/",
+                "label": "Get started"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    },
     "v1": {
       "path": "/izanami/v1",
       "versions": [
@@ -222,195 +411,6 @@
               "link": {
                 "path": "/izanami/v1/",
                 "label": "index"
-              }
-            }
-          }
-        }
-      ],
-      "breadcrumbs": true
-    },
-    "default": {
-      "path": "/izanami/docs",
-      "versions": [
-        {
-          "name": "current",
-          "label": "2.x.x",
-          "isLast": true,
-          "path": "/izanami/docs",
-          "mainDocId": "getstarted/index",
-          "docs": [
-            {
-              "id": "clients/index",
-              "path": "/izanami/docs/clients/",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "clients/java/cache",
-              "path": "/izanami/docs/clients/java/cache",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "clients/java/error-handling",
-              "path": "/izanami/docs/clients/java/error-handling",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "clients/java/index",
-              "path": "/izanami/docs/clients/java/",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "clients/java/sse",
-              "path": "/izanami/docs/clients/java/sse",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "concepts/index",
-              "path": "/izanami/docs/concepts/",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "dev/index",
-              "path": "/izanami/docs/dev/",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "getstarted/index",
-              "path": "/izanami/docs/getstarted/",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/audit-logs",
-              "path": "/izanami/docs/guides/audit-logs",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/bulk-feature-modification",
-              "path": "/izanami/docs/guides/bulk-feature-modification",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/configuration",
-              "path": "/izanami/docs/guides/configuration",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/env-contexts",
-              "path": "/izanami/docs/guides/env-contexts",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/http-calls-in-scripts",
-              "path": "/izanami/docs/guides/http-calls-in-scripts",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/import-from-v1",
-              "path": "/izanami/docs/guides/import-from-v1",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/index",
-              "path": "/izanami/docs/guides/",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/key-configuration",
-              "path": "/izanami/docs/guides/key-configuration",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/local-scripts",
-              "path": "/izanami/docs/guides/local-scripts",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/mailer-configuration",
-              "path": "/izanami/docs/guides/mailer-configuration",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/multi-conditions-feature",
-              "path": "/izanami/docs/guides/multi-conditions-feature",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/non-boolean-features",
-              "path": "/izanami/docs/guides/non-boolean-features",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/personnal-access-tokens",
-              "path": "/izanami/docs/guides/personnal-access-tokens",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/protected-contexts",
-              "path": "/izanami/docs/guides/protected-contexts",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/query-builder",
-              "path": "/izanami/docs/guides/query-builder",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/remote-script",
-              "path": "/izanami/docs/guides/remote-script",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/stales-features",
-              "path": "/izanami/docs/guides/stales-features",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/transfer-data",
-              "path": "/izanami/docs/guides/transfer-data",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/user-invitation",
-              "path": "/izanami/docs/guides/user-invitation",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "guides/webhooks",
-              "path": "/izanami/docs/guides/webhooks",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "usages/contexts",
-              "path": "/izanami/docs/usages/contexts",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "usages/features",
-              "path": "/izanami/docs/usages/features",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "usages/index",
-              "path": "/izanami/docs/usages/",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "usages/organisation",
-              "path": "/izanami/docs/usages/organisation",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "usages/request",
-              "path": "/izanami/docs/usages/request",
-              "sidebar": "tutorialSidebar"
-            }
-          ],
-          "draftIds": [],
-          "sidebars": {
-            "tutorialSidebar": {
-              "link": {
-                "path": "/izanami/docs/getstarted/",
-                "label": "Get started"
               }
             }
           }
