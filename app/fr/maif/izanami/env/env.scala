@@ -140,7 +140,8 @@ class Env(
                 Some(PKCEConfig(enabled = oidcConfig.pkce.enabled, algorithm = oidcConfig.pkce.algorithm.getOrElse("S256")))
               } else {
                 None
-              }
+              },
+              userRightsByRoles = oidcConfig.rightByRoles.view.mapValues(v => v.toRights).toMap
             )
             datastores.configuration.updateConfiguration(configuration.copy(oidcConfiguration = Some(oauth)))
           }

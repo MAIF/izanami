@@ -4,12 +4,13 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.MissingOIDCConfigurationError
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
 import fr.maif.izanami.models.User.userRightsWrites
-import fr.maif.izanami.models.{OAuth2Configuration, OIDC, Rights, User}
+import fr.maif.izanami.models.{OAuth2Configuration, OIDC, Rights, User, UserRightsUpdateRequest}
+import fr.maif.izanami.services.{CompleteRights, RightService}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.AuthAction.delayResponse
 import pdi.jwt.{JwtJson, JwtOptions}
 import play.api.libs.json.JsPath.\
-import play.api.libs.json.{JsArray, JsObject, Json}
+import play.api.libs.json.{JsArray, JsDefined, JsObject, JsString, JsUndefined, JsValue, Json}
 import play.api.libs.ws.WSAuthScheme
 import play.api.mvc.Cookie.SameSite
 import play.api.mvc._
@@ -23,6 +24,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 class LoginController(
     val env: Env,
     val controllerComponents: ControllerComponents,
+    val rightService: RightService,
     sessionAuthAction: AuthenticatedSessionAction
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
@@ -61,7 +63,8 @@ class LoginController(
         _nameField,
         _emailField,
         callbackUrl,
-        defaultOIDCUserRights)) => {
+        defaultOIDCUserRights,
+      userRightsByRoles)) => {
 
         if (!enabled) {
           BadRequest(Json.obj("message" -> "Something wrong happened"))
@@ -108,7 +111,8 @@ class LoginController(
               nameField,
               emailField,
               callbackUrl,
-              defaultOIDCUserRights) = oauth2ConfigurationOpt.get
+              defaultOIDCUserRights,
+              userRightsByRoles) = oauth2ConfigurationOpt.get
 
             var builder = env.Ws
                 .url(tokenUrl)
@@ -139,6 +143,17 @@ class LoginController(
             builder.post(body)
               .flatMap(r => {
                   val maybeToken = (r.json \ "id_token").get.asOpt[String]
+                  val roles = (r.json \ "access_token").get.asOpt[String]
+                    .map(token => JwtJson.decode(token, JwtOptions(signature = false, leeway = 1)))
+                    .flatMap(_.toOption)
+                    .map(claims => claims.toJson)
+                    .map(json => Json.parse(json))
+                    .flatMap(json => (json \ "roles").toOption)
+                    .map {
+                      case JsString(value) => Set(value)
+                      case arr:JsArray => arr.value.map((el:JsValue) => el.as[String]).toSet
+                      case _ => Set():Set[String]
+                    }.getOrElse(Set():Set[String])
 
                   maybeToken.fold(Future(InternalServerError(Json.obj("message" -> "Failed to retrieve token"))))(token => {
                     val maybeClaims = JwtJson.decode(token, JwtOptions(signature = false, leeway = 1))
@@ -155,13 +170,28 @@ class LoginController(
                               env.datastores.users
                                 .findUser(username)
                                 .flatMap(maybeUser => {
-                                  maybeUser
-                                    .fold(
-                                      env.datastores.users
-                                        .createUser(User(username, email = email, userType = OIDC)
-                                          .withRights(rs))
-                                    )(user => Future(Right(user.withRights(rs))))
-                                    .map(either => either.map(_ => username))
+                                  val defaultRights = CompleteRights(admin = false, rights = rs)
+                                  rightService.generateRightsForRoles(roles)
+                                    .map {
+                                      case Some(rightForRole) => rightForRole.mergeWith(defaultRights)
+                                      case None => defaultRights
+                                    }.flatMap(rights => {
+                                      maybeUser
+                                        .fold{
+                                          env.datastores.users
+                                            .createUser(
+                                              User(username, email = email, userType = OIDC, admin = rights.admin)
+                                                .withRights(rights.rights)
+                                            )
+                                        }(user => {
+                                          if(user.admin == rights.admin && user.tenantRights == rights.rights.tenants) {
+                                            Future.successful(Right(user))
+                                          } else {
+                                            env.datastores.users.updateUserRights(user.username, UserRightsUpdateRequest.fromRights(rights))
+                                          }
+
+                                        })
+                                    }).map(either => either.map(_ => username))
                                 })
                             })
                         }
@@ -223,7 +253,8 @@ class LoginController(
                 pkce = None,
                 callbackUrl = s"${env.expositionUrl}/login",
                 method = OAuth2BASICMethod,
-                enabled = true
+                enabled = true,
+                userRightsByRoles = Map()
               ).some
             } else {
               None

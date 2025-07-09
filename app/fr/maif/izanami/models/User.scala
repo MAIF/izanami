@@ -1,6 +1,7 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.models.RightTypes.RightType
+import fr.maif.izanami.services.CompleteRights
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.data.validation.{Constraints, Valid}
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
@@ -27,6 +28,17 @@ object RightLevel {
   case object Read  extends RightLevel
   case object Write extends RightLevel
   case object Admin extends RightLevel
+
+  object RightOrdering extends Ordering[RightLevel] {
+    def compare(a:RightLevel, b:RightLevel): Int = (a, b) match {
+      case (ar, br) if ar == br => 0
+      case (Admin, _) => 1
+      case (_, Admin) => -1
+      case (Write, _) => 1
+      case (_, Write) => -1
+      case _ => 1
+    }
+  }
 
   val rightLevelWrites: Writes[RightLevel] = {
     case Read  => JsString("Read")
@@ -159,6 +171,12 @@ case class UserRightsUpdateRequest(
     rights: Rights = Rights.EMPTY,
     admin: Option[Boolean] = None
 )
+
+object UserRightsUpdateRequest {
+  def fromRights(rights: CompleteRights): UserRightsUpdateRequest = {
+    UserRightsUpdateRequest(rights = rights.rights, admin = Some(rights.admin))
+  }
+}
 
 case class UserInformationUpdateRequest(
     name: String,
@@ -332,7 +350,10 @@ case class TenantRight(
     level: RightLevel,
     projects: Map[String, ProjectAtomicRight] = Map(),
     keys: Map[String, GeneralAtomicRight] = Map(),
-    webhooks: Map[String, GeneralAtomicRight] = Map()
+    webhooks: Map[String, GeneralAtomicRight] = Map(),
+    defaultProjectRight: Option[ProjectRightLevel] = None,
+    defaultKeyRight: Option[RightLevel] = None,
+    defaultWebhookRight: Option[RightLevel] = None
 )
 
 case class Rights(tenants: Map[String, TenantRight]) {
@@ -470,7 +491,7 @@ object Rights {
             addedWebhookRights = flattenWebhooks(newRights)
           )
         )
-      case (Some(oldR @ TenantRight(oldLevel, _, _, _)), Some(newR @ TenantRight(newLevel, _, _, _)))
+      case (Some(oldR @ TenantRight(oldLevel, _, _, _, _, _, _)), Some(newR @ TenantRight(newLevel, _, _, _, _, _, _)))
           if oldLevel != newLevel => {
         Some(
           TenantRightDiff(
@@ -564,7 +585,10 @@ object User {
     (__ \ "level").read[RightLevel](RightLevel.rightLevelReads) and
       (__ \ "projects").readWithDefault[Map[String, ProjectAtomicRight]](Map()) and
       (__ \ "keys").readWithDefault[Map[String, GeneralAtomicRight]](Map()) and
-      (__ \ "webhooks").readWithDefault[Map[String, GeneralAtomicRight]](Map())
+      (__ \ "webhooks").readWithDefault[Map[String, GeneralAtomicRight]](Map()) and
+      (__ \ "projectDefault").readNullable[ProjectRightLevel](ProjectRightLevel.projectRightLevelReads) and
+      (__ \ "keyDefault").readNullable[RightLevel](RightLevel.rightLevelReads) and
+      (__ \ "webhookDefault").readNullable[RightLevel](RightLevel.rightLevelReads)
   )(TenantRight.apply _)
 
   implicit val rightsReads: Reads[Rights] =

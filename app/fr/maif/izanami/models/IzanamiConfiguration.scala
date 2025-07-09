@@ -5,6 +5,7 @@ import fr.maif.izanami.mail.MailerTypes.{MailJet, MailerType, SMTP}
 import fr.maif.izanami.mail.{MailProviderConfiguration, _}
 import fr.maif.izanami.models.InvitationMode.InvitationMode
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2Method
+import fr.maif.izanami.services.CompleteRights
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.Reads.instantReads
@@ -48,6 +49,7 @@ case class OAuth2Configuration(
     emailField: String = "email",
     callbackUrl: String,
     defaultOIDCUserRights: Rights = Rights.EMPTY,
+    userRightsByRoles: Map[String, CompleteRights]
 )
 
 object OAuth2Configuration {
@@ -90,7 +92,8 @@ object OAuth2Configuration {
       "nameField"        -> o.nameField,
       "emailField"       -> o.emailField,
       "callbackUrl"      -> o.callbackUrl,
-      "defaultOIDCUserRights" -> User.rightWrite.writes(o.defaultOIDCUserRights)
+      "defaultOIDCUserRights" -> User.rightWrite.writes(o.defaultOIDCUserRights),
+      "userRightsByRoles" -> Json.toJson(o.userRightsByRoles)(Writes.map(CompleteRights.writes))
     )
 
     override def reads(json: JsValue): JsResult[OAuth2Configuration] = {
@@ -109,6 +112,7 @@ object OAuth2Configuration {
       ) yield {
 
         val defaultOIDCUserRights = (json \ "defaultOIDCUserRights").asOpt[Rights](User.rightsReads)
+        val userRightsByRoles = (json \ "userRightsByRoles").asOpt[Map[String, CompleteRights]](Reads.map(CompleteRights.reads))
         OAuth2Configuration(
           method = method,
           enabled = enabled,
@@ -121,7 +125,8 @@ object OAuth2Configuration {
           scopes = scopes,
           pkce = (json \ "pkce").asOpt[PKCEConfig](PKCEConfig._fmt.reads),
           callbackUrl = callbackUrl,
-          defaultOIDCUserRights = defaultOIDCUserRights.getOrElse(Rights.EMPTY)
+          defaultOIDCUserRights = defaultOIDCUserRights.getOrElse(Rights.EMPTY),
+          userRightsByRoles = userRightsByRoles.getOrElse(Map())
         )
       }
 

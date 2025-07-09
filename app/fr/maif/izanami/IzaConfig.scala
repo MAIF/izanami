@@ -1,5 +1,14 @@
 package fr.maif.izanami
 
+import fr.maif.izanami.models.{GeneralAtomicRight, ProjectAtomicRight, ProjectRightLevel, RightLevel, Rights, TenantRight}
+import pureconfig.{CamelCase, ConfigFieldMapping, ConfigReader, PascalCase, SnakeCase}
+import ConfigProjectRightLevel.rightConvert
+import fr.maif.izanami.models.ProjectRightLevel.Update
+import fr.maif.izanami.models.RightLevel.{Read, Write}
+import fr.maif.izanami.services.CompleteRights
+import pureconfig.generic.auto._
+import pureconfig.generic.semiauto._
+
 case class IzanamiTypedConfiguration(app: AppConf, play: PlayRoot)
 
 case class AppConf(
@@ -49,7 +58,8 @@ case class OpenId(
     scopes: String,
     emailField: String,
     usernameField: String,
-    pkce: OpenIdPkce
+    pkce: OpenIdPkce,
+    rightByRoles: Map[String, RoleRights]
 )
 case class OpenIdPkce(enabled: Boolean, algorithm: Option[String])
 case class Wasmo(url: Option[String], clientId: Option[String], clientSecret: Option[String])
@@ -92,7 +102,92 @@ case class Search(similarityThreshold: Double)
 case class Feature(callRecords: CallRecords, staleHoursDelay: Long)
 case class CallRecords(callRegisterIntervalInSeconds: Long, callRetentionTimeInHours: Long)
 case class Housekeeping(startDelayInSeconds: Long, intervalInSeconds: Long)
+case class RoleRights(admin: Boolean = false, tenants: Map[String, TenantRoleRights] = Map()) {
+  def toRights: CompleteRights = {
+    val tenantRights = tenants.view.mapValues(r =>
+      TenantRight(
+        projects = r.projects.view.mapValues(v => ProjectAtomicRight(v.toProjectRightLevel)).toMap,
+        keys = r.keys.view.mapValues(v => GeneralAtomicRight(v.toRightLevel)).toMap,
+        webhooks = r.webhooks.view.mapValues(v => GeneralAtomicRight(v.toRightLevel)).toMap,
+        defaultProjectRight = r.baseProjectRight.toMaybeProjectRightLevel,
+        defaultKeyRight = r.baseKeyRight.toMaybeRightLevel,
+        defaultWebhookRight = r.baseWebhookRight.toMaybeRightLevel,
+        level = r.level.toRightLevel
+      )
+    ).toMap
+
+    CompleteRights(admin = admin, rights = Rights(tenants = tenantRights))
+  }
+}
+case class TenantRoleRights(
+    level: ConfigNonNullableRightLevel,
+    baseProjectRight: ConfigProjectRightLevel = None,
+    baseKeyRight: BaseConfigRightLevel = None,
+    baseWebhookRight: BaseConfigRightLevel = None,
+    keys: Map[String, ConfigNonNullableRightLevel] = Map(),
+    webhooks: Map[String, ConfigNonNullableRightLevel] = Map(),
+    projects: Map[String, ConfigNonNullableProjectRightLevel] = Map()
+)
 
 case class PlayRoot(server: PlayServer)
 case class PlayServer(http: PlayHttpConf)
 case class PlayHttpConf(port: Long)
+
+sealed trait ConfigProjectRightLevel {
+  def toMaybeProjectRightLevel: Option[ProjectRightLevel]
+}
+sealed trait BaseConfigRightLevel extends ConfigProjectRightLevel {
+  def toMaybeRightLevel: Option[RightLevel]
+}
+
+sealed trait ConfigNonNullableRightLevel extends ConfigNonNullableProjectRightLevel {
+  def toRightLevel: RightLevel
+}
+
+sealed trait ConfigNonNullableProjectRightLevel {
+  def toProjectRightLevel: ProjectRightLevel
+}
+
+case object Read   extends BaseConfigRightLevel with ConfigNonNullableRightLevel {
+  override def toMaybeRightLevel: Option[RightLevel] = Some(toRightLevel)
+  override def toProjectRightLevel: ProjectRightLevel = ProjectRightLevel.Read
+  override def toRightLevel: RightLevel = RightLevel.Read
+  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(toProjectRightLevel)
+}
+case object Write  extends BaseConfigRightLevel with ConfigNonNullableRightLevel {
+  override def toMaybeRightLevel: Option[RightLevel] = Some(toRightLevel)
+  override def toRightLevel: RightLevel = RightLevel.Write
+  override def toProjectRightLevel: ProjectRightLevel = ProjectRightLevel.Write
+  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(toProjectRightLevel)
+}
+case object Admin  extends BaseConfigRightLevel with ConfigNonNullableRightLevel {
+  override def toMaybeRightLevel: Option[RightLevel] = Some(toRightLevel)
+  override def toRightLevel: RightLevel = RightLevel.Admin
+  override def toProjectRightLevel: ProjectRightLevel = ProjectRightLevel.Admin
+  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(toProjectRightLevel)
+}
+case object None   extends BaseConfigRightLevel {
+  override def toMaybeRightLevel: Option[RightLevel] = Option.empty
+  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Option.empty
+}
+case object Update extends ConfigProjectRightLevel with ConfigNonNullableProjectRightLevel {
+  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(toProjectRightLevel)
+  override def toProjectRightLevel: ProjectRightLevel = ProjectRightLevel.Update
+}
+
+object BaseConfigRightLevel {
+  implicit val rightConvert: ConfigReader[BaseConfigRightLevel] = deriveEnumerationReader[BaseConfigRightLevel]
+}
+
+object ConfigProjectRightLevel {
+  implicit val rightConvert: ConfigReader[ConfigProjectRightLevel] = deriveEnumerationReader[ConfigProjectRightLevel]
+}
+
+
+object ConfigNonNullableRightLevel {
+  implicit val rightConvert: ConfigReader[ConfigNonNullableRightLevel] = deriveEnumerationReader[ConfigNonNullableRightLevel]
+}
+
+object ConfigNonNullableProjectRightLevel {
+  implicit val rightConvert: ConfigReader[ConfigNonNullableProjectRightLevel] = deriveEnumerationReader[ConfigNonNullableProjectRightLevel]
+}

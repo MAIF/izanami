@@ -621,7 +621,7 @@ class UsersDatastore(val env: Env) extends Datastore {
               .flatMap(_ => {
                 val (usernames, tenants, levels) = users
                   .flatMap(u => {
-                    u.rights.tenants.map { case (tenant, TenantRight(level, _, _, _)) => (u.username, tenant, level) }
+                    u.rights.tenants.map { case (tenant, t:TenantRight) => (u.username, tenant, t.level) }
                   })
                   .toArray
                   .unzip3
@@ -1434,6 +1434,16 @@ class UsersDatastore(val env: Env) extends Datastore {
       case Some(user)                               => Some(user.withRights(Rights.EMPTY)).future
       case _                                        => Future.successful(None)
     }
+  }
+
+
+  def findCompleteRights(user: String): Future[Option[UserWithRights]] = {
+    findUser(user)
+      .filter(_.isDefined)
+      .flatMap(u => {
+        val tenants = u.get.tenantRights.keys.toSet
+        findCompleteRightsFromTenant(username = user, tenants = tenants)
+      })
   }
 
   def findCompleteRightsFromTenant(username: String, tenants: Set[String]): Future[Option[UserWithRights]] = {
