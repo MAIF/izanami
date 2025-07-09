@@ -1,0 +1,124 @@
+---
+title: OAuth2 rights
+---
+
+import { Note } from "@site/src/components/Note";
+
+Izanami allow to setup an OAuth2 provider.
+
+Configuratioin of provider is [documented here](https://maif.github.io/izanami/docs/guides/configuration#openid).
+
+This page focuses on attributing rights to user coming from external auth provider.
+
+
+# Map provider roles to rights
+
+To attribute default rights to external users, you'll have to define `app.openid.right-by-roles`.
+
+This property is a map, whose keys are roles, and value are rights that should be given to external users with these roles.
+
+
+## Role
+
+Role are provided by OAuth2 provider. You must specify claim that contains roles in token sent by OAuth2 provider in `app.openid.role-claim`.
+
+Role claim must contain either a string containing a single role, or a json array containing a list of roles
+
+## Right format
+
+Each role is associated with a set of rights.
+
+Here is a complete set of rights:
+
+```json
+{
+  "admin": <true|false>, // Wether user is global admin
+  "tenants": {
+    "my-tenant": {
+      "level": "<read|write|admin>", // Right level for tenant "my-tenant"
+      "default-project-right": "<read|write|admin>", // default project right for "my-tenant"
+      "default-key-right": "<read|write|admin>", // default key right for "my-tenant"
+      "default-webhook-right": "<read|write|admin>", // default webhook right for "my-tenant"
+      "projects": {
+        "my-project": "<read|write|admin>", // Specific right level for project "my-project"
+        "another-project": "<read|write|admin>" // Specific right level for project "another-project"
+      },
+      "keys": {
+        "my-key": "<read|write|admin>" // Specific right level for key "my-key"
+      },
+      "webhooks": {
+        "my-hook": "<read|write|admin>" // Specific right level for webhook "my-hook"
+      }
+    }
+  }
+}
+```
+
+## Default rights
+
+To specify default rights for any oidc user, you'll need to define rights for a role `""`.
+
+```json
+{
+  "": {
+    "tenants": {
+      "my-tenant": {
+        "level": "read",
+        "default-project-right": "read"
+      }
+    }
+  },
+  "another-role": {
+    // ...
+  }
+}
+```
+
+## Role merge
+
+When a user has multiple role, or when he has one role and default rights, Izanami merges rights from different roles and default rights to keep only higher rights.
+
+For instance, with the following configuration, a user with roles `foo` and `bar` will have: 
+
+* global admin rights
+* admin right on `my-tenant`
+* default project right of `update` for `my-tenant`
+* default key right of `read` for `my-tenant`
+
+```json
+{
+  "": {
+    "tenants": {
+      "my-tenant": {
+        "level": "read",
+        "default-project-right": "read",
+        "default-key-right": "read"
+      }
+    }
+  },
+  "foo": {
+    "admin": true,
+    "my-tenant": {
+      "level": "write",
+      "default-project-right": "update"
+    }
+  },
+  "bar": {
+    "my-tenant": {
+      "level": "admin",
+      "default-project-right": "read"
+    }
+  }
+}
+```
+
+# Rights modes
+
+Role synchronisation between external authentication provider and Izanami can be done using two different strategies:
+
+* `initial`: this strategy assigns rights to external user **at first connection**, user rights are not updated thereafter.
+In this mode, external user rights can be updated directly from Izanami as for a normal user.
+* `supervised`: as for `internal` strategy, this one assigns rights at first connection.
+This mode also "reset" rights at every login, allowing update of roles or right by role to be taken into account.
+In this mode, external use rights can't be updated from Izanami, to update one user rights you'll have to add / remove him roles
+in external authentication provider or to update `right-by-roles` configuration.

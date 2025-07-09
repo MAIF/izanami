@@ -5,7 +5,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, RELATION_DOES_NOT_EXISTS}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
-import fr.maif.izanami.models.{ApiKey, ApiKeyProject, ApiKeyWithCompleteRights}
+import fr.maif.izanami.models.{ApiKey, ApiKeyProject, ApiKeyWithCompleteRights, Tenant}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy}
@@ -41,11 +41,11 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                      conn: Option[SqlConnection]
                    ): Future[Either[Seq[IzanamiError], Seq[ApiKey]]] = {
     // TODO handle conflict strategy
-
+    require(Tenant.isTenantValid(tenant))
     def callback(connection: SqlConnection): Future[Either[Seq[IzanamiError], Seq[ApiKey]]] = {
       env.postgresql
         .queryAll(
-          s"""insert into apikeys (name, clientid, clientsecret, description, enabled, legacy, admin)
+          s"""insert into "${tenant}".apikeys (name, clientid, clientsecret, description, enabled, legacy, admin)
              |values (unnest($$1::text[]), unnest($$2::text[]), unnest($$3::text[]), unnest($$4::text[]), unnest($$5::boolean[]), unnest($$6::boolean[]), unnest($$7::boolean[])) returning *""".stripMargin,
           List(
             apiKeys.map(_.name).toArray,
@@ -56,8 +56,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
             apiKeys.map(k => java.lang.Boolean.valueOf(k.legacy)).toArray,
             apiKeys.map(k => java.lang.Boolean.valueOf(k.admin)).toArray
           ),
-          conn = Some(connection),
-          schemas = Seq(tenant)
+          conn = Some(connection)
         ) { row => {
           val requestKey = apiKeys.find(k => k.name == row.getString("name")).get
           row.optApiKey(requestKey.tenant).map(key => key.copy(clientSecret = requestKey.clientSecret))
@@ -71,13 +70,12 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                 env.postgresql
                   .queryOne(
                     s"""
-                       |INSERT INTO apikeys_projects (apikey, project)
+                       |INSERT INTO "${tenant}".apikeys_projects (apikey, project)
                        |SELECT $$1, unnest($$2::TEXT[])
                        |RETURNING *
                        |""".stripMargin,
                     List(apiKey.name, apiKey.projects.toArray),
-                    conn = Some(connection),
-                    schemas = Seq(tenant)
+                    conn = Some(connection)
                   ) { _ => Some(apiKey) }
                   .map {
                     _.toRight(InternalServerError())
@@ -98,13 +96,12 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                   env.postgresql
                     .queryAll(
                       s"""
-                         |INSERT INTO users_keys_rights(username, apikey, level)
+                         |INSERT INTO "${tenant}".users_keys_rights(username, apikey, level)
                          |VALUES (unnest($$1::text[]), unnest($$2::text[]), 'ADMIN')
                          |RETURNING apikey
                          |""".stripMargin,
                       List(Array.fill(apiKeys.size)(user.username), apiKeys.map(_.name).toArray),
-                      conn = Some(connection),
-                      schemas = Seq(tenant)
+                      conn = Some(connection)
                     ) { r => apiKeys.find(k => k.name == r.getString("apikey")) }
                     .map(l => Right(l))
                 }
@@ -140,6 +137,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
   }
 
   def readApiKeys(tenant: String, username: String): Future[List[ApiKey]] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql.queryAll(
       s"""
          |SELECT
@@ -151,20 +149,20 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
          |a.admin,
          |a.clientsecret,
          |COALESCE(json_agg(ap.project) FILTER (WHERE ap.project IS NOT NULL), '[]') AS projects
-         |FROM apikeys a
-         |LEFT JOIN apikeys_projects ap
+         |FROM "${tenant}".apikeys a
+         |LEFT JOIN "${tenant}".apikeys_projects ap
          |ON ap.apikey = a.name
          |WHERE EXISTS (SELECT u.username FROM izanami.users u WHERE u.username=$$1 AND u.admin=TRUE)
-         |OR EXISTS(SELECT * FROM izanami.users_tenants_rights utr WHERE utr.username=$$1 AND (utr.level='ADMIN'))
-         |OR a.name=ANY(SELECT akr.apikey FROM users_keys_rights akr WHERE akr.username=$$1)
+         |OR EXISTS(SELECT * FROM izanami.users_tenants_rights utr WHERE utr.username=$$1 AND (utr.level='ADMIN' OR utr.default_key_right IS NOT NULL))
+         |OR a.name=ANY(SELECT akr.apikey FROM "${tenant}".users_keys_rights akr WHERE akr.username=$$1)
          |GROUP BY a.name
          |""".stripMargin,
-      List(username),
-      schemas = Seq(tenant)
+      List(username)
     ) { r => r.optApiKeyWithSubObjects(tenant) }
   }
 
   def readApiKey(tenant: String, name: String): Future[Option[ApiKey]] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql.queryOne(
       s"""
          |SELECT
@@ -176,26 +174,25 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
          |a.admin,
          |a.clientsecret,
          |COALESCE(json_agg(ap.project) FILTER (WHERE ap.project IS NOT NULL), '[]') AS projects
-         |FROM apikeys a
-         |LEFT JOIN apikeys_projects ap
+         |FROM "${tenant}".apikeys a
+         |LEFT JOIN "${tenant}".apikeys_projects ap
          |ON ap.apikey = a.name
          |WHERE a.name = $$1
          |GROUP BY a.name
          |""".stripMargin,
-      List(name),
-      schemas = Seq(tenant)
+      List(name)
     ) { r => r.optApiKeyWithSubObjects(tenant) }
   }
 
   def deleteApiKey(tenant: String, name: String): Future[Either[IzanamiError, String]] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
         .queryOne(
           s"""
-           DELETE FROM apikeys WHERE name=$$1 RETURNING clientid
+           DELETE FROM "${tenant}".apikeys WHERE name=$$1 RETURNING clientid
              |""".stripMargin,
           List(name),
-          schemas = Seq(tenant),
           conn = Some(conn)
         ) { row => row.optString("clientid") }
         .map(o => o.toRight(KeyNotFound(name)))
@@ -212,12 +209,13 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
   }
 
   def updateApiKey(tenant: String, oldName: String, newKey: ApiKey): Future[Either[IzanamiError, Unit]] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql.executeInTransaction(
       conn => {
         env.postgresql
           .queryRaw(
             s"""
-               |DELETE FROM apikeys_projects WHERE apikey = $$1
+               |DELETE FROM "${tenant}".apikeys_projects WHERE apikey = $$1
                |""".stripMargin,
             List(oldName),
             conn = Some(conn)
@@ -226,7 +224,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
             env.postgresql
               .queryOne(
                 s"""
-               UPDATE apikeys
+               UPDATE "${tenant}".apikeys
                    |SET name=$$1,
                    |description=$$2,
                    |enabled=$$4,
@@ -245,7 +243,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
             case Right(_) if (newKey.projects.nonEmpty) => {
                 env.postgresql.queryRaw(
                   s"""
-                     |INSERT INTO apikeys_projects (apikey, project)
+                     |INSERT INTO "${tenant}".apikeys_projects (apikey, project)
                      |SELECT $$1, unnest($$2::text[])
                      |""".stripMargin,
                   List(newKey.name, newKey.projects.toArray),
@@ -254,8 +252,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
             }
             case _ => Future.successful(Right(()))
           }
-      },
-      schemas = Seq(tenant)
+      }
     )
   }
 
@@ -271,6 +268,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
     futureMaybeTenant.flatMap {
       case None => Future.successful(Left(ApiKeyDoesNotExist(clientId)))
       case Some(tenant) => {
+        require(Tenant.isTenantValid(tenant))
         env.postgresql
           .queryOne(
             s"""
@@ -283,15 +281,14 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                |a.legacy,
                |a.admin,
                |COALESCE(json_agg(json_build_object('id', p.id, 'name', p.name)) FILTER (WHERE p.id IS NOT NULL), '[]') AS projects
-               |FROM apikeys a
-               |LEFT JOIN apikeys_projects ap ON ap.apikey = a.name
-               |LEFT JOIN projects p ON p.name=ap.project
+               |FROM "${tenant}".apikeys a
+               |LEFT JOIN "${tenant}".apikeys_projects ap ON ap.apikey = a.name
+               |LEFT JOIN "${tenant}".projects p ON p.name=ap.project
                |WHERE a.clientid=$$1
                |AND a.enabled=true
                |GROUP BY a.name
                |""".stripMargin,
-            List(clientId),
-            schemas = Seq(tenant)
+            List(clientId)
           ) { r => {
             val projects = r
               .optJsArray("projects")

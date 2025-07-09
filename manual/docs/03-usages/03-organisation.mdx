@@ -21,15 +21,6 @@ It could, for instance, be used to separate organizations / companies on one Iza
 
 Users are shared between tenants, project, features and tags are not.
 
-User can have 4 level of rights on tenants:
-
-|               | Access tenant | Create project | Create tag | See members | Modify user rights | Invite users | Delete tenant | Create tenant |
-| ------------- | ------------- | -------------- | ---------- | ----------- | ------------------ | ------------ | ------------- | ------------- |
-| Read          | ✅            | ❌             | ❌         | ❌          | ❌                 | ❌           | ❌            | ❌            |
-| Write         | ✅            | ✅             | ✅         | ❌          | ❌                 | ❌           | ❌            | ❌            |
-| Admin         | ✅            | ✅             | ✅         | ✅          | ✅                 | ✅           | ✅            | ❌            |
-| Izanami Admin | ✅            | ✅             | ✅         | ✅          | ✅                 | ✅           | ✅            | ✅            |
-
 ## Projects
 
 Project is a feature container.
@@ -39,19 +30,6 @@ It has two main usages:
 - group together features related to the same project, topic or software
 - manage rights or permissions on this group
 
-User can have 3 level of rights on tenants:
-
-|                      | Access project | Edit feature | Create feature | Delete feature | Modify user rights | Invite users | Update project information | Delete project |
-| -------------------- | -------------- | -------------- | ------------ | -------------- | ------------------ | ------------ | -------------------------- | -------------- |
-| Read                 | ✅             | ❌             | ❌           | ❌             | ❌                 | ❌           | ❌                         | ❌             |
-| Update (from 2.10.x) | ✅             | ❌             | ❌           | ❌             | ❌                 | ❌           | ❌                         | ❌             |
-| Write                | ✅             | ✅             | ✅           | ✅             | ❌                 | ❌           | ❌                         | ❌             |
-| Admin                | ✅             | ✅             | ✅           | ✅             | ✅                 | ✅           | ✅                         | ✅             |
-
-<Note>
-  If you are a global Izanami admin or admin of the project's tenant you are
-  considered project admin
-</Note>
 
 ## Tags
 

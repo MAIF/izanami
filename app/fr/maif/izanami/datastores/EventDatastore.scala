@@ -7,6 +7,7 @@ import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{EventNotFound, FailedToReadEvent, IzanamiError}
 import fr.maif.izanami.events.EventService.{FeatureEventType, IZANAMI_CHANNEL, eventFormat}
 import fr.maif.izanami.events.IzanamiEvent
+import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.utils.Datastore
 
 import java.time.{Duration, Instant, ZoneOffset}
@@ -36,26 +37,26 @@ class EventDatastore(val env: Env) extends Datastore {
 
 
   def deleteExpiredEventsForTenant(tenant: String, hours: Int): Future[Unit] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql.queryRaw(
       s"""
-         |DELETE FROM events WHERE EXTRACT(HOUR FROM NOW() - emitted_at) > $$1
+         |DELETE FROM "${tenant}".events WHERE EXTRACT(HOUR FROM NOW() - emitted_at) > $$1
          |""".stripMargin,
-      params=List(java.lang.Integer.valueOf(hours)),
-      schemas = Seq(tenant)
+      params=List(java.lang.Integer.valueOf(hours))
     ){_ => Some(())}
   }
 
 
 
   def readEventFromDb(tenant: String, id: Long): Future[Either[IzanamiError, IzanamiEvent]] = {
+    require(Tenant.isTenantValid(tenant))
     val global = tenant.equals(IZANAMI_CHANNEL)
     env.postgresql
       .queryOne(
         s"""
-           |SELECT event FROM ${if (global) "izanami.global_events" else "events"} WHERE id=$$1
+           |SELECT event FROM ${if (global) "izanami.global_events" else s""""${tenant}".events"""} WHERE id=$$1
            |""".stripMargin,
-        List(java.lang.Long.valueOf(id)),
-        schemas = if (global) Seq() else Seq(tenant)
+        List(java.lang.Long.valueOf(id))
       ) { r => r.optJsObject("event") }
       .map(o => o.toRight(EventNotFound(tenant, id)))
       .map(e => e.flatMap(js => eventFormat.reads(js).asOpt.toRight(FailedToReadEvent(js.toString()))))
@@ -63,12 +64,13 @@ class EventDatastore(val env: Env) extends Datastore {
   }
 
   def listEventsForTenant(tenant: String, request: TenantEventRequest): Future[(Seq[IzanamiEvent], Option[Long])] = {
+    require(Tenant.isTenantValid(tenant))
     def queryBody(startIndex: Int): (String, List[AnyRef]) = {
       var index = startIndex
       val entityIds = request.features.concat(request.projects)
       val query =
         s"""
-           |FROM events e
+           |FROM "${tenant}".events e
            |WHERE 1 = 1
            |${if (request.users.nonEmpty) s"AND e.username = ANY($$${index += 1; index}::TEXT[])" else ""}
            |${request.begin.map(_ => s"AND e.emitted_at >= $$${index += 1; index}").getOrElse("")}
@@ -92,7 +94,7 @@ class EventDatastore(val env: Env) extends Datastore {
         s"""
            |SELECT COUNT(*) as total
            |${body}
-           |""".stripMargin, params = params, schemas = Seq(tenant)
+           |""".stripMargin, params = params
       ) { r => r.optLong("total") }
     } else {
       Future.successful(None)
@@ -109,8 +111,7 @@ class EventDatastore(val env: Env) extends Datastore {
              |ORDER BY e.id ${request.sortOrder.toDb}
              |LIMIT $$1
              |""".stripMargin,
-          params = List(Some(java.lang.Integer.valueOf(request.count)), request.cursor.map(java.lang.Long.valueOf)).collect { case Some(t) => t }.concat(ps),
-          schemas = Seq(tenant)
+          params = List(Some(java.lang.Integer.valueOf(request.count)), request.cursor.map(java.lang.Long.valueOf)).collect { case Some(t) => t }.concat(ps)
         ) { r => r.optJsObject("event") }
     }.map(jsons => {
       jsons
@@ -133,12 +134,12 @@ class EventDatastore(val env: Env) extends Datastore {
   }
 
   def listEventsForProject(tenant: String, projectId: String, request: FeatureEventRequest): Future[(Seq[IzanamiEvent], Option[Long])] = {
-
+    require(Tenant.isTenantValid(tenant))
     def queryBody(startIndex: Int): (String, List[AnyRef]) = {
       var index = startIndex
       val query =
         s"""
-           |FROM events e, projects p
+           |FROM "${tenant}".events e, "${tenant}".projects p
            |WHERE e.event->>'projectId'=p.id::TEXT
            |AND p.name=$$${index}
            |${if (request.users.nonEmpty) s"AND e.username = ANY($$${index += 1; index}::TEXT[])" else ""}
@@ -159,7 +160,7 @@ class EventDatastore(val env: Env) extends Datastore {
         s"""
            |SELECT COUNT(*) as total
            |${body}
-           |""".stripMargin, params = params, schemas = Seq(tenant)
+           |""".stripMargin, params = params
       ) { r => r.optLong("total") }
     } else {
       Future.successful(None)
@@ -176,8 +177,7 @@ class EventDatastore(val env: Env) extends Datastore {
              |ORDER BY e.id ${request.sortOrder.toDb}
              |LIMIT $$1
              |""".stripMargin,
-          params = List(Some(java.lang.Integer.valueOf(request.count)), request.cursor.map(java.lang.Long.valueOf)).collect { case Some(t) => t }.concat(ps),
-          schemas = Seq(tenant)
+          params = List(Some(java.lang.Integer.valueOf(request.count)), request.cursor.map(java.lang.Long.valueOf)).collect { case Some(t) => t }.concat(ps)
         ) { r => r.optJsObject("event") }
     }.map(jsons => {
       jsons

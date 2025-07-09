@@ -5,27 +5,12 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError, PartialImportFailure}
 import fr.maif.izanami.events.EventOrigin.ImportOrigin
-import fr.maif.izanami.events.{
-  PreviousProject,
-  SourceFeatureCreated,
-  SourceFeatureUpdated,
-  SourceProjectCreated,
-  SourceProjectUpdated
-}
-import fr.maif.izanami.models.{
-  ExportedType,
-  FeatureType,
-  FeatureWithOverloads,
-  KeyRightType,
-  Project,
-  ProjectRightType,
-  ProjectType,
-  WebhookRightType
-}
+import fr.maif.izanami.events.{PreviousProject, SourceFeatureCreated, SourceFeatureUpdated, SourceProjectCreated, SourceProjectUpdated}
+import fr.maif.izanami.models.{ExportedType, FeatureType, FeatureWithOverloads, KeyRightType, Project, ProjectRightType, ProjectType, Tenant, WebhookRightType}
 import fr.maif.izanami.models.ExportedType.exportedTypeToString
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.web.ExportController.{projectExportResultWrites, ExportResult, TenantExportRequest}
+import fr.maif.izanami.web.ExportController.{ExportResult, TenantExportRequest, projectExportResultWrites}
 import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, MergeOverwrite}
 import fr.maif.izanami.web.{ExportController, ImportController, ImportResult, UserInformation}
 import io.vertx.core.json.JsonArray
@@ -70,6 +55,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       conflictStrategy: ImportConflictStrategy,
       user: UserInformation
   ): Future[Either[IzanamiError, Unit]] = {
+    Tenant.isTenantValid(tenant)
     Future
       .sequence(
         entries.toSeq
@@ -165,10 +151,9 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                             env.postgresql
                               .queryAll(
                                 s"""
-                                   |SELECT id, name FROM projects WHERE id=ANY($$1)
+                                   |SELECT id, name FROM "${tenant}".projects WHERE id=ANY($$1)
                                    |""".stripMargin,
                                 List(result.updatedProjects.map(s => UUID.fromString(s)).toArray),
-                                schemas = Seq(tenant)
                               ) { r =>
                                 {
                                   for (
@@ -299,7 +284,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       rows: Seq[JsObject],
       maybeId: Option[String]
   ): Future[UnitDBImportResult] = {
-
+    Tenant.isTenantValid(tenant)
     val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
     val cols           = metadata.tableColumns.mkString(",")
 
@@ -310,12 +295,11 @@ class ImportExportDatastore(val env: Env) extends Datastore {
           env.postgresql
             .queryRaw(
               s"""
-                 |INSERT INTO ${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::${metadata.table}, $$1)
-                 |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO UPDATE SET($cols)=(select $cols from json_populate_recordset(NULL::${metadata.table}, $$1))
+                 |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::"${tenant}".${metadata.table}, $$1)
+                 |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO UPDATE SET($cols)=(select $cols from json_populate_recordset(NULL::"${tenant}".${metadata.table}, $$1))
                  |RETURNING (xmax = 0) AS inserted ${maybeId.map(idCol => s", ${idCol}::TEXT as id").getOrElse("")}
                  |""".stripMargin,
               List(vertxJsonArray),
-              schemas = Seq(extensionSchema, tenant),
               conn = Some(conn)
             ) { rows =>
               {
@@ -349,14 +333,13 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     env.postgresql
                       .queryOne(
                         s"""
-                           |INSERT INTO ${metadata.table} (${cols}) select ${cols} from json_populate_record(null::${metadata.table}, $$1)
+                           |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::${metadata.table}, $$1)
                            |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO UPDATE SET($cols)=((select $cols from json_populate_record(NULL::${metadata.table}, $$1)))
                            |RETURNING (xmax = 0) AS inserted ${maybeId
                           .map(idCol => s", ${idCol}::TEXT as id")
                           .getOrElse("")}
                            |""".stripMargin,
-                        List(row.vertxJsValue),
-                        schemas = Seq(extensionSchema, tenant)
+                        List(row.vertxJsValue)
                       ) { r =>
                         {
                           (for (
@@ -391,6 +374,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       rows: Seq[JsObject],
       conn: SqlConnection
   ): Future[Either[Seq[JsObject], Unit]] = {
+    Tenant.isTenantValid(tenant)
     val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
     val cols           = metadata.tableColumns.mkString(",")
     env.postgresql
@@ -399,10 +383,9 @@ class ImportExportDatastore(val env: Env) extends Datastore {
         env.postgresql
           .queryOne(
             s"""
-           |INSERT INTO ${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::${metadata.table}, $$1)
+           |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::"${tenant}".${metadata.table}, $$1)
            |""".stripMargin,
             List(vertxJsonArray),
-            schemas = Seq(extensionSchema, tenant),
             conn = Some(conn)
           ) { _ => Some(()) }
           .map(_ => Right(()))
@@ -418,10 +401,9 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     env.postgresql
                       .queryOne(
                         s"""
-                       |INSERT INTO ${metadata.table} (${cols}) select ${cols} from json_populate_record(null::${metadata.table}, $$1)
+                       |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::${metadata.table}, $$1)
                        |""".stripMargin,
                         List(row.vertxJsValue),
-                        schemas = Seq(extensionSchema, tenant),
                         conn = Some(conn)
                       ) { _ => Some(()) }
                       .map(_ => Right(()))
@@ -445,6 +427,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       rows: Seq[JsObject],
       maybeId: Option[String]
   ): Future[UnitDBImportResult] = {
+    Tenant.isTenantValid(tenant)
     val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
     val cols           = metadata.tableColumns.mkString(",")
     env.postgresql.executeInTransaction(conn => {
@@ -453,12 +436,11 @@ class ImportExportDatastore(val env: Env) extends Datastore {
           env.postgresql
             .queryRaw(
               s"""
-                 |INSERT INTO ${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::${metadata.table}, $$1)
+                 |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::"${tenant}".${metadata.table}, $$1)
                  |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO NOTHING
                  |RETURNING (xmax = 0) AS inserted ${maybeId.map(idCol => s", ${idCol}::TEXT as id").getOrElse("")}
                  |""".stripMargin,
               List(vertxJsonArray),
-              schemas = Seq(extensionSchema, tenant),
               conn=Some(conn)
             ) { rows =>
             {
@@ -489,12 +471,11 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     env.postgresql
                       .queryOne(
                         s"""
-                           |INSERT INTO ${metadata.table} (${cols}) select ${cols} from json_populate_record(null::${metadata.table}, $$1)
+                           |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::${metadata.table}, $$1)
                            |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO NOTHING
                            |RETURNING (xmax = 0) AS inserted ${maybeId.map(idCol => s", ${idCol}::TEXT as id").getOrElse("")}
                            |""".stripMargin,
                         List(row.vertxJsValue),
-                        schemas = Seq(extensionSchema, tenant)
                       ) { r =>
                       {
                         maybeId.flatMap(_ => {
@@ -524,6 +505,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       tenant: String,
       request: TenantExportRequest
   ): Future[List[JsObject]] = {
+    Tenant.isTenantValid(tenant)
     val paramIndex    = new AtomicInteger(1)
     val projectFilter = request.projects match {
       case ExportController.ExportItemList(projects) => Some(projects)
@@ -544,15 +526,15 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       s"""
          |WITH project_results AS (
          |    SELECT DISTINCT p.name as pname, p.id, (jsonb_build_object('_type', 'project', 'row', to_jsonb(p.*)::jsonb)) as result
-         |    FROM projects p
+         |    FROM "${tenant}".projects p
          |    ${projectFilter.map(_ => s"WHERE p.name=ANY($$${paramIndex.getAndIncrement()})").getOrElse("")}
          |), feature_results AS (
          |    SELECT DISTINCT f.script_config, f.id as fid, f.name as fname, jsonb_build_object('_type', 'feature' , 'row', to_jsonb(f.*)) as result
-         |    FROM project_results, features f
+         |    FROM project_results, "${tenant}".features f
          |    WHERE f.project=project_results.pname
          |), tag_results AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'tag', 'row', row_to_json(t.*)::jsonb) as result
-         |    FROM tags t ${projectFilter
+         |    FROM "${tenant}".tags t ${projectFilter
         .map(_ => """
          |, features_tags ft, feature_results
          |    WHERE ft.feature=feature_results.fid
@@ -560,16 +542,16 @@ class ImportExportDatastore(val env: Env) extends Datastore {
         .getOrElse("")}
          |), features_tags_results AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'feature_tag', 'row', to_jsonb(ft.*)) as result
-         |    FROM features_tags ft, feature_results
+         |    FROM "${tenant}".features_tags ft, feature_results
          |    WHERE ft.feature=feature_results.fid
          |), overload_results AS (
          |    SELECT DISTINCT fcs.project, fcs.context, jsonb_build_object('_type', 'overload', 'row', to_jsonb(fcs.*)) as result
-         |    FROM feature_contexts_strategies fcs, feature_results f, project_results p
+         |    FROM "${tenant}".feature_contexts_strategies fcs, feature_results f, project_results p
          |    WHERE fcs.feature=f.fname
          |    AND fcs.project=p.pname
          |), context_results AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'context', 'row', to_jsonb(c.*) - 'ctx_path') as result
-         |    FROM new_contexts c${projectFilter
+         |    FROM "${tenant}".new_contexts c${projectFilter
         .map(_ => """
          |    , overload_results ors
          |    WHERE c.ctx_path = ors.context
@@ -577,40 +559,40 @@ class ImportExportDatastore(val env: Env) extends Datastore {
         .getOrElse("")}
          |), key_results AS (
          |    SELECT DISTINCT k.name, jsonb_build_object('_type', 'key', 'row', to_jsonb(k.*)) as result
-         |    FROM apikeys k
+         |    FROM "${tenant}".apikeys k
          |    ${keyFilter.map(_ => s"WHERE k.name=ANY($$${paramIndex.getAndIncrement()})").getOrElse("")}
          |), apikeys_projects_result AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'apikey_project', 'row', to_jsonb(ap.*)) as result
-         |    FROM apikeys_projects ap, key_results kr
+         |    FROM "${tenant}".apikeys_projects ap, key_results kr
          |    WHERE ap.apikey=kr.name
          |), webhook_results AS (
          |    SELECT DISTINCT w.id, w.name, jsonb_build_object('_type', 'webhook', 'row', to_jsonb(w.*)) as result
-         |    FROM webhooks w
+         |    FROM "${tenant}".webhooks w
          |     ${webhookFilter.map(_ => s"WHERE w.name=ANY($$${paramIndex.getAndIncrement()})").getOrElse("")}
          |), webhooks_features_result AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'webhook_feature', 'row', to_jsonb(wf.*)) as result
-         |    FROM webhooks_features wf, webhook_results w, feature_results
+         |    FROM "${tenant}".webhooks_features wf, webhook_results w, feature_results
          |    WHERE wf.webhook=w.id
          |), webhooks_projects_result AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'webhook_project', 'row', to_jsonb(wp.*)) as result
-         |    FROM webhooks_projects wp, webhook_results w, project_results
+         |    FROM "${tenant}".webhooks_projects wp, webhook_results w, project_results
          |    WHERE wp.webhook=w.id
          |), script_results AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'script', 'row', to_jsonb(wsc.*)) as result
-         |    FROM wasm_script_configurations wsc, feature_results fr
+         |    FROM "${tenant}".wasm_script_configurations wsc, feature_results fr
          |    WHERE wsc.id = fr.script_config
          |)${if (request.userRights)
-        """, users_webhooks_rights_result AS (
+        s""", users_webhooks_rights_result AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'user_webhook_right', 'row', to_jsonb(uwr.*)) as result
-         |    FROM users_webhooks_rights uwr, webhook_results
+         |    FROM "${tenant}".users_webhooks_rights uwr, webhook_results
          |    WHERE uwr.webhook=webhook_results.name
          |), project_rights AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'project_right', 'row', to_jsonb(upr.*)) as result
-         |    FROM users_projects_rights upr, project_results pr
+         |    FROM "${tenant}".users_projects_rights upr, project_results pr
          |    WHERE upr.project = pr.pname
          |), key_rights AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'key_right', 'row', to_jsonb(ukr.*)) as result
-         |    FROM users_keys_rights ukr, key_results kr
+         |    FROM "${tenant}".users_keys_rights ukr, key_results kr
          |    WHERE ukr.apikey=kr.name
          |)"""
       else ""}
@@ -646,8 +628,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
              |SELECT result FROM key_rights"""
       else ""}
          |""".stripMargin,
-      List(projectFilter, keyFilter, webhookFilter).flatMap(_.toList).map(s => s.toArray),
-      schemas = Seq(tenant)
+      List(projectFilter, keyFilter, webhookFilter).flatMap(_.toList).map(s => s.toArray)
     ) { r =>
       {
         r.optJsObject("result")

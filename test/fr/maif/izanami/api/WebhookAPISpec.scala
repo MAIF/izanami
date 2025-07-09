@@ -207,6 +207,43 @@ class WebhookAPISpec extends BaseAPISpec {
   }
 
   "webhook GET endpoint" should {
+    "allow to retrieve all webhooks for tenant if user has default read webhook rights" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false)
+              ),
+              TestProject("project2").withFeatures(
+                TestFeature("ff1", enabled = true)
+              )
+            )
+            .withWebhooks(TestWebhookByName(
+              name = "my-hook",
+              url = "http://localhost:3000",
+              features = Set(("tenant", "project", "f1"))
+            ), TestWebhookByName(
+              name = "my-hook2",
+              url = "http://localhost:4000",
+              projects = Set(("tenant", "project2"))
+            ))
+        ).withUsers(TestUser("testu").withTenantReadRight("tenant").withDefaultReadWebhookRight("tenant"))
+        .loggedAs("testu")
+        .build()
+
+      val response = situation.listWebhook("tenant")
+      response.status mustBe OK
+      val json     = response.json.get.as[JsArray]
+      json.value must have size 2
+
+      (json \\ "name").map(js => js.as[String]).toSeq must contain allElementsOf Seq("my-hook", "my-hook2")
+      (json \\ "url").map(js => js.as[String]).toSeq must contain allElementsOf Seq(
+        "http://localhost:3000",
+        "http://localhost:4000"
+      )
+    }
+
     "allow to retrieve all webhooks for tenant" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()

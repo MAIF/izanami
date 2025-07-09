@@ -56,7 +56,6 @@ export function InvitationForm(props: InvitationProps) {
     control,
     formState: { errors },
   } = methods;
-  console.log("props?.projectRight", props?.projectRight);
   return (
     <FormProvider {...methods}>
       <form

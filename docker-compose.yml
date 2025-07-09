@@ -32,14 +32,21 @@ services:
         {
           "AutomaticRedirectAfterSignOut": true
         }
+      #API_SCOPES_INLINE: |
+      #  - Name: some-app-scope-1
+      #  - Name: some-app-scope-2
       API_SCOPES_INLINE: |
-        - Name: some-app-scope-1
-        - Name: some-app-scope-2
+        [
+          {
+            "Name": "roles",
+            "UserClaims": ["roles"]
+          }
+        ]
       API_RESOURCES_INLINE: |
-        - Name: some-app
+        - Name: roles
           Scopes:
-            - some-app-scope-1
-            - some-app-scope-2
+            - roles
+      #      - some-app-scope-2
       USERS_CONFIGURATION_INLINE: |
         [
           {
@@ -50,6 +57,11 @@ services:
               {
                 "Type": "name",
                 "Value": "Sam Tailor",
+                "ValueType": "string",
+              },
+              {
+                "Type": "roles",
+                "Value": "admin",
                 "ValueType": "string"
               },
               {
@@ -116,8 +128,8 @@ services:
             "AllowedGrantTypes": ["authorization_code"],
             "RequirePkce": false,
             "AllowAccessTokensViaBrowser": true,
-            "RedirectUris": ["http://localhost:3000/login"],
-            "AllowedScopes": ["openid", "profile", "email"],
+            "RedirectUris": ["http://localhost:3000/login", "http://localhost:9000/login"],
+            "AllowedScopes": ["openid", "profile", "email", "roles"],
             "IdentityTokenLifetime": 3600,
             "AccessTokenLifetime": 3600,
             "AlwaysIncludeUserClaimsInIdToken": true

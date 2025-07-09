@@ -56,6 +56,13 @@
             "href": "/izanami/docs/usages/request",
             "docId": "usages/request",
             "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Rights",
+            "href": "/izanami/docs/usages/rights",
+            "docId": "usages/rights",
+            "unlisted": false
           }
         ],
         "href": "/izanami/docs/usages/"
@@ -197,6 +204,13 @@
             "label": "Stale feature detection",
             "href": "/izanami/docs/guides/stales-features",
             "docId": "guides/stales-features",
+            "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "OAuth2 rights",
+            "href": "/izanami/docs/guides/oidc-configuration",
+            "docId": "guides/oidc-configuration",
             "unlisted": false
           }
         ],
@@ -371,6 +385,12 @@
       "description": "Boolean features (features that can only respond true or false)",
       "sidebar": "tutorialSidebar"
     },
+    "guides/oidc-configuration": {
+      "id": "guides/oidc-configuration",
+      "title": "OAuth2 rights",
+      "description": "Izanami allow to setup an OAuth2 provider.",
+      "sidebar": "tutorialSidebar"
+    },
     "guides/personnal-access-tokens": {
       "id": "guides/personnal-access-tokens",
       "title": "Access tokens",
@@ -447,6 +467,12 @@
       "id": "usages/request",
       "title": "Requests",
       "description": "Izanami offers two way of requesting feature activation status.",
+      "sidebar": "tutorialSidebar"
+    },
+    "usages/rights": {
+      "id": "usages/rights",
+      "title": "Rights",
+      "description": "General principle",
       "sidebar": "tutorialSidebar"
     }
   }

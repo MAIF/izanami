@@ -1,0 +1,88 @@
+---
+title: Rights
+---
+
+import { Note } from "@site/src/components/Note";
+
+## General principle
+
+Izanami allows to assign specific rights to user on 4 entities :
+
+* tenants
+* projects
+* keys
+* webhooks
+
+There is 3 levels of rights (except for project that offers a 4th level), that generally work like this:
+
+* `Read` right makes an entity visible in Izanami, but doesn't allow any update on it
+* `Write` right makes an entity updatable in Izanami, this means modifying its properties
+but also create sub-entities inside (for instance write right on a tenant allows create project/keys/webhooks in it).
+`Write` right doesn't allow you to delete the entity (write right on tenant doesn't allow to delete it).
+* `Admin` right gives the right to do anything possible with the entity, including deleting it.
+
+
+These 3 rights are hierarchical, `Admin` rigth also includes `Write` and `Read` rights and `Write` right includes `Read` right.
+
+Finally, a user may be global admin, which gives him admin rights on everything and allows to manager Izanami instance option (such as mailer configuration, oidc provider, ...).
+
+## Detailled rights
+
+### Tenant
+
+|               | Access tenant | Create project | Create key     | Create admin key<br/>(key that can access all projetcs)      | Create webhook | Create global webhook<br/>(webhook that triggers on any feature change) | Create tag | See members | Modify user rights | Invite users | Delete tenant | Create tenant |
+| ------------- | ------------- | -------------- | -------------- | ------------------------------------------------------------ | -------------- | ----------------------------------------------------------------------- | ---------- | ----------- | ------------------ | ------------ | ------------- | ------------- |
+| Read          | ✅            | ❌              | ❌             | ❌                                                           | ❌            |  ❌                                                                       | ❌          | ❌          | ❌                 | ❌            | ❌            | ❌            |
+| Write         | ✅            | ✅              | ✅             | ❌                                                           | ✅            |  ❌                                                                       | ✅          | ❌          | ❌                 | ❌            | ❌            | ❌            |
+| Admin         | ✅            | ✅              | ✅             | ✅                                                           | ✅            |  ✅                                                                       | ✅          | ✅          | ✅                 | ✅            | ✅            | ❌            |
+| Izanami Admin | ✅            | ✅              | ✅             | ✅                                                           | ✅            |  ✅                                                                       | ✅          | ✅          | ✅                 | ✅            | ✅            | ✅            |
+
+### Project
+
+Projects have a special 4th kind of right: `Update`. This right allows to update existing features inside project,
+but does not allow creating or deleting features in this project.
+
+|                      | Access project | Edit feature | Create feature | Delete feature | Modify user rights | Invite users | Update project information | Delete project |
+| -------------------- | -------------- | -------------- | ------------ | -------------- | ------------------ | ------------ | -------------------------- | -------------- |
+| Read                 | ✅             | ❌             | ❌            | ❌             | ❌                 | ❌            | ❌                         | ❌             |
+| Update (from 2.10.x) | ✅             | ✅             | ❌            | ❌             | ❌                 | ❌            | ❌                         | ❌             |
+| Write                | ✅             | ✅             | ✅            | ✅             | ❌                 | ❌            | ❌                         | ❌             |
+| Admin                | ✅             | ✅             | ✅            | ✅             | ✅                 | ✅            | ✅                         | ✅             |
+
+
+### Keys
+
+|               | Access key    | Edit key      | Delete key |
+| ------------- | ------------- | --------------| ---------- |
+| Read          | ✅            | ❌             | ❌         |
+| Write         | ✅            | ✅             | ❌         |
+| Admin         | ✅            | ✅             | ✅         |
+
+
+### Webhooks
+
+|               | Access webhook | Edit webhook  | Delete webhook |
+| ------------- | -------------  | --------------| -------------- |
+| Read          | ✅             | ❌             | ❌             |
+| Write         | ✅             | ✅             | ❌             |
+| Admin         | ✅             | ✅             | ✅             |
+
+
+## Default rights
+
+Default rights allow to give a user a right that will be used **if he doesn't have any right on an entity**.
+For instance, a user with a default project right of `Read` on a tenant will have read right on any project of this tenant, 
+except the ones on which he has specific right.
+
+This is a good policy to avoid spending to much time updating rights by hand.
+
+There is 3 types of default rights: projects, keys and webhooks.
+
+## Deducing rights from external authentication provider
+
+Izanami allows the attribution of rights to users coming from external authentication provider.
+
+This allows go give a base set of rights / default rights to any user coming from this provider, 
+but also to add specific rights to user with certain roles.
+
+To learn more about this, make sure to check [oidc configuration guide](../guides/oidc-configuration)

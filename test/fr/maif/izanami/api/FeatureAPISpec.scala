@@ -8,6 +8,71 @@ import java.time.{LocalDateTime, OffsetDateTime}
 
 class FeatureAPISpec extends BaseAPISpec {
   "Feature PATCH endpoint" should {
+    "allow to modify feature enabling if user has default update right on projects" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false),
+                TestFeature("f2", enabled = false),
+                TestFeature("f3", enabled = true)
+              )
+            )
+        ).withUsers(TestUser("testu").withTenantReadRight("tenant").withDefaultUpdateProjectRight("tenant"))
+        .loggedAs("testu")
+        .build()
+
+      val response = situation.patchFeatures(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/${situation.findFeatureId("tenant", "project", "f1").get}/enabled",
+            value = JsBoolean(true)
+          )
+        )
+      )
+
+      response.status mustBe 204
+
+      val project = situation.fetchProject("tenant", "project").json.get
+
+      ((project \ "features").as[Seq[JsObject]].find(obj => (obj \ "name").as[String] == "f1").get \ "enabled")
+        .as[Boolean] mustBe true
+    }
+
+    "allow feature delete if user has default write right for projects" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("project").withFeatureNames("F1", "F2", "F3"))
+        )
+        .withUsers(TestUser("testu").withTenantReadRight("tenant").withDefaultWriteProjectRight("tenant"))
+        .loggedAs("testu")
+        .build()
+
+      val response = situation.patchFeatures(
+        "tenant",
+        patches = Seq(
+          TestFeaturePatch(
+            op = "remove",
+            path = s"/${situation.findFeatureId("tenant", "project", "F1").get}"
+          ),
+          TestFeaturePatch(
+            op = "remove",
+            path = s"/${situation.findFeatureId("tenant", "project", "F3").get}"
+          )
+        )
+      )
+
+      response.status mustEqual NO_CONTENT
+
+      val fetchResponse = situation.fetchProject("tenant", "project")
+      (fetchResponse.json.get \ "features").as[JsArray].value.length mustBe 1
+    }
+
     "prevent feature delete if user has update right on feature" in {
       val situation = TestSituationBuilder()
         .withTenants(
@@ -338,6 +403,20 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature POST endpoint" should {
+    "allow feature creation if user has default project write right" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+            .withProjectNames("bar")
+        )
+        .withUsers(TestUser("testu").withTenantReadRight("foo").withDefaultWriteProjectRight("foo"))
+        .loggedAs("testu")
+        .build()
+
+      val result = testSituation.createFeature("my-feature", project = "bar", tenant = "foo")
+      result.status mustBe CREATED
+    }
+
     "prevent to creating a feature if user has update role on project" in {
       val testSituation = TestSituationBuilder()
         .withTenants(
@@ -867,7 +946,31 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature PUT endpoint" should {
-    "allow to update feature activation is user has update role on project" in {
+    "allow to update feature activation if user has default update right on projects" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = false)))
+        )
+        .withUsers(TestUser("updateUser").withTenantReadRight("tenant").withDefaultUpdateProjectRight(tenant = "tenant"))
+        .loggedAs("updateUser")
+        .build();
+
+      val projectResponse = situation.fetchProject("tenant", "foo")
+      val jsonFeature     = (projectResponse.json.get \ "features" \ 0).as[JsObject]
+
+      val newFeature = jsonFeature ++ Json.obj("enabled" -> true)
+
+      val updateResponse = situation.updateFeature("tenant", (jsonFeature \ "id").as[String], newFeature)
+
+      updateResponse.status mustBe OK
+
+      val feature = situation.fetchProject("tenant", "foo").json.get \ "features" \ 0
+      (feature \ "enabled").as[Boolean] mustEqual true
+
+    }
+
+    "allow to update feature activation if user has update role on project" in {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
@@ -1340,6 +1443,24 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature DELETE endpoint" should {
+    "allow to delete existing feature if user has default write project right" in {
+      val tenantName     = "my-tenant"
+      val projectName    = "my-project"
+      val testSituation  = TestSituationBuilder()
+        .withTenants(TestTenant(tenantName).withProjectNames(projectName))
+        .withUsers(TestUser("testu").withTenantReadRight(tenantName).withDefaultWriteProjectRight(tenantName))
+        .loggedAs("testu")
+        .build()
+      val featureRequest = testSituation.createFeature(
+        name = "feature-name",
+        project = projectName,
+        tenant = tenantName
+      )
+      val deleteResponse = testSituation.deleteFeature(tenantName, featureRequest.id.get)
+
+      deleteResponse.status mustBe NO_CONTENT
+    }
+
     "prevent feature deletion if user has update right on project" in {
       val tenant    = "my-tenant"
       val situation = TestSituationBuilder()

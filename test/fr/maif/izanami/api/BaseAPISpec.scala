@@ -3,19 +3,19 @@ package fr.maif.izanami.api
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.sse.ServerSentEvent
-import akka.stream.{KillSwitches, Materializer, ThrottleMode, UniqueKillSwitch}
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
 import akka.stream.alpakka.sse.scaladsl.EventSource
 import akka.stream.scaladsl.{FileIO, Keep, Sink, Source}
+import akka.stream.{KillSwitches, Materializer, ThrottleMode, UniqueKillSwitch}
 import akka.util.Timeout
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
-import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, configure}
-import com.github.tomakehurst.wiremock.core.{Container, WireMockConfiguration}
+import com.github.tomakehurst.wiremock.client.WireMock.aResponse
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.github.tomakehurst.wiremock.http.{HttpHeaders, Request}
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.ConfigValueFactory
 import fr.maif.izanami.IzanamiLoader
 import fr.maif.izanami.api.BaseAPISpec.{
   cleanUpDB,
@@ -24,7 +24,6 @@ import fr.maif.izanami.api.BaseAPISpec.{
   izanamiInstance,
   login,
   maybeContainers,
-  shouldCleanUpEvents,
   shouldCleanUpMails,
   shouldCleanUpWasmServer,
   shouldRestartInstance,
@@ -41,13 +40,13 @@ import org.scalatestplus.play.PlaySpec
 import org.testcontainers.containers.DockerComposeContainer
 import play.api.ApplicationLoader.Context
 import play.api.inject.DefaultApplicationLifecycle
-import play.api.{Application, Configuration, Environment, Mode}
 import play.api.libs.json._
 import play.api.libs.ws.ahc.{AhcWSClient, StandaloneAhcWSClient}
 import play.api.libs.ws.{WSAuthScheme, WSClient, WSCookie, WSResponse}
-import play.api.test.Helpers.{await, OK}
 import play.api.mvc.MultipartFormData.FilePart
+import play.api.test.Helpers.{await, OK}
 import play.api.test.{DefaultAwaitTimeout, DefaultTestServerFactory, RunningServer}
+import play.api.{Application, Configuration, Environment, Mode}
 import play.core.server.ServerConfig
 
 import java.io.{BufferedWriter, File, FileWriter, IOException}
@@ -62,8 +61,8 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration.{DurationInt, SECONDS}
+import scala.concurrent.{Future, Promise}
 import scala.util.Try
 
 case class StubServer(server: WireMockServer, extension: WiremockResponseDefinitionTransformer)
@@ -231,7 +230,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   val DEFAULT_OIDC_CONFIG                            = Json.obj(
     "pkce"                  -> JsNull,
     "method"                -> JsString("BASIC"),
-    "scopes"                -> JsString("openid email profile"),
+    "scopes"                -> JsString("openid email profile roles"),
     "enabled"               -> JsBoolean(true),
     "clientId"              -> JsString("foo"),
     "tokenUrl"              -> JsString("http://localhost:9001/connect/token"),
@@ -314,9 +313,12 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
   def startServer(customConfig: Map[String, AnyRef]): RunningServer = {
     val configuration: Configuration = Configuration.load(Environment.simple(), Map("config.file" -> "conf/dev.conf"))
-    var updatedConfig                = customConfig.foldLeft(configuration.underlying)((conf, entry) => {
-      conf.withValue(entry._1, ConfigValueFactory.fromAnyRef(entry._2))
-    })
+    var updatedConfig                = customConfig
+      .foldLeft(configuration.underlying.withValue("app.openid", ConfigValueFactory.fromAnyRef(null)))(
+        (conf, entry) => {
+          conf.withValue(entry._1, ConfigValueFactory.fromAnyRef(entry._2))
+        }
+      )
 
     lazy val application = new IzanamiLoader().load(
       Context(
@@ -886,11 +888,17 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     RequestResult(json = jsonTry, status = response.status)
   }
 
+  def fetchConfigurationAsync(cookies: Seq[WSCookie] = Seq()): Future[WSResponse] = {
+    ws.url(s"${ADMIN_BASE_URL}/configuration")
+      .withCookies(cookies: _*)
+      .get()
+  }
+
   def updateConfiguration(
       mailerConfiguration: JsObject = Json.obj("mailer" -> "Console"),
       invitationMode: String = "Response",
       originEmail: String = null,
-      oidcConfiguration: JsObject = DEFAULT_OIDC_CONFIG,
+      oidcConfiguration: JsObject = JsObject.empty,
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
     val response = await(
@@ -909,28 +917,35 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       anonymousReportingDate: LocalDateTime = LocalDateTime.now()
   ): Future[WSResponse] = {
     val dateStr = anonymousReportingDate.atOffset(ZoneOffset.UTC).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+    val payload = if (Objects.isNull(originEmail)) {
+      Json.obj(
+        "mailerConfiguration"    -> mailerConfiguration,
+        "invitationMode"         -> invitationMode,
+        "anonymousReporting"     -> anonymousReporting,
+        "anonymousReportingDate" -> dateStr,
+        "oidcConfiguration"      -> oidcConfiguration
+      )
+    } else {
+      Json.obj(
+        "mailerConfiguration"    -> mailerConfiguration,
+        "invitationMode"         -> invitationMode,
+        "originEmail"            -> originEmail,
+        "anonymousReporting"     -> anonymousReporting,
+        "anonymousReportingDate" -> dateStr,
+        "oidcConfiguration"      -> oidcConfiguration
+      )
+    }
+
+    updateConfigurationRaw(payload = payload, cookies = cookies)
+  }
+
+  def updateConfigurationRaw(
+      payload: JsObject,
+      cookies: Seq[WSCookie] = Seq()
+  ): Future[WSResponse] = {
     ws.url(s"""${ADMIN_BASE_URL}/configuration""")
       .withCookies(cookies: _*)
-      .put(
-        if (Objects.isNull(originEmail)) {
-          Json.obj(
-            "mailerConfiguration"    -> mailerConfiguration,
-            "invitationMode"         -> invitationMode,
-            "anonymousReporting"     -> anonymousReporting,
-            "anonymousReportingDate" -> dateStr,
-            "oidcConfiguration"      -> oidcConfiguration
-          )
-        } else {
-          Json.obj(
-            "mailerConfiguration"    -> mailerConfiguration,
-            "invitationMode"         -> invitationMode,
-            "originEmail"            -> originEmail,
-            "anonymousReporting"     -> anonymousReporting,
-            "anonymousReportingDate" -> dateStr,
-            "oidcConfiguration"      -> oidcConfiguration
-          )
-        }
-      )
+      .put(payload)
   }
 
   def createContextHierarchy(
@@ -1490,14 +1505,21 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       level: String = "Read",
       projects: Map[String, TestProjectRight] = Map(),
       keys: Map[String, TestKeyRight] = Map(),
-      webhooks: Map[String, TestWebhookRight] = Map()
+      webhooks: Map[String, TestWebhookRight] = Map(),
+      defaultProjectRight: Option[String] = None,
+      defaultApiKetRight: Option[String] = None,
+      defaultWebhookRight: Option[String] = None
   ) {
-    def json: JsObject = Json.obj(
-      "level"    -> level,
-      "projects" -> projects.view.mapValues(_.json),
-      "keys"     -> keys.view.mapValues(_.json),
-      "webhooks" -> webhooks.view.mapValues(_.json)
-    )
+    def json: JsObject = Json
+      .obj(
+        "level"    -> level,
+        "projects" -> projects.view.mapValues(_.json),
+        "keys"     -> keys.view.mapValues(_.json),
+        "webhooks" -> webhooks.view.mapValues(_.json)
+      )
+      .applyOnWithOpt(defaultProjectRight)((js, projectRight) => js + ("defaultProjectRight" -> JsString(projectRight)))
+      .applyOnWithOpt(defaultApiKetRight)((js, keyRight) => js + ("defaultKeyRight" -> JsString(keyRight)))
+      .applyOnWithOpt(defaultWebhookRight)((js, webhookRight) => js + ("defaultWebhookRight" -> JsString(webhookRight)))
 
     def addProjectRight(project: String, level: String): TestTenantRight = {
       copy(projects = projects + (project -> TestProjectRight(project, level)))
@@ -1530,6 +1552,33 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       val newKeys = tenants(tenant).keys + (key -> TestKeyRight(name = key, level = level))
 
       copy(tenants + (tenant -> tenants(tenant).copy(keys = newKeys)))
+    }
+
+    def addDefaultProjectRight(tenant: String, level: String) = {
+      if (!tenants.contains(tenant)) {
+        throw new RuntimeException("Tenant does not exist")
+      }
+      val newTenant = tenants(tenant).copy(defaultProjectRight = Some(level))
+
+      copy(tenants + (tenant -> newTenant))
+    }
+
+    def addDefaultKeyRight(tenant: String, level: String) = {
+      if (!tenants.contains(tenant)) {
+        throw new RuntimeException("Tenant does not exist")
+      }
+      val newTenant = tenants(tenant).copy(defaultApiKetRight = Some(level))
+
+      copy(tenants + (tenant -> newTenant))
+    }
+
+    def addDefaultWebhookRight(tenant: String, level: String) = {
+      if (!tenants.contains(tenant)) {
+        throw new RuntimeException("Tenant does not exist")
+      }
+      val newTenant = tenants(tenant).copy(defaultWebhookRight = Some(level))
+
+      copy(tenants + (tenant -> newTenant))
     }
 
     def json: JsObject = Json.obj(
@@ -3032,16 +3081,23 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         mailerConfiguration: JsObject = Json.obj("mailer" -> "Console"),
         invitationMode: String = "Response",
         originEmail: String = null,
-        oidcConfiguration: JsObject = DEFAULT_OIDC_CONFIG
+        oidcConfiguration: JsObject = JsObject.empty
     ): RequestResult = {
       BaseAPISpec.this.updateConfiguration(mailerConfiguration, invitationMode, originEmail, oidcConfiguration, cookies)
     }
 
+    def updateConfigurationWithCallback(callback: JsObject => JsObject): RequestResult = {
+      val oldConf   = fetchConfiguration()
+      val newConfig = callback(oldConf.json.get.as[JsObject])
+      println("newConfig", newConfig)
+      val response  = await(BaseAPISpec.this.updateConfigurationRaw(newConfig, cookies))
+
+      RequestResult(json = Try { response.json }, status = response.status)
+    }
+
     def fetchConfiguration(): RequestResult = {
       val response = await(
-        ws.url(s"${ADMIN_BASE_URL}/configuration")
-          .withCookies(cookies: _*)
-          .get()
+        BaseAPISpec.this.fetchConfigurationAsync(cookies)
       )
       RequestResult(json = Try { response.json }, status = response.status)
     }
@@ -3180,6 +3236,104 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       RequestResult(json = Try { response.json }, status = response.status)
     }
 
+    private def extractVerificationToken(page: String): String = {
+      val htmlInputContent = page
+        .split("<input")
+        .tail
+        .map(part => part.split("/>")(0))
+        .find(inputContent => inputContent.contains("__RequestVerificationToken"))
+        .get
+      htmlInputContent.split("value=\"")(1).split("\"")(0)
+    }
+
+    private def callOpenIdCallback2(code: String, sessionCookie: WSCookie): Future[WSResponse] = {
+      ws.url(s"""${ADMIN_BASE_URL}/openid-connect-callback""")
+        .withCookies(
+          sessionCookie
+        )
+        .post(
+          Json.obj("code" -> code)
+        )
+    }
+
+    def extractCodeFromUrl(url: String): String = {
+      url.split("code=")(1).split("&")(0)
+    }
+
+    def logAsOIDCUser(username: String, password: String = "pwd"): TestSituation = {
+      val (playCookie, location) = await(
+        ws.url(s"${ADMIN_BASE_URL}/openid-connect")
+          .withFollowRedirects(false)
+          .get()
+          .map(response => {
+            if (response.status >= 400) {
+              throw new RuntimeException("Failed to call openid-connect endpoint")
+            } else {
+              val playCookie = response.cookies.find(c => c.name.contains("PLAY_SESSION")).get
+              val location   = response.header("Location").get
+              (playCookie, location)
+            }
+          })
+      )
+
+      val (antiForgeryCookie, requestVerificationToken) = await(
+        ws.url(location)
+          .get()
+          .map(response => {
+            if (response.status >= 400) {
+              throw new RuntimeException("Failed to call openid-connect endpoint")
+            } else {
+              val antiForgeryCookie        = response.cookies.find(c => c.name.contains("Antiforgery")).get
+              val requestVerificationToken = extractVerificationToken(response.body)
+              (antiForgeryCookie, requestVerificationToken)
+            }
+          })
+      )
+
+      val body           = Map(
+        "Input.ReturnUrl"            -> location.replaceFirst("http://localhost:9001", ""),
+        "Input.Username"             -> username,
+        "Input.Password"             -> password,
+        "Input.Button"               -> "login",
+        "__RequestVerificationToken" -> requestVerificationToken
+      )
+      val response       = await(
+        ws.url("http://localhost:9001/Account/Login")
+          .withCookies(antiForgeryCookie)
+          .withFollowRedirects(false)
+          .post(body)
+      )
+      val secondResponse = await(
+        ws.url(s"http://localhost:9001${response.header("Location").get}")
+          .withCookies(response.cookies.appended(antiForgeryCookie).toSeq: _*)
+          .withFollowRedirects(false)
+          .get()
+      )
+
+      val urlWithCode = secondResponse.header("Location").get
+      val code        = extractCodeFromUrl(urlWithCode)
+
+      val newSituation = await(
+        callOpenIdCallback2(code, playCookie)
+          .map(response => {
+            if (response.status >= 400) {
+              throw new RuntimeException("Failed retrieve authentication cookie")
+            } else {
+              response.cookies
+            }
+          })
+          .map(cookies => copy(cookies = cookies.toSeq))
+      )
+
+      newSituation
+    }
+
+    def restartServerWithConf(conf: Map[String, AnyRef]): TestSituation = {
+      stopServer()
+      val server = startServer(conf)
+      copy(server = server)
+    }
+
   }
 
   case class TestUser(
@@ -3226,6 +3380,46 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     def withApiKeyAdminRight(key: String, tenant: String) = {
       copy(rights = rights.addKeyRight(key, tenant, "Admin"))
     }
+
+    def withDefaultReadProjectRight(tenant: String) = {
+      copy(rights = rights.addDefaultProjectRight(tenant, "Read"))
+    }
+
+    def withDefaultUpdateProjectRight(tenant: String) = {
+      copy(rights = rights.addDefaultProjectRight(tenant, "Update"))
+    }
+
+    def withDefaultWriteProjectRight(tenant: String) = {
+      copy(rights = rights.addDefaultProjectRight(tenant, "Write"))
+    }
+
+    def withDefaultAdminProjectRight(tenant: String) = {
+      copy(rights = rights.addDefaultProjectRight(tenant, "Admin"))
+    }
+
+    def withDefaultReadKeyRight(tenant: String) = {
+      copy(rights = rights.addDefaultKeyRight(tenant, "Read"))
+    }
+
+    def withDefaultWriteKeyRight(tenant: String) = {
+      copy(rights = rights.addDefaultKeyRight(tenant, "Write"))
+    }
+
+    def withDefaultAdminKeyRight(tenant: String) = {
+      copy(rights = rights.addDefaultKeyRight(tenant, "Admin"))
+    }
+
+    def withDefaultReadWebhookRight(tenant: String) = {
+      copy(rights = rights.addDefaultWebhookRight(tenant, "Read"))
+    }
+
+    def withDefaultWriteWebhookRight(tenant: String) = {
+      copy(rights = rights.addDefaultWebhookRight(tenant, "Write"))
+    }
+
+    def withDefaultAdminWebhookRight(tenant: String) = {
+      copy(rights = rights.addDefaultWebhookRight(tenant, "Admin"))
+    }
   }
 
   case class TestConfiguration(
@@ -3248,7 +3442,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         mailerConfiguration = Json.obj("mailer" -> "Console"),
         invitationMode = "Response",
         originEmail = null,
-        oidcConfiguration = DEFAULT_OIDC_CONFIG
+        oidcConfiguration = JsObject.empty
       ),
       wasmScripts: Seq[TestWasmScript] = Seq(),
       webhookServers: Map[Int, (Int, String)] = Map(),
@@ -3633,19 +3827,29 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       futures.addOne(tenantFuture)
 
       futures.addOne(
-        updateConfigurationAsync(
-          configuration.mailerConfiguration,
-          configuration.invitationMode,
-          configuration.originEmail,
-          configuration.oidcConfiguration,
-          buildCookies
-        )
-          .map(configurationResponse => {
-            if (configurationResponse.status >= 400) {
-              throw new Exception("Failed to update configuration")
+        fetchConfigurationAsync(buildCookies)
+          .map(response => {
+            if (response.status >= 400) {
+              throw new Exception("Failed to fetch configuration")
             } else {
-              ()
+              (response.json \ "oidcConfiguration").asOpt[JsObject].getOrElse(JsObject.empty)
             }
+          })
+          .flatMap(oidcConf => {
+            updateConfigurationAsync(
+              configuration.mailerConfiguration,
+              configuration.invitationMode,
+              configuration.originEmail,
+              oidcConf,
+              buildCookies
+            )
+              .map(configurationResponse => {
+                if (configurationResponse.status >= 400) {
+                  throw new Exception("Failed to update configuration")
+                } else {
+                  ()
+                }
+              })
           })
       )
 

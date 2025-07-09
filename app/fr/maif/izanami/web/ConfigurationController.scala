@@ -24,25 +24,22 @@ class ConfigurationController(
     env.datastores.stats.retrieveStats().map(Ok(_))
   } }
 
-  private def hasOIDCConfChangedExceptDefaultRights(
+  private def hasOIDCConfChanged(
      newConfig: FullIzanamiConfiguration
   ): Future[Either[IzanamiError, Boolean]] = {
 
     env.datastores.configuration.readFullConfiguration().map(either => either.map(oldConfig => {
-      val oldOidcConfigWithoutRights = oldConfig.oidcConfiguration.map(c => c.copy(defaultOIDCUserRights = null))
-      val updatedRightsConfigOidcConfigWithoutRights = newConfig.oidcConfiguration.map(c => c.copy(defaultOIDCUserRights = null))
-
-      oldOidcConfigWithoutRights != updatedRightsConfigOidcConfigWithoutRights
+      oldConfig.oidcConfiguration != newConfig.oidcConfiguration
     }))
   }
 
   private def updateOIDCRightIfNeeded(conf: FullIzanamiConfiguration): Future[FullIzanamiConfiguration] = {
     conf.oidcConfiguration
-      .map(_.defaultOIDCUserRights)
+      .flatMap(_.userRightsByRoles)
       .fold(conf.future)(rights => {
-        env.datastores.configuration.updateOIDCDefaultRightIfNeeded(rights)
+        env.datastores.configuration.updateOAuthRightByRole(rights)
           .map(updatedRights => conf
-            .copy(oidcConfiguration = conf.oidcConfiguration.get.copy(defaultOIDCUserRights = updatedRights).some)
+            .copy(oidcConfiguration = conf.oidcConfiguration.get.copy(userRightsByRoles = Some(rights)).some)
           )
       })
   }
@@ -53,17 +50,19 @@ class ConfigurationController(
           case JsError(_) => BadBodyFormat().toHttpResponse.future
           case JsSuccess(configurationFromBody, _path) => {
             for(
-              confWithFixedRights <- updateOIDCRightIfNeeded(configurationFromBody);
-              hasOIDCConfChanged <- hasOIDCConfChangedExceptDefaultRights(confWithFixedRights);
+              //confWithFixedRights <- updateOIDCRightIfNeeded(configurationFromBody);
+              hasOIDCConfChanged <- hasOIDCConfChanged(configurationFromBody);
               result <- (hasOIDCConfChanged, env.isOIDCConfigurationEditable) match {
                 case (Left(err), _) => err.toHttpResponse.future
                 case (Right(true), false) => BadRequest(Json.obj("message" -> "OIDC configuration can't be updated while it is set in env variables.")).future
-                case _ => env.datastores.configuration.updateConfiguration(confWithFixedRights).map {
+                case _ => env.datastores.configuration.updateConfiguration(configurationFromBody).map {
                   case Left(err) => err.toHttpResponse
                   case Right(_) => NoContent
                 }
               }
-            ) yield result
+            ) yield {
+              result
+            }
           }
         }
     }

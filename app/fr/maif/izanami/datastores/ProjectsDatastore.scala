@@ -7,7 +7,7 @@ import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.{PreviousProject, SourceFeatureDeleted, SourceProjectCreated, SourceProjectDeleted, SourceProjectUpdated}
-import fr.maif.izanami.models.{Feature, Project, ProjectCreationRequest, RightLevel}
+import fr.maif.izanami.models.{Feature, Project, ProjectCreationRequest, RightLevel, Tenant}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.{ImportController, UserInformation}
@@ -23,11 +23,11 @@ import scala.concurrent.Future
 class ProjectsDatastore(val env: Env) extends Datastore {
 
   def findProjectId(tenant: String, projectName: String, conn: Option[SqlConnection] = None): Future[Option[UUID]] = {
+    Tenant.isTenantValid(tenant)
     env.postgresql
       .queryOne(
-        s"""SELECT id FROM projects WHERE name=$$1""",
+        s"""SELECT id FROM "${tenant}".projects WHERE name=$$1""",
         List(projectName),
-        schemas = Seq(tenant),
         conn = conn
       ) { row => row.optUUID("id") }
   }
@@ -39,10 +39,11 @@ class ProjectsDatastore(val env: Env) extends Datastore {
                       user: UserInformation,
                       conn: SqlConnection
                     ): Future[Either[IzanamiError, Unit]] = {
+    Tenant.isTenantValid(tenant)
     env.postgresql
       .queryAll(
         s"""
-           |INSERT INTO projects(name, description) VALUES(unnest($$1::text[]), '')
+           |INSERT INTO "${tenant}".projects(name, description) VALUES(unnest($$1::text[]), '')
            |${
           conflictStrategy match {
             case Fail => ""
@@ -55,7 +56,6 @@ class ProjectsDatastore(val env: Env) extends Datastore {
            |RETURNING name, id
            |""".stripMargin,
         List(names.toArray),
-        schemas = Seq(tenant),
         conn = Some(conn)
       ) { r => {
         for (
@@ -68,7 +68,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
       .flatMap(ls =>
         env.postgresql
           .queryRaw(
-            s"""INSERT INTO users_projects_rights (username, project, level)
+            s"""INSERT INTO "${tenant}".users_projects_rights (username, project, level)
                |VALUES ($$1, unnest($$2::TEXT[]), $$3)
                |ON CONFLICT(username, project) DO NOTHING
                |RETURNING 1
@@ -109,11 +109,12 @@ class ProjectsDatastore(val env: Env) extends Datastore {
                      projectCreationRequest: ProjectCreationRequest,
                      user: UserInformation
                    ): Future[Either[IzanamiError, Project]] = {
+    Tenant.isTenantValid(tenant)
     env.postgresql.executeInTransaction(
       conn => {
         env.postgresql
           .queryOne(
-            s"""insert into projects (name, description) values ($$1, $$2) returning *""",
+            s"""insert into "${tenant}".projects (name, description) values ($$1, $$2) returning *""",
             List(projectCreationRequest.name, projectCreationRequest.description),
             conn = Some(conn)
           ) { row => row.optProject() }
@@ -130,7 +131,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
             case Right(proj) =>
               env.postgresql
                 .queryOne(
-                  s"""INSERT INTO users_projects_rights (username, project, level) VALUES ($$1, $$2, $$3) RETURNING project""",
+                  s"""INSERT INTO "${tenant}".users_projects_rights (username, project, level) VALUES ($$1, $$2, $$3) RETURNING project""",
                   List(user.username, projectCreationRequest.name, RightLevel.Admin.toString.toUpperCase),
                   conn = Some(conn)
                 ) { _ => Some(proj) }
@@ -143,8 +144,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
               ))(conn).map(_ => Right(proj))
             }
           }
-      },
-      schemas = Seq(tenant)
+      }
     )
   }
 
@@ -154,14 +154,14 @@ class ProjectsDatastore(val env: Env) extends Datastore {
                      newProject: ProjectCreationRequest,
                      user: UserInformation
   ): Future[Either[IzanamiError, Unit]] = {
+    Tenant.isTenantValid(tenant)
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
         .queryOne(
           s"""
-             |UPDATE projects SET name=$$1, description=$$2 WHERE name=$$3 RETURNING id
+             |UPDATE "${tenant}".projects SET name=$$1, description=$$2 WHERE name=$$3 RETURNING id
              |""".stripMargin,
           List(newProject.name, newProject.description, oldName),
-          schemas = Seq(tenant),
           conn = Some(conn)
         ) { r => r.optUUID("id") }
         .map(o => o.toRight(InternalServerError()))
@@ -179,27 +179,27 @@ class ProjectsDatastore(val env: Env) extends Datastore {
   }
 
   def readTenantProjectForUser(tenant: String, user: String): Future[List[Project]] = {
+    Tenant.isTenantValid(tenant)
     // TODO ensure performance of this query
     env.postgresql.queryAll(
       s"""
       SELECT p.*
-      FROM projects p
+      FROM "${tenant}".projects p
       WHERE EXISTS (SELECT u.username FROM izanami.users u WHERE u.username=$$1 AND u.admin=TRUE)
-      OR EXISTS(SELECT * FROM izanami.users_tenants_rights utr WHERE utr.username=$$1 AND (utr.level='ADMIN'))
-      OR p.name=ANY(SELECT upr.project FROM users_projects_rights upr WHERE upr.username=$$1)
+      OR EXISTS(SELECT * FROM izanami.users_tenants_rights utr WHERE utr.username=$$1 AND (utr.level='ADMIN' OR utr.default_project_right IS NOT NULL))
+      OR p.name=ANY(SELECT upr.project FROM "${tenant}".users_projects_rights upr WHERE upr.username=$$1)
       """,
       List(user),
-      schemas = Seq(tenant)
     ) { row => row.optProject() }
   }
 
   def deleteProject(tenant: String, project: String, user: UserInformation): Future[Either[IzanamiError, List[String]]] = {
+    Tenant.isTenantValid(tenant)
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
         .queryOne(
-          s"""DELETE FROM projects p WHERE p.name=$$1 RETURNING (SELECT json_agg(json_build_object('id', f.id, 'name', f.name)) AS ids FROM features f WHERE f.project=p.name), p.id as id;""",
+          s"""DELETE FROM "${tenant}".projects p WHERE p.name=$$1 RETURNING (SELECT json_agg(json_build_object('id', f.id, 'name', f.name)) AS ids FROM "${tenant}".features f WHERE f.project=p.name), p.id as id;""",
           List(project),
-          schemas = Seq(tenant),
           conn = Some(conn)
         ) { row => {
           val featureInfos = row
@@ -249,6 +249,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
   }
 
   def readProject(tenant: String, project: String): Future[Either[IzanamiError, Project]] = {
+    Tenant.isTenantValid(tenant)
     env.postgresql
       .queryOne(
         s"""
@@ -258,28 +259,28 @@ class ProjectsDatastore(val env: Env) extends Datastore {
          |      || (json_build_object('tags', (
          |        array(
          |          SELECT ft.tag
-         |          FROM features_tags ft
+         |          FROM "${tenant}".features_tags ft
          |          WHERE ft.feature = f.id
          |          GROUP BY ft.tag
          |        )
          |      ), 'wasmConfig', f.script_config,
          |      'lastCall', (SELECT max(fc.range_stop)
-         |                   from feature_calls fc
+         |                   from "${tenant}".feature_calls fc
          |                   where fc.feature = f.id)
          |      ))::jsonb)
          |      FILTER (WHERE f.id IS NOT NULL), '[]'
          |  ) as "features"
-         |from projects p
-         |left join features f on p.name = f.project
+         |from "${tenant}".projects p
+         |left join "${tenant}".features f on p.name = f.project
          |WHERE p.name = $$1
          |group by p.id""".stripMargin,
         List(project),
-        schemas = Seq(tenant)
       ) { row => row.optProjectWithFeatures() }
       .map(o => o.toRight(ProjectDoesNotExists(project)))
   }
 
   def readProjects(tenant: String): Future[List[Project]] = {
+    Tenant.isTenantValid(tenant)
     env.postgresql
       .queryAll(
         s"""select p.id, p.name, p.description,
@@ -288,24 +289,24 @@ class ProjectsDatastore(val env: Env) extends Datastore {
            |      || (json_build_object('tags', (
            |        array(
            |          SELECT ft.tag
-           |          FROM features_tags ft
+           |          FROM "${tenant}".features_tags ft
            |          WHERE ft.feature = f.id
            |          GROUP BY ft.tag
            |        )
            |      ),'wasmConfig', (
-           |        select w.config FROM wasm_script_configurations w where w.id = f.script_config
+           |        select w.config FROM "${tenant}".wasm_script_configurations w where w.id = f.script_config
            |      )))::jsonb)
            |      FILTER (WHERE f.id IS NOT NULL), '[]'
            |  ) as "features"
-           |from projects p
-           |left join features f on p.name = f.project
+           |from "${tenant}".projects p
+           |left join "${tenant}".features f on p.name = f.project
            |group by p.id""".stripMargin,
-        List(),
-        schemas = Seq(tenant)
+        List()
       ) { row => row.optProjectWithFeatures() }
   }
 
   def readProjectsFiltered(tenant: String, projectFilter: Set[String]): Future[List[Project]] = {
+    Tenant.isTenantValid(tenant)
     env.postgresql
       .queryAll(
         s"""select p.id, p.name, p.description,
@@ -314,25 +315,25 @@ class ProjectsDatastore(val env: Env) extends Datastore {
            |      || (json_build_object('tags', (
            |        array(
            |          SELECT ft.tag
-           |          FROM features_tags ft
+           |          FROM "${tenant}".features_tags ft
            |          WHERE ft.feature = f.id
            |          GROUP BY ft.tag
            |        )
            |      ), 'wasmConfig', (
-           |        select w.config FROM wasm_script_configurations w where w.id = f.script_config
+           |        select w.config FROM "${tenant}".wasm_script_configurations w where w.id = f.script_config
            |      )))::jsonb)
            |      FILTER (WHERE f.id IS NOT NULL), '[]'
            |  ) as "features"
-           |from projects p
-           |left join features f on p.name = f.project
+           |from "${tenant}".projects p
+           |left join "${tenant}".features f on p.name = f.project
            |where p.name=ANY($$1)
            |group by p.id""".stripMargin,
-        List(projectFilter.toArray),
-        schemas = Seq(tenant)
+        List(projectFilter.toArray)
       ) { row => row.optProjectWithFeatures() }
   }
 
   def readProjectsById(tenant: String, ids: Set[UUID]): Future[Map[UUID, Project]] = {
+    Tenant.isTenantValid(tenant)
     if (ids.isEmpty) {
       Future.successful(Map())
     }
@@ -340,11 +341,10 @@ class ProjectsDatastore(val env: Env) extends Datastore {
       .queryAll(
         s"""
            |SELECT id, name, description
-           |FROM projects
+           |FROM "${tenant}".projects
            |WHERE id=ANY($$1)
            |""".stripMargin,
-        List(ids.toArray),
-        schemas = Seq(tenant)
+        List(ids.toArray)
       ) { r => {
         r.optProject()
       }

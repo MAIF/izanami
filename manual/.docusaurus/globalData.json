@@ -111,6 +111,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "guides/oidc-configuration",
+              "path": "/izanami/docs/guides/oidc-configuration",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "guides/personnal-access-tokens",
               "path": "/izanami/docs/guides/personnal-access-tokens",
               "sidebar": "tutorialSidebar"
@@ -173,6 +178,11 @@
             {
               "id": "usages/request",
               "path": "/izanami/docs/usages/request",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "usages/rights",
+              "path": "/izanami/docs/usages/rights",
               "sidebar": "tutorialSidebar"
             }
           ],

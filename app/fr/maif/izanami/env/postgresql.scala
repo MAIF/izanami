@@ -232,22 +232,12 @@ class Postgresql(env: Env) {
       .scala
   }
 
-  private def setSearchPath(schemas: Seq[String], conn: SqlConnection): io.vertx.core.Future[RowSet[Row]] = {
-    if (schemas.nonEmpty) {
-      conn
-        .preparedQuery(f"SELECT set_config('search_path', $$1, true)")
-        .execute(io.vertx.sqlclient.Tuple.of(schemas.mkString(",")))
-    } else {
-      io.vertx.core.Future.succeededFuture()
-    }
-  }
 
-  def executeInTransaction[T](callback: SqlConnection => Future[T], schemas: Seq[String] = Seq()): Future[T] = {
+  def executeInTransaction[T](callback: SqlConnection => Future[T]): Future[T] = {
     var future: io.vertx.core.Future[T] = io.vertx.core.Future.succeededFuture()
     pool
       .withTransaction(conn => {
-        var searchPathFuture = setSearchPath(schemas.appended(env.extensionsSchema), conn)
-        future = searchPathFuture.flatMap(_ => callback(conn).vertx(env.executionContext))
+        future = callback(conn).vertx(env.executionContext)
         future
       })
       .recover(err => {
@@ -257,40 +247,45 @@ class Postgresql(env: Env) {
       .scala // Bubble up query error instead of TransactionRollbackException that does not carry much information
   }
 
+  def executeInOptionalTransaction[T](maybeTransaction: Option[SqlConnection], callback: SqlConnection => Future[T]): Future[T] = {
+    maybeTransaction.fold({
+      executeInTransaction(callback = callback)
+    })(conn => {
+      callback(conn).vertx(env.executionContext).scala
+    })
+  }
+
   def queryAll[A](
       query: String,
       params: List[AnyRef] = List.empty,
       debug: Boolean = false,
-      schemas: Seq[String] = Seq(),
       conn: Option[SqlConnection] = None
   )(
       f: Row => Option[A]
   ): Future[List[A]] = {
-    queryRaw[List[A]](query, params, debug, schemas, conn)(rows => rows.map(f).flatten.toList)
+    queryRaw[List[A]](query, params, debug, conn)(rows => rows.map(f).flatten.toList)
   }
 
   def queryAllOpt[A](
       query: String,
       params: List[AnyRef] = List.empty,
       debug: Boolean = false,
-      schemas: Seq[String] = Seq(),
       conn: Option[SqlConnection] = None
   )(
       f: Row => Option[A]
   ): Future[List[Option[A]]] = {
-    queryRaw[List[Option[A]]](query, params, debug, schemas, conn)(rows => rows.map(f).toList)
+    queryRaw[List[Option[A]]](query, params, debug, conn)(rows => rows.map(f).toList)
   }
 
   def queryRaw[A](
       query: String,
       params: List[AnyRef] = List.empty,
       debug: Boolean = false,
-      schemas: Seq[String] = Seq(),
       conn: Option[SqlConnection] = None
   )(
       f: List[Row] => A
   ): Future[A] = {
-    if (debug) env.logger.info(s"""query: "$query", params: "${params.mkString(", ")}"""")
+    if (debug) env.logger.info(s"""query: "$query", params: "${params.map(_.toString).mkString(", ")}"""")
     val isRead = query.toLowerCase().trim.startsWith("select")
     (isRead match {
       case true  =>
@@ -298,25 +293,19 @@ class Postgresql(env: Env) {
           c.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(params.toArray))
         }
         conn
-          .map(conn => setSearchPath(schemas.appended(env.extensionsSchema), conn).flatMap(_ => lambda(conn)))
+          .map(conn => lambda(conn))
           .map(f => f.scala)
-          .getOrElse(executeInTransaction(lambda(_).scala, schemas))
+          .getOrElse(executeInTransaction(lambda(_).scala))
       case false =>
         conn
-          .map(c =>
-            setSearchPath(schemas, c)
-              .flatMap(_ => c.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(params.toArray)))
-              .scala
-          )
+          .map(c =>c.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(params.toArray)).scala)
           .getOrElse(
             executeInTransaction(
-              conn => conn.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(params.toArray)).scala,
-              schemas
+              conn => conn.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(params.toArray)).scala
             )
           )
     }).flatMap { _rows =>
       Try {
-
         if(Objects.isNull(_rows)) {
           throw DbConnectionFailure()
         }
@@ -367,12 +356,11 @@ class Postgresql(env: Env) {
       query: String,
       params: List[AnyRef] = List.empty,
       debug: Boolean = false,
-      schemas: Seq[String] = Seq(),
       conn: Option[SqlConnection] = None
   )(
       f: Row => Option[A]
   ): Future[Option[A]] = {
-    queryRaw[Option[A]](query, params, debug, schemas, conn)(rows => rows.headOption.flatMap(row => f(row)))
+    queryRaw[Option[A]](query, params, debug, conn)(rows => rows.headOption.flatMap(row => f(row)))
   }
 
 }

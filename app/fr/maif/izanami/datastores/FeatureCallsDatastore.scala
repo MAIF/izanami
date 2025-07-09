@@ -7,7 +7,7 @@ import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.models.FeatureCallAggregator.FeatureCallRange
-import fr.maif.izanami.models.{FeatureCall, FeatureUsage}
+import fr.maif.izanami.models.{FeatureCall, FeatureUsage, Tenant}
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.{JsValue, Json}
 
@@ -37,12 +37,12 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
   }
 
   def deleteOutDatedCallsForTenant(tenant: String, duration: Duration): Future[Unit] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql.queryRaw(
       s"""
-         |DELETE FROM feature_calls WHERE EXTRACT(EPOCH FROM (NOW() - range_stop)) > $$1 returning feature
+         |DELETE FROM "${tenant}".feature_calls WHERE EXTRACT(EPOCH FROM (NOW() - range_stop)) > $$1 returning feature
          |""".stripMargin,
-      List(duration.toSeconds.asInstanceOf[Number]),
-      schemas=Seq(tenant)
+      List(duration.toSeconds.asInstanceOf[Number])
     ){_ => ()}
   }
 
@@ -51,21 +51,22 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
                      calls: Map[FeatureCallRange, Long],
                      rangeDurationInMinutes: Long
                    ): Future[Unit] = {
+    require(Tenant.isTenantValid(tenant))
     val callSeq = calls.toSeq
     env.postgresql.queryRaw(
       s"""
-         |INSERT INTO feature_calls (feature, apikey, context, value, range_start, range_stop, count)
+         |INSERT INTO "${tenant}".feature_calls (feature, apikey, context, value, range_start, range_stop, count)
          |VALUES (
          |  UNNEST($$1::TEXT[]),
          |  UNNEST($$2::TEXT[]),
-         |  text2ltree(UNNEST($$3::TEXT[])),
+         |  "${env.extensionsSchema}".text2ltree(UNNEST($$3::TEXT[])),
          |  UNNEST($$4::JSONB[]),
          |  UNNEST($$5::timestamptz[]),
          |  UNNEST($$6::timestamptz[]),
          |  UNNEST($$7::NUMERIC[])
          |)
          |ON CONFLICT (feature, apikey, context, value, range_start)
-         |DO UPDATE SET count = feature_calls.count + excluded.count
+         |DO UPDATE SET count = "${tenant}".feature_calls.count + excluded.count
          |""".stripMargin,
       List(
         callSeq.map(_._1.feature).toArray,
@@ -77,8 +78,7 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
         callSeq.map(_._1.rangeStart).map(s => s.atOffset(ZoneOffset.UTC)).toArray,
         callSeq.map(_._1.rangeStart).map(s => s.atOffset(ZoneOffset.UTC).plusMinutes(rangeDurationInMinutes)).toArray,
         callSeq.map(_._2).map(l => l.asInstanceOf[Number]).toArray
-      ),
-      schemas=Seq(tenant)
+      )
     ){r => ()}
   }
 
@@ -89,12 +89,13 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
    * @return feature last call, creation date and last values
    */
   def findFeatureUsages(tenant: String, featureIds: Seq[String], valuesSince :Instant ): Future[Either[IzanamiError, Map[String, FeatureUsage]]] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryAll(
         query = s"""
          |WITH distinct_values_by_feature AS (
          |    SELECT array_agg(distinct fc.value::TEXT) as values, fc.feature
-         |    FROM feature_calls fc
+         |    FROM "${tenant}".feature_calls fc
          |    WHERE range_stop > $$2
          |    AND fc.feature = ANY($$1)
          |    GROUP BY fc.feature
@@ -104,14 +105,13 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
          |    f.created_at,
          |    f.id,
          |    dv.values
-         |FROM features f
-         |LEFT JOIN feature_calls fc ON fc.feature = f.id
+         |FROM "${tenant}".features f
+         |LEFT JOIN "${tenant}".feature_calls fc ON fc.feature = f.id
          |LEFT JOIN distinct_values_by_feature dv ON dv.feature = f.id
          |WHERE f.id = ANY($$1)
          |GROUP BY f.id, dv.values
          |""".stripMargin,
-        params = List(featureIds.toArray, valuesSince.atOffset(ZoneOffset.UTC)),
-        schemas = Seq(tenant)
+        params = List(featureIds.toArray, valuesSince.atOffset(ZoneOffset.UTC))
       ) { r => {
         val lastCall = r.optOffsetDatetime("last_call").map(_.toInstant)
         val values = r.optStringArray("values").map(vs => vs.map(str => Json.parse(str)).map(json => (json \ "value").as[JsValue]).toSet).getOrElse(Set.empty)

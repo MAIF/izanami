@@ -300,6 +300,9 @@ function Rights(): JSX.Element {
             {Object.entries(value.projects).length > 0 && (
               <>
                 <h4 className="mt-3">Projects</h4>
+                <span style={{ fontWeight: "bold" }}>
+                  Your default project right is {value.defaultProjectRight}
+                </span>
                 {Object.entries(value.projects).map(
                   ([projectName, projectRight]) => {
                     return (
@@ -321,6 +324,9 @@ function Rights(): JSX.Element {
             {Object.entries(value.keys).length > 0 && (
               <>
                 <h4 className="mt-3">Keys</h4>
+                <span style={{ fontWeight: "bold" }}>
+                  Your default project right is {value.defaultKeyRight}
+                </span>
                 {Object.entries(value.keys).map(([keyName, keyRight]) => {
                   return (
                     <div key={`${key}-${keyName}`}>
@@ -340,6 +346,9 @@ function Rights(): JSX.Element {
             {Object.entries(value.webhooks).length > 0 && (
               <>
                 <h4 className="mt-3">Webhooks</h4>
+                <span style={{ fontWeight: "bold" }}>
+                  Your default project right is {value.defaultWebhookRight}
+                </span>
                 {Object.entries(value.webhooks).map(
                   ([webhookName, webhookRight]) => {
                     return (

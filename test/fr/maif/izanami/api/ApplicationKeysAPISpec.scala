@@ -175,6 +175,26 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
       result.status mustBe OK
       (result.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("my-key")
     }
+
+    "return all keys if user has key default read right" in {
+      val situation = TestSituationBuilder()
+        .withUsers(TestUser("test-u").withTenantReadRight("my-tenant").withDefaultReadKeyRight("my-tenant"))
+        .withTenants(
+          TestTenant("my-tenant")
+            .withProjectNames("project-1", "project-2")
+            .withApiKeys(
+              TestApiKey(name = "my-key", projects = Seq("project-1", "project-2")),
+              TestApiKey(name = "my-key2", projects = Seq("project-1", "project-2"))
+            )
+        )
+        .loggedAs("test-u")
+        .build()
+
+      val result = situation.fetchAPIKeys(tenant = "my-tenant")
+
+      result.status mustBe OK
+      (result.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("my-key", "my-key2")
+    }
   }
 
   "API key DELETE endpoint" should {
@@ -251,6 +271,26 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
 
       situation.createAPIKey("my-tenant", "key1", projects = Seq("project1"))
       val response = situation.deleteAPIKey("my-tenant", "key1")
+
+      response.status mustBe NO_CONTENT
+    }
+
+    "allow key suppression if user has default admin right for keys" in {
+      val situation = TestSituationBuilder()
+        .withUsers(
+          TestUser("test-u")
+            .withTenantReadRight("my-tenant")
+            .withDefaultAdminKeyRight("my-tenant")
+        )
+        .withTenants(
+          TestTenant("my-tenant")
+            .withProjectNames("project1")
+            .withApiKeys(TestApiKey(name = "mykey", projects = Seq("project1")))
+        )
+        .loggedAs("test-u")
+        .build()
+
+      val response = situation.deleteAPIKey("my-tenant", "mykey")
 
       response.status mustBe NO_CONTENT
     }
@@ -472,6 +512,86 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
       )
 
       result.status mustBe FORBIDDEN
+    }
+
+
+    "prevent updating key if user doesn't have write right on it" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant(name = "tenant")
+            .withApiKeys(TestApiKey("my-key", admin = false, enabled = true))
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadWriteRight("tenant")
+            .withApiKeyReadRight(tenant = "tenant", key = "my-key")
+        )
+        .loggedAs("testu")
+        .build()
+
+      val result = situation.updateAPIKey(
+        "tenant",
+        currentName = "my-key",
+        description = "foo",
+        projects = Seq(),
+        enabled = true,
+        admin = false
+      )
+
+      result.status mustBe FORBIDDEN
+    }
+
+
+    "allow updating key if user has write right on it" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant(name = "tenant")
+            .withApiKeys(TestApiKey("my-key", admin = false, enabled = true))
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadWriteRight("tenant")
+            .withApiKeyReadWriteRight(tenant = "tenant", key = "my-key")
+        )
+        .loggedAs("testu")
+        .build()
+
+      val result = situation.updateAPIKey(
+        "tenant",
+        currentName = "my-key",
+        description = "foo",
+        projects = Seq(),
+        enabled = true,
+        admin = false
+      )
+
+      result.status mustBe NO_CONTENT
+    }
+
+    "allow updating key if user doesn't have right on it but has default api key write right" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant(name = "tenant")
+            .withApiKeys(TestApiKey("my-key", admin = false, enabled = true))
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadWriteRight("tenant")
+            .withDefaultWriteKeyRight("tenant")
+        )
+        .loggedAs("testu")
+        .build()
+
+      val result = situation.updateAPIKey(
+        "tenant",
+        currentName = "my-key",
+        description = "foo",
+        projects = Seq(),
+        enabled = true,
+        admin = false
+      )
+
+      result.status mustBe NO_CONTENT
     }
   }
 }

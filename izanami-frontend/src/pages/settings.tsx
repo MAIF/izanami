@@ -12,8 +12,9 @@ import {
   queryConfiguration,
   updateConfiguration,
   fetchOpenIdConnectConfiguration,
+  queryTenants,
 } from "../utils/queries";
-import { Configuration } from "../utils/types";
+import { Configuration, rightRoleModes, TRights } from "../utils/types";
 import { customStyles } from "../styles/reactSelect";
 import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
@@ -27,6 +28,7 @@ import {
 import { Tooltip } from "../components/Tooltip";
 import { ErrorMessage } from "../components/HookFormErrorMessage";
 import { rightStateArrayToBackendMap } from "../utils/rightUtils";
+import { isEqual } from "lodash";
 
 const MAILER_OPTIONS = [
   { label: "MailJet", value: "MailJet" },
@@ -70,10 +72,7 @@ export function Settings() {
     const wasAnonymousReportingDisabled =
       !newValue.anonymousReporting && current.anonymousReporting;
 
-    const newDefaultRights = newValue.oidcConfiguration?.defaultOIDCUserRights;
-    const backendRights = rightStateArrayToBackendMap(
-      Array.isArray(newDefaultRights) ? newDefaultRights : []
-    );
+    const rightByRoles = newValue.oidcConfiguration?.userRightsByRoles;
 
     return configurationMutationQuery
       .mutateAsync({
@@ -86,7 +85,7 @@ export function Settings() {
         oidcConfiguration: newValue.oidcConfiguration
           ? {
               ...newValue.oidcConfiguration,
-              defaultOIDCUserRights: backendRights,
+              userRightsByRoles: rightByRoles,
             }
           : undefined,
         mailerConfiguration: newValue.mailerConfiguration,
@@ -179,6 +178,12 @@ function ConfigurationForm(props: {
               type: "string",
               message: "Invalid email",
             });
+          }
+
+          if ("port" in data.mailerConfiguration) {
+            data.mailerConfiguration.port = Number(
+              data.mailerConfiguration.port
+            );
           }
           if (valid) {
             props?.onSubmit(data);
@@ -848,6 +853,42 @@ function OIDCForm() {
                         />
                       </div>
                     )}
+                    <div className="row mt-3">
+                      <label>
+                        Role claim
+                        <input
+                          type="text"
+                          className="form-control"
+                          {...register("oidcConfiguration.roleClaim")}
+                        />
+                      </label>
+                    </div>
+                    <div className="row mt-3">
+                      <label>
+                        Role right mode
+                        <Controller
+                          name="oidcConfiguration.roleRightMode"
+                          control={control}
+                          render={({ field }) => (
+                            <Select
+                              value={
+                                field.value
+                                  ? { value: field.value, label: field.value }
+                                  : null
+                              }
+                              onChange={(e) => {
+                                field.onChange(e?.value);
+                              }}
+                              styles={customStyles}
+                              options={rightRoleModes.map((mode) => ({
+                                value: mode,
+                                label: mode,
+                              }))}
+                            />
+                          )}
+                        />
+                      </label>
+                    </div>
                   </>
                 )}
               </fieldset>
@@ -878,15 +919,15 @@ function OIDCForm() {
             id="default-oidc-rights-accordion-collapse"
           >
             <Controller
-              name="oidcConfiguration.defaultOIDCUserRights"
+              name="oidcConfiguration.userRightsByRoles"
               control={control}
               render={({ field }) => {
                 return (
-                  <RightSelector
-                    defaultValue={field?.value}
-                    tenantLevelFilter="Admin"
-                    onChange={(v) => {
-                      field?.onChange(v);
+                  <RightByRoleSelector
+                    readonly={preventOAuthModification}
+                    rights={field.value ?? {}}
+                    onChange={(newRights) => {
+                      field?.onChange(newRights);
                     }}
                   />
                 );
@@ -897,4 +938,170 @@ function OIDCForm() {
       </div>
     </>
   );
+}
+
+type TCompleteRight = TRights & { admin: boolean };
+interface RightByRoles {
+  [role: string]: TCompleteRight;
+}
+
+function RightByRoleSelector(props: {
+  rights: RightByRoles;
+  onChange: (newRights: RightByRoles) => any;
+  readonly: boolean;
+}) {
+  const tenantQuery = useQuery({
+    queryKey: [MutationNames.TENANTS],
+    queryFn: () => queryTenants(),
+  });
+  const { rights, onChange, readonly } = props;
+  const [creatingRole, setCreatingRole] = useState<
+    { creating: false } | { creating: true; value: string }
+  >({ creating: false });
+  if (tenantQuery.isLoading) {
+    return <Loader message="Loading tenant list" />;
+  } else if (tenantQuery.data) {
+    const existingTenants = tenantQuery.data.map((t) => t.name);
+    return (
+      <>
+        {readonly && (
+          <p className="error-message d-flex align-items-center gap-2">
+            <i className="fas fa-warning" />
+            The configuration is loaded from your environment variables and
+            cannot be edited until you remove them.
+          </p>
+        )}
+        <fieldset disabled={readonly}>
+          {Object.entries(rights).map(([role, right], index, array) => {
+            let effectiveRight = right;
+            const missingTenants = Object.keys(right.tenants ?? {}).filter(
+              (t) => !existingTenants.includes(t)
+            );
+            if (missingTenants.length > 0) {
+              effectiveRight = {
+                admin: effectiveRight.admin,
+                tenants: Object.entries(right.tenants ?? {})
+                  .filter((entry) => {
+                    return !missingTenants.includes(entry[0]);
+                  })
+                  .reduce((acc, [key, value]) => {
+                    acc[key] = value;
+                    return acc;
+                  }, {} as { [k: string]: any }),
+              };
+            }
+
+            return (
+              <>
+                <div key={`${role}-right`}>
+                  <h3>
+                    {role === "" ? "Default rights" : `Rights for role ${role}`}
+                    &nbsp;
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={() => {
+                        const newRights = {
+                          ...rights,
+                        };
+                        delete newRights[role];
+                        onChange?.(newRights);
+                      }}
+                    >
+                      Delete role
+                    </button>
+                  </h3>
+                  <label>
+                    Admin{" "}
+                    <input
+                      type="checkbox"
+                      className="izanami-checkbox"
+                      checked={right.admin}
+                      onChange={(e) => {
+                        const newAdmin = e.target.checked;
+                        const newRights = {
+                          ...rights,
+                          [role]: { ...right, admin: newAdmin },
+                        };
+                        onChange?.(newRights);
+                      }}
+                    />
+                  </label>
+                  <RightSelector
+                    defaultValue={effectiveRight}
+                    tenantLevelFilter="Admin"
+                    onChange={(v) => {
+                      const newR = rightStateArrayToBackendMap(v);
+                      if (!isEqual(effectiveRight.tenants, newR.tenants)) {
+                        const newRights = {
+                          ...rights,
+                          [role]: { ...newR, admin: right.admin },
+                        };
+                        onChange?.(newRights);
+                      }
+                    }}
+                  />
+                </div>
+                {index < array.length - 1 && <hr />}
+              </>
+            );
+          })}
+          {!creatingRole.creating ? (
+            <div className="d-flex flex-row justify-content-end">
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setCreatingRole({ creating: true, value: "" })}
+              >
+                Add role
+              </button>
+              {!rights[""] && (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    const newRights = {
+                      ...rights,
+                      [""]: { admin: false, tenants: {} },
+                    };
+                    onChange(newRights);
+                  }}
+                >
+                  Add default rights
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              {Object.entries(rights).length > 0 && <hr />}
+              <h3>New role</h3>
+              <label>
+                Role name
+                <input
+                  className="form-control"
+                  type="text"
+                  onChange={(e) => {
+                    setCreatingRole({ creating: true, value: e.target.value });
+                  }}
+                />
+                <button
+                  style={{ marginTop: "1rem", float: "right" }}
+                  className="btn btn-primary"
+                  onClick={() => {
+                    const newRights = {
+                      ...rights,
+                      [creatingRole.value]: { admin: false, tenants: {} },
+                    };
+                    onChange(newRights);
+                    setCreatingRole({ creating: false });
+                  }}
+                >
+                  Create role
+                </button>
+              </label>
+            </>
+          )}
+        </fieldset>
+      </>
+    );
+  } else {
+    return <div className="error-message">Failed to fetch tenant list</div>;
+  }
 }

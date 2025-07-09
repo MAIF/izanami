@@ -4,7 +4,7 @@ import akka.actor.Cancellable
 import buildinfo.BuildInfo
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.models.{FullIzanamiConfiguration, IzanamiConfiguration}
+import fr.maif.izanami.models.{FullIzanamiConfiguration, IzanamiConfiguration, Tenant}
 import fr.maif.izanami.security.IdGenerator
 import fr.maif.izanami.utils.Datastore
 import io.vertx.sqlclient.{Row, SqlConnection}
@@ -132,12 +132,12 @@ class StatsDatastore(val env: Env) extends Datastore {
   }
 
   def retrieveTenantStats(tenant: String, conn: SqlConnection): Future[TenantStats] = {
+    Tenant.isTenantValid(tenant)
     env.postgresql
       .queryRaw(
         s"""
-         |select count(id), script_config is null as classical from features group by classical
+         |select count(id), script_config is null as classical from "${tenant}".features group by classical
          |""".stripMargin,
-        schemas = Seq(tenant),
         conn=Some(conn)
       ) { rows =>
         {
@@ -149,9 +149,8 @@ class StatsDatastore(val env: Env) extends Datastore {
           env.postgresql
             .queryRaw(
               s"""
-             |select count(*), script_config is null as classical from feature_contexts_strategies group by classical
+             |select count(*), script_config is null as classical from "${tenant}".feature_contexts_strategies group by classical
              |""".stripMargin,
-              schemas = Seq(tenant),
               conn=Some(conn)
             ) { rows =>
               {
@@ -172,9 +171,8 @@ class StatsDatastore(val env: Env) extends Datastore {
         env.postgresql
           .queryOne(
             s"""
-             |select count(*) from projects
+             |select count(*) from "${tenant}".projects
              |""".stripMargin,
-            schemas = Seq(tenant),
             conn=Some(conn)
           ) { r => r.optInt("count") }
           .map(o => o.getOrElse(0))
@@ -184,9 +182,8 @@ class StatsDatastore(val env: Env) extends Datastore {
         env.postgresql
           .queryRaw(
             s"""
-           |select count(*), admin from apikeys group by admin
+           |select count(*), admin from "${tenant}".apikeys group by admin
            |""".stripMargin,
-            schemas = Seq(tenant),
             conn=Some(conn)
           ) { rows => readBooleanCount(rows, "admin") }
           .map { case (admin, nonAdmin) => stats.copy(adminKeyCount=admin, nonAdminKeyCount=nonAdmin) }
@@ -204,9 +201,8 @@ class StatsDatastore(val env: Env) extends Datastore {
         env.postgresql
           .queryOne(
             s"""
-               |select count(*) from tags
+               |select count(*) from "${tenant}".tags
                |""".stripMargin,
-            schemas = Seq(tenant),
             conn=Some(conn)
           ) { r => r.optInt("count") }
           .map(o => o.getOrElse(0))

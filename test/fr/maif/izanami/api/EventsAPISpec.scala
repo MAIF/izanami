@@ -1,7 +1,21 @@
 package fr.maif.izanami.api
 
 import akka.http.scaladsl.model.sse.ServerSentEvent
-import fr.maif.izanami.api.BaseAPISpec.{ALL_RIGHTS_USERNAME_PASSWORD, TestApiKey, TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestHourPeriod, TestPercentageRule, TestProject, TestSituationBuilder, TestTenant, TestUserListRule}
+import fr.maif.izanami.api.BaseAPISpec.{
+  ALL_RIGHTS_USERNAME_PASSWORD,
+  TestApiKey,
+  TestCondition,
+  TestDateTimePeriod,
+  TestDayPeriod,
+  TestFeature,
+  TestFeatureContext,
+  TestHourPeriod,
+  TestPercentageRule,
+  TestProject,
+  TestSituationBuilder,
+  TestTenant,
+  TestUserListRule
+}
 import org.awaitility.Awaitility.await
 import play.api.libs.json.{JsArray, JsObject, Json}
 

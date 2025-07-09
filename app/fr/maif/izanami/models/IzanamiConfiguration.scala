@@ -1,10 +1,12 @@
 package fr.maif.izanami.models
 
+import fr.maif.izanami.RoleRightMode
 import fr.maif.izanami.mail.MailGunRegions.MailGunRegion
 import fr.maif.izanami.mail.MailerTypes.{MailJet, MailerType, SMTP}
 import fr.maif.izanami.mail.{MailProviderConfiguration, _}
 import fr.maif.izanami.models.InvitationMode.InvitationMode
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2Method
+import fr.maif.izanami.services.CompleteRights
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.Reads.instantReads
@@ -47,83 +49,99 @@ case class OAuth2Configuration(
     nameField: String = "name",
     emailField: String = "email",
     callbackUrl: String,
-    defaultOIDCUserRights: Rights = Rights.EMPTY,
+    userRightsByRoles: Option[Map[String, CompleteRights]] = None,
+    roleClaim: Option[String],
+    roleRightMode: Option[RoleRightMode]
 )
 
 object OAuth2Configuration {
 
   sealed trait OAuth2Method
-  case object OAuth2POSTMethod extends OAuth2Method
+  case object OAuth2POSTMethod  extends OAuth2Method
   case object OAuth2BASICMethod extends OAuth2Method
 
   def OAuth2MethodReads: Reads[OAuth2Method] = json => {
-    json.asOpt[String].map(_.toUpperCase).collect {
-      case "BASIC" => OAuth2BASICMethod
-      case "POST" => OAuth2POSTMethod
-    }
+    json
+      .asOpt[String]
+      .map(_.toUpperCase)
+      .collect {
+        case "BASIC" => OAuth2BASICMethod
+        case "POST"  => OAuth2POSTMethod
+      }
       .map(JsSuccess(_))
       .getOrElse(JsError("Failed to parse OAuth2 method"))
   }
 
   def OAuth2MethodWrites: Writes[OAuth2Method] = {
-    case OAuth2POSTMethod => JsString("POST")
+    case OAuth2POSTMethod  => JsString("POST")
     case OAuth2BASICMethod => JsString("BASIC")
-    case _ => JsNull
+    case _                 => JsNull
   }
 
   def OAuth2RawMethodConvert(rawStr: String): OAuth2Method = rawStr match {
     case "BASIC" => OAuth2BASICMethod
-    case "POST" => OAuth2POSTMethod
+    case "POST"  => OAuth2POSTMethod
   }
 
   val _fmt: Format[OAuth2Configuration] = new Format[OAuth2Configuration] {
 
-    override def writes(o: OAuth2Configuration): JsObject = Json.obj(
-      "enabled"          -> o.enabled,
-      "method"           -> Json.toJson(o.method)(OAuth2MethodWrites),
-      "clientId"         -> o.clientId,
-      "clientSecret"     -> o.clientSecret,
-      "authorizeUrl"     -> o.authorizeUrl,
-      "tokenUrl"         -> o.tokenUrl,
-      "scopes"           -> o.scopes,
-      "pkce"             -> o.pkce.map(_.asJson).getOrElse(JsNull).as[JsValue],
-      "nameField"        -> o.nameField,
-      "emailField"       -> o.emailField,
-      "callbackUrl"      -> o.callbackUrl,
-      "defaultOIDCUserRights" -> User.rightWrite.writes(o.defaultOIDCUserRights)
-    )
+    override def writes(o: OAuth2Configuration): JsObject = Json
+      .obj(
+        "enabled"      -> o.enabled,
+        "method"       -> Json.toJson(o.method)(OAuth2MethodWrites),
+        "clientId"     -> o.clientId,
+        "clientSecret" -> o.clientSecret,
+        "authorizeUrl" -> o.authorizeUrl,
+        "tokenUrl"     -> o.tokenUrl,
+        "scopes"       -> o.scopes,
+        "pkce"         -> o.pkce.map(_.asJson).getOrElse(JsNull).as[JsValue],
+        "nameField"    -> o.nameField,
+        "emailField"   -> o.emailField,
+        "callbackUrl"  -> o.callbackUrl
+      )
+      .applyOnWithOpt(o.userRightsByRoles)((json, rightByRoles) =>
+        json + ("userRightsByRoles" -> Json.toJson(rightByRoles)(Writes.map(CompleteRights.writes)))
+      )
+      .applyOnWithOpt(o.roleClaim)((json, roleClaim) => json + ("roleClaim" -> Json.toJson(roleClaim)))
+      .applyOnWithOpt(o.roleRightMode)((json, mode) =>
+        json + ("roleRightMode" -> Json.toJson(mode)(RoleRightMode.writes))
+      )
 
     override def reads(json: JsValue): JsResult[OAuth2Configuration] = {
-      val maybeConfig = for (
-        enabled               <- (json \ "enabled").asOpt[Boolean];
-        clientId              <- (json \ "clientId").asOpt[String];
-        clientSecret          <- (json \ "clientSecret").asOpt[String];
-        authorizeUrl          <- (json \ "authorizeUrl").asOpt[String];
-        tokenUrl              <- (json \ "tokenUrl").asOpt[String];
-        nameField             <- (json \ "nameField").asOpt[String];
-        emailField            <- (json \ "emailField").asOpt[String];
-        scopes                <- (json \ "scopes").asOpt[String];
-        callbackUrl           <- (json \ "callbackUrl")
-          .asOpt[String];
-        method <- (json \ "method").asOpt[OAuth2Method](OAuth2MethodReads)
-      ) yield {
+      val maybeConfig =
+        for (
+          enabled      <- (json \ "enabled").asOpt[Boolean];
+          clientId     <- (json \ "clientId").asOpt[String];
+          clientSecret <- (json \ "clientSecret").asOpt[String];
+          authorizeUrl <- (json \ "authorizeUrl").asOpt[String];
+          tokenUrl     <- (json \ "tokenUrl").asOpt[String];
+          nameField    <- (json \ "nameField").asOpt[String];
+          emailField   <- (json \ "emailField").asOpt[String];
+          scopes       <- (json \ "scopes").asOpt[String];
+          callbackUrl  <- (json \ "callbackUrl")
+                            .asOpt[String];
+          method       <- (json \ "method").asOpt[OAuth2Method](OAuth2MethodReads)
+        ) yield {
 
-        val defaultOIDCUserRights = (json \ "defaultOIDCUserRights").asOpt[Rights](User.rightsReads)
-        OAuth2Configuration(
-          method = method,
-          enabled = enabled,
-          clientId = clientId,
-          clientSecret = clientSecret,
-          authorizeUrl = authorizeUrl,
-          tokenUrl = tokenUrl,
-          nameField = nameField,
-          emailField = emailField,
-          scopes = scopes,
-          pkce = (json \ "pkce").asOpt[PKCEConfig](PKCEConfig._fmt.reads),
-          callbackUrl = callbackUrl,
-          defaultOIDCUserRights = defaultOIDCUserRights.getOrElse(Rights.EMPTY)
-        )
-      }
+          val userRightsByRoles =
+            (json \ "userRightsByRoles").asOpt[Map[String, CompleteRights]](Reads.map(CompleteRights.reads))
+          OAuth2Configuration(
+            method = method,
+            enabled = enabled,
+            clientId = clientId,
+            clientSecret = clientSecret,
+            authorizeUrl = authorizeUrl,
+            tokenUrl = tokenUrl,
+            nameField = nameField,
+            emailField = emailField,
+            scopes = scopes,
+            pkce = (json \ "pkce").asOpt[PKCEConfig](PKCEConfig._fmt.reads),
+            callbackUrl = callbackUrl,
+            userRightsByRoles = userRightsByRoles,
+            roleClaim = (json \ "roleClaim").asOpt[String],
+            roleRightMode = (json \ "roleRightMode").asOpt[RoleRightMode](RoleRightMode.reads)
+          )
+        }
 
       maybeConfig.map(json => JsSuccess(json)).getOrElse(JsError("Failed to read OAuth2Configuration"))
     }
@@ -199,7 +217,7 @@ object IzanamiConfiguration {
       (__ \ "auth").read[Boolean] and
       (__ \ "starttlsEnabled").read[Boolean] and
       (__ \ "smtps").read[Boolean]
-  )((host, maybePort, maybeUser, maybePassword, auth, starttls, smtps) =>
+  )((host, maybePort, maybeUser, maybePassword, auth, starttls, smtps) => {
     SMTPConfiguration(
       host = host,
       port = maybePort,
@@ -209,7 +227,7 @@ object IzanamiConfiguration {
       starttlsEnabled = starttls,
       smtps = smtps
     )
-  )
+  })
 
   implicit val SMTPConfigurationWrites: Writes[SMTPConfiguration] = conf => {
     Json
@@ -258,20 +276,27 @@ object IzanamiConfiguration {
   }
 
   val mailConfigurationWrites: Writes[MailProviderConfiguration] = {
-    case ConsoleMailProvider => {
+    case ConsoleMailProvider    => {
       Json.obj("mailer" -> MailerTypes.Console.toString)
     }
-    case m: MailGunMailProvider => Json.obj("mailer" -> MailerTypes.MailGun.toString) ++ mailGunConfigurationWrite.writes(m.configuration).as[JsObject]
-    case m: MailJetMailProvider => Json.obj("mailer" -> MailerTypes.MailJet.toString) ++ mailJetConfigurationWrites.writes(m.configuration).as[JsObject]
-    case m: SMTPMailProvider => Json.obj("mailer" -> MailerTypes.SMTP.toString) ++ SMTPConfigurationWrites.writes(m.configuration).as[JsObject]
+    case m: MailGunMailProvider =>
+      Json
+        .obj("mailer" -> MailerTypes.MailGun.toString) ++ mailGunConfigurationWrite.writes(m.configuration).as[JsObject]
+    case m: MailJetMailProvider =>
+      Json.obj("mailer" -> MailerTypes.MailJet.toString) ++ mailJetConfigurationWrites
+        .writes(m.configuration)
+        .as[JsObject]
+    case m: SMTPMailProvider    =>
+      Json.obj("mailer" -> MailerTypes.SMTP.toString) ++ SMTPConfigurationWrites.writes(m.configuration).as[JsObject]
   }
 
   implicit val fullConfigurationReads: Reads[FullIzanamiConfiguration] = json => {
     (for (
-      mailer <- (json \ "mailerConfiguration" \ "mailer").asOpt[MailerType];
-      mailerConfiguration  <- (json \ "mailerConfiguration").asOpt[MailProviderConfiguration](mailProviderConfigurationReads(mailer));
-      invitationMode     <- (json \ "invitationMode").asOpt[InvitationMode];
-      anonymousReporting <- (json \ "anonymousReporting").asOpt[Boolean]
+      mailer              <- (json \ "mailerConfiguration" \ "mailer").asOpt[MailerType];
+      mailerConfiguration <-
+        (json \ "mailerConfiguration").asOpt[MailProviderConfiguration](mailProviderConfigurationReads(mailer));
+      invitationMode      <- (json \ "invitationMode").asOpt[InvitationMode];
+      anonymousReporting  <- (json \ "anonymousReporting").asOpt[Boolean]
     ) yield {
       val anonymousReportingLastAsked =
         (json \ "anonymousReportingLastAsked").asOpt[Instant](instantReads(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
@@ -309,7 +334,7 @@ object IzanamiConfiguration {
   val fullConfigurationWrites: Writes[FullIzanamiConfiguration] = conf => {
     val oidcConfiguration = conf.oidcConfiguration.map(OAuth2Configuration._fmt.writes).getOrElse(JsNull)
     Json.obj(
-      "mailerConfiguration"        -> Json.toJson(conf.mailConfiguration)(mailConfigurationWrites),
+      "mailerConfiguration"         -> Json.toJson(conf.mailConfiguration)(mailConfigurationWrites),
       "invitationMode"              -> conf.invitationMode.toString,
       "originEmail"                 -> conf.originEmail,
       "anonymousReporting"          -> conf.anonymousReporting,

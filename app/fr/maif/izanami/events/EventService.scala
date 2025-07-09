@@ -6,30 +6,13 @@ import akka.stream.{KillSwitches, Materializer, SharedKillSwitch}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.{EnhancedRow, VertxFutureEnhancer}
 import fr.maif.izanami.events.EventAuthentication.eventAuthenticationReads
-import fr.maif.izanami.events.EventOrigin.{eventOriginReads, ORIGIN_NAME_MAP}
-import fr.maif.izanami.events.EventService.{sourceEventWrites, IZANAMI_CHANNEL}
-import fr.maif.izanami.models.{Feature, FeatureWithOverloads, LightWeightFeature, RequestContext}
+import fr.maif.izanami.events.EventOrigin.{ORIGIN_NAME_MAP, eventOriginReads}
+import fr.maif.izanami.events.EventService.{IZANAMI_CHANNEL, sourceEventWrites}
+import fr.maif.izanami.models.{Feature, FeatureWithOverloads, LightWeightFeature, RequestContext, Tenant}
 import io.vertx.pgclient.pubsub.PgSubscriber
 import io.vertx.sqlclient.SqlConnection
-import play.api.libs.json.{
-  Format,
-  JsError,
-  JsNumber,
-  JsObject,
-  JsResult,
-  JsString,
-  JsSuccess,
-  JsValue,
-  Json,
-  Reads,
-  Writes
-}
-import fr.maif.izanami.models.Feature.{
-  featureWrite,
-  lightweightFeatureRead,
-  lightweightFeatureWrite,
-  writeStrategiesForEvent
-}
+import play.api.libs.json.{Format, JsError, JsNumber, JsObject, JsResult, JsString, JsSuccess, JsValue, Json, Reads, Writes}
+import fr.maif.izanami.models.Feature.{featureWrite, lightweightFeatureRead, lightweightFeatureWrite, writeStrategiesForEvent}
 import fr.maif.izanami.models.FeatureWithOverloads.featureWithOverloadWrite
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.v1.V2FeatureEvents.{createEventV2, deleteEventV2, updateEventV2}
@@ -836,6 +819,7 @@ class EventService(env: Env) {
     scala.collection.mutable.Map()
 
   def emitEvent(channel: String, event: SourceIzanamiEvent)(implicit conn: SqlConnection): Future[Unit] = {
+    Tenant.isTenantValid(channel)
     val global = channel.equalsIgnoreCase("izanami") || event.isInstanceOf[SourceTenantDeleted]
     val now    = OffsetDateTime.now()
 
@@ -856,7 +840,7 @@ class EventService(env: Env) {
                |WITH generated_id AS (
                |    SELECT nextval('izanami.eventid') as next_id
                |)
-               |INSERT INTO  ${if (global) "izanami.global_events" else "events"} (id, event, event_type, entity_id, emitted_at, origin, authentication, username)
+               |INSERT INTO  ${if (global) "izanami.global_events" else s""""${channel}".events"""} (id, event, event_type, entity_id, emitted_at, origin, authentication, username)
                |SELECT gid.next_id as id, (jsonb_build_object('eventId', gid.next_id) || $$1::jsonb) as event, $$2::${if (
               global
             ) "izanami.GLOBAL_EVENT_TYPES"
@@ -873,8 +857,7 @@ class EventService(env: Env) {
               EventAuthentication.authenticationName(event.authentication),
               event.user
             ),
-            conn = Some(conn),
-            schemas = if (global) Seq() else Seq(channel)
+            conn = Some(conn)
           ) { r =>
             {
               r.optLong("id").map(id => (id, jsonEvent))

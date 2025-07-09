@@ -11,7 +11,11 @@ import {
   updateUserRightsForProject,
 } from "../utils/queries";
 import { useNavigate } from "react-router-dom";
-import { useProjectRight } from "../securityContext";
+import {
+  isProjectRightAbove,
+  isRightAbove,
+  useProjectRight,
+} from "../securityContext";
 import queryClient from "../queryClient";
 import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
@@ -260,6 +264,28 @@ function ProjectUsers(props: {
               valueType: "rights",
             },
             size: 25,
+            cell: (col) => {
+              const user = col.row.original;
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+              const maybeDefaultProjectRight = user.defaultRight;
+
+              if (maybeDefaultProjectRight && user.right) {
+                const isDefaultRightAboveRight = isProjectRightAbove(
+                  maybeDefaultProjectRight,
+                  user.right
+                );
+                return isDefaultRightAboveRight
+                  ? `${maybeDefaultProjectRight} (default right)`
+                  : user.right;
+              } else if (user.right) {
+                return user.right;
+              } else if (maybeDefaultProjectRight) {
+                return `${maybeDefaultProjectRight} (default right)`;
+              } else {
+                return <></>;
+              }
+            },
             filterFn: (data, columndId, filterValue) => {
               const right = data.getValue(columndId);
               if (filterValue === TLevel.Admin) {

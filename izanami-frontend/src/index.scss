@@ -202,6 +202,8 @@ thead th {
   border-radius: 10px;
   padding: 10px;
   margin-left: 30px;
+  display: flex;
+  flex-direction: column;
 }
 
 .dropdown-toggle::after {

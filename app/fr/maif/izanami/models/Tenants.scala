@@ -13,6 +13,8 @@ case class Tenant(name: String, projects: List[Project] = List(), tags: List[Tag
 case class TenantCreationRequest(name: String, description: String = "")
 
 object Tenant {
+  def isTenantValid(candidate: String): Boolean = TENANT_REGEXP.pattern.matcher(candidate).matches()
+
   val tenantReads: Reads[TenantCreationRequest] = { json =>
     (json \ "name")
       .asOpt[String]
@@ -22,7 +24,7 @@ object Tenant {
       .map(JsSuccess(_))
       .getOrElse(JsError("Invalid tenant"))
   }
-  private val TENANT_REGEXP: Regex = "^[a-z0-9_-]+$".r
+  val TENANT_REGEXP: Regex = "^[a-z0-9_-]+$".r
 
   implicit val tenantWrite: Writes[Tenant] = { tenant =>
     Json.obj(

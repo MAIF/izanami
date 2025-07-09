@@ -129,15 +129,17 @@ export function WebHooks(props: { tenant: string }) {
         {!creating && webhookQuery.data.length === 0 && (
           <div className="item-block">
             <div className="item-text">
-              There is no webhooks for this tenant.
+              There is no webhooks you can see for this tenant.
             </div>
-            <button
-              type="button"
-              className="btn btn-primary btn-lg"
-              onClick={() => setCreating(true)}
-            >
-              Create new webhook
-            </button>
+            {hasTenantWriteLevel && (
+              <button
+                type="button"
+                className="btn btn-primary btn-lg"
+                onClick={() => setCreating(true)}
+              >
+                Create new webhook
+              </button>
+            )}
           </div>
         )}
         {webhookQuery.data.length > 0 && (

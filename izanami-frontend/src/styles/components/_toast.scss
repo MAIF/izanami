@@ -1,21 +1,20 @@
-
 .toast-error {
-    box-shadow: 0 0.5rem 1rem rgba(0,0,0, .5);
-  }
-  
-  .toast-error button {
-    background-color: white;
-    color: var(--color-red); 
-    border: 1px solid white;
-  }
-  
-  .toast-error button:hover {
-    background-color: white;
-    color: var(--color-red);
-    border: 1px solid var(--color-red);
-  }
-  
-  .toast-error i {
-    color: var(--color-red);
-  }
-  
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
+  max-width: 500px;
+}
+
+.toast-error button {
+  background-color: white;
+  color: var(--color-red);
+  border: 1px solid white;
+}
+
+.toast-error button:hover {
+  background-color: white;
+  color: var(--color-red);
+  border: 1px solid var(--color-red);
+}
+
+.toast-error i {
+  color: var(--color-red);
+}

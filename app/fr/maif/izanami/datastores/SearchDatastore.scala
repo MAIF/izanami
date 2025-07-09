@@ -2,6 +2,7 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
+import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.utils.Datastore
 import play.api.libs.json.{JsObject, Json}
 import fr.maif.izanami.web.SearchController.{SearchEntityObject, SearchEntityType}
@@ -15,6 +16,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       query: String,
       filter: List[Option[SearchEntityType]]
   ): Future[List[(String, JsObject, Double)]] = {
+    Tenant.isTenantValid(tenant)
     val searchQuery  = new StringBuilder()
     val extensionsSchema = env.extensionsSchema
     searchQuery.append("WITH ")
@@ -29,14 +31,15 @@ class SearchDatastore(val env: Env) extends Datastore {
           p.id as id,
           p.name,
           p.description,
-          $extensionsSchema.SIMILARITY(p.name, $$1) AS name_score,
-          $extensionsSchema.SIMILARITY(p.description, $$1) AS description_score
-        FROM projects p
+          "$extensionsSchema".SIMILARITY(p.name, $$1) AS name_score,
+          "$extensionsSchema".SIMILARITY(p.description, $$1) AS description_score
+        FROM "${tenant}".projects p
         LEFT JOIN izanami.users u ON u.username=$$2
         LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
-        LEFT JOIN users_projects_rights upr ON (utr.username=$$2 AND p.name=upr.project)
+        LEFT JOIN "${tenant}".users_projects_rights upr ON (utr.username=$$2 AND p.name=upr.project)
         WHERE utr.level='ADMIN'
         OR upr.level IS NOT NULL
+        OR utr.default_project_right IS NOT NULL
         OR u.admin=true
       )
     """
@@ -59,7 +62,7 @@ class SearchDatastore(val env: Env) extends Datastore {
           f.description,
           $extensionsSchema.SIMILARITY(f.name, $$1) AS name_score,
           $extensionsSchema.SIMILARITY(f.description, $$1) AS description_score
-        FROM scored_projects p, features f
+        FROM scored_projects p, "${tenant}".features f
         WHERE f.project=p.name
       )
     """
@@ -67,7 +70,6 @@ class SearchDatastore(val env: Env) extends Datastore {
         SELECT row_to_json(f.*) as json, GREATEST(f.name_score, f.description_score) AS match_score, 'feature' as _type, $$3 as tenant
         FROM scored_features f
         WHERE f.name_score > $similarityThresholdParam OR f.description_score > $similarityThresholdParam OR f.id::text = '$query'"""
-
     }
 
     if (filter.isEmpty || filter.contains(Some(SearchEntityObject.Key))) {
@@ -77,15 +79,16 @@ class SearchDatastore(val env: Env) extends Datastore {
         SELECT DISTINCT
           k.name,
           k.description,
-          $extensionsSchema.SIMILARITY(k.name, $$1) AS name_score,
-          $extensionsSchema.SIMILARITY(k.description, $$1) AS description_score
-        FROM apikeys k
+          "$extensionsSchema".SIMILARITY(k.name, $$1) AS name_score,
+          "$extensionsSchema".SIMILARITY(k.description, $$1) AS description_score
+        FROM "${tenant}".apikeys k
         LEFT JOIN izanami.users u ON u.username=$$2
         LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
-        LEFT JOIN users_keys_rights ukr ON (utr.username=$$2 AND k.name=ukr.apikey)
+        LEFT JOIN "${tenant}".users_keys_rights ukr ON (utr.username=$$2 AND k.name=ukr.apikey)
         WHERE utr.level='ADMIN'
         OR ukr.level IS NOT NULL
         OR u.admin=true
+        OR utr.default_key_right IS NOT NULL
       )
     """
       unionQueries :+= s"""
@@ -101,9 +104,9 @@ class SearchDatastore(val env: Env) extends Datastore {
         SELECT DISTINCT
           t.name,
           t.description,
-          $extensionsSchema.SIMILARITY(t.name, $$1) AS name_score,
-          $extensionsSchema.SIMILARITY(t.description, $$1) AS description_score
-        FROM tags t
+          "$extensionsSchema".SIMILARITY(t.name, $$1) AS name_score,
+          "$extensionsSchema".SIMILARITY(t.description, $$1) AS description_score
+        FROM "${tenant}".tags t
         LEFT JOIN izanami.users u ON u.username=$$2
         LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
         WHERE utr.level IS NOT NULL
@@ -122,8 +125,8 @@ class SearchDatastore(val env: Env) extends Datastore {
       scored_scripts AS (
         SELECT DISTINCT
          s.id as name,
-         $extensionsSchema.SIMILARITY(s.id, $$1) as name_score
-        FROM wasm_script_configurations s
+         "$extensionsSchema".SIMILARITY(s.id, $$1) as name_score
+        FROM "${tenant}".wasm_script_configurations s
         LEFT JOIN izanami.users u ON u.username=$$2
         LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
         WHERE utr.level IS NOT NULL
@@ -140,10 +143,10 @@ class SearchDatastore(val env: Env) extends Datastore {
         s"""
       scored_global_contexts AS (
         SELECT DISTINCT
-          ltree2text(c.parent) as parent,
+          "$extensionsSchema".ltree2text(c.parent) as parent,
           c.name as name,
-          $extensionsSchema.SIMILARITY(c.name, $$1) as name_score
-          FROM new_contexts c
+          "$extensionsSchema".SIMILARITY(c.name, $$1) as name_score
+          FROM "${tenant}".new_contexts c
         LEFT JOIN izanami.users u ON u.username=$$2
         LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
         WHERE (utr.level IS NOT NULL OR u.admin=true) AND c.global=true
@@ -159,11 +162,11 @@ class SearchDatastore(val env: Env) extends Datastore {
         s"""
           scored_local_contexts AS (
           SELECT DISTINCT
-               ltree2text(c.parent) as parent,
+               "$extensionsSchema".ltree2text(c.parent) as parent,
                c.project,
                c.name as name,
               $extensionsSchema.SIMILARITY(c.name, $$1) as name_score
-              FROM new_contexts c
+              FROM "${tenant}".new_contexts c
               LEFT JOIN izanami.users u ON u.username=$$2
               LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
               WHERE (utr.level IS NOT NULL OR u.admin=true) AND c.global=false
@@ -181,12 +184,12 @@ class SearchDatastore(val env: Env) extends Datastore {
              SELECT DISTINCT
                w.name,
                 w.description,
-                 $extensionsSchema.SIMILARITY(w.name, $$1) as name_score,
-                $extensionsSchema.SIMILARITY(w.description, $$1) as description_score
-             FROM webhooks w
+                 "$extensionsSchema".SIMILARITY(w.name, $$1) as name_score,
+                "$extensionsSchema".SIMILARITY(w.description, $$1) as description_score
+             FROM "${tenant}".webhooks w
              LEFT JOIN izanami.users u ON u.username=$$2
              LEFT JOIN izanami.users_tenants_rights utr ON (utr.username=$$2 AND utr.tenant=$$3)
-             LEFT JOIN users_webhooks_rights uwr ON (utr.username=$$2 AND w.name=uwr.webhook)
+             LEFT JOIN "${tenant}".users_webhooks_rights uwr ON (utr.username=$$2 AND w.name=uwr.webhook)
              WHERE utr.level='ADMIN'
              OR uwr.level is not null
              OR u.admin=true
@@ -205,7 +208,6 @@ class SearchDatastore(val env: Env) extends Datastore {
     env.postgresql.queryAll(
       searchQuery.toString(),
       List(query, username, tenant),
-      schemas = Seq(tenant)
     ) { r =>
       for {
         t     <- r.optString("_type")

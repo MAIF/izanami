@@ -1,337 +1,388 @@
 {
-  "/izanami/search-67a": {
-    "__comp": "1a4e3797",
+  "/izanami/__docusaurus/debug-92f": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
     "__context": {
-      "plugin": "1457b77c"
+      "plugin": "plugin---izanami-docusaurus-debug-2-fd-91a"
     }
   },
-  "/izanami/docs-b83": {
-    "__comp": "5e95c892",
+  "/izanami/__docusaurus/debug/config-6f1": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
     "__context": {
-      "plugin": "1ad66b9e"
+      "plugin": "plugin---izanami-docusaurus-debug-2-fd-91a"
     }
   },
-  "/izanami/docs-1f6": {
-    "__comp": "a7bd4aaa",
-    "version": "935f2afb"
+  "/izanami/__docusaurus/debug/content-c4d": {
+    "__comp": "__comp---theme-debug-contentba-8-ce7",
+    "__context": {
+      "plugin": "plugin---izanami-docusaurus-debug-2-fd-91a"
+    },
+    "allContent": "allContent---izanami-docusaurus-debug-content-246-c61"
   },
-  "/izanami/docs-444": {
-    "__comp": "a94703ab"
+  "/izanami/__docusaurus/debug/globalData-952": {
+    "__comp": "__comp---theme-debug-global-dataede-0fa",
+    "__context": {
+      "plugin": "plugin---izanami-docusaurus-debug-2-fd-91a"
+    }
+  },
+  "/izanami/__docusaurus/debug/metadata-933": {
+    "__comp": "__comp---theme-debug-site-metadata-68-e-3d4",
+    "__context": {
+      "plugin": "plugin---izanami-docusaurus-debug-2-fd-91a"
+    }
+  },
+  "/izanami/__docusaurus/debug/registry-fcb": {
+    "__comp": "__comp---theme-debug-registry-679-501",
+    "__context": {
+      "plugin": "plugin---izanami-docusaurus-debug-2-fd-91a"
+    }
+  },
+  "/izanami/__docusaurus/debug/routes-508": {
+    "__comp": "__comp---theme-debug-routes-946-699",
+    "__context": {
+      "plugin": "plugin---izanami-docusaurus-debug-2-fd-91a"
+    }
+  },
+  "/izanami/search-fc4": {
+    "__comp": "__comp---theme-search-page-1-a-4-d6f",
+    "__context": {
+      "plugin": "plugin---izanami-search-854-4a7"
+    }
+  },
+  "/izanami/docs-ba1": {
+    "__comp": "__comp---theme-docs-root-5-e-9-0b6",
+    "__context": {
+      "plugin": "plugin---izanami-docs-22-d-80e"
+    }
+  },
+  "/izanami/docs-6d5": {
+    "__comp": "__comp---theme-doc-version-roota-7-b-5de",
+    "version": "version---izanami-docs-935-49b"
+  },
+  "/izanami/docs-f07": {
+    "__comp": "__comp---theme-doc-roota-94-67a"
   },
   "/izanami/docs/clients/-7b7": {
-    "__comp": "17896441",
-    "content": "f53bace1"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-clients-f-53-ddb"
   },
   "/izanami/docs/clients/java/-37a": {
-    "__comp": "17896441",
-    "content": "858bfcaf"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-clients-java-858-68f"
   },
   "/izanami/docs/clients/java/cache-625": {
-    "__comp": "17896441",
-    "content": "d98f6b02"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-clients-java-cached-98-38e"
   },
   "/izanami/docs/clients/java/error-handling-d1a": {
-    "__comp": "17896441",
-    "content": "95f95e10"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-clients-java-error-handling-95-f-d67"
   },
   "/izanami/docs/clients/java/sse-4df": {
-    "__comp": "17896441",
-    "content": "aa63221d"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-clients-java-sseaa-6-ecb"
   },
   "/izanami/docs/concepts/-580": {
-    "__comp": "17896441",
-    "content": "39cf9c2b"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-concepts-39-c-d27"
   },
   "/izanami/docs/dev/-4ea": {
-    "__comp": "17896441",
-    "content": "3aa9af84"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-dev-3-aa-08c"
   },
   "/izanami/docs/getstarted/-9f8": {
-    "__comp": "17896441",
-    "content": "55940994"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-getstarted-559-e25"
   },
   "/izanami/docs/guides/-7c0": {
-    "__comp": "17896441",
-    "content": "2e7f27e2"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-2-e-7-90c"
   },
   "/izanami/docs/guides/audit-logs-9cf": {
-    "__comp": "17896441",
-    "content": "049f028b"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-audit-logs-049-536"
   },
   "/izanami/docs/guides/bulk-feature-modification-f37": {
-    "__comp": "17896441",
-    "content": "9af8677d"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-bulk-feature-modification-9-af-8db"
   },
   "/izanami/docs/guides/configuration-84e": {
-    "__comp": "17896441",
-    "content": "80987477"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-configuration-809-de6"
   },
   "/izanami/docs/guides/env-contexts-3a6": {
-    "__comp": "17896441",
-    "content": "28294f75"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-env-contexts-282-25d"
   },
   "/izanami/docs/guides/http-calls-in-scripts-d9d": {
-    "__comp": "17896441",
-    "content": "391f84ad"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-http-calls-in-scripts-391-d90"
   },
   "/izanami/docs/guides/import-from-v1-b45": {
-    "__comp": "17896441",
-    "content": "52d2f9c5"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-import-from-v-152-d-389"
   },
   "/izanami/docs/guides/key-configuration-fb7": {
-    "__comp": "17896441",
-    "content": "64236327"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-key-configuration-642-b12"
   },
   "/izanami/docs/guides/local-scripts-122": {
-    "__comp": "17896441",
-    "content": "45bf6ac8"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-local-scripts-45-b-d3d"
   },
   "/izanami/docs/guides/mailer-configuration-b6c": {
-    "__comp": "17896441",
-    "content": "4e45aa8f"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-mailer-configuration-4-e-4-c62"
   },
   "/izanami/docs/guides/multi-conditions-feature-39f": {
-    "__comp": "17896441",
-    "content": "cbc90340"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-multi-conditions-featurecbc-67a"
   },
   "/izanami/docs/guides/non-boolean-features-c1a": {
-    "__comp": "17896441",
-    "content": "a566eca2"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-non-boolean-featuresa-56-65f"
+  },
+  "/izanami/docs/guides/oidc-configuration-4ea": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-oidc-configurationbe-3-cdf"
   },
   "/izanami/docs/guides/personnal-access-tokens-5b1": {
-    "__comp": "17896441",
-    "content": "7431e267"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-personnal-access-tokens-743-08a"
   },
   "/izanami/docs/guides/protected-contexts-376": {
-    "__comp": "17896441",
-    "content": "85264d09"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-protected-contexts-852-9bc"
   },
   "/izanami/docs/guides/query-builder-b4b": {
-    "__comp": "17896441",
-    "content": "f7b0431a"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-query-builderf-7-b-4f8"
   },
   "/izanami/docs/guides/remote-script-e46": {
-    "__comp": "17896441",
-    "content": "5ec15e41"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-remote-script-5-ec-5c2"
   },
   "/izanami/docs/guides/stales-features-b01": {
-    "__comp": "17896441",
-    "content": "3fc18dee"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-stales-features-3-fc-86a"
   },
   "/izanami/docs/guides/transfer-data-881": {
-    "__comp": "17896441",
-    "content": "8ec7b86f"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-transfer-data-8-ec-d50"
   },
   "/izanami/docs/guides/user-invitation-af4": {
-    "__comp": "17896441",
-    "content": "2911da6f"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-user-invitation-291-6dc"
   },
   "/izanami/docs/guides/webhooks-821": {
-    "__comp": "17896441",
-    "content": "1858d382"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-guides-webhooks-185-6d1"
   },
   "/izanami/docs/usages/-f2d": {
-    "__comp": "17896441",
-    "content": "f09d0f18"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-usages-f-09-ee0"
   },
   "/izanami/docs/usages/contexts-7d8": {
-    "__comp": "17896441",
-    "content": "b35c709e"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-usages-contextsb-35-a79"
   },
   "/izanami/docs/usages/features-06a": {
-    "__comp": "17896441",
-    "content": "1756af0d"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-usages-features-175-9e5"
   },
   "/izanami/docs/usages/organisation-d57": {
-    "__comp": "17896441",
-    "content": "2524d653"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-usages-organisation-252-2d5"
   },
   "/izanami/docs/usages/request-944": {
-    "__comp": "17896441",
-    "content": "d86837dc"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-usages-requestd-86-68b"
   },
-  "/izanami/v1-433": {
-    "__comp": "5e95c892",
+  "/izanami/docs/usages/rights-581": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-docs-usages-rightsf-55-461"
+  },
+  "/izanami/v1-8d3": {
+    "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
-      "plugin": "4cb46bbe"
+      "plugin": "plugin---izanami-v-15-f-5-659"
     }
   },
   "/izanami/v1-0b2": {
-    "__comp": "a7bd4aaa",
-    "version": "7329b9d1"
+    "__comp": "__comp---theme-doc-version-roota-7-b-5de",
+    "version": "version---izanami-v-1732-153"
   },
   "/izanami/v1-995": {
-    "__comp": "a94703ab"
+    "__comp": "__comp---theme-doc-roota-94-67a"
   },
   "/izanami/v1/-4b6": {
-    "__comp": "17896441",
-    "content": "38c1ccfe"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-38-c-105"
   },
   "/izanami/v1/about-92c": {
-    "__comp": "17896441",
-    "content": "404820e5"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-about-404-3f5"
   },
   "/izanami/v1/api-4d6": {
-    "__comp": "17896441",
-    "content": "8c817def"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-api-8-c-8-676"
   },
   "/izanami/v1/architecture-13a": {
-    "__comp": "17896441",
-    "content": "cced1e3d"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-architecturecce-931"
   },
   "/izanami/v1/authprovider-05e": {
-    "__comp": "17896441",
-    "content": "ea391ed7"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-authproviderea-3-644"
   },
   "/izanami/v1/clients/-b28": {
-    "__comp": "17896441",
-    "content": "915e538f"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-clients-915-d28"
   },
   "/izanami/v1/clients/cli-f96": {
-    "__comp": "17896441",
-    "content": "3cfbbc0f"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-clients-cli-3-cf-9a1"
   },
   "/izanami/v1/clients/jvm-4da": {
-    "__comp": "17896441",
-    "content": "44ca1fc6"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-clients-jvm-44-c-096"
   },
   "/izanami/v1/clients/node-afe": {
-    "__comp": "17896441",
-    "content": "28ea13a0"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-clients-node-28-e-d45"
   },
   "/izanami/v1/clients/react-58a": {
-    "__comp": "17896441",
-    "content": "cdfb9db4"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-clients-reactcdf-b19"
   },
   "/izanami/v1/clients/spring-starter-dfe": {
-    "__comp": "17896441",
-    "content": "7a3092a3"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-clients-spring-starter-7-a-3-7a6"
   },
   "/izanami/v1/configs/-bf8": {
-    "__comp": "17896441",
-    "content": "3e4b204b"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-configs-3-e-4-2ff"
   },
   "/izanami/v1/configs/api-a47": {
-    "__comp": "17896441",
-    "content": "6a24d81d"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-configs-api-6-a-2-69d"
   },
   "/izanami/v1/configs/springconfig-1f0": {
-    "__comp": "17896441",
-    "content": "61d10066"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-configs-springconfig-61-d-f30"
   },
   "/izanami/v1/configs/ui-18c": {
-    "__comp": "17896441",
-    "content": "144ae2b5"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-configs-ui-144-a34"
   },
   "/izanami/v1/developers-811": {
-    "__comp": "17896441",
-    "content": "7a055ef3"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-developers-7-a-0-9c7"
   },
   "/izanami/v1/events-f8b": {
-    "__comp": "17896441",
-    "content": "dfda2e39"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-eventsdfd-d43"
   },
   "/izanami/v1/experiments/-0cf": {
-    "__comp": "17896441",
-    "content": "e90300dd"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-experiments-e-90-974"
   },
   "/izanami/v1/experiments/api-5e6": {
-    "__comp": "17896441",
-    "content": "e157316e"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-experiments-apie-15-10a"
   },
   "/izanami/v1/experiments/ui-22b": {
-    "__comp": "17896441",
-    "content": "309e43de"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-experiments-ui-309-5ca"
   },
   "/izanami/v1/features-c6a": {
-    "__comp": "17896441",
-    "content": "868bc92e"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-features-868-d79"
   },
   "/izanami/v1/features-flipping/-ab5": {
-    "__comp": "17896441",
-    "content": "3651c730"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-features-flipping-365-731"
   },
   "/izanami/v1/features-flipping/api-e84": {
-    "__comp": "17896441",
-    "content": "2c55d6de"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-features-flipping-api-2-c-5-4c6"
   },
   "/izanami/v1/features-flipping/lock-4e5": {
-    "__comp": "17896441",
-    "content": "37d37b99"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-features-flipping-lock-37-d-be6"
   },
   "/izanami/v1/features-flipping/scripts-494": {
-    "__comp": "17896441",
-    "content": "6b55a23b"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-features-flipping-scripts-6-b-5-325"
   },
   "/izanami/v1/features-flipping/ui-401": {
-    "__comp": "17896441",
-    "content": "efe36f9c"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-features-flipping-uiefe-4c7"
   },
   "/izanami/v1/getizanami/-68e": {
-    "__comp": "17896441",
-    "content": "d9a19508"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-getizanami-d-9-a-7e0"
   },
   "/izanami/v1/getizanami/binaries-206": {
-    "__comp": "17896441",
-    "content": "83cf5a0e"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-getizanami-binaries-83-c-595"
   },
   "/izanami/v1/getizanami/docker-775": {
-    "__comp": "17896441",
-    "content": "dc8f53ac"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-getizanami-dockerdc-8-cc8"
   },
   "/izanami/v1/getizanami/fromsources-1f1": {
-    "__comp": "17896441",
-    "content": "f5ac983d"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-getizanami-fromsourcesf-5-a-707"
   },
   "/izanami/v1/keys-eb4": {
-    "__comp": "17896441",
-    "content": "12625af8"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-keys-126-146"
   },
   "/izanami/v1/metrics-415": {
-    "__comp": "17896441",
-    "content": "f3281aa5"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-metricsf-32-a4e"
   },
   "/izanami/v1/performances-22b": {
-    "__comp": "17896441",
-    "content": "d5980866"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-performancesd-59-76a"
   },
   "/izanami/v1/philosophy-e21": {
-    "__comp": "17896441",
-    "content": "62eca57d"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-philosophy-62-e-298"
   },
   "/izanami/v1/settings/-3c2": {
-    "__comp": "17896441",
-    "content": "8a163022"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-settings-8-a-1-b9e"
   },
   "/izanami/v1/settings/database-f13": {
-    "__comp": "17896441",
-    "content": "54014a70"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-settings-database-540-759"
   },
   "/izanami/v1/settings/settings-0b0": {
-    "__comp": "17896441",
-    "content": "604919e7"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-settings-settings-604-766"
   },
   "/izanami/v1/tutorials/-d91": {
-    "__comp": "17896441",
-    "content": "0f98d465"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-tutorials-0-f-9-bed"
   },
   "/izanami/v1/tutorials/oauth2-4ba": {
-    "__comp": "17896441",
-    "content": "404d2a01"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-tutorials-oauth-2404-9d8"
   },
   "/izanami/v1/tutorials/spring-94e": {
-    "__comp": "17896441",
-    "content": "cf997756"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-tutorials-springcf-9-f2f"
   },
   "/izanami/v1/ui-95e": {
-    "__comp": "17896441",
-    "content": "22a808b3"
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---izanami-v-1-ui-22-a-7e8"
   },
-  "/izanami/-a38": {
-    "__comp": "c4f5d8e4",
+  "/izanami/-bbb": {
+    "__comp": "__comp---site-src-pages-index-jsc-4-f-f99",
     "__context": {
-      "plugin": "a5a0f36f"
+      "plugin": "plugin---izanami-0-a-8-be4"
     },
-    "config": "5e9f5e1a"
+    "config": "config---izanami-5-e-9-485"
   }
 }

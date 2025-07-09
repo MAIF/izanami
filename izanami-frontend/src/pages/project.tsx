@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { FeatureTable } from "../components/FeatureTable";
 import { createFeature, projectQueryKey, queryProject } from "../utils/queries";
-import { TLevel, TProjectLevel } from "../utils/types";
+import { TProjectLevel } from "../utils/types";
 import { useProjectRight } from "../securityContext";
 import queryClient from "../queryClient";
 import { FeatureForm } from "../components/FeatureForm";
@@ -35,6 +35,7 @@ export function Project({
     TProjectLevel.Write
   );
   const hasUpdateRight = useProjectRight(tenant, project, TProjectLevel.Update);
+  console.log("hasUpdateRight", hasUpdateRight);
 
   const featureCreateMutation = useMutation({
     mutationFn: (data: { project: string; feature: any }) =>

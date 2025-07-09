@@ -7,8 +7,6 @@ import fr.maif.izanami.datastores._
 import fr.maif.izanami.events.EventService
 import fr.maif.izanami.jobs.WebhookListener
 import fr.maif.izanami.mail.Mails
-import fr.maif.izanami.models.OAuth2Configuration.OAuth2RawMethodConvert
-import fr.maif.izanami.models.{OAuth2Configuration, PKCEConfig}
 import fr.maif.izanami.security.JwtService
 import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
 import fr.maif.izanami.{AppConf, PlayRoot}
@@ -82,8 +80,9 @@ class Env(
     "AES"
   )
 
-  lazy val expositionUrl = typedConfiguration.exposition.url.map(_.toString)
-    .getOrElse(s"http://localhost:${playConfiguration.server. http.port}")
+  lazy val expositionUrl = typedConfiguration.exposition.url
+    .map(_.toString)
+    .getOrElse(s"http://localhost:${playConfiguration.server.http.port}")
 
   val actorSystem: ActorSystem = ActorSystem(
     "app-actor-system",
@@ -104,12 +103,18 @@ class Env(
   val wasmIntegration = WasmIntegration(new IzanamiWasmIntegrationContext(this))
   val jobs            = new Jobs(this)
 
-  val oidcConfig = typedConfiguration.openid
+  val maybeOidcConfig = typedConfiguration.openid
 
-  def isOIDCConfigurationEditable: Boolean =
-    Seq(oidcConfig.clientId, oidcConfig.clientSecret, oidcConfig.authorizeUrl, oidcConfig.tokenUrl).forall(o =>
-      o.isDefined
-    )
+  def isOIDCConfigurationEditable: Boolean = {
+    (for (
+      oidcConfig <- maybeOidcConfig;
+      _          <- oidcConfig.clientId;
+      _          <- oidcConfig.clientSecret;
+      _          <- oidcConfig.authorizeUrl;
+      _          <- oidcConfig.tokenUrl
+    ) yield false)
+      .getOrElse(true)
+  }
 
   def oidcConfigurationMigration() = {
     datastores.configuration
@@ -117,33 +122,15 @@ class Env(
       .map {
         case Left(err)            =>
         case Right(configuration) =>
-          for (
-            clientId      <- oidcConfig.clientId;
-            clientSecret  <- oidcConfig.clientSecret;
-            authorizeUrl  <- oidcConfig.authorizeUrl;
-            tokenUrl      <- oidcConfig.tokenUrl
-          ) yield {
-            logger.info("The OIDC configuration has been register in database from environments variables")
-
-            val oauth = OAuth2Configuration(
-              clientId = clientId,
-              clientSecret = clientSecret,
-              authorizeUrl = authorizeUrl.toString, // TODO propagate URL type
-              tokenUrl = tokenUrl.toString,
-              callbackUrl = oidcConfig.redirectUrl.orElse(oidcConfig.callbackUrl).map(_.toString).getOrElse(""),
-              emailField = oidcConfig.emailField,
-              nameField = oidcConfig.usernameField,
-              scopes = oidcConfig.scopes.replace("\"", ""),
-              method = OAuth2RawMethodConvert(oidcConfig.method),
-              enabled = oidcConfig.enabled,
-              pkce = if (oidcConfig.pkce.enabled) {
-                Some(PKCEConfig(enabled = oidcConfig.pkce.enabled, algorithm = oidcConfig.pkce.algorithm.getOrElse("S256")))
-              } else {
-                None
-              }
-            )
-            datastores.configuration.updateConfiguration(configuration.copy(oidcConfiguration = Some(oauth)))
-          }
+          val maybeOauth = maybeOidcConfig.flatMap(o => o.toIzanamiOAuth2Configuration)
+          maybeOauth.map(oauth => {
+            datastores.configuration
+              .updateConfiguration(configuration.copy(oidcConfiguration = Some(oauth)))
+              .map(res => {
+                logger.info("The OIDC configuration has been register in database from environments variables")
+                res
+              })
+          })
       }
   }
 
@@ -164,7 +151,7 @@ class Env(
       _ <- datastores.onStop()
       _ <- postgresql.onStop()
       _ <- jobs.onStop()
-      _ <- eventService.killAllSources(excludeIzanamiChannel=false)
+      _ <- eventService.killAllSources(excludeIzanamiChannel = false)
     } yield ()
   }
 }

@@ -150,7 +150,7 @@ export function hasRightForProject(
 
   return (
     tenantRight.level === TLevel.Admin ||
-    isProjectRightAbove(tenantRight?.projects?.[project]?.level, level)
+    isProjectRightAbove(findProjectRight(user.rights, tenant, project), level)
   );
 }
 
@@ -198,7 +198,8 @@ export function hasRightForWebhook(
 
   return (
     tenantRight.level === TLevel.Admin ||
-    isRightAbove(tenantRight?.webhooks?.[webhook]?.level, level)
+    isRightAbove(tenantRight?.webhooks?.[webhook]?.level, level) ||
+    isRightAbove(tenantRight?.defaultWebhookRight, level)
   );
 }
 
@@ -206,11 +207,14 @@ export function findProjectRight(
   rights: TRights,
   tenant: string,
   project?: string
-): TLevel | undefined {
+): TProjectLevel | undefined {
   if (!project) {
     return undefined;
   }
-  return rights.tenants?.[tenant]?.projects?.[project]?.level;
+  return (
+    rights.tenants?.[tenant]?.projects?.[project]?.level ||
+    rights.tenants?.[tenant]?.defaultProjectRight
+  );
 }
 
 export function findKeyRight(
@@ -218,7 +222,10 @@ export function findKeyRight(
   tenant: string,
   key: string
 ): TLevel | undefined {
-  return rights.tenants?.[tenant]?.keys?.[key].level;
+  return (
+    rights.tenants?.[tenant]?.keys?.[key].level ||
+    rights.tenants?.[tenant]?.defaultKeyRight
+  );
 }
 
 export function findTenantRight(
@@ -228,7 +235,7 @@ export function findTenantRight(
   return rights?.tenants?.[tenant]?.level;
 }
 
-function isRightAbove(currentRight: TLevel, seekedRight: TLevel) {
+export function isRightAbove(currentRight?: TLevel, seekedRight?: TLevel) {
   if (!currentRight) {
     return false;
   }
@@ -248,9 +255,9 @@ function isRightAbove(currentRight: TLevel, seekedRight: TLevel) {
   }
 }
 
-function isProjectRightAbove(
-  currentRight: TProjectLevel,
-  seekedRight: TProjectLevel
+export function isProjectRightAbove(
+  currentRight?: TProjectLevel,
+  seekedRight?: TProjectLevel
 ) {
   if (!currentRight) {
     return false;

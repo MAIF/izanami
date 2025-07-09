@@ -6,7 +6,7 @@ import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{IzanamiError, WebhookCreationFailed, WebhookDoesNotExists}
 import fr.maif.izanami.events.{EventService, IzanamiEvent}
-import fr.maif.izanami.models.{LightWebhook, Webhook, WebhookFeature, WebhookProject}
+import fr.maif.izanami.models.{LightWebhook, Tenant, Webhook, WebhookFeature, WebhookProject}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import fr.maif.izanami.web.UserInformation
@@ -22,14 +22,14 @@ import scala.concurrent.Future
 class WebhooksDatastore(val env: Env) extends Datastore {
 
   def createWebhookCall(tenant: String, webhook: UUID, eventId: Long): Future[Boolean] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryOne(
         s"""
-         |INSERT INTO webhooks_call_status (webhook, event) VALUES($$1,$$2)
+         |INSERT INTO "${tenant}".webhooks_call_status (webhook, event) VALUES($$1,$$2)
          |RETURNING webhook
          |""".stripMargin,
         List(webhook, java.lang.Long.valueOf(eventId)),
-        schemas = Seq(tenant)
       ) { r =>
         {
           Some(true)
@@ -48,10 +48,11 @@ class WebhooksDatastore(val env: Env) extends Datastore {
       lastCount: Int,
       nextCall: Instant
   ): Future[Unit] = {
+    Tenant.isTenantValid(tenant)
     env.postgresql
       .queryOne(
         s"""
-           |UPDATE webhooks_call_status SET last_call=NOW(), count=count+1, pending=false, next=$$4
+           |UPDATE "${tenant}".webhooks_call_status SET last_call=NOW(), count=count+1, pending=false, next=$$4
            |WHERE webhook=$$1
            |AND event=$$2
            |AND count=$$3
@@ -62,8 +63,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
           java.lang.Long.valueOf(eventId),
           java.lang.Integer.valueOf(lastCount-1),
           nextCall.atOffset(ZoneOffset.UTC)
-        ),
-        schemas = Seq(tenant)
+        )
       ) { r =>
         Some(())
       }
@@ -71,36 +71,36 @@ class WebhooksDatastore(val env: Env) extends Datastore {
   }
 
   def deleteWebhookCall(tenant: String, webhook: UUID, eventId: Long): Future[Unit] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryRaw(
         s"""
-           |DELETE FROM webhooks_call_status
+           |DELETE FROM "${tenant}".webhooks_call_status
            |WHERE webhook=$$1
            |AND event=$$2
            |RETURNING webhook
            |""".stripMargin,
-        List(webhook, java.lang.Long.valueOf(eventId)),
-        schemas = Seq(tenant)
+        List(webhook, java.lang.Long.valueOf(eventId))
       ) { _ => () }
   }
 
   def findAbandoneddWebhooks(tenant: String): Future[Option[Seq[(LightWebhook, IzanamiEvent, Int)]]] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryAll(
         s"""
          |SELECT w.*, e.event, wcs.count,
          |  COALESCE(json_agg(wf.feature) FILTER (WHERE wf.feature IS NOT NULL), '[]') as features,
          |  COALESCE(json_agg(wp.project) FILTER (WHERE wp.project IS NOT NULL), '[]') as projects
-         |  FROM webhooks_call_status wcs, events e, webhooks w
-         |  LEFT JOIN webhooks_features wf ON wf.webhook=w.id
-         |  LEFT JOIN webhooks_projects wp ON wp.webhook=w.id
+         |  FROM "${tenant}".webhooks_call_status wcs, "${tenant}".events e, "${tenant}".webhooks w
+         |  LEFT JOIN "${tenant}".webhooks_features wf ON wf.webhook=w.id
+         |  LEFT JOIN "${tenant}".webhooks_projects wp ON wp.webhook=w.id
          |  WHERE wcs.next < NOW()
          |  AND w.id = wcs.webhook
          |  AND e.id = wcs.event
          |  GROUP BY w.id, e.event, wcs.count
          |""".stripMargin,
-        List(),
-        schemas = Seq(tenant)
+        List()
       ) { r =>
         for (
           webhook      <- r.optLightWebhook();
@@ -117,12 +117,13 @@ class WebhooksDatastore(val env: Env) extends Datastore {
   }
 
   def updateWebhook(tenant: String, id: UUID, webhook: LightWebhook): Future[Either[IzanamiError, Unit]] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql.executeInTransaction(
       conn => {
         env.postgresql
           .queryOne(
             s"""
-           |DELETE FROM webhooks_features WHERE webhook=$$1
+           |DELETE FROM "${tenant}".webhooks_features WHERE webhook=$$1
            |""".stripMargin,
             List(id),
             conn = Some(conn)
@@ -130,7 +131,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
           .flatMap(_ =>
             env.postgresql.queryOne(
               s"""
-             |DELETE FROM webhooks_projects WHERE webhook=$$1
+             |DELETE FROM "${tenant}".webhooks_projects WHERE webhook=$$1
              |""".stripMargin,
               List(id),
               conn = Some(conn)
@@ -139,7 +140,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
           .flatMap(_ =>
             env.postgresql.queryOne(
               s"""
-             |INSERT INTO webhooks_features(webhook, feature) VALUES($$1, UNNEST($$2::text[]))
+             |INSERT INTO "${tenant}".webhooks_features(webhook, feature) VALUES($$1, UNNEST($$2::text[]))
              |""".stripMargin,
               List(id, webhook.features.toArray),
               conn = Some(conn)
@@ -148,7 +149,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
           .flatMap(_ =>
             env.postgresql.queryOne(
               s"""
-             |INSERT INTO webhooks_projects(webhook, project) VALUES($$1, UNNEST($$2::uuid[]))
+             |INSERT INTO "${tenant}".webhooks_projects(webhook, project) VALUES($$1, UNNEST($$2::uuid[]))
              |""".stripMargin,
               List(id, webhook.projects.map(UUID.fromString).toArray),
               conn = Some(conn)
@@ -158,7 +159,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
             env.postgresql
               .queryOne(
                 s"""
-             |UPDATE webhooks SET
+             |UPDATE "${tenant}".webhooks SET
              |name=$$2,
              |description=$$3,
              |url=$$4,
@@ -188,20 +189,19 @@ class WebhooksDatastore(val env: Env) extends Datastore {
               .map(_.toRight(WebhookDoesNotExists(id.toString)))
               .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
           )
-      },
-      schemas = Seq(tenant)
+      }
     )
   }
 
   def deleteWebhook(tenant: String, webhook: String): Future[Either[IzanamiError, Unit]] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryOne(
         s"""
-         |DELETE FROM webhooks WHERE id=$$1
+         |DELETE FROM "${tenant}".webhooks WHERE id=$$1
          |RETURNING id
          |""".stripMargin,
-        List(webhook),
-        schemas = Seq(tenant)
+        List(webhook)
       ) { r => Some(()) }
       .map(_.toRight(WebhookDoesNotExists(webhook)))
   }
@@ -211,6 +211,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
       featureIds: Set[String],
       projectNames: Set[String]
   ): Future[Seq[LightWebhook]] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql.queryAll(
       s"""
          |SELECT
@@ -226,19 +227,19 @@ class WebhooksDatastore(val env: Env) extends Datastore {
          |    w.global,
          |    COALESCE(json_agg(wf.feature) FILTER (WHERE wf.feature IS NOT NULL), '[]') as features,
          |    COALESCE(json_agg(wp.project) FILTER (WHERE wp.project IS NOT NULL), '[]') as projects
-         |FROM webhooks w
-         |LEFT JOIN projects p ON p.name=ANY($$2)
-         |LEFT JOIN webhooks_features wf ON (wf.feature=ANY($$1) AND wf.webhook=w.id)
-         |LEFT JOIN webhooks_projects wp ON (wp.project=p.id AND wp.webhook=w.id)
+         |FROM "${tenant}".webhooks w
+         |LEFT JOIN "${tenant}".projects p ON p.name=ANY($$2)
+         |LEFT JOIN "${tenant}".webhooks_features wf ON (wf.feature=ANY($$1) AND wf.webhook=w.id)
+         |LEFT JOIN "${tenant}".webhooks_projects wp ON (wp.project=p.id AND wp.webhook=w.id)
          |WHERE wf.feature is not null or wp.project is not null or w.global = true
          |GROUP BY w.id
          |""".stripMargin,
-      params = List(featureIds.toArray, projectNames.toArray),
-      schemas = Seq(tenant)
+      params = List(featureIds.toArray, projectNames.toArray)
     ) { r => r.optLightWebhook() }
   }
 
   def listWebhook(tenant: String, user: String): Future[Seq[Webhook]] = {
+    require(Tenant.isTenantValid(tenant))
     env.postgresql.queryAll(
       s"""
          SELECT
@@ -254,21 +255,21 @@ class WebhooksDatastore(val env: Env) extends Datastore {
          |    w.global,
          |    COALESCE(json_agg(json_build_object('name', p.name, 'id', p.id)) FILTER (WHERE p.id IS NOT NULL), '[]') as projects,
          |    COALESCE(json_agg(json_build_object('name', f.name, 'id', f.id, 'project', f.project)) FILTER (WHERE f.id IS NOT NULL), '[]') as features
-         |FROM webhooks w
-         |LEFT OUTER JOIN webhooks_features wf ON wf.webhook = w.id
-         |LEFT OUTER JOIN features f ON f.id=wf.feature
-         |LEFT OUTER JOIN webhooks_projects wp ON wp.webhook = w.id
-         |LEFT OUTER JOIN projects p ON p.id = wp.project
+         |FROM "${tenant}".webhooks w
+         |LEFT OUTER JOIN "${tenant}".webhooks_features wf ON wf.webhook = w.id
+         |LEFT OUTER JOIN "${tenant}".features f ON f.id=wf.feature
+         |LEFT OUTER JOIN "${tenant}".webhooks_projects wp ON wp.webhook = w.id
+         |LEFT OUTER JOIN "${tenant}".projects p ON p.id = wp.project
          |LEFT OUTER JOIN izanami.users u ON u.username=$$1
-         |LEFT OUTER JOIN users_webhooks_rights wr ON (wr.username=u.username AND wr.webhook=w.name)
+         |LEFT OUTER JOIN "${tenant}".users_webhooks_rights wr ON (wr.username=u.username AND wr.webhook=w.name)
          |LEFT OUTER JOIN izanami.users_tenants_rights utr ON (utr.username=u.username AND utr.tenant=$$2)
          |WHERE
          |  wr.level IS NOT NULL
          |  OR utr.level = 'ADMIN'
          |  OR u.admin = true
+         |  OR utr.default_webhook_right IS NOT NULL
          |GROUP BY w.id""".stripMargin,
-      params = List(user, tenant),
-      schemas = Seq(tenant)
+      params = List(user, tenant)
     ) { r =>
       {
         for (
@@ -331,12 +332,13 @@ class WebhooksDatastore(val env: Env) extends Datastore {
       webhook: LightWebhook,
       user: UserInformation
   ): Future[Either[IzanamiError, String]] = {
+    Tenant.isTenantValid(tenant)
     env.postgresql.executeInTransaction(
       conn => {
         env.datastores.featureContext.env.postgresql
           .queryOne(
             s"""
-           |INSERT INTO webhooks (name, description, url, headers, context, username, enabled, body_template, global) VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7, $$8, $$9)
+           |INSERT INTO "${tenant}".webhooks (name, description, url, headers, context, username, enabled, body_template, global) VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7, $$8, $$9)
            |RETURNING id
            |""".stripMargin,
             List(
@@ -359,7 +361,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
               env.postgresql
                 .queryOne(
                   s"""
-               |INSERT INTO webhooks_features (webhook, feature) VALUES ($$1, UNNEST($$2::text[]))
+               |INSERT INTO "${tenant}".webhooks_features (webhook, feature) VALUES ($$1, UNNEST($$2::text[]))
                |""".stripMargin,
                   params = List(id, webhook.features.toArray),
                   conn = Some(conn)
@@ -372,7 +374,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
               env.postgresql
                 .queryOne(
                   s"""
-                     |INSERT INTO webhooks_projects (webhook, project) VALUES ($$1, UNNEST($$2::uuid[]))
+                     |INSERT INTO "${tenant}".webhooks_projects (webhook, project) VALUES ($$1, UNNEST($$2::uuid[]))
                      |""".stripMargin,
                   params = List(id, webhook.projects.map(str => UUID.fromString(str)).toArray),
                   conn = Some(conn)
@@ -385,7 +387,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
               env.postgresql
                 .queryOne(
                   s"""
-                     |INSERT INTO users_webhooks_rights (webhook, username, level) VALUES ($$1, $$2, 'ADMIN')
+                     |INSERT INTO "${tenant}".users_webhooks_rights (webhook, username, level) VALUES ($$1, $$2, 'ADMIN')
                      |""".stripMargin,
                   params = List(webhook.name, user.username),
                   conn = Some(conn)
@@ -393,8 +395,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
                 .map(_ => Right(id))
             case either    => Future.successful(either)
           }
-      },
-      schemas = Seq(tenant)
+      }
     )
   }
 }

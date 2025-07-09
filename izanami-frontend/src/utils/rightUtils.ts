@@ -2,6 +2,7 @@ import {
   TLevel,
   TokenTenantRights,
   TokenTenantRightsArray,
+  TProjectLevel,
   TRights,
 } from "./types";
 
@@ -21,12 +22,27 @@ export function rightStateArrayToBackendMap(state?: State): TRights {
     return { tenants: {} };
   }
   const backendRights = state.reduce(
-    (acc, { name, level, projects, keys, webhooks }) => {
+    (
+      acc,
+      {
+        name,
+        level,
+        projects,
+        keys,
+        webhooks,
+        defaultProjectRight,
+        defaultKeyRight,
+        defaultWebhookRight,
+      }
+    ) => {
       acc[name] = {
         level,
         projects: projectOrKeyArrayToObject(projects),
         keys: projectOrKeyArrayToObject(keys),
         webhooks: projectOrKeyArrayToObject(webhooks),
+        defaultProjectRight: defaultProjectRight,
+        defaultKeyRight: defaultKeyRight,
+        defaultWebhookRight: defaultWebhookRight,
       };
       return acc;
     },
@@ -36,7 +52,9 @@ export function rightStateArrayToBackendMap(state?: State): TRights {
   return { tenants: backendRights };
 }
 
-function projectOrKeyArrayToObject(arr: { name: string; level?: TLevel }[]) {
+function projectOrKeyArrayToObject(
+  arr: { name: string; level?: TProjectLevel }[]
+) {
   return arr.reduce((acc, { name, level }) => {
     acc[name] = { level };
     return acc;
@@ -48,7 +66,7 @@ export type State = {
   level?: TLevel;
   projects: {
     name: string;
-    level?: TLevel;
+    level?: TProjectLevel;
   }[];
   keys: {
     name: string;
@@ -58,4 +76,7 @@ export type State = {
     name: string;
     level?: TLevel;
   }[];
+  defaultProjectRight?: TProjectLevel;
+  defaultKeyRight?: TLevel;
+  defaultWebhookRight?: TLevel;
 }[];

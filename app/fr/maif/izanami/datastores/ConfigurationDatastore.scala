@@ -10,12 +10,14 @@ import fr.maif.izanami.mail.MailerTypes.MailerType
 import fr.maif.izanami.mail._
 import fr.maif.izanami.models.InvitationMode.InvitationMode
 import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTPConfigurationWrites, mailGunConfigurationReads, mailJetConfigurationReads}
-import fr.maif.izanami.models.{FullIzanamiConfiguration, InvitationMode, IzanamiConfiguration, OAuth2Configuration, Rights, User}
+import fr.maif.izanami.models.{FullIzanamiConfiguration, InvitationMode, IzanamiConfiguration, OAuth2Configuration, Rights, Tenant, User}
+import fr.maif.izanami.services.CompleteRights
+import fr.maif.izanami.services.RightService.RightsByRole
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import io.vertx.sqlclient.{Row, SqlConnection}
-import play.api.libs.json.{JsNull, JsObject, Json}
+import play.api.libs.json.{JsNull, JsObject, Json, Writes}
 
 import java.time.ZoneOffset
 import java.util.UUID
@@ -23,40 +25,39 @@ import scala.concurrent.Future
 
 class ConfigurationDatastore(val env: Env) extends Datastore {
 
-  def updateOIDCDefaultRightIfNeeded(rights: Rights): Future[Rights] = {
+  def updateOIDCRightByRolesIfNeeded(rights: RightsByRole): Future[RightsByRole] = {
     case class TenantItemsToDelete(projects: Set[String], keys: Set[String], webhooks: Set[String])
 
-    def deleteNeededItems(tenants: Set[String], tenantItems: Map[String, TenantItemsToDelete]): Rights = {
-      val rightWithoutTenants = rights.removeTenantsRights(tenants)
+    def deleteNeededItems(tenants: Set[String], tenantItems: Map[String, TenantItemsToDelete]): RightsByRole = {
+      val rightWithoutTenants = rights.view.mapValues(_.removeTenantsRights(tenants)).toMap
       tenantItems.foldLeft(rightWithoutTenants){
         case (r, (tenant, items)) => {
-          r.removeKeyRights(tenant, items.keys)
+          r.view.mapValues(_.removeKeyRights(tenant, items.keys)
             .removeProjectRights(tenant, items.projects)
             .removeWebhookRights(tenant, items.webhooks)
+          ).toMap
         }
       }
     }
 
-    val tenants: Set[String] = rights.tenants.keySet
+    val tenants: Set[String] = rights.values.flatMap(_.tenants.keySet).toSet
     env.datastores.tenants.readTenants().flatMap(ts => {
       val setTenants = ts.map(_.name).toSet
       val tenantsToDelete = tenants.diff(setTenants)
       val tenantsToKeep = tenants.diff(tenantsToDelete)
 
       val tenantItemsToDelete = Future.sequence(tenantsToKeep.map(t => {
+        require(Tenant.isTenantValid(t))
         val futureExistingProjects = env.postgresql.queryAll(
-            "SELECT name from projects",
-            schemas=Seq(t)
+            s"""SELECT name from "${t}".projects"""
           ){r => r.optString("name")}
           .map(l => l.toSet)
         val futureExistingKeys = env.postgresql.queryAll(
-          "SELECT name from apikeys",
-          schemas=Seq(t)
-        ){r => r.optString("name")}
+            s"""SELECT name from "${t}".apikeys"""
+          ){r => r.optString("name")}
           .map(l => l.toSet)
         val futureExistingWebhooks = env.postgresql.queryAll(
-            "SELECT name from webhooks",
-            schemas=Seq(t)
+            s"""SELECT name from "${t}".webhooks"""
           ){r => r.optString("name")}
           .map(l => l.toSet)
 
@@ -65,19 +66,19 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
           existingKeys <- futureExistingKeys;
           existingWebhooks <- futureExistingWebhooks
         ) yield {
-          val projectToDelete = rights.tenants(t).projects.keySet.diff(existingProjects)
-          val keyToDelete = rights.tenants(t).keys.keySet.diff(existingKeys)
-          val webhookToDelete = rights.tenants(t).webhooks.keySet.diff(existingWebhooks)
+          val completeRights = rights.values
+          val projectToDelete = completeRights.flatMap(_.tenants(t).projects.keySet.diff(existingProjects)).toSet
+          val keyToDelete = completeRights.flatMap(_.tenants(t).keys.keySet.diff(existingKeys)).toSet
+          val webhookToDelete = completeRights.flatMap(_.tenants(t).webhooks.keySet.diff(existingWebhooks)).toSet
           (t -> TenantItemsToDelete(projects = projectToDelete, keys = keyToDelete, webhooks = webhookToDelete))
         }
       })).map(s => s.toMap)
 
       tenantItemsToDelete.flatMap(toDelete => {
         val newRights = deleteNeededItems(tenantsToDelete, toDelete)
-        updateOAuthDefaultRights(newRights).map(_ => newRights)
+        updateOAuthRightByRole(newRights).map(_ => newRights)
       })
     })
-
   }
 
   def readId(): Future[UUID] = {
@@ -131,16 +132,16 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
       }
   }
 
-  def updateOAuthDefaultRights(rights: Rights): Future[Unit] = {
+  def updateOAuthRightByRole(rights: RightsByRole): Future[Unit] = {
     env.postgresql.queryRaw(
       s"""
          |UPDATE izanami.configuration
          |SET
-         |  oidc_configuration=jsonb_set(oidc_configuration, '{defaultOIDCUserRights}', $$1)
+         |  oidc_configuration=jsonb_set(oidc_configuration, '{userRightsByRoles}', $$1)
          |RETURNING *
          |""".stripMargin,
       List(
-        User.rightWrite.writes(rights).vertxJsValue
+        Json.toJson(rights)(Writes.map(CompleteRights.writes)).vertxJsValue
       )
     ){_ => Some(())}
   }
