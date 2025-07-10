@@ -2,6 +2,7 @@ import {
   TLevel,
   TokenTenantRights,
   TokenTenantRightsArray,
+  TProjectLevel,
   TRights,
 } from "./types";
 
@@ -58,4 +59,7 @@ export type State = {
     name: string;
     level?: TLevel;
   }[];
+  defaultProjectRight?: TProjectLevel;
+  defaultKeyRight?: TLevel;
+  defaultWebhookRight?: TLevel;
 }[];

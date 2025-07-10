@@ -220,11 +220,11 @@ case class User(
   def withSingleLevelRight(level: RightLevel): UserWithSingleLevelRight =
     UserWithSingleLevelRight(username, email, password, admin, userType, level, defaultTenant)
 
-  def withProjectScopedRight(level: ProjectRightLevel, defaultProjectRight: Option[ProjectRightLevel], tenantAdmin: Boolean = false): ProjectScopedUser =
-    ProjectScopedUser(username, email, password, admin, userType, level, defaultProjectRight, defaultTenant, tenantAdmin)
+  def withProjectScopedRight(level: ProjectRightLevel, defaultRight: Option[ProjectRightLevel], tenantAdmin: Boolean = false): ProjectScopedUser =
+    ProjectScopedUser(username, email, password, admin, userType, level, defaultRight, defaultTenant, tenantAdmin)
 
-  def withWebhookOrKeyRight(level: RightLevel, tenantAdmin: Boolean = false): SingleItemScopedUser =
-    SingleItemScopedUser(username, email, password, admin, userType, level, defaultTenant, tenantAdmin)
+  def withWebhookOrKeyRight(level: RightLevel, defaultRight: Option[RightLevel], tenantAdmin: Boolean = false): SingleItemScopedUser =
+    SingleItemScopedUser(username, email, password, admin, userType, level, defaultRight, defaultTenant, tenantAdmin)
 }
 
 case class ProjectScopedUser(
@@ -234,7 +234,7 @@ case class ProjectScopedUser(
     override val admin: Boolean = false,
     override val userType: UserType,
     right: ProjectRightLevel,
-    defaultProjectRight: Option[ProjectRightLevel],
+    defaultRight: Option[ProjectRightLevel],
     override val defaultTenant: Option[String] = None,
     tenantAdmin: Boolean = false
 ) extends UserTrait
@@ -247,6 +247,7 @@ case class SingleItemScopedUser(
     override val admin: Boolean = false,
     override val userType: UserType,
     right: RightLevel,
+    defaultRight: Option[RightLevel],
     override val defaultTenant: Option[String] = None,
     tenantAdmin: Boolean = false
 ) extends UserTrait
@@ -680,7 +681,7 @@ object User {
           "defaultTenant" -> user.defaultTenant,
           "tenantAdmin"   -> user.tenantAdmin,
           "defaultTenant" -> user.defaultTenant,
-          "defaultProjectRight" -> user.defaultProjectRight
+          "defaultRight" -> user.defaultRight
         )
         .applyOnWithOpt(Option(user.right)) { (json, right) =>
           json ++ Json.obj("right" -> ProjectRightLevel.projectRightLevelWrites.writes(right))
@@ -697,7 +698,8 @@ object User {
           "userType"      -> user.userType.toString,
           "admin"         -> user.admin,
           "defaultTenant" -> user.defaultTenant,
-          "tenantAdmin"   -> user.tenantAdmin
+          "tenantAdmin"   -> user.tenantAdmin,
+          "defaultRight" -> user.defaultRight
         )
         .applyOnWithOpt(Option(user.right)) { (json, right) =>
           json ++ Json.obj("right" -> RightLevel.rightLevelWrites.writes(right))

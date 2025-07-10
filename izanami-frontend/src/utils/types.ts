@@ -479,7 +479,7 @@ export function isLightWasmFeature(
 export type TFeatureRule = TPercentageRule | TUserList;
 
 export interface TProjectRight {
-  level: TLevel;
+  level: TProjectLevel;
 }
 
 export interface TKeyRight {
@@ -501,6 +501,9 @@ export interface TTenantRight {
   webhooks: {
     [key: string]: TWebhookRight;
   };
+  defaultProjectRight?: TProjectLevel;
+  defaultKeyRight?: TLevel;
+  defaultWebhookRight?: TLevel;
 }
 
 export interface TTenantRights {
@@ -512,16 +515,16 @@ export interface TRights {
 }
 
 export const TLevel = {
-  Admin: "Admin",
-  Write: "Write",
   Read: "Read",
+  Write: "Write",
+  Admin: "Admin",
 } as const;
 
 export const TProjectLevel = {
-  Admin: "Admin",
-  Write: "Write",
-  Update: "Update",
   Read: "Read",
+  Update: "Update",
+  Write: "Write",
+  Admin: "Admin",
 } as const;
 
 export type TLevel = typeof TLevel[keyof typeof TLevel];
@@ -545,6 +548,7 @@ export interface TSingleRightForTenantUser {
   userType: "INTERNAL" | "OIDC" | "OTOROSHI";
   right: TLevel;
   tenantAdmin: boolean;
+  defaultRight?: TLevel;
 }
 
 export type Mailer = "Console" | "MailJet" | "MailGun" | "SMTP";

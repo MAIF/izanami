@@ -11,7 +11,11 @@ import {
   updateUserRightsForProject,
 } from "../utils/queries";
 import { useNavigate } from "react-router-dom";
-import { isRightAbove, useProjectRight } from "../securityContext";
+import {
+  isProjectRightAbove,
+  isRightAbove,
+  useProjectRight,
+} from "../securityContext";
 import queryClient from "../queryClient";
 import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
@@ -264,10 +268,10 @@ function ProjectUsers(props: {
               const user = col.row.original;
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore
-              const maybeDefaultProjectRight = user.defaultProjectRight;
+              const maybeDefaultProjectRight = user.defaultRight;
 
               if (maybeDefaultProjectRight && user.right) {
-                const isDefaultRightAboveRight = isRightAbove(
+                const isDefaultRightAboveRight = isProjectRightAbove(
                   maybeDefaultProjectRight,
                   user.right
                 );

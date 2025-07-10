@@ -39,6 +39,9 @@ const EventType = {
   SetWebhookLevel: "SetWebhookLevel",
   SelectWebhook: "SelectWebhook",
   DeleteWebhook: "DeleteWebhook",
+  SetDefaultProjectLevel: "SetDefaultProjectLevel",
+  SetDefaultKeyLevel: "SetDefaultKeyLevel",
+  SetDefaultWebhookLevel: "SetDefaultWebhookLevel",
 } as const;
 
 type EventType = typeof EventType[keyof typeof EventType];
@@ -125,6 +128,24 @@ interface InitialSetup extends Event {
   rights: TRights;
 }
 
+interface SetDefaultProjectLevelEvent extends Event {
+  type: "SetDefaultProjectLevel";
+  tenant: string;
+  level?: TProjectLevel;
+}
+
+interface SetDefaultKeyLevelEvent extends Event {
+  type: "SetDefaultKeyLevel";
+  tenant: string;
+  level?: TLevel;
+}
+
+interface SetDefaultWebhookLevelEvent extends Event {
+  type: "SetDefaultWebhookLevel";
+  tenant: string;
+  level?: TLevel;
+}
+
 type EventTypes =
   | ProjectSelectionEvent
   | TenantSelectionEvent
@@ -138,7 +159,10 @@ type EventTypes =
   | InitialSetup
   | WebhookSelectionEvent
   | WebhookLevelEvent
-  | WebhookDeleteEvent;
+  | WebhookDeleteEvent
+  | SetDefaultProjectLevelEvent
+  | SetDefaultKeyLevelEvent
+  | SetDefaultWebhookLevelEvent;
 
 const reducer = function reducer(state: State, event: EventTypes): State {
   switch (event.type) {
@@ -165,6 +189,9 @@ const reducer = function reducer(state: State, event: EventTypes): State {
               level: keyValue.level,
             })
           ),
+          defaultProjectRight: value.defaultProjectRight,
+          defaultKeyRight: value.defaultKeyRight,
+          defaultWebhookRight: value.defaultWebhookRight,
         }));
       }
     }
@@ -305,6 +332,37 @@ const reducer = function reducer(state: State, event: EventTypes): State {
         }
         return el;
       });
+    case EventType.SetDefaultProjectLevel:
+      return [...state].map((el) => {
+        console.log("event", event);
+        if (el.name === event.tenant) {
+          return {
+            ...el,
+            defaultProjectRight: event.level,
+          };
+        }
+        return el;
+      });
+    case EventType.SetDefaultKeyLevel:
+      return [...state].map((el) => {
+        if (el.name === event.tenant) {
+          return {
+            ...el,
+            defaultKeyRight: event.level,
+          };
+        }
+        return el;
+      });
+    case EventType.SetDefaultWebhookLevel:
+      return [...state].map((el) => {
+        if (el.name === event.tenant) {
+          return {
+            ...el,
+            defaultWebhookRight: event.level,
+          };
+        }
+        return el;
+      });
   }
 };
 
@@ -367,79 +425,125 @@ export function RightSelector(props: {
     return (
       <div>
         <>
-          {state.map(({ name, level, projects, keys, webhooks }) => {
-            return (
-              <>
-                <label className="mt-3">
-                  <i className="fas fa-cloud" aria-hidden></i>&nbsp;Tenant
-                </label>
-                <div className="tenant-selector" key={name}>
-                  <ItemSelector
-                    label="Tenant"
-                    rightOnly={!!props.tenant}
-                    level={level}
-                    key={name}
-                    name={name}
-                    choices={selectorChoices}
-                    userRight={
-                      admin
-                        ? TLevel.Admin
-                        : findTenantRight(rights, name) || TLevel.Read
-                    }
-                    onItemChange={(item) => {
-                      dispatch({ type: EventType.DeleteTenant, name });
-                      dispatch({ type: EventType.SelectTenant, name: item });
-                    }}
-                    onLevelChange={(level) => {
-                      dispatch({ type: EventType.SetTenantLevel, level, name });
-                    }}
-                    onClear={() => {
-                      dispatch({ type: EventType.DeleteTenant, name });
-                    }}
-                  />
-                  <div className="sub_container sub_container-bglighter project-selector">
-                    <label>
-                      <i className="fas fa-building" aria-hidden></i>
-                      &nbsp;Project rights for {name}
-                    </label>
-                    <div className="my-2">
-                      <ProjectSelector
-                        tenant={name}
-                        dispatch={dispatch}
-                        projects={projects}
-                      />
+          {state.map(
+            ({
+              name,
+              level,
+              projects,
+              keys,
+              webhooks,
+              defaultProjectRight,
+            }) => {
+              console.log("defaultProjectRight", defaultProjectRight);
+              return (
+                <>
+                  <label className="mt-3">
+                    <i className="fas fa-cloud" aria-hidden></i>&nbsp;Tenant
+                  </label>
+                  <div className="tenant-selector" key={name}>
+                    <ItemSelector
+                      label="Tenant"
+                      rightOnly={!!props.tenant}
+                      level={level}
+                      key={name}
+                      name={name}
+                      choices={selectorChoices}
+                      userRight={
+                        admin
+                          ? TLevel.Admin
+                          : findTenantRight(rights, name) || TLevel.Read
+                      }
+                      onItemChange={(item) => {
+                        dispatch({ type: EventType.DeleteTenant, name });
+                        dispatch({ type: EventType.SelectTenant, name: item });
+                      }}
+                      onLevelChange={(level) => {
+                        dispatch({
+                          type: EventType.SetTenantLevel,
+                          level,
+                          name,
+                        });
+                      }}
+                      onClear={() => {
+                        dispatch({ type: EventType.DeleteTenant, name });
+                      }}
+                    />
+                    <div className="sub_container sub_container-bglighter project-selector">
+                      <label>
+                        <i className="fas fa-building" aria-hidden></i>
+                        &nbsp;Project rights for {name}
+                      </label>
+                      <label>
+                        Default project right
+                        <Select
+                          value={
+                            defaultProjectRight
+                              ? {
+                                  label: defaultProjectRight,
+                                  value: defaultProjectRight,
+                                }
+                              : { label: "None", value: "None" }
+                          }
+                          options={[{ label: "None", value: "None" }].concat(
+                            Object.entries(TProjectLevel).map(
+                              ([key, value]) => ({
+                                label: value,
+                                value: key,
+                              })
+                            )
+                          )}
+                          styles={customStyles}
+                          onChange={(selected) => {
+                            console.log("selected", selected);
+                            dispatch({
+                              type: EventType.SetDefaultProjectLevel,
+                              tenant: name,
+                              level: (selected?.value === "None"
+                                ? undefined
+                                : selected?.value) as TProjectLevel,
+                            });
+                          }}
+                        />
+                      </label>
+                      <div className="my-2">
+                        <ProjectSelector
+                          tenant={name}
+                          dispatch={dispatch}
+                          projects={projects}
+                        />
+                      </div>
+                    </div>
+                    <div className="sub_container sub_container-bglighter key-selector">
+                      <label>
+                        <i className="fas fa-key" aria-hidden></i>&nbsp;Keys
+                        rights for {name}
+                      </label>
+                      <div className="my-2">
+                        <KeySelector
+                          tenant={name}
+                          dispatch={dispatch}
+                          keys={keys}
+                        />
+                      </div>
+                    </div>
+                    <div className="sub_container sub_container-bglighter key-selector">
+                      <label>
+                        <i className="fas fa-plug" aria-hidden></i>
+                        &nbsp;Webhooks rights for {name}
+                      </label>
+                      <div className="my-2">
+                        <WebhookSelector
+                          tenant={name}
+                          dispatch={dispatch}
+                          webhooks={webhooks}
+                        />
+                      </div>
                     </div>
                   </div>
-                  <div className="sub_container sub_container-bglighter key-selector">
-                    <label>
-                      <i className="fas fa-key" aria-hidden></i>&nbsp;Keys
-                      rights for {name}
-                    </label>
-                    <div className="my-2">
-                      <KeySelector
-                        tenant={name}
-                        dispatch={dispatch}
-                        keys={keys}
-                      />
-                    </div>
-                  </div>
-                  <div className="sub_container sub_container-bglighter key-selector">
-                    <label>
-                      <i className="fas fa-plug" aria-hidden></i>&nbsp;Webhooks
-                      rights for {name}
-                    </label>
-                    <div className="my-2">
-                      <WebhookSelector
-                        tenant={name}
-                        dispatch={dispatch}
-                        webhooks={webhooks}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </>
-            );
-          })}
+                </>
+              );
+            }
+          )}
           {creating && (
             <>
               <label className="mt-3">Tenant</label>

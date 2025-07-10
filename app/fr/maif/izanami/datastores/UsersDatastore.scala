@@ -893,12 +893,12 @@ class UsersDatastore(val env: Env) extends Datastore {
         schemas = Seq(tenant)
       ) { r =>
         {
-          val admin             = r.getBoolean("admin")
-          val actualTenantRight = r.optRightLevel("level")
+          val admin               = r.getBoolean("admin")
+          val actualTenantRight   = r.optRightLevel("level")
           val defaultProjectRight = r.optProjectRightLevel("default_project_right")
-          val defaultKeyRight = r.optRightLevel("default_key_right")
-          val jsonRights        = r.optJsObject("rights")
-          val userProjectRights = jsonRights
+          val defaultKeyRight     = r.optRightLevel("default_key_right")
+          val jsonRights          = r.optJsObject("rights")
+          val userProjectRights   = jsonRights
             .flatMap(obj => {
               (obj \ "projects")
                 .asOpt[Set[ProjectRightValue]](Reads.set(projectRightRead))
@@ -920,7 +920,8 @@ class UsersDatastore(val env: Env) extends Datastore {
               userProjectRights.exists(actualRight => {
                 actualRight.name == requestedRight.name &&
                 ProjectRightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(actualRight.level)
-              }) || defaultProjectRight.exists(dpr => ProjectRightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(dpr))
+              }) || defaultProjectRight
+                .exists(dpr => ProjectRightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(dpr))
             })
 
           val hasRightForKeys = rights
@@ -931,7 +932,8 @@ class UsersDatastore(val env: Env) extends Datastore {
               userKeyRights.exists(actualRight => {
                 actualRight.name == requestedRight.name &&
                 RightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(actualRight.level)
-              }) || defaultKeyRight.exists(dpr => RightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(dpr))
+              }) || defaultKeyRight
+                .exists(dpr => RightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(dpr))
             })
 
           Some(
@@ -1348,7 +1350,8 @@ class UsersDatastore(val env: Env) extends Datastore {
          |    u.user_type,
          |    u.default_tenant,
          |    u.username,
-         |    u.email
+         |    u.email,
+         |    utr.default_webhook_right
          |FROM izanami.users u
          |LEFT JOIN webhooks w ON w.id=$$2
          |LEFT JOIN users_webhooks_rights wr ON wr.webhook=w.name AND wr.username=u.username
@@ -1367,6 +1370,7 @@ class UsersDatastore(val env: Env) extends Datastore {
             val maybeTenantRight = r.optRightLevel("tenant_right")
             u.withWebhookOrKeyRight(
               r.optRightLevel("level").orNull,
+              r.optRightLevel("default_webhook_right"),
               maybeTenantRight.contains(RightLevel.Admin)
             )
           })
@@ -1391,7 +1395,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     ) { r =>
       r.optUser()
         .map(u => {
-          val maybeTenantRight = r.optRightLevel("tenant_right")
+          val maybeTenantRight         = r.optRightLevel("tenant_right")
           val maybeDefaultProjectRight = r.optProjectRightLevel("default_project_right")
           u.withProjectScopedRight(
             r.optProjectRightLevel("level").orNull,
@@ -1412,7 +1416,8 @@ class UsersDatastore(val env: Env) extends Datastore {
          |    u.user_type,
          |    u.default_tenant,
          |    u.username,
-         |    u.email
+         |    u.email,
+         |    utr.default_key_right
          |FROM izanami.users u
          |LEFT JOIN apikeys k ON k.name=$$2
          |LEFT JOIN users_keys_rights kr ON kr.apikey=k.name AND kr.username=u.username
@@ -1431,6 +1436,7 @@ class UsersDatastore(val env: Env) extends Datastore {
             val maybeTenantRight = r.optRightLevel("tenant_right")
             u.withWebhookOrKeyRight(
               r.optRightLevel("level").orNull,
+              r.optRightLevel("default_key_right"),
               maybeTenantRight.contains(RightLevel.Admin)
             )
           })

@@ -3,7 +3,7 @@ import { GenericTable } from "./GenericTable";
 import { TLevel, TSingleRightForTenantUser } from "../utils/types";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
-import { IzanamiContext } from "../securityContext";
+import { isRightAbove, IzanamiContext } from "../securityContext";
 
 export function RightTable(props: {
   data: TSingleRightForTenantUser[];
@@ -93,6 +93,26 @@ export function RightTable(props: {
             header: () => "Right level",
             meta: {
               valueType: "rights",
+            },
+            cell: (col) => {
+              const user = col.row.original;
+              const maybeDefaultProjectRight = user.defaultRight;
+
+              if (maybeDefaultProjectRight && user.right) {
+                const isDefaultRightAboveRight = isRightAbove(
+                  maybeDefaultProjectRight,
+                  user.right
+                );
+                return isDefaultRightAboveRight
+                  ? `${maybeDefaultProjectRight} (default right)`
+                  : user.right;
+              } else if (user.right) {
+                return user.right;
+              } else if (maybeDefaultProjectRight) {
+                return `${maybeDefaultProjectRight} (default right)`;
+              } else {
+                return <></>;
+              }
             },
             size: 25,
             filterFn: (data, columndId, filterValue) => {
