@@ -1,6 +1,5 @@
 package fr.maif.izanami.models
 
-import fr.maif.izanami.models.RightTypes.RightType
 import fr.maif.izanami.services.CompleteRights
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.data.validation.{Constraints, Valid}
@@ -30,13 +29,13 @@ object RightLevel {
   case object Admin extends RightLevel
 
   object RightOrdering extends Ordering[RightLevel] {
-    def compare(a:RightLevel, b:RightLevel): Int = (a, b) match {
+    def compare(a: RightLevel, b: RightLevel): Int = (a, b) match {
       case (ar, br) if ar == br => 0
-      case (Admin, _) => 1
-      case (_, Admin) => -1
-      case (Write, _) => 1
-      case (_, Write) => -1
-      case _ => 1
+      case (Admin, _)           => 1
+      case (_, Admin)           => -1
+      case (Write, _)           => 1
+      case (_, Write)           => -1
+      case _                    => 1
     }
   }
 
@@ -94,20 +93,18 @@ case object ProjectRightLevel {
   case object Write  extends ProjectRightLevel
   case object Admin  extends ProjectRightLevel
 
-
   object ProjectRightOrdering extends Ordering[ProjectRightLevel] {
-    def compare(a:ProjectRightLevel, b:ProjectRightLevel): Int = (a, b) match {
+    def compare(a: ProjectRightLevel, b: ProjectRightLevel): Int = (a, b) match {
       case (ar, br) if ar == br => 0
-      case (Admin, _) => 1
-      case (_, Admin) => -1
-      case (Write, _) => 1
-      case (_, Write) => -1
-      case (Update, _) => 1
-      case (_, Update) => -1
-      case _ => 1
+      case (Admin, _)           => 1
+      case (_, Admin)           => -1
+      case (Write, _)           => 1
+      case (_, Write)           => -1
+      case (Update, _)          => 1
+      case (_, Update)          => -1
+      case _                    => 1
     }
   }
-
 
   val projectRightLevelWrites: Writes[ProjectRightLevel] = {
     case Read   => JsString("Read")
@@ -223,8 +220,8 @@ case class User(
   def withSingleLevelRight(level: RightLevel): UserWithSingleLevelRight =
     UserWithSingleLevelRight(username, email, password, admin, userType, level, defaultTenant)
 
-  def withProjectScopedRight(level: ProjectRightLevel, tenantAdmin: Boolean = false): ProjectScopedUser =
-    ProjectScopedUser(username, email, password, admin, userType, level, defaultTenant, tenantAdmin)
+  def withProjectScopedRight(level: ProjectRightLevel, defaultProjectRight: Option[ProjectRightLevel], tenantAdmin: Boolean = false): ProjectScopedUser =
+    ProjectScopedUser(username, email, password, admin, userType, level, defaultProjectRight, defaultTenant, tenantAdmin)
 
   def withWebhookOrKeyRight(level: RightLevel, tenantAdmin: Boolean = false): SingleItemScopedUser =
     SingleItemScopedUser(username, email, password, admin, userType, level, defaultTenant, tenantAdmin)
@@ -237,6 +234,7 @@ case class ProjectScopedUser(
     override val admin: Boolean = false,
     override val userType: UserType,
     right: ProjectRightLevel,
+    defaultProjectRight: Option[ProjectRightLevel],
     override val defaultTenant: Option[String] = None,
     tenantAdmin: Boolean = false
 ) extends UserTrait
@@ -441,7 +439,13 @@ object Rights {
 
   sealed trait FlattenRight
 
-  case class FlattenTenantRight(name: String, level: RightLevel) extends FlattenRight
+  case class FlattenTenantRight(
+      name: String,
+      level: RightLevel,
+      defaultProjectRight: Option[ProjectRightLevel] = None,
+      defaultKeyRight: Option[RightLevel] = None,
+      defaultWebhookRight: Option[RightLevel] = None
+  ) extends FlattenRight
 
   case class FlattenProjectRight(name: String, tenant: String, level: ProjectRightLevel) extends FlattenRight
 
@@ -476,7 +480,15 @@ object Rights {
       case (Some(existingRights), None) =>
         Some(
           TenantRightDiff(
-            removedTenantRight = Some(FlattenTenantRight(name = tenantName, level = existingRights.level)),
+            removedTenantRight = Some(
+              FlattenTenantRight(
+                name = tenantName,
+                level = existingRights.level,
+                defaultProjectRight = existingRights.defaultProjectRight,
+                defaultKeyRight = existingRights.defaultKeyRight,
+                defaultWebhookRight = existingRights.defaultWebhookRight
+              )
+            ),
             removedProjectRights = flattenProjects(existingRights),
             removedKeyRights = flattenKeys(existingRights),
             removedWebhookRights = flattenWebhooks(existingRights)
@@ -531,7 +543,15 @@ object Rights {
       val webhooks = ArrayBuffer[FlattenWebhookRight]()
       rights.tenants.foreach {
         case (tenantName, tenantRights) => {
-          tenants.addOne(FlattenTenantRight(name = tenantName, level = tenantRights.level))
+          tenants.addOne(
+            FlattenTenantRight(
+              name = tenantName,
+              level = tenantRights.level,
+              defaultProjectRight = tenantRights.defaultProjectRight,
+              defaultKeyRight = tenantRights.defaultKeyRight,
+              defaultWebhookRight = tenantRights.defaultWebhookRight
+            )
+          )
           projects.addAll(
             tenantRights.projects
               .map { case (projectName, level) =>
@@ -586,9 +606,9 @@ object User {
       (__ \ "projects").readWithDefault[Map[String, ProjectAtomicRight]](Map()) and
       (__ \ "keys").readWithDefault[Map[String, GeneralAtomicRight]](Map()) and
       (__ \ "webhooks").readWithDefault[Map[String, GeneralAtomicRight]](Map()) and
-      (__ \ "projectDefault").readNullable[ProjectRightLevel](ProjectRightLevel.projectRightLevelReads) and
-      (__ \ "keyDefault").readNullable[RightLevel](RightLevel.rightLevelReads) and
-      (__ \ "webhookDefault").readNullable[RightLevel](RightLevel.rightLevelReads)
+      (__ \ "defaultProjectRight").readNullable[ProjectRightLevel](ProjectRightLevel.projectRightLevelReads) and
+      (__ \ "defaultKeyRight").readNullable[RightLevel](RightLevel.rightLevelReads) and
+      (__ \ "defaultWebhookRight").readNullable[RightLevel](RightLevel.rightLevelReads)
   )(TenantRight.apply _)
 
   implicit val rightsReads: Reads[Rights] =
@@ -596,10 +616,13 @@ object User {
 
   implicit val tenantRightWrite: Writes[TenantRight] = { tenantRight =>
     Json.obj(
-      "level"    -> tenantRight.level.toString,
-      "projects" -> tenantRight.projects,
-      "keys"     -> tenantRight.keys,
-      "webhooks" -> tenantRight.webhooks
+      "level"               -> tenantRight.level.toString,
+      "projects"            -> tenantRight.projects,
+      "keys"                -> tenantRight.keys,
+      "webhooks"            -> tenantRight.webhooks,
+      "defaultProjectRight" -> tenantRight.defaultProjectRight,
+      "defaultKeyRight"     -> tenantRight.defaultKeyRight,
+      "defaultWebhookRight" -> tenantRight.defaultWebhookRight
     )
   }
 
@@ -655,7 +678,9 @@ object User {
           "userType"      -> user.userType.toString,
           "admin"         -> user.admin,
           "defaultTenant" -> user.defaultTenant,
-          "tenantAdmin"   -> user.tenantAdmin
+          "tenantAdmin"   -> user.tenantAdmin,
+          "defaultTenant" -> user.defaultTenant,
+          "defaultProjectRight" -> user.defaultProjectRight
         )
         .applyOnWithOpt(Option(user.right)) { (json, right) =>
           json ++ Json.obj("right" -> ProjectRightLevel.projectRightLevelWrites.writes(right))

@@ -54,9 +54,9 @@ case object RightService {
       .foldLeft(CompleteRights.EMPTY)((r1, r2) => r1.mergeWith(r2))
   }
 
-  def keepHigher(r1: CompleteRights, r2: CompleteRights): Unit = {
+  /*def keepHigher(r1: CompleteRights, r2: CompleteRights): Unit = {
 
-  }
+  }*/
 
   def keepHigher(r1: TenantRight, r2: TenantRight): TenantRight = {
     val level = Seq(r1.level, r2.level).max(RightOrdering)

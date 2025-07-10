@@ -260,6 +260,20 @@ function ProjectUsers(props: {
               valueType: "rights",
             },
             size: 25,
+            cell: (col) => {
+              const user = col.row.original;
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+              const maybeDefaultProjectRight = user.defaultProjectRight;
+
+              return user.right ? (
+                user.right
+              ) : maybeDefaultProjectRight ? (
+                `${maybeDefaultProjectRight} (default right)`
+              ) : (
+                <></>
+              );
+            },
             filterFn: (data, columndId, filterValue) => {
               const right = data.getValue(columndId);
               if (filterValue === TLevel.Admin) {
