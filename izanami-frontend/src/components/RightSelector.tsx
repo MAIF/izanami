@@ -334,7 +334,6 @@ const reducer = function reducer(state: State, event: EventTypes): State {
       });
     case EventType.SetDefaultProjectLevel:
       return [...state].map((el) => {
-        console.log("event", event);
         if (el.name === event.tenant) {
           return {
             ...el,
@@ -434,7 +433,6 @@ export function RightSelector(props: {
               webhooks,
               defaultProjectRight,
             }) => {
-              console.log("defaultProjectRight", defaultProjectRight);
               return (
                 <>
                   <label className="mt-3">
@@ -494,7 +492,6 @@ export function RightSelector(props: {
                           )}
                           styles={customStyles}
                           onChange={(selected) => {
-                            console.log("selected", selected);
                             dispatch({
                               type: EventType.SetDefaultProjectLevel,
                               tenant: name,
