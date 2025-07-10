@@ -646,11 +646,11 @@ class UsersDatastore(val env: Env) extends Datastore {
                       case MergeOverwrite =>
                         """
                      | ON CONFLICT(username, tenant) DO UPDATE SET level = CASE
-                     | WHEN users_keys_rights.level = 'READ' THEN excluded.level
-                     | WHEN (users_keys_rights.level = 'WRITE' AND excluded.level = 'ADMIN') THEN 'ADMIN'
-                     | WHEN users_keys_rights.level = 'ADMIN' THEN 'ADMIN'
-                     | ELSE users_keys_rights.level
-                     | END
+                     | WHEN users_tenants_rights.level = 'READ' THEN excluded.level
+                     | WHEN (users_tenants_rights.level = 'WRITE' AND excluded.level = 'ADMIN') THEN 'ADMIN'
+                     | WHEN users_tenants_rights.level = 'ADMIN' THEN 'ADMIN'
+                     | ELSE users_tenants_rights.level
+                     | END, default_project_right=users_tenants_rights.default_project_right, default_key_right=users_tenants_rights.default_key_right, default_webhook_right=users_tenants_rights.default_webhook_right
                      |""".stripMargin
                       case Skip           => " ON CONFLICT(username, tenant) DO NOTHING "
                     }}
@@ -716,6 +716,7 @@ class UsersDatastore(val env: Env) extends Datastore {
            |  u.admin=true
            |  OR utr.level='ADMIN'
            |  OR uwr.level=ANY($$4)
+           |  OR utr.default_webhook_right=ANY($$4)
            |)
            |""".stripMargin,
         List(session, tenant, webhook, superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray),
@@ -754,6 +755,7 @@ class UsersDatastore(val env: Env) extends Datastore {
            |  u.admin=true
            |  OR utr.level='ADMIN'
            |  OR ukr.level=ANY($$4)
+           |  OR utr.default_key_right=ANY($$4)
            |)
            |""".stripMargin,
         List(session, tenant, key, superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray),
@@ -880,7 +882,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     env.postgresql
       .queryOne(
         s"""
-           |SELECT utr.level, u.admin, utr.default_project_right, json_build_object(
+           |SELECT utr.level, u.admin, utr.default_project_right, utr.default_key_right, json_build_object(
            |${subQueries.mkString(",")}
            |)::jsonb as rights
            |FROM izanami.users u
@@ -894,6 +896,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           val admin             = r.getBoolean("admin")
           val actualTenantRight = r.optRightLevel("level")
           val defaultProjectRight = r.optProjectRightLevel("default_project_right")
+          val defaultKeyRight = r.optRightLevel("default_key_right")
           val jsonRights        = r.optJsObject("rights")
           val userProjectRights = jsonRights
             .flatMap(obj => {
@@ -928,7 +931,7 @@ class UsersDatastore(val env: Env) extends Datastore {
               userKeyRights.exists(actualRight => {
                 actualRight.name == requestedRight.name &&
                 RightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(actualRight.level)
-              })
+              }) || defaultKeyRight.exists(dpr => RightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(dpr))
             })
 
           Some(
@@ -1058,10 +1061,10 @@ class UsersDatastore(val env: Env) extends Datastore {
         case Fail           => ""
         case MergeOverwrite => """
                | ON CONFLICT(username, project) DO UPDATE SET level=CASE
-               |  WHEN users_keys_rights.level='READ' THEN excluded.level
-               |  WHEN (users_keys_rights.level='WRITE' AND excluded.level = 'ADMIN') THEN 'ADMIN'
-               |  WHEN users_keys_rights.level='ADMIN' THEN 'ADMIN'
-               |  ELSE users_keys_rights.level
+               |  WHEN users_projects_rights.level='READ' THEN excluded.level
+               |  WHEN (users_projects_rights.level='WRITE' AND excluded.level = 'ADMIN') THEN 'ADMIN'
+               |  WHEN users_projects_rights.level='ADMIN' THEN 'ADMIN'
+               |  ELSE users_projects_rights.level
                |END
                |""".stripMargin
         case Skip           => " ON CONFLICT(username, project) DO NOTHING "
@@ -1353,6 +1356,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |WHERE wr.level IS NOT NULL
          |OR utr.level='ADMIN'
          |OR u.admin=true
+         |OR utr.default_webhook_right IS NOT NULL
          |""".stripMargin,
       List(tenant, webhook),
       schemas = Seq(tenant)
@@ -1416,6 +1420,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |WHERE kr.level IS NOT NULL
          |OR utr.level='ADMIN'
          |OR u.admin=true
+         |OR utr.default_key_right IS NOT NULL
          |""".stripMargin,
       List(tenant, key),
       schemas = Seq(tenant)
@@ -1463,6 +1468,8 @@ class UsersDatastore(val env: Env) extends Datastore {
              |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant, json_build_object(
              |    'level', utr.level,
              |    'defaultProjectRight', utr.default_project_right,
+             |    'defaultKeyRight', utr.default_key_right,
+             |    'defaultWebhookRight', utr.default_webhook_right,
              |    'projects', COALESCE((select json_object_agg(p.project, json_build_object('level', p.level)) from users_projects_rights p where p.username=$$1), '{}'),
              |    'keys', COALESCE((select json_object_agg(k.apikey, json_build_object('level', k.level)) from users_keys_rights k where k.username=$$1), '{}'),
              |    'webhooks', COALESCE((select json_object_agg(w.webhook, json_build_object('level', w.level)) from users_webhooks_rights w where w.username=$$1), '{}')
@@ -1576,7 +1583,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |    COALESCE((
          |      select (json_build_object('level', utr.level, 'defaultProjectRight', utr.default_project_right, 'projects', (
          |        select json_object_agg(p.project, json_build_object('level', p.level))
-         |        from users_projects_rights p
+           |        from users_projects_rights p
          |        where p.username=u.username
          |      )))
          |      from izanami.users_tenants_rights utr

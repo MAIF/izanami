@@ -37,6 +37,7 @@ class SearchDatastore(val env: Env) extends Datastore {
         LEFT JOIN users_projects_rights upr ON (utr.username=$$2 AND p.name=upr.project)
         WHERE utr.level='ADMIN'
         OR upr.level IS NOT NULL
+        OR utr.default_project_right IS NOT NULL
         OR u.admin=true
       )
     """
@@ -86,6 +87,7 @@ class SearchDatastore(val env: Env) extends Datastore {
         WHERE utr.level='ADMIN'
         OR ukr.level IS NOT NULL
         OR u.admin=true
+        OR utr.default_key_right IS NOT NULL
       )
     """
       unionQueries :+= s"""

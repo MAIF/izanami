@@ -155,7 +155,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
          |LEFT JOIN apikeys_projects ap
          |ON ap.apikey = a.name
          |WHERE EXISTS (SELECT u.username FROM izanami.users u WHERE u.username=$$1 AND u.admin=TRUE)
-         |OR EXISTS(SELECT * FROM izanami.users_tenants_rights utr WHERE utr.username=$$1 AND (utr.level='ADMIN'))
+         |OR EXISTS(SELECT * FROM izanami.users_tenants_rights utr WHERE utr.username=$$1 AND (utr.level='ADMIN' OR utr.default_key_right IS NOT NULL))
          |OR a.name=ANY(SELECT akr.apikey FROM users_keys_rights akr WHERE akr.username=$$1)
          |GROUP BY a.name
          |""".stripMargin,

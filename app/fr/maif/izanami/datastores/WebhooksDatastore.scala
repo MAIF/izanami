@@ -266,6 +266,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
          |  wr.level IS NOT NULL
          |  OR utr.level = 'ADMIN'
          |  OR u.admin = true
+         |  OR utr.default_webhook_right IS NOT NULL
          |GROUP BY w.id""".stripMargin,
       params = List(user, tenant),
       schemas = Seq(tenant)
