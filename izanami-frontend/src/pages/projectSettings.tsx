@@ -11,7 +11,7 @@ import {
   updateUserRightsForProject,
 } from "../utils/queries";
 import { useNavigate } from "react-router-dom";
-import { useProjectRight } from "../securityContext";
+import { isRightAbove, useProjectRight } from "../securityContext";
 import queryClient from "../queryClient";
 import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
@@ -266,13 +266,21 @@ function ProjectUsers(props: {
               // @ts-ignore
               const maybeDefaultProjectRight = user.defaultProjectRight;
 
-              return user.right ? (
-                user.right
-              ) : maybeDefaultProjectRight ? (
-                `${maybeDefaultProjectRight} (default right)`
-              ) : (
-                <></>
-              );
+              if (maybeDefaultProjectRight && user.right) {
+                const isDefaultRightAboveRight = isRightAbove(
+                  maybeDefaultProjectRight,
+                  user.right
+                );
+                return isDefaultRightAboveRight
+                  ? `${maybeDefaultProjectRight} (default right)`
+                  : user.right;
+              } else if (user.right) {
+                return user.right;
+              } else if (maybeDefaultProjectRight) {
+                return `${maybeDefaultProjectRight} (default right)`;
+              } else {
+                return <></>;
+              }
             },
             filterFn: (data, columndId, filterValue) => {
               const right = data.getValue(columndId);

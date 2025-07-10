@@ -228,7 +228,7 @@ export function findTenantRight(
   return rights?.tenants?.[tenant]?.level;
 }
 
-function isRightAbove(currentRight: TLevel, seekedRight: TLevel) {
+export function isRightAbove(currentRight: TLevel, seekedRight: TLevel) {
   if (!currentRight) {
     return false;
   }
@@ -248,7 +248,7 @@ function isRightAbove(currentRight: TLevel, seekedRight: TLevel) {
   }
 }
 
-function isProjectRightAbove(
+export function isProjectRightAbove(
   currentRight: TProjectLevel,
   seekedRight: TProjectLevel
 ) {
