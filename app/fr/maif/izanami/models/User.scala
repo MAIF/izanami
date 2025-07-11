@@ -220,10 +220,18 @@ case class User(
   def withSingleLevelRight(level: RightLevel): UserWithSingleLevelRight =
     UserWithSingleLevelRight(username, email, password, admin, userType, level, defaultTenant)
 
-  def withProjectScopedRight(level: ProjectRightLevel, defaultRight: Option[ProjectRightLevel], tenantAdmin: Boolean = false): ProjectScopedUser =
+  def withProjectScopedRight(
+      level: ProjectRightLevel,
+      defaultRight: Option[ProjectRightLevel],
+      tenantAdmin: Boolean = false
+  ): ProjectScopedUser =
     ProjectScopedUser(username, email, password, admin, userType, level, defaultRight, defaultTenant, tenantAdmin)
 
-  def withWebhookOrKeyRight(level: RightLevel, defaultRight: Option[RightLevel], tenantAdmin: Boolean = false): SingleItemScopedUser =
+  def withWebhookOrKeyRight(
+      level: RightLevel,
+      defaultRight: Option[RightLevel],
+      tenantAdmin: Boolean = false
+  ): SingleItemScopedUser =
     SingleItemScopedUser(username, email, password, admin, userType, level, defaultRight, defaultTenant, tenantAdmin)
 }
 
@@ -498,18 +506,42 @@ object Rights {
       case (None, Some(newRights))      =>
         Some(
           TenantRightDiff(
-            addedTenantRight = Some(FlattenTenantRight(name = tenantName, level = newRights.level)),
+            addedTenantRight = Some(
+              FlattenTenantRight(
+                name = tenantName,
+                level = newRights.level,
+                defaultProjectRight = newRights.defaultProjectRight,
+                defaultKeyRight = newRights.defaultKeyRight,
+                defaultWebhookRight = newRights.defaultWebhookRight
+              )
+            ),
             addedProjectRights = flattenProjects(newRights),
             addedKeyRights = flattenKeys(newRights),
             addedWebhookRights = flattenWebhooks(newRights)
           )
         )
       case (Some(oldR @ TenantRight(oldLevel, _, _, _, _, _, _)), Some(newR @ TenantRight(newLevel, _, _, _, _, _, _)))
-          if oldLevel != newLevel => {
+          if oldR != newR => {
         Some(
           TenantRightDiff(
-            addedTenantRight = Some(FlattenTenantRight(name = tenantName, level = newLevel)),
-            removedTenantRight = Some(FlattenTenantRight(name = tenantName, level = oldLevel)),
+            addedTenantRight = Some(
+              FlattenTenantRight(
+                name = tenantName,
+                level = newLevel,
+                defaultProjectRight = newR.defaultProjectRight,
+                defaultKeyRight = newR.defaultKeyRight,
+                defaultWebhookRight = newR.defaultWebhookRight
+              )
+            ),
+            removedTenantRight = Some(
+              FlattenTenantRight(
+                name = tenantName,
+                level = oldLevel,
+                defaultProjectRight = oldR.defaultProjectRight,
+                defaultKeyRight = oldR.defaultKeyRight,
+                defaultWebhookRight = oldR.defaultWebhookRight
+              )
+            ),
             addedProjectRights = flattenProjects(newR).diff(flattenProjects(oldR)),
             removedProjectRights = flattenProjects(oldR).diff(flattenProjects(newR)),
             addedKeyRights = flattenKeys(newR).diff(flattenKeys(oldR)),
@@ -681,7 +713,7 @@ object User {
           "defaultTenant" -> user.defaultTenant,
           "tenantAdmin"   -> user.tenantAdmin,
           "defaultTenant" -> user.defaultTenant,
-          "defaultRight" -> user.defaultRight
+          "defaultRight"  -> user.defaultRight
         )
         .applyOnWithOpt(Option(user.right)) { (json, right) =>
           json ++ Json.obj("right" -> ProjectRightLevel.projectRightLevelWrites.writes(right))
@@ -699,7 +731,7 @@ object User {
           "admin"         -> user.admin,
           "defaultTenant" -> user.defaultTenant,
           "tenantAdmin"   -> user.tenantAdmin,
-          "defaultRight" -> user.defaultRight
+          "defaultRight"  -> user.defaultRight
         )
         .applyOnWithOpt(Option(user.right)) { (json, right) =>
           json ++ Json.obj("right" -> RightLevel.rightLevelWrites.writes(right))

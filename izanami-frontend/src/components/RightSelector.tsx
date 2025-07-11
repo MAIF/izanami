@@ -432,6 +432,8 @@ export function RightSelector(props: {
               keys,
               webhooks,
               defaultProjectRight,
+              defaultKeyRight,
+              defaultWebhookRight,
             }) => {
               return (
                 <>
@@ -515,6 +517,35 @@ export function RightSelector(props: {
                         <i className="fas fa-key" aria-hidden></i>&nbsp;Keys
                         rights for {name}
                       </label>
+                      <label>
+                        Default key right
+                        <Select
+                          value={
+                            defaultKeyRight
+                              ? {
+                                  label: defaultKeyRight,
+                                  value: defaultKeyRight,
+                                }
+                              : { label: "None", value: "None" }
+                          }
+                          options={[{ label: "None", value: "None" }].concat(
+                            Object.entries(TLevel).map(([key, value]) => ({
+                              label: value,
+                              value: key,
+                            }))
+                          )}
+                          styles={customStyles}
+                          onChange={(selected) => {
+                            dispatch({
+                              type: EventType.SetDefaultKeyLevel,
+                              tenant: name,
+                              level: (selected?.value === "None"
+                                ? undefined
+                                : selected?.value) as TLevel,
+                            });
+                          }}
+                        />
+                      </label>
                       <div className="my-2">
                         <KeySelector
                           tenant={name}
@@ -527,6 +558,35 @@ export function RightSelector(props: {
                       <label>
                         <i className="fas fa-plug" aria-hidden></i>
                         &nbsp;Webhooks rights for {name}
+                      </label>
+                      <label>
+                        Default webhook right
+                        <Select
+                          value={
+                            defaultWebhookRight
+                              ? {
+                                  label: defaultWebhookRight,
+                                  value: defaultWebhookRight,
+                                }
+                              : { label: "None", value: "None" }
+                          }
+                          options={[{ label: "None", value: "None" }].concat(
+                            Object.entries(TLevel).map(([key, value]) => ({
+                              label: value,
+                              value: key,
+                            }))
+                          )}
+                          styles={customStyles}
+                          onChange={(selected) => {
+                            dispatch({
+                              type: EventType.SetDefaultWebhookLevel,
+                              tenant: name,
+                              level: (selected?.value === "None"
+                                ? undefined
+                                : selected?.value) as TLevel,
+                            });
+                          }}
+                        />
                       </label>
                       <div className="my-2">
                         <WebhookSelector

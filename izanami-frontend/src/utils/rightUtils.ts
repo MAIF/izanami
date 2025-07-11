@@ -22,12 +22,27 @@ export function rightStateArrayToBackendMap(state?: State): TRights {
     return { tenants: {} };
   }
   const backendRights = state.reduce(
-    (acc, { name, level, projects, keys, webhooks }) => {
+    (
+      acc,
+      {
+        name,
+        level,
+        projects,
+        keys,
+        webhooks,
+        defaultProjectRight,
+        defaultKeyRight,
+        defaultWebhookRight,
+      }
+    ) => {
       acc[name] = {
         level,
         projects: projectOrKeyArrayToObject(projects),
         keys: projectOrKeyArrayToObject(keys),
         webhooks: projectOrKeyArrayToObject(webhooks),
+        defaultProjectRight: defaultProjectRight,
+        defaultKeyRight: defaultKeyRight,
+        defaultWebhookRight: defaultWebhookRight,
       };
       return acc;
     },
