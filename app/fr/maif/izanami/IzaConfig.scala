@@ -116,7 +116,7 @@ case class RoleRights(admin: Boolean = false, tenants: Map[String, TenantRoleRig
       )
     ).toMap
 
-    CompleteRights(admin = admin, rights = Rights(tenants = tenantRights))
+    CompleteRights(admin = admin, tenants = tenantRights)
   }
 }
 case class TenantRoleRights(

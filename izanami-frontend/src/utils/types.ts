@@ -565,6 +565,11 @@ export interface Configuration {
   preventOAuthModification: boolean;
 }
 
+export type TCompleteRight = TRights & { admin: boolean };
+export interface RightByRoles {
+  [role: string]: TCompleteRight;
+}
+
 export type MailGunRegion = "EUROPE" | "US";
 
 export interface SMTPConfiguration {
@@ -804,5 +809,5 @@ export interface OIDCSettings {
   nameField: string;
   emailField: string;
   callbackUrl: string;
-  defaultOIDCUserRights?: TRights;
+  userRightsByRoles?: RightByRoles;
 }

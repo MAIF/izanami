@@ -38,11 +38,11 @@ class ConfigurationController(
 
   private def updateOIDCRightIfNeeded(conf: FullIzanamiConfiguration): Future[FullIzanamiConfiguration] = {
     conf.oidcConfiguration
-      .map(_.defaultOIDCUserRights)
+      .map(_.userRightsByRoles)
       .fold(conf.future)(rights => {
-        env.datastores.configuration.updateOIDCDefaultRightIfNeeded(rights)
+        env.datastores.configuration.updateOAuthRightByRole(rights)
           .map(updatedRights => conf
-            .copy(oidcConfiguration = conf.oidcConfiguration.get.copy(defaultOIDCUserRights = updatedRights).some)
+            .copy(oidcConfiguration = conf.oidcConfiguration.get.copy(userRightsByRoles = rights).some)
           )
       })
   }

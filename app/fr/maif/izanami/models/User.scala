@@ -171,7 +171,7 @@ case class UserRightsUpdateRequest(
 
 object UserRightsUpdateRequest {
   def fromRights(rights: CompleteRights): UserRightsUpdateRequest = {
-    UserRightsUpdateRequest(rights = rights.rights, admin = Some(rights.admin))
+    UserRightsUpdateRequest(rights = Rights(rights.tenants), admin = Some(rights.admin))
   }
 }
 

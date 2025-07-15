@@ -108,7 +108,7 @@ class Env(
 
   def isOIDCConfigurationEditable: Boolean =
     Seq(oidcConfig.clientId, oidcConfig.clientSecret, oidcConfig.authorizeUrl, oidcConfig.tokenUrl).forall(o =>
-      o.isDefined
+      o.isEmpty
     )
 
   def oidcConfigurationMigration() = {

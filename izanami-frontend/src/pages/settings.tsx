@@ -13,7 +13,7 @@ import {
   updateConfiguration,
   fetchOpenIdConnectConfiguration,
 } from "../utils/queries";
-import { Configuration } from "../utils/types";
+import { Configuration, TRights } from "../utils/types";
 import { customStyles } from "../styles/reactSelect";
 import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
@@ -27,6 +27,7 @@ import {
 import { Tooltip } from "../components/Tooltip";
 import { ErrorMessage } from "../components/HookFormErrorMessage";
 import { rightStateArrayToBackendMap } from "../utils/rightUtils";
+import { isEqual } from "lodash";
 
 const MAILER_OPTIONS = [
   { label: "MailJet", value: "MailJet" },
@@ -70,10 +71,7 @@ export function Settings() {
     const wasAnonymousReportingDisabled =
       !newValue.anonymousReporting && current.anonymousReporting;
 
-    const newDefaultRights = newValue.oidcConfiguration?.defaultOIDCUserRights;
-    const backendRights = rightStateArrayToBackendMap(
-      Array.isArray(newDefaultRights) ? newDefaultRights : []
-    );
+    const rightByRoles = newValue.oidcConfiguration?.userRightsByRoles;
 
     return configurationMutationQuery
       .mutateAsync({
@@ -86,7 +84,7 @@ export function Settings() {
         oidcConfiguration: newValue.oidcConfiguration
           ? {
               ...newValue.oidcConfiguration,
-              defaultOIDCUserRights: backendRights,
+              userRightsByRoles: rightByRoles,
             }
           : undefined,
         mailerConfiguration: newValue.mailerConfiguration,
@@ -878,15 +876,15 @@ function OIDCForm() {
             id="default-oidc-rights-accordion-collapse"
           >
             <Controller
-              name="oidcConfiguration.defaultOIDCUserRights"
+              name="oidcConfiguration.userRightsByRoles"
               control={control}
               render={({ field }) => {
                 return (
-                  <RightSelector
-                    defaultValue={field?.value}
-                    tenantLevelFilter="Admin"
-                    onChange={(v) => {
-                      field?.onChange(v);
+                  <RightByRoleSelector
+                    readonly={preventOAuthModification}
+                    rights={field.value ?? {}}
+                    onChange={(newRights) => {
+                      field?.onChange(newRights);
                     }}
                   />
                 );
@@ -895,6 +893,128 @@ function OIDCForm() {
           </div>
         </div>
       </div>
+    </>
+  );
+}
+
+type TCompleteRight = TRights & { admin: boolean };
+interface RightByRoles {
+  [role: string]: TCompleteRight;
+}
+
+function RightByRoleSelector(props: {
+  rights: RightByRoles;
+  onChange: (newRights: RightByRoles) => any;
+  readonly: boolean;
+}) {
+  const { rights, onChange, readonly } = props;
+  const [creatingRole, setCreatingRole] = useState<
+    { creating: false } | { creating: true; value: string }
+  >({ creating: false });
+  return (
+    <>
+      {readonly && (
+        <p className="error-message d-flex align-items-center gap-2">
+          <i className="fas fa-warning" />
+          The configuration is loaded from your environment variables and cannot
+          be edited until you remove them.
+        </p>
+      )}
+      <fieldset disabled={readonly}>
+        {Object.entries(rights).map(([role, right]) => {
+          return (
+            <div key={`${role}-right`}>
+              <h3>
+                {role === "" ? "Default rights" : `Rights for role ${role}`}
+                &nbsp;
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => {
+                    const newRights = {
+                      ...rights,
+                    };
+                    delete newRights[role];
+                    onChange?.(newRights);
+                  }}
+                >
+                  Delete role
+                </button>
+              </h3>
+              <label>
+                Admin{" "}
+                <input
+                  type="checkbox"
+                  className="izanami-checkbox"
+                  checked={right.admin}
+                  onChange={(e) => {
+                    const newAdmin = e.target.checked;
+                    const newRights = {
+                      ...rights,
+                      [role]: { ...right, admin: newAdmin },
+                    };
+                    onChange?.(newRights);
+                  }}
+                />
+              </label>
+              <RightSelector
+                defaultValue={right}
+                tenantLevelFilter="Admin"
+                onChange={(v) => {
+                  const newR = rightStateArrayToBackendMap(v);
+                  if (!isEqual(right.tenants, newR.tenants)) {
+                    const newRights = {
+                      ...rights,
+                      [role]: { ...newR, admin: right.admin },
+                    };
+                    onChange?.(newRights);
+                  }
+                }}
+              />
+            </div>
+          );
+        })}
+        {!creatingRole.creating ? (
+          <div className="d-flex flex-row justify-content-end">
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setCreatingRole({ creating: true, value: "" })}
+            >
+              Add role
+            </button>
+            {!rights[""] && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setCreatingRole({ creating: true, value: "" })}
+              >
+                Add default rights
+              </button>
+            )}
+          </div>
+        ) : (
+          <label>
+            Role name
+            <input
+              className="form-control"
+              type="text"
+              onChange={(e) => {
+                setCreatingRole({ creating: true, value: e.target.value });
+              }}
+            />
+            <button
+              onClick={() => {
+                const newRights = {
+                  ...rights,
+                  [creatingRole.value]: { admin: false, tenants: {} },
+                };
+                onChange(newRights);
+                setCreatingRole({ creating: false });
+              }}
+            >
+              Add role
+            </button>
+          </label>
+        )}
+      </fieldset>
     </>
   );
 }

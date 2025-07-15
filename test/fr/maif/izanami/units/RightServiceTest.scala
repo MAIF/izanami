@@ -9,32 +9,26 @@ class RightServiceTest extends WordSpec with MustMatchers {
   "effectiveRights" should {
     "keep only higher right" in {
       val rightByRoles = Map(
-        "dev" -> CompleteRights(
-          rights = Rights(
-            Map(
-              "tenant" -> TenantRight(level = RightLevel.Read, Map("p1" -> ProjectAtomicRight(ProjectRightLevel.Read)))
-            )
+        "dev"   -> CompleteRights(
+          tenants = Map(
+            "tenant" -> TenantRight(level = RightLevel.Read, Map("p1" -> ProjectAtomicRight(ProjectRightLevel.Read)))
           ),
           admin = false
         ),
-        "ops" -> CompleteRights(
-          rights = Rights(
-            Map(
-              "tenant" -> TenantRight(
-                level = RightLevel.Write,
-                Map("p1" -> ProjectAtomicRight(ProjectRightLevel.Write))
-              )
+        "ops"   -> CompleteRights(
+          tenants = Map(
+            "tenant" -> TenantRight(
+              level = RightLevel.Write,
+              Map("p1" -> ProjectAtomicRight(ProjectRightLevel.Write))
             )
           ),
           admin = false
         ),
         "admin" -> CompleteRights(
-          rights = Rights(
-            Map(
-              "tenant" -> TenantRight(
-                level = RightLevel.Admin,
-                projects = Map("p1" -> ProjectAtomicRight(ProjectRightLevel.Admin))
-              )
+          tenants = Map(
+            "tenant" -> TenantRight(
+              level = RightLevel.Admin,
+              projects = Map("p1" -> ProjectAtomicRight(ProjectRightLevel.Admin))
             )
           ),
           admin = true
@@ -43,13 +37,13 @@ class RightServiceTest extends WordSpec with MustMatchers {
 
       val result = RightService.effectiveRights(rightByRoles, Set("dev", "ops"))
       result.admin mustBe false
-      result.rights.tenants("tenant").level mustBe Write
-      result.rights.tenants("tenant").projects("p1").level mustBe ProjectRightLevel.Write
+      result.tenants("tenant").level mustBe Write
+      result.tenants("tenant").projects("p1").level mustBe ProjectRightLevel.Write
 
       val result2 = RightService.effectiveRights(rightByRoles, Set("dev", "admin"))
       result2.admin mustBe true
-      result2.rights.tenants("tenant").level mustBe Admin
-      result2.rights.tenants("tenant").projects("p1").level mustBe ProjectRightLevel.Admin
+      result2.tenants("tenant").level mustBe Admin
+      result2.tenants("tenant").projects("p1").level mustBe ProjectRightLevel.Admin
     }
   }
 }

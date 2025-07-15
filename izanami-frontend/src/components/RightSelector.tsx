@@ -164,36 +164,38 @@ type EventTypes =
   | SetDefaultKeyLevelEvent
   | SetDefaultWebhookLevelEvent;
 
+function rightToInternalState(rights: TRights): State {
+  if (!rights?.tenants) {
+    return [];
+  } else {
+    return Object.entries(rights.tenants).map(([key, value]) => ({
+      name: key,
+      level: value.level,
+      projects: Object.entries(value.projects).map(
+        ([projectName, projectValue]) => ({
+          name: projectName,
+          level: projectValue.level,
+        })
+      ),
+      keys: Object.entries(value.keys).map(([keyName, keyValue]) => ({
+        name: keyName,
+        level: keyValue.level,
+      })),
+      webhooks: Object.entries(value.webhooks).map(([keyName, keyValue]) => ({
+        name: keyName,
+        level: keyValue.level,
+      })),
+      defaultProjectRight: value.defaultProjectRight,
+      defaultKeyRight: value.defaultKeyRight,
+      defaultWebhookRight: value.defaultWebhookRight,
+    }));
+  }
+}
+
 const reducer = function reducer(state: State, event: EventTypes): State {
   switch (event.type) {
     case EventType.SetupState: {
-      if (!event.rights.tenants) {
-        return state;
-      } else {
-        return Object.entries(event.rights.tenants).map(([key, value]) => ({
-          name: key,
-          level: value.level,
-          projects: Object.entries(value.projects).map(
-            ([projectName, projectValue]) => ({
-              name: projectName,
-              level: projectValue.level,
-            })
-          ),
-          keys: Object.entries(value.keys).map(([keyName, keyValue]) => ({
-            name: keyName,
-            level: keyValue.level,
-          })),
-          webhooks: Object.entries(value.webhooks).map(
-            ([keyName, keyValue]) => ({
-              name: keyName,
-              level: keyValue.level,
-            })
-          ),
-          defaultProjectRight: value.defaultProjectRight,
-          defaultKeyRight: value.defaultKeyRight,
-          defaultWebhookRight: value.defaultWebhookRight,
-        }));
-      }
+      return rightToInternalState(event.rights);
     }
     case EventType.DeleteProject:
       return [...state].map((el) => {
@@ -377,7 +379,7 @@ function isValid(state: State): boolean {
 }
 
 export function RightSelector(props: {
-  defaultValue?: TRights;
+  defaultValue: TRights;
   tenantLevelFilter?: TLevel;
   tenant?: string;
   onChange: (value: State) => void;
@@ -389,7 +391,10 @@ export function RightSelector(props: {
     queryFn: () => queryTenants(tenantLevelFilter),
   });
 
-  const [state, dispatch] = React.useReducer(reducer, []);
+  const [state, dispatch] = React.useReducer(
+    reducer,
+    rightToInternalState(defaultValue)
+  );
   React.useEffect(() => {
     if (defaultValue) {
       dispatch({ type: EventType.SetupState, rights: defaultValue });
@@ -402,10 +407,7 @@ export function RightSelector(props: {
   }, [state]);
 
   const selectedTenants = state.map(({ name }) => name);
-  const [creating, setCreating] = useState(
-    //selectedTenants.length === 0 && !defaultValue
-    false
-  );
+  const [creating, setCreating] = useState(false);
 
   const { user } = useContext(IzanamiContext);
   const { admin, rights } = user!;
