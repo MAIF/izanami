@@ -520,8 +520,8 @@ object Rights {
             addedWebhookRights = flattenWebhooks(newRights)
           )
         )
-      case (Some(oldR @ TenantRight(oldLevel, _, _, _, _, _, _)), Some(newR @ TenantRight(newLevel, _, _, _, _, _, _)))
-          if oldR != newR => {
+      case (Some(oldR @ TenantRight(oldLevel, _, _, _, oldDefaultProjectRight, oldDefaultKeyRight, oldDefaultWebhookRight)), Some(newR @ TenantRight(newLevel, _, _, _, newDefaultProjectRight, newDefaultKeyRight, newDefaultWebhookRight)))
+          if oldLevel != newLevel || oldDefaultProjectRight != newDefaultProjectRight || oldDefaultKeyRight != newDefaultKeyRight || oldDefaultWebhookRight != newDefaultWebhookRight => {
         Some(
           TenantRightDiff(
             addedTenantRight = Some(

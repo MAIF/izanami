@@ -1,5 +1,6 @@
 package fr.maif.izanami.web
 
+import fr.maif.izanami.RoleRightMode.Initial
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, MissingOIDCConfigurationError}
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
@@ -63,7 +64,8 @@ class LoginController(
               _emailField,
               callbackUrl,
               defaultOIDCUserRights,
-              userRightsByRoles
+              userRightsByRoles,
+              roleRightMode
             )
           ) => {
 
@@ -115,8 +117,9 @@ class LoginController(
               nameField,
               emailField,
               callbackUrl,
-              defaultOIDCUserRights,
-              userRightsByRoles
+              userRightsByRoles,
+              roleClaim,
+              roleRightMode
             ) = oauth2ConfigurationOpt.get
 
             var builder = env.Ws
@@ -155,7 +158,7 @@ class LoginController(
                   .flatMap(_.toOption)
                   .map(claims => claims.toJson)
                   .map(json => Json.parse(json))
-                  .flatMap(json => (json \ "roles").toOption)
+                  .flatMap(json => roleClaim.flatMap(roleClaimeName => (json \ roleClaimeName).toOption))
                   .map {
                     case JsString(value) => Set(value)
                     case arr: JsArray    => arr.value.map((el: JsValue) => el.as[String]).toSet
@@ -193,7 +196,7 @@ class LoginController(
                                                 .withRights(Rights(rights.tenants))
                                             )
                                         }(user => {
-                                          if (user.admin == rights.admin && user.tenantRights == rights.tenants) {
+                                          if (user.admin == rights.admin && user.tenantRights == rights.tenants && roleRightMode == Initial) {
                                             Future.successful(Right(user))
                                           } else {
                                             env.datastores.users.updateUserRights(
@@ -282,7 +285,9 @@ class LoginController(
                 callbackUrl = s"${env.expositionUrl}/login",
                 method = OAuth2BASICMethod,
                 enabled = true,
-                userRightsByRoles = Map()
+                userRightsByRoles = Map(),
+                roleClaim = None,
+                roleRightMode = None
               ).some
             } else {
               None

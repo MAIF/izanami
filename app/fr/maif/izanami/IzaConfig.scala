@@ -1,12 +1,9 @@
 package fr.maif.izanami
 
-import fr.maif.izanami.models.{GeneralAtomicRight, ProjectAtomicRight, ProjectRightLevel, RightLevel, Rights, TenantRight}
-import pureconfig.{CamelCase, ConfigFieldMapping, ConfigReader, PascalCase, SnakeCase}
-import ConfigProjectRightLevel.rightConvert
-import fr.maif.izanami.models.ProjectRightLevel.Update
-import fr.maif.izanami.models.RightLevel.{Read, Write}
+import fr.maif.izanami.models._
 import fr.maif.izanami.services.CompleteRights
-import pureconfig.generic.auto._
+import play.api.libs.json.{JsError, JsString, JsSuccess, Reads, Writes}
+import pureconfig.ConfigReader
 import pureconfig.generic.semiauto._
 
 case class IzanamiTypedConfiguration(app: AppConf, play: PlayRoot)
@@ -22,7 +19,7 @@ case class AppConf(
     wasm: Wasm,
     admin: Admin,
     exposition: Exposition,
-    openid: OpenId,
+    openid: Option[OpenId],
     wasmo: Wasmo,
     pg: Pg,
     authentication: Authentication,
@@ -59,7 +56,9 @@ case class OpenId(
     emailField: String,
     usernameField: String,
     pkce: OpenIdPkce,
-    rightByRoles: Map[String, RoleRights]
+    rightByRoles: Map[String, RoleRights],
+    roleClaim: Option[String],
+    roleRightMode: Option[RoleRightMode]
 )
 case class OpenIdPkce(enabled: Boolean, algorithm: Option[String])
 case class Wasmo(url: Option[String], clientId: Option[String], clientSecret: Option[String])
@@ -190,4 +189,25 @@ object ConfigNonNullableRightLevel {
 
 object ConfigNonNullableProjectRightLevel {
   implicit val rightConvert: ConfigReader[ConfigNonNullableProjectRightLevel] = deriveEnumerationReader[ConfigNonNullableProjectRightLevel]
+}
+
+
+sealed trait RoleRightMode
+
+case object RoleRightMode {
+  case object Supervised extends RoleRightMode
+  case object Initial extends RoleRightMode
+
+  def reads: Reads[RoleRightMode] = {
+    case JsString("Supervised") => JsSuccess(Supervised)
+    case JsString("Initial") => JsSuccess(Initial)
+    case _ => JsError("Failed to parse role right mode")
+  }
+
+  def writes: Writes[RoleRightMode] = {
+    case Supervised => JsString("Supervised")
+    case Initial => JsString("Initial")
+  }
+
+  implicit val roleRightModeConvert: ConfigReader[RoleRightMode] = deriveEnumerationReader[RoleRightMode]
 }

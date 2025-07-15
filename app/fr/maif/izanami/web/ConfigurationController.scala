@@ -24,16 +24,11 @@ class ConfigurationController(
     env.datastores.stats.retrieveStats().map(Ok(_))
   } }
 
-  private def hasOIDCConfChangedExceptDefaultRights(
+  private def hasOIDCConfChanged(
      newConfig: FullIzanamiConfiguration
   ): Future[Either[IzanamiError, Boolean]] = {
 
-    env.datastores.configuration.readFullConfiguration().map(either => either.map(oldConfig => {
-      val oldOidcConfigWithoutRights = oldConfig.oidcConfiguration.map(c => c.copy(defaultOIDCUserRights = null))
-      val updatedRightsConfigOidcConfigWithoutRights = newConfig.oidcConfiguration.map(c => c.copy(defaultOIDCUserRights = null))
-
-      oldOidcConfigWithoutRights != updatedRightsConfigOidcConfigWithoutRights
-    }))
+    env.datastores.configuration.readFullConfiguration().map(either => either.map(oldConfig => oldConfig.oidcConfiguration != newConfig.oidcConfiguration))
   }
 
   private def updateOIDCRightIfNeeded(conf: FullIzanamiConfiguration): Future[FullIzanamiConfiguration] = {
@@ -54,7 +49,7 @@ class ConfigurationController(
           case JsSuccess(configurationFromBody, _path) => {
             for(
               confWithFixedRights <- updateOIDCRightIfNeeded(configurationFromBody);
-              hasOIDCConfChanged <- hasOIDCConfChangedExceptDefaultRights(confWithFixedRights);
+              hasOIDCConfChanged <- hasOIDCConfChanged(confWithFixedRights);
               result <- (hasOIDCConfChanged, env.isOIDCConfigurationEditable) match {
                 case (Left(err), _) => err.toHttpResponse.future
                 case (Right(true), false) => BadRequest(Json.obj("message" -> "OIDC configuration can't be updated while it is set in env variables.")).future

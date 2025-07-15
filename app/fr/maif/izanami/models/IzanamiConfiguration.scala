@@ -1,5 +1,6 @@
 package fr.maif.izanami.models
 
+import fr.maif.izanami.RoleRightMode
 import fr.maif.izanami.mail.MailGunRegions.MailGunRegion
 import fr.maif.izanami.mail.MailerTypes.{MailJet, MailerType, SMTP}
 import fr.maif.izanami.mail.{MailProviderConfiguration, _}
@@ -48,8 +49,9 @@ case class OAuth2Configuration(
     nameField: String = "name",
     emailField: String = "email",
     callbackUrl: String,
-    defaultOIDCUserRights: Rights = Rights.EMPTY,
-    userRightsByRoles: Map[String, CompleteRights]
+    userRightsByRoles: Map[String, CompleteRights] = Map(),
+    roleClaim: Option[String],
+    roleRightMode: Option[RoleRightMode]
 )
 
 object OAuth2Configuration {
@@ -92,7 +94,6 @@ object OAuth2Configuration {
       "nameField"        -> o.nameField,
       "emailField"       -> o.emailField,
       "callbackUrl"      -> o.callbackUrl,
-      "defaultOIDCUserRights" -> User.rightWrite.writes(o.defaultOIDCUserRights),
       "userRightsByRoles" -> Json.toJson(o.userRightsByRoles)(Writes.map(CompleteRights.writes))
     )
 
@@ -111,7 +112,6 @@ object OAuth2Configuration {
         method <- (json \ "method").asOpt[OAuth2Method](OAuth2MethodReads)
       ) yield {
 
-        val defaultOIDCUserRights = (json \ "defaultOIDCUserRights").asOpt[Rights](User.rightsReads)
         val userRightsByRoles = (json \ "userRightsByRoles").asOpt[Map[String, CompleteRights]](Reads.map(CompleteRights.reads))
         OAuth2Configuration(
           method = method,
@@ -125,8 +125,9 @@ object OAuth2Configuration {
           scopes = scopes,
           pkce = (json \ "pkce").asOpt[PKCEConfig](PKCEConfig._fmt.reads),
           callbackUrl = callbackUrl,
-          defaultOIDCUserRights = defaultOIDCUserRights.getOrElse(Rights.EMPTY),
-          userRightsByRoles = userRightsByRoles.getOrElse(Map())
+          userRightsByRoles = userRightsByRoles.getOrElse(Map()),
+          roleClaim = (json \ "roleClaim").asOpt[String],
+          roleRightMode = (json \ "roleRightMode").asOpt[RoleRightMode](RoleRightMode.reads)
         )
       }
 

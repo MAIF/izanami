@@ -3,35 +3,21 @@ package fr.maif.izanami.api
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.sse.ServerSentEvent
-import akka.stream.{KillSwitches, Materializer, ThrottleMode, UniqueKillSwitch}
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
 import akka.stream.alpakka.sse.scaladsl.EventSource
 import akka.stream.scaladsl.{FileIO, Keep, Sink, Source}
+import akka.stream.{KillSwitches, Materializer, ThrottleMode, UniqueKillSwitch}
 import akka.util.Timeout
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
-import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, configure}
-import com.github.tomakehurst.wiremock.core.{Container, WireMockConfiguration}
+import com.github.tomakehurst.wiremock.client.WireMock.aResponse
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.github.tomakehurst.wiremock.http.{HttpHeaders, Request}
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.ConfigValueFactory
 import fr.maif.izanami.IzanamiLoader
-import fr.maif.izanami.api.BaseAPISpec.{
-  cleanUpDB,
-  eventKillSwitch,
-  isAvailable,
-  izanamiInstance,
-  login,
-  maybeContainers,
-  shouldCleanUpEvents,
-  shouldCleanUpMails,
-  shouldCleanUpWasmServer,
-  shouldRestartInstance,
-  startContainers,
-  webhookServers,
-  ws
-}
+import fr.maif.izanami.api.BaseAPISpec.{cleanUpDB, eventKillSwitch, isAvailable, izanamiInstance, login, maybeContainers, shouldCleanUpMails, shouldCleanUpWasmServer, shouldRestartInstance, startContainers, webhookServers, ws}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.utils.{WasmManagerClient, WiremockResponseDefinitionTransformer}
 import org.awaitility.scala.AwaitilitySupport
@@ -41,13 +27,13 @@ import org.scalatestplus.play.PlaySpec
 import org.testcontainers.containers.DockerComposeContainer
 import play.api.ApplicationLoader.Context
 import play.api.inject.DefaultApplicationLifecycle
-import play.api.{Application, Configuration, Environment, Mode}
 import play.api.libs.json._
 import play.api.libs.ws.ahc.{AhcWSClient, StandaloneAhcWSClient}
 import play.api.libs.ws.{WSAuthScheme, WSClient, WSCookie, WSResponse}
-import play.api.test.Helpers.{await, OK}
 import play.api.mvc.MultipartFormData.FilePart
+import play.api.test.Helpers.{OK, await}
 import play.api.test.{DefaultAwaitTimeout, DefaultTestServerFactory, RunningServer}
+import play.api.{Application, Configuration, Environment, Mode}
 import play.core.server.ServerConfig
 
 import java.io.{BufferedWriter, File, FileWriter, IOException}
@@ -62,8 +48,8 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration.{DurationInt, SECONDS}
+import scala.concurrent.{Future, Promise}
 import scala.util.Try
 
 case class StubServer(server: WireMockServer, extension: WiremockResponseDefinitionTransformer)
@@ -314,9 +300,12 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
   def startServer(customConfig: Map[String, AnyRef]): RunningServer = {
     val configuration: Configuration = Configuration.load(Environment.simple(), Map("config.file" -> "conf/dev.conf"))
-    var updatedConfig                = customConfig.foldLeft(configuration.underlying)((conf, entry) => {
-      conf.withValue(entry._1, ConfigValueFactory.fromAnyRef(entry._2))
-    })
+    var updatedConfig                = customConfig
+      .foldLeft(configuration.underlying.withValue("app.openid", ConfigValueFactory.fromAnyRef(null)))(
+        (conf, entry) => {
+          conf.withValue(entry._1, ConfigValueFactory.fromAnyRef(entry._2))
+        }
+      )
 
     lazy val application = new IzanamiLoader().load(
       Context(

@@ -104,12 +104,18 @@ class Env(
   val wasmIntegration = WasmIntegration(new IzanamiWasmIntegrationContext(this))
   val jobs            = new Jobs(this)
 
-  val oidcConfig = typedConfiguration.openid
+  val maybeOidcConfig = typedConfiguration.openid
 
-  def isOIDCConfigurationEditable: Boolean =
-    Seq(oidcConfig.clientId, oidcConfig.clientSecret, oidcConfig.authorizeUrl, oidcConfig.tokenUrl).forall(o =>
-      o.isEmpty
-    )
+  def isOIDCConfigurationEditable: Boolean = {
+    (for(
+      oidcConfig <- maybeOidcConfig;
+      _ <- oidcConfig.clientId;
+      _ <- oidcConfig.clientSecret;
+      _ <- oidcConfig.authorizeUrl;
+      _ <- oidcConfig.tokenUrl
+    ) yield false)
+      .getOrElse(true)
+  }
 
   def oidcConfigurationMigration() = {
     datastores.configuration
@@ -118,12 +124,13 @@ class Env(
         case Left(err)            =>
         case Right(configuration) =>
           for (
+            oidcConfig <- maybeOidcConfig;
             clientId      <- oidcConfig.clientId;
             clientSecret  <- oidcConfig.clientSecret;
             authorizeUrl  <- oidcConfig.authorizeUrl;
             tokenUrl      <- oidcConfig.tokenUrl
           ) yield {
-            logger.info("The OIDC configuration has been register in database from environments variables")
+
 
             val oauth = OAuth2Configuration(
               clientId = clientId,
@@ -141,9 +148,15 @@ class Env(
               } else {
                 None
               },
-              userRightsByRoles = oidcConfig.rightByRoles.view.mapValues(v => v.toRights).toMap
+              userRightsByRoles = oidcConfig.rightByRoles.view.mapValues(v => v.toRights).toMap,
+              roleClaim = oidcConfig.roleClaim,
+              roleRightMode = oidcConfig.roleRightMode
             )
             datastores.configuration.updateConfiguration(configuration.copy(oidcConfiguration = Some(oauth)))
+              .map(res => {
+                logger.info("The OIDC configuration has been register in database from environments variables")
+                res
+              })
           }
       }
   }
