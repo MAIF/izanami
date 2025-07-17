@@ -247,7 +247,7 @@ case class ProjectScopedUser(
     tenantAdmin: Boolean = false
 ) extends UserTrait
 
-// Repesent an user with a single key or webhook right
+// Repesent a user with a single key or webhook right
 case class SingleItemScopedUser(
     override val username: String,
     override val email: String = null,
@@ -435,18 +435,25 @@ object Rights {
       removedWebhookRights: Map[String, Seq[FlattenWebhookRight]] = Map()
   )
 
-  case class TenantRightDiff(
-      addedTenantRight: Option[FlattenTenantRight] = Option.empty,
-      removedTenantRight: Option[FlattenTenantRight] = Option.empty,
-      addedProjectRights: Set[FlattenProjectRight] = Set(),
-      removedProjectRights: Set[FlattenProjectRight] = Set(),
-      addedKeyRights: Set[FlattenKeyRight] = Set(),
-      removedKeyRights: Set[FlattenKeyRight] = Set(),
-      addedWebhookRights: Set[FlattenWebhookRight] = Set(),
-      removedWebhookRights: Set[FlattenWebhookRight] = Set()
-  )
+  sealed trait TenantRightDiff
+
+  case object DeleteTenantRights extends TenantRightDiff
+  case class UpsertTenantRights(addedTenantRight: Option[UnscopedFlattenTenantRight] = Option.empty,
+                                addedProjectRights: Set[UnscopedFlattenProjectRight] = Set(),
+                                removedProjectRights: Set[String] = Set(),
+                                addedKeyRights: Set[UnscopedFlattenKeyRight] = Set(),
+                                removedKeyRights: Set[String] = Set(),
+                                addedWebhookRights: Set[UnscopedFlattenWebhookRight] = Set(),
+                                removedWebhookRights: Set[String] = Set()) extends TenantRightDiff
 
   sealed trait FlattenRight
+
+  case class UnscopedFlattenTenantRight(
+     level: RightLevel,
+     defaultProjectRight: Option[ProjectRightLevel] = None,
+     defaultKeyRight: Option[RightLevel] = None,
+     defaultWebhookRight: Option[RightLevel] = None
+   ) extends FlattenRight
 
   case class FlattenTenantRight(
       name: String,
@@ -457,30 +464,33 @@ object Rights {
   ) extends FlattenRight
 
   case class FlattenProjectRight(name: String, tenant: String, level: ProjectRightLevel) extends FlattenRight
+  case class UnscopedFlattenProjectRight(name: String, level: ProjectRightLevel) extends FlattenRight
 
   case class FlattenKeyRight(name: String, tenant: String, level: RightLevel) extends FlattenRight
+  case class UnscopedFlattenKeyRight(name: String, level: RightLevel) extends FlattenRight
 
   case class FlattenWebhookRight(name: String, tenant: String, level: RightLevel) extends FlattenRight
+  case class UnscopedFlattenWebhookRight(name: String, level: RightLevel) extends FlattenRight
 
   val EMPTY: Rights = Rights(tenants = Map())
 
   // TODO refactor me
   def compare(tenantName: String, base: Option[TenantRight], modified: Option[TenantRight]): Option[TenantRightDiff] = {
-    def flattenProjects(tenantRight: TenantRight): Set[FlattenProjectRight] = {
+    def flattenProjects(tenantRight: TenantRight): Set[UnscopedFlattenProjectRight] = {
       tenantRight.projects.map { case (projectName, ProjectAtomicRight(level)) =>
-        FlattenProjectRight(name = projectName, level = level, tenant = tenantName)
+        UnscopedFlattenProjectRight(name = projectName, level = level)
       }.toSet
     }
 
-    def flattenKeys(tenantRight: TenantRight): Set[FlattenKeyRight] = {
+    def flattenKeys(tenantRight: TenantRight): Set[UnscopedFlattenKeyRight] = {
       tenantRight.keys.map { case (keyName, GeneralAtomicRight(level)) =>
-        FlattenKeyRight(name = keyName, level = level, tenant = tenantName)
+        UnscopedFlattenKeyRight(name = keyName, level = level)
       }.toSet
     }
 
-    def flattenWebhooks(tenantRight: TenantRight): Set[FlattenWebhookRight] = {
+    def flattenWebhooks(tenantRight: TenantRight): Set[UnscopedFlattenWebhookRight] = {
       tenantRight.webhooks.map { case (webhookName, GeneralAtomicRight(level)) =>
-        FlattenWebhookRight(name = webhookName, level = level, tenant = tenantName)
+        UnscopedFlattenWebhookRight(name = webhookName, level = level)
       }.toSet
     }
 
@@ -488,27 +498,13 @@ object Rights {
       case (None, None)                 => None
       case (Some(existingRights), None) =>
         Some(
-          TenantRightDiff(
-            removedTenantRight = Some(
-              FlattenTenantRight(
-                name = tenantName,
-                level = existingRights.level,
-                defaultProjectRight = existingRights.defaultProjectRight,
-                defaultKeyRight = existingRights.defaultKeyRight,
-                defaultWebhookRight = existingRights.defaultWebhookRight
-              )
-            ),
-            removedProjectRights = flattenProjects(existingRights),
-            removedKeyRights = flattenKeys(existingRights),
-            removedWebhookRights = flattenWebhooks(existingRights)
-          )
+          DeleteTenantRights
         )
       case (None, Some(newRights))      =>
         Some(
-          TenantRightDiff(
+          UpsertTenantRights(
             addedTenantRight = Some(
-              FlattenTenantRight(
-                name = tenantName,
+              UnscopedFlattenTenantRight(
                 level = newRights.level,
                 defaultProjectRight = newRights.defaultProjectRight,
                 defaultKeyRight = newRights.defaultKeyRight,
@@ -523,43 +519,33 @@ object Rights {
       case (Some(oldR @ TenantRight(oldLevel, _, _, _, oldDefaultProjectRight, oldDefaultKeyRight, oldDefaultWebhookRight)), Some(newR @ TenantRight(newLevel, _, _, _, newDefaultProjectRight, newDefaultKeyRight, newDefaultWebhookRight)))
           if oldLevel != newLevel || oldDefaultProjectRight != newDefaultProjectRight || oldDefaultKeyRight != newDefaultKeyRight || oldDefaultWebhookRight != newDefaultWebhookRight => {
         Some(
-          TenantRightDiff(
+          UpsertTenantRights(
             addedTenantRight = Some(
-              FlattenTenantRight(
-                name = tenantName,
+              UnscopedFlattenTenantRight(
                 level = newLevel,
                 defaultProjectRight = newR.defaultProjectRight,
                 defaultKeyRight = newR.defaultKeyRight,
                 defaultWebhookRight = newR.defaultWebhookRight
               )
             ),
-            removedTenantRight = Some(
-              FlattenTenantRight(
-                name = tenantName,
-                level = oldLevel,
-                defaultProjectRight = oldR.defaultProjectRight,
-                defaultKeyRight = oldR.defaultKeyRight,
-                defaultWebhookRight = oldR.defaultWebhookRight
-              )
-            ),
             addedProjectRights = flattenProjects(newR).diff(flattenProjects(oldR)),
-            removedProjectRights = flattenProjects(oldR).diff(flattenProjects(newR)),
+            removedProjectRights = flattenProjects(oldR).diff(flattenProjects(newR)).map(_.name),
             addedKeyRights = flattenKeys(newR).diff(flattenKeys(oldR)),
-            removedKeyRights = flattenKeys(oldR).diff(flattenKeys(newR)),
+            removedKeyRights = flattenKeys(oldR).diff(flattenKeys(newR)).map(_.name),
             addedWebhookRights = flattenWebhooks(newR).diff(flattenWebhooks(oldR)),
-            removedWebhookRights = flattenWebhooks(oldR).diff(flattenWebhooks(newR))
+            removedWebhookRights = flattenWebhooks(oldR).diff(flattenWebhooks(newR)).map(_.name)
           )
         )
       }
       case (Some(oldR), Some(newR))     => {
         Some(
-          TenantRightDiff(
+          UpsertTenantRights(
             addedProjectRights = flattenProjects(newR).diff(flattenProjects(oldR)),
-            removedProjectRights = flattenProjects(oldR).diff(flattenProjects(newR)),
+            removedProjectRights = flattenProjects(oldR).diff(flattenProjects(newR)).map(_.name),
             addedKeyRights = flattenKeys(newR).diff(flattenKeys(oldR)),
-            removedKeyRights = flattenKeys(oldR).diff(flattenKeys(newR)),
+            removedKeyRights = flattenKeys(oldR).diff(flattenKeys(newR)).map(_.name),
             addedWebhookRights = flattenWebhooks(newR).diff(flattenWebhooks(oldR)),
-            removedWebhookRights = flattenWebhooks(oldR).diff(flattenWebhooks(newR))
+            removedWebhookRights = flattenWebhooks(oldR).diff(flattenWebhooks(newR)).map(_.name)
           )
         )
       }

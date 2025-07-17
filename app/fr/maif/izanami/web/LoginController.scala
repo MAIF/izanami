@@ -199,7 +199,7 @@ class LoginController(
                                           if (user.admin == rights.admin && user.tenantRights == rights.tenants && roleRightMode == Initial) {
                                             Future.successful(Right(user))
                                           } else {
-                                            env.datastores.users.updateUserRights(
+                                            rightService.updateUserRights(
                                               user.username,
                                               UserRightsUpdateRequest.fromRights(rights)
                                             )

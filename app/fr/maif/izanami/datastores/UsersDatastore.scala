@@ -1,12 +1,11 @@
 package fr.maif.izanami.datastores
 
 import akka.actor.Cancellable
-import fr.maif.izanami.datastores.userImplicits.{dbUserTypeToUserType, projectRightRead, rightRead, UserRow}
+import fr.maif.izanami.datastores.userImplicits.{UserRow, dbUserTypeToUserType, projectRightRead, rightRead}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
-import fr.maif.izanami.models.ProjectRightLevel
 import fr.maif.izanami.models.RightLevel.superiorOrEqualLevels
 import fr.maif.izanami.models.Rights.TenantRightDiff
 import fr.maif.izanami.models.User.tenantRightReads
@@ -16,12 +15,12 @@ import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
-import play.api.libs.json.{JsError, JsSuccess, Reads, Writes}
+import play.api.libs.json.{JsError, JsSuccess, Reads}
 
 import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
-import scala.concurrent.duration.{DurationInt, DurationLong}
+import scala.concurrent.duration.DurationLong
 
 class UsersDatastore(val env: Env) extends Datastore {
   var sessionExpirationCancellation: Cancellable    = Cancellable.alreadyCancelled
@@ -141,215 +140,190 @@ class UsersDatastore(val env: Env) extends Datastore {
       .map(_.toRight(InvalidCredentials()))
   }
 
-  def deleteRightsForProject(username: String, tenant: String, project: String): Future[Unit] = {
-    env.postgresql
-      .queryOne(
-        s"""
-         |DELETE FROM users_projects_rights WHERE username=$$1
-         |""".stripMargin,
-        List(username),
-        schemas = Seq(tenant)
-      ) { _ => Some(()) }
-      .map(_ => ())
-  }
-
-  def deleteRightsForTenant(
-      name: String,
-      tenant: String,
-      loggedInUser: UserWithRights
-  ): Future[Either[IzanamiError, Unit]] = {
-    val authorized = loggedInUser.hasAdminRightForTenant(tenant)
-
-    if (!authorized) {
-      Left(NotEnoughRights()).future
-    } else {
-      env.postgresql.executeInTransaction(
-        conn =>
-          {
-            env.postgresql
-              .queryOne(
-                s"""
-               |DELETE FROM izanami.users_tenants_rights WHERE username=$$1 AND tenant=$$2
-               |""".stripMargin,
-                List(name, tenant),
-                conn = Some(conn)
-              ) { _ => Some(()) }
-              .flatMap(_ => {
-                env.postgresql.queryOne(
-                  s"""
-                       |DELETE FROM users_projects_rights WHERE username=$$1
-                       |""".stripMargin,
-                  List(name),
-                  conn = Some(conn)
-                ) { r => Some(()) }
-              })
-              .flatMap(_ => {
-                env.postgresql.queryOne(
-                  s"""
-                       |DELETE FROM users_keys_rights WHERE username=$$1
-                       |""".stripMargin,
-                  List(name),
-                  conn = Some(conn)
-                ) { r => Some(()) }
-              })
-          }.map(_ => Right(())),
-        schemas = Seq(tenant)
-      )
-    }
-  }
-
-  def updateUserRightsForProject(
-      username: String,
-      tenant: String,
-      project: String,
-      right: ProjectRightLevel
-  ): Future[Unit] = {
-    env.postgresql
-      .queryOne(
-        s"""
-         |INSERT INTO users_projects_rights (username, project, level) VALUES ($$1, $$2, $$3)
-         |ON CONFLICT(username, project) DO UPDATE
-         |SET username=EXCLUDED.username, project=EXCLUDED.project, level=EXCLUDED.level
-         |RETURNING 1
-         |""".stripMargin,
-        List(username, project, right.toString.toUpperCase),
-        schemas = Seq(tenant)
-      ) { _ => Some(()) }
-      .map(_ => ())
-  }
-
   def updateUserRightsForTenant(
       name: String,
       tenant: String,
       diff: TenantRightDiff
   ): Future[Unit] = {
-    env.postgresql
-      .executeInTransaction(
-        conn => {
-          val tenantQuery = diff.removedTenantRight
-            .map(r => {
+
+    diff match {
+      case Rights.DeleteTenantRights => {
+        env.postgresql.executeInTransaction(conn => {
+          env.postgresql
+            .queryOne(
+              s"""
+               |DELETE FROM izanami.users_tenants_rights
+               |WHERE username=$$1
+               |AND tenant=$$2
+               |RETURNING username
+               |""".stripMargin,
+              List(name, tenant),
+              conn = Some(conn)
+            ) { _ => Some(()) }
+            .flatMap(_ => {
               env.postgresql.queryOne(
                 s"""
-                           |DELETE FROM izanami.users_tenants_rights
-                           |WHERE username=$$1
-                           |AND tenant=$$2
-                           |RETURNING username
-                           |""".stripMargin,
-                List(name, r.name),
-                conn = Some(conn)
+                   |DELETE FROM users_projects_rights
+                   |WHERE username=$$1
+                   |RETURNING username
+                   |""".stripMargin,
+                List(name),
+                conn = Some(conn),
+                schemas = Seq(tenant)
               ) { _ => Some(()) }
             })
-            .toSeq
-          Future
-            .sequence(
-              tenantQuery.concat(
-                Seq(
-                  env.postgresql.queryOne(
-                    s"""
-                               |DELETE FROM users_projects_rights
-                               |WHERE username=$$1
-                               |AND project=ANY($$2)
-                               |RETURNING username
-                               |""".stripMargin,
-                    List(name, diff.removedProjectRights.map(_.name).toArray),
-                    conn = Some(conn)
-                  ) { _ => Some(()) },
-                  env.postgresql.queryOne(
-                    s"""
-                               |DELETE FROM users_keys_rights
-                               |WHERE username=$$1
-                               |AND apikey=ANY($$2)
-                               |RETURNING username
-                               |""".stripMargin,
-                    List(name, diff.removedKeyRights.map(_.name).toArray),
-                    conn = Some(conn)
-                  ) { _ => Some(()) },
-                  env.postgresql.queryOne(
-                    s"""
-                       |DELETE FROM users_webhooks_rights
-                       |WHERE username=$$1
-                       |AND webhook=ANY($$2)
-                       |RETURNING username
-                       |""".stripMargin,
-                    List(name, diff.removedWebhookRights.map(_.name).toArray),
-                    conn = Some(conn)
-                  ) { _ => Some(()) }
-                )
-              )
-            )
             .flatMap(_ => {
-              Future.sequence(
-                (
-                  diff.addedTenantRight
-                    .map(r => {
-                      env.postgresql.queryOne(
-                        s"""
-                               |INSERT INTO izanami.users_tenants_rights(username, tenant, level, default_project_right, default_webhook_right, default_key_right)
-                               |VALUES($$1, $$2, $$3, $$4, $$5, $$6)
-                               |RETURNING username
-                               |""".stripMargin,
-                        List(
-                          name,
-                          tenant,
-                          r.level.toString.toUpperCase,
-                          r.defaultProjectRight.map(_.toString.toUpperCase).orNull,
-                          r.defaultWebhookRight.map(_.toString.toUpperCase).orNull,
-                          r.defaultKeyRight.map(_.toString.toUpperCase).orNull
-                        ),
-                        conn = Some(conn)
-                      ) { _ => Some(()) }
-                    })
-                  )
-                  .toSeq
-                  .concat(
+              env.postgresql.queryOne(
+                s"""
+                   |DELETE FROM users_keys_rights
+                   |WHERE username=$$1
+                   |RETURNING username
+                   |""".stripMargin,
+                List(name),
+                conn = Some(conn),
+                schemas = Seq(tenant)
+              ) { _ => Some(()) }
+            })
+            .flatMap(_ => {
+              env.postgresql.queryOne(
+                s"""
+                   |DELETE FROM users_webhooks_rights
+                   |WHERE username=$$1
+                   |RETURNING username
+                   |""".stripMargin,
+                List(name),
+                conn = Some(conn),
+                schemas = Seq(tenant)
+              ) { _ => Some(()) }
+            })
+        }).map(_ => ())
+      }
+      case Rights.UpsertTenantRights(
+            addedTenantRight,
+            addedProjectRights,
+            removedProjectRights,
+            addedKeyRights,
+            removedKeyRights,
+            addedWebhookRights,
+            removedWebhookRights
+          ) => {
+        env.postgresql
+          .executeInTransaction(
+            conn => {
+              Future
+                .sequence(
                     Seq(
                       env.postgresql.queryOne(
                         s"""
-                               |INSERT INTO users_projects_rights(username, project, level)
-                               |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.project_right_level[]))
-                               |RETURNING username
-                               |""".stripMargin,
-                        List(
-                          name,
-                          diff.addedProjectRights.map { flatten => flatten.name }.toArray,
-                          diff.addedProjectRights.map { flatten => flatten.level.toString.toUpperCase }.toArray
-                        ),
-                        conn = Some(conn)
-                      ) { _ => Some(()) },
-                      env.postgresql.queryOne(
-                        s"""
-                               |INSERT INTO users_keys_rights(username,apikey, level)
-                               |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
-                               |RETURNING username
-                               |""".stripMargin,
-                        List(
-                          name,
-                          diff.addedKeyRights.map(flatten => flatten.name).toArray,
-                          diff.addedKeyRights.map(flatten => flatten.level.toString.toUpperCase).toArray
-                        ),
-                        conn = Some(conn)
-                      ) { _ => Some(()) },
-                      env.postgresql.queryOne(
-                        s"""
-                           |INSERT INTO users_webhooks_rights(username, webhook, level)
-                           |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
+                           |DELETE FROM users_projects_rights
+                           |WHERE username=$$1
+                           |AND project=ANY($$2)
                            |RETURNING username
                            |""".stripMargin,
-                        List(
-                          name,
-                          diff.addedWebhookRights.map(flatten => flatten.name).toArray,
-                          diff.addedWebhookRights.map(flatten => flatten.level.toString.toUpperCase).toArray
-                        ),
+                        List(name, removedProjectRights.toArray),
+                        conn = Some(conn)
+                      ) { _ => Some(()) },
+                      env.postgresql.queryOne(
+                        s"""
+                           |DELETE FROM users_keys_rights
+                           |WHERE username=$$1
+                           |AND apikey=ANY($$2)
+                           |RETURNING username
+                           |""".stripMargin,
+                        List(name, removedKeyRights.toArray),
+                        conn = Some(conn)
+                      ) { _ => Some(()) },
+                      env.postgresql.queryOne(
+                        s"""
+                           |DELETE FROM users_webhooks_rights
+                           |WHERE username=$$1
+                           |AND webhook=ANY($$2)
+                           |RETURNING username
+                           |""".stripMargin,
+                        List(name, removedWebhookRights.toArray),
                         conn = Some(conn)
                       ) { _ => Some(()) }
                     )
+                )
+                .flatMap(_ => {
+                  Future.sequence(
+                    (
+                      addedTenantRight
+                        .map(r => {
+                          env.postgresql.queryOne(
+                            s"""
+                               |INSERT INTO izanami.users_tenants_rights(username, tenant, level, default_project_right, default_webhook_right, default_key_right)
+                               |VALUES($$1, $$2, $$3, $$4, $$5, $$6)
+                               |ON CONFLICT (username, tenant) DO UPDATE SET level=EXCLUDED.level, default_project_right=EXCLUDED.default_project_right, default_webhook_right=EXCLUDED.default_webhook_right, default_key_right=EXCLUDED.default_key_right
+                               |RETURNING username
+                               |""".stripMargin,
+                            List(
+                              name,
+                              tenant,
+                              r.level.toString.toUpperCase,
+                              r.defaultProjectRight.map(_.toString.toUpperCase).orNull,
+                              r.defaultWebhookRight.map(_.toString.toUpperCase).orNull,
+                              r.defaultKeyRight.map(_.toString.toUpperCase).orNull
+                            ),
+                            conn = Some(conn)
+                          ) { _ => Some(()) }
+                        })
+                      )
+                      .toSeq
+                      .concat(
+                        Seq(
+                          env.postgresql.queryOne(
+                            s"""
+                               |INSERT INTO users_projects_rights(username, project, level)
+                               |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.project_right_level[]))
+                               |ON CONFLICT (username, project) DO UPDATE SET level=EXCLUDED.level
+                               |RETURNING username
+                               |""".stripMargin,
+                            List(
+                              name,
+                              addedProjectRights.map { flatten => flatten.name }.toArray,
+                              addedProjectRights.map { flatten => flatten.level.toString.toUpperCase }.toArray
+                            ),
+                            conn = Some(conn)
+                          ) { _ => Some(()) },
+                          env.postgresql.queryOne(
+                            s"""
+                               |INSERT INTO users_keys_rights(username,apikey, level)
+                               |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
+                               |ON CONFLICT (username, project) DO UPDATE SET level=EXCLUDED.level
+                               |RETURNING username
+                               |""".stripMargin,
+                            List(
+                              name,
+                              addedKeyRights.map(flatten => flatten.name).toArray,
+                              addedKeyRights.map(flatten => flatten.level.toString.toUpperCase).toArray
+                            ),
+                            conn = Some(conn)
+                          ) { _ => Some(()) },
+                          env.postgresql.queryOne(
+                            s"""
+                               |INSERT INTO users_webhooks_rights(username, webhook, level)
+                               |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
+                               |ON CONFLICT (username, project) DO UPDATE SET level=EXCLUDED.level
+                               |RETURNING username
+                               |""".stripMargin,
+                            List(
+                              name,
+                              addedWebhookRights.map(flatten => flatten.name).toArray,
+                              addedWebhookRights.map(flatten => flatten.level.toString.toUpperCase).toArray
+                            ),
+                            conn = Some(conn)
+                          ) { _ => Some(()) }
+                        )
+                      )
                   )
-              )
-            })
-        },
-        schemas = Seq(tenant)
-      )
-      .map(_ => ())
+                })
+            },
+            schemas = Seq(tenant)
+          )
+          .map(_ => ())
+      }
+    }
   }
 
   def updateUserRights(

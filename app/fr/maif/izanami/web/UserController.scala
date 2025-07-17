@@ -2,10 +2,10 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{BadBodyFormat, EmailAlreadyUsed}
-import fr.maif.izanami.models.RightLevel.{Read}
-import fr.maif.izanami.models.Rights.{FlattenKeyRight, FlattenTenantRight, FlattenWebhookRight, TenantRightDiff}
+import fr.maif.izanami.models.Rights.{unapply, _}
 import fr.maif.izanami.models.User._
 import fr.maif.izanami.models._
+import fr.maif.izanami.services.RightService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.data.validation.{Constraints, Valid}
 import play.api.libs.json._
@@ -25,7 +25,8 @@ class UserController(
     val tenantRightFilterAction: TenantAuthActionFactory,
     val projectAuthAction: ProjectAuthActionFactory,
     val webhookAuthAction: WebhookAuthActionFactory,
-    val keyAuthAction: KeyAuthActionFactory
+    val keyAuthAction: KeyAuthActionFactory,
+    val rightService: RightService
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
 
@@ -130,33 +131,30 @@ class UserController(
         .asOpt[JsObject]
         .fold(BadBodyFormat().toHttpResponse.future) {
           case obj if obj.fields.isEmpty =>
-            env.datastores.users
+            rightService
               .updateUserRightsForTenant(
                 user,
                 tenant,
-                TenantRightDiff(removedWebhookRights =
-                  Set(FlattenWebhookRight(name = request.hookName, tenant = tenant, level = Read))
-                )
+                UpsertTenantRights(removedWebhookRights = Set(request.hookName))
               )
               .map(_ => NoContent)
           case obj                       => {
             (obj \ "level").asOpt[RightLevel] match {
               case None        => BadBodyFormat().toHttpResponse.future
               case Some(level) => {
-                val baseDiff = TenantRightDiff(
-                  removedWebhookRights =
-                    Set(FlattenWebhookRight(name = request.hookName, tenant = tenant, level = Read)),
-                  addedWebhookRights = Set(FlattenWebhookRight(name = request.hookName, tenant = tenant, level = level))
+                val baseDiff = UpsertTenantRights(
+                  removedWebhookRights = Set(request.hookName),
+                  addedWebhookRights = Set(UnscopedFlattenWebhookRight(name = request.hookName, level = level))
                 )
 
                 env.datastores.users.findUser(user).flatMap {
                   case Some(userWithTenantRights) => {
                     val tenantRightDiff = userWithTenantRights.tenantRights
                       .get(tenant)
-                      .fold(baseDiff.copy(addedTenantRight = Some(FlattenTenantRight(tenant, RightLevel.Read))))(_ =>
+                      .fold(baseDiff.copy(addedTenantRight = Some(UnscopedFlattenTenantRight(RightLevel.Read))))(_ =>
                         baseDiff
                       )
-                    env.datastores.users
+                    rightService
                       .updateUserRightsForTenant(user, tenant, tenantRightDiff)
                       .map(_ => NoContent)
                   }
@@ -175,30 +173,30 @@ class UserController(
         .asOpt[JsObject]
         .fold(BadBodyFormat().toHttpResponse.future) {
           case obj if obj.fields.isEmpty =>
-            env.datastores.users
+            rightService
               .updateUserRightsForTenant(
                 user,
                 tenant,
-                TenantRightDiff(removedKeyRights = Set(FlattenKeyRight(name = name, tenant = tenant, level = Read)))
+                UpsertTenantRights(removedKeyRights = Set(name))
               )
               .map(_ => NoContent)
           case obj                       => {
             (obj \ "level").asOpt[RightLevel] match {
               case None        => BadBodyFormat().toHttpResponse.future
               case Some(level) => {
-                val baseDiff = TenantRightDiff(
-                  removedKeyRights = Set(FlattenKeyRight(name = name, tenant = tenant, level = Read)),
-                  addedKeyRights = Set(FlattenKeyRight(name = name, tenant = tenant, level = level))
+                val baseDiff = UpsertTenantRights(
+                  removedKeyRights = Set(name),
+                  addedKeyRights = Set(UnscopedFlattenKeyRight(name = name, level = level))
                 )
 
                 env.datastores.users.findUser(user).flatMap {
                   case Some(userWithTenantRights) => {
                     val tenantRightDiff = userWithTenantRights.tenantRights
                       .get(tenant)
-                      .fold(baseDiff.copy(addedTenantRight = Some(FlattenTenantRight(tenant, RightLevel.Read))))(_ =>
+                      .fold(baseDiff.copy(addedTenantRight = Some(UnscopedFlattenTenantRight(RightLevel.Read))))(_ =>
                         baseDiff
                       )
-                    env.datastores.users
+                    rightService
                       .updateUserRightsForTenant(user, tenant, tenantRightDiff)
                       .map(_ => NoContent)
                   }
@@ -217,7 +215,9 @@ class UserController(
         .asOpt[JsObject]
         .fold(BadBodyFormat().toHttpResponse.future)(obj => {
           if (obj.fields.isEmpty) {
-            env.datastores.users.deleteRightsForProject(user, tenant, project).map(_ => NoContent)
+            rightService
+              .updateUserRightsForTenant(user, tenant, UpsertTenantRights(removedProjectRights = Set(project)))
+              .map(_ => NoContent)
           } else {
             val newLevel = (obj \ "level").as[ProjectRightLevel]
 
@@ -225,14 +225,14 @@ class UserController(
               case Some(userWithTenantRights) =>
                 {
                   userWithTenantRights.tenantRights.get(tenant) match {
-                    case Some(_) => env.datastores.users.updateUserRightsForProject(user, tenant, project, newLevel)
+                    case Some(_) => rightService.updateUserRightsForTenant(user, tenant, UpsertTenantRights(addedProjectRights = Set(Rights.UnscopedFlattenProjectRight(project, level = newLevel))))
                     case None    =>
-                      env.datastores.users.updateUserRightsForTenant(
+                      rightService.updateUserRightsForTenant(
                         user,
                         tenant,
-                        TenantRightDiff(
-                          addedTenantRight = Some(Rights.FlattenTenantRight(tenant, RightLevel.Read)),
-                          addedProjectRights = Set(Rights.FlattenProjectRight(project, tenant, level = newLevel))
+                        UpsertTenantRights(
+                          addedTenantRight = Some(Rights.UnscopedFlattenTenantRight(RightLevel.Read)),
+                          addedProjectRights = Set(Rights.UnscopedFlattenProjectRight(project, level = newLevel))
                         )
                       )
                   }
@@ -246,7 +246,7 @@ class UserController(
   def updateUserRights(user: String): Action[JsValue] = adminAction.async(parse.json) { implicit request =>
     User.userRightsUpdateReads.reads(request.body) match {
       case JsSuccess(modificationRequest, _) =>
-        env.datastores.users.updateUserRights(user, modificationRequest).map {
+        rightService.updateUserRights(user, modificationRequest).map {
           case Left(err) => err.toHttpResponse
           case Right(_)  => NoContent
         }
@@ -257,53 +257,67 @@ class UserController(
   def updateUserRightsForTenant(tenant: String, user: String): Action[JsValue] = {
     // TODO use tenantActionRight ?
     detailledAuthAction.async(parse.json) { implicit request =>
-      if ((request.body.as[JsObject]).fields.isEmpty) {
-        env.datastores.users.deleteRightsForTenant(user, tenant, request.user).map {
-          case Left(err)    => err.toHttpResponse
-          case Right(value) => NoContent
-        }
-      } else {
-        User.tenantRightReads.reads(request.body) match {
-          case JsSuccess(value, _) => {
-            env.datastores.users.findUserWithCompleteRights(user).flatMap {
-              case Some(user) => {
-                val currentRights: TenantRight = user.rights.tenants.getOrElse(tenant, TenantRight(null))
-                val diff                       = Rights.compare(tenant, base = Option(currentRights), modified = Option(value))
+      {
 
-                diff match {
-                  case None       => NoContent.future
-                  case Some(diff) => {
-                    // TODO externalize this
-                    val authorized =
-                      diff.removedProjectRights
-                        .concat(diff.addedProjectRights)
-                        .map(_.name)
-                        .forall(project => request.user.hasAdminRightForProject(project, tenant)) &&
-                      diff.removedKeyRights
-                        .concat(diff.addedKeyRights)
-                        .map(_.name)
-                        .forall(key => request.user.hasAdminRightForKey(key, tenant)) &&
-                      diff.addedTenantRight
-                        .orElse(diff.removedTenantRight)
-                        .map(_.name)
-                        .forall(tenant => request.user.hasAdminRightForTenant(tenant)) &&
-                      diff.removedWebhookRights
-                        .concat(diff.addedWebhookRights)
-                        .map(_.name)
-                        .forall(webhook => request.user.hasAdminRightForWebhook(webhook, tenant))
-                    if (!authorized) {
-                      Forbidden(Json.obj("message" -> "Not enough rights")).future
-                    } else {
-                      env.datastores.users.updateUserRightsForTenant(user.username, tenant, diff).map(_ => NoContent)
-                    }
+        val futureRightChange: Future[Either[Result, TenantRightDiff]] =
+          if ((request.body.as[JsObject]).fields.isEmpty) {
+            Future.successful(Right(DeleteTenantRights))
+          } else {
+            User.tenantRightReads.reads(request.body) match {
+              case JsError(_)          => Left(BadBodyFormat().toHttpResponse).future
+              case JsSuccess(value, _) => {
+                env.datastores.users.findUserWithCompleteRights(user).map {
+                  case Some(user) => {
+                    val currentRights: TenantRight = user.rights.tenants.getOrElse(tenant, TenantRight(null))
+                    Rights
+                      .compare(tenant, base = Option(currentRights), modified = Option(value))
+                      .toRight(NoContent)
                   }
+                  case None       => Left(BadRequest(Json.obj("message" -> s"User ${user} does not exist")))
                 }
+
               }
-              case None       => BadRequest(Json.obj("message" -> s"User ${user} does not exist")).future
             }
           }
-          case JsError(_)          => BadBodyFormat().toHttpResponse.future
+
+        futureRightChange.flatMap {
+          case Left(value) => value.future
+          case Right(diff) => {
+            val authorized = diff match {
+              case Rights.DeleteTenantRights => request.user.hasAdminRightForTenant(tenant)
+              case UpsertTenantRights(
+                    addedTenantRight,
+                    addedProjectRights,
+                    removedProjectRights,
+                    addedKeyRights,
+                    removedKeyRights,
+                    addedWebhookRights,
+                    removedWebhookRights
+                  ) => {
+                removedProjectRights
+                  .concat(addedProjectRights.map(_.name))
+                  .forall(project => request.user.hasAdminRightForProject(project, tenant)) &&
+                removedKeyRights
+                  .concat(addedKeyRights.map(_.name))
+                  .forall(key => request.user.hasAdminRightForKey(key, tenant)) &&
+                addedTenantRight
+                  .forall(_ => request.user.hasAdminRightForTenant(tenant)) &&
+                removedWebhookRights
+                  .concat(addedWebhookRights.map(_.name))
+                  .forall(webhook => request.user.hasAdminRightForWebhook(webhook, tenant))
+              }
+            }
+
+            if (authorized) {
+              rightService
+                .updateUserRightsForTenant(user, tenant, diff)
+                .map(e => e.fold(err => err.toHttpResponse, _ => NoContent))
+            } else {
+              Forbidden(Json.obj("message" -> "Not enough rights")).future
+            }
+          }
         }
+
       }
     }
   }

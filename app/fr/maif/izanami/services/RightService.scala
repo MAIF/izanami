@@ -1,13 +1,16 @@
 package fr.maif.izanami.services
 
-import fr.maif.izanami.{RoleRights, TenantRoleRights}
+import fr.maif.izanami.RoleRightMode.Supervised
+import fr.maif.izanami.{RoleRightMode, RoleRights, TenantRoleRights}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.{CantUpdateOIDCUser, IzanamiError}
 import fr.maif.izanami.models.ProjectRightLevel.ProjectRightOrdering
 import fr.maif.izanami.models.RightLevel.RightOrdering
+import fr.maif.izanami.models.Rights.TenantRightDiff
 import fr.maif.izanami.models.{
   GeneralAtomicRight,
   OAuth2Configuration,
+  OIDC,
   ProjectAtomicRight,
   ProjectRightLevel,
   Rights,
@@ -16,7 +19,7 @@ import fr.maif.izanami.models.{
   UserRightsUpdateRequest
 }
 import fr.maif.izanami.services.RightService.{effectiveRights, keepHigher, RightsByRole, Role}
-import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
+import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import play.api.libs.json.{JsError, JsSuccess, Json, Reads, Writes}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -24,27 +27,19 @@ import scala.concurrent.{ExecutionContext, Future}
 class RightService(env: Env) {
   private implicit val executionContext: ExecutionContext = env.executionContext
 
-  def generateRightsForRoles(roles: Set[Role]): Future[Option[CompleteRights]] = {
-    maybeRightByRoles.map(o => o.map(rights => effectiveRights(rights, roles)))
+  def canUpdateRightsForUser(username: String): Future[Boolean] = {
+    if (areOIDCUserRightsUpdatable) {
+      env.datastores.users.findUser(username).map(maybeUser => maybeUser.exists(u => u.userType != OIDC))
+    } else {
+      Future.successful(true)
+    }
   }
 
-  def updateUserRightIfNeeded(user: String, roles: Set[Role]): Future[Either[IzanamiError, Unit]] = {
-    env.datastores.users
-      .findCompleteRights(user)
-      .flatMap {
-        case Some(userWithRights) => {
-          val userRight = CompleteRights(tenants = userWithRights.rights.tenants, admin = userWithRights.admin)
-          maybeRightByRoles
-            .map(o => o.map(rights => effectiveRights(rights, roles)).filter(cr => cr != userRight))
-            .flatMap {
-              case Some(rightToUpdate) =>
-                env.datastores.users
-                  .updateUserRights(userWithRights.username, UserRightsUpdateRequest.fromRights(rightToUpdate))
-              case None                => Future.successful(Right(()))
-            }
-        }
-        case None                 => Future.successful(Right(()))
-      }
+  private def areOIDCUserRightsUpdatable: Boolean =
+    env.typedConfiguration.openid.exists(o => o.roleRightMode.contains(Supervised))
+
+  def generateRightsForRoles(roles: Set[Role]): Future[Option[CompleteRights]] = {
+    maybeRightByRoles.map(o => o.map(rights => effectiveRights(rights, roles)))
   }
 
   def maybeRightByRoles: Future[Option[RightsByRole]] = {
@@ -52,6 +47,31 @@ class RightService(env: Env) {
       .readFullConfiguration()
       .map(_.toOption.flatMap(_.oidcConfiguration))
       .map(_.map(c => c.userRightsByRoles))
+  }
+
+  def updateUserRightsForTenant(
+      targetUser: String,
+      tenant: String,
+      diff: TenantRightDiff
+  ): Future[Either[IzanamiError, Unit]] = {
+    canUpdateRightsForUser(targetUser).flatMap {
+      case false => Future.successful(Left(CantUpdateOIDCUser()))
+      case true  => {
+        env.datastores.users.updateUserRightsForTenant(targetUser, tenant, diff).map(Right(_))
+      }
+    }
+  }
+
+  def updateUserRights(
+      targetUser: String,
+      updateRequest: UserRightsUpdateRequest
+  ): Future[Either[IzanamiError, Unit]] = {
+    canUpdateRightsForUser(targetUser).flatMap {
+      case false => Future.successful(Left(CantUpdateOIDCUser()))
+      case true  => {
+        env.datastores.users.updateUserRights(targetUser, updateRequest)
+      }
+    }
   }
 }
 
@@ -116,7 +136,7 @@ case class CompleteRights(tenants: Map[String, TenantRight], admin: Boolean) {
           !project.contains(p)
         })
       )
-      .fold(this)(e => copy(admin=admin, tenants = tenants + (tenant -> e)))
+      .fold(this)(e => copy(admin = admin, tenants = tenants + (tenant -> e)))
   }
 
   def removeKeyRights(tenant: String, keys: Set[String]): CompleteRights = {
