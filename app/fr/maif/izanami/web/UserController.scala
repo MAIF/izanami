@@ -270,7 +270,7 @@ class UserController(
                   case Some(user) => {
                     val currentRights: TenantRight = user.rights.tenants.getOrElse(tenant, TenantRight(null))
                     Rights
-                      .compare(tenant, base = Option(currentRights), modified = Option(value))
+                      .compare(base = Option(currentRights), modified = Option(value))
                       .toRight(NoContent)
                   }
                   case None       => Left(BadRequest(Json.obj("message" -> s"User ${user} does not exist")))

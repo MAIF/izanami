@@ -1,5 +1,6 @@
 package fr.maif.izanami.models
 
+import fr.maif.izanami.models.Rights.{TenantRightDiff, UpsertTenantRights, compare}
 import fr.maif.izanami.services.CompleteRights
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.data.validation.{Constraints, Valid}
@@ -425,14 +426,7 @@ case class Rights(tenants: Map[String, TenantRight]) {
 
 object Rights {
   case class RightDiff(
-      addedTenantRights: Seq[FlattenTenantRight] = Seq(),
-      removedTenantRights: Seq[FlattenTenantRight] = Seq(),
-      addedProjectRights: Map[String, Seq[FlattenProjectRight]] = Map(),
-      removedProjectRights: Map[String, Seq[FlattenProjectRight]] = Map(),
-      addedKeyRights: Map[String, Seq[FlattenKeyRight]] = Map(),
-      removedKeyRights: Map[String, Seq[FlattenKeyRight]] = Map(),
-      addedWebhookRights: Map[String, Seq[FlattenWebhookRight]] = Map(),
-      removedWebhookRights: Map[String, Seq[FlattenWebhookRight]] = Map()
+      diff : Map[String, TenantRightDiff] = Map()
   )
 
   sealed trait TenantRightDiff
@@ -476,8 +470,7 @@ object Rights {
 
   val EMPTY: Rights = Rights(tenants = Map())
 
-  // TODO refactor me
-  def compare(tenantName: String, base: Option[TenantRight], modified: Option[TenantRight]): Option[TenantRightDiff] = {
+  def compare(base: Option[TenantRight], modified: Option[TenantRight]): Option[TenantRightDiff] = {
     def flattenProjects(tenantRight: TenantRight): Set[UnscopedFlattenProjectRight] = {
       tenantRight.projects.map { case (projectName, ProjectAtomicRight(level)) =>
         UnscopedFlattenProjectRight(name = projectName, level = level)
@@ -555,57 +548,15 @@ object Rights {
   }
 
   def compare(base: Rights, modified: Rights): RightDiff = {
-    def extractFlattenRights(
-        rights: Rights
-    ): (Set[FlattenTenantRight], Set[FlattenProjectRight], Set[FlattenKeyRight], Set[FlattenWebhookRight]) = {
-      val tenants  = ArrayBuffer[FlattenTenantRight]()
-      val projects = ArrayBuffer[FlattenProjectRight]()
-      val keys     = ArrayBuffer[FlattenKeyRight]()
-      val webhooks = ArrayBuffer[FlattenWebhookRight]()
-      rights.tenants.foreach {
-        case (tenantName, tenantRights) => {
-          tenants.addOne(
-            FlattenTenantRight(
-              name = tenantName,
-              level = tenantRights.level,
-              defaultProjectRight = tenantRights.defaultProjectRight,
-              defaultKeyRight = tenantRights.defaultKeyRight,
-              defaultWebhookRight = tenantRights.defaultWebhookRight
-            )
-          )
-          projects.addAll(
-            tenantRights.projects
-              .map { case (projectName, level) =>
-                FlattenProjectRight(name = projectName, tenant = tenantName, level = level.level)
-              }
-          )
 
-          keys.addAll(tenantRights.keys.map { case (keyName, level) =>
-            FlattenKeyRight(name = keyName, tenant = tenantName, level = level.level)
-          })
+      val allTenants = base.tenants.keySet.concat(modified.tenants.keySet)
 
-          webhooks.addAll(tenantRights.webhooks.map { case (keyName, level) =>
-            FlattenWebhookRight(name = keyName, tenant = tenantName, level = level.level)
-          })
-        }
-      }
-
-      (tenants.toSet, projects.toSet, keys.toSet, webhooks.toSet)
-    }
-
-    val (baseTenantRights, baseProjectRights, baseKeyRights, basedWebhookRights) = extractFlattenRights(base)
-    val (newTenantRights, newProjectRights, newKeyRights, newWebhookRights)      = extractFlattenRights(modified)
-
-    RightDiff(
-      addedTenantRights = newTenantRights.diff(baseTenantRights).toSeq,
-      removedTenantRights = baseTenantRights.diff(newTenantRights).toSeq,
-      addedProjectRights = newProjectRights.diff(baseProjectRights).toSeq.groupBy(_.tenant),
-      removedProjectRights = baseProjectRights.diff(newProjectRights).toSeq.groupBy(_.tenant),
-      addedKeyRights = newKeyRights.diff(baseKeyRights).toSeq.groupBy(_.tenant),
-      removedKeyRights = baseKeyRights.diff(newKeyRights).toSeq.groupBy(_.tenant),
-      addedWebhookRights = newWebhookRights.diff(basedWebhookRights).toSeq.groupBy(_.tenant),
-      removedWebhookRights = basedWebhookRights.diff(newWebhookRights).toSeq.groupBy(_.tenant)
-    )
+      val rightDiffByTenant = allTenants.flatMap(tenant => {
+        val maybeBaseRight = base.tenants.get(tenant)
+        val maybeModifiedRight = modified.tenants.get(tenant)
+        Rights.compare(maybeBaseRight, maybeModifiedRight).toSeq.map(r => (tenant,r))
+      }).toMap
+      RightDiff(rightDiffByTenant)
   }
 }
 
