@@ -1,12 +1,13 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{BadBodyFormat, EmailAlreadyUsed}
+import fr.maif.izanami.errors.{BadBodyFormat, EmailAlreadyUsed, IzanamiError}
 import fr.maif.izanami.models.Rights.{unapply, _}
 import fr.maif.izanami.models.User._
 import fr.maif.izanami.models._
 import fr.maif.izanami.services.RightService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.web.ImportController.Skip
 import play.api.data.validation.{Constraints, Valid}
 import play.api.libs.json._
 import play.api.mvc._
@@ -225,7 +226,14 @@ class UserController(
               case Some(userWithTenantRights) =>
                 {
                   userWithTenantRights.tenantRights.get(tenant) match {
-                    case Some(_) => rightService.updateUserRightsForTenant(user, tenant, UpsertTenantRights(addedProjectRights = Set(Rights.UnscopedFlattenProjectRight(project, level = newLevel))))
+                    case Some(_) =>
+                      rightService.updateUserRightsForTenant(
+                        user,
+                        tenant,
+                        UpsertTenantRights(addedProjectRights =
+                          Set(Rights.UnscopedFlattenProjectRight(project, level = newLevel))
+                        )
+                      )
                     case None    =>
                       rightService.updateUserRightsForTenant(
                         user,
@@ -421,7 +429,7 @@ class UserController(
 
   def readUsers(): Action[AnyContent] = authAction.async { implicit request =>
     env.datastores.users
-      .findUsers(request.user.username)
+      .findVisibleUsers(request.user.username)
       .map(users => {
         Ok(Json.toJson(users))
       })
@@ -451,7 +459,27 @@ class UserController(
             .map(_.get)
             .toSeq
         ) match {
-        case Some(seq) => env.datastores.users.addUserRightsToProject(tenant, project, seq).map(_ => NoContent)
+        case Some(seq) => {
+          val userByLevel = seq.groupMap(_._2)(_._1)
+          env.postgresql.executeInTransaction(conn => {
+            userByLevel.foldLeft(Future.successful(Right()): Future[Either[IzanamiError, Unit]])(
+              (future, t) => {
+                future.flatMap {
+                  case Left(error) => Future.successful(Left(error))
+                  case Right(value) => {
+                    val rightDiff = UpsertTenantRights(addedProjectRights = Set(UnscopedFlattenProjectRight(name = project, level = t._1)))
+                    rightService.updateUsersRightsForTenant(targetUsers = t._2.toSet, tenant = tenant, diff = rightDiff, conn=Some(conn), conflictStrategy = Skip)
+                  }
+                }
+
+              }
+            ).map {
+              case Left(error) => error.toHttpResponse
+              case Right(_) => NoContent
+            }
+          })
+
+        }
         case None      => BadBodyFormat().toHttpResponse.future
       }
     }
@@ -472,7 +500,26 @@ class UserController(
             .map(_.get)
             .toSeq
         ) match {
-        case Some(seq) => env.datastores.users.addUserRightsToTenant(tenant, seq).map(_ => NoContent)
+        case Some(seq) => {
+          val userByLevel = seq.groupMap(_._2)(_._1)
+          env.postgresql.executeInTransaction(conn => {
+            userByLevel.foldLeft(Future.successful(Right()): Future[Either[IzanamiError, Unit]])(
+              (future, t) => {
+                future.flatMap {
+                  case Left(error) => Future.successful(Left(error))
+                  case Right(_) => {
+                    val rightDiff = UpsertTenantRights(addedTenantRight = Some(UnscopedFlattenTenantRight(level = t._1)))
+                    rightService.updateUsersRightsForTenant(targetUsers = t._2.toSet, tenant = tenant, diff = rightDiff, conn=Some(conn), conflictStrategy = Skip)
+                  }
+                }
+
+              }
+            ).map {
+              case Left(error) => error.toHttpResponse
+              case Right(_) => NoContent
+            }
+          })
+        }
         case None      => BadBodyFormat().toHttpResponse.future
       }
     }

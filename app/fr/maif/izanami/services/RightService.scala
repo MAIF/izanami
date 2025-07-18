@@ -10,6 +10,7 @@ import fr.maif.izanami.models.Rights.TenantRightDiff
 import fr.maif.izanami.models.{GeneralAtomicRight, OAuth2Configuration, OIDC, ProjectAtomicRight, ProjectRightLevel, Rights, TenantRight, User, UserRightsUpdateRequest, UserWithRights}
 import fr.maif.izanami.services.RightService.{RightsByRole, Role, effectiveRights, keepHigher}
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
+import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, Replace}
 import io.vertx.sqlclient.SqlConnection
 import play.api.libs.json.{JsError, JsSuccess, Json, Reads, Writes}
 
@@ -19,8 +20,12 @@ class RightService(env: Env) {
   private implicit val executionContext: ExecutionContext = env.executionContext
 
   def canUpdateRightsForUser(username: String): Future[Boolean] = {
+    canUpdateRightsForUsers(Set(username))
+  }
+
+  def canUpdateRightsForUsers(usernames: Set[String]): Future[Boolean] = {
     if (areOIDCUserRightsUpdatable) {
-      env.datastores.users.findUser(username).map(maybeUser => maybeUser.exists(u => u.userType != OIDC))
+      env.datastores.users.findUsers(usernames).map(users => users.nonEmpty && users.forall(u => u.userType != OIDC))
     } else {
       Future.successful(true)
     }
@@ -40,6 +45,21 @@ class RightService(env: Env) {
       .map(_.map(c => c.userRightsByRoles))
   }
 
+  def updateUsersRightsForTenant(
+                                 targetUsers: Set[String],
+                                 tenant: String,
+                                 diff: TenantRightDiff,
+                                 conn: Option[SqlConnection] = None,
+                                 conflictStrategy: ImportConflictStrategy = Replace
+                               ): Future[Either[IzanamiError, Unit]] = {
+    canUpdateRightsForUsers(targetUsers).flatMap {
+      case false => Future.successful(Left(CantUpdateOIDCUser()))
+      case true  => {
+        env.datastores.users.updateUsersRightsForTenant(targetUsers, tenant, diff, conn, conflictStrategy).map(Right(_))
+      }
+    }
+  }
+
   def updateUserRightsForTenant(
       targetUser: String,
       tenant: String,
@@ -54,16 +74,16 @@ class RightService(env: Env) {
     }
   }
 
-
   def updateUserRights(
-                        name: String,
-                        updateRequest: UserRightsUpdateRequest,
-                        conn: Option[SqlConnection] = None
-                      ): Future[Either[IzanamiError, Unit]] = {
+      name: String,
+      updateRequest: UserRightsUpdateRequest,
+      conn: Option[SqlConnection] = None
+  ): Future[Either[IzanamiError, Unit]] = {
     canUpdateRightsForUser(name).flatMap {
       case false => Future.successful(Left(CantUpdateOIDCUser()))
       case true  => {
-        env.datastores.users.findUserWithCompleteRights(name)
+        env.datastores.users
+          .findUserWithCompleteRights(name)
           .flatMap {
             case Some(UserWithRights(_, _, _, _, _, rights, _, _)) => {
               val diff = Rights.compare(base = rights, modified = updateRequest.rights)
@@ -72,14 +92,13 @@ class RightService(env: Env) {
                 updateRequest.admin
                   .map(admin => env.datastores.users.updateUsersAdminStatus(Set(name), admin))
                   .getOrElse(Future())
-                  .flatMap ( _ => {
-                    env.datastores.users.updateUserRights(name = name, rightDiff = diff, conn=Some(conn))
+                  .flatMap(_ => {
+                    env.datastores.users.updateUserRights(name = name, rightDiff = diff, conn = Some(conn))
                   })
               }
-              if(conn.isDefined) {
+              if (conn.isDefined) {
                 action(conn.get).map(_ => Right())
-              }
-              else {
+              } else {
                 env.postgresql.executeInTransaction(conn => action(conn)).map(_ => Right())
               }
             }

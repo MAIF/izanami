@@ -981,38 +981,42 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def findUser(username: String): Future[Option[UserWithTenantRights]] = {
-    env.postgresql.queryOne(
+    findUsers(Set(username)).map(_.headOption)
+  }
+
+  def findUsers(usernames: Set[String]): Future[Seq[UserWithTenantRights]] = {
+    env.postgresql.queryAll(
       s"""
-         |SELECT username, admin, email, user_type, default_tenant,
+         |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant,
          |  coalesce((
          |    select json_object_agg(utr.tenant, utr.level)
          |    from izanami.users_tenants_rights utr
-         |    where utr.username=$$1
+         |    where utr.username=u.username
          |  ), '{}'::json) as tenants
-         |from izanami.users
-         |WHERE username=$$1""".stripMargin,
-      List(username)
+         |from izanami.users u
+         |WHERE u.username=ANY($$1::TEXT[])""".stripMargin,
+      List(usernames.toArray)
     ) { row =>
-      {
-        for (
-          username <- row.optString("username");
-          admin    <- row.optBoolean("admin");
-          rights   <- row.optJsObject("tenants");
-          userType <- row.optString("user_type").map(dbUserTypeToUserType)
-        ) yield {
-          val tenantRights =
-            rights.asOpt[Map[String, RightLevel]](Reads.map(RightLevel.rightLevelReads)).getOrElse(Map())
-          UserWithTenantRights(
-            username = username,
-            email = row.optString("email").orNull,
-            password = null,
-            admin = admin,
-            tenantRights = tenantRights,
-            defaultTenant = row.optString("default_tenant"),
-            userType = userType
-          )
-        }
+    {
+      for (
+        username <- row.optString("username");
+        admin    <- row.optBoolean("admin");
+        rights   <- row.optJsObject("tenants");
+        userType <- row.optString("user_type").map(dbUserTypeToUserType)
+      ) yield {
+        val tenantRights =
+          rights.asOpt[Map[String, RightLevel]](Reads.map(RightLevel.rightLevelReads)).getOrElse(Map())
+        UserWithTenantRights(
+          username = username,
+          email = row.optString("email").orNull,
+          password = null,
+          admin = admin,
+          tenantRights = tenantRights,
+          defaultTenant = row.optString("default_tenant"),
+          userType = userType
+        )
       }
+    }
     }
   }
 
@@ -1030,7 +1034,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     ) { r => r.optString("username") }
   }
 
-  def findUsers(username: String): Future[Set[UserWithTenantRights]] = {
+  def findVisibleUsers(username: String): Future[Set[UserWithTenantRights]] = {
     env.postgresql
       .queryAll(
         s"""
@@ -1280,46 +1284,6 @@ class UsersDatastore(val env: Env) extends Datastore {
       .map(_ => ())
   }
 
-  def addUserRightsToProject(tenant: String, project: String, users: Seq[(String, ProjectRightLevel)]): Future[Unit] = {
-    env.postgresql
-      .queryAll(
-        s"""
-         |SELECT username FROM izanami.users_tenants_rights
-         |WHERE username = ANY($$1)
-         |""".stripMargin,
-        List(users.map { case (username, _) => username }.toArray)
-      ) { r => r.optString("username") }
-      .map(userWithRights => {
-        val userWithMissingRights = users.map { case (username, _) => username }.toSet.diff(userWithRights.toSet)
-        if (userWithMissingRights.isEmpty) {
-          Future.successful(())
-        } else {
-          env.postgresql
-            .queryAll(
-              s"""
-                 |INSERT INTO izanami.users_tenants_rights(username, tenant, level)
-                 |VALUES (unnest($$1::text[]), $$2, 'READ')
-                 |RETURNING username
-                 |""".stripMargin,
-              List(userWithMissingRights.toArray, tenant)
-            ) { r => { Some(()) } }
-            .map(_ => ())
-        }
-      })
-      .flatMap(_ =>
-        env.postgresql
-          .queryOne(
-            s"""
-             |INSERT INTO users_projects_rights (project, username, level)
-             |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.project_right_level[]))
-             |ON CONFLICT (username, project) DO NOTHING
-             |""".stripMargin,
-            List(project, users.map(_._1).toArray, users.map(_._2.toString.toUpperCase).toArray),
-            schemas = Seq(tenant)
-          ) { r => Some(()) }
-          .map(_ => ())
-      )
-  }
 
   def findSessionWithRightForTenant(
       session: String,
