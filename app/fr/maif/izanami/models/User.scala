@@ -444,7 +444,9 @@ object Rights {
                                 addedKeyRights: Set[UnscopedFlattenKeyRight] = Set(),
                                 removedKeyRights: Set[String] = Set(),
                                 addedWebhookRights: Set[UnscopedFlattenWebhookRight] = Set(),
-                                removedWebhookRights: Set[String] = Set()) extends TenantRightDiff
+                                removedWebhookRights: Set[String] = Set()) extends TenantRightDiff {
+    require(addedTenantRight.isDefined || Seq(addedKeyRights, addedWebhookRights, addedProjectRights, removedProjectRights, removedWebhookRights, removedKeyRights).exists(_.isEmpty), "Tenant right update request doesn't contain any rights")
+  }
 
   sealed trait FlattenRight
 

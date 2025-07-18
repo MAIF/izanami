@@ -657,6 +657,7 @@ object ImportController {
   case object Fail           extends ImportConflictStrategy
   case object MergeOverwrite extends ImportConflictStrategy
   case object Skip           extends ImportConflictStrategy
+  case object Replace        extends ImportConflictStrategy
 
   def scriptIdToNodeCompatibleName(name: String): String = {
     name

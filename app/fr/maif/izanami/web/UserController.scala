@@ -217,7 +217,7 @@ class UserController(
           if (obj.fields.isEmpty) {
             rightService
               .updateUserRightsForTenant(user, tenant, UpsertTenantRights(removedProjectRights = Set(project)))
-              .map(_ => NoContent)
+              .map(e => e.fold(err => err.toHttpResponse, _ => NoContent))
           } else {
             val newLevel = (obj \ "level").as[ProjectRightLevel]
 
@@ -236,7 +236,7 @@ class UserController(
                         )
                       )
                   }
-                }.map(_ => NoContent)
+                }.map(e => e.fold(err => err.toHttpResponse, _ => NoContent))
               case None                       => NotFound(Json.obj("message" -> "user not found")).future
             }
           }
