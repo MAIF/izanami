@@ -1,5 +1,5 @@
 import ReleaseTransformations.*
-import xerial.sbt.Sonatype.{sonatype01}
+import xerial.sbt.Sonatype.{sonatype01, sonatypeCentralHost}
 
 name := """izanami"""
 organization := "fr.maif"
@@ -25,6 +25,8 @@ scalaVersion := "2.13.12"
 excludeDependencies ++= Seq(
   ExclusionRule("org.reactivecouchbase.json", "json-lib")
 )
+sonatypeRepository := "https://ossrh-staging-api.central.sonatype.com/service/local/"
+sonatypeCredentialHost := sonatypeCentralHost
 
 libraryDependencies += guice
 libraryDependencies += ws
