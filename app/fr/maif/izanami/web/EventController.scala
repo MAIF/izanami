@@ -234,7 +234,7 @@ class EventController(
             .toJson(evaluated.featureStrategies.strategies.map {
               case (ctx, feature) => {
                 (
-                  ctx.replace("_", "/"),
+                  ctx,
                   writeConditions(feature)
                 )
               }

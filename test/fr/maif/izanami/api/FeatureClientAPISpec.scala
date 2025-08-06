@@ -1553,6 +1553,15 @@ class FeatureClientAPISpec extends BaseAPISpec {
                     )
                   )
                 )
+                .withContexts(TestFeatureContext(
+                  name="dev",
+                  overloads = Seq(TestFeature("foo", enabled = true, conditions = Set(TestCondition(rule = TestPercentageRule(percentage = 80))))),
+                  subContext = Set(
+                    TestFeatureContext(
+                      name="bar",
+                      overloads = Seq(TestFeature("foo", enabled = true, conditions = Set(TestCondition(rule = TestPercentageRule(percentage = 90)))))
+                  )
+                )))
             )
         )
         .build()
@@ -1564,6 +1573,8 @@ class FeatureClientAPISpec extends BaseAPISpec {
       val json     = response.json.get
 
       (json \ fooId \ "conditions" \ "" \ "conditions" \ 0 \ "rule" \ "percentage").as[Int] mustEqual 75
+      (json \ fooId \ "conditions" \ "dev" \ "conditions" \ 0 \ "rule" \ "percentage").as[Int] mustEqual 80
+      (json \ fooId \ "conditions" \ "dev/bar" \ "conditions" \ 0 \ "rule" \ "percentage").as[Int] mustEqual 90
       (json \ barId \ "conditions" \ "" \ "conditions" \ 0 \ "rule" \ "users")
         .as[Seq[String]] must contain theSameElementsAs Seq("user1", "user2")
       (json \ barId \ "conditions" \ "" \ "conditions" \ 0 \ "period" \ "activationDays" \ "days")

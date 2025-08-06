@@ -860,6 +860,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 r.optJsObject("overloads")
                   .map(jsObject => {
                     val objByContext                                         = jsObject.as[Map[String, JsObject]]
+                      .map(entry => (entry._1.replaceAll("\\.", "/"), entry._2))
                     val overloadByPath: Map[Option[String], CompleteFeature] = objByContext
                       .map { case (ctx, jsObject) => (ctx, Feature.readCompleteFeature(jsObject).asOpt) }
                       .filter {
