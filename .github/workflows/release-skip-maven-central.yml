@@ -1,4 +1,4 @@
-name: release
+name: release-skipping-maven-publication
 
 on:
   workflow_dispatch:
