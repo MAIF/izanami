@@ -1580,6 +1580,43 @@ class FeatureClientAPISpec extends BaseAPISpec {
       (json \ barId \ "conditions" \ "" \ "conditions" \ 0 \ "period" \ "activationDays" \ "days")
         .as[Seq[String]] must contain theSameElementsAs Seq("MONDAY", "TUESDAY")
     }
+
+
+    "return correct subcontext value even when condition parameter present" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(TestApiKey("mykey", admin = true))
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature(
+                    "foo",
+                    enabled = true,
+                    resultType = "number",
+                    value = "0.1"
+                  )
+                )
+                .withContexts(TestFeatureContext(
+                  name="A",
+                  overloads = Seq(TestFeature("foo", enabled = true, resultType = "number", value = "0.2")),
+                  subContext = Set(
+                    TestFeatureContext(
+                      name="B",
+                      overloads = Seq(TestFeature("foo", enabled = true, resultType = "number", value = "0.3")),
+                    )
+                  )))
+            )
+        )
+        .build()
+
+      val fooId = situation.findFeatureId("tenant", "project", "foo").get
+
+      val response = situation.checkFeatures(key = "mykey", conditions = true, features = Seq(fooId), contextPath = "A/B")
+      val json     = response.json.get
+
+      (json \ fooId \ "active").as[Double] mustEqual 0.3
+    }
   }
 
 }

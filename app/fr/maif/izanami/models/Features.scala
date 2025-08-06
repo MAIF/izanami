@@ -80,7 +80,7 @@ case class RequestContext(
 ) {
   def wasmJson: JsValue = Json.obj("tenant" -> tenant, "id" -> user, "now" -> now.toEpochMilli, "data" -> data)
 
-  def contextAsString: String = context.elements.mkString("_")
+  def contextAsString: String = context.elements.mkString("/")
 }
 
 sealed trait CompleteFeature extends AbstractFeature {
