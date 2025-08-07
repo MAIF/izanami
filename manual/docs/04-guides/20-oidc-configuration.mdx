@@ -36,12 +36,12 @@ Here is a complete set of rights:
   "tenants": {
     "my-tenant": {
       "level": "<read|write|admin>", // Right level for tenant "my-tenant"
-      "default-project-right": "<read|write|admin>", // default project right for "my-tenant"
+      "default-project-right": "<read|update|write|admin>", // default project right for "my-tenant"
       "default-key-right": "<read|write|admin>", // default key right for "my-tenant"
       "default-webhook-right": "<read|write|admin>", // default webhook right for "my-tenant"
       "projects": {
-        "my-project": "<read|write|admin>", // Specific right level for project "my-project"
-        "another-project": "<read|write|admin>" // Specific right level for project "another-project"
+        "my-project": "<read|update|write|admin>", // Specific right level for project "my-project"
+        "another-project": "<read|update|write|admin>" // Specific right level for project "another-project"
       },
       "keys": {
         "my-key": "<read|write|admin>" // Specific right level for key "my-key"
