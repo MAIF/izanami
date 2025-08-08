@@ -12,6 +12,8 @@ services:
       timeout: 10s
       retries: 100
     environment:
+      IDENTITY_RESOURCES_INLINE: |
+        [ { "Name": "roles", "ClaimTypes": ["roles"] } ]
       ASPNETCORE_ENVIRONMENT: Development
       SERVER_OPTIONS_INLINE: |
         {
@@ -35,17 +37,17 @@ services:
       #API_SCOPES_INLINE: |
       #  - Name: some-app-scope-1
       #  - Name: some-app-scope-2
-      API_SCOPES_INLINE: |
-        [
-          {
-            "Name": "roles",
-            "UserClaims": ["roles"]
-          }
-        ]
-      API_RESOURCES_INLINE: |
-        - Name: roles
-          Scopes:
-            - roles
+      #API_SCOPES_INLINE: |
+      #  [
+      #    {
+      #      "Name": "roles",
+      #      "UserClaims": ["roles"]
+      #    }
+      #  ]
+      #API_RESOURCES_INLINE: |
+      #  - Name: roles
+      #    Scopes:
+      #      - roles
       #      - some-app-scope-2
       USERS_CONFIGURATION_INLINE: |
         [

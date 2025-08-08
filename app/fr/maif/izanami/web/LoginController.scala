@@ -11,6 +11,7 @@ import fr.maif.izanami.services.{CompleteRights, RightService}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.AuthAction.delayResponse
 import pdi.jwt.{JwtJson, JwtOptions}
+import play.api.Logger
 import play.api.libs.json._
 import play.api.libs.ws.WSAuthScheme
 import play.api.mvc.Cookie.SameSite
@@ -28,11 +29,14 @@ class LoginController(
     sessionAuthAction: AuthenticatedSessionAction
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
+  private val logger = Logger("izanami.login")
+
 
   private def generatePKCECodes(codeChallengeMethod: Option[String] = Some("S256")) = {
     val code         = new Array[Byte](120)
     val secureRandom = new SecureRandom()
     secureRandom.nextBytes(code)
+
 
     val codeVerifier = new String(Base64.getUrlEncoder.withoutPadding().encodeToString(code)).slice(0, 120)
 
@@ -103,8 +107,12 @@ class LoginController(
           env.datastores.configuration.readFullConfiguration().map(_.toOption.flatMap(_.oidcConfiguration))
       )
         yield {
-          if (code.isEmpty || oauth2ConfigurationOpt.isEmpty || oauth2ConfigurationOpt.exists(_.enabled == false)) {
-            InternalServerError(Json.obj("message" -> "Failed to read token claims")).asFuture
+          if(code.isEmpty) {
+            logger.error("Izanami failed to extract code from oauth provider call")
+            InternalServerError(Json.obj("message" -> "Failed to extract code from token")).asFuture
+          } else if(oauth2ConfigurationOpt.isEmpty || oauth2ConfigurationOpt.exists(_.enabled == false)) {
+            logger.error("Izanami received oauth provider call however oauth configuration is either disabled or not set")
+            InternalServerError(Json.obj("message" -> "OAuth2 configuration is either absent or disabled")).asFuture
           } else {
             val OAuth2Configuration(
               _enabled,
@@ -153,19 +161,6 @@ class LoginController(
               .post(body)
               .flatMap(r => {
                 val maybeToken = (r.json \ "id_token").get.asOpt[String]
-                val roles      = (r.json \ "access_token").get
-                  .asOpt[String]
-                  .map(token => JwtJson.decode(token, JwtOptions(signature = false, leeway = 1)))
-                  .flatMap(_.toOption)
-                  .map(claims => claims.toJson)
-                  .map(json => Json.parse(json))
-                  .flatMap(json => roleClaim.flatMap(roleClaimeName => (json \ roleClaimeName).toOption))
-                  .map {
-                    case JsString(value) => Set(value)
-                    case arr: JsArray    => arr.value.map((el: JsValue) => el.as[String]).toSet
-                    case _               => Set(): Set[String]
-                  }
-                  .getOrElse(Set(): Set[String])
 
                 maybeToken.fold(Future(InternalServerError(Json.obj("message" -> "Failed to retrieve token"))))(
                   token => {
@@ -173,6 +168,9 @@ class LoginController(
                     maybeClaims.toOption
                       .flatMap(claims => Json.parse(claims.content).asOpt[JsObject])
                       .flatMap(json => {
+                        val roles = extractRoles(json, roleClaim).getOrElse(Set())
+                        logger.debug(s"Extracted roles [${roles.mkString(",")}] from id_token. ")
+
                         for (
                           username <- (json \ nameField).asOpt[String];
                           email    <- (json \ emailField).asOpt[String]
@@ -257,6 +255,46 @@ class LoginController(
     }.flatten
     //.getOrElse(Future(InternalServerError(Json.obj("message" -> "Failed to read token claims"))))
   }
+
+
+  private def extractRoles(claims: JsObject, roleClaim: Option[String]): Option[Set[String]] = {
+    if (roleClaim.isEmpty) {
+      logger.debug("No role claim defined, skipping role extraction")
+      None
+    } else {
+      val claimName = roleClaim.get
+
+      val maybeRoleClaimContent = (claims \ claimName).toOption
+
+      if (maybeRoleClaimContent.isEmpty) {
+        logger.debug(s"Missing claim $claimName in token, no role were extracted")
+      }
+
+      val roles = maybeRoleClaimContent match {
+        case Some(JsString(value)) => Set(value)
+        case Some(arr:JsArray) => arr.value.map((el: JsValue) => el.as[String]).toSet
+        case None => Set(): Set[String]
+      }
+
+      Some(roles)
+    }
+  }
+
+    /*maybeJson.toOption.flatMap(roleClaim => roleClaim.)
+
+
+    val roles      =
+      JwtJson.decode(token, JwtOptions(signature = false, leeway = 1))
+      .flatMap(_.toOption)
+      .map(claims => claims.toJson)
+      .map(json => Json.parse(json))
+      .flatMap(json => roleClaim.flatMap(roleClaimeName => (json \ roleClaimeName).toOption))
+      .map {
+        case JsString(value) => Set(value)
+        case arr: JsArray    => arr.value.map((el: JsValue) => el.as[String]).toSet
+        case _               => Set(): Set[String]
+      }
+      .getOrElse(Set(): Set[String])*/
 
   def fetchOpenIdConnectConfiguration = Action.async { implicit request =>
     request.body.asJson.flatMap(body => (body \ "url").asOpt[String]) match {
