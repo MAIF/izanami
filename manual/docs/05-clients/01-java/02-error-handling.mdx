@@ -65,7 +65,13 @@ futureActivation.join(); // Will throw
 ```java
 CompletableFuture<Boolean> futureActivation = client
   .booleanValue(newSingleFeatureRequest("<YOUR_FEATURE_ID>")
-  .withErrorStrategy(defaultValueStrategy(true /* default value for number features*/, "default_value°for_string_features", BigDecimal.TEN /* default value for number features*/)));
+    .withErrorStrategy(defaultValueStrategy(
+        true /* default value for boolean features*/,
+        "default_value_for_string_features",
+        BigDecimal.TEN /* default value for number features*/
+      )
+    )
+  );
 
 futureActivation.thenAccept(System.out::println); // true
 ```

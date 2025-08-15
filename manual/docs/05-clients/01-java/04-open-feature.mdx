@@ -1,0 +1,49 @@
+---
+title: Open Feature support
+---
+
+import { Note } from "@site/src/components/Note";
+
+
+## What is Open Feature
+
+> OpenFeature is an open specification that provides a vendor-agnostic, community-driven API
+> for feature flagging that works with your favorite feature flag management tool or in-house solution.
+>
+> <cite>[https://openfeature.dev/](https://openfeature.dev/)</cite>
+
+## Open Feature Java client
+
+Izanami client offers a dedicated Open Feature provider.
+
+To use it, you'll have to configure your client as described in previous pages, and to wrap it in
+the provider:
+
+```java
+IzanamiClient client = /* instantiate and configure your client here */
+
+IzanamiOpenFeatureProvider openFeatureProvider = new IzanamiOpenFeatureProvider(client);
+```
+
+With this provider, you'll be able to use classical open features methods, `user` is passed through Open Feature
+`targetingKey`, context must be passed in Open Feature Context with `context` key.
+
+
+```java
+ProviderEvaluation<Boolean> result = openFeatureProvider.getBooleanEvaluation(
+  "<YOUR FEATURE ID>",
+  false, // default value
+  new ImmutableContext("<YOUR USER>", Map.of("context", "<YOUR CONTEXT>"))
+);
+```
+
+<Note>
+Since Open Feature requires passing a default value to perform evaluation, this default value will always be use if evaluation fails / feature is not found.
+This will happen even if your client is configured to use a different error strategy.
+</Note>
+
+## To be continued
+
+Izanami Open Feature implementation is quite basic right now (it implements "MUST" sections of the Open Feature specifications, but few of the others).
+
+It'll be improved in the future, if you have any specific need or want to contribue, please [open an issue to discuss it](https://github.com/MAIF/izanami/issues).
