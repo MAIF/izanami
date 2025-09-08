@@ -2,7 +2,7 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{BadBodyFormat, EmailAlreadyUsed, IzanamiError}
-import fr.maif.izanami.models.Rights.{unapply, _}
+import fr.maif.izanami.models.Rights._
 import fr.maif.izanami.models.User._
 import fr.maif.izanami.models._
 import fr.maif.izanami.services.RightService
@@ -55,21 +55,17 @@ class UserController(
 
         env.datastores.configuration
           .readFullConfiguration()
-          .flatMap {
-            case Left(err)                                                                       => err.toHttpResponse.future
-            case Right(configuration) if configuration.invitationMode == InvitationMode.Response => {
+          .flatMapF(conf => {
+            if (conf.invitationMode == InvitationMode.Response) {
               Created(Json.obj("invitationUrl" -> s"""${env.expositionUrl}/invitation?token=${token}""")).future
-            }
-            case Right(configuration) if configuration.invitationMode == InvitationMode.Mail     => {
+            } else if (conf.invitationMode == InvitationMode.Mail) {
               env.mails
                 .sendInvitationMail(email, token)
-                .map(futureResult =>
-                  futureResult.fold(err => InternalServerError(Json.obj("message" -> err.message)), _ => NoContent)
-                )
+                .toResult(_ => NoContent)
+            } else {
+              throw new RuntimeException("Unknown invitation mode " + conf.invitationMode)
             }
-            case Right(c)                                                                        => throw new RuntimeException("Unknown invitation mode " + c.invitationMode)
-          }
-
+          })
       }
 
       User.userInvitationReads
@@ -95,7 +91,7 @@ class UserController(
               env.datastores.users
                 .createInvitation(invitation.email, invitation.admin, invitation.rights, request.user.username)
                 .flatMap(either =>
-                  either.fold(err => err.toHttpResponse.future, id => handleInvitation(invitation.email, id))
+                  either.fold(err => err.toHttpResponse.future, id => handleInvitation(invitation.email, id).toResult(r => r))
                 )
           )
         })
@@ -371,7 +367,7 @@ class UserController(
                     id,
                     Json.obj("reset" -> id)
                   )
-                  env.mails.sendPasswordResetEmail(email, token).map(_ => NoContent)
+                  env.mails.sendPasswordResetEmail(email, token).toResult(_ => NoContent)
                 })
             }
             case None       => NoContent.future
@@ -462,21 +458,29 @@ class UserController(
         case Some(seq) => {
           val userByLevel = seq.groupMap(_._2)(_._1)
           env.postgresql.executeInTransaction(conn => {
-            userByLevel.foldLeft(Future.successful(Right()): Future[Either[IzanamiError, Unit]])(
-              (future, t) => {
+            userByLevel
+              .foldLeft(Future.successful(Right()): Future[Either[IzanamiError, Unit]])((future, t) => {
                 future.flatMap {
-                  case Left(error) => Future.successful(Left(error))
+                  case Left(error)  => Future.successful(Left(error))
                   case Right(value) => {
-                    val rightDiff = UpsertTenantRights(addedProjectRights = Set(UnscopedFlattenProjectRight(name = project, level = t._1)))
-                    rightService.updateUsersRightsForTenant(targetUsers = t._2.toSet, tenant = tenant, diff = rightDiff, conn=Some(conn), conflictStrategy = Skip)
+                    val rightDiff = UpsertTenantRights(addedProjectRights =
+                      Set(UnscopedFlattenProjectRight(name = project, level = t._1))
+                    )
+                    rightService.updateUsersRightsForTenant(
+                      targetUsers = t._2.toSet,
+                      tenant = tenant,
+                      diff = rightDiff,
+                      conn = Some(conn),
+                      conflictStrategy = Skip
+                    )
                   }
                 }
 
+              })
+              .map {
+                case Left(error) => error.toHttpResponse
+                case Right(_)    => NoContent
               }
-            ).map {
-              case Left(error) => error.toHttpResponse
-              case Right(_) => NoContent
-            }
           })
 
         }
@@ -503,21 +507,28 @@ class UserController(
         case Some(seq) => {
           val userByLevel = seq.groupMap(_._2)(_._1)
           env.postgresql.executeInTransaction(conn => {
-            userByLevel.foldLeft(Future.successful(Right()): Future[Either[IzanamiError, Unit]])(
-              (future, t) => {
+            userByLevel
+              .foldLeft(Future.successful(Right()): Future[Either[IzanamiError, Unit]])((future, t) => {
                 future.flatMap {
                   case Left(error) => Future.successful(Left(error))
-                  case Right(_) => {
-                    val rightDiff = UpsertTenantRights(addedTenantRight = Some(UnscopedFlattenTenantRight(level = t._1)))
-                    rightService.updateUsersRightsForTenant(targetUsers = t._2.toSet, tenant = tenant, diff = rightDiff, conn=Some(conn), conflictStrategy = Skip)
+                  case Right(_)    => {
+                    val rightDiff =
+                      UpsertTenantRights(addedTenantRight = Some(UnscopedFlattenTenantRight(level = t._1)))
+                    rightService.updateUsersRightsForTenant(
+                      targetUsers = t._2.toSet,
+                      tenant = tenant,
+                      diff = rightDiff,
+                      conn = Some(conn),
+                      conflictStrategy = Skip
+                    )
                   }
                 }
 
+              })
+              .map {
+                case Left(error) => error.toHttpResponse
+                case Right(_)    => NoContent
               }
-            ).map {
-              case Left(error) => error.toHttpResponse
-              case Right(_) => NoContent
-            }
           })
         }
         case None      => BadBodyFormat().toHttpResponse.future

@@ -7,7 +7,8 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, MailSendingError, MissingMailProviderConfigurationError}
 import fr.maif.izanami.mail.MailGunRegions.{Europe, MailGunRegion}
 import fr.maif.izanami.mail.MailerTypes.MailerType
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.utils.syntax.implicits.BetterFuture
 import org.json.{JSONArray, JSONObject}
 import play.api.Logger
 import play.api.libs.ws.{WSAuthScheme, WSClient}
@@ -65,38 +66,33 @@ case class MailGunMailProvider(configuration: MailGunConfiguration) extends Mail
 }
 
 class Mails(env: Env) {
-  private val mailFactory = new MailFactory(env)
+  private val mailFactory                   = new MailFactory(env)
   private implicit val ec: ExecutionContext = env.executionContext
 
-  def sendMail(mail: Mail): Future[Either[IzanamiError, Unit]] = {
+  def sendMail(mail: Mail): FutureEither[Unit] = {
     env.datastores.configuration
       .readFullConfiguration()
-      .flatMap(eitherConfiguration => {
-        eitherConfiguration.fold(
-          err => Left(err).future,
-          configuration => {
-            configuration.mailConfiguration match {
-              case ConsoleMailProvider                                                        => ConsoleMailService.sendMail(mail)
-              case MailJetMailProvider(MailJetConfiguration(apiKey, secret, _))
-                  if Objects.isNull(apiKey) || Objects.isNull(secret) =>
-                Left(MissingMailProviderConfigurationError("MailJet")).future
-              case MailJetMailProvider(conf)                                                  => MailJetService.sendMail(mail, conf, configuration.originEmail.get)
-              case MailGunMailProvider(configuration) if Objects.isNull(configuration.apiKey) =>
-                Left(MissingMailProviderConfigurationError("MailJet")).future
-              case MailGunMailProvider(mailConf)                                              =>
-                MailGunService.sendMail(mail, mailConf, configuration.originEmail.get, env.Ws)
-              case SMTPMailProvider(mailConf)                                                 =>
-                SMTPMailService.sendMail(mail, mailConf, configuration.originEmail.get)
-            }
-          }
-        )
+      .flatMap(configuration => {
+        configuration.mailConfiguration match {
+          case ConsoleMailProvider                                                        => ConsoleMailService.sendMail(mail)
+          case MailJetMailProvider(MailJetConfiguration(apiKey, secret, _))
+              if Objects.isNull(apiKey) || Objects.isNull(secret) =>
+            FutureEither.failure(MissingMailProviderConfigurationError("MailJet"))
+          case MailJetMailProvider(conf)                                                  => MailJetService.sendMail(mail, conf, configuration.originEmail.get)
+          case MailGunMailProvider(configuration) if Objects.isNull(configuration.apiKey) =>
+            FutureEither.failure(MissingMailProviderConfigurationError("MailJet"))
+          case MailGunMailProvider(mailConf)                                              =>
+            MailGunService.sendMail(mail, mailConf, configuration.originEmail.get, env.Ws)
+          case SMTPMailProvider(mailConf)                                                 =>
+            SMTPMailService.sendMail(mail, mailConf, configuration.originEmail.get)
+        }
       })
   }
 
-  def sendInvitationMail(targetAdress: String, token: String): Future[Either[IzanamiError, Unit]] =
+  def sendInvitationMail(targetAdress: String, token: String): FutureEither[Unit] =
     sendMail(mailFactory.invitationEmail(targetAdress, token))
 
-  def sendPasswordResetEmail(targetAdress: String, token: String): Future[Either[IzanamiError, Unit]] =
+  def sendPasswordResetEmail(targetAdress: String, token: String): FutureEither[Unit] =
     sendMail(mailFactory.passwordResetEmail(targetAdress, token))
 }
 
@@ -111,7 +107,7 @@ object MailGunService {
 
   def sendMail(mail: Mail, mailerConfiguration: MailGunConfiguration, originEmail: String, ws: WSClient)(implicit
       ec: ExecutionContext
-  ): Future[Either[MailSendingError, Unit]] = {
+  ): FutureEither[Unit] = {
     val domain  = originEmail.split("@")(1)
     val url     = mailerConfiguration.url.getOrElse(if (mailerConfiguration.region == Europe) EUROPE_URL else US_URL)
     val request = ws
@@ -131,13 +127,14 @@ object MailGunService {
         case _                                  => Right(())
 
       }
+      .toFEither
   }
 }
 
 object MailJetService {
   def sendMail(mail: Mail, mailerConfiguration: MailJetConfiguration, originEmail: String)(implicit
       ec: ExecutionContext
-  ): Future[Either[MailSendingError, Unit]] = {
+  ): FutureEither[Unit] = {
     val clientBuilder = ClientOptions.builder()
     mailerConfiguration.url.foreach(url => clientBuilder.baseUrl(url))
     val client        = new MailjetClient(
@@ -171,7 +168,7 @@ object MailJetService {
               .put(Emailv31.Message.HTMLPART, mail.htmlContent)
           )
       )
-    client
+    val res           = client
       .postAsync(request)
       .asScala
       .map(response => {
@@ -181,13 +178,14 @@ object MailJetService {
           Right(())
         }
       })(ec)
+    FutureEither(res)
   }
 }
 
 object SMTPMailService {
   def sendMail(mail: Mail, configuration: SMTPConfiguration, originEmail: String)(implicit
       ec: ExecutionContext
-  ): Future[Either[MailSendingError, Unit]] = {
+  ): FutureEither[Unit] = {
     val props    = new Properties()
     val protocol = if (configuration.smtps) "smtps" else "smtp"
     props.put(s"mail.${protocol}.host", configuration.host)
@@ -202,16 +200,19 @@ object SMTPMailService {
     msg.setSubject("Izanami")
     msg.setContent(mail.htmlContent, "text/html; charset=utf-8")
 
-    Future {
-      Using(session.getTransport(protocol).asInstanceOf[SMTPTransport]) { transport =>
-        {
-          transport.connect(configuration.host, configuration.user.getOrElse(originEmail), configuration.password.orNull)
-          transport.sendMessage(msg, msg.getAllRecipients)
-        }
-      }.toEither.left.map(t => {
-        MailSendingError(t.getMessage, 500)
-      })
-    }
+    FutureEither.from(Using(session.getTransport(protocol).asInstanceOf[SMTPTransport]) { transport =>
+      {
+        transport.connect(
+          configuration.host,
+          configuration.user.getOrElse(originEmail),
+          configuration.password.orNull
+        )
+        transport.sendMessage(msg, msg.getAllRecipients)
+      }
+    }.toEither.left.map(t => {
+      MailSendingError(t.getMessage, 500)
+    }))
+
   }
 }
 
@@ -219,13 +220,13 @@ object ConsoleMailService {
   private val logger: Logger = Logger("izanami-mailer")
   def sendMail(
       mail: Mail
-  ): Future[Either[MailSendingError, Unit]] = {
+  ): FutureEither[Unit] = {
     logger.info(s"""
          |To: ${mail.targetMail}
          |Subject: ${mail.subject}
          |Text content: ${mail.textContent}
          |Html content: ${mail.htmlContent}
          |""".stripMargin)
-    Future.successful(Right(()))
+    FutureEither(Future.successful(Right(())))
   }
 }

@@ -49,14 +49,6 @@ class RightService(env: Env) {
     effectiveRights(rights, roles)
   }
 
-  def maybeRightByRolesFromDB: Future[Option[RightsByRole]] = {
-        env.datastores.configuration
-          .readFullConfiguration()
-          .map(_.toOption.flatMap(_.oidcConfiguration))
-          .map(_.flatMap(c => c.userRightsByRoles))
-
-  }
-
   def updateUsersRightsForTenant(
       targetUsers: Set[String],
       tenant: String,

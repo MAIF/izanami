@@ -4,6 +4,8 @@ import akka.NotUsed
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.utils.FutureEither
 import org.apache.commons.codec.binary.Hex
 import play.api.Logger
 import play.api.libs.json._
@@ -24,6 +26,7 @@ object implicits {
     def left[B]: Either[A, B]                                       = Left(obj)
     def right[B]: Either[B, A]                                      = Right(obj)
     def future: Future[A]                                           = FastFuture.successful(obj)
+    def fEither: FutureEither[A]                                           = FutureEither.success(obj)
     def asFuture: Future[A]                                         = FastFuture.successful(obj)
     def toFuture: Future[A]                                         = FastFuture.successful(obj)
     def somef: Future[Option[A]]                                    = FastFuture.successful(Some(obj))
@@ -74,6 +77,13 @@ object implicits {
       }
     }
   }
+
+  implicit class BetterFuture[V](private val obj: Future[Either[IzanamiError, V]]) extends AnyVal {
+    def toFEither: FutureEither[V] = {
+        FutureEither(obj)
+    }
+  }
+
 
 
   implicit class BetterBoolean[E,V](private val b: Boolean) extends AnyVal {

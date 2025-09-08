@@ -2,12 +2,14 @@ package fr.maif.izanami.web
 
 import buildinfo.BuildInfo
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{BadBodyFormat, IzanamiError}
+import fr.maif.izanami.errors.{BadBodyFormat, CantUpdateOIDCCOnfiguration, IzanamiError}
 import fr.maif.izanami.mail.{ConsoleMailProvider, MailGunMailProvider, MailJetMailProvider, MailerTypes, SMTPMailProvider}
 import fr.maif.izanami.models.{FullIzanamiConfiguration, IzanamiConfiguration, Rights}
 import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationWrites, mailGunConfigurationWrite, mailJetConfigurationWrites, mailerReads}
+import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.libs.json.{JsBoolean, JsError, JsObject, JsString, JsSuccess, JsValue, Json}
+import play.api.libs.json.{JsBoolean, JsError, JsFalse, JsNull, JsObject, JsString, JsSuccess, JsValue, Json}
+import play.api.mvc.Results.Ok
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -25,12 +27,10 @@ class ConfigurationController(
   } }
 
   private def hasOIDCConfChanged(
+      oldConfig: FullIzanamiConfiguration,
      newConfig: FullIzanamiConfiguration
-  ): Future[Either[IzanamiError, Boolean]] = {
-
-    env.datastores.configuration.readFullConfiguration().map(either => either.map(oldConfig => {
-      oldConfig.oidcConfiguration != newConfig.oidcConfiguration
-    }))
+  ): Boolean = {
+    oldConfig.oidcConfiguration != newConfig.oidcConfiguration
   }
 
   private def updateOIDCRightIfNeeded(conf: FullIzanamiConfiguration): Future[FullIzanamiConfiguration] = {
@@ -49,20 +49,25 @@ class ConfigurationController(
         IzanamiConfiguration.fullConfigurationReads.reads(request.body) match {
           case JsError(_) => BadBodyFormat().toHttpResponse.future
           case JsSuccess(configurationFromBody, _path) => {
-            for(
-              //confWithFixedRights <- updateOIDCRightIfNeeded(configurationFromBody);
-              hasOIDCConfChanged <- hasOIDCConfChanged(configurationFromBody);
-              result <- (hasOIDCConfChanged, env.isOIDCConfigurationEditable) match {
-                case (Left(err), _) => err.toHttpResponse.future
-                case (Right(true), false) => BadRequest(Json.obj("message" -> "OIDC configuration can't be updated while it is set in env variables.")).future
-                case _ => env.datastores.configuration.updateConfiguration(configurationFromBody).map {
-                  case Left(err) => err.toHttpResponse
-                  case Right(_) => NoContent
-                }
+            val futureConfiguration = env.datastores.configuration.readFullConfiguration()
+            futureConfiguration.flatMap(oldConfiguration => {
+              val inputConfigurationWithSecret = configurationFromBody.copy(
+                oidcConfiguration = configurationFromBody.oidcConfiguration.map(conf => {
+                  if(conf.clientSecret == null || conf.clientSecret.isEmpty) {
+                    conf.copy(clientSecret = oldConfiguration.oidcConfiguration.map(_.clientSecret).orNull)
+                  } else {
+                    conf
+                  }
+                })
+              )
+
+              val hasOidcPartChanged = hasOIDCConfChanged(oldConfiguration, inputConfigurationWithSecret)
+              if(hasOidcPartChanged && !env.isOIDCConfigurationEditable) {
+                FutureEither.failure(CantUpdateOIDCCOnfiguration)
+              } else {
+                env.datastores.configuration.updateConfiguration(inputConfigurationWithSecret)
               }
-            ) yield {
-              result
-            }
+            }).toResult(_ => NoContent)
           }
         }
     }
@@ -73,14 +78,13 @@ class ConfigurationController(
 
     env.datastores.configuration
       .readFullConfiguration()
-      .map {
-        case Left(error)          => error.toHttpResponse
-        case Right(configuration) =>
-          val configurationWithVersion:JsObject = Json.toJson(configuration)(IzanamiConfiguration.fullConfigurationWrites).as[JsObject] +
-            ("version" -> JsString(BuildInfo.version)) +
-            ("preventOAuthModification" -> preventOAuthModification)
-          Ok(configurationWithVersion)
-      }
+      .toResult(configuration => {
+        val json = Json.toJson(configuration)(IzanamiConfiguration.configurationWriteForExposition).as[JsObject]
+        val configurationWithVersion:JsObject = json +
+          ("version" -> JsString(BuildInfo.version)) +
+          ("preventOAuthModification" -> preventOAuthModification)
+        Ok(configurationWithVersion)
+      })
   }
 
   def readExpositionUrl(): Action[AnyContent] = Action { implicit request =>
@@ -92,15 +96,12 @@ class ConfigurationController(
   def availableIntegrations(): Action[AnyContent] = Action.async { implicit request =>
     val isWasmPresent = env.datastores.configuration.readWasmConfiguration().isDefined
     env.datastores.configuration.readFullConfiguration()
-      .map{
-        case Left(err) => err.toHttpResponse
-        case Right(c:FullIzanamiConfiguration) => {
-          Ok(Json.obj(
-            "wasmo" -> isWasmPresent,
-            "oidc" -> c.oidcConfiguration.exists(_.enabled)
-          ))
-        }
-      }
+      .toResult(c => {
+        Ok(Json.obj(
+          "wasmo" -> isWasmPresent,
+          "oidc" -> c.oidcConfiguration.exists(_.enabled)
+        ))
+      })
   }
 
   /*def readMailerConfiguration(id: String): Action[AnyContent] = adminAuthAction.async {

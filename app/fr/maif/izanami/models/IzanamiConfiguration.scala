@@ -112,7 +112,6 @@ object OAuth2Configuration {
         for (
           enabled      <- (json \ "enabled").asOpt[Boolean];
           clientId     <- (json \ "clientId").asOpt[String];
-          clientSecret <- (json \ "clientSecret").asOpt[String];
           authorizeUrl <- (json \ "authorizeUrl").asOpt[String];
           tokenUrl     <- (json \ "tokenUrl").asOpt[String];
           nameField    <- (json \ "nameField").asOpt[String];
@@ -129,7 +128,7 @@ object OAuth2Configuration {
             method = method,
             enabled = enabled,
             clientId = clientId,
-            clientSecret = clientSecret,
+            clientSecret = (json \ "clientSecret").asOpt[String].orNull,
             authorizeUrl = authorizeUrl,
             tokenUrl = tokenUrl,
             nameField = nameField,
@@ -331,8 +330,12 @@ object IzanamiConfiguration {
     }).getOrElse(JsError("Bad body format"))
   }
 
-  val fullConfigurationWrites: Writes[FullIzanamiConfiguration] = conf => {
-    val oidcConfiguration = conf.oidcConfiguration.map(OAuth2Configuration._fmt.writes).getOrElse(JsNull)
+  val configurationWriteForExposition: Writes[FullIzanamiConfiguration] = conf => {
+    val oidcConfiguration =
+      conf.oidcConfiguration
+        .map(OAuth2Configuration._fmt.writes)
+        .map(json => json.as[JsObject] - "clientSecret")
+        .getOrElse(JsNull)
     Json.obj(
       "mailerConfiguration"         -> Json.toJson(conf.mailConfiguration)(mailConfigurationWrites),
       "invitationMode"              -> conf.invitationMode.toString,

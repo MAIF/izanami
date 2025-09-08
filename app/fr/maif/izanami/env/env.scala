@@ -119,9 +119,7 @@ class Env(
   def oidcConfigurationMigration() = {
     datastores.configuration
       .readFullConfiguration()
-      .map {
-        case Left(err)            =>
-        case Right(configuration) =>
+      .map(configuration => {
           val maybeOauth = maybeOidcConfig.flatMap(o => o.toIzanamiOAuth2Configuration)
           maybeOauth.map(oauth => {
             datastores.configuration
@@ -131,7 +129,7 @@ class Env(
                 res
               })
           })
-      }
+      })
   }
 
   def onStart(): Future[Unit] = {
@@ -141,7 +139,7 @@ class Env(
       _ <- jobs.onStart()
       _ <- wasmIntegration.startF()
       _ <- webhookListener.onStart()
-      _ <- oidcConfigurationMigration()
+      _ <- oidcConfigurationMigration().value
     } yield ()
   }
 

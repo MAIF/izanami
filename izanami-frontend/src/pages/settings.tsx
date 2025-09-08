@@ -702,11 +702,9 @@ function OIDCForm() {
                       <label>
                         Client Secret
                         <input
-                          type="text"
+                          type="password"
                           className="form-control"
-                          {...register("oidcConfiguration.clientSecret", {
-                            required: "Client secret is required",
-                          })}
+                          {...register("oidcConfiguration.clientSecret")}
                         />
                       </label>
                       <ErrorMessage

@@ -13,8 +13,9 @@ import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTP
 import fr.maif.izanami.models.{FullIzanamiConfiguration, InvitationMode, IzanamiConfiguration, OAuth2Configuration, Rights, Tenant, User}
 import fr.maif.izanami.services.CompleteRights
 import fr.maif.izanami.services.RightService.RightsByRole
-import fr.maif.izanami.utils.Datastore
+import fr.maif.izanami.utils.{Datastore, FutureEither}
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
+import fr.maif.izanami.utils.syntax.implicits.BetterFuture
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import io.vertx.sqlclient.{Row, SqlConnection}
 import play.api.libs.json.{JsNull, JsObject, Json, Writes}
@@ -96,8 +97,8 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
     ) yield WasmoSettings(url.toString, clientId, clientSecret = clientSecret)
   }
 
-  def readFullConfiguration(): Future[Either[IzanamiError, FullIzanamiConfiguration]] = {
-    env.postgresql
+  def readFullConfiguration(): FutureEither[FullIzanamiConfiguration] = {
+    val res = env.postgresql
       .queryOne(
         s"""
            |SELECT c.mailer, c.invitation_mode, c.origin_email, c.anonymous_reporting, m.configuration, m.name, c.oidc_configuration, c.anonymous_reporting_date
@@ -130,6 +131,8 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
           Left(InternalServerError())
         }
       }
+
+    FutureEither(res)
   }
 
   def updateOAuthRightByRole(rights: RightsByRole): Future[Unit] = {
@@ -146,7 +149,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
     ){_ => Some(())}
   }
 
-  def updateConfiguration(newConfig: FullIzanamiConfiguration): Future[Either[IzanamiError, FullIzanamiConfiguration]] = {
+  def updateConfiguration(newConfig: FullIzanamiConfiguration): FutureEither[FullIzanamiConfiguration] = {
     env.postgresql.executeInTransaction(conn => {
       updateMailerConfiguration(newConfig.mailConfiguration, Some(conn))
         .flatMap{
@@ -196,7 +199,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
               .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
           }
         }
-        })
+        }).toFEither
   }
 
   def updateMailerConfiguration(

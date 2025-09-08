@@ -201,6 +201,7 @@ case class ImportError(table: String, json: String, errorMessage: String)
     )
 case class NoProtectedContextAccess(context: String) extends IzanamiError(message = s"You don't have enough rights to perform operation on protected context $context", status = 403)
 case class CantUpdateOIDCUser() extends IzanamiError(message = "OIDC users can't be updated since role right mode is set to 'supervised'.", status = BAD_REQUEST)
+case object CantUpdateOIDCCOnfiguration extends IzanamiError(message = "OIDC configuration can't be updated while it is set in env variables.", status = BAD_REQUEST)
 case class ErrorAggregator(errors: Seq[IzanamiError]) extends IzanamiError(message = errors.map(err => err.message).mkString("\n"), status = errors.map(err => err.status).sorted(Ordering[Int]).headOption.getOrElse(INTERNAL_SERVER_ERROR)) {}
 
 

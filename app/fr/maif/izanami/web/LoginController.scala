@@ -53,7 +53,7 @@ class LoginController(
   }
 
   def openIdConnect = Action.async { implicit request =>
-    env.datastores.configuration.readFullConfiguration().map(e => e.toOption.flatMap(_.oidcConfiguration)).map {
+    env.datastores.configuration.readFullConfiguration().value.map(e => e.toOption.flatMap(_.oidcConfiguration)).map {
       case None => MissingOIDCConfigurationError().toHttpResponse
       case Some(
             OAuth2Configuration(
@@ -104,7 +104,7 @@ class LoginController(
       for (
         code                   <- request.body.asJson.flatMap(json => (json \ "code").get.asOpt[String]).asFuture;
         oauth2ConfigurationOpt <-
-          env.datastores.configuration.readFullConfiguration().map(_.toOption.flatMap(_.oidcConfiguration))
+          env.datastores.configuration.readFullConfiguration().value.map(_.toOption.flatMap(_.oidcConfiguration))
       )
         yield {
           if(code.isEmpty) {
