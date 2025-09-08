@@ -387,6 +387,13 @@ class FeatureController(
     projectAuthAction(tenant, project, ProjectRightLevel.Write).async(parse.json) { implicit request =>
       Feature.readCompleteFeature(request.body, project) match {
         case JsError(e)                                                                                => BadRequest(Json.obj("message" -> "bad body format")).future
+        case JsSuccess(f: AbstractFeature, _)
+            if env.typedConfiguration.feature.forceLegacy && !f.isInstanceOf[SingleConditionFeature] =>
+          BadRequest(
+            Json.obj(
+              "message" -> "Modern feature creation is disabled on this instance, only legacy features are permitted"
+            )
+          ).future
         case JsSuccess(f: CompleteWasmFeature, _) if f.resultType != BooleanResult && f.wasmConfig.opa =>
           BadRequest(Json.obj("message" -> "OPA feature must have boolean result type")).future
         case JsSuccess(feature, _)                                                                     => {
@@ -458,6 +465,14 @@ class FeatureController(
                       case Right(None)                                                            => NotFound("").toFuture
                       case Right(Some(oldFeature)) if !canUpdateFeature(oldFeature, request.user) =>
                         Forbidden(Json.obj("message" -> "Your are not allowed to update this feature")).toFuture
+                      case Right(Some(_: SingleConditionFeature))
+                          if !feature
+                            .isInstanceOf[SingleConditionFeature] && env.typedConfiguration.feature.forceLegacy =>
+                        BadRequest(
+                          Json.obj(
+                            "message" -> "This Izanami instance doesn't allow updating legacy feature to modern feature"
+                          )
+                        ).toFuture
                       case Right(Some(oldFeature))                                                => {
                         env.datastores.features
                           .update(

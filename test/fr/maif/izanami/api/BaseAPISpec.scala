@@ -2302,7 +2302,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
              |"tags": [${tags.map(name => s""""${name}"""").mkString(",")}],
              |"enabled": $enabled,
              |"activationStrategy": "$strategy",
-             |"parameters": ${parameters.toString()}
+             |"parameters": ${parameters.toString()},
+             |"resultType": "boolean"
              |}""".stripMargin))
       )
 
@@ -2424,14 +2425,15 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         tenant: String,
         project: String,
         name: String,
-        transformer: JsObject => JsObject
+        transformer: JsObject => JsObject,
+        id: Option[String] = None
     ): RequestResult = {
-      val id              = this.findFeatureId(tenant, project, name).get
+      val idToUse              = id.getOrElse(this.findFeatureId(tenant, project, name).get)
       val projectResponse = this.fetchProject(tenant, project)
       val jsonFeatures    = (projectResponse.json.get \ "features").as[JsArray]
       val jsonFeature     = jsonFeatures.value.find(js => (js \ "name").as[String] == name).map(js => js.as[JsObject]).get
       val newFeature      = transformer(jsonFeature)
-      BaseAPISpec.this.updateFeature(tenant, id, newFeature, cookies)
+      BaseAPISpec.this.updateFeature(tenant, idToUse, newFeature, cookies)
     }
 
     def updateAPIKey(

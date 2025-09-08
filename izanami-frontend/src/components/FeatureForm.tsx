@@ -39,6 +39,7 @@ import { Loader } from "./Loader";
 import { ResultTypeIcon } from "./ResultTypeIcon";
 import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
 import { toLegacyFeatureFormat, toModernFeature } from "../utils/featureUtils";
+import { IzanamiContext } from "../securityContext";
 
 export type LegacyFeature =
   | NoStrategyFeature
@@ -695,6 +696,8 @@ export function FeatureForm(props: {
 }) {
   const { tenant } = useParams();
   const { defaultValue, submit, ...rest } = props;
+  const ctx = React.useContext(IzanamiContext);
+  const forceLegacy = ctx.integrations?.forceLegacy ?? false;
 
   const completeFeatureQuery = useQuery({
     queryKey: [defaultValue ? JSON.stringify(defaultValue) : ""],
@@ -703,7 +706,8 @@ export function FeatureForm(props: {
   });
 
   const [legacy, setLegacy] = useState<boolean>(
-    defaultValue !== undefined && isSingleConditionFeature(defaultValue)
+    (defaultValue !== undefined && isSingleConditionFeature(defaultValue)) ||
+      (!defaultValue && forceLegacy)
   );
 
   const [convertedValue, setConvertedValue] = useState<
@@ -739,7 +743,7 @@ export function FeatureForm(props: {
 
     return (
       <>
-        {defaultValue && legacy ? (
+        {defaultValue && legacy && !forceLegacy ? (
           <label>
             <button
               className="btn btn-secondary"
@@ -774,6 +778,7 @@ export function FeatureForm(props: {
               type="checkbox"
               className="izanami-checkbox"
               style={{ display: "inline-flex", marginTop: 0 }}
+              checked={legacy}
               onChange={(e) => {
                 setLegacy(e.target.checked);
               }}

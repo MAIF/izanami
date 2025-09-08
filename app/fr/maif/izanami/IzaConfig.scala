@@ -129,7 +129,7 @@ case class Invitations(ttl: Int)
 case class Sessions(ttl: Int)
 case class PasswordResetRequests(ttl: Int)
 case class Search(similarityThreshold: Double)
-case class Feature(callRecords: CallRecords, staleHoursDelay: Long)
+case class Feature(callRecords: CallRecords, staleHoursDelay: Long, forceLegacy: Boolean)
 case class CallRecords(callRegisterIntervalInSeconds: Long, callRetentionTimeInHours: Long)
 case class Housekeeping(startDelayInSeconds: Long, intervalInSeconds: Long)
 case class RoleRights(admin: Boolean = false, tenants: Map[String, TenantRoleRights] = Map()) {

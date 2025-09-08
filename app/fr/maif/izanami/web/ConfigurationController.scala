@@ -99,7 +99,8 @@ class ConfigurationController(
       .toResult(c => {
         Ok(Json.obj(
           "wasmo" -> isWasmPresent,
-          "oidc" -> c.oidcConfiguration.exists(_.enabled)
+          "oidc" -> c.oidcConfiguration.exists(_.enabled),
+          "forceLegacy" -> env.typedConfiguration.feature.forceLegacy
         ))
       })
   }

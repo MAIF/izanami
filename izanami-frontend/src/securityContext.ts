@@ -33,6 +33,7 @@ export interface TIzanamiContext {
   integrations?: {
     wasmo: boolean;
     oidc: boolean;
+    forceLegacy: boolean;
   };
 }
 
