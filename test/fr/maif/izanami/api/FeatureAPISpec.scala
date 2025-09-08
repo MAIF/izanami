@@ -578,6 +578,24 @@ class FeatureAPISpec extends BaseAPISpec {
       (featureJson \ "value").as[BigDecimal] mustEqual 1.5
     }
 
+
+    "allow to create feature with negative number result type" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+            .withProjectNames("bar")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val result      =
+        testSituation.createFeature("my-feature", project = "bar", tenant = "foo", resultType = "number", value = "-1")
+      result.status mustBe CREATED
+      val featureJson = testSituation.fetchProject("foo", "bar").json.get \ "features" \ 0
+      (featureJson \ "resultType").as[String] mustEqual "number"
+      (featureJson \ "value").as[BigDecimal] mustEqual -1
+    }
+
     "allow to create feature with string result type" in {
       val testSituation = TestSituationBuilder()
         .withTenants(

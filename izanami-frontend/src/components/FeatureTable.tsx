@@ -2131,8 +2131,6 @@ export function FeatureTable(props: {
           tenant!
         );
 
-        console.log("table hasRightForProject", hasUpdateRight);
-
         return (
           <label
             style={{

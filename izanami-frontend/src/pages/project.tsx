@@ -35,7 +35,6 @@ export function Project({
     TProjectLevel.Write
   );
   const hasUpdateRight = useProjectRight(tenant, project, TProjectLevel.Update);
-  console.log("hasUpdateRight", hasUpdateRight);
 
   const featureCreateMutation = useMutation({
     mutationFn: (data: { project: string; feature: any }) =>
