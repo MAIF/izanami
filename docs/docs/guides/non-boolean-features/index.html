@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.1.1">
 <title data-rh="true">Non boolean features | Izanami</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://maif.github.io/izanami/img/izanami-mini.jpg"><meta data-rh="true" name="twitter:image" content="https://maif.github.io/izanami/img/izanami-mini.jpg"><meta data-rh="true" property="og:url" content="https://maif.github.io/izanami/docs/guides/non-boolean-features"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Non boolean features | Izanami"><meta data-rh="true" name="description" content="Boolean features (features that can only respond true or false)"><meta data-rh="true" property="og:description" content="Boolean features (features that can only respond true or false)"><link data-rh="true" rel="icon" href="/izanami/img/_izanami-mini.svg"><link data-rh="true" rel="canonical" href="https://maif.github.io/izanami/docs/guides/non-boolean-features"><link data-rh="true" rel="alternate" href="https://maif.github.io/izanami/docs/guides/non-boolean-features" hreflang="en"><link data-rh="true" rel="alternate" href="https://maif.github.io/izanami/docs/guides/non-boolean-features" hreflang="x-default"><link rel="stylesheet" href="/izanami/assets/css/styles.6af49c56.css">
-<script src="/izanami/assets/js/runtime~main.cd56f6c9.js" defer="defer"></script>
+<script src="/izanami/assets/js/runtime~main.92f73e88.js" defer="defer"></script>
 <script src="/izanami/assets/js/main.74c0cee3.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -51,13 +51,13 @@ during build, code analysis, automated tests, ...</p></div></div>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="non-boolean-feature-creation">Non boolean feature creation<a href="#non-boolean-feature-creation" class="hash-link" aria-label="Direct link to Non boolean feature creation" title="Direct link to Non boolean feature creation">​</a></h2>
 <p>Define non boolean feature is a lot like defining boolean features, it&#x27;s basically
 just a select value to change at feature creation.</p>
-<img src="/izanami/assets/images/result-type-menu-6a5a70a0bbf7067e21b06714546efb8e.png">
+<img src="/izanami/assets/images/result-type-menu-15d03c41f9cd7633983749cc77b3049f.png">
 <p>Instead of leaving &quot;Result type&quot; field to &quot;boolean&quot; when creating a feature, you can set it to &quot;string&quot; or &quot;number&quot;.</p>
 <p>You&#x27;ll have to indicate the &quot;Base value&quot; for your feature, this value will be used as feature
 value is feature is enabled and if there is no active alternative value / overload.</p>
 <img src="/izanami/assets/images/feature-form-15108a6bd16f65bf5a03f7f7df93d2e6.png">
 <p>You can then define alternative values, that will be used if their conditions are satisfied.</p>
-<img src="/izanami/assets/images/alternative-value-a986517bb4af2b170c91b17bf75e36ee.png">
+<img src="/izanami/assets/images/alternative-value-e02f2a9c86db0aa0a8e1ed3a713f3f40.png">
 <div class="description__trivia_yesz"><img src="/izanami/assets/images/izanami_compressed-659337582c1667d92966e42fa1bfea3f.webp"><div><p>For boolean features, activation conditions order is not important: one
 matching condition is enough to make the feature active.</p><br><p>For string an number features,<!-- --> <!-- -->
 <strong>order of alternative values matters</strong>: feature value will be
