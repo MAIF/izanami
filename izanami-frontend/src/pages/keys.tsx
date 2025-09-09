@@ -94,7 +94,7 @@ function editionSchema(tenant: string, key?: TKey) {
         return { label: project.name, value: project.name };
       },
       defaultValue: key?.projects || undefined,
-      visible: ({ rawValues }) => !rawValues.admin,
+      visible: ({ rawValues }: { rawValues: any }) => !rawValues.admin,
     },
     description: {
       label: "Description",
@@ -242,7 +242,7 @@ export default function Keys(props: { tenant: string }) {
             </span>
           );
         } else {
-          return info.row.original.projects.map((p) => {
+          return info.row.original.projects.map((p: string) => {
             return (
               <>
                 <ProjectLink
