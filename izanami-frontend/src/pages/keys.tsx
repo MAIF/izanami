@@ -28,6 +28,8 @@ import { Loader } from "../components/Loader";
 import { useSearchParams } from "react-router-dom";
 import { InvitationForm } from "../components/InvitationForm";
 import { RightTable } from "../components/RightTable";
+import { Tooltip } from "../components/Tooltip";
+import { ProjectLink } from "../components/ProjectLink";
 
 function editionSchema(tenant: string, key?: TKey) {
   return {
@@ -47,7 +49,14 @@ function editionSchema(tenant: string, key?: TKey) {
       ],
     },
     enabled: {
-      label: "Enabled",
+      label: () => (
+        <>
+          Enabled
+          <Tooltip id="enabled-key-id">
+            Key must be enabled to call Izanami endpoints
+          </Tooltip>
+        </>
+      ),
       type: type.bool,
       defaultValue: key?.enabled ?? false,
       props: {
@@ -56,12 +65,26 @@ function editionSchema(tenant: string, key?: TKey) {
       },
     },
     admin: {
-      label: "Admin",
+      label: () => (
+        <>
+          Tenant wide
+          <Tooltip id="unscoped-key-id">
+            A tenant wide key can read all tenant features.
+          </Tooltip>
+        </>
+      ),
       type: type.bool,
       defaultValue: key?.admin ?? false,
     },
     projects: {
-      label: "Allowed projects",
+      label: () => (
+        <>
+          Allowed projects
+          <Tooltip id="allowed-project-key-id">
+            Non tenant wide keys can access only features of specified projects.
+          </Tooltip>
+        </>
+      ),
       type: type.string,
       format: format.select,
       isMulti: true,
@@ -71,8 +94,8 @@ function editionSchema(tenant: string, key?: TKey) {
         return { label: project.name, value: project.name };
       },
       defaultValue: key?.projects || undefined,
+      visible: ({ rawValues }) => !rawValues.admin,
     },
-
     description: {
       label: "Description",
       type: type.string,
@@ -192,6 +215,50 @@ export default function Keys(props: { tenant: string }) {
       },
     },
     {
+      accessorKey: "projects",
+      header: () => "Scope",
+      minSize: 200,
+      size: 10,
+      meta: {
+        valueType: "discrete",
+      },
+      filterFn: (row: Row<TKey>, columnId: string, filterValue: any) => {
+        if (!filterValue || filterValue?.length === 0) {
+          return true;
+        }
+        const value: any = row.getValue(columnId);
+        const isTenantWide = row.original.admin;
+
+        return filterValue.some(
+          (v: string) => value.includes(v) || isTenantWide
+        );
+      },
+      cell: (info: any) => {
+        if (info.row.original.admin) {
+          return (
+            <span className="fw-bold fst-italic">
+              {" "}
+              <i className="fas fa-cloud" aria-hidden></i>&nbsp;Tenant wide
+            </span>
+          );
+        } else {
+          return info.row.original.projects.map((p) => {
+            return (
+              <>
+                <ProjectLink
+                  key={p}
+                  tenant={tenant}
+                  project={p}
+                  className="table-link"
+                />
+                <br />
+              </>
+            );
+          });
+        }
+      },
+    },
+    {
       id: "description",
       header: () => "Description",
       minSize: 150,
@@ -210,31 +277,6 @@ export default function Keys(props: { tenant: string }) {
           </div>
         );
       },
-    },
-    {
-      accessorKey: "projects",
-      header: () => "Projects",
-      minSize: 200,
-      size: 10,
-      meta: {
-        valueType: "discrete",
-      },
-      filterFn: (row: Row<TKey>, columnId: string, filterValue: any) => {
-        if (!filterValue || filterValue?.length === 0) {
-          return true;
-        }
-        const value: any = row.getValue(columnId);
-
-        return filterValue.some((v: string) => value.includes(v));
-      },
-    },
-    {
-      accessorKey: "admin",
-      header: () => "Admin",
-      meta: {
-        valueType: "boolean",
-      },
-      size: 10,
     },
   ];
 
