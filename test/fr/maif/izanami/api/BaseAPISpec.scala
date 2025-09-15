@@ -2370,7 +2370,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     ): RequestResult = {
       val response = await(
         ws
-          .url(s"${BASE_URL}/features?${pattern.map(p => s"pattern=$p").getOrElse("")}active=$active&pageSize=$pageSize&page=$page")
+          .url(s"${BASE_URL}/features?${pattern.map(p => s"pattern=${p}&").getOrElse("")}active=$active&pageSize=$pageSize&page=$page")
           .withHttpHeaders(
             ("Izanami-Client-Id"     -> clientId),
             ("Izanami-Client-Secret" -> clientSecret)

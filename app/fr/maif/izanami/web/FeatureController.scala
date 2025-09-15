@@ -400,11 +400,11 @@ class FeatureController(
           env.datastores.tags
             .readTags(tenant, feature.tags)
             .flatMap {
-              case tags if tags.size < feature.tags.size => {
+              case Right(tags) if tags.size < feature.tags.size => {
                 val tagsToCreate = feature.tags.diff(tags.map(t => t.name).toSet)
                 env.datastores.tags.createTags(tagsToCreate.map(name => TagCreationRequest(name = name)).toList, tenant)
               }
-              case tags                                  => Right(tags).toFuture
+              case either                                  => either.toFuture
             }
             .flatMap(_ =>
               env.datastores.features
@@ -448,12 +448,12 @@ class FeatureController(
             env.datastores.tags
               .readTags(tenant, feature.tags)
               .flatMap {
-                case tags if tags.size < feature.tags.size => {
+                case Right(tags) if tags.size < feature.tags.size => {
                   val tagsToCreate = feature.tags.diff(tags.map(t => t.name).toSet)
                   env.datastores.tags
                     .createTags(tagsToCreate.map(name => TagCreationRequest(name = name)).toList, tenant, Some(conn))
                 }
-                case tags                                  => Right(tags).toFuture
+                case either                                  => either.toFuture
               }
               .flatMap {
                 case Left(err)    => Future.successful(err.toHttpResponse)

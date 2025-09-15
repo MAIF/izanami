@@ -388,7 +388,7 @@ class FeatureAPISpec extends BaseAPISpec {
       response.status mustEqual BAD_REQUEST
     }
 
-    "allow to applying multiple tags to features " in {
+    "allow applying multiple tags to features " in {
       val situation     = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(

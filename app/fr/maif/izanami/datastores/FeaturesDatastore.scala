@@ -465,7 +465,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                     env.datastores.tags
                       .readTags(tenant, value)
                       .flatMap {
-                        case tags if tags.size < value.size => {
+                        case Right(tags) if tags.size < value.size => {
                           val existingTagNames = tags.map(_.name).toSet
                           val tagsToCreate     = value.diff(existingTagNames)
                           env.datastores.tags.createTags(
@@ -474,18 +474,28 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                             conn = Some(conn)
                           )
                         }
-                        case tags                           => Right(tags).toFuture
+                        case either                                => Future.successful(either)
                       }
                       .flatMap {
                         case Left(err) => Future.successful(Left(err))
-                        case Right(_)  =>
+                        case Right(_)  => {
                           env.postgresql
                             .queryOne(
                               s"""delete from "${tenant}".features_tags where feature=$$1""",
                               List(id),
                               conn = Some(conn)
                             ) { _ => Some(id) }
-                            .flatMap(maybeId => insertIntoFeatureTags(tenant, id, value, Some(conn)))
+                            .map(o => {
+                              Right(())
+                            })
+                            .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+                        }
+                      }
+                      .flatMap {
+                        case Right(_) => {
+                          insertIntoFeatureTags(tenant, id, value, Some(conn))
+                        }
+                        case either   => Future.successful(either)
                       }
                   case Left(err)               => Future.successful(Left(err))
                   case Right(None)             => Future.successful(Left(FeatureDoesNotExist(name = id)))
@@ -524,6 +534,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
               }
             })
             .map(maybeErrors => {
+              println("maybeErrors", maybeErrors)
               ErrorAggregator.fromEitherSeq(maybeErrors).fold(Right(()): Either[IzanamiError, Unit])(err => Left(err))
             })
         })
@@ -859,7 +870,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
               if (needContexts) {
                 r.optJsObject("overloads")
                   .map(jsObject => {
-                    val objByContext                                         = jsObject.as[Map[String, JsObject]]
+                    val objByContext                                         = jsObject
+                      .as[Map[String, JsObject]]
                       .map(entry => (entry._1.replaceAll("\\.", "/"), entry._2))
                     val overloadByPath: Map[Option[String], CompleteFeature] = objByContext
                       .map { case (ctx, jsObject) => (ctx, Feature.readCompleteFeature(jsObject).asOpt) }
