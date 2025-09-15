@@ -1,5 +1,6 @@
 package fr.maif.izanami.models.features
 
+import fr.maif.izanami.models.features.ActivationCondition.{maxNumberValue, minNumberValue}
 import play.api.libs.json.{JsArray, JsBoolean, JsError, JsNull, JsNumber, JsString, JsSuccess, JsValue, Reads, Writes}
 
 import scala.runtime.RichBoolean
@@ -97,7 +98,7 @@ object ValuedResultDescriptor {
               }).getOrElse(JsError("Failed to read StringResultDescriptor"))
           }
           case NumberResult  => {
-            (for (value <- (json \ "value").asOpt[BigDecimal])
+            (for (value <- (json \ "value").asOpt[BigDecimal].filter(d => d.compare(maxNumberValue) <= 0 && d.compare(minNumberValue) >= 0))
               yield {
                 val jsonConditions = (json \ "conditions")
                   .asOpt[JsArray]

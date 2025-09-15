@@ -185,6 +185,8 @@ object ActivationRule {
 }
 
 object ActivationCondition {
+  val maxNumberValue = BigDecimal("9007199254740991")
+  val minNumberValue = BigDecimal("-9007199254740991")
   val hourFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
   def activationConditionReads: ResultType => Reads[ActivationCondition] = resultType => Reads[ActivationCondition] {json => {
     resultType match {
@@ -245,6 +247,7 @@ object ActivationCondition {
       val maybePeriod = (json \ "period").asOpt[FeaturePeriod];
 
       (json \ "value").asOpt[BigDecimal]
+        .filter(d => d.compare(maxNumberValue) <= 0 && d.compare(minNumberValue) >= 0)
         .map(bd => {
           if (maybeRule.isDefined || maybePeriod.isDefined) {
             JsSuccess(

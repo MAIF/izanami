@@ -429,6 +429,61 @@ class FeatureAPISpec extends BaseAPISpec {
 
   "Feature POST endpoint" should {
 
+    "prevent creating number feature with too high or low values for JavaScript" in {
+
+      val upperLimit = "9007199254740991";
+      val lowerLimit = "-9007199254740991";
+
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+            .withProjectNames("bar")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      var response = testSituation.createFeature(
+        "f1",
+        project = "bar",
+        tenant = "foo",
+        resultType = "number",
+        value = upperLimit
+      )
+
+      response.status mustBe CREATED
+
+      response = testSituation.createFeature(
+        "f2",
+        project = "bar",
+        tenant = "foo",
+        resultType = "number",
+        value = "" + (BigDecimal(upperLimit).longValue + 1)
+      )
+
+      response.status mustBe BAD_REQUEST
+
+      response = testSituation.createFeature(
+        "f3",
+        project = "bar",
+        tenant = "foo",
+        resultType = "number",
+        value = lowerLimit
+      )
+
+      response.status mustBe CREATED
+
+      response = testSituation.createFeature(
+        "f4",
+        project = "bar",
+        tenant = "foo",
+        resultType = "number",
+        value = "" + (BigDecimal(lowerLimit).longValue - 1)
+      )
+
+      response.status mustBe BAD_REQUEST
+
+    }
+
     "prevent non legacy feature creation if force-legacy param is set" in {
       val testSituation = TestSituationBuilder()
         .withTenants(

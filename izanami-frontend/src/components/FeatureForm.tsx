@@ -1117,7 +1117,16 @@ export function V2FeatureForm(props: {
                       type="number"
                       className="form-control"
                       step="any"
-                      {...register("value")}
+                      {...register("value", {
+                        min: {
+                          value: Number.MIN_SAFE_INTEGER,
+                          message: `Value can't be less than ${Number.MIN_SAFE_INTEGER}`,
+                        },
+                        max: {
+                          value: Number.MAX_SAFE_INTEGER,
+                          message: `Value can't be more than ${Number.MAX_SAFE_INTEGER}`,
+                        },
+                      })}
                     />
                   )}
                   <ErrorDisplay
