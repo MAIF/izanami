@@ -63,7 +63,7 @@ class LegacyController(val controllerComponents: ControllerComponents, val clien
     }
   }
 
-  def legacyFeatures(pattern: String, page: Int, pageSize: Int): Action[AnyContent] = clientKeyAction.async {
+  def legacyFeatures(pattern: String = "*", page: Int, pageSize: Int): Action[AnyContent] = clientKeyAction.async {
     implicit request =>
       {
         val ctx = if (request.hasBody) {

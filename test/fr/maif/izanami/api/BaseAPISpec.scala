@@ -2361,16 +2361,16 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     }
 
     def readFeaturesAsLegacy(
-        pattern: String,
         clientId: String,
         clientSecret: String,
+        pattern: Option[String] = None,
         active: Boolean = false,
         page: Int = 1,
         pageSize: Int = 100
     ): RequestResult = {
       val response = await(
         ws
-          .url(s"${BASE_URL}/features?pattern=$pattern&active=$active&pageSize=$pageSize&page=$page")
+          .url(s"${BASE_URL}/features?${pattern.map(p => s"pattern=$p").getOrElse("")}active=$active&pageSize=$pageSize&page=$page")
           .withHttpHeaders(
             ("Izanami-Client-Id"     -> clientId),
             ("Izanami-Client-Secret" -> clientSecret)

@@ -278,6 +278,45 @@ class V1CompatibilityTest extends BaseAPISpec {
   }
 
   "legacy /feature endpoint" should {
+    "return all authorized features when calling without pattern" in {
+      val situation = TestSituationBuilder()
+        .withTenantNames("tenant")
+        .loggedInWithAdminRights()
+        .build()
+
+      val clientId     = "yfsc5ooy3v3hu5z2"
+      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+
+      situation.importAndWaitTermination(
+        "tenant",
+        features = Seq(
+          """{"id":"project:foo:bar","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
+          """{"id":"project:foo:baz","enabled":false,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
+          """{"id":"project1:baz:bar","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
+        ),
+        keys = Seq(
+          s"""{"clientId":"$clientId","name":"local create read key","clientSecret":"$clientSecret","authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"admin":true}""".stripMargin
+        )
+      )
+
+      val result =
+        situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern=None, active = true)
+      result.status mustBe OK
+
+      val json         = result.json.get
+      val featureArray = (json \ "results").as[JsArray]
+      featureArray.value must have size 3
+
+      val barFeature = featureArray.value.find(elem => (elem \ "id").as[String] == "project:foo:bar").get
+      (barFeature \ "active").as[Boolean] mustBe true
+
+      val bazFeature = featureArray.value.find(elem => (elem \ "id").as[String] == "project:foo:baz").get
+      (bazFeature \ "active").as[Boolean] mustBe false
+
+      val barFeature2 = featureArray.value.find(elem => (elem \ "id").as[String] == "project1:baz:bar").get
+      (barFeature2 \ "active").as[Boolean] mustBe true
+    }
+
     "return activation status when requested" in {
       val situation = TestSituationBuilder()
         .withTenantNames("tenant")
@@ -300,7 +339,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val result =
-        situation.readFeaturesAsLegacy("project:*", clientId = clientId, clientSecret = clientSecret, active = true)
+        situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern=Some("project:*"), active = true)
       result.status mustBe OK
 
       val json         = result.json.get
@@ -339,9 +378,9 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val result = situation.readFeaturesAsLegacy(
-        "project:*",
         clientId = clientId,
         clientSecret = clientSecret,
+        pattern=Some("project:*"),
         active = false,
         pageSize = 5
       )
@@ -382,9 +421,9 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val result = situation.readFeaturesAsLegacy(
-        "project:*",
         clientId = clientId,
         clientSecret = clientSecret,
+        pattern=Some("project:*"),
         active = false,
         pageSize = 2,
         page = 2
@@ -431,9 +470,9 @@ class V1CompatibilityTest extends BaseAPISpec {
 
       val ids = (for (i <- 1 to 3) yield {
         val result = situation.readFeaturesAsLegacy(
-          "project:*",
           clientId = clientId,
           clientSecret = clientSecret,
+          pattern=Some("project:*"),
           active = false,
           pageSize = 2,
           page = i
@@ -480,7 +519,7 @@ class V1CompatibilityTest extends BaseAPISpec {
         conflictStrategy = "OVERWRITE"
       )
 
-      val result = situation.readFeaturesAsLegacy("project:*", clientId = clientId, clientSecret = clientSecret)
+      val result = situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern=Some("project:*"))
 
       val json         = result.json.get
       val featureArray = (json \ "results").as[JsArray]
@@ -513,7 +552,7 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val result = situation.readFeaturesAsLegacy("project:*", clientId = clientId, clientSecret = clientSecret)
+      val result = situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern=Some("project:*"))
 
       val json         = result.json.get
       val featureArray = (json \ "results").as[JsArray]

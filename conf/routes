@@ -140,8 +140,8 @@ POST          /api/v2/events                                                    
 
 GET           /api/features/:pattern/check                                                         fr.maif.izanami.web.LegacyController.legacyFeature(pattern: String)
 POST          /api/features/:pattern/check                                                         fr.maif.izanami.web.LegacyController.legacyFeature(pattern: String)
-GET           /api/features                                                                        fr.maif.izanami.web.LegacyController.legacyFeatures(pattern: String, page: Int ?= 1, pageSize: Int ?= 15)
-POST          /api/features/_checks                                                                fr.maif.izanami.web.LegacyController.legacyFeatures(pattern: String, page: Int ?= 1, pageSize: Int ?= 15)
+GET           /api/features                                                                        fr.maif.izanami.web.LegacyController.legacyFeatures(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
+POST          /api/features/_checks                                                                fr.maif.izanami.web.LegacyController.legacyFeatures(pattern: String ?= "*", page: Int ?= 1, pageSize: Int ?= 15)
 GET           /api/events                                                                          fr.maif.izanami.web.EventController.events(pattern: String ?= "*")
 GET           /api/_health                                                                         fr.maif.izanami.web.LegacyController.healthcheck()
 
