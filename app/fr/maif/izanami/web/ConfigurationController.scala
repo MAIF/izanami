@@ -5,7 +5,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{BadBodyFormat, CantUpdateOIDCCOnfiguration, IzanamiError}
 import fr.maif.izanami.mail.{ConsoleMailProvider, MailGunMailProvider, MailJetMailProvider, MailerTypes, SMTPMailProvider}
 import fr.maif.izanami.models.{FullIzanamiConfiguration, IzanamiConfiguration, Rights}
-import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationWrites, mailGunConfigurationWrite, mailJetConfigurationWrites, mailerReads}
+import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTPConfigurationWrites, mailGunConfigurationWrite, mailJetConfigurationWrites, mailerReads}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.{JsBoolean, JsError, JsFalse, JsNull, JsObject, JsString, JsSuccess, JsValue, Json}
@@ -51,6 +51,14 @@ class ConfigurationController(
           case JsSuccess(configurationFromBody, _path) => {
             val futureConfiguration = env.datastores.configuration.readFullConfiguration()
             futureConfiguration.flatMap(oldConfiguration => {
+              val mailerConfigurationWithSecrets = (configurationFromBody.mailConfiguration, oldConfiguration.mailConfiguration) match {
+                case (SMTPMailProvider(newConf), SMTPMailProvider(oldConf)) if newConf.password.forall(p => p.isBlank) => SMTPMailProvider(newConf.copy(password = oldConf.password))
+                case (MailJetMailProvider(newConf), MailJetMailProvider(oldConf)) if Option(newConf.secret).forall(p => p.isBlank) => MailJetMailProvider(newConf.copy(secret = oldConf.secret))
+                case (MailGunMailProvider(newConf), MailGunMailProvider(oldConf)) if Option(newConf.apiKey).forall(p => p.isBlank) => MailGunMailProvider(newConf.copy(apiKey = oldConf.apiKey))
+                case (newConf, oldConf) => newConf
+              }
+
+
               val inputConfigurationWithSecret = configurationFromBody.copy(
                 oidcConfiguration = configurationFromBody.oidcConfiguration.map(conf => {
                   if(conf.clientSecret == null || conf.clientSecret.isEmpty) {
@@ -58,8 +66,11 @@ class ConfigurationController(
                   } else {
                     conf
                   }
-                })
+                }),
+                mailConfiguration = mailerConfigurationWithSecrets
               )
+
+
 
               val hasOidcPartChanged = hasOIDCConfChanged(oldConfiguration, inputConfigurationWithSecret)
               if(hasOidcPartChanged && !env.isOIDCConfigurationEditable) {
@@ -104,41 +115,4 @@ class ConfigurationController(
         ))
       })
   }
-
-  /*def readMailerConfiguration(id: String): Action[AnyContent] = adminAuthAction.async {
-    implicit request: UserNameRequest[AnyContent] =>
-      mailerReads.reads(JsString(id)).fold(_ => {
-        Future.successful(BadRequest(Json.obj("message" -> "Unknown mail provider")))
-      },
-        mailerType => {
-          env.datastores.configuration
-            .readMailerConfiguration(mailerType)
-            .map {
-              case Left(error)          => error.toHttpResponse
-              case Right(MailJetMailProvider(configuration)) => Ok(Json.toJson(configuration))
-              case Right(ConsoleMailProvider) => Ok(Json.obj())
-              case Right(MailGunMailProvider(configuration)) => Ok(Json.toJson(configuration))
-              case Right(SMTPMailProvider(configuration)) => Ok(Json.toJson(configuration))
-            }
-        })
-
-  }
-
-  def updateMailerConfiguration(id: String): Action[JsValue] = adminAuthAction.async(parse.json) { implicit request =>
-    {
-      mailerReads
-        .reads(JsString(id))
-        .flatMap{
-          case MailerTypes.Console => JsError("Can't update built in Console mail provider")
-          case t@_ => JsSuccess(t)
-        }
-        .flatMap(mailer => IzanamiConfiguration.mailProviderConfigurationReads(mailer).reads(request.body)) match {
-        case JsSuccess(configuration, _) if !configuration.mailerType.toString.equalsIgnoreCase(id) =>
-          BadRequest(Json.obj("message" -> "url id and configuration mailer type should match")).future
-        case JsSuccess(configuration, _)                                                            =>
-          env.datastores.configuration.updateMailerConfiguration(configuration).map(_ => NoContent)
-        case JsError(_)                                                                             => BadBodyFormat().toHttpResponse.future
-      }
-    }
-  }*/
 }
