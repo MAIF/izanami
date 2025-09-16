@@ -28,7 +28,7 @@ class ConfigurationAPISpec extends BaseAPISpec {
 
       (json \ "mailer").as[String] mustEqual "MailJet"
       (json \ "apiKey").as[String] mustEqual "my-key"
-      (json \ "secret").as[String] mustEqual "my-secret"
+      (json \ "secret").asOpt[String] mustBe None
     }
 
     "return configuration if user is admin" in {
@@ -88,7 +88,7 @@ class ConfigurationAPISpec extends BaseAPISpec {
       val configuration = situation.fetchConfiguration().json.get \ "mailerConfiguration"
 
       (configuration \ "mailer").as[String] mustEqual "MailJet"
-      (configuration \ "secret").as[String] mustEqual  "my-secret"
+      (configuration \ "secret").asOpt[String] mustBe None
       (configuration \ "apiKey").as[String] mustEqual  "my-key"
     }
 

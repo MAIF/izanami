@@ -9,7 +9,7 @@ import fr.maif.izanami.errors.{ConfigurationReadError, InternalServerError, Izan
 import fr.maif.izanami.mail.MailerTypes.MailerType
 import fr.maif.izanami.mail._
 import fr.maif.izanami.models.InvitationMode.InvitationMode
-import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTPConfigurationWrites, mailGunConfigurationReads, mailJetConfigurationReads}
+import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTPConfigurationWrites, mailGunConfigurationReads, mailJetConfigurationReads, mailJetConfigurationWriteForDisplay}
 import fr.maif.izanami.models.{FullIzanamiConfiguration, InvitationMode, IzanamiConfiguration, OAuth2Configuration, Rights, Tenant, User}
 import fr.maif.izanami.services.CompleteRights
 import fr.maif.izanami.services.RightService.RightsByRole
@@ -318,20 +318,20 @@ object configurationImplicits {
         case MailerTypes.MailJet => {
           MailJetMailProvider(
             configuration
-              .asOpt[MailJetConfiguration]
+              .asOpt[MailJetConfiguration](mailJetConfigurationReads)
               .getOrElse(MailJetConfiguration(apiKey = null, secret = null, url = None))
           )
         }
         case MailerTypes.MailGun => {
           MailGunMailProvider(
             configuration
-              .asOpt[MailGunConfiguration]
+              .asOpt[MailGunConfiguration](mailGunConfigurationReads)
               .getOrElse(MailGunConfiguration(apiKey = null, url = None))
           )
         }
         case MailerTypes.SMTP => {
           SMTPMailProvider(
-            configuration.asOpt[SMTPConfiguration]
+            configuration.asOpt[SMTPConfiguration](SMTPConfigurationReads)
               .getOrElse(SMTPConfiguration(null, None, None, None, false, false, false))
           )
         }

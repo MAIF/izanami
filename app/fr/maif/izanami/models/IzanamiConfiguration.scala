@@ -196,19 +196,19 @@ object IzanamiConfiguration {
       .getOrElse(JsError(s"${json} is not a correct right level"))
   }
 
-  implicit val mailJetConfigurationReads: Reads[MailJetConfiguration] = (
+  val mailJetConfigurationReads: Reads[MailJetConfiguration] = (
     (__ \ "apiKey").read[String] and
       (__ \ "secret").read[String] and
       (__ \ "url").readNullable[String]
   )((apiKey, secret, url) => MailJetConfiguration(apiKey = apiKey, secret = secret, url = url))
 
-  implicit val mailGunConfigurationReads: Reads[MailGunConfiguration] = (
+  val mailGunConfigurationReads: Reads[MailGunConfiguration] = (
     (__ \ "apiKey").read[String] and
       (__ \ "url").readNullable[String] and
       (__ \ "region").read[MailGunRegion]
   )((apiKey, url, region) => MailGunConfiguration(apiKey = apiKey, url = url, region = region))
 
-  implicit val SMTPConfigurationReads: Reads[SMTPConfiguration] = (
+  val SMTPConfigurationReads: Reads[SMTPConfiguration] = (
     (__ \ "host").read[String] and
       (__ \ "port").readNullable[Int] and
       (__ \ "user").readNullable[String] and
@@ -241,17 +241,29 @@ object IzanamiConfiguration {
       .applyOnWithOpt(conf.password) { (json, password) => json ++ Json.obj("password" -> password) }
   }
 
-  implicit val mailProviderConfigurationReads: (MailerType => Reads[MailProviderConfiguration]) = mailerType =>
+  val SMTPConfigurationWriteForDisplay: Writes[SMTPConfiguration] = conf => {
+    Json
+      .obj(
+        "host"            -> conf.host,
+        "auth"            -> conf.auth,
+        "starttlsEnabled" -> conf.starttlsEnabled,
+        "smtps"           -> conf.smtps
+      )
+      .applyOnWithOpt(conf.port) { (json, port) => json ++ Json.obj("port" -> port) }
+      .applyOnWithOpt(conf.user) { (json, user) => json ++ Json.obj("user" -> user) }
+  }
+
+  val mailProviderConfigurationReads: (MailerType => Reads[MailProviderConfiguration]) = mailerType =>
     json => {
       (mailerType match {
         case MailerTypes.MailGun => {
-          json.asOpt[MailGunConfiguration].map(conf => MailGunMailProvider(conf))
+          json.asOpt[MailGunConfiguration](mailGunConfigurationReads).map(conf => MailGunMailProvider(conf))
         }
         case MailJet             => {
-          json.asOpt[MailJetConfiguration].map(conf => MailJetMailProvider(conf))
+          json.asOpt[MailJetConfiguration](mailJetConfigurationReads).map(conf => MailJetMailProvider(conf))
         }
         case SMTP                => {
-          json.asOpt[SMTPConfiguration].map(conf => SMTPMailProvider(conf))
+          json.asOpt[SMTPConfiguration](SMTPConfigurationReads).map(conf => SMTPMailProvider(conf))
         }
         case MailerTypes.Console => Some(ConsoleMailProvider)
       }).map(JsSuccess(_))
@@ -266,10 +278,24 @@ object IzanamiConfiguration {
     )
   }
 
+  val mailJetConfigurationWriteForDisplay: Writes[MailJetConfiguration] = json => {
+    Json.obj(
+      "url"    -> json.url,
+      "apiKey" -> json.apiKey
+    )
+  }
+
   implicit val mailGunConfigurationWrite: Writes[MailGunConfiguration] = json => {
     Json.obj(
       "url"    -> json.url,
       "apiKey" -> json.apiKey,
+      "region" -> json.region.toString.toUpperCase
+    )
+  }
+
+  val mailGunConfigurationWriteForDisplay: Writes[MailGunConfiguration] = json => {
+    Json.obj(
+      "url"    -> json.url,
       "region" -> json.region.toString.toUpperCase
     )
   }
@@ -289,7 +315,26 @@ object IzanamiConfiguration {
       Json.obj("mailer" -> MailerTypes.SMTP.toString) ++ SMTPConfigurationWrites.writes(m.configuration).as[JsObject]
   }
 
-  implicit val fullConfigurationReads: Reads[FullIzanamiConfiguration] = json => {
+  val mailConfigurationWriteForDisplay: Writes[MailProviderConfiguration] = {
+    case ConsoleMailProvider    => {
+      Json.obj("mailer" -> MailerTypes.Console.toString)
+    }
+    case m: MailGunMailProvider =>
+      Json
+        .obj("mailer" -> MailerTypes.MailGun.toString) ++ mailGunConfigurationWriteForDisplay
+        .writes(m.configuration)
+        .as[JsObject]
+    case m: MailJetMailProvider =>
+      Json.obj("mailer" -> MailerTypes.MailJet.toString) ++ mailJetConfigurationWriteForDisplay
+        .writes(m.configuration)
+        .as[JsObject]
+    case m: SMTPMailProvider    =>
+      Json.obj("mailer" -> MailerTypes.SMTP.toString) ++ SMTPConfigurationWriteForDisplay
+        .writes(m.configuration)
+        .as[JsObject]
+  }
+
+  val fullConfigurationReads: Reads[FullIzanamiConfiguration] = json => {
     (for (
       mailer              <- (json \ "mailerConfiguration" \ "mailer").asOpt[MailerType];
       mailerConfiguration <-
@@ -337,7 +382,7 @@ object IzanamiConfiguration {
         .map(json => json.as[JsObject] - "clientSecret")
         .getOrElse(JsNull)
     Json.obj(
-      "mailerConfiguration"         -> Json.toJson(conf.mailConfiguration)(mailConfigurationWrites),
+      "mailerConfiguration"         -> Json.toJson(conf.mailConfiguration)(mailConfigurationWriteForDisplay),
       "invitationMode"              -> conf.invitationMode.toString,
       "originEmail"                 -> conf.originEmail,
       "anonymousReporting"          -> conf.anonymousReporting,

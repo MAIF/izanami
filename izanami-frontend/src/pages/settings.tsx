@@ -68,7 +68,7 @@ export function Settings() {
   const updateSettings = (
     current: Configuration,
     newValue: FormConfiguration
-  ) => {
+  ): Promise<void> => {
     const wasAnonymousReportingDisabled =
       !newValue.anonymousReporting && current.anonymousReporting;
 
@@ -106,7 +106,7 @@ export function Settings() {
         <ConfigurationForm
           configuration={configurationQuery.data}
           onSubmit={(newConfig) => {
-            updateSettings(configurationQuery.data, newConfig);
+            return updateSettings(configurationQuery.data, newConfig);
           }}
         />
       </>
@@ -130,7 +130,7 @@ const INVITATION_MODE_OPTIONS = [
 
 function ConfigurationForm(props: {
   configuration: Configuration;
-  onSubmit: (conf: FormConfiguration) => void;
+  onSubmit: (conf: FormConfiguration) => Promise<void>;
 }) {
   const [resultStats, setResultStats] = useState<StatsResultStatus>({
     state: "INITIAL",
@@ -158,6 +158,7 @@ function ConfigurationForm(props: {
     watch,
     formState: { errors },
     setError,
+    reset,
   } = methods;
 
   const mailer = watch("mailerConfiguration.mailer");
@@ -186,7 +187,9 @@ function ConfigurationForm(props: {
             );
           }
           if (valid) {
-            props?.onSubmit(data);
+            props?.onSubmit(data).then(() => {
+              reset();
+            });
           }
         })}
       >
@@ -327,8 +330,11 @@ function ConfigurationForm(props: {
 function MailJetFormV2() {
   const {
     register,
-    formState: { errors },
+    formState: { errors, defaultValues },
   } = useFormContext<Configuration>();
+
+  const isCurrentConfigurationUsingMailJet =
+    defaultValues?.mailerConfiguration?.mailer === "MailJet";
 
   return (
     <>
@@ -340,6 +346,7 @@ function MailJetFormV2() {
             <input
               className="form-control"
               type="text"
+              aria-describedby="apiKeyHelp"
               {...register("mailerConfiguration.apiKey", {
                 required: "API key is required",
               })}
@@ -352,11 +359,21 @@ function MailJetFormV2() {
             Secret
             <input
               className="form-control"
-              type="text"
+              type="password"
+              aria-describedby="mailjetApiKeyHelp"
+              placeholder={
+                isCurrentConfigurationUsingMailJet ? "*************" : ""
+              }
               {...register("mailerConfiguration.secret", {
                 required: "Secret is required",
               })}
             />
+            {isCurrentConfigurationUsingMailJet && (
+              <small id="mailjetApiKeyHelp">
+                For security reason, current secret is not displayed. Type your
+                new secret to replace it.
+              </small>
+            )}
           </label>
           <ErrorMessage errors={errors} name="mailerConfiguration.secret" />
         </div>
@@ -379,9 +396,12 @@ const MAILGUN_REGIONS_OPTIONS = [
 function MailGunFormV2() {
   const {
     register,
-    formState: { errors },
+    formState: { errors, defaultValues },
     control,
   } = useFormContext<Configuration>();
+
+  const isCurrentConfigurationUsingMailgun =
+    defaultValues?.mailerConfiguration?.mailer === "MailGun";
 
   return (
     <>
@@ -393,10 +413,20 @@ function MailGunFormV2() {
             <input
               className="form-control"
               type="text"
+              placeholder={
+                isCurrentConfigurationUsingMailgun ? "*************" : ""
+              }
+              aria-describedby="mailgunApiKeyHelp"
               {...register("mailerConfiguration.apiKey", {
                 required: "API key is required",
               })}
             />
+            {isCurrentConfigurationUsingMailgun && (
+              <small id="mailgunApiKeyHelp">
+                For security reason, current API key is not displayed. Type your
+                new API key to replace it.
+              </small>
+            )}
           </label>
           <ErrorMessage errors={errors} name="mailerConfiguration.apiKey" />
         </div>
@@ -433,8 +463,12 @@ function MailGunFormV2() {
 function SMTPFormV2() {
   const {
     register,
-    formState: { errors },
+    formState: { errors, defaultValues },
   } = useFormContext<Configuration>();
+
+  const isCurrentConfigurationUsingSMTP =
+    defaultValues?.mailerConfiguration?.mailer === "SMTP";
+
   return (
     <fieldset>
       <legend>SMTP configuration</legend>
@@ -479,9 +513,16 @@ function SMTPFormV2() {
           Password
           <input
             className="form-control"
-            type="text"
+            type="password"
+            placeholder={isCurrentConfigurationUsingSMTP ? "*************" : ""}
             {...register("mailerConfiguration.password")}
           />
+          {isCurrentConfigurationUsingSMTP && (
+            <small>
+              For security reason, current password is not displayed. Type your
+              new password to replace it.
+            </small>
+          )}
         </label>
       </div>
       <div className="row mt-3">
@@ -536,12 +577,14 @@ function OIDCForm() {
 
   const {
     register,
-    formState: { errors },
+    formState: { errors, defaultValues },
     setValue,
     getValues,
     control,
     watch,
   } = useFormContext<Configuration>();
+
+  const isOIDCAlreadySetup = defaultValues?.oidcConfiguration?.enabled;
 
   const fetchConfig = ({ oidcUrl }: { oidcUrl: string }) => {
     return fetchOpenIdConnectConfiguration(oidcUrl)
@@ -704,8 +747,17 @@ function OIDCForm() {
                         <input
                           type="password"
                           className="form-control"
+                          placeholder={
+                            isOIDCAlreadySetup ? "*************" : ""
+                          }
                           {...register("oidcConfiguration.clientSecret")}
                         />
+                        {isOIDCAlreadySetup && (
+                          <small>
+                            For security reason, client secret is not displayed.
+                            Type your new client secret to replace it.
+                          </small>
+                        )}
                       </label>
                       <ErrorMessage
                         errors={errors}
