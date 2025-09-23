@@ -6,7 +6,8 @@ import fr.maif.izanami.datastores.HashUtils
 import fr.maif.izanami.env.PostgresqlErrors.{CHECK_VIOLATION, UNIQUE_VIOLATION}
 import fr.maif.izanami.errors._
 import fr.maif.izanami.security.IdGenerator
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterSyntax}
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.net.{PemKeyCertOptions, PemTrustOptions}
@@ -247,12 +248,24 @@ class Postgresql(env: Env) {
       .scala // Bubble up query error instead of TransactionRollbackException that does not carry much information
   }
 
+  def executeInTransaction[T](callback: SqlConnection => FutureEither[T]): FutureEither[T] = {
+    executeInTransaction(conn => {
+      callback(conn).value
+    }).toFEither
+  }
+
   def executeInOptionalTransaction[T](maybeTransaction: Option[SqlConnection], callback: SqlConnection => Future[T]): Future[T] = {
     maybeTransaction.fold({
       executeInTransaction(callback = callback)
     })(conn => {
       callback(conn).vertx(env.executionContext).scala
     })
+  }
+
+  def executeInOptionalTransaction[T](maybeTransaction: Option[SqlConnection], callback: SqlConnection => FutureEither[T]): FutureEither[T] = {
+    executeInOptionalTransaction(maybeTransaction, conn => {
+      callback(conn).value
+    }).toFEither
   }
 
   def queryAll[A](

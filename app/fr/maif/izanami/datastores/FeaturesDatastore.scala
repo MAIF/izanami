@@ -759,7 +759,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
               if (authorized) {
                 row.optCompleteFeature().toRight(InternalServerError())
               } else {
-                Left(NotEnoughRights())
+                Left(NotEnoughRights)
               }
             })
         }

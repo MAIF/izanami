@@ -84,6 +84,12 @@ object implicits {
     }
   }
 
+  implicit class BetterEither[V](private val obj: Either[IzanamiError, V]) extends AnyVal {
+    def toFEither: FutureEither[V] = {
+      FutureEither(Future.successful(obj))
+    }
+  }
+
 
 
   implicit class BetterBoolean[E,V](private val b: Boolean) extends AnyVal {

@@ -404,7 +404,7 @@ class FeatureController(
                 val tagsToCreate = feature.tags.diff(tags.map(t => t.name).toSet)
                 env.datastores.tags.createTags(tagsToCreate.map(name => TagCreationRequest(name = name)).toList, tenant)
               }
-              case either                                  => either.toFuture
+              case either                                       => either.toFuture
             }
             .flatMap(_ =>
               env.datastores.features
@@ -439,67 +439,18 @@ class FeatureController(
   def updateFeature(tenant: String, id: String): Action[JsValue] =
     detailledRightForTenanFactory(tenant).async(parse.json) { implicit request =>
       Feature.readCompleteFeature(request.body) match {
-        case JsError(e)                                                                                => BadRequest(Json.obj("message" -> "bad body format")).future
-        case _ if !Tenant.isTenantValid(tenant)                                                        => BadRequest(Json.obj("message" -> "Incorrect tenant")).future
-        case JsSuccess(f: CompleteWasmFeature, _) if f.resultType != BooleanResult && f.wasmConfig.opa =>
-          BadRequest(Json.obj("message" -> "OPA feature must have boolean result type")).future
-        case JsSuccess(feature, _)                                                                     => {
-          env.postgresql.executeInTransaction(conn => {
-            env.datastores.tags
-              .readTags(tenant, feature.tags)
-              .flatMap {
-                case Right(tags) if tags.size < feature.tags.size => {
-                  val tagsToCreate = feature.tags.diff(tags.map(t => t.name).toSet)
-                  env.datastores.tags
-                    .createTags(tagsToCreate.map(name => TagCreationRequest(name = name)).toList, tenant, Some(conn))
-                }
-                case either                                  => either.toFuture
-              }
-              .flatMap {
-                case Left(err)    => Future.successful(err.toHttpResponse)
-                case Right(value) =>
-                  env.datastores.features
-                    .findById(tenant, id)
-                    .flatMap {
-                      case Left(err)                                                              => err.toHttpResponse.future
-                      case Right(None)                                                            => NotFound("").toFuture
-                      case Right(Some(oldFeature)) if !canUpdateFeature(oldFeature, request.user) =>
-                        Forbidden(Json.obj("message" -> "Your are not allowed to update this feature")).toFuture
-                      case Right(Some(_: SingleConditionFeature))
-                          if !feature
-                            .isInstanceOf[SingleConditionFeature] && env.typedConfiguration.feature.forceLegacy =>
-                        BadRequest(
-                          Json.obj(
-                            "message" -> "This Izanami instance doesn't allow updating legacy feature to modern feature"
-                          )
-                        ).toFuture
-                      case Right(Some(oldFeature))                                                => {
-                        env.datastores.features
-                          .update(
-                            tenant = tenant,
-                            id = id,
-                            feature = feature,
-                            user = UserInformation(
-                              username = request.user.username,
-                              authentication = request.authentication
-                            ),
-                            conn = Some(conn)
-                          )
-                          .flatMap {
-                            case Right(id) => env.datastores.features.findById(tenant, id, conn = Some(conn))
-                            case Left(err) => Future.successful(Left(err))
-                          }
-                          .map(maybeFeature =>
-                            convertReadResult(
-                              maybeFeature,
-                              callback = feature => Ok(Json.toJson(feature)(featureWrite)),
-                              id = id.toString
-                            )
-                          )
-                      }
-                    }
-              }
-          })
+        case JsError(e)                         => BadRequest(Json.obj("message" -> "bad body format")).future
+        case _ if !Tenant.isTenantValid(tenant) => BadRequest(Json.obj("message" -> "Incorrect tenant")).future
+        case JsSuccess(feature, _)              => {
+          featureService
+            .updateFeature(
+              tenant = tenant,
+              id = id,
+              feature = feature,
+              user = request.user,
+              authentication = request.authentication
+            )
+            .toResult(feature => Ok(Json.toJson(feature)(featureWrite)))
         }
       }
     }
@@ -518,18 +469,6 @@ class FeatureController(
         err => Results.Status(err.status)(Json.toJson(err)),
         feat => callback(feat)
       )
-  }
-
-  def canUpdateFeature(feature: AbstractFeature, user: UserWithCompleteRightForOneTenant): Boolean = {
-    if (user.admin) {
-      true
-    } else {
-      val projectRight =
-        user.tenantRight.flatMap(tr => tr.projects.get(feature.project).map(_.level).orElse(tr.defaultProjectRight))
-      projectRight.exists(currentRight =>
-        ProjectRightLevel.superiorOrEqualLevels(ProjectRightLevel.Update).contains(currentRight)
-      )
-    }
   }
 
   def canCreateOrDeleteFeature(feature: AbstractFeature, user: UserWithCompleteRightForOneTenant): Boolean = {

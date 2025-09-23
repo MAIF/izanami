@@ -63,7 +63,7 @@ class FeatureContextController(
               if (request.user.hasRightForProject(project, ProjectRightLevel.Write)) {
                 Right(false).future
               } else {
-                Left(NotEnoughRights()).future
+                Left(NotEnoughRights).future
               }
             } else {
               canUpdateContext(tenant, request.user, parents).map(either => either.map(ctx => ctx.isProtected))
@@ -222,7 +222,7 @@ class FeatureContextController(
           type ProtectedStatus = Boolean
           val isParentProtected: Future[Either[IzanamiError, ProtectedStatus]] = if (parents.elements.isEmpty) {
             if (!request.user.hasRightForTenant(RightLevel.Write)) {
-              Left(NotEnoughRights()).future
+              Left(NotEnoughRights).future
             } else {
               Right(false).future
             }
@@ -337,12 +337,12 @@ class FeatureContextController(
           case c: GlobalContext if c.isProtected && user.hasRightForTenant(RightLevel.Admin)                   => Right(c)
           case c: GlobalContext if c.isProtected                                                                => Left(NoProtectedContextAccess(contextPath.toUserPath))
           case c: GlobalContext if user.hasRightForTenant(RightLevel.Write)                                    => Right(c)
-          case c: GlobalContext                                                                                 => Left(NotEnoughRights())
+          case c: GlobalContext                                                                                 => Left(NotEnoughRights)
           case c: LocalContext if c.isProtected && user.hasRightForProject(c.project, ProjectRightLevel.Admin) =>
             Right(c)
           case c: LocalContext if c.isProtected                                                                 => Left(NoProtectedContextAccess(contextPath.toUserPath))
           case c: LocalContext if user.hasRightForProject(c.project, ProjectRightLevel.Write)                  => Right(c)
-          case _                                                                                                => Left(NotEnoughRights())
+          case _                                                                                                => Left(NotEnoughRights)
         }
       )
   }

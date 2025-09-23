@@ -1,16 +1,106 @@
 package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{IncorrectKey, IzanamiError}
+import fr.maif.izanami.errors.{
+  FeatureNotFound,
+  IncorrectKey,
+  InternalServerError,
+  IzanamiError,
+  ModernFeaturesForbiddenByConfig,
+  NotEnoughRights,
+  OPAResultMustBeBoolean
+}
+import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models._
-import fr.maif.izanami.utils.Helpers
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.models.features.BooleanResult
+import fr.maif.izanami.utils.{FutureEither, Helpers}
+import fr.maif.izanami.utils.syntax.implicits.{BetterEither, BetterFuture, BetterSyntax}
+import fr.maif.izanami.web.UserInformation
+import io.vertx.sqlclient.SqlConnection
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class FeatureService(env: Env) {
 
   implicit val ec: ExecutionContext = env.executionContext
+
+  private def validateFeature(feature: CompleteFeature): Either[IzanamiError, CompleteFeature] = {
+    feature match {
+      case f: CompleteWasmFeature if f.resultType != BooleanResult && f.wasmConfig.opa => Left(OPAResultMustBeBoolean)
+      case _                                                                           => Right(feature)
+    }
+  }
+
+  private def isUpdateRequestValid(
+      newFeature: CompleteFeature,
+      oldFeature: CompleteFeature,
+      user: UserWithCompleteRightForOneTenant
+  ): Either[IzanamiError, CompleteFeature] = {
+    println("coucou")
+    if (!canUpdateFeature(oldFeature, user)) {
+      NotEnoughRights.left
+    } else if (
+      oldFeature.isInstanceOf[SingleConditionFeature] && !newFeature
+        .isInstanceOf[SingleConditionFeature] && env.typedConfiguration.feature.forceLegacy
+    ) {
+      ModernFeaturesForbiddenByConfig.left
+    } else {
+      newFeature.right
+    }
+  }
+
+  private def canUpdateFeature(feature: AbstractFeature, user: UserWithCompleteRightForOneTenant): Boolean = {
+    if (user.admin) {
+      true
+    } else {
+      val projectRight =
+        user.tenantRight.flatMap(tr => tr.projects.get(feature.project).map(_.level).orElse(tr.defaultProjectRight))
+      projectRight.exists(currentRight =>
+        ProjectRightLevel.superiorOrEqualLevels(ProjectRightLevel.Update).contains(currentRight)
+      )
+    }
+  }
+
+  def updateFeature(
+      tenant: String,
+      id: String,
+      feature: CompleteFeature,
+      user: UserWithCompleteRightForOneTenant,
+      authentication: EventAuthentication,
+      maybeConn: Option[SqlConnection] = None
+  ): FutureEither[AbstractFeature] = {
+    env.postgresql.executeInOptionalTransaction(
+      maybeConn,
+      conn => {
+        for (
+          _            <- if (feature.tags.nonEmpty)
+                            env.datastores.tags
+                              .createTags(feature.tags.map(name => TagCreationRequest(name = name)).toList, tenant, Some(conn))
+                              .toFEither
+                              .map(_ => ())
+                          else FutureEither.success(());
+          _            <- validateFeature(feature).toFEither;
+          maybeFeature <- env.datastores.features.findById(tenant, id).toFEither;
+          oldFeature   <- maybeFeature.toRight(FeatureNotFound(id)).toFEither;
+          _            <- isUpdateRequestValid(newFeature = feature, oldFeature = oldFeature, user = user).toFEither;
+          _            <- env.datastores.features
+                            .update(
+                              tenant = tenant,
+                              id = id,
+                              feature = feature,
+                              user = UserInformation(
+                                username = user.username,
+                                authentication = authentication
+                              ),
+                              conn = Some(conn)
+                            )
+                            .toFEither;
+          maybeRes     <- env.datastores.features.findById(tenant, id, conn = Some(conn)).toFEither;
+          res          <- maybeRes.toRight(InternalServerError("Failed to read feature after its update")).toFEither
+        ) yield res
+      }
+    )
+  }
 
   /**
    * Evaluates features for a given request context.
@@ -48,7 +138,13 @@ class FeatureService(env: Env) {
 
     if (conditions) {
       val futureFeaturesByProject =
-        env.datastores.features.doFindByRequestForKey(requestContext.tenant, featureRequest, clientId, clientSecret, conditions = true)
+        env.datastores.features.doFindByRequestForKey(
+          requestContext.tenant,
+          featureRequest,
+          clientId,
+          clientSecret,
+          conditions = true
+        )
       futureFeaturesByProject.map {
         case Left(error)                                             => Left(error)
         case Right(featuresByProjects) if featuresByProjects.isEmpty => Left(IncorrectKey())

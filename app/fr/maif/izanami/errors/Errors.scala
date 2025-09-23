@@ -174,7 +174,7 @@ case class ConfigurationReadError()
 case class MissingMailProviderConfigurationError(mailer: String)
     extends IzanamiError(message = s"Missing configuration for mail provider ${mailer}", status = BAD_REQUEST)
 case class BadBodyFormat()            extends IzanamiError(message = "Bad body format", status = BAD_REQUEST)
-case class NotEnoughRights()          extends IzanamiError(message = "Not enough rights for this operation", status = FORBIDDEN)
+case object NotEnoughRights          extends IzanamiError(message = "Not enough rights for this operation", status = FORBIDDEN)
 case class InvalidCredentials()       extends IzanamiError(message = "Incorrect username / password", status = FORBIDDEN)
 case class FeatureOverloadDoesNotExist(project: String, path: String, feature: String)
     extends IzanamiError(
@@ -260,11 +260,17 @@ case class CantUpdateOIDCUser()
       message = "OIDC users can't be updated since role right mode is set to 'supervised'.",
       status = BAD_REQUEST
     )
+case object ModernFeaturesForbiddenByConfig extends IzanamiError(message = "This Izanami instance doesn't the use of modern feature", status = BAD_REQUEST)
 case object CantUpdateOIDCCOnfiguration
     extends IzanamiError(
       message = "OIDC configuration can't be updated while it is set in env variables.",
       status = BAD_REQUEST
     )
+case object OPAResultMustBeBoolean
+  extends IzanamiError(
+    message = "OPA feature must have boolean result type",
+    status = BAD_REQUEST
+  )
 case class ErrorAggregator(errors: Seq[IzanamiError])
     extends IzanamiError(
       message = errors.map(err => err.message).mkString("\n"),
