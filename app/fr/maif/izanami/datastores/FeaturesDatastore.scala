@@ -10,8 +10,8 @@ import fr.maif.izanami.events.EventOrigin.{ImportOrigin, NormalOrigin}
 import fr.maif.izanami.events.{SourceFeatureCreated, SourceFeatureDeleted, SourceFeatureUpdated}
 import fr.maif.izanami.models._
 import fr.maif.izanami.models.features._
-import fr.maif.izanami.utils.Datastore
-import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterListEither, BetterSyntax}
+import fr.maif.izanami.utils.{Datastore, FutureEither}
+import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterJsValue, BetterListEither, BetterSyntax}
 import fr.maif.izanami.wasm.{WasmConfig, WasmConfigWithFeatures, WasmScriptAssociatedFeatures}
 import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
 import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
@@ -689,7 +689,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       tenant: String,
       id: String,
       conn: Option[SqlConnection] = None
-  ): Future[Option[LightWeightFeature]] = {
+  ): FutureEither[Option[LightWeightFeature]] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryOne(
@@ -702,6 +702,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         List(id),
         conn = conn
       ) { row => row.optFeature() }
+      .mapToFEither
   }
 
   def findById(

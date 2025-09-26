@@ -8,7 +8,7 @@ import fr.maif.izanami.errors.{IzanamiError, MailSendingError, MissingMailProvid
 import fr.maif.izanami.mail.MailGunRegions.{Europe, MailGunRegion}
 import fr.maif.izanami.mail.MailerTypes.MailerType
 import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterFuture
+import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import org.json.{JSONArray, JSONObject}
 import play.api.Logger
 import play.api.libs.ws.{WSAuthScheme, WSClient}

@@ -471,58 +471,14 @@ class FeatureController(
       )
   }
 
-  def canCreateOrDeleteFeature(feature: AbstractFeature, user: UserWithCompleteRightForOneTenant): Boolean = {
-    if (user.admin) {
-      true
-    } else {
-      val projectRight =
-        user.tenantRight.flatMap(tr => tr.projects.get(feature.project).map(_.level).orElse(tr.defaultProjectRight))
-      projectRight.exists(currentRight =>
-        ProjectRightLevel.superiorOrEqualLevels(ProjectRightLevel.Write).contains(currentRight)
-      )
-    }
-  }
-
   def findFeature(tenant: String, id: String): Action[AnyContent] = detailledRightForTenanFactory(tenant).async {
     implicit request =>
-      env.datastores.features
-        .findByIdLightweight(tenant, id)
-        .map(o =>
-          o
-            .filter(f => request.user.hasRightForProject(f.project, ProjectRightLevel.Read))
-            .fold(
-              NotFound(Json.obj("message" -> s"Either this feature does not exist, or you don't have right to see it"))
-            )(f => Ok(Json.toJson(f)(Feature.lightweightFeatureWrite)))
-        )
+      featureService.findLightWeightFeature(tenant, id, request.user)
+        .toResult(f => Ok(Json.toJson(f)(Feature.lightweightFeatureWrite)))
   }
 
   def deleteFeature(tenant: String, id: String): Action[AnyContent] = detailledRightForTenanFactory(tenant).async {
-    implicit request =>
-      env.datastores.features
-        .findById(tenant, id)
-        .flatMap {
-          case Left(err)            => err.toHttpResponse.future
-          case Right(None)          => NotFound("").toFuture
-          case Right(Some(feature)) => {
-
-            if (canCreateOrDeleteFeature(feature, request.user)) {
-              env.datastores.features
-                .delete(
-                  tenant,
-                  id,
-                  UserInformation(username = request.user.username, authentication = request.authentication)
-                )
-                .map(maybeFeature =>
-                  maybeFeature
-                    .map(_ => NoContent)
-                    .getOrElse(NotFound("Feature not found"))
-                )
-            } else {
-              Forbidden("").toFuture
-            }
-          }
-        }
-
+    implicit request => featureService.deleteFeature(tenant, id, request.user, request.authentication).toResult(_ => NoContent)
   }
 
   private def queryFeatures(

@@ -7,7 +7,7 @@ import fr.maif.izanami.env.PostgresqlErrors.{CHECK_VIOLATION, UNIQUE_VIOLATION}
 import fr.maif.izanami.errors._
 import fr.maif.izanami.security.IdGenerator
 import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterSyntax}
+import fr.maif.izanami.utils.syntax.implicits.{BetterFutureEither, BetterSyntax}
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.net.{PemKeyCertOptions, PemTrustOptions}

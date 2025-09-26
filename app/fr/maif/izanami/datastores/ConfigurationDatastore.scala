@@ -15,7 +15,7 @@ import fr.maif.izanami.services.CompleteRights
 import fr.maif.izanami.services.RightService.RightsByRole
 import fr.maif.izanami.utils.{Datastore, FutureEither}
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.utils.syntax.implicits.BetterFuture
+import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import io.vertx.sqlclient.{Row, SqlConnection}
 import play.api.libs.json.{JsNull, JsObject, Json, Writes}

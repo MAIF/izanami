@@ -2,6 +2,7 @@ package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{
+  FeatureDoesNotExist,
   FeatureNotFound,
   IncorrectKey,
   InternalServerError,
@@ -13,52 +14,63 @@ import fr.maif.izanami.errors.{
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models._
 import fr.maif.izanami.models.features.BooleanResult
+import fr.maif.izanami.services.FeatureService.{canCreateOrDeleteFeature, isUpdateRequestValid, validateFeature}
 import fr.maif.izanami.utils.{FutureEither, Helpers}
-import fr.maif.izanami.utils.syntax.implicits.{BetterEither, BetterFuture, BetterSyntax}
+import fr.maif.izanami.utils.syntax.implicits.{BetterEither, BetterFutureEither, BetterSyntax}
 import fr.maif.izanami.web.UserInformation
 import io.vertx.sqlclient.SqlConnection
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class FeatureService(env: Env) {
-
+  private val datastore             = env.datastores.features
   implicit val ec: ExecutionContext = env.executionContext
 
-  private def validateFeature(feature: CompleteFeature): Either[IzanamiError, CompleteFeature] = {
-    feature match {
-      case f: CompleteWasmFeature if f.resultType != BooleanResult && f.wasmConfig.opa => Left(OPAResultMustBeBoolean)
-      case _                                                                           => Right(feature)
-    }
-  }
-
-  private def isUpdateRequestValid(
-      newFeature: CompleteFeature,
-      oldFeature: CompleteFeature,
+  def findLightWeightFeature(
+      tenant: String,
+      id: String,
       user: UserWithCompleteRightForOneTenant
-  ): Either[IzanamiError, CompleteFeature] = {
-    println("coucou")
-    if (!canUpdateFeature(oldFeature, user)) {
-      NotEnoughRights.left
-    } else if (
-      oldFeature.isInstanceOf[SingleConditionFeature] && !newFeature
-        .isInstanceOf[SingleConditionFeature] && env.typedConfiguration.feature.forceLegacy
-    ) {
-      ModernFeaturesForbiddenByConfig.left
-    } else {
-      newFeature.right
-    }
+  ): FutureEither[LightWeightFeature] = {
+    env.datastores.features
+      .findByIdLightweight(tenant, id)
+      .flatMap(o =>
+        o
+          .filter(f => user.hasRightForProject(f.project, ProjectRightLevel.Read))
+          .fold(Left(FeatureDoesNotExist(id)).toFEither:FutureEither[LightWeightFeature])
+          (f => Right(f).toFEither)
+      )
   }
 
-  private def canUpdateFeature(feature: AbstractFeature, user: UserWithCompleteRightForOneTenant): Boolean = {
-    if (user.admin) {
-      true
-    } else {
-      val projectRight =
-        user.tenantRight.flatMap(tr => tr.projects.get(feature.project).map(_.level).orElse(tr.defaultProjectRight))
-      projectRight.exists(currentRight =>
-        ProjectRightLevel.superiorOrEqualLevels(ProjectRightLevel.Update).contains(currentRight)
-      )
-    }
+  def deleteFeature(
+      tenant: String,
+      id: String,
+      user: UserWithCompleteRightForOneTenant,
+      authentification: EventAuthentication
+  ): FutureEither[Unit] = {
+    datastore
+      .findById(tenant, id)
+      .toFEither
+      .flatMap {
+        case None          => Left(FeatureDoesNotExist(id)).toFEither
+        case Some(feature) => {
+          if (canCreateOrDeleteFeature(feature, user)) {
+            datastore
+              .delete(
+                tenant,
+                id,
+                UserInformation(username = user.username, authentication = authentification)
+              )
+              .map(maybeFeature =>
+                maybeFeature
+                  .map(_ => Right(()))
+                  .getOrElse(Left(FeatureDoesNotExist(id)))
+              )
+              .toFEither
+          } else {
+            Left(NotEnoughRights).toFEither
+          }
+        }
+      }
   }
 
   def updateFeature(
@@ -80,10 +92,15 @@ class FeatureService(env: Env) {
                               .map(_ => ())
                           else FutureEither.success(());
           _            <- validateFeature(feature).toFEither;
-          maybeFeature <- env.datastores.features.findById(tenant, id).toFEither;
+          maybeFeature <- datastore.findById(tenant, id).toFEither;
           oldFeature   <- maybeFeature.toRight(FeatureNotFound(id)).toFEither;
-          _            <- isUpdateRequestValid(newFeature = feature, oldFeature = oldFeature, user = user).toFEither;
-          _            <- env.datastores.features
+          _            <- isUpdateRequestValid(
+                            newFeature = feature,
+                            oldFeature = oldFeature,
+                            user = user,
+                            forceLegacy = env.typedConfiguration.feature.forceLegacy
+                          ).toFEither;
+          _            <- datastore
                             .update(
                               tenant = tenant,
                               id = id,
@@ -95,7 +112,7 @@ class FeatureService(env: Env) {
                               conn = Some(conn)
                             )
                             .toFEither;
-          maybeRes     <- env.datastores.features.findById(tenant, id, conn = Some(conn)).toFEither;
+          maybeRes     <- datastore.findById(tenant, id, conn = Some(conn)).toFEither;
           res          <- maybeRes.toRight(InternalServerError("Failed to read feature after its update")).toFEither
         ) yield res
       }
@@ -138,7 +155,7 @@ class FeatureService(env: Env) {
 
     if (conditions) {
       val futureFeaturesByProject =
-        env.datastores.features.doFindByRequestForKey(
+        datastore.doFindByRequestForKey(
           requestContext.tenant,
           featureRequest,
           clientId,
@@ -168,7 +185,7 @@ class FeatureService(env: Env) {
         }
       }
     } else {
-      val futureFeaturesByProject = env.datastores.features.findByRequestForKey(
+      val futureFeaturesByProject = datastore.findByRequestForKey(
         requestContext.tenant,
         featureRequest,
         clientId,
@@ -196,4 +213,56 @@ class FeatureService(env: Env) {
     val evaluatedFeatures = Future.sequence(features.map(f => f.evaluate(requestContext, env)))
     evaluatedFeatures.map(Helpers.sequence(_))
   }
+}
+
+object FeatureService {
+  private def isUpdateRequestValid(
+      newFeature: CompleteFeature,
+      oldFeature: CompleteFeature,
+      user: UserWithCompleteRightForOneTenant,
+      forceLegacy: Boolean
+  ): Either[IzanamiError, CompleteFeature] = {
+    if (!canUpdateFeature(oldFeature, user)) {
+      NotEnoughRights.left
+    } else if (
+      oldFeature.isInstanceOf[SingleConditionFeature] && !newFeature
+        .isInstanceOf[SingleConditionFeature] && forceLegacy
+    ) {
+      ModernFeaturesForbiddenByConfig.left
+    } else {
+      newFeature.right
+    }
+  }
+
+  private def canUpdateFeature(feature: AbstractFeature, user: UserWithCompleteRightForOneTenant): Boolean = {
+    if (user.admin) {
+      true
+    } else {
+      val projectRight =
+        user.tenantRight.flatMap(tr => tr.projects.get(feature.project).map(_.level).orElse(tr.defaultProjectRight))
+      projectRight.exists(currentRight =>
+        ProjectRightLevel.superiorOrEqualLevels(ProjectRightLevel.Update).contains(currentRight)
+      )
+    }
+  }
+
+  private def validateFeature(feature: CompleteFeature): Either[IzanamiError, CompleteFeature] = {
+    feature match {
+      case f: CompleteWasmFeature if f.resultType != BooleanResult && f.wasmConfig.opa => Left(OPAResultMustBeBoolean)
+      case _                                                                           => Right(feature)
+    }
+  }
+
+  private def canCreateOrDeleteFeature(feature: AbstractFeature, user: UserWithCompleteRightForOneTenant): Boolean = {
+    if (user.admin) {
+      true
+    } else {
+      val projectRight =
+        user.tenantRight.flatMap(tr => tr.projects.get(feature.project).map(_.level).orElse(tr.defaultProjectRight))
+      projectRight.exists(currentRight =>
+        ProjectRightLevel.superiorOrEqualLevels(ProjectRightLevel.Write).contains(currentRight)
+      )
+    }
+  }
+
 }
