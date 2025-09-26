@@ -1,9 +1,9 @@
 package fr.maif.izanami.helpers
 
-import akka.actor.ActorSystem
-import akka.stream.Materializer
-import akka.stream.scaladsl.{Sink, Source}
-import akka.util.Timeout
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.Materializer
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.util.Timeout
 import com.mifmif.common.regex.Generex
 import fr.maif.izanami.api.BaseAPISpec.{TestApiKey, TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestHourPeriod, TestProject, TestSituationBuilder, TestTenant, TestUser, cleanUpDB}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime

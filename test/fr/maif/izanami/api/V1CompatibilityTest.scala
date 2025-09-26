@@ -1,5 +1,6 @@
 package fr.maif.izanami.api
 
+import akka.actor.ActorSystem
 import akka.http.javadsl.model.HttpHeader
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.headers.RawHeader
@@ -604,6 +605,7 @@ class V1CompatibilityTest extends BaseAPISpec {
 
   "legacy jvm client" should {
     "allow to retrieve feature activation for single feature" in {
+      val system = ActorSystem.create()
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant"))
         .loggedInWithAdminRights()
@@ -654,7 +656,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val client = IzanamiClient.client(
-        system,
+        ActorSystem.create(),
         ClientConfig
           .create("http://localhost:9000")
           .withClientId(clientId)
@@ -701,7 +703,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val client = IzanamiClient.client(
-        system,
+        ActorSystem.create(),
         ClientConfig
           .create("http://localhost:9000")
           .withClientId(clientId)
@@ -734,7 +736,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val client = IzanamiClient.client(
-        system,
+        ActorSystem.create(),
         ClientConfig
           .create("http://localhost:9000")
           .withClientId(clientId)
@@ -769,7 +771,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val client = IzanamiClient.client(
-        system,
+        ActorSystem.create(),
         ClientConfig
           .create("http://localhost:9000")
           .withClientId(clientId)
@@ -803,7 +805,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val client = IzanamiClient.client(
-        system,
+        ActorSystem.create(),
         ClientConfig
           .create("http://localhost:9000")
           .withClientId(clientId)

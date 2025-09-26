@@ -1,6 +1,6 @@
 package fr.maif.izanami.datastores
 
-import akka.actor.Cancellable
+import org.apache.pekko.actor.Cancellable
 import buildinfo.BuildInfo
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow

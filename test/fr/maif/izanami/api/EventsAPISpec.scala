@@ -1,6 +1,6 @@
 package fr.maif.izanami.api
 
-import akka.http.scaladsl.model.sse.ServerSentEvent
+import org.apache.pekko.http.scaladsl.model.sse.ServerSentEvent
 import fr.maif.izanami.api.BaseAPISpec.{
   ALL_RIGHTS_USERNAME_PASSWORD,
   TestApiKey,

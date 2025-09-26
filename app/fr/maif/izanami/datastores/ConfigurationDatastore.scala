@@ -1,6 +1,6 @@
 package fr.maif.izanami.datastores
 
-import akka.http.scaladsl.util.FastFuture
+import org.apache.pekko.http.scaladsl.util.FastFuture
 import fr.maif.izanami.datastores.ConfigurationDatastore.{parseDbMailer, parseInvitationMode}
 import fr.maif.izanami.datastores.configurationImplicits.{ConfigurationRow, MailerConfigurationRow}
 import fr.maif.izanami.env.Env

@@ -1,6 +1,6 @@
 package fr.maif.izanami.wasm
 
-import akka.stream.Materializer
+import org.apache.pekko.stream.Materializer
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.host.scala.HostFunctions

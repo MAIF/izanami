@@ -1,6 +1,6 @@
 package fr.maif.izanami.jobs
 
-import akka.actor.{ActorSystem, Cancellable}
+import org.apache.pekko.actor.{ActorSystem, Cancellable}
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.jknack.handlebars.jackson.JsonNodeValueResolver
 import com.github.jknack.handlebars.{Context, Handlebars}

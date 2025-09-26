@@ -1,6 +1,6 @@
 package fr.maif.izanami.datastores
 
-import akka.actor.Cancellable
+import org.apache.pekko.actor.Cancellable
 import fr.maif.izanami.datastores.userImplicits.{dbUserTypeToUserType, projectRightRead, rightRead, UserRow}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}

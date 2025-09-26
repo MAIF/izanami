@@ -1,7 +1,6 @@
 package fr.maif.izanami.api
 
 import fr.maif.izanami.api.BaseAPISpec._
-import org.scalatest.Matchers.defined
 import play.api.libs.json.JsObject
 
 import java.time.LocalDateTime

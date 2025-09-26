@@ -1,8 +1,8 @@
 package fr.maif.izanami.events
 
-import akka.NotUsed
-import akka.stream.scaladsl.{BroadcastHub, Keep, Source}
-import akka.stream.{KillSwitches, Materializer, SharedKillSwitch}
+import org.apache.pekko.NotUsed
+import org.apache.pekko.stream.scaladsl.{BroadcastHub, Keep, Source}
+import org.apache.pekko.stream.{KillSwitches, Materializer, SharedKillSwitch}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.{EnhancedRow, VertxFutureEnhancer}
 import fr.maif.izanami.events.EventAuthentication.eventAuthenticationReads

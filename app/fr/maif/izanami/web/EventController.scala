@@ -1,8 +1,8 @@
 package fr.maif.izanami.web
 
-import akka.NotUsed
-import akka.stream.scaladsl.{Flow, Merge, Source}
-import akka.stream.Materializer
+import org.apache.pekko.NotUsed
+import org.apache.pekko.stream.scaladsl.{Flow, Merge, Source}
+import org.apache.pekko.stream.Materializer
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.events.EventService.internalToExternalEvent
 import fr.maif.izanami.events._

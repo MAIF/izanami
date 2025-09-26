@@ -1,6 +1,6 @@
 package fr.maif.izanami.services
 
-import akka.actor.Cancellable
+import org.apache.pekko.actor.Cancellable
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin

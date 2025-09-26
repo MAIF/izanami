@@ -3,9 +3,10 @@ package fr.maif.izanami.units
 import fr.maif.izanami.models.{ProjectAtomicRight, ProjectRightLevel, RightLevel, Rights, TenantRight}
 import fr.maif.izanami.models.RightLevel.{Admin, Read, Write}
 import fr.maif.izanami.services.{CompleteRights, RightService}
-import org.scalatest.{MustMatchers, WordSpec}
+import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
+import org.scalatest.wordspec.AnyWordSpec
 
-class RightServiceTest extends WordSpec with MustMatchers {
+class RightServiceTest extends AnyWordSpec {
   "effectiveRights" should {
     "keep only higher right" in {
       val rightByRoles = Map(
