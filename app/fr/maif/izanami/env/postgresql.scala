@@ -1,6 +1,6 @@
 package fr.maif.izanami.env
 
-import akka.http.scaladsl.util.FastFuture
+import org.apache.pekko.http.scaladsl.util.FastFuture
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import fr.maif.izanami.datastores.HashUtils
 import fr.maif.izanami.env.PostgresqlErrors.{CHECK_VIOLATION, UNIQUE_VIOLATION}

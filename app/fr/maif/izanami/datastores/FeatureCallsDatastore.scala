@@ -1,6 +1,6 @@
 package fr.maif.izanami.datastores
 
-import akka.actor.Cancellable
+import org.apache.pekko.actor.Cancellable
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
 import fr.maif.izanami.utils.Datastore

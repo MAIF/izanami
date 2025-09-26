@@ -1,7 +1,7 @@
 package fr.maif.izanami.env
 
-import akka.actor.{ActorSystem, Scheduler}
-import akka.stream.Materializer
+import org.apache.pekko.actor.{ActorSystem, Scheduler}
+import org.apache.pekko.stream.Materializer
 import com.typesafe.config.ConfigFactory
 import fr.maif.izanami.datastores._
 import fr.maif.izanami.events.EventService

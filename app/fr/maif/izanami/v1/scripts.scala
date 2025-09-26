@@ -1,6 +1,6 @@
 package fr.maif.izanami.v1
 
-import akka.util.ByteString
+import org.apache.pekko.util.ByteString
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{ConfigurationReadError, IzanamiError, NoWasmManagerConfigured}
 import fr.maif.izanami.models.IzanamiConfiguration

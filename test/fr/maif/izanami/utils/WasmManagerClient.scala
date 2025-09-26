@@ -1,6 +1,6 @@
 package fr.maif.izanami.utils
 
-import akka.util.ByteString
+import org.apache.pekko.util.ByteString
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import org.apache.commons.io.output.ByteArrayOutputStream
 import play.api.libs.json.{JsBoolean, Json}
