@@ -827,6 +827,8 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Context feature PUT endpoint" should {
+    ""
+
     "Reject overload creation with incorrect resultType" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()

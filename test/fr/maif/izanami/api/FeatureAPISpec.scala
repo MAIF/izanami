@@ -1065,6 +1065,39 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature PUT endpoint" should {
+    "keep old strategies for protected contexts without feature overloads if user doesn't have admin right on project" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("proj").withFeatures(TestFeature("foo", enabled = true))
+              .withContexts(TestFeatureContext(name = "prod", isProtected = true))
+            )
+        )
+        .withUsers(
+          TestUser("foo").withTenantReadRight("tenant").withProjectReadWriteRight(tenant = "tenant", project = "proj")
+        )
+        .loggedAs("foo")
+        .build();
+
+      def fetchProdOverloadEnabling: Option[Boolean] = {
+        val resp = situation.fetchContexts(tenant = "tenant", project = "proj")
+        (resp.json.get \ 0 \ "overloads" \  "enabled").asOpt[Boolean]
+      }
+
+      fetchProdOverloadEnabling mustBe None
+
+      situation.updateFeatureByName(
+        tenant = "tenant",
+        project = "proj",
+        name = "foo",
+        old => {
+          old + ("enabled" -> JsFalse)
+        }
+      )
+
+      fetchProdOverloadEnabling must be (Some(true))
+    }
+
     "prevent feature update from legacy to modern feature if force-legacy param is set" in {
       val situation = TestSituationBuilder()
         .withTenants(
