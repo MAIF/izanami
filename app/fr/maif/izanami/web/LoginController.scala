@@ -192,7 +192,7 @@ class LoginController(
                                             )
                                         }(user => {
                                           if (user.admin == rights.admin && user.tenantRights == rights.tenants && roleRightMode.contains(Initial)) {
-                                            Future.successful(Right(user))
+                                            Future.successful(Right(()))
                                           } else {
                                             rightService.updateUserRights(
                                               user.username,
@@ -201,7 +201,6 @@ class LoginController(
                                               conn=Some(conn)
                                             )
                                           }
-
                                         })
                                       )
                                 }
@@ -273,7 +272,7 @@ class LoginController(
       val roles = maybeRoleClaimContent match {
         case Some(JsString(value)) => Set(value)
         case Some(arr:JsArray) => arr.value.map((el: JsValue) => el.as[String]).toSet
-        case None => Set(): Set[String]
+        case _ => Set(): Set[String]
       }
 
       Some(roles)

@@ -1,25 +1,16 @@
 package fr.maif.izanami.web
 
-import org.apache.pekko.NotUsed
-import org.apache.pekko.stream.scaladsl.{Flow, Merge, Source}
-import org.apache.pekko.stream.Materializer
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.events.EventService.internalToExternalEvent
 import fr.maif.izanami.events._
 import fr.maif.izanami.models.features.{ActivationCondition, ResultType}
-import fr.maif.izanami.models.{
-  CompleteFeature,
-  CompleteWasmFeature,
-  EvaluatedCompleteFeature,
-  Feature,
-  FeatureRequest,
-  RequestContext,
-  SingleConditionFeature
-}
+import fr.maif.izanami.models._
 import fr.maif.izanami.services.FeatureService
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.V1FeatureEvents.{createEvent, deleteEvent, keepAliveEvent, updateEvent}
 import fr.maif.izanami.v1.V2FeatureEvents._
+import org.apache.pekko.NotUsed
+import org.apache.pekko.stream.Materializer
+import org.apache.pekko.stream.scaladsl.{Flow, Merge, Source}
 import play.api.http.ContentTypes
 import play.api.libs.EventSource
 import play.api.libs.EventSource.{EventDataExtractor, EventIdExtractor, EventNameExtractor}
@@ -185,10 +176,11 @@ class EventController(
     }
 
   def killAllSources(): Action[AnyContent] = adminAuthAction.async { request =>
-    Future.sequence(
-      Seq(env.webhookListener.onStop(),
-      env.eventService.killAllSources(excludeIzanamiChannel=true))
-    ).map(_ => NoContent)
+    Future
+      .sequence(
+        Seq(env.webhookListener.onStop(), env.eventService.killAllSources(excludeIzanamiChannel = true))
+      )
+      .map(_ => NoContent)
 
   }
 
@@ -256,14 +248,15 @@ class EventController(
       "resultType" -> resultType
     )
     f match {
-      case w: CompleteWasmFeature => baseJson + ("wasmConfig" -> Json.obj("name" -> w.wasmConfig.name))
-      case f                      => {
-        val conditions = f match {
-          case s: SingleConditionFeature => s.toModernFeature.resultDescriptor.conditions
-          case f: Feature                => f.resultDescriptor.conditions
-        }
-        baseJson + ("conditions" -> Json.toJson(conditions)(Writes.seq(ActivationCondition.activationConditionWrite)))
-      }
+      case w: CompleteWasmFeature    => baseJson + ("wasmConfig" -> Json.obj("name" -> w.wasmConfig.name))
+      case s: SingleConditionFeature =>
+        baseJson + ("conditions" -> Json.toJson(s.toModernFeature.resultDescriptor.conditions)(
+          Writes.seq(ActivationCondition.activationConditionWrite)
+        ))
+      case f: Feature                =>
+        baseJson + ("conditions" -> Json.toJson(f.resultDescriptor.conditions)(
+          Writes.seq(ActivationCondition.activationConditionWrite)
+        ))
     }
   }
 }

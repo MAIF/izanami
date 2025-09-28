@@ -552,6 +552,7 @@ class FeatureController(
         val conditions = f match {
           case s: SingleConditionFeature => s.toModernFeature.resultDescriptor.conditions
           case f: Feature                => f.resultDescriptor.conditions
+          case _ => throw new RuntimeException("This should never happen")
         }
 
         val maybeValue = f match {

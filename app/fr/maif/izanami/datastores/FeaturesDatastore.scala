@@ -14,7 +14,7 @@ import fr.maif.izanami.utils.{Datastore, FutureEither}
 import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterJsValue, BetterListEither, BetterSyntax}
 import fr.maif.izanami.wasm.{WasmConfig, WasmConfigWithFeatures, WasmScriptAssociatedFeatures}
 import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
-import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
+import fr.maif.izanami.web.{FeatureContextPath, ImportController, UserInformation}
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import io.vertx.core.json.{JsonArray, JsonObject}
 import io.vertx.core.shareddata.ClusterSerializable
@@ -1133,9 +1133,9 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           s"""INSERT INTO "${tenant}".features (id, name, project, enabled, conditions, metadata, description, result_type, value)
                |VALUES (unnest($$1::text[]), unnest($$2::text[]), unnest($$3::text[]), unnest($$4::boolean[]), unnest($$5::jsonb[]), unnest($$6::jsonb[]), unnest($$7::text[]), unnest($$8::"${tenant}".RESULT_TYPE[]), unnest($$9::text[]))
                 ${conflictStrategy match {
-            case Fail           => ""
-            case Skip           => " ON CONFLICT DO NOTHING"
-            case MergeOverwrite =>
+            case Fail                                      => ""
+            case Skip                                      => " ON CONFLICT DO NOTHING"
+            case MergeOverwrite | ImportController.Replace =>
               """ ON CONFLICT (name, project) DO UPDATE SET id=excluded.id, name=excluded.name, project=excluded.project, enabled=excluded.enabled, conditions=excluded.conditions, metadata=excluded.metadata, description=excluded.description, script_config=null, result_type=excluded.result_type, value=excluded.value
                |""".stripMargin
           }}
@@ -1569,12 +1569,12 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |INSERT INTO "${tenant}".wasm_script_configurations(id, config)
          |VALUES (unnest($$1::TEXT[]), unnest($$2::JSONB[]))
          |${conflictStrategy match {
-            case Fail           => ""
-            case MergeOverwrite =>
+            case Fail                                      => ""
+            case MergeOverwrite | ImportController.Replace =>
               """
             |ON CONFLICT(id) DO UPDATE SET config = excluded.config
             |""".stripMargin
-            case Skip           => " ON CONFLICT(id) DO NOTHING "
+            case Skip                                      => " ON CONFLICT(id) DO NOTHING "
           }}
          |returning id
          |""".stripMargin,

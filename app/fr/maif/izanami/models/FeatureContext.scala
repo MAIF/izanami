@@ -223,6 +223,7 @@ object FeatureContext {
                   descriptor
                 )
               )
+            case (None, None) => throw new RuntimeException("Failed to read feature strategy: it is neither wasm no classical.")
           }
         }
         case BooleanResult                => {

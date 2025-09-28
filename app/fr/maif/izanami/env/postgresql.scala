@@ -11,7 +11,7 @@ import fr.maif.izanami.utils.syntax.implicits.{BetterFutureEither, BetterSyntax}
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.net.{PemKeyCertOptions, PemTrustOptions}
-import io.vertx.pgclient.{PgConnectOptions, PgException, PgPool, SslMode}
+import io.vertx.pgclient.{PgBuilder, PgConnectOptions, PgException, PgPool, SslMode}
 import io.vertx.sqlclient.{PoolOptions, Row, RowSet, SqlConnection}
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.exception.FlywayValidateException
@@ -125,7 +125,8 @@ class Postgresql(env: Env) {
     .applyOnWithOpt(pgConfiguration.idleTimeout)((p, v) => p.setIdleTimeout(v))
     .applyOnWithOpt(pgConfiguration.maxLifetime)((p, v) => p.setMaxLifetime(v))
 
-  private lazy val pool = PgPool.pool(connectOptions, poolOptions)
+  //private lazy val pool = PgPool.pool(connectOptions, poolOptions)
+  private lazy val pool = PgBuilder.pool().`with`(poolOptions).connectingTo(connectOptions).using(vertx).build();
 
 
   def onStart(): Future[Unit] = {
@@ -204,6 +205,7 @@ class Postgresql(env: Env) {
                   throw e
                 }
               }
+              case Failure(e) => throw e
               case Success(_) => ()
             }
         })

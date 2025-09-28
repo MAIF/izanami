@@ -30,13 +30,13 @@ class FeatureUsageService(env: Env) {
       }).map(_ => ()).map(_ => callAggregator.clearCalls())
     })
 
-    Future.successful()
+    Future.successful(())
   }
 
   def onStop(): Future[Unit] = {
     callAggregationRegisterCancellation.cancel()
 
-    Future.successful()
+    Future.successful(())
   }
 
   def determineStaleStatus(

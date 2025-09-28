@@ -459,7 +459,7 @@ class UserController(
           val userByLevel = seq.groupMap(_._2)(_._1)
           env.postgresql.executeInTransaction(conn => {
             userByLevel
-              .foldLeft(Future.successful(Right()): Future[Either[IzanamiError, Unit]])((future, t) => {
+              .foldLeft(Future.successful(Right(())): Future[Either[IzanamiError, Unit]])((future, t) => {
                 future.flatMap {
                   case Left(error)  => Future.successful(Left(error))
                   case Right(value) => {
@@ -508,7 +508,7 @@ class UserController(
           val userByLevel = seq.groupMap(_._2)(_._1)
           env.postgresql.executeInTransaction(conn => {
             userByLevel
-              .foldLeft(Future.successful(Right()): Future[Either[IzanamiError, Unit]])((future, t) => {
+              .foldLeft(Future.successful(Right(())): Future[Either[IzanamiError, Unit]])((future, t) => {
                 future.flatMap {
                   case Left(error) => Future.successful(Left(error))
                   case Right(_)    => {

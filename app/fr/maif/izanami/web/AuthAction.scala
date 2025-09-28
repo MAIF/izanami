@@ -566,7 +566,7 @@ object AuthAction {
           }(env.executionContext)
 
       }
-      case None                             => Future.successful(None)
+      case _                             => Future.successful(None)
     }
   }
 }

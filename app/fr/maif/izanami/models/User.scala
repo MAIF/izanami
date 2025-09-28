@@ -563,10 +563,10 @@ object Rights {
 object User {
   val PASSWORD_REGEXP: Regex = "^[a-zA-Z0-9_\\-+=;: ,?!$%'\"^@*<>&|#/\\\\()\\[\\]{}]{8,50}$".r
 
-  implicit val rightLevelRead         = RightLevel.rightLevelReads
-  implicit val rightLevelWrite        = RightLevel.rightLevelWrites
-  implicit val projectRightLevelRead  = ProjectRightLevel.projectRightLevelReads
-  implicit val projectRightLevelWrite = ProjectRightLevel.projectRightLevelWrites
+  implicit val rightLevelRead: Reads[RightLevel] = RightLevel.rightLevelReads
+  implicit val rightLevelWrite: Writes[RightLevel] = RightLevel.rightLevelWrites
+  implicit val projectRightLevelRead: Reads[ProjectRightLevel] = ProjectRightLevel.projectRightLevelReads
+  implicit val projectRightLevelWrite: Writes[ProjectRightLevel] = ProjectRightLevel.projectRightLevelWrites
 
   implicit val rightReads: Reads[GeneralAtomicRight]          = Json.reads[GeneralAtomicRight]
   implicit val rightWrites: Writes[GeneralAtomicRight]        = Json.writes[GeneralAtomicRight]

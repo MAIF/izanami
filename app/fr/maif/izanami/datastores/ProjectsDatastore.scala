@@ -11,7 +11,7 @@ import fr.maif.izanami.models.{Feature, Project, ProjectCreationRequest, RightLe
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.{ImportController, UserInformation}
-import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
+import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Replace, Skip}
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
 import play.api.libs.json.JsObject
@@ -47,7 +47,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
            |${
           conflictStrategy match {
             case Fail => ""
-            case MergeOverwrite => """
+            case MergeOverwrite | Replace => """
            | ON CONFLICT(name) DO UPDATE SET description = excluded.description
            |""".stripMargin
             case Skip => " ON CONFLICT(name) DO NOTHING "

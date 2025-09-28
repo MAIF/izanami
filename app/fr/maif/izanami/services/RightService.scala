@@ -59,7 +59,7 @@ class RightService(env: Env) {
     canUpdateRightsForUsers(targetUsers).flatMap {
       case false => Future.successful(Left(CantUpdateOIDCUser()))
       case true  => {
-        env.datastores.users.updateUsersRightsForTenant(targetUsers, tenant, diff, conn, conflictStrategy).map(Right(_))
+        env.datastores.users.updateUsersRightsForTenant(targetUsers, tenant, diff, conn, conflictStrategy)
       }
     }
   }
@@ -97,7 +97,7 @@ class RightService(env: Env) {
                 conn => {
                   updateRequest.admin
                     .map(admin => env.datastores.users.updateUsersAdminStatus(Set(name), admin, conn = Some(conn)))
-                    .getOrElse(Future())
+                    .getOrElse(Future(()))
                     .flatMap(_ => {
                       env.datastores.users.updateUserRights(name = name, rightDiff = diff, conn = Some(conn))
                     })

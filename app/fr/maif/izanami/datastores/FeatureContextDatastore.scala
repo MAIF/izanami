@@ -85,7 +85,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       List(isProtected.toJava, context.toDBPath)
     ){_ => Some(())}
       .map {
-        case Some(_) => Right()
+        case Some(_) => Right(())
         case None => Left(FeatureContextDoesNotExist(context.toUserPath))
       }
   }

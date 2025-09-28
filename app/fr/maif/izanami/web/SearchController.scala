@@ -28,7 +28,7 @@ class SearchController(
     if (filter.nonEmpty && !filter.forall(SearchEntityObject.parseSearchEntityType(_).isDefined)) {
       return Future.successful(Left(SearchFilterError()))
     }
-    Future.successful(Right())
+    Future.successful(Right(()))
   }
 
   def search(query: String, filter: List[String]): Action[AnyContent] = tenantRightAction.async {

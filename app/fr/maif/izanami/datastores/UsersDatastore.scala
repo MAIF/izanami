@@ -191,7 +191,7 @@ class UsersDatastore(val env: Env) extends Datastore {
                    List(usernames.toArray, tenant),
                    conn = Some(conn)
                  ) { _ => Some(()) }
-                 .map(_ => Right())
+                 .map(_ => Right(()))
                  .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
              );
       _   <- FutureEither(
@@ -205,7 +205,7 @@ class UsersDatastore(val env: Env) extends Datastore {
                    List(usernames.toArray),
                    conn = Some(conn)
                  ) { _ => Some(()) }
-                 .map(_ => Right())
+                 .map(_ => Right(()))
                  .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
              );
       _   <- FutureEither(
@@ -219,7 +219,7 @@ class UsersDatastore(val env: Env) extends Datastore {
                    List(usernames.toArray),
                    conn = Some(conn)
                  ) { _ => Some(()) }
-                 .map(_ => Right())
+                 .map(_ => Right(()))
                  .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
              );
       res <- FutureEither(
@@ -233,7 +233,7 @@ class UsersDatastore(val env: Env) extends Datastore {
                    List(usernames.toArray),
                    conn = Some(conn)
                  ) { _ => Some(()) }
-                 .map(_ => Right())
+                 .map(_ => Right(()))
                  .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
              )
     ) yield res
@@ -260,7 +260,7 @@ class UsersDatastore(val env: Env) extends Datastore {
             List(usernames.toArray, projects.toArray),
             conn = conn
           ) { _ => Some(()) }
-          .map(_ => Right())
+          .map(_ => Right(()))
           .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
       )
     }
@@ -287,7 +287,7 @@ class UsersDatastore(val env: Env) extends Datastore {
             List(usernames.toArray, keys.toArray),
             conn = conn
           ) { _ => Some(()) }
-          .map(_ => Right())
+          .map(_ => Right(()))
           .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
       )
     }
@@ -314,7 +314,7 @@ class UsersDatastore(val env: Env) extends Datastore {
             List(usernames.toArray, webhooks.toArray),
             conn = conn
           ) { _ => Some(()) }
-          .map(_ => Right())
+          .map(_ => Right(()))
           .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
       )
     }
@@ -384,7 +384,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           ),
           conn = conn
         ) { _ => Some(()) }
-        .map(_ => Right())
+        .map(_ => Right(()))
         .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
     )
   }
@@ -432,7 +432,7 @@ class UsersDatastore(val env: Env) extends Datastore {
             ),
             conn = conn
           ) { _ => Some(()) }
-          .map(_ => Right())
+          .map(_ => Right(()))
           .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
       )
     }
@@ -480,7 +480,7 @@ class UsersDatastore(val env: Env) extends Datastore {
             ),
             conn = conn
           ) { _ => Some(()) }
-          .map(_ => Right())
+          .map(_ => Right(()))
           .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
       )
     }
@@ -528,7 +528,7 @@ class UsersDatastore(val env: Env) extends Datastore {
             ),
             conn = conn
           ) { _ => Some(()) }
-          .map(_ => Right())
+          .map(_ => Right(()))
           .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
       )
     }
@@ -618,7 +618,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       rightDiff: RightDiff,
       conn: Option[SqlConnection] = None
   ): Future[Either[IzanamiError, Unit]] = {
-    rightDiff.diff.foldLeft(Future.successful(Right()): Future[Either[IzanamiError, Unit]])((future, t) => {
+    rightDiff.diff.foldLeft(Future.successful(Right(())): Future[Either[IzanamiError, Unit]])((future, t) => {
       future.flatMap {
         case Left(err) => Left(err).future
         case Right(_)  => updateUserRightsForTenant(name, t._1, t._2, conn = conn)
@@ -631,7 +631,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       rightDiff: RightDiff,
       conn: Option[SqlConnection] = None
   ): Future[Unit] = {
-    rightDiff.diff.foldLeft(Future.successful())((future, t) => {
+    rightDiff.diff.foldLeft(Future.successful(()))((future, t) => {
       future.map(_ => updateUsersRightsForTenant(usernames, t._1, t._2, conn = conn))
     })
   }
@@ -668,7 +668,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           case Left(err) => Future.successful(Left(err))
           case Right(_)  => {
             users
-              .foldLeft(Future.successful(Right()): Future[Either[IzanamiError, Unit]])((future, ur) => {
+              .foldLeft(Future.successful(Right(())): Future[Either[IzanamiError, Unit]])((future, ur) => {
                 val rightToCreate = Rights.compare(Rights.EMPTY, ur.rights)
                 future.flatMap(_ => updateUserRights(ur.username, rightToCreate, conn = Some(conn)))
               })

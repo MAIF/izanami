@@ -71,7 +71,6 @@ class FeatureContextController(
 
             parentProtected.flatMap {
               case Left(err)                                     => err.toHttpResponse.future
-              case Left(err)                                     => err.toHttpResponse.future
               case Right(true) if maybeProtected.exists(p => !p) =>
                 BadRequest(
                   Json.obj("message" -> "Can't create an unprotected context as child of protected context")

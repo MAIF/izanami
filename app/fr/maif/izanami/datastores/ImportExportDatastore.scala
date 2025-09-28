@@ -5,13 +5,29 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError, PartialImportFailure}
 import fr.maif.izanami.events.EventOrigin.ImportOrigin
-import fr.maif.izanami.events.{PreviousProject, SourceFeatureCreated, SourceFeatureUpdated, SourceProjectCreated, SourceProjectUpdated}
-import fr.maif.izanami.models.{ExportedType, FeatureType, FeatureWithOverloads, KeyRightType, Project, ProjectRightType, ProjectType, Tenant, WebhookRightType}
+import fr.maif.izanami.events.{
+  PreviousProject,
+  SourceFeatureCreated,
+  SourceFeatureUpdated,
+  SourceProjectCreated,
+  SourceProjectUpdated
+}
+import fr.maif.izanami.models.{
+  ExportedType,
+  FeatureType,
+  FeatureWithOverloads,
+  KeyRightType,
+  Project,
+  ProjectRightType,
+  ProjectType,
+  Tenant,
+  WebhookRightType
+}
 import fr.maif.izanami.models.ExportedType.exportedTypeToString
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.web.ExportController.{ExportResult, TenantExportRequest, projectExportResultWrites}
-import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, MergeOverwrite}
+import fr.maif.izanami.web.ExportController.{projectExportResultWrites, ExportResult, TenantExportRequest}
+import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, MergeOverwrite, Replace}
 import fr.maif.izanami.web.{ExportController, ImportController, ImportResult, UserInformation}
 import io.vertx.core.json.JsonArray
 import io.vertx.sqlclient.SqlConnection
@@ -96,6 +112,8 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                               .getOrElse(Right(UnitDBImportResult()))
                           case Left(jsons) => Left(PartialImportFailure(Map(t._3 -> jsons)))
                         }
+                      case Replace                         =>
+                        throw new IllegalArgumentException("Replace strategy can't be used for tenant import")
                     }
 
                     f.flatMap {
@@ -153,7 +171,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                                 s"""
                                    |SELECT id, name FROM "${tenant}".projects WHERE id=ANY($$1)
                                    |""".stripMargin,
-                                List(result.updatedProjects.map(s => UUID.fromString(s)).toArray),
+                                List(result.updatedProjects.map(s => UUID.fromString(s)).toArray)
                               ) { r =>
                                 {
                                   for (
@@ -214,7 +232,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                                     )
                                   )(conn = conn)
                                 })
-                                .getOrElse(Future.successful())
+                                .getOrElse(Future.successful(()))
                             }))
                             .flatMap(_ => {
                               if (result.updatedFeatures.nonEmpty) {
@@ -257,7 +275,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                                               )
                                             )(conn = conn)
                                           })
-                                          .getOrElse(Future.successful())
+                                          .getOrElse(Future.successful(()))
                                       })
                                   )
                                 })
@@ -271,7 +289,6 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     })
                     .map(_ => Right(()))
                 }
-                case Right(vs)     => Future.successful(Right(()))
               }
           })
         }
@@ -431,7 +448,8 @@ class ImportExportDatastore(val env: Env) extends Datastore {
     val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
     val cols           = metadata.tableColumns.mkString(",")
     env.postgresql.executeInTransaction(conn => {
-      env.postgresql.queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn=Some(conn)){_ => ()}
+      env.postgresql
+        .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) { _ => () }
         .flatMap(_ => {
           env.postgresql
             .queryRaw(
@@ -441,27 +459,27 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                  |RETURNING (xmax = 0) AS inserted ${maybeId.map(idCol => s", ${idCol}::TEXT as id").getOrElse("")}
                  |""".stripMargin,
               List(vertxJsonArray),
-              conn=Some(conn)
+              conn = Some(conn)
             ) { rows =>
-            {
-              maybeId
-                .map(_ => {
-                  val insertedIds = rows
-                    .map(r => {
-                      (for (
-                        id       <- r.optString("id");
-                        inserted <- r.optBoolean("inserted")
-                      ) yield (id, inserted))
-                    })
-                    .collect { case Some(r @ (featureId, true)) =>
-                      featureId
-                    }
-                    .toSet
+              {
+                maybeId
+                  .map(_ => {
+                    val insertedIds = rows
+                      .map(r => {
+                        (for (
+                          id       <- r.optString("id");
+                          inserted <- r.optBoolean("inserted")
+                        ) yield (id, inserted))
+                      })
+                      .collect { case Some(r @ (featureId, true)) =>
+                        featureId
+                      }
+                      .toSet
 
-                  UnitDBImportResult(createdElements = insertedIds)
-                })
-                .getOrElse(UnitDBImportResult())
-            }
+                    UnitDBImportResult(createdElements = insertedIds)
+                  })
+                  .getOrElse(UnitDBImportResult())
+              }
             }
             .recoverWith {
               case _ => {
@@ -473,18 +491,20 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                         s"""
                            |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::${metadata.table}, $$1)
                            |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO NOTHING
-                           |RETURNING (xmax = 0) AS inserted ${maybeId.map(idCol => s", ${idCol}::TEXT as id").getOrElse("")}
+                           |RETURNING (xmax = 0) AS inserted ${maybeId
+                          .map(idCol => s", ${idCol}::TEXT as id")
+                          .getOrElse("")}
                            |""".stripMargin,
-                        List(row.vertxJsValue),
+                        List(row.vertxJsValue)
                       ) { r =>
-                      {
-                        maybeId.flatMap(_ => {
-                          r.optBoolean("inserted")
-                            .filter(r => r)
-                            .flatMap(_ => r.optString("id"))
-                            .map(id => acc.addCreatedElements(id))
-                        })
-                      }
+                        {
+                          maybeId.flatMap(_ => {
+                            r.optBoolean("inserted")
+                              .filter(r => r)
+                              .flatMap(_ => r.optString("id"))
+                              .map(id => acc.addCreatedElements(id))
+                          })
+                        }
                       }
                       .map(r => r.getOrElse(acc))
                       .recoverWith {

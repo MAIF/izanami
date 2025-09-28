@@ -346,7 +346,7 @@ class ImportController(
 
     (
       messages.toSeq,
-      data + (FeatureType -> features, OverloadType -> overloads, KeyType -> keys, ContextType -> contexts) - LocalContextType - GlobalContextType
+      data ++ Map(FeatureType -> features, OverloadType -> overloads, KeyType -> keys, ContextType -> contexts) - LocalContextType - GlobalContextType
     )
   }
 
