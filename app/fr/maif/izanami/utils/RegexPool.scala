@@ -11,7 +11,7 @@ case class Regex(originalPattern: String, compiledPattern: Pattern) {
 }
 
 object RegexPool {
-  lazy val logger = Logger("izanami-regex-pool")
+  lazy val logger: Logger = Logger("izanami-regex-pool")
 
   private val pool = new ConcurrentHashMap[String, Regex]() // TODO: check growth over time
 

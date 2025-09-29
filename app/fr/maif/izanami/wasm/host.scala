@@ -11,6 +11,7 @@ import org.extism.sdk.{ExtismCurrentPlugin, ExtismFunction, HostFunction, HostUs
 import play.api.Logger
 import play.api.libs.json.{JsValue, Json}
 import play.api.libs.typedmap.TypedMap
+import play.api.libs.ws.DefaultBodyWritables.writeableOf_Bytes
 
 import java.nio.charset.StandardCharsets
 import fr.maif.izanami.utils.RegexPool
@@ -78,11 +79,11 @@ object Utils {
     new String(arr, StandardCharsets.UTF_8)
   }
 
-  def contextParamsToString(plugin: ExtismCurrentPlugin, params: LibExtism.ExtismVal*) = {
+  def contextParamsToString(plugin: ExtismCurrentPlugin, params: LibExtism.ExtismVal*): String = {
     rawBytePtrToString(plugin, params(0).v.i64, params(1).v.i32)
   }
 
-  def contextParamsToJson(plugin: ExtismCurrentPlugin, params: LibExtism.ExtismVal*) = {
+  def contextParamsToJson(plugin: ExtismCurrentPlugin, params: LibExtism.ExtismVal*): JsValue = {
     Json.parse(rawBytePtrToString(plugin, params(0).v.i64, params(1).v.i32))
   }
 }
@@ -102,7 +103,7 @@ object Status extends Enumeration {
 
 object Logging {
 
-  val logger = Logger("izanami-wasm-logger")
+  val logger: Logger = Logger("izanami-wasm-logger")
 
   def proxyLog(): HostFunction[EnvUserData] = HFunction.defineFunction(
     "proxy_log",
@@ -139,7 +140,9 @@ object Logging {
 }
 
 object HttpCall {
-  def proxyHttpCall(config: WasmConfig)(implicit env: Env, executionContext: ExecutionContext, mat: Materializer) = {
+  def proxyHttpCall(
+      config: WasmConfig
+  )(implicit env: Env, executionContext: ExecutionContext, mat: Materializer): HostFunction[EnvUserData] = {
     HFunction
       .defineContextualFunction("proxy_http_call", config) {
         (

@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicLong
 import scala.collection.concurrent.TrieMap
 
 case class FeatureCallAggregator (calls: TrieMap[FeatureCallRange, AtomicLong] = TrieMap()) {
-  def addCall(call: FeatureCall) = {
+  def addCall(call: FeatureCall): FeatureCallAggregator = {
     val key = FeatureCallRange.fromCall(call)
     calls.getOrElseUpdate(key, new AtomicLong()).incrementAndGet();
     this

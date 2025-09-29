@@ -22,7 +22,7 @@ class ConfigurationController(
   implicit val ec: ExecutionContext = env.executionContext;
 
 
-  def readStats(): Action[AnyContent] = adminAuthAction.async { implicit _ => {
+  def readStats(): Action[AnyContent] = adminAuthAction.async { implicit request => {
     env.datastores.stats.retrieveStats().map(Ok(_))
   } }
 

@@ -390,7 +390,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 env.postgresql
                   .queryOne(
                     s"""UPDATE "${tenant}".features SET enabled=$$1 WHERE id=$$2 RETURNING id, name, project, enabled""",
-                    List(java.lang.Boolean.valueOf(value), id),
+                    List(value, id),
                     conn = Some(conn)
                   ) { r =>
                     for (
@@ -534,7 +534,6 @@ class FeaturesDatastore(val env: Env) extends Datastore {
               }
             })
             .map(maybeErrors => {
-              println("maybeErrors", maybeErrors)
               ErrorAggregator.fromEitherSeq(maybeErrors).fold(Right(()): Either[IzanamiError, Unit])(err => Left(err))
             })
         })

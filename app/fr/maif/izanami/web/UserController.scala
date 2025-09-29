@@ -379,10 +379,8 @@ class UserController(
   def createUser(): Action[JsValue] = Action.async(parse.json) { implicit request =>
     val result =
       for (
-        username    <-
-          (request.body \ "username").asOpt[String].filter(name => USERNAME_REGEXP.pattern.matcher(name).matches());
-        password    <-
-          (request.body \ "password").asOpt[String].filter(name => PASSWORD_REGEXP.pattern.matcher(name).matches());
+        username    <- (request.body \ "username").asOpt[String].filter(name => USERNAME_REGEXP.pattern.matcher(name).matches());
+        password    <- (request.body \ "password").asOpt[String].filter(name => PASSWORD_REGEXP.pattern.matcher(name).matches());
         token       <- (request.body \ "token").asOpt[String];
         parsedToken <- env.jwtService.parseJWT(token).toOption;
         content     <- Option(parsedToken.content);
@@ -600,8 +598,7 @@ class UserController(
   def reinitializePassword(): Action[JsValue] = Action.async(parse.json) { implicit request =>
     val result =
       for (
-        password    <-
-          (request.body \ "password").asOpt[String].filter(name => PASSWORD_REGEXP.pattern.matcher(name).matches());
+        password    <- (request.body \ "password").asOpt[String].filter(name => PASSWORD_REGEXP.pattern.matcher(name).matches());
         token       <- (request.body \ "token").asOpt[String];
         parsedToken <- env.jwtService.parseJWT(token).toOption;
         content     <- Option(parsedToken.content);

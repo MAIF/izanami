@@ -127,7 +127,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
          |AND project = $$2
          |""".stripMargin,
       List(path.toDBPath, project))
-    {r => r.optLocalContext}
+      {r => r.optLocalContext}
   }
 
   def deleteGlobalFeatureContext(tenant: String, path: FeatureContextPath): Future[Either[IzanamiError, Unit]] = {

@@ -29,96 +29,101 @@ class Postgresql(env: Env) {
 
   import scala.jdk.CollectionConverters._
 
-  private val logger = Logger("izanami")
-  val pgConfiguration = env.typedConfiguration.pg
-  val sslConfiguration        = pgConfiguration.ssl
-  lazy val connectOptions      = if (pgConfiguration.uri.isDefined) {
-    val uri = pgConfiguration.uri.get
+  private val logger                        = Logger("izanami")
+  val pgConfiguration                       = env.typedConfiguration.pg
+  val sslConfiguration                      = pgConfiguration.ssl
+  lazy val connectOptions: PgConnectOptions = if (pgConfiguration.uri.isDefined) {
+    val uri  = pgConfiguration.uri.get
     logger.info(s"Postgres URI : ${uri}")
     val opts = PgConnectOptions.fromUri(uri.toString)
     opts
   } else {
 
-    val maybePgConfig = for(
-      database <- pgConfiguration.database;
-      // Retro compatibility : user became username
-      user <- pgConfiguration.username.orElse(pgConfiguration.user)
-    ) yield {
+    val maybePgConfig =
+      for (
+        database <- pgConfiguration.database;
+        // Retro compatibility : user became username
+        user     <- pgConfiguration.username.orElse(pgConfiguration.user)
+      ) yield {
 
-      val sslEnabled = sslConfiguration.enabled
-      new PgConnectOptions()
-        .applyOnWithOpt(pgConfiguration.connectTimeout)((p, v) => p.setConnectTimeout(v))
-        .applyOnWithOpt(pgConfiguration.idleTimeout)((p, v) => p.setIdleTimeout(v))
-        .applyOnWithOpt(pgConfiguration.logActivity)((p, v) => p.setLogActivity(v))
-        .applyOnWithOpt(pgConfiguration.pipeliningLimit)((p, v) => p.setPipeliningLimit(v))
-        .setPort(pgConfiguration.port)
-        .setHost(pgConfiguration.host)
-        .setDatabase(database)
-        .setUser(user)
-        .setPassword(pgConfiguration.password)
-        .applyOnIf(sslEnabled) { pgopt =>
-          pgopt.setSsl(true)
-          val mode = SslMode.of(sslConfiguration.mode)
-          val pemTrustOptions = new PemTrustOptions()
-          val pemKeyCertOptions = new PemKeyCertOptions()
-          pgopt.setSslMode(mode)
+        val sslEnabled = sslConfiguration.enabled
+        new PgConnectOptions()
+          .applyOnWithOpt(pgConfiguration.connectTimeout)((p, v) => p.setConnectTimeout(v))
+          .applyOnWithOpt(pgConfiguration.idleTimeout)((p, v) => p.setIdleTimeout(v))
+          .applyOnWithOpt(pgConfiguration.logActivity)((p, v) => p.setLogActivity(v))
+          .applyOnWithOpt(pgConfiguration.pipeliningLimit)((p, v) => p.setPipeliningLimit(v))
+          .setPort(pgConfiguration.port)
+          .setHost(pgConfiguration.host)
+          .setDatabase(database)
+          .setUser(user)
+          .setPassword(pgConfiguration.password)
+          .applyOnIf(sslEnabled) { pgopt =>
+            pgopt.setSsl(true)
+            val mode              = SslMode.of(sslConfiguration.mode)
+            val pemTrustOptions   = new PemTrustOptions()
+            val pemKeyCertOptions = new PemKeyCertOptions()
+            pgopt.setSslMode(mode)
 
-          pgopt.applyOnWithOpt(sslConfiguration.sslHandshakeTimeout)((p, v) => p.setSslHandshakeTimeout(v))
-          sslConfiguration.trustedCertsPath match {
-            case Nil => ()
-            case pathes => {
-              pathes.map(p => pemTrustOptions.addCertPath(p))
+            pgopt.applyOnWithOpt(sslConfiguration.sslHandshakeTimeout)((p, v) => p.setSslHandshakeTimeout(v))
+            /*sslConfiguration.trustedCertsPath match {
+              case Nil    => ()
+              case pathes => {
+                pathes.map(p => pemTrustOptions.addCertPath(p))
+                pgopt.setPemTrustOptions(pemTrustOptions)
+              }
+            }*/
+            sslConfiguration.trustedCertPath.map { path =>
+              pemTrustOptions.addCertPath(path)
               pgopt.setPemTrustOptions(pemTrustOptions)
             }
-          }
-          sslConfiguration.trustedCertPath.map { path =>
-            pemTrustOptions.addCertPath(path)
-            pgopt.setPemTrustOptions(pemTrustOptions)
-          }
-          sslConfiguration.trustedCerts match {
-            case Nil =>
-            case certs => {
-              certs.map(p => pemTrustOptions.addCertValue(Buffer.buffer(p)))
+            /*sslConfiguration.trustedCerts match {
+              case Nil   =>
+              case certs => {
+                certs.map(p => pemTrustOptions.addCertValue(Buffer.buffer(p)))
+                pgopt.setPemTrustOptions(pemTrustOptions)
+              }
+            }*/
+            sslConfiguration.trustedCert.map { path =>
+              pemTrustOptions.addCertValue(Buffer.buffer(path))
               pgopt.setPemTrustOptions(pemTrustOptions)
             }
-          }
-          sslConfiguration.trustedCert.map { path =>
-            pemTrustOptions.addCertValue(Buffer.buffer(path))
-            pgopt.setPemTrustOptions(pemTrustOptions)
-          }
-          sslConfiguration.clientCertsPath match{
-            case Nil => ()
-            case pathes => {
-              pathes.map(p => pemKeyCertOptions.addCertPath(p))
+            /*sslConfiguration.clientCertsPath match {
+              case Nil    => ()
+              case pathes => {
+                pathes.map(p => pemKeyCertOptions.addCertPath(p))
+                pgopt.setPemKeyCertOptions(pemKeyCertOptions)
+              }
+            }*/
+            /*sslConfiguration.clientCerts match {
+              case Nil   => ()
+              case certs => {
+                certs.map(p => pemKeyCertOptions.addCertValue(Buffer.buffer(p)))
+                pgopt.setPemKeyCertOptions(pemKeyCertOptions)
+              }
+            }*/
+            sslConfiguration.clientCertPath.map { path =>
+              pemKeyCertOptions.addCertPath(path)
               pgopt.setPemKeyCertOptions(pemKeyCertOptions)
             }
-          }
-          sslConfiguration.clientCerts match {
-            case Nil => ()
-            case certs => {
-              certs.map(p => pemKeyCertOptions.addCertValue(Buffer.buffer(p)))
+            sslConfiguration.clientCert.map { path =>
+              pemKeyCertOptions.addCertValue(Buffer.buffer(path))
               pgopt.setPemKeyCertOptions(pemKeyCertOptions)
             }
-          }
-          sslConfiguration.clientCertPath.map { path =>
-            pemKeyCertOptions.addCertPath(path)
-            pgopt.setPemKeyCertOptions(pemKeyCertOptions)
-          }
-          sslConfiguration.clientCert.map { path =>
-            pemKeyCertOptions.addCertValue(Buffer.buffer(path))
-            pgopt.setPemKeyCertOptions(pemKeyCertOptions)
-          }
-          sslConfiguration.trustAll.map { v =>
-            pgopt.setTrustAll(v)
-          }
+            sslConfiguration.trustAll.map { v =>
+              pgopt.setTrustAll(v)
+            }
 
-          pgopt
-        }
-    }
+            pgopt
+          }
+      }
 
-    maybePgConfig.getOrElse(throw new IllegalArgumentException("No suitable postgres configuration provided, you need to provide either Postgres URI or Postgres database, user and password (see https://maif.github.io/izanami/docs/guides/configuration#database for details)"))
+    maybePgConfig.getOrElse(
+      throw new IllegalArgumentException(
+        "No suitable postgres configuration provided, you need to provide either Postgres URI or Postgres database, user and password (see https://maif.github.io/izanami/docs/guides/configuration#database for details)"
+      )
+    )
   }
-  lazy val vertx               = Vertx.vertx()
+  lazy val vertx: Vertx                     = Vertx.vertx()
 
   private lazy val poolOptions = new PoolOptions()
     .setMaxSize(pgConfiguration.poolSize)
@@ -128,13 +133,12 @@ class Postgresql(env: Env) {
   //private lazy val pool = PgPool.pool(connectOptions, poolOptions)
   private lazy val pool = PgBuilder.pool().`with`(poolOptions).connectingTo(connectOptions).using(vertx).build();
 
-
   def onStart(): Future[Unit] = {
     updateSchema()
   }
 
   def updateSchema(): Future[Unit] = {
-    val config     = new HikariConfig()
+    val config = new HikariConfig()
     config.setDriverClassName(classOf[org.postgresql.Driver].getName)
     config.setJdbcUrl(
       s"jdbc:postgresql://${connectOptions.getHost}:${connectOptions.getPort}/${connectOptions.getDatabase}"
@@ -149,7 +153,7 @@ class Postgresql(env: Env) {
       config.addDataSourceProperty("sslmode", mode.toString)
       config.addDataSourceProperty("ssl", true)
 
-      if(sslConfiguration.trustAll.getOrElse(false)) {
+      if (sslConfiguration.trustAll.getOrElse(false)) {
         config.addDataSourceProperty("sslfactory", "org.postgresql.ssl.NonValidatingFactory")
       }
       config
@@ -191,25 +195,28 @@ class Postgresql(env: Env) {
                 java.util.Map.of("extensions_schema", env.extensionsSchema, "schema", tenant.name)
               )
               .load()
-            Try {
-              val result = flyway.migrate()
-            } match {
-              case Failure(e:FlywayValidateException) => {
-                val validationResult = flyway.validateWithResult()
-                if(validationResult.invalidMigrations.asScala.map(v => v.version).contains("2")) {
-                  env.logger.info(s"""Izanami needs to repair flyway migration for tenant ${tenant.name} since extension schema is now configurable. Starting repair...""")
-                  flyway.repair()
-                  env.logger.info(s"""Repair worked, restarting migration for ${tenant.name}""")
-                  flyway.migrate()
-                } else {
-                  throw e
-                }
+          Try {
+            val result = flyway.migrate()
+          } match {
+            case Failure(e: FlywayValidateException) => {
+              val validationResult = flyway.validateWithResult()
+              if (validationResult.invalidMigrations.asScala.map(v => v.version).contains("2")) {
+                env.logger.info(
+                  s"""Izanami needs to repair flyway migration for tenant ${tenant.name} since extension schema is now configurable. Starting repair..."""
+                )
+                flyway.repair()
+                env.logger.info(s"""Repair worked, restarting migration for ${tenant.name}""")
+                flyway.migrate()
+              } else {
+                throw e
               }
-              case Failure(e) => throw e
-              case Success(_) => ()
             }
+            case Failure(e)                          => throw e
+            case Success(_)                          => ()
+          }
         })
-      })(env.executionContext).andThen(_ => dataSource.close())(env.executionContext)
+      })(env.executionContext)
+      .andThen(_ => dataSource.close())(env.executionContext)
   }
 
   def defaultPassword: String = {
@@ -235,7 +242,6 @@ class Postgresql(env: Env) {
       .scala
   }
 
-
   def executeInTransaction[T](callback: SqlConnection => Future[T]): Future[T] = {
     var future: io.vertx.core.Future[T] = io.vertx.core.Future.succeededFuture()
     pool
@@ -256,23 +262,32 @@ class Postgresql(env: Env) {
     }).toFEither
   }
 
-  def executeInOptionalTransaction[T](maybeTransaction: Option[SqlConnection], callback: SqlConnection => Future[T]): Future[T] = {
-    maybeTransaction.fold({
+  def executeInOptionalTransaction[T](
+      maybeTransaction: Option[SqlConnection],
+      callback: SqlConnection => Future[T]
+  ): Future[T] = {
+    maybeTransaction.fold {
       executeInTransaction(callback = callback)
-    })(conn => {
+    }(conn => {
       callback(conn).vertx(env.executionContext).scala
     })
   }
 
-  def executeInOptionalTransaction[T](maybeTransaction: Option[SqlConnection], callback: SqlConnection => FutureEither[T]): FutureEither[T] = {
-    executeInOptionalTransaction(maybeTransaction, conn => {
-      callback(conn).value
-    }).toFEither
+  def executeInOptionalTransaction[T](
+      maybeTransaction: Option[SqlConnection],
+      callback: SqlConnection => FutureEither[T]
+  ): FutureEither[T] = {
+    executeInOptionalTransaction(
+      maybeTransaction,
+      conn => {
+        callback(conn).value
+      }
+    ).toFEither
   }
 
   def queryAll[A](
       query: String,
-      params: List[AnyRef] = List.empty,
+      params: List[Any] = List.empty,
       debug: Boolean = false,
       conn: Option[SqlConnection] = None
   )(
@@ -294,18 +309,25 @@ class Postgresql(env: Env) {
 
   def queryRaw[A](
       query: String,
-      params: List[AnyRef] = List.empty,
+      params: List[Any] = List.empty,
       debug: Boolean = false,
       conn: Option[SqlConnection] = None
   )(
       f: List[Row] => A
   ): Future[A] = {
-    if (debug) env.logger.info(s"""query: "$query", params: "${params.map(_.toString).mkString(", ")}"""")
-    val isRead = query.toLowerCase().trim.startsWith("select")
+    val castedParams = params.map(r => {
+      if (r.isInstanceOf[Boolean]) {
+        java.lang.Boolean.valueOf(r.asInstanceOf[Boolean])
+      } else {
+        r.asInstanceOf[AnyRef]
+      }
+    })
+    if (debug) env.logger.info(s"""query: "$query", params: "${castedParams.map(_.toString).mkString(", ")}"""")
+    val isRead       = query.toLowerCase().trim.startsWith("select")
     (isRead match {
       case true  =>
         val lambda = (c: SqlConnection) => {
-          c.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(params.toArray))
+          c.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(castedParams.toArray))
         }
         conn
           .map(conn => lambda(conn))
@@ -313,15 +335,15 @@ class Postgresql(env: Env) {
           .getOrElse(executeInTransaction(lambda(_).scala))
       case false =>
         conn
-          .map(c =>c.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(params.toArray)).scala)
+          .map(c => c.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(castedParams.toArray)).scala)
           .getOrElse(
-            executeInTransaction(
-              conn => conn.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(params.toArray)).scala
+            executeInTransaction(conn =>
+              conn.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(castedParams.toArray)).scala
             )
           )
     }).flatMap { _rows =>
       Try {
-        if(Objects.isNull(_rows)) {
+        if (Objects.isNull(_rows)) {
           throw DbConnectionFailure()
         }
         val rows = _rows.asScala.toList
@@ -332,44 +354,57 @@ class Postgresql(env: Env) {
       }
     }(env.executionContext)
       .andThen {
-        case Failure(e:DbConnectionFailure) => logger.error(e.message)
-        case Failure(e) => {
-        val paramsToDisplay = params.map(p => {
-          if(p != null && p.toString.length > 10_000) {
-            p.toString.substring(0, 10_000) + "<param too long, it was truncated>"
-          } else {
-            p
-          }
-        })
-        logger.error(s"""Failed to apply query: "$query" with params: "${paramsToDisplay.mkString(", ")}"""", e)
-      }
+        case Failure(e: DbConnectionFailure) => logger.error(e.message)
+        case Failure(e)                      => {
+          val paramsToDisplay = castedParams.map(p => {
+            if (p != null && p.toString.length > 10_000) {
+              p.toString.substring(0, 10_000) + "<param too long, it was truncated>"
+            } else {
+              p
+            }
+          })
+          logger.error(s"""Failed to apply query: "$query" with params: "${paramsToDisplay.mkString(", ")}"""", e)
+        }
       }(env.executionContext)
   }
 
-
   val pgErrorPartialFunction: PartialFunction[Throwable, IzanamiError] = {
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "featuresnamesize" => FeatureFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "projectsnamesize" => ProjectFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "wasm_script_configurationsnamesize" => WasmScriptNameTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "tagsnamesize" => TagFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "apikeysnamesize" => ApiKeyFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "global_feature_contextsnamesize" => GlobalContextNameTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "feature_contextsnamesize" => ContextNameTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "webhooksnamesize" => WebhookFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "tenantnamesize" => TenantFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "invitationstextsize" => EmailIsTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "usertextsize" => UsernameFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "configurationtextsize" => ConfigurationFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "personnal_access_tokenstextsize" => PersonnalAccessTokenFieldTooLong
-    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "features_pkey" => FeatureWithThisIdAlreadyExist
-    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "unique_feature_name_for_project" => FeatureWithThisNameAlreadyExist
-    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "new_contexts_pkey" => ContextWithThisNameAlreadyExist
-    case ex => InternalServerError("An unexpected error occured")
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "featuresnamesize"                 =>
+      FeatureFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "projectsnamesize"                 =>
+      ProjectFieldTooLong
+    case f: PgException
+        if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "wasm_script_configurationsnamesize" =>
+      WasmScriptNameTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "tagsnamesize"                     => TagFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "apikeysnamesize"                  =>
+      ApiKeyFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "global_feature_contextsnamesize"  =>
+      GlobalContextNameTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "feature_contextsnamesize"         =>
+      ContextNameTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "webhooksnamesize"                 =>
+      WebhookFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "tenantnamesize"                   => TenantFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "invitationstextsize"              =>
+      EmailIsTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "usertextsize"                     => UsernameFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "configurationtextsize"            =>
+      ConfigurationFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "personnal_access_tokenstextsize"  =>
+      PersonnalAccessTokenFieldTooLong
+    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "features_pkey"                   =>
+      FeatureWithThisIdAlreadyExist
+    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "unique_feature_name_for_project" =>
+      FeatureWithThisNameAlreadyExist
+    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "new_contexts_pkey"               =>
+      ContextWithThisNameAlreadyExist
+    case ex                                                                                                          => InternalServerError("An unexpected error occured")
   }
 
   def queryOne[A](
       query: String,
-      params: List[AnyRef] = List.empty,
+      params: List[Any] = List.empty,
       debug: Boolean = false,
       conn: Option[SqlConnection] = None
   )(
@@ -441,7 +476,6 @@ object pgimplicits {
     def optString(name: String): Option[String] = opt(name, "String", (a, b) => a.getString(b))
 
     //def optJValueArray(name: String): Option[Array[JsValue]] = opt(name, "String", (a, b) => a.getJsonObject(b))
-
 
     def optStringArray(name: String): Option[Array[String]] = opt(name, "String", (a, b) => a.getArrayOfStrings(b))
 

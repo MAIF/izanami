@@ -704,16 +704,16 @@ object ImportExportDatastore {
       updatedProjects: Set[String] = Set(),
       previousStrategies: Map[String, FeatureWithOverloads] = Map()
   ) {
-    def addFailedElement(json: JsObject) = copy(failedElements = failedElements + json)
+    def addFailedElement(json: JsObject): DBImportResult = copy(failedElements = failedElements + json)
 
-    def addUpdatedFeatures(id: String)        = copy(updatedFeatures = updatedFeatures + id)
-    def withUpdatedFeatures(ids: Set[String]) = copy(updatedFeatures = updatedFeatures ++ ids)
+    def addUpdatedFeatures(id: String): DBImportResult        = copy(updatedFeatures = updatedFeatures + id)
+    def withUpdatedFeatures(ids: Set[String]): DBImportResult = copy(updatedFeatures = updatedFeatures ++ ids)
 
-    def addCreatedFeatures(id: String)        = copy(createdFeatures = createdFeatures + id)
-    def withCreatedFeatures(ids: Set[String]) = copy(createdFeatures = createdFeatures ++ ids)
+    def addCreatedFeatures(id: String): DBImportResult        = copy(createdFeatures = createdFeatures + id)
+    def withCreatedFeatures(ids: Set[String]): DBImportResult = copy(createdFeatures = createdFeatures ++ ids)
 
-    def withCreatedProjects(ids: Set[String]) = copy(createdProjects = createdProjects ++ ids)
-    def withUpdatedProjects(ids: Set[String]) = copy(updatedProjects = updatedProjects ++ ids)
+    def withCreatedProjects(ids: Set[String]): DBImportResult = copy(createdProjects = createdProjects ++ ids)
+    def withUpdatedProjects(ids: Set[String]): DBImportResult = copy(updatedProjects = updatedProjects ++ ids)
 
     def mergeWith(other: DBImportResult): DBImportResult = {
       copy(
@@ -749,11 +749,11 @@ object ImportExportDatastore {
       createdElements: Set[String] = Set(),
       previousStrategies: Map[String, FeatureWithOverloads] = Map()
   ) {
-    def addFailedElement(json: JsObject) = copy(failedElements = failedElements + json)
+    def addFailedElement(json: JsObject): UnitDBImportResult = copy(failedElements = failedElements + json)
 
-    def addUpdatedElements(id: String) = copy(updatedElements = updatedElements + id)
+    def addUpdatedElements(id: String): UnitDBImportResult = copy(updatedElements = updatedElements + id)
 
-    def addCreatedElements(id: String) = copy(createdElements = createdElements + id)
+    def addCreatedElements(id: String): UnitDBImportResult = copy(createdElements = createdElements + id)
 
     def mergeWith(other: UnitDBImportResult): UnitDBImportResult = {
       copy(

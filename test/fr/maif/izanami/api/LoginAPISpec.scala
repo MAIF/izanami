@@ -5,6 +5,7 @@ import play.api.http.Status._
 import play.api.libs.json.{__, JsBoolean, JsError, JsFalse, JsObject, JsSuccess, Json}
 import play.api.libs.ws.{WSCookie, WSResponse}
 import play.api.test.Helpers.await
+import play.api.libs.ws.writeableOf_String
 
 import scala.concurrent.Future
 

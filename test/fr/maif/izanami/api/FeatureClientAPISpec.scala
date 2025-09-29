@@ -14,7 +14,7 @@ class FeatureClientAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      situation.importAndWaitTermination(
+      val res = situation.importAndWaitTermination(
         tenant = "tenant",
         features = Seq(
           """{"id":"project:another:customer-list-feature","enabled":true,"description":"An old style user list feature","parameters":{"customers":["foo","bar","baz"]},"activationStrategy":"CUSTOMERS_LIST"}""".stripMargin,

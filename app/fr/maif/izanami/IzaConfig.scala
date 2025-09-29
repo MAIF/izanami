@@ -1,13 +1,69 @@
 package fr.maif.izanami
 
+import com.typesafe.config.Config
+import fr.maif.izanami.models.*
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2RawMethodConvert
-import fr.maif.izanami.models._
 import fr.maif.izanami.services.CompleteRights
-import play.api.libs.json.{JsError, JsString, JsSuccess, Reads, Writes}
-import pureconfig.ConfigReader
-import pureconfig.generic.semiauto._
+import play.api.libs.json.*
+import pureconfig.error.{CannotConvert, CannotParse, ConfigReaderFailures}
+import pureconfig.generic.semiauto.{deriveEnumerationReader, deriveReader}
+import pureconfig.{ConfigReader, ConfigSource}
+
 
 case class IzanamiTypedConfiguration(app: AppConf, play: PlayRoot)
+case object IzanamiTypedConfiguration {
+  def from(conf: Config): IzanamiTypedConfiguration = {
+    given ConfigReader[BaseConfigRightLevel] = f => {
+      f.asString.flatMap {
+        case "read" => Right(Read)
+        case "write" => Right(Write)
+        case "admin" => Right(Admin)
+        case "none" => Right(None)
+        case _ => Left(ConfigReaderFailures(CannotParse("Can't read base config right level", origin = Option.empty)))
+      }
+    }
+
+    given ConfigReader[ConfigProjectRightLevel] = f => {
+      f.asString.flatMap {
+        case "read" => Right(Read)
+        case "write" => Right(Write)
+        case "admin" => Right(Admin)
+        case "update" => Right(Update)
+        case "none" => Right(None)
+        case _ => Left(ConfigReaderFailures(CannotParse("Can't read base config right level", origin = Option.empty)))
+      }
+    }
+
+    given ConfigReader[ConfigNonNullableRightLevel] = f => {
+      f.asString.flatMap {
+        case "read" => Right(Read)
+        case "write" => Right(Write)
+        case "admin" => Right(Admin)
+        case _ => Left(ConfigReaderFailures(CannotParse("Can't read base config right level", origin = Option.empty)))
+      }
+    }
+
+    given ConfigReader[ConfigNonNullableProjectRightLevel] = f => {
+      f.asString.flatMap {
+        case "read" => Right(Read)
+        case "write" => Right(Write)
+        case "admin" => Right(Admin)
+        case "update" => Right(Update)
+        case _ => Left(ConfigReaderFailures(CannotParse("Can't read base config right level", origin = Option.empty)))
+      }
+    }
+    given ConfigReader[RoleRights] = deriveReader
+    given ConfigReader[TenantRoleRights] = deriveReader
+    given ConfigReader[OpenId] = deriveReader[OpenId]
+    given ConfigReader[IzanamiTypedConfiguration] = deriveReader[IzanamiTypedConfiguration]
+
+
+
+    ConfigSource
+      .fromConfig(conf)
+      .loadOrThrow[IzanamiTypedConfiguration]
+  }
+}
 
 case class AppConf(
     secret: String,
@@ -31,6 +87,7 @@ case class AppConf(
     feature: Feature,
     housekeeping: Housekeeping
 )
+
 
 case class Experimental(staleTracking: StaleTracking)
 case class StaleTracking(enabled: Boolean)
@@ -152,13 +209,13 @@ case class RoleRights(admin: Boolean = false, tenants: Map[String, TenantRoleRig
   }
 }
 case class TenantRoleRights(
-                             level: ConfigNonNullableRightLevel,
-                             defaultProjectRight: ConfigProjectRightLevel = None,
-                             defaultKeyRight: BaseConfigRightLevel = None,
-                             defaultWebhookRight: BaseConfigRightLevel = None,
-                             keys: Map[String, ConfigNonNullableRightLevel] = Map(),
-                             webhooks: Map[String, ConfigNonNullableRightLevel] = Map(),
-                             projects: Map[String, ConfigNonNullableProjectRightLevel] = Map()
+    level: ConfigNonNullableRightLevel,
+    defaultProjectRight: ConfigProjectRightLevel = None,
+    defaultKeyRight: BaseConfigRightLevel = None,
+    defaultWebhookRight: BaseConfigRightLevel = None,
+    keys: Map[String, ConfigNonNullableRightLevel] = Map(),
+    webhooks: Map[String, ConfigNonNullableRightLevel] = Map(),
+    projects: Map[String, ConfigNonNullableProjectRightLevel] = Map()
 )
 
 case class PlayRoot(server: PlayServer)
@@ -207,25 +264,6 @@ case object Update extends ConfigProjectRightLevel with ConfigNonNullableProject
   override def toProjectRightLevel: ProjectRightLevel              = ProjectRightLevel.Update
 }
 
-object BaseConfigRightLevel {
-  implicit val rightConvert: ConfigReader[BaseConfigRightLevel] = deriveEnumerationReader[BaseConfigRightLevel]
-}
-
-object ConfigProjectRightLevel {
-  implicit val rightConvert: ConfigReader[ConfigProjectRightLevel] = deriveEnumerationReader[ConfigProjectRightLevel]
-}
-
-object ConfigNonNullableRightLevel {
-  implicit val rightConvert: ConfigReader[ConfigNonNullableRightLevel] =
-    deriveEnumerationReader[ConfigNonNullableRightLevel]
-}
-
-object ConfigNonNullableProjectRightLevel {
-  implicit val rightConvert: ConfigReader[ConfigNonNullableProjectRightLevel] =
-    deriveEnumerationReader[ConfigNonNullableProjectRightLevel]
-}
-
-sealed trait RoleRightMode
 
 case object RoleRightMode {
   case object Supervised extends RoleRightMode
@@ -244,3 +282,5 @@ case object RoleRightMode {
 
   implicit val roleRightModeConvert: ConfigReader[RoleRightMode] = deriveEnumerationReader[RoleRightMode]
 }
+
+sealed trait RoleRightMode

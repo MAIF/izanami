@@ -200,7 +200,7 @@ case class CompleteRights(tenants: Map[String, TenantRight], admin: Boolean) {
 }
 
 case object CompleteRights {
-  val EMPTY = CompleteRights(admin = false, tenants = Map.empty)
+  val EMPTY: CompleteRights = CompleteRights(admin = false, tenants = Map.empty)
 
   def writes: Writes[CompleteRights] = r => {
     val jsonRights = Json.toJson(r.tenants)(Writes.map(User.tenantRightWrite))

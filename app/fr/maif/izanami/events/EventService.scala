@@ -6,13 +6,30 @@ import org.apache.pekko.stream.{KillSwitches, Materializer, SharedKillSwitch}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.{EnhancedRow, VertxFutureEnhancer}
 import fr.maif.izanami.events.EventAuthentication.eventAuthenticationReads
-import fr.maif.izanami.events.EventOrigin.{ORIGIN_NAME_MAP, eventOriginReads}
-import fr.maif.izanami.events.EventService.{IZANAMI_CHANNEL, sourceEventWrites}
+import fr.maif.izanami.events.EventOrigin.{eventOriginReads, ORIGIN_NAME_MAP}
+import fr.maif.izanami.events.EventService.{sourceEventWrites, IZANAMI_CHANNEL}
 import fr.maif.izanami.models.{Feature, FeatureWithOverloads, LightWeightFeature, RequestContext, Tenant}
 import io.vertx.pgclient.pubsub.PgSubscriber
 import io.vertx.sqlclient.SqlConnection
-import play.api.libs.json.{Format, JsError, JsNumber, JsObject, JsResult, JsString, JsSuccess, JsValue, Json, Reads, Writes}
-import fr.maif.izanami.models.Feature.{featureWrite, lightweightFeatureRead, lightweightFeatureWrite, writeStrategiesForEvent}
+import play.api.libs.json.{
+  Format,
+  JsError,
+  JsNumber,
+  JsObject,
+  JsResult,
+  JsString,
+  JsSuccess,
+  JsValue,
+  Json,
+  Reads,
+  Writes
+}
+import fr.maif.izanami.models.Feature.{
+  featureWrite,
+  lightweightFeatureRead,
+  lightweightFeatureWrite,
+  writeStrategiesForEvent
+}
 import fr.maif.izanami.models.FeatureWithOverloads.featureWithOverloadWrite
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.v1.V2FeatureEvents.{createEventV2, deleteEventV2, updateEventV2}
@@ -612,8 +629,7 @@ object EventService {
             tenant         <- (json \ "tenant").asOpt[String];
             user           <- (json \ "user").asOpt[String];
             project        <- (json \ "project").asOpt[String];
-            conditions     <-
-              (json \ "feature").asOpt[Map[String, LightWeightFeature]](Reads.map(lightweightFeatureRead));
+            conditions     <- (json \ "feature").asOpt[Map[String, LightWeightFeature]](Reads.map(lightweightFeatureRead));
             authentication <- json.asOpt[EventAuthentication](eventAuthenticationReads);
             origin         <- (json \ "origin").asOpt[EventOrigin](eventOriginReads)
           ) yield (eventId, id, tenant, project, user, conditions, origin, authentication)).map {
@@ -925,24 +941,28 @@ class EventService(env: Env) {
   }
 
   def killSource(tenant: String): Future[Unit] = {
-    sourceMap.get(tenant).map {
-      case SourceDescriptor(_, killswitch, pgSuscriber) => {
-        sourceMap.remove(tenant)
-        logger.info(s"Closing SSE source for $tenant")
-        killswitch.shutdown()
-        pgSuscriber
-          .close()
-          .onComplete(_ => {
-            logger.info(s"Done closing PG suscriber for $tenant")
-          })
-          .scala
-          .map(_ => ())
+    sourceMap
+      .get(tenant)
+      .map {
+        case SourceDescriptor(_, killswitch, pgSuscriber) => {
+          sourceMap.remove(tenant)
+          logger.info(s"Closing SSE source for $tenant")
+          killswitch.shutdown()
+          pgSuscriber
+            .close()
+            .onComplete(_ => {
+              logger.info(s"Done closing PG suscriber for $tenant")
+            })
+            .scala
+            .map(_ => ())
+        }
       }
-    }.getOrElse(Future.successful(()))
+      .getOrElse(Future.successful(()))
   }
 
   def killAllSources(excludeIzanamiChannel: Boolean = false): Future[Unit] = {
-    Future.sequence(sourceMap.keys.filterNot(name => excludeIzanamiChannel && name == IZANAMI_CHANNEL).map(killSource))
+    Future
+      .sequence(sourceMap.keys.filterNot(name => excludeIzanamiChannel && name == IZANAMI_CHANNEL).map(killSource))
       .map(_ => ())
   }
 }

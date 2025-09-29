@@ -19,7 +19,7 @@ case class WasmAuthorizations(
 }
 
 object WasmAuthorizations {
-  val format = new Format[WasmAuthorizations] {
+  val format: Format[WasmAuthorizations] = new Format[WasmAuthorizations] {
     override def writes(o: WasmAuthorizations): JsValue             = Json.obj(
       "httpAccess" -> o.httpAccess
     )
@@ -91,7 +91,7 @@ case class WasmConfig(
 }
 
 object WasmConfig {
-  val format = new Format[WasmConfig] {
+  val format: Format[WasmConfig] = new Format[WasmConfig] {
     override def reads(json: JsValue): JsResult[WasmConfig] = Try {
       val compilerSource = json.select("compiler_source").asOpt[String]
       val rawSource      = json.select("raw_source").asOpt[String]

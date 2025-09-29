@@ -9,11 +9,13 @@ import fr.maif.izanami.security.IdGenerator
 import fr.maif.izanami.utils.Datastore
 import io.vertx.sqlclient.{Row, SqlConnection}
 import play.api.libs.json.{JsObject, JsValue, Json}
+import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue
 
 import java.time.format.DateTimeFormatter
 import java.time.{Instant, ZoneId}
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
+
 
 class StatsDatastore(val env: Env) extends Datastore {
   var anonymousReportingCancellation: Cancellable = Cancellable.alreadyCancelled

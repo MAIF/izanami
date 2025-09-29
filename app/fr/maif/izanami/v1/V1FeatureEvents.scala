@@ -67,7 +67,7 @@ object V2FeatureEvents {
 }
 
 object V1FeatureEvents {
-  val gen = IdGenerator(1024)
+  val gen: IdGenerator = IdGenerator(1024)
   private def baseJson(id: String, feature: JsObject): JsObject = {
     Json.obj(
       "_id"       -> gen.nextId(),

@@ -185,8 +185,8 @@ object ActivationRule {
 }
 
 object ActivationCondition {
-  val maxNumberValue = BigDecimal("9007199254740991")
-  val minNumberValue = BigDecimal("-9007199254740991")
+  val maxNumberValue: BigDecimal = BigDecimal("9007199254740991")
+  val minNumberValue: BigDecimal = BigDecimal("-9007199254740991")
   val hourFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
   def activationConditionReads: ResultType => Reads[ActivationCondition] = resultType => Reads[ActivationCondition] {json => {
     resultType match {

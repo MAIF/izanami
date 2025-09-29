@@ -20,7 +20,7 @@ class PluginController(
   implicit val ec: ExecutionContext = env.executionContext;
 
   // TODO authenticate
-  def localScripts(tenant: String, features: Boolean) = Action.async { implicit request =>
+  def localScripts(tenant: String, features: Boolean): Action[AnyContent] = Action.async { implicit request =>
     if (features) {
       env.datastores.features
         .readLocalScriptsWithAssociatedFeatures(tenant)
@@ -34,7 +34,7 @@ class PluginController(
     }
   }
 
-  def readScript(tenant: String, script: String) = authAction(tenant, RightLevel.Read).async { implicit request =>
+  def readScript(tenant: String, script: String): Action[AnyContent] = authAction(tenant, RightLevel.Read).async { implicit request =>
     env.datastores.features
       .readWasmScript(tenant, script)
       .map(maybeConfig =>
@@ -61,7 +61,7 @@ class PluginController(
     }
 
   // TODO basic authentication
-  def wasmFiles() = Action.async { implicit request =>
+  def wasmFiles(): Action[AnyContent] = Action.async { implicit request =>
     env.datastores.configuration
       .readWasmConfiguration() match {
       case Some(settings @ WasmoSettings(url, _, _, pluginsFilter, _, _)) =>

@@ -5,13 +5,15 @@ import com.mailjet.client.{ClientOptions, MailjetClient, MailjetRequest}
 import com.sun.mail.smtp.SMTPTransport
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, MailSendingError, MissingMailProviderConfigurationError}
-import fr.maif.izanami.mail.MailGunRegions.{Europe, MailGunRegion}
+import fr.maif.izanami.mail.MailGunRegion.Europe
 import fr.maif.izanami.mail.MailerTypes.MailerType
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import org.json.{JSONArray, JSONObject}
 import play.api.Logger
+import play.api.libs.json.{JsError, JsString, JsSuccess, Reads, Writes}
 import play.api.libs.ws.{WSAuthScheme, WSClient}
+import play.api.libs.ws.DefaultBodyWritables.writeableOf_urlEncodedSimpleForm
 
 import java.util.{Objects, Properties}
 import javax.mail.internet.{InternetAddress, MimeMessage}
@@ -50,9 +52,21 @@ case class MailJetMailProvider(configuration: MailJetConfiguration) extends Mail
   val mailerType: MailerType = MailerTypes.MailJet
 }
 
-object MailGunRegions extends Enumeration {
-  type MailGunRegion = Value
-  val Europe, US = Value
+sealed trait MailGunRegion
+
+object MailGunRegion {
+  case object Europe extends MailGunRegion
+  case object US     extends MailGunRegion
+  def mailGunRegionWrites: Writes[MailGunRegion] = {
+    case Europe => JsString("Europe")
+    case US     => JsString("US")
+  }
+
+  def mailGunRegionReads: Reads[MailGunRegion] = {
+    case JsString(str) if str.toUpperCase == "EUROPE" => JsSuccess(Europe)
+    case JsString(str) if str.toUpperCase == "US"     => JsSuccess(US)
+    case _                  => JsError("Unknown mailgun region")
+  }
 }
 
 case class MailGunConfiguration(

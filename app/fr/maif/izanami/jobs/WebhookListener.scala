@@ -10,6 +10,7 @@ import fr.maif.izanami.events._
 import fr.maif.izanami.models.{LightWebhook, RequestContext}
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.JsValue
+import play.api.libs.ws.DefaultBodyWritables.writeableOf_String
 
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference

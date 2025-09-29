@@ -37,7 +37,7 @@ class SseSubscriber(consumer: String => Unit) extends BodySubscriber[Void] {
         val token = s.split("\n\n", -1)
         token.dropRight(1).foreach(msg => {
           val lines = msg.split("\n")
-          val data = extractMessageData(lines)
+          val data = extractMessageData(lines.toIndexedSeq)
           this.consumer(data)
           // TODO: Handle lines that start with "event:", "id:", "retry:"
         })
@@ -65,14 +65,14 @@ class SseSubscriber(consumer: String => Unit) extends BodySubscriber[Void] {
 }
 
 object SseSubscriber {
-  val DATA_LINE_PATTERN = Pattern.compile("^data: ?(.*)$")
+  val DATA_LINE_PATTERN: Pattern = Pattern.compile("^data: ?(.*)$")
 
   def extractMessageData(lines: Seq[String]): String = {
     val s = StringBuilder
     lines.foreach(line => {
       val matcher = DATA_LINE_PATTERN.matcher(line)
       if(matcher.matches()) {
-        s + matcher.group(1)
+        String.valueOf(s) + matcher.group(1)
       }
     })
     s.toString

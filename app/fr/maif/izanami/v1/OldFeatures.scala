@@ -14,6 +14,7 @@ import play.api.libs.json._
 
 import java.time.format.DateTimeFormatter
 import java.time.{Instant, LocalDateTime, LocalTime, ZoneId}
+import play.api.libs.functional.FunctionalBuilder
 
 sealed trait OldFeature {
   def id: String
@@ -378,7 +379,7 @@ object OldFeature {
     )
   }
 
-  def commonRead =
+  def commonRead: FunctionalBuilder[Reads]#CanBuild5[String,String,Boolean,Option[String],Set[String]] =
     (__ \ "id").read[String] and
     (__ \ "name").readWithDefault[String]("null") and
     (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
@@ -546,7 +547,7 @@ object OldFeature {
     )
   }
 
-  val dateFormatter = DateTimeFormatter.ofPattern(dateTimePattern3)
+  val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern3)
 
   implicit val oldReleaseDateFeatureWrites: Writes[OldReleaseDateFeature] = feature => {
     commonWrite(feature) ++ Json.obj(
@@ -567,7 +568,7 @@ object OldFeature {
     )
   }
 
-  val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+  val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
   implicit val oldHourRangeWrites: Writes[OldHourRangeFeature] = feature => {
     commonWrite(feature) ++ Json.obj(

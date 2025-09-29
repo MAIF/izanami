@@ -20,7 +20,25 @@ lazy val excludesJackson = Seq(
 
 version := (ThisBuild / version).value
 
-scalaVersion := "2.13.12"
+//scalaVersion := "2.13.13"
+scalaVersion := "3.3.6"
+
+scalacOptions ++= {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, _)) => {
+      Seq("-Xsource:3", "-quickfix:cat=scala3-migration")
+    }
+    case Some((3, _)) => {
+      Seq(
+        "-explain-cyclic",
+        "-explain",
+        "-Xmax-inlines:64"
+      )
+    }
+    case _            => sys.error("Unsupported scala version")
+  }
+
+}
 
 excludeDependencies ++= Seq(
   ExclusionRule("org.reactivecouchbase.json", "json-lib")
@@ -54,13 +72,26 @@ libraryDependencies += "com.auth0"              % "java-jwt"                    
 libraryDependencies += "com.github.jknack"      % "handlebars"                  % "4.4.0"
 libraryDependencies += "com.github.jknack"      % "handlebars-jackson"          % "4.4.0" excludeAll (excludesJackson: _*)
 libraryDependencies += "net.logstash.logback"   % "logstash-logback-encoder"    % "8.0" excludeAll (excludesJackson: _*)
-libraryDependencies += "com.github.pureconfig" %% "pureconfig"                  % "0.17.9"
+//libraryDependencies += "com.github.pureconfig" %% "pureconfig"                  % "0.17.9"
 libraryDependencies += "org.apache.pekko"      %% "pekko-slf4j"                 % "1.1.5"
 libraryDependencies += "org.apache.pekko"      %% "pekko-serialization-jackson" % "1.1.5"
 libraryDependencies += "org.apache.pekko"      %% "pekko-actor-typed"           % "1.1.5"
 libraryDependencies += "org.apache.pekko"      %% "pekko-protobuf-v3"           % "1.1.5"
 libraryDependencies += "org.apache.pekko"      %% "pekko-stream"                % "1.1.5"
-//libraryDependencies += "com.github.pureconfig" %% "pureconfig-core"            % "0.17.9"
+libraryDependencies += "com.github.pureconfig" %% "pureconfig-core"             % "0.17.9"
+libraryDependencies += "com.github.pureconfig" %% "pureconfig-generic-base"     % "0.17.9"
+libraryDependencies += "com.github.pureconfig" %% "pureconfig-generic-scala3"   % "0.17.9"
+/*libraryDependencies ++= {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, _)) => {
+      Seq("com.github.pureconfig" %% "pureconfig-generic" % "0.17.9")
+    }
+    case Some((3, _)) => {
+      Seq("com.github.pureconfig" %% "pureconfig-generic-scala3" % "0.17.9")
+    }
+    case _            => sys.error("Unsupported scala version")
+  }
+}*/
 
 libraryDependencies += "org.scalatestplus.play"       %% "scalatestplus-play"   % "7.0.2"    % Test
 libraryDependencies += "org.scalatest"                %% "scalatest-flatspec"   % "3.2.12"   % "test"
@@ -69,12 +100,12 @@ libraryDependencies += "com.fasterxml.jackson.core"    % "jackson-databind"     
 libraryDependencies += "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.4"   % Test
 libraryDependencies += jdbc                            % "test"
 libraryDependencies += "org.testcontainers"            % "testcontainers"       % "1.20.6"   % Test
-libraryDependencies += "fr.maif"                       % "izanami-client_2.13"  % "1.11.5"   % Test
+//libraryDependencies += ("fr.maif"                     %% "izanami-client"       % "1.11.5"   % Test).cross(CrossVersion.for3Use2_13)
 libraryDependencies += "org.awaitility"                % "awaitility-scala"     % "4.2.0"    % Test
 libraryDependencies += "com.github.mifmif"             % "generex"              % "1.0.1"    % Test
 libraryDependencies += "org.apache.pekko"             %% "pekko-connectors-sse" % "1.2.0"    % Test
-libraryDependencies += "com.typesafe.akka"            %% "akka-stream"          % "2.6.20"   % Test
-libraryDependencies += "com.typesafe.akka"            %% "akka-slf4j"           % "2.6.20"   % Test
+//libraryDependencies += "com.typesafe.akka"            %% "akka-stream"          % "2.6.20"   % Test
+//libraryDependencies += "com.typesafe.akka"            %% "akka-slf4j"           % "2.6.20"   % Test
 routesImport += "fr.maif.izanami.models.CustomBinders._"
 
 assembly / test := {}

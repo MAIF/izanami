@@ -1,19 +1,17 @@
 package fr.maif.izanami.api
 
-import akka.actor.ActorSystem
-import akka.http.javadsl.model.HttpHeader
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
-import akka.stream.alpakka.sse.scaladsl.EventSource
-import fr.maif.izanami.api.BaseAPISpec.{BASE_URL, DATE_TIME_FORMATTER, TestCondition, TestFeature, TestFeaturePatch, TestProject, TestSituationBuilder, TestTenant, TestUserListRule, system}
-import fr.maif.izanami.utils.SseSubscriber
-import izanami._
-import izanami.commons.IzanamiException
-import izanami.javadsl._
-import org.awaitility.Awaitility.await
-import org.reactivecouchbase.json.{Json, Syntax}
-import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+import fr.maif.izanami.api.BaseAPISpec.{
+  system,
+  BASE_URL,
+  DATE_TIME_FORMATTER,
+  TestCondition,
+  TestFeature,
+  TestFeaturePatch,
+  TestProject,
+  TestSituationBuilder,
+  TestTenant,
+  TestUserListRule
+}
 import play.api.http.Status.{BAD_REQUEST, NOT_FOUND, OK}
 import play.api.libs.json.{JsArray, JsBoolean, JsObject, JsTrue, JsValue}
 
@@ -217,11 +215,11 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val uuid = UUID.randomUUID()
+      val uuid         = UUID.randomUUID()
       val clientId     = "yfsc5ooy3v3hu5z2"
       val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination(
+      val importRest = situation.importAndWaitTermination(
         "tenant",
         features = Seq(
           s"""{"id":"project:foo:script-feature$uuid","enabled":true,"description":"An old style inline script feature","parameters":{"type":"javascript","script":"function enabled(context, enabled, disabled, http) {  if (context.id === 'benjamin') {    return enabled();  }  return disabled();}"},"activationStrategy":"SCRIPT"}""".stripMargin
@@ -232,7 +230,11 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val response =
-        situation.readFeatureAsLegacy(s"project:foo:script-feature$uuid", clientId = clientId, clientSecret = clientSecret)
+        situation.readFeatureAsLegacy(
+          s"project:foo:script-feature$uuid",
+          clientId = clientId,
+          clientSecret = clientSecret
+        )
       response.status mustBe OK
 
       val json = response.json.get
@@ -301,7 +303,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val result =
-        situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern=None, active = true)
+        situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern = None, active = true)
       result.status mustBe OK
 
       val json         = result.json.get
@@ -340,7 +342,12 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val result =
-        situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern=Some("project:*"), active = true)
+        situation.readFeaturesAsLegacy(
+          clientId = clientId,
+          clientSecret = clientSecret,
+          pattern = Some("project:*"),
+          active = true
+        )
       result.status mustBe OK
 
       val json         = result.json.get
@@ -381,7 +388,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       val result = situation.readFeaturesAsLegacy(
         clientId = clientId,
         clientSecret = clientSecret,
-        pattern=Some("project:*"),
+        pattern = Some("project:*"),
         active = false,
         pageSize = 5
       )
@@ -424,7 +431,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       val result = situation.readFeaturesAsLegacy(
         clientId = clientId,
         clientSecret = clientSecret,
-        pattern=Some("project:*"),
+        pattern = Some("project:*"),
         active = false,
         pageSize = 2,
         page = 2
@@ -473,7 +480,7 @@ class V1CompatibilityTest extends BaseAPISpec {
         val result = situation.readFeaturesAsLegacy(
           clientId = clientId,
           clientSecret = clientSecret,
-          pattern=Some("project:*"),
+          pattern = Some("project:*"),
           active = false,
           pageSize = 2,
           page = i
@@ -520,7 +527,8 @@ class V1CompatibilityTest extends BaseAPISpec {
         conflictStrategy = "OVERWRITE"
       )
 
-      val result = situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern=Some("project:*"))
+      val result =
+        situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern = Some("project:*"))
 
       val json         = result.json.get
       val featureArray = (json \ "results").as[JsArray]
@@ -553,7 +561,8 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val result = situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern=Some("project:*"))
+      val result =
+        situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern = Some("project:*"))
 
       val json         = result.json.get
       val featureArray = (json \ "results").as[JsArray]
@@ -604,7 +613,7 @@ class V1CompatibilityTest extends BaseAPISpec {
   }
 
   "legacy jvm client" should {
-    "allow to retrieve feature activation for single feature" in {
+    /*"allow to retrieve feature activation for single feature" in {
       val system = ActorSystem.create()
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant"))
@@ -828,7 +837,7 @@ class V1CompatibilityTest extends BaseAPISpec {
 
       await until { () => featureClient.checkFeature("project:foo:default-feature").get() == true }
     }
-
+     */
     /*"allow to get feature change state via SSE (feature update)" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant"))

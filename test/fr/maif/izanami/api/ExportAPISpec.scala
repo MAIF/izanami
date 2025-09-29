@@ -9,6 +9,8 @@ import java.time.{LocalDateTime, ZoneId}
 import java.util.Base64
 import scala.util.Try
 
+import play.api.libs.ws.writeableOf_JsValue
+
 class ExportAPISpec extends BaseAPISpec {
   def exportWithToken(tenant: String, user: String, secret: String): RequestResult = {
     val response = await(

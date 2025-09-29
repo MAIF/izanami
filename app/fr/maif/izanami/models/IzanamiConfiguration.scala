@@ -1,10 +1,10 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.RoleRightMode
-import fr.maif.izanami.mail.MailGunRegions.MailGunRegion
+import fr.maif.izanami.mail.MailGunRegion.mailGunRegionReads
 import fr.maif.izanami.mail.MailerTypes.{MailJet, MailerType, SMTP}
 import fr.maif.izanami.mail.{MailProviderConfiguration, _}
-import fr.maif.izanami.models.InvitationMode.InvitationMode
+import fr.maif.izanami.models.InvitationMode.invitationModeReads
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2Method
 import fr.maif.izanami.services.CompleteRights
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -166,9 +166,22 @@ case class FullIzanamiConfiguration(
     oidcConfiguration: Option[OAuth2Configuration] = None
 )
 
-object InvitationMode extends Enumeration {
-  type InvitationMode = Value
-  val Mail, Response = Value
+sealed trait InvitationMode
+
+case object InvitationMode {
+  case object Mail     extends InvitationMode
+  case object Response extends InvitationMode
+
+  def invitationModeWrites: Writes[InvitationMode] = {
+    case Mail => JsString("Mail")
+    case Response => JsString("Response")
+  }
+
+  def invitationModeReads: Reads[InvitationMode] = {
+    case JsString(str) if str.toUpperCase == "MAIL" => JsSuccess(Mail)
+    case JsString(str) if str.toUpperCase == "RESPONSE" => JsSuccess(Response)
+    case _ => JsError("Unknown invitation mode")
+  }
 }
 
 object IzanamiConfiguration {
@@ -180,21 +193,6 @@ object IzanamiConfiguration {
       .getOrElse(JsError(s"${json} is not a correct right level"))
   }
 
-  implicit val mailGunRegionReads: Reads[MailGunRegion] = { json =>
-    json
-      .asOpt[String]
-      .flatMap(str => MailGunRegions.values.find(v => str.equalsIgnoreCase(v.toString)))
-      .map(JsSuccess(_))
-      .getOrElse(JsError(s"${json} is not a correct right level"))
-  }
-
-  implicit val invitationModeReads: Reads[InvitationMode] = { json =>
-    json
-      .asOpt[String]
-      .flatMap(str => InvitationMode.values.find(v => str.equalsIgnoreCase(v.toString)))
-      .map(JsSuccess(_))
-      .getOrElse(JsError(s"${json} is not a correct right level"))
-  }
 
   val mailJetConfigurationReads: Reads[MailJetConfiguration] = (
     (__ \ "apiKey").read[String] and
@@ -205,7 +203,7 @@ object IzanamiConfiguration {
   val mailGunConfigurationReads: Reads[MailGunConfiguration] = (
     (__ \ "apiKey").read[String] and
       (__ \ "url").readNullable[String] and
-      (__ \ "region").read[MailGunRegion]
+      (__ \ "region").read[MailGunRegion](mailGunRegionReads)
   )((apiKey, url, region) => MailGunConfiguration(apiKey = apiKey, url = url, region = region))
 
   val SMTPConfigurationReads: Reads[SMTPConfiguration] = (
@@ -337,9 +335,8 @@ object IzanamiConfiguration {
   val fullConfigurationReads: Reads[FullIzanamiConfiguration] = json => {
     (for (
       mailer              <- (json \ "mailerConfiguration" \ "mailer").asOpt[MailerType];
-      mailerConfiguration <-
-        (json \ "mailerConfiguration").asOpt[MailProviderConfiguration](mailProviderConfigurationReads(mailer));
-      invitationMode      <- (json \ "invitationMode").asOpt[InvitationMode];
+      mailerConfiguration <- (json \ "mailerConfiguration").asOpt[MailProviderConfiguration](mailProviderConfigurationReads(mailer));
+      invitationMode      <- (json \ "invitationMode").asOpt[InvitationMode](invitationModeReads);
       anonymousReporting  <- (json \ "anonymousReporting").asOpt[Boolean]
     ) yield {
       val anonymousReportingLastAsked =
@@ -394,7 +391,7 @@ object IzanamiConfiguration {
   implicit val configurationReads: Reads[IzanamiConfiguration] = json => {
     (for (
       mailer             <- (json \ "mailer").asOpt[MailerType];
-      invitationMode     <- (json \ "invitationMode").asOpt[InvitationMode];
+      invitationMode     <- (json \ "invitationMode").asOpt[InvitationMode](invitationModeReads);
       anonymousReporting <- (json \ "anonymousReporting").asOpt[Boolean]
     ) yield {
       val anonymousReportingLastAsked =

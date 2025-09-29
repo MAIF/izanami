@@ -16,6 +16,8 @@ import play.api.{Configuration, Environment, Logger}
 
 import javax.crypto.spec.SecretKeySpec
 import scala.concurrent._
+import fr.maif.izanami.models.FullIzanamiConfiguration
+import fr.maif.izanami.utils.FutureEither
 
 class Datastores(env: Env) {
 
@@ -80,7 +82,7 @@ class Env(
     "AES"
   )
 
-  lazy val expositionUrl = typedConfiguration.exposition.url
+  lazy val expositionUrl: String = typedConfiguration.exposition.url
     .map(_.toString)
     .getOrElse(s"http://localhost:${playConfiguration.server.http.port}")
 
@@ -100,7 +102,7 @@ class Env(
   val webhookListener = new WebhookListener(this, eventService)
   val mails           = new Mails(this)
   val jwtService      = new JwtService(this)
-  val wasmIntegration = WasmIntegration(new IzanamiWasmIntegrationContext(this))
+  val wasmIntegration: WasmIntegration = WasmIntegration(new IzanamiWasmIntegrationContext(this))
   val jobs            = new Jobs(this)
 
   val maybeOidcConfig = typedConfiguration.openid
@@ -116,7 +118,7 @@ class Env(
       .getOrElse(true)
   }
 
-  def oidcConfigurationMigration() = {
+  def oidcConfigurationMigration(): FutureEither[Option[FutureEither[FullIzanamiConfiguration]]] = {
     datastores.configuration
       .readFullConfiguration()
       .map(configuration => {

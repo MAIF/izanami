@@ -8,7 +8,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 trait Datastore {
   implicit val ec: ExecutionContext = env.executionContext
-  protected val logger              = Logger("izanami-datastore")
+  protected val logger: Logger              = Logger("izanami-datastore")
 
   def env: Env
 

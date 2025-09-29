@@ -16,6 +16,7 @@ import play.api.libs.json._
 import play.api.libs.ws.WSAuthScheme
 import play.api.mvc.Cookie.SameSite
 import play.api.mvc._
+import play.api.libs.ws.DefaultBodyWritables.writeableOf_urlEncodedSimpleForm
 
 import java.security.{MessageDigest, SecureRandom}
 import java.util.Base64
@@ -52,7 +53,7 @@ class LoginController(
     }
   }
 
-  def openIdConnect = Action.async { implicit request =>
+  def openIdConnect: Action[AnyContent] = Action.async { implicit request =>
     env.datastores.configuration.readFullConfiguration().value.map(e => e.toOption.flatMap(_.oidcConfiguration)).map {
       case None => MissingOIDCConfigurationError().toHttpResponse
       case Some(
@@ -98,7 +99,7 @@ class LoginController(
     }
   }
 
-  def openIdCodeReturn = Action.async { implicit request =>
+  def openIdCodeReturn: Action[AnyContent] = Action.async { implicit request =>
     // TODO handle refresh_token
     {
       for (
@@ -295,7 +296,7 @@ class LoginController(
       }
       .getOrElse(Set(): Set[String])*/
 
-  def fetchOpenIdConnectConfiguration = Action.async { implicit request =>
+  def fetchOpenIdConnectConfiguration: Action[AnyContent] = Action.async { implicit request =>
     request.body.asJson.flatMap(body => (body \ "url").asOpt[String]) match {
       case None      => BadRequest(Json.obj("error" -> "missing field")).future
       case Some(url) =>
@@ -340,7 +341,7 @@ class LoginController(
     }
   }
 
-  def logout() = sessionAuthAction.async { implicit request =>
+  def logout(): Action[AnyContent] = sessionAuthAction.async { implicit request =>
     env.datastores.users
       .deleteSession(request.sessionId)
       .map(_ => {

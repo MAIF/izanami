@@ -29,14 +29,14 @@ import scala.io.Source
 import scala.util.{Right, Try}
 
 sealed trait ImportStatus
-case object Pending extends ImportStatus {
-  override def toString: String = this.productPrefix
+case object ImportPending extends ImportStatus {
+  override def toString: String = "Pending"
 }
-case object Success extends ImportStatus {
-  override def toString: String = this.productPrefix
+case object ImportSucceeded extends ImportStatus {
+  override def toString: String = "Success"
 }
-case object Failed  extends ImportStatus {
-  override def toString: String = this.productPrefix
+case object ImportFailed  extends ImportStatus {
+  override def toString: String = "Failed"
 }
 
 sealed trait ImportState {
@@ -52,13 +52,13 @@ case class ImportSuccess(
     keys: Int,
     incompatibleScripts: Seq[String] = Seq()
 )                                                       extends ImportResult {
-  val status = Success
+  val status: fr.maif.izanami.web.ImportSucceeded.type = ImportSucceeded
 }
 case class ImportFailure(id: UUID, errors: Seq[String]) extends ImportResult {
-  val status = Failed
+  val status: fr.maif.izanami.web.ImportFailed.type = ImportFailed
 }
 case class ImportPending(id: UUID)                      extends ImportState  {
-  val status = Pending
+  val status: fr.maif.izanami.web.ImportPending.type = ImportPending
 }
 
 object ImportState {
@@ -476,7 +476,7 @@ class ImportController(
           val maybeEitherKeys  =
             keys.map(t => unnest(t.map(keys => keys.map(k => Right(toNewKey(tenant, k, projects, deduceProject))))))
 
-          val errors = Seq(maybeEitherUsers, maybeEitherKeys, maybeEitherScripts).foldLeft(Seq[String]()) {
+          val errors = Seq.apply[Option[Either[Seq[String],Seq[Product with Serializable]]]](maybeEitherUsers, maybeEitherKeys, maybeEitherScripts).foldLeft(Seq[String]()) {
             case (s, Some(Left(errors))) => s.concat(errors)
             case (s, _)                  => s
           }
@@ -714,7 +714,9 @@ object ImportController {
         if (parts.length <= fieldCount) {
           Left(s"Feature ${id} is too short to exclude its first ${fieldCount} parts as project name")
         } else {
-          (Right(parts.take(fieldCount).mkString(":"), parts.drop(fieldCount).mkString(":")))
+          val prefix = parts.take(fieldCount).mkString(":")
+          val suffix = parts.drop(fieldCount).mkString(":")
+          Right((prefix,  suffix))
         }
       }
     }

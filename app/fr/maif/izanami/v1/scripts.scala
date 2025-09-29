@@ -11,6 +11,8 @@ import org.mozilla.javascript.ast._
 import play.api.Logger
 import play.api.libs.json.{JsBoolean, Json}
 import play.api.libs.ws.WSClient
+import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue
+import play.api.libs.ws.DefaultBodyWritables.writeableOf_String
 
 import java.time.Duration
 import scala.concurrent.{ExecutionContext, Future}
@@ -83,7 +85,7 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
                       .post(body)
                       .map(response => {
                         val json = response.json
-                        logger.debug(s"Resoponse from ${config.url}/api/plugins is $json")
+                        logger.debug(s"Response from ${config.url}/api/plugins is $json")
                         (json \ "plugin_id").as[String]
                       });
         _        <- buildAndSave(pluginId, config = config);

@@ -11,6 +11,8 @@ import java.time.Duration
 import java.util.Objects
 import java.util.zip.{ZipEntry, ZipInputStream, ZipOutputStream}
 import scala.concurrent.{ExecutionContext, Future}
+import play.api.libs.ws.writeableOf_JsValue
+import play.api.libs.ws.writeableOf_String
 
 
 case class WasmManagerClient(client: WSClient, url: String)(implicit ec: ExecutionContext) {

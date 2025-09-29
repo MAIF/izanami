@@ -12,7 +12,7 @@ import javax.crypto.spec.SecretKeySpec
 import scala.util.Try
 
 class JwtService(env: Env) {
-  def generateToken(username: String, content: JsValue = null) = {
+  def generateToken(username: String, content: JsValue = null): String = {
     val secondsSinceEpoch = Instant.now().getEpochSecond
     var claim             = JwtClaim(
       issuer = Some("Izanami"),
@@ -35,14 +35,14 @@ class JwtService(env: Env) {
 }
 
 object JwtService {
-  def encrypt(subject: String, secret: SecretKeySpec) = {
+  def encrypt(subject: String, secret: SecretKeySpec): String = {
     val cipher: Cipher = Cipher.getInstance("AES")
     cipher.init(Cipher.ENCRYPT_MODE, secret)
 
     new String(Base64.getUrlEncoder.encode(cipher.doFinal(subject.getBytes())))
   }
 
-  def decrypt(subject: String, secret: SecretKeySpec) = {
+  def decrypt(subject: String, secret: SecretKeySpec): String = {
     val cipher: Cipher = Cipher.getInstance("AES")
     cipher.init(Cipher.DECRYPT_MODE, secret)
     new String(cipher.doFinal(Base64.getUrlDecoder.decode(subject.getBytes())))

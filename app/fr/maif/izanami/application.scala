@@ -6,9 +6,9 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiHttpErrorHandler
 import fr.maif.izanami.services.{FeatureService, FeatureUsageService, RightService}
 import fr.maif.izanami.v1.WasmManagerClient
-import fr.maif.izanami.web._
+import fr.maif.izanami.web.*
 import play.api.ApplicationLoader.Context
-import play.api._
+import play.api.*
 import play.api.http.{DefaultHttpFilters, HttpErrorHandler}
 import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.EssentialFilter
@@ -19,10 +19,9 @@ import play.filters.csp.CSPComponents
 import play.filters.csrf.CSRFFilter
 import play.filters.gzip.GzipFilterComponents
 import play.filters.https.RedirectHttpsComponents
-import pureconfig.ConfigSource
+import pureconfig.{ConfigReader, ConfigSource}
 import router.Routes
-import pureconfig._
-import pureconfig.generic.auto._
+import pureconfig.generic.semiauto.deriveReader
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
@@ -56,66 +55,57 @@ class IzanamiComponentsInstances(
   } :+ corsFilter :+ /*cspFilter :+ redirectHttpsFilter :*/ gzipFilter
   override lazy val httpErrorHandler: HttpErrorHandler = wire[IzanamiHttpErrorHandler]
 
-  implicit lazy val env: Env = ConfigSource
-    .fromConfig(configuration.underlying)
-    .load[IzanamiTypedConfiguration]
-    .map(conf => {
-      new Env(
-        environment = environment,
-        Ws = wsClient,
-        typedConfiguration = conf.app,
-        playConfiguration = conf.play,
-        rawConfiguration = configuration
-      )
-    })
-    .fold(
-      failures =>
-        throw new RuntimeException(
-          s"Failed to load configuration : ${failures.toList
-            .map(f => s"${f.description} - ${f.origin.map(_.description()).getOrElse("")}")}"
-        ),
-      c => c
-    )
+
+  implicit lazy val typedConfig: IzanamiTypedConfiguration = IzanamiTypedConfiguration.from(configuration.underlying)
+
+  implicit lazy val env: Env = new Env(
+    environment = environment,
+    Ws = wsClient,
+    typedConfiguration = typedConfig.app,
+    playConfiguration = typedConfig.play,
+    rawConfiguration = configuration
+  )
 
   lazy val filters = new DefaultHttpFilters(httpFilters: _*)
 
-  lazy val authAction                       = wire[TenantAuthActionFactory]
-  lazy val tenantAuthAction                 = wire[ProjectAuthActionFactory]
-  lazy val projectAuthActionById            = wire[ProjectAuthActionByIdFactory]
-  lazy val adminAuthAction                  = wire[AdminAuthAction]
-  lazy val keyAuthAction                    = wire[KeyAuthActionFactory]
-  lazy val authenticatedAction              = wire[AuthenticatedAction]
-  lazy val detailledAuthAction              = wire[DetailledAuthAction]
-  lazy val detailledRightForTenantFactory   = wire[DetailledRightForTenantFactory]
-  lazy val tenantRightsAction               = wire[TenantRightsAction]
-  lazy val sessionAuthAction                = wire[AuthenticatedSessionAction]
-  lazy val wasmManagerClient                = wire[WasmManagerClient]
-  lazy val clientApiKeyAction               = wire[ClientApiKeyAction]
-  lazy val webhookAuthAction                = wire[WebhookAuthActionFactory]
-  lazy val tokenOrCookieAuthActionForTenant = wire[PersonnalAccessTokenTenantAuthActionFactory]
+  lazy val authAction: TenantAuthActionFactory                                           = wire[TenantAuthActionFactory]
+  lazy val tenantAuthAction: ProjectAuthActionFactory                                    = wire[ProjectAuthActionFactory]
+  lazy val projectAuthActionById: ProjectAuthActionByIdFactory                           = wire[ProjectAuthActionByIdFactory]
+  lazy val adminAuthAction: AdminAuthAction                                              = wire[AdminAuthAction]
+  lazy val keyAuthAction: KeyAuthActionFactory                                           = wire[KeyAuthActionFactory]
+  lazy val authenticatedAction: AuthenticatedAction                                      = wire[AuthenticatedAction]
+  lazy val detailledAuthAction: DetailledAuthAction                                      = wire[DetailledAuthAction]
+  lazy val detailledRightForTenantFactory: DetailledRightForTenantFactory                = wire[DetailledRightForTenantFactory]
+  lazy val tenantRightsAction: TenantRightsAction                                        = wire[TenantRightsAction]
+  lazy val sessionAuthAction: AuthenticatedSessionAction                                 = wire[AuthenticatedSessionAction]
+  lazy val wasmManagerClient: WasmManagerClient                                          = wire[WasmManagerClient]
+  lazy val clientApiKeyAction: ClientApiKeyAction                                        = wire[ClientApiKeyAction]
+  lazy val webhookAuthAction: WebhookAuthActionFactory                                   = wire[WebhookAuthActionFactory]
+  lazy val tokenOrCookieAuthActionForTenant: PersonnalAccessTokenTenantAuthActionFactory =
+    wire[PersonnalAccessTokenTenantAuthActionFactory]
 
-  lazy val featureService      = wire[FeatureService]
-  lazy val staleFeatureService = wire[FeatureUsageService]
-  lazy val rightService = wire[RightService]
+  lazy val featureService: FeatureService           = wire[FeatureService]
+  lazy val staleFeatureService: FeatureUsageService = wire[FeatureUsageService]
+  lazy val rightService: RightService               = wire[RightService]
 
-  lazy val featureController              = wire[FeatureController]
-  lazy val tenantController               = wire[TenantController]
-  lazy val projectController              = wire[ProjectController]
-  lazy val tagController                  = wire[TagController]
-  lazy val apiKeyController               = wire[ApiKeyController]
-  lazy val featureContextController       = wire[FeatureContextController]
-  lazy val userController                 = wire[UserController]
-  lazy val loginController                = wire[LoginController]
-  lazy val configurationController        = wire[ConfigurationController]
-  lazy val pluginController               = wire[PluginController]
-  lazy val importController               = wire[ImportController]
-  lazy val legacyController               = wire[LegacyController]
-  lazy val eventController                = wire[EventController]
-  lazy val webhookController              = wire[WebhookController]
-  lazy val frontendController             = wire[FrontendController]
-  lazy val exportController               = wire[ExportController]
-  lazy val searchController               = wire[SearchController]
-  lazy val personnalAccessTokenController = wire[PersonnalAccessTokenController]
+  lazy val featureController: FeatureController                           = wire[FeatureController]
+  lazy val tenantController: TenantController                             = wire[TenantController]
+  lazy val projectController: ProjectController                           = wire[ProjectController]
+  lazy val tagController: TagController                                   = wire[TagController]
+  lazy val apiKeyController: ApiKeyController                             = wire[ApiKeyController]
+  lazy val featureContextController: FeatureContextController             = wire[FeatureContextController]
+  lazy val userController: UserController                                 = wire[UserController]
+  lazy val loginController: LoginController                               = wire[LoginController]
+  lazy val configurationController: ConfigurationController               = wire[ConfigurationController]
+  lazy val pluginController: PluginController                             = wire[PluginController]
+  lazy val importController: ImportController                             = wire[ImportController]
+  lazy val legacyController: LegacyController                             = wire[LegacyController]
+  lazy val eventController: EventController                               = wire[EventController]
+  lazy val webhookController: WebhookController                           = wire[WebhookController]
+  lazy val frontendController: FrontendController                         = wire[FrontendController]
+  lazy val exportController: ExportController                             = wire[ExportController]
+  lazy val searchController: SearchController                             = wire[SearchController]
+  lazy val personnalAccessTokenController: PersonnalAccessTokenController = wire[PersonnalAccessTokenController]
 
   override lazy val assets: Assets = wire[Assets]
   lazy val router: Router = {

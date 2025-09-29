@@ -8,7 +8,6 @@ import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{ConfigurationReadError, InternalServerError, IzanamiError}
 import fr.maif.izanami.mail.MailerTypes.MailerType
 import fr.maif.izanami.mail._
-import fr.maif.izanami.models.InvitationMode.InvitationMode
 import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTPConfigurationWrites, mailGunConfigurationReads, mailJetConfigurationReads, mailJetConfigurationWriteForDisplay}
 import fr.maif.izanami.models.{FullIzanamiConfiguration, InvitationMode, IzanamiConfiguration, OAuth2Configuration, Rights, Tenant, User}
 import fr.maif.izanami.services.CompleteRights
@@ -237,14 +236,14 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
                 .obj(
                   "url" -> configuration.url.get,
                   "apiKey" -> configuration.apiKey,
-                  "region" -> configuration.region
+                  "region" -> MailGunRegion.mailGunRegionWrites.writes(configuration.region)
                 )
                 .toString
             case MailGunMailProvider(configuration) =>
               Json
                 .obj(
                   "apiKey" -> configuration.apiKey,
-                  "region" -> configuration.region
+                  "region" -> MailGunRegion.mailGunRegionWrites.writes(configuration.region)
                 )
                 .toString
             case SMTPMailProvider(configuration) =>

@@ -15,8 +15,8 @@ class IzanamiHttpErrorHandler(env: Env) extends HttpErrorHandler {
 
   implicit val ec: ExecutionContext = env.executionContext
 
-  lazy val clientErrorLogger = Logger("izanami-client-error-handler")
-  lazy val serverErrorLogger = Logger("izanami-seerver-error-handler")
+  lazy val clientErrorLogger: Logger = Logger("izanami-client-error-handler")
+  lazy val serverErrorLogger: Logger = Logger("izanami-seerver-error-handler")
 
   override def onClientError(request: mvc.RequestHeader, statusCode: Int, message: String): Future[Result] = {
     val uuid =

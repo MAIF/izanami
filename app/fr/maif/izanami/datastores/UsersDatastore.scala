@@ -842,7 +842,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       username: String,
       rights: Set[RightUnit],
       tenantLevel: Option[RightLevel] = Option.empty
-  ) = {
+  ): Future[Boolean] = {
     require(Tenant.isTenantValid(tenant))
     val (keys, projects): (Set[String], Set[String]) = rights.partitionMap {
       case r: KeyRightUnit     => Left(r.name)
