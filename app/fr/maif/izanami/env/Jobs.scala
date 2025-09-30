@@ -1,6 +1,6 @@
 package fr.maif.izanami.env
 
-import fr.maif.izanami.utils.syntax.implicits._
+import fr.maif.izanami.utils.syntax.implicits.*
 
 import scala.concurrent.{ExecutionContext, Future}
 

@@ -1,20 +1,20 @@
 package fr.maif.izanami.v1
 
-import fr.maif.izanami.models.features._
+import fr.maif.izanami.models.features.*
 import fr.maif.izanami.models.{CompleteFeature, CompleteWasmFeature, LightWeightWasmFeature, SingleConditionFeature}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.v1.OldFeatureType._
+import fr.maif.izanami.v1.OldFeatureType.*
 import fr.maif.izanami.wasm.WasmConfig
 import fr.maif.izanami.web.ImportController.scriptIdToNodeCompatibleName
 import io.otoroshi.wasm4s.scaladsl.WasmSource
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.Wasmo
+import play.api.libs.functional.FunctionalBuilder
 import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps}
+import play.api.libs.json.*
 import play.api.libs.json.Reads.{localDateTimeReads, localTimeReads, max, min}
-import play.api.libs.json._
 
 import java.time.format.DateTimeFormatter
 import java.time.{Instant, LocalDateTime, LocalTime, ZoneId}
-import play.api.libs.functional.FunctionalBuilder
 
 sealed trait OldFeature {
   def id: String
@@ -274,117 +274,41 @@ object OldFeatureType {
 }
 
 object OldFeature {
-  private val timePattern      = "HH:mm"
-  private val timePattern2     = "H:mm"
-  private val dateTimePattern  = "dd/MM/yyyy HH:mm:ss"
+  private val timePattern = "HH:mm"
+  private val timePattern2 = "H:mm"
+  private val dateTimePattern = "dd/MM/yyyy HH:mm:ss"
   private val dateTimePattern2 = "dd/MM/yyyy HH:mm"
   private val dateTimePattern3 = "yyyy-MM-dd HH:mm:ss"
 
-  def fromModernFeature(f: SingleConditionFeature): OldFeature = {
-    f.condition match {
-      case DateRangeActivationCondition(begin, end, timezone) => {
-        {
-          for (
-            b <- begin;
-            e <- end
-          )
-            yield OldDateRangeFeature(
-              id = f.id,
-              name = f.name,
-              enabled = f.enabled,
-              description = Option(f.description),
-              from = b.atZone(timezone).toLocalDateTime,
-              to = e.atZone(timezone).toLocalDateTime,
-              timezone = timezone,
-              tags = f.tags
-            )
-        }.orElse(
-          begin.map(b =>
-            OldReleaseDateFeature(
-              id = f.id,
-              name = f.name,
-              enabled = f.enabled,
-              description = Option(f.description),
-              releaseDate = b.atZone(timezone).toLocalDateTime,
-              timezone = timezone,
-              tags = f.tags
-            )
-          )
-        ).getOrElse(
-          throw new RuntimeException(
-            "Failed to convert SingleConditionFeature to OldFeature, this should not happen, please file an issue"
-          )
-        )
+  val oldFeatureReads: Reads[OldFeature] = { json =>
+    (json \ "activationStrategy")
+      .asOpt[String]
+      .map {
+        case NO_STRATEGY    => JsSuccess(json.as[OldDefaultFeature])
+        case RELEASE_DATE   => JsSuccess(json.as[OldReleaseDateFeature])
+        case DATE_RANGE     => JsSuccess(json.as[OldDateRangeFeature])
+        case SCRIPT         => JsSuccess(json.as[OldScriptFeature])
+        case GLOBAL_SCRIPT  => JsSuccess(json.as[OldGlobalScriptFeature])
+        case PERCENTAGE     => JsSuccess(json.as[OldPercentageFeature])
+        case HOUR_RANGE     => JsSuccess(json.as[OldHourRangeFeature])
+        case CUSTOMERS_LIST => JsSuccess(json.as[OldCustomersFeature])
+        case _              => JsError("Bad feature strategy")
       }
-      case ZonedHourPeriod(HourPeriod(start, end), timezone)  =>
-        OldHourRangeFeature(
-          id = f.id,
-          name = f.name,
-          enabled = f.enabled,
-          description = Option(f.description),
-          startAt = start,
-          endAt = end,
-          timezone = timezone,
-          tags = f.tags
-        )
-      case UserPercentage(percentage)                         =>
-        OldPercentageFeature(
-          id = f.id,
-          name = f.name,
-          enabled = f.enabled,
-          description = Some(f.description),
-          percentage = percentage,
-          tags = f.tags
-        )
-      case UserList(users)                                    =>
-        OldCustomersFeature(
-          id = f.id,
-          name = f.name,
-          enabled = f.enabled,
-          description = Option(f.description),
-          customers = users.toList,
-          tags = f.tags
-        )
-      case All                                                =>
-        OldDefaultFeature(
-          f.id,
-          f.name,
-          f.enabled,
-          description = Option(f.description),
-          parameters = Json.obj(),
-          tags = f.tags
-        )
-    }
+      .getOrElse(JsError("Bad feature format"))
   }
-
-  def fromScriptFeature[E ](f: LightWeightWasmFeature): OldFeature = {
-    OldGlobalScriptFeature(
-      f.id,
-      name = f.name,
-      enabled = f.enabled,
-      description = Some(f.description),
-      tags = f.tags,
-      ref = f.wasmConfigName
-    )
+  val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern3)
+  val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+  val oldFeatureWrites: Writes[OldFeature] = {
+    case f: OldDefaultFeature      => oldDefaultFeatureWrites.writes(f)
+    case f: OldGlobalScriptFeature => oldGlobalScriptWrites.writes(f)
+    case f: OldScriptFeature       =>
+      throw new RuntimeException("Failed to write OldGlobalScriptFeature, this should no happen")
+    case f: OldDateRangeFeature    => oldDateRangeFeatureWrites.writes(f)
+    case f: OldReleaseDateFeature  => oldReleaseDateFeatureWrites.writes(f)
+    case f: OldHourRangeFeature    => oldHourRangeWrites.writes(f)
+    case f: OldPercentageFeature   => oldPercentageFeatureWrites.writes(f)
+    case f: OldCustomersFeature    => oldCustomerFeatureWrites.writes(f)
   }
-
-  def fromScriptFeature[E ](f: CompleteWasmFeature): OldFeature = {
-    OldGlobalScriptFeature(
-      f.id,
-      name = f.name,
-      enabled = f.enabled,
-      description = Some(f.description),
-      tags = f.tags,
-      ref = f.wasmConfig.name
-    )
-  }
-
-  def commonRead: FunctionalBuilder[Reads]#CanBuild5[String,String,Boolean,Option[String],Set[String]] =
-    (__ \ "id").read[String] and
-    (__ \ "name").readWithDefault[String]("null") and
-    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
-    (__ \ "description").readNullable[String] and
-    (__ \ "tags").readWithDefault[Set[String]](Set[String]())
 
   implicit val percentageReads: Reads[OldPercentageFeature] = (
     commonRead and
@@ -487,32 +411,92 @@ object OldFeature {
     )
   )
 
-  val oldFeatureReads: Reads[OldFeature] = { json =>
-    (json \ "activationStrategy")
-      .asOpt[String]
-      .map {
-        case NO_STRATEGY    => JsSuccess(json.as[OldDefaultFeature])
-        case RELEASE_DATE   => JsSuccess(json.as[OldReleaseDateFeature])
-        case DATE_RANGE     => JsSuccess(json.as[OldDateRangeFeature])
-        case SCRIPT         => JsSuccess(json.as[OldScriptFeature])
-        case GLOBAL_SCRIPT  => JsSuccess(json.as[OldGlobalScriptFeature])
-        case PERCENTAGE     => JsSuccess(json.as[OldPercentageFeature])
-        case HOUR_RANGE     => JsSuccess(json.as[OldHourRangeFeature])
-        case CUSTOMERS_LIST => JsSuccess(json.as[OldCustomersFeature])
-        case _              => JsError("Bad feature strategy")
+  def fromModernFeature(f: SingleConditionFeature): OldFeature = {
+    f.condition match {
+      case DateRangeActivationCondition(begin, end, timezone) => {
+        {
+          for (
+            b <- begin;
+            e <- end
+          )
+            yield OldDateRangeFeature(
+              id = f.id,
+              name = f.name,
+              enabled = f.enabled,
+              description = Option(f.description),
+              from = b.atZone(timezone).toLocalDateTime,
+              to = e.atZone(timezone).toLocalDateTime,
+              timezone = timezone,
+              tags = f.tags
+            )
+        }.orElse(
+          begin.map(b =>
+            OldReleaseDateFeature(
+              id = f.id,
+              name = f.name,
+              enabled = f.enabled,
+              description = Option(f.description),
+              releaseDate = b.atZone(timezone).toLocalDateTime,
+              timezone = timezone,
+              tags = f.tags
+            )
+          )
+        ).getOrElse(
+          throw new RuntimeException(
+            "Failed to convert SingleConditionFeature to OldFeature, this should not happen, please file an issue"
+          )
+        )
       }
-      .getOrElse(JsError("Bad feature format"))
+      case ZonedHourPeriod(HourPeriod(start, end), timezone)  =>
+        OldHourRangeFeature(
+          id = f.id,
+          name = f.name,
+          enabled = f.enabled,
+          description = Option(f.description),
+          startAt = start,
+          endAt = end,
+          timezone = timezone,
+          tags = f.tags
+        )
+      case UserPercentage(percentage)                         =>
+        OldPercentageFeature(
+          id = f.id,
+          name = f.name,
+          enabled = f.enabled,
+          description = Some(f.description),
+          percentage = percentage,
+          tags = f.tags
+        )
+      case UserList(users)                                    =>
+        OldCustomersFeature(
+          id = f.id,
+          name = f.name,
+          enabled = f.enabled,
+          description = Option(f.description),
+          customers = users.toList,
+          tags = f.tags
+        )
+      case All                                                =>
+        OldDefaultFeature(
+          f.id,
+          f.name,
+          f.enabled,
+          description = Option(f.description),
+          parameters = Json.obj(),
+          tags = f.tags
+        )
+    }
   }
 
-  def commonWrite(feature: OldFeature): JsObject = {
-    Json
-      .obj(
-        "id"      -> feature.id,
-        "name"    -> feature.name,
-        "enabled" -> feature.enabled,
-        "tags"    -> feature.tags
-      )
-      .applyOnWithOpt(feature.description)((json, desc) => json ++ Json.obj("description" -> desc))
+  def fromScriptFeature[E ](f: LightWeightWasmFeature): OldFeature = {
+    OldGlobalScriptFeature(
+      f.id,
+      name = f.name,
+      enabled = f.enabled,
+      description = Some(f.description),
+      tags = f.tags,
+      ref = f.wasmConfigName
+    )
   }
 
   implicit val oldDefaultFeatureWrites: Writes[OldDefaultFeature] = feature => {
@@ -547,7 +531,16 @@ object OldFeature {
     )
   }
 
-  val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern3)
+  def fromScriptFeature[E ](f: CompleteWasmFeature): OldFeature = {
+    OldGlobalScriptFeature(
+      f.id,
+      name = f.name,
+      enabled = f.enabled,
+      description = Some(f.description),
+      tags = f.tags,
+      ref = f.wasmConfig.name
+    )
+  }
 
   implicit val oldReleaseDateFeatureWrites: Writes[OldReleaseDateFeature] = feature => {
     commonWrite(feature) ++ Json.obj(
@@ -568,7 +561,12 @@ object OldFeature {
     )
   }
 
-  val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+  def commonRead: FunctionalBuilder[Reads]#CanBuild5[String,String,Boolean,Option[String],Set[String]] =
+    (__ \ "id").read[String] and
+    (__ \ "name").readWithDefault[String]("null") and
+    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
+    (__ \ "description").readNullable[String] and
+    (__ \ "tags").readWithDefault[Set[String]](Set[String]())
 
   implicit val oldHourRangeWrites: Writes[OldHourRangeFeature] = feature => {
     commonWrite(feature) ++ Json.obj(
@@ -580,15 +578,14 @@ object OldFeature {
     )
   }
 
-  val oldFeatureWrites: Writes[OldFeature] = {
-    case f: OldDefaultFeature      => oldDefaultFeatureWrites.writes(f)
-    case f: OldGlobalScriptFeature => oldGlobalScriptWrites.writes(f)
-    case f: OldScriptFeature       =>
-      throw new RuntimeException("Failed to write OldGlobalScriptFeature, this should no happen")
-    case f: OldDateRangeFeature    => oldDateRangeFeatureWrites.writes(f)
-    case f: OldReleaseDateFeature  => oldReleaseDateFeatureWrites.writes(f)
-    case f: OldHourRangeFeature    => oldHourRangeWrites.writes(f)
-    case f: OldPercentageFeature   => oldPercentageFeatureWrites.writes(f)
-    case f: OldCustomersFeature    => oldCustomerFeatureWrites.writes(f)
+  def commonWrite(feature: OldFeature): JsObject = {
+    Json
+      .obj(
+        "id"      -> feature.id,
+        "name"    -> feature.name,
+        "enabled" -> feature.enabled,
+        "tags"    -> feature.tags
+      )
+      .applyOnWithOpt(feature.description)((json, desc) => json ++ Json.obj("description" -> desc))
   }
 }

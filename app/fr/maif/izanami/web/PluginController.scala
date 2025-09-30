@@ -6,7 +6,7 @@ import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.{WasmConfig, WasmConfigWithFeatures}
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import play.api.libs.json.{JsValue, Json}
-import play.api.mvc._
+import play.api.mvc.*
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}

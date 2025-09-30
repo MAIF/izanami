@@ -11,39 +11,62 @@ class FeatureContextAPISpec extends BaseAPISpec {
     "Allow to protect/unprotect local context if user is project admin" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjectNames("project"))
-        .withUsers(TestUser("padmin").withTenantReadRight("tenant").withProjectAdminRight("project", tenant = "tenant"))
+        .withUsers(
+          TestUser("padmin")
+            .withTenantReadRight("tenant")
+            .withProjectAdminRight("project", tenant = "tenant")
+        )
         .loggedAs("padmin")
         .build()
 
       situation.createContext("tenant", project = "project", name = "localctx")
-      var response = situation.updateContext("tenant", project = "project", name = "localctx", isProtected = true)
+      var response = situation.updateContext(
+        "tenant",
+        project = "project",
+        name = "localctx",
+        isProtected = true
+      )
       response.status mustEqual NO_CONTENT
 
-      var ctxs = situation.fetchContexts(tenant = "tenant", project = "project").json.get
+      var ctxs =
+        situation.fetchContexts(tenant = "tenant", project = "project").json.get
       (ctxs \ 0 \ "protected").as[Boolean] mustBe true
 
-      response = situation.updateContext("tenant", project = "project", name = "localctx", isProtected = false)
+      response = situation.updateContext(
+        "tenant",
+        project = "project",
+        name = "localctx",
+        isProtected = false
+      )
       response.status mustEqual NO_CONTENT
 
-      ctxs = situation.fetchContexts(tenant = "tenant", project = "project").json.get
+      ctxs =
+        situation.fetchContexts(tenant = "tenant", project = "project").json.get
       (ctxs \ 0 \ "protected").as[Boolean] mustBe false
     }
 
     "Prevent to protect/unprotect local context if user is not project admin" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjectNames("project"))
-        .withUsers(TestUser(username = "noadmin")
-          .withTenantReadWriteRight("tenant")
-          .withProjectReadWriteRight("project", "tenant")
+        .withUsers(
+          TestUser(username = "noadmin")
+            .withTenantReadWriteRight("tenant")
+            .withProjectReadWriteRight("project", "tenant")
         )
         .loggedAs("noadmin")
         .build()
 
       situation.createContext("tenant", project = "project", name = "localctx")
-      val response = situation.updateContext("tenant", project = "project", name = "localctx", isProtected = true)
+      val response = situation.updateContext(
+        "tenant",
+        project = "project",
+        name = "localctx",
+        isProtected = true
+      )
       response.status mustEqual FORBIDDEN
 
-      val ctxs = situation.fetchContexts(tenant = "tenant", project = "project").json.get
+      val ctxs =
+        situation.fetchContexts(tenant = "tenant", project = "project").json.get
       (ctxs \ 0 \ "protected").as[Boolean] mustBe false
     }
 
@@ -53,7 +76,12 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .withTenants(TestTenant("tenant").withProjectNames("project"))
         .build()
 
-      val response = situation.updateContext("tenant", project = "project", name = "localctxv2", isProtected = true)
+      val response = situation.updateContext(
+        "tenant",
+        project = "project",
+        name = "localctxv2",
+        isProtected = true
+      )
       response.status mustEqual NOT_FOUND
     }
 
@@ -64,35 +92,75 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .build()
 
       situation.createContext("tenant", project = "project", name = "localctx")
-      situation.createContext("tenant", project = "project", name = "subctx", parents = "localctx")
-      situation.createContext("tenant", project = "project", name = "subsubctx", parents = "localctx/subctx")
+      situation.createContext(
+        "tenant",
+        project = "project",
+        name = "subctx",
+        parents = "localctx"
+      )
+      situation.createContext(
+        "tenant",
+        project = "project",
+        name = "subsubctx",
+        parents = "localctx/subctx"
+      )
 
-      val subResponse = situation.updateContext("tenant", project = "project", name = "subsubctx", isProtected = true, parents = "localctx/subctx")
+      val subResponse = situation.updateContext(
+        "tenant",
+        project = "project",
+        name = "subsubctx",
+        isProtected = true,
+        parents = "localctx/subctx"
+      )
 
       subResponse.status mustEqual NO_CONTENT
     }
 
     "Prevent subcontext creation if parent context is protected and user is not project admin" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withProjects(TestProject("project").withContexts(TestFeatureContext("protectedParent", isProtected = true))))
-        .withUsers(TestUser(username = "noadmin")
-          .withTenantReadWriteRight("tenant")
-          .withProjectReadWriteRight("project", "tenant")
+        .withTenants(
+          TestTenant("tenant").withProjects(
+            TestProject("project").withContexts(
+              TestFeatureContext("protectedParent", isProtected = true)
+            )
+          )
+        )
+        .withUsers(
+          TestUser(username = "noadmin")
+            .withTenantReadWriteRight("tenant")
+            .withProjectReadWriteRight("project", "tenant")
         )
         .loggedAs("noadmin")
         .build()
 
-      val response = situation.createContext("tenant", project = "project", name = "subctx", parents = "protectedParent")
+      val response = situation.createContext(
+        "tenant",
+        project = "project",
+        name = "subctx",
+        parents = "protectedParent"
+      )
       response.status mustEqual FORBIDDEN
     }
 
     "Prevent creating unprotected context as child of protected context" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withProjects(TestProject("project").withContexts(TestFeatureContext("protectedParent", isProtected = true))))
+        .withTenants(
+          TestTenant("tenant").withProjects(
+            TestProject("project").withContexts(
+              TestFeatureContext("protectedParent", isProtected = true)
+            )
+          )
+        )
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.createContext("tenant", project = "project", name = "subctx", parents = "protectedParent", isProtected = false)
+      val response = situation.createContext(
+        "tenant",
+        project = "project",
+        name = "subctx",
+        parents = "protectedParent",
+        isProtected = false
+      )
       response.status mustEqual BAD_REQUEST
     }
   }
@@ -100,45 +168,86 @@ class FeatureContextAPISpec extends BaseAPISpec {
   "Global context PUT endpoint" should {
     "Should protect existing subcontexts when protecting parent context" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withGlobalContext(
-          TestFeatureContext("global")
-            .withSubContexts(TestFeatureContext("subglobal"))
-        ).withProjects(TestProject("project")))
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(
+              TestFeatureContext("global")
+                .withSubContexts(TestFeatureContext("subglobal"))
+            )
+            .withProjects(TestProject("project"))
+        )
         .loggedInWithAdminRights()
         .build()
 
-      situation.createContext("tenant", project = "project", name = "sublocal", parents = "global")
-      situation.createContext("tenant", project = "project", name = "subglobalsublocal", parents = "global/subglobal")
-      situation.createContext("tenant", project = "project", name = "subsublocal", parents = "global/sublocal")
+      situation.createContext(
+        "tenant",
+        project = "project",
+        name = "sublocal",
+        parents = "global"
+      )
+      situation.createContext(
+        "tenant",
+        project = "project",
+        name = "subglobalsublocal",
+        parents = "global/subglobal"
+      )
+      situation.createContext(
+        "tenant",
+        project = "project",
+        name = "subsublocal",
+        parents = "global/sublocal"
+      )
 
-      situation.updateGlobalContext("tenant", name = "global", isProtected = true)
-      val ctxs = situation.fetchGlobalContext(tenant = "tenant", all = true).json.get
+      situation.updateGlobalContext(
+        "tenant",
+        name = "global",
+        isProtected = true
+      )
+      val ctxs =
+        situation.fetchGlobalContext(tenant = "tenant", all = true).json.get
       val protecteds = (ctxs \\ "protected").map(js => js.as[Boolean])
       protecteds must contain only true
     }
 
-
     "Allow to protect/unprotect local context if user is tenant admin" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("globalCtx")))
+        .withTenants(
+          TestTenant("tenant").withGlobalContext(
+            TestFeatureContext("globalCtx")
+          )
+        )
         .withUsers(TestUser("tadmin").withTenantAdminRight("tenant"))
         .loggedAs("tadmin")
         .build()
 
-      val response = situation.updateGlobalContext("tenant", name = "globalCtx", isProtected = true)
+      val response = situation.updateGlobalContext(
+        "tenant",
+        name = "globalCtx",
+        isProtected = true
+      )
       response.status mustEqual NO_CONTENT
     }
 
     "Prevent to protect/unprotect local context if user is not tenant admin" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("globalctx")))
-        .withUsers(TestUser(username = "noadmin")
-          .withTenantReadWriteRight("tenant")
+        .withTenants(
+          TestTenant("tenant").withGlobalContext(
+            TestFeatureContext("globalctx")
+          )
+        )
+        .withUsers(
+          TestUser(username = "noadmin")
+            .withTenantReadWriteRight("tenant")
         )
         .loggedAs("noadmin")
         .build()
 
-      val response = situation.updateContext("tenant", project = "project", name = "globalctx", isProtected = true)
+      val response = situation.updateContext(
+        "tenant",
+        project = "project",
+        name = "globalctx",
+        isProtected = true
+      )
       response.status mustEqual FORBIDDEN
 
       val ctxs = situation.fetchGlobalContext(tenant = "tenant").json.get
@@ -151,23 +260,35 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .withTenants(TestTenant("tenant"))
         .build()
 
-      val response = situation.updateGlobalContext("tenant", name = "globalCtx", isProtected = true)
+      val response = situation.updateGlobalContext(
+        "tenant",
+        name = "globalCtx",
+        isProtected = true
+      )
       response.status mustEqual NOT_FOUND
     }
 
     "Allow to protect/unprotect subcontext" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant("tenant")
-          .withGlobalContext(
-            TestFeatureContext("localctx")
-              .withSubContexts(TestFeatureContext("subctx")
-                .withSubContexts(TestFeatureContext("subsubctx"))
-              )
-          ))
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(
+              TestFeatureContext("localctx")
+                .withSubContexts(
+                  TestFeatureContext("subctx")
+                    .withSubContexts(TestFeatureContext("subsubctx"))
+                )
+            )
+        )
         .build()
 
-      val subResponse = situation.updateGlobalContext("tenant", name = "subsubctx", isProtected = true, parents = "localctx/subctx")
+      val subResponse = situation.updateGlobalContext(
+        "tenant",
+        name = "subsubctx",
+        isProtected = true,
+        parents = "localctx/subctx"
+      )
 
       subResponse.status mustEqual NO_CONTENT
     }
@@ -176,27 +297,44 @@ class FeatureContextAPISpec extends BaseAPISpec {
   "Global context POST endpoint" should {
     "Prevent subcontext creation if parent context is protected and user is not tenant admin" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("protectedParent", isProtected = true)))
-        .withUsers(TestUser(username = "noadmin")
-          .withTenantReadWriteRight("tenant")
+        .withTenants(
+          TestTenant("tenant").withGlobalContext(
+            TestFeatureContext("protectedParent", isProtected = true)
+          )
+        )
+        .withUsers(
+          TestUser(username = "noadmin")
+            .withTenantReadWriteRight("tenant")
         )
         .loggedAs("noadmin")
         .build()
 
-      val response = situation.createGlobalContext("tenant", name = "subctx", parents = "protectedParent")
+      val response = situation.createGlobalContext(
+        "tenant",
+        name = "subctx",
+        parents = "protectedParent"
+      )
       response.status mustEqual FORBIDDEN
     }
 
     "Prevent creating unprotected context as child of a protected context" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("protectedParent", isProtected = true)))
+        .withTenants(
+          TestTenant("tenant").withGlobalContext(
+            TestFeatureContext("protectedParent", isProtected = true)
+          )
+        )
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.createGlobalContext("tenant", name = "subctx", parents = "protectedParent", isProtected = false)
+      val response = situation.createGlobalContext(
+        "tenant",
+        name = "subctx",
+        parents = "protectedParent",
+        isProtected = false
+      )
       response.status mustEqual BAD_REQUEST
     }
-
 
     "Prevent global context creation if name is too long" in {
       val situation = TestSituationBuilder()
@@ -209,7 +347,7 @@ class FeatureContextAPISpec extends BaseAPISpec {
     }
 
     "Allow to recreate deleted global context" in {
-      val situation      = TestSituationBuilder()
+      val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
             .withProjectNames("project")
@@ -220,7 +358,10 @@ class FeatureContextAPISpec extends BaseAPISpec {
                   TestFeatureContext(
                     "mobile",
                     subContext = Set(
-                      TestFeatureContext("foo", subContext = Set(TestFeatureContext("bar")))
+                      TestFeatureContext(
+                        "foo",
+                        subContext = Set(TestFeatureContext("bar"))
+                      )
                     )
                   )
                 )
@@ -233,16 +374,22 @@ class FeatureContextAPISpec extends BaseAPISpec {
 
       deleteResponse.status mustBe NO_CONTENT
 
-      val response  = situation.createGlobalContext("tenant", "prod")
-      val response2 = situation.createGlobalContext("tenant", "mobile", parents = "prod")
-      val response3 = situation.createGlobalContext("tenant", "foo", parents = "prod/mobile")
-      val response4 = situation.createGlobalContext("tenant", "bar", parents = "prod/mobile/foo")
+      val response = situation.createGlobalContext("tenant", "prod")
+      val response2 =
+        situation.createGlobalContext("tenant", "mobile", parents = "prod")
+      val response3 =
+        situation.createGlobalContext("tenant", "foo", parents = "prod/mobile")
+      val response4 = situation.createGlobalContext(
+        "tenant",
+        "bar",
+        parents = "prod/mobile/foo"
+      )
 
       response.status mustEqual CREATED
       response2.status mustEqual CREATED
       response3.status mustEqual CREATED
       response4.status mustEqual CREATED
-      //(contexts.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("context")
+      // (contexts.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("context")
     }
 
     "Allow to create context for tenants" in {
@@ -255,76 +402,109 @@ class FeatureContextAPISpec extends BaseAPISpec {
       val contexts = situation.fetchContexts("tenant", "project")
 
       response.status mustEqual CREATED
-      (contexts.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("context")
+      (contexts.json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("context")
     }
 
     "Allow to create global subcontext for global context" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("context")).withProjectNames("project"))
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("context"))
+            .withProjectNames("project")
+        )
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.createGlobalContext("tenant", "subcontext", "context")
+      val response =
+        situation.createGlobalContext("tenant", "subcontext", "context")
       val contexts = situation.fetchContexts("tenant", "project")
 
       response.status mustEqual CREATED
-      (contexts.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("context", "subcontext")
+      (contexts.json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("context", "subcontext")
     }
   }
 
   "Global context DELETE endpoint" should {
     "prevent global context delete if context has protected subcontexts" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("notprotected", isProtected = false)
-          .withSubContexts(TestFeatureContext("protectedchildren", isProtected = true))
-        ))
-        .withUsers(TestUser(username = "noadmin")
-          .withTenantReadWriteRight("tenant")
+        .withTenants(
+          TestTenant("tenant").withGlobalContext(
+            TestFeatureContext("notprotected", isProtected = false)
+              .withSubContexts(
+                TestFeatureContext("protectedchildren", isProtected = true)
+              )
+          )
+        )
+        .withUsers(
+          TestUser(username = "noadmin")
+            .withTenantReadWriteRight("tenant")
         )
         .loggedAs("noadmin")
         .build()
 
-      val response = situation.deleteGlobalContext(tenant = "tenant", path = "notprotected")
+      val response =
+        situation.deleteGlobalContext(tenant = "tenant", path = "notprotected")
       response.status mustBe FORBIDDEN
     }
 
     "prevent global context delete if context is protected and user is not tenant admin" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("protected", isProtected = true)))
-        .withUsers(TestUser(username = "noadmin")
-          .withTenantReadWriteRight("tenant")
+        .withTenants(
+          TestTenant("tenant").withGlobalContext(
+            TestFeatureContext("protected", isProtected = true)
+          )
+        )
+        .withUsers(
+          TestUser(username = "noadmin")
+            .withTenantReadWriteRight("tenant")
         )
         .loggedAs("noadmin")
         .build()
 
-      val response = situation.deleteGlobalContext(tenant = "tenant", path = "protected")
+      val response =
+        situation.deleteGlobalContext(tenant = "tenant", path = "protected")
       response.status mustBe FORBIDDEN
     }
 
     "prevent global subcontext delete if subcontext is protected and user is not tenant admin" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withGlobalContext(
+        .withTenants(
+          TestTenant("tenant").withGlobalContext(
             TestFeatureContext("unprotectedparent", isProtected = false)
-              .withSubContexts(TestFeatureContext("protected", isProtected = true))
+              .withSubContexts(
+                TestFeatureContext("protected", isProtected = true)
+              )
           )
         )
-        .withUsers(TestUser(username = "noadmin")
-          .withTenantReadWriteRight("tenant")
+        .withUsers(
+          TestUser(username = "noadmin")
+            .withTenantReadWriteRight("tenant")
         )
         .loggedAs("noadmin")
         .build()
 
-      val response = situation.deleteGlobalContext(tenant = "tenant", path = "unprotectedparent/protected")
+      val response = situation.deleteGlobalContext(
+        tenant = "tenant",
+        path = "unprotectedparent/protected"
+      )
       response.status mustBe FORBIDDEN
     }
 
     "Allow to delete global context" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withGlobalContext(TestFeatureContext("context")).withProjectNames("project"))
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("context"))
+            .withProjectNames("project")
+        )
         .loggedInWithAdminRights()
         .build()
-      val result    = situation.deleteGlobalContext("tenant", "context")
-      val contexts  = situation.fetchContexts("tenant", "project")
+      val result = situation.deleteGlobalContext("tenant", "context")
+      val contexts = situation.fetchContexts("tenant", "project")
 
       result.status mustBe NO_CONTENT
       (contexts.json.get \\ "name").map(v => v.as[String]) mustBe empty
@@ -334,30 +514,37 @@ class FeatureContextAPISpec extends BaseAPISpec {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withGlobalContext(TestFeatureContext("context", subContext = Set(TestFeatureContext("subcontext"))))
+            .withGlobalContext(
+              TestFeatureContext(
+                "context",
+                subContext = Set(TestFeatureContext("subcontext"))
+              )
+            )
             .withProjectNames("project")
         )
         .loggedInWithAdminRights()
         .build()
-      val result    = situation.deleteGlobalContext("tenant", "context/subcontext")
-      val contexts  = situation.fetchContexts("tenant", "project")
+      val result = situation.deleteGlobalContext("tenant", "context/subcontext")
+      val contexts = situation.fetchContexts("tenant", "project")
 
       result.status mustBe NO_CONTENT
-      (contexts.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("context")
+      (contexts.json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("context")
     }
 
   }
 
   "Context POST endpoint" should {
     "Prevent context creation if name is too long" in {
-      val tenant    = "context-tenant"
-      val project   = "context-project"
+      val tenant = "context-tenant"
+      val project = "context-project"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(TestTenant(tenant).withProjectNames(project))
         .build();
-      val context   = "abcdefghij" * 21
-      val result    = situation.createContext(tenant, project, context)
+      val context = "abcdefghij" * 21
+      val result = situation.createContext(tenant, project, context)
 
       result.status mustBe BAD_REQUEST
     }
@@ -366,13 +553,28 @@ class FeatureContextAPISpec extends BaseAPISpec {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withGlobalContext(TestFeatureContext("prod", subContext = Set(TestFeatureContext("mobile"))))
+            .withGlobalContext(
+              TestFeatureContext(
+                "prod",
+                subContext = Set(TestFeatureContext("mobile"))
+              )
+            )
             .withProjects(TestProject("project"))
         )
         .loggedInWithAdminRights()
         .build()
-      val response  = situation.createContext("tenant", "project", name = "localsubmobile", parents = "prod/mobile")
-      val response2 = situation.createContext("tenant", "project", name = "localsubprod", parents = "prod")
+      val response = situation.createContext(
+        "tenant",
+        "project",
+        name = "localsubmobile",
+        parents = "prod/mobile"
+      )
+      val response2 = situation.createContext(
+        "tenant",
+        "project",
+        name = "localsubprod",
+        parents = "prod"
+      )
       response.status mustBe CREATED
       response2.status mustBe CREATED
 
@@ -380,9 +582,23 @@ class FeatureContextAPISpec extends BaseAPISpec {
       deleteResponse.status mustBe NO_CONTENT
 
       val response3 = situation.createGlobalContext("tenant", name = "prod")
-      val response4 = situation.createGlobalContext("tenant", name = "mobile", parents = "prod")
-      val response5 = situation.createContext("tenant", "project", "localsubmobile", parents = "prod/mobile")
-      val response6 = situation.createContext("tenant", "project", "localsubprod", parents = "prod")
+      val response4 = situation.createGlobalContext(
+        "tenant",
+        name = "mobile",
+        parents = "prod"
+      )
+      val response5 = situation.createContext(
+        "tenant",
+        "project",
+        "localsubmobile",
+        parents = "prod/mobile"
+      )
+      val response6 = situation.createContext(
+        "tenant",
+        "project",
+        "localsubprod",
+        parents = "prod"
+      )
 
       response3.status mustEqual CREATED
       response4.status mustEqual CREATED
@@ -390,29 +606,34 @@ class FeatureContextAPISpec extends BaseAPISpec {
       response6.status mustEqual CREATED
     }
     "allow context creation" in {
-      val tenant    = "context-tenant"
-      val project   = "context-project"
+      val tenant = "context-tenant"
+      val project = "context-project"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(TestTenant(tenant).withProjectNames(project))
         .build();
-      val context   = "my-context"
-      val result    = situation.createContext(tenant, project, context)
+      val context = "my-context"
+      val result = situation.createContext(tenant, project, context)
 
       result.status mustBe CREATED
       (result.json.get \ "name").as[String] mustEqual context
     }
 
     "allow creating subcontext" in {
-      val tenant    = "context-tenant"
-      val project   = "context-project"
+      val tenant = "context-tenant"
+      val project = "context-project"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(TestTenant(tenant).withProjectNames(project))
         .build();
-      val context   = "my-context"
+      val context = "my-context"
       situation.createContext(tenant, project, context)
-      val result    = situation.createContext(tenant, project, "my-subcontext", parents = context)
+      val result = situation.createContext(
+        tenant,
+        project,
+        "my-subcontext",
+        parents = context
+      )
 
       result.status mustBe CREATED
     }
@@ -427,7 +648,12 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.createContext("tenant", project = "project", name = "subcontext", parents = "context")
+      val response = situation.createContext(
+        "tenant",
+        project = "project",
+        name = "subcontext",
+        parents = "context"
+      )
       response.status mustBe CREATED
     }
 
@@ -440,7 +666,12 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.createContext("tenant", project = "project", name = "subcontext", parents = "context")
+      val response = situation.createContext(
+        "tenant",
+        project = "project",
+        name = "subcontext",
+        parents = "context"
+      )
       response.status mustBe NOT_FOUND
     }
 
@@ -448,13 +679,20 @@ class FeatureContextAPISpec extends BaseAPISpec {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withGlobalContext(TestFeatureContext("context").withSubContextNames("foo"))
+            .withGlobalContext(
+              TestFeatureContext("context").withSubContextNames("foo")
+            )
             .withProjectNames("project")
         )
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.createContext("tenant", project = "project", name = "foo", parents = "context")
+      val response = situation.createContext(
+        "tenant",
+        project = "project",
+        name = "foo",
+        parents = "context"
+      )
       response.status mustBe BAD_REQUEST
     }
 
@@ -468,9 +706,18 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val localCtxResponse = situation.createContext("tenant", project = "project", name = "foo", parents = "context")
+      val localCtxResponse = situation.createContext(
+        "tenant",
+        project = "project",
+        name = "foo",
+        parents = "context"
+      )
       localCtxResponse.status mustBe CREATED
-      val response         = situation.createGlobalContext("tenant", name = "foo", parents = "context")
+      val response = situation.createGlobalContext(
+        "tenant",
+        name = "foo",
+        parents = "context"
+      )
       response.status mustBe BAD_REQUEST
     }
 
@@ -484,7 +731,8 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.createContext("tenant", project = "project", name = "context")
+      val response =
+        situation.createContext("tenant", project = "project", name = "context")
       response.status mustBe BAD_REQUEST
     }
 
@@ -497,17 +745,18 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val localResponse = situation.createContext("tenant", project = "project", name = "context")
+      val localResponse =
+        situation.createContext("tenant", project = "project", name = "context")
       localResponse.status mustBe CREATED
-      val response      = situation.createGlobalContext("tenant", name = "context")
+      val response = situation.createGlobalContext("tenant", name = "context")
       response.status mustBe BAD_REQUEST
     }
   }
 
   "Context GET endpoint" should {
     "return all contexts for given project" in {
-      val tenant    = "my-tenant"
-      val project   = "my-project"
+      val tenant = "my-tenant"
+      val project = "my-project"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
@@ -522,12 +771,14 @@ class FeatureContextAPISpec extends BaseAPISpec {
       val result = situation.fetchContexts(tenant, project)
 
       result.status mustBe OK
-      (result.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("my-context", "my-context2")
+      (result.json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("my-context", "my-context2")
     }
 
     "return hierarchy of contexts for given project" in {
-      val tenant    = "my-tenant"
-      val project   = "my-project"
+      val tenant = "my-tenant"
+      val project = "my-project"
       val myContext = "my-context"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -538,25 +789,56 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .build()
 
       situation.createContext(tenant, project, myContext)
-      situation.createContext(tenant, project, "subcontext", parents = myContext)
-      situation.createContext(tenant, project, "subcontext2", parents = myContext)
-      situation.createContext(tenant, project, "subsubcontext", parents = s"${myContext}/subcontext")
-      situation.createContext(tenant, project, "subsubcontext12", parents = s"${myContext}/subcontext")
-      situation.createContext(tenant, project, "subsubcontext21", parents = s"${myContext}/subcontext2")
+      situation.createContext(
+        tenant,
+        project,
+        "subcontext",
+        parents = myContext
+      )
+      situation.createContext(
+        tenant,
+        project,
+        "subcontext2",
+        parents = myContext
+      )
+      situation.createContext(
+        tenant,
+        project,
+        "subsubcontext",
+        parents = s"${myContext}/subcontext"
+      )
+      situation.createContext(
+        tenant,
+        project,
+        "subsubcontext12",
+        parents = s"${myContext}/subcontext"
+      )
+      situation.createContext(
+        tenant,
+        project,
+        "subsubcontext21",
+        parents = s"${myContext}/subcontext2"
+      )
 
       val result = situation.fetchContexts(tenant, project)
 
       result.status mustBe OK
-      val json     = result.json.get
-      val first    = json.as[JsArray].head
+      val json = result.json.get
+      val first = json.as[JsArray].head
       (first \ "name").as[String] mustEqual myContext
       val children = (first \ "children").as[JsArray]
-      children.value.map(v => (v \ "name").as[String]) must contain theSameElementsAs Seq("subcontext", "subcontext2")
+      children.value.map(v =>
+        (v \ "name").as[String]
+      ) must contain theSameElementsAs Seq("subcontext", "subcontext2")
 
-      (children.value.filter(v => (v \ "name").as[String] equals "subcontext").head \ "children" \\ "name").map(v =>
+      (children.value
+        .filter(v => (v \ "name").as[String] equals "subcontext")
+        .head \ "children" \\ "name").map(v =>
         v.as[String]
       ) must contain theSameElementsAs Seq("subsubcontext", "subsubcontext12")
-      (children.value.filter(v => (v \ "name").as[String] equals "subcontext2").head \ "children" \\ "name").map(v =>
+      (children.value
+        .filter(v => (v \ "name").as[String] equals "subcontext2")
+        .head \ "children" \\ "name").map(v =>
         v.as[String]
       ) must contain theSameElementsAs Seq("subsubcontext21")
     }
@@ -566,37 +848,75 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant("tenant")
-            .withGlobalContext(TestFeatureContext("global", subContext = Set(TestFeatureContext("subglobal"))))
-            .withProjects(TestProject("project").withContexts(TestFeatureContext("toplocal")))
+            .withGlobalContext(
+              TestFeatureContext(
+                "global",
+                subContext = Set(TestFeatureContext("subglobal"))
+              )
+            )
+            .withProjects(
+              TestProject("project")
+                .withContexts(TestFeatureContext("toplocal"))
+            )
         )
         .build()
 
-      situation.createContext("tenant", "project", name = "localchildofglobal", parents = "global")
-      situation.createContext("tenant", "project", name = "localsubchild", parents = "global/localchildofglobal")
-      situation.createContext("tenant", "project", name = "localchild", parents = "toplocal")
-      situation.createContext("tenant", "project", name = "subgloballocalchild", parents = "subglobal")
+      situation.createContext(
+        "tenant",
+        "project",
+        name = "localchildofglobal",
+        parents = "global"
+      )
+      situation.createContext(
+        "tenant",
+        "project",
+        name = "localsubchild",
+        parents = "global/localchildofglobal"
+      )
+      situation.createContext(
+        "tenant",
+        "project",
+        name = "localchild",
+        parents = "toplocal"
+      )
+      situation.createContext(
+        "tenant",
+        "project",
+        name = "subgloballocalchild",
+        parents = "subglobal"
+      )
 
       val result = situation.fetchContexts("tenant", "project")
 
       result.status mustBe OK
       val json = result.json.get.as[JsArray].value.map(v => v.as[JsObject])
 
-      val topLocal   = json.find(obj => (obj \ "name").get.as[String] == "toplocal").get
+      val topLocal =
+        json.find(obj => (obj \ "name").get.as[String] == "toplocal").get
       val localchild = (topLocal \ "children").as[JsArray].value.head
       (localchild \ "name").get.as[String] mustEqual "localchild"
 
-      val global = json.find(obj => (obj \ "name").get.as[String] == "global").get
+      val global =
+        json.find(obj => (obj \ "name").get.as[String] == "global").get
       (global \ "children").get
         .as[JsArray]
         .value
-        .map(v => (v \ "name").get.as[String]) must contain theSameElementsAs Seq("localchildofglobal", "subglobal")
+        .map(v =>
+          (v \ "name").get.as[String]
+        ) must contain theSameElementsAs Seq("localchildofglobal", "subglobal")
 
       val localchildofglobal =
-        (global \ "children").get.as[JsArray].value.find(v => (v \ "name").get.as[String] == "localchildofglobal").get
+        (global \ "children").get
+          .as[JsArray]
+          .value
+          .find(v => (v \ "name").get.as[String] == "localchildofglobal")
+          .get
       (localchildofglobal \ "children").get
         .as[JsArray]
         .value
-        .map(js => (js \ "name").get.as[String]) must contain theSameElementsAs Seq("localsubchild")
+        .map(js =>
+          (js \ "name").get.as[String]
+        ) must contain theSameElementsAs Seq("localsubchild")
     }
 
     "return true global attribue when context is global" in {
@@ -604,32 +924,66 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant("tenant")
-            .withGlobalContext(TestFeatureContext("global", subContext = Set(TestFeatureContext("subglobal"))))
-            .withProjects(TestProject("project").withContexts(TestFeatureContext("toplocal")))
+            .withGlobalContext(
+              TestFeatureContext(
+                "global",
+                subContext = Set(TestFeatureContext("subglobal"))
+              )
+            )
+            .withProjects(
+              TestProject("project")
+                .withContexts(TestFeatureContext("toplocal"))
+            )
         )
         .build()
 
-      situation.createContext("tenant", "project", name = "localchildofglobal", parents = "global")
-      situation.createContext("tenant", "project", name = "localsubchild", parents = "global/localchildofglobal")
-      situation.createContext("tenant", "project", name = "localchild", parents = "toplocal")
-      situation.createContext("tenant", "project", name = "subgloballocalchild", parents = "subglobal")
+      situation.createContext(
+        "tenant",
+        "project",
+        name = "localchildofglobal",
+        parents = "global"
+      )
+      situation.createContext(
+        "tenant",
+        "project",
+        name = "localsubchild",
+        parents = "global/localchildofglobal"
+      )
+      situation.createContext(
+        "tenant",
+        "project",
+        name = "localchild",
+        parents = "toplocal"
+      )
+      situation.createContext(
+        "tenant",
+        "project",
+        name = "subgloballocalchild",
+        parents = "subglobal"
+      )
 
       val result = situation.fetchContexts("tenant", "project")
 
       result.status mustBe OK
       val json = result.json.get.as[JsArray].value.map(v => v.as[JsObject])
 
-      val topLocal = json.find(obj => (obj \ "name").get.as[String] == "toplocal").get
+      val topLocal =
+        json.find(obj => (obj \ "name").get.as[String] == "toplocal").get
       (topLocal \ "global").as[Boolean] mustBe false
 
       val localchild = (topLocal \ "children").as[JsArray].value.head
       (localchild \ "global").get.as[Boolean] mustBe false
 
-      val global = json.find(obj => (obj \ "name").get.as[String] == "global").get
+      val global =
+        json.find(obj => (obj \ "name").get.as[String] == "global").get
       (global \ "global").get.as[Boolean] mustBe true
 
       val localchildofglobal =
-        (global \ "children").get.as[JsArray].value.find(v => (v \ "name").get.as[String] == "localchildofglobal").get
+        (global \ "children").get
+          .as[JsArray]
+          .value
+          .find(v => (v \ "name").get.as[String] == "localchildofglobal")
+          .get
       (localchildofglobal \ "global").get.as[Boolean] mustBe false
 
       val localsubchild = (localchildofglobal \ "children").get
@@ -640,7 +994,11 @@ class FeatureContextAPISpec extends BaseAPISpec {
       (localsubchild \ "global").get.as[Boolean] mustBe false
 
       val subglobal =
-        (global \ "children").get.as[JsArray].value.find(v => (v \ "name").get.as[String] == "subglobal").get
+        (global \ "children").get
+          .as[JsArray]
+          .value
+          .find(v => (v \ "name").get.as[String] == "subglobal")
+          .get
       (subglobal \ "global").get.as[Boolean] mustBe true
 
     }
@@ -649,54 +1007,85 @@ class FeatureContextAPISpec extends BaseAPISpec {
   "Feature context DELETE endpoint" should {
     "prevent context delete if context has protected subcontexts" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant")
-          .withProjects(TestProject("proj")
-            .withContexts(TestFeatureContext("parent")
-              .withSubContexts(TestFeatureContext("subcontext", isProtected = true)))
-          )
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("proj")
+                .withContexts(
+                  TestFeatureContext("parent")
+                    .withSubContexts(
+                      TestFeatureContext("subcontext", isProtected = true)
+                    )
+                )
+            )
         )
-        .withUsers(TestUser(username = "noadmin")
-          .withTenantReadWriteRight("tenant")
-          .withProjectReadWriteRight("proj", tenant = "tenant")
+        .withUsers(
+          TestUser(username = "noadmin")
+            .withTenantReadWriteRight("tenant")
+            .withProjectReadWriteRight("proj", tenant = "tenant")
         )
         .loggedAs("noadmin")
         .build()
 
-      val response = situation.deleteContext(tenant = "tenant", project = "proj", path = "parent")
+      val response = situation.deleteContext(
+        tenant = "tenant",
+        project = "proj",
+        path = "parent"
+      )
       response.status mustBe FORBIDDEN
     }
 
     "prevent context delete if context is protected and user is not project admin" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withProjects(TestProject("project").withContexts(TestFeatureContext("protected", isProtected = true))))
-        .withUsers(TestUser(username = "noadmin")
-          .withTenantReadWriteRight("tenant")
-          .withProjectReadWriteRight("project", "tenant")
+        .withTenants(
+          TestTenant("tenant").withProjects(
+            TestProject("project").withContexts(
+              TestFeatureContext("protected", isProtected = true)
+            )
+          )
+        )
+        .withUsers(
+          TestUser(username = "noadmin")
+            .withTenantReadWriteRight("tenant")
+            .withProjectReadWriteRight("project", "tenant")
         )
         .loggedAs("noadmin")
         .build()
 
-      val response = situation.deleteContext(tenant = "tenant", project = "project", path = "protected")
+      val response = situation.deleteContext(
+        tenant = "tenant",
+        project = "project",
+        path = "protected"
+      )
       response.status mustBe FORBIDDEN
     }
 
-
     "prevent subcontext delete if subcontext is protected and user is not project admin" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withProjects(TestProject("project")
-          .withContexts(
-            TestFeatureContext("unprotectedparent", isProtected = false)
-              .withSubContexts(TestFeatureContext("protected", isProtected = true))
+        .withTenants(
+          TestTenant("tenant").withProjects(
+            TestProject("project")
+              .withContexts(
+                TestFeatureContext("unprotectedparent", isProtected = false)
+                  .withSubContexts(
+                    TestFeatureContext("protected", isProtected = true)
+                  )
+              )
           )
-        ))
-        .withUsers(TestUser(username = "noadmin")
-          .withTenantReadWriteRight("tenant")
-          .withProjectReadWriteRight("project", "tenant")
+        )
+        .withUsers(
+          TestUser(username = "noadmin")
+            .withTenantReadWriteRight("tenant")
+            .withProjectReadWriteRight("project", "tenant")
         )
         .loggedAs("noadmin")
         .build()
 
-      val response = situation.deleteContext(tenant = "tenant", project = "project", path = "unprotectedparent/protected")
+      val response = situation.deleteContext(
+        tenant = "tenant",
+        project = "project",
+        path = "unprotectedparent/protected"
+      )
       response.status mustBe FORBIDDEN
     }
 
@@ -717,7 +1106,11 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build()
 
-      val response = situation.deleteContext(tenant = "tenant", project = "project", path = "context")
+      val response = situation.deleteContext(
+        tenant = "tenant",
+        project = "project",
+        path = "context"
+      )
       response.status mustBe NO_CONTENT
     }
   }
@@ -730,7 +1123,10 @@ class FeatureContextAPISpec extends BaseAPISpec {
             .withProjects(
               TestProject("project")
                 .withFeatures(TestFeature(name = "F1", enabled = false))
-                .withContexts(TestFeatureContext("context", isProtected = true).withFeatureOverload(TestFeature("F1", enabled = true)))
+                .withContexts(
+                  TestFeatureContext("context", isProtected = true)
+                    .withFeatureOverload(TestFeature("F1", enabled = true))
+                )
             )
         )
         .withUsers(
@@ -741,11 +1137,11 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build()
 
-      val response = situation.deleteFeatureOverload("tenant", "project", "context", "F1")
+      val response =
+        situation.deleteFeatureOverload("tenant", "project", "context", "F1")
 
       response.status mustBe FORBIDDEN
     }
-
 
     "delete feature context if user has project write right" in {
       val situation = TestSituationBuilder()
@@ -759,42 +1155,56 @@ class FeatureContextAPISpec extends BaseAPISpec {
             .withProjects(
               TestProject("project")
                 .withFeatures(TestFeature(name = "F1", enabled = false))
-                .withContexts(TestFeatureContext("context").withFeatureOverload(TestFeature("F1", enabled = true)))
+                .withContexts(
+                  TestFeatureContext("context")
+                    .withFeatureOverload(TestFeature("F1", enabled = true))
+                )
             )
         )
         .loggedAs("testu")
         .build()
 
-      val response = situation.deleteFeatureOverload("tenant", "project", "context", "F1")
+      val response =
+        situation.deleteFeatureOverload("tenant", "project", "context", "F1")
 
       response.status mustBe NO_CONTENT
 
-      val contextResponse = situation.fetchContexts("tenant", "project").json.get
+      val contextResponse =
+        situation.fetchContexts("tenant", "project").json.get
 
-      (contextResponse \\ "overloads").flatMap(js => js.as[JsArray].value) mustBe empty
+      (contextResponse \\ "overloads").flatMap(js =>
+        js.as[JsArray].value
+      ) mustBe empty
     }
 
     "forbid feature overload delete if user does not have project write right" in {
       val situation = TestSituationBuilder()
         .withUsers(
-          TestUser("testu").withTenantReadRight("tenant").withProjectReadRight(project = "project", tenant = "tenant")
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadRight(project = "project", tenant = "tenant")
         )
         .withTenants(
           TestTenant("tenant")
             .withProjects(
               TestProject("project")
                 .withFeatures(TestFeature(name = "F1", enabled = false))
-                .withContexts(TestFeatureContext("context").withFeatureOverload(TestFeature("F1", enabled = true)))
+                .withContexts(
+                  TestFeatureContext("context")
+                    .withFeatureOverload(TestFeature("F1", enabled = true))
+                )
             )
         )
         .loggedAs("testu")
         .build()
 
-      val response = situation.deleteFeatureOverload("tenant", "project", "context", "F1")
+      val response =
+        situation.deleteFeatureOverload("tenant", "project", "context", "F1")
 
       response.status mustBe FORBIDDEN
 
-      val contextResponse = situation.fetchContexts("tenant", "project").json.get
+      val contextResponse =
+        situation.fetchContexts("tenant", "project").json.get
 
       contextResponse.as[JsArray].value must have size 1
     }
@@ -820,7 +1230,8 @@ class FeatureContextAPISpec extends BaseAPISpec {
         enabled = true
       )
 
-      val result = situation.deleteFeatureOverload("tenant", "project", "context", "F1")
+      val result =
+        situation.deleteFeatureOverload("tenant", "project", "context", "F1")
       result.status mustBe NO_CONTENT
 
     }
@@ -849,34 +1260,40 @@ class FeatureContextAPISpec extends BaseAPISpec {
         )
         .build()
 
-      situation.changeFeatureStrategyForContext(
-        "tenant",
-        "project",
-        contextPath = "prod",
-        feature = "F1",
-        enabled = true,
-        resultType = "string",
-        value = "foo"
-      ).status mustBe BAD_REQUEST
+      situation
+        .changeFeatureStrategyForContext(
+          "tenant",
+          "project",
+          contextPath = "prod",
+          feature = "F1",
+          enabled = true,
+          resultType = "string",
+          value = "foo"
+        )
+        .status mustBe BAD_REQUEST
 
-      situation.changeFeatureStrategyForContext(
-        "tenant",
-        "project",
-        contextPath = "prod",
-        feature = "F2",
-        enabled = true,
-        resultType = "boolean"
-      ).status mustBe BAD_REQUEST
+      situation
+        .changeFeatureStrategyForContext(
+          "tenant",
+          "project",
+          contextPath = "prod",
+          feature = "F2",
+          enabled = true,
+          resultType = "boolean"
+        )
+        .status mustBe BAD_REQUEST
 
-      situation.changeFeatureStrategyForContext(
-        "tenant",
-        "project",
-        contextPath = "prod",
-        feature = "F2",
-        enabled = true,
-        resultType = "number",
-        value = "1.5"
-      ).status mustBe BAD_REQUEST
+      situation
+        .changeFeatureStrategyForContext(
+          "tenant",
+          "project",
+          contextPath = "prod",
+          feature = "F2",
+          enabled = true,
+          resultType = "number",
+          value = "1.5"
+        )
+        .status mustBe BAD_REQUEST
     }
 
     "Allow to overload a base script feature to classical feature" in {
@@ -915,7 +1332,7 @@ class FeatureContextAPISpec extends BaseAPISpec {
 
       val response = situation.fetchContexts("tenant", "project")
 
-      val json         = response.json.get
+      val json = response.json.get
       val jsonOverload = json \ 0 \ "overloads" \ 0
       jsonOverload.as[JsObject].keys must not contain "wasmConfig"
     }
@@ -963,15 +1380,33 @@ class FeatureContextAPISpec extends BaseAPISpec {
         )
         .build()
 
-      situation.changeFeatureStrategyForContext("tenant", "project", "context", "F1", enabled = true)
-      val res = situation.changeFeatureStrategyForContext("tenant", "project", "context", "F1", enabled = false)
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F1",
+        enabled = true
+      )
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F1",
+        enabled = false
+      )
 
       res.status mustBe NO_CONTENT
     }
 
     "Return 404 if tenant does not exist" in {
       val situation = TestSituationBuilder().loggedInWithAdminRights().build()
-      val res       = situation.changeFeatureStrategyForContext("tenant", "project", "context", "F1", enabled = true)
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F1",
+        enabled = true
+      )
 
       res.status mustBe NOT_FOUND
     }
@@ -981,7 +1416,13 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .withTenants(TestTenant("tenant"))
         .build()
-      val res       = situation.changeFeatureStrategyForContext("tenant", "project", "context", "F1", enabled = true)
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F1",
+        enabled = true
+      )
 
       res.status mustBe NOT_FOUND
     }
@@ -989,9 +1430,18 @@ class FeatureContextAPISpec extends BaseAPISpec {
     "Return 404 if context does not exist" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant("tenant").withProjects(TestProject("project").withFeatureNames("F1")))
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("project").withFeatureNames("F1"))
+        )
         .build()
-      val res       = situation.changeFeatureStrategyForContext("tenant", "project", "context", "F1", enabled = true)
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F1",
+        enabled = true
+      )
 
       res.status mustBe NOT_FOUND
     }
@@ -999,9 +1449,18 @@ class FeatureContextAPISpec extends BaseAPISpec {
     "Return 404 if feature does not exist" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant("tenant").withProjects(TestProject("project").withContextNames("context")))
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("project").withContextNames("context"))
+        )
         .build()
-      val res       = situation.changeFeatureStrategyForContext("tenant", "project", "context", "F1", enabled = true)
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F1",
+        enabled = true
+      )
 
       res.status mustBe NOT_FOUND
     }
@@ -1036,7 +1495,7 @@ class FeatureContextAPISpec extends BaseAPISpec {
       res.status mustBe NO_CONTENT
 
       val contextsResponse = situation.fetchContexts("tenant", "project")
-      val json             = contextsResponse.json.get
+      val json = contextsResponse.json.get
 
       (json \ 0 \ "overloads").as[JsArray].value must not be empty
 
@@ -1052,7 +1511,11 @@ class FeatureContextAPISpec extends BaseAPISpec {
                 .withFeatures(TestFeature(name = "F1", enabled = false))
             )
         )
-        .withUsers(TestUser("notAdmin").withTenantReadRight("tenant").withProjectReadWriteRight("project", tenant = "tenant"))
+        .withUsers(
+          TestUser("notAdmin")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight("project", tenant = "tenant")
+        )
         .loggedAs("notAdmin")
         .build()
 
@@ -1074,7 +1537,8 @@ class FeatureContextAPISpec extends BaseAPISpec {
             .withProjects(
               TestProject("project")
                 .withFeatures(TestFeature(name = "F1", enabled = false))
-            ).withGlobalContext(TestFeatureContext("ctx", isProtected = true))
+            )
+            .withGlobalContext(TestFeatureContext("ctx", isProtected = true))
         )
         .withUsers(TestUser("notAdmin").withTenantReadRight("tenant"))
         .loggedAs("notAdmin")
@@ -1104,7 +1568,12 @@ class FeatureContextAPISpec extends BaseAPISpec {
         )
         .build()
 
-      situation.createContext("tenant", "project", "subcontext", parents = "context")
+      situation.createContext(
+        "tenant",
+        "project",
+        "subcontext",
+        parents = "context"
+      )
 
       val res = situation.changeFeatureStrategyForContext(
         "tenant",
@@ -1124,19 +1593,40 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant("tenant")
-            .withGlobalContext(TestFeatureContext("global", subContext = Set(TestFeatureContext("subglobal"))))
+            .withGlobalContext(
+              TestFeatureContext(
+                "global",
+                subContext = Set(TestFeatureContext("subglobal"))
+              )
+            )
             .withProjects(
               TestProject("project").withContexts(
-                TestFeatureContext("toplocal", subContext = Set(TestFeatureContext("sublocal")))
+                TestFeatureContext(
+                  "toplocal",
+                  subContext = Set(TestFeatureContext("sublocal"))
+                )
               )
             )
         )
         .build()
 
-      var status = situation.createContext("tenant", "project", name = "localsubglobal", parents = "global").status
+      var status = situation
+        .createContext(
+          "tenant",
+          "project",
+          name = "localsubglobal",
+          parents = "global"
+        )
+        .status
       status mustBe CREATED
-      status =
-        situation.createContext("tenant", "project", name = "localsubsubglobal", parents = "global/subglobal").status
+      status = situation
+        .createContext(
+          "tenant",
+          "project",
+          name = "localsubsubglobal",
+          parents = "global/subglobal"
+        )
+        .status
       status mustBe CREATED
       val result = situation.fetchGlobalContext("tenant", all = true)
       result.status mustBe OK
@@ -1144,17 +1634,23 @@ class FeatureContextAPISpec extends BaseAPISpec {
       val json = result.json.get.as[JsArray]
 
       // Checking global part
-      val globalCtx         = json.value.find(node => (node \ "name").as[String] == "global").get
-      val children          = (globalCtx \ "children").as[JsArray].value
-      val childrenNames     = children.map(node => (node \ "name").as[String])
-      childrenNames must contain theSameElementsAs Seq("localsubglobal", "subglobal")
-      val subglobal         = children.find(node => (node \ "name").as[String] == "subglobal").get
+      val globalCtx =
+        json.value.find(node => (node \ "name").as[String] == "global").get
+      val children = (globalCtx \ "children").as[JsArray].value
+      val childrenNames = children.map(node => (node \ "name").as[String])
+      childrenNames must contain theSameElementsAs Seq(
+        "localsubglobal",
+        "subglobal"
+      )
+      val subglobal =
+        children.find(node => (node \ "name").as[String] == "subglobal").get
       val subglobalChildren = (subglobal \ "children").as[JsArray].value
       subglobalChildren must have length 1
       (subglobalChildren.head \ "name").as[String] mustEqual "localsubsubglobal"
 
       // Checking local part
-      val localCtx      = json.value.find(node => (node \ "name").as[String] == "toplocal").get
+      val localCtx =
+        json.value.find(node => (node \ "name").as[String] == "toplocal").get
       val localChildren = (localCtx \ "children").as[JsArray].value
       localChildren must have length 1
       (localChildren.head \ "name").as[String] mustEqual "sublocal"
@@ -1165,19 +1661,40 @@ class FeatureContextAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant("tenant")
-            .withGlobalContext(TestFeatureContext("global", subContext = Set(TestFeatureContext("subglobal"))))
+            .withGlobalContext(
+              TestFeatureContext(
+                "global",
+                subContext = Set(TestFeatureContext("subglobal"))
+              )
+            )
             .withProjects(
               TestProject("project").withContexts(
-                TestFeatureContext("toplocal", subContext = Set(TestFeatureContext("sublocal")))
+                TestFeatureContext(
+                  "toplocal",
+                  subContext = Set(TestFeatureContext("sublocal"))
+                )
               )
             )
         )
         .build()
 
-      var status = situation.createContext("tenant", "project", name = "localsubglobal", parents = "global").status
+      var status = situation
+        .createContext(
+          "tenant",
+          "project",
+          name = "localsubglobal",
+          parents = "global"
+        )
+        .status
       status mustBe CREATED
-      status =
-        situation.createContext("tenant", "project", name = "localsubsubglobal", parents = "global/subglobal").status
+      status = situation
+        .createContext(
+          "tenant",
+          "project",
+          name = "localsubsubglobal",
+          parents = "global/subglobal"
+        )
+        .status
       status mustBe CREATED
       val result = situation.fetchGlobalContext("tenant", all = false)
       result.status mustBe OK
@@ -1185,8 +1702,9 @@ class FeatureContextAPISpec extends BaseAPISpec {
       val json = result.json.get.as[JsArray].value
       json must have length 1
 
-      val globalCtx = json.find(node => (node \ "name").as[String] == "global").get
-      val children  = (globalCtx \ "children").as[JsArray].value
+      val globalCtx =
+        json.find(node => (node \ "name").as[String] == "global").get
+      val children = (globalCtx \ "children").as[JsArray].value
       children must have length 1
       (children.head \ "name").as[String] mustEqual "subglobal"
     }

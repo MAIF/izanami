@@ -1,23 +1,23 @@
 package fr.maif.izanami.web
 
-import org.apache.pekko.util.ByteString
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, PartialImportFailure}
+import fr.maif.izanami.models.*
 import fr.maif.izanami.models.ExportedType.parseExportedType
 import fr.maif.izanami.models.features.{BooleanResult, BooleanResultDescriptor}
-import fr.maif.izanami.models._
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldKey.{oldKeyReads, toNewKey}
 import fr.maif.izanami.v1.OldScripts.doesUseHttp
 import fr.maif.izanami.v1.OldUsers.{oldUserReads, toNewUser}
 import fr.maif.izanami.v1.{JavaScript, OldFeature, OldGlobalScript, WasmManagerClient}
 import fr.maif.izanami.wasm.WasmConfig
-import fr.maif.izanami.web.ImportController._
+import fr.maif.izanami.web.ImportController.*
 import fr.maif.izanami.web.ImportState.importResultWrites
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.{Base64, Wasmo}
+import org.apache.pekko.util.ByteString
 import play.api.libs.Files
-import play.api.libs.json._
-import play.api.mvc._
+import play.api.libs.json.*
+import play.api.mvc.*
 
 import java.net.URI
 import java.time.format.DateTimeFormatter
@@ -350,12 +350,6 @@ class ImportController(
     )
   }
 
-  def oldParentToNewParent(parent: String): String = {
-    val parts = parent.split("_").toList.tail
-    parts.mkString(".")
-  }
-
-
   def castOldOverloadToNewOverloadIfNeeded(json: JsObject): JsObject = {
     val maybeOldContext = (json \ "local_context").asOpt[String].orElse((json \ "global_context").asOpt[String])
 
@@ -365,6 +359,11 @@ class ImportController(
       val res: JsObject = json - "local_context" - "global_context" + ("context" -> JsString(newCtx))
       res
     })
+  }
+
+  def oldParentToNewParent(parent: String): String = {
+    val parts = parent.split("_").toList.tail
+    parts.mkString(".")
   }
 
   def oldContextToNewContext(contextType: ExportedType, json: JsObject): JsObject = {
@@ -653,12 +652,6 @@ class ImportController(
 }
 
 object ImportController {
-  sealed trait ImportConflictStrategy
-  case object Fail           extends ImportConflictStrategy
-  case object MergeOverwrite extends ImportConflictStrategy
-  case object Skip           extends ImportConflictStrategy
-  case object Replace        extends ImportConflictStrategy
-
   def scriptIdToNodeCompatibleName(name: String): String = {
     name
       .replace("[", "-")
@@ -676,21 +669,6 @@ object ImportController {
       case str if str.startsWith("_")   => str.replaceFirst("_", "")
       case str                          => str
     }
-  }
-
-  private def readFile[T](uri: URI, reads: Reads[T]): Try[Seq[T]] = {
-    Try(Source.fromFile(uri))
-      .map(bf =>
-        bf.getLines()
-          .map(line => {
-            val result = Json.parse(line).as[T](reads)
-            result
-          })
-          .toSeq
-      )
-      .recover(ex => {
-        throw ex
-      })
   }
 
   def parseStrategy(str: String): Option[ImportConflictStrategy] = {
@@ -736,4 +714,29 @@ object ImportController {
         })
       })
   }
+
+  private def readFile[T](uri: URI, reads: Reads[T]): Try[Seq[T]] = {
+    Try(Source.fromFile(uri))
+      .map(bf =>
+        bf.getLines()
+          .map(line => {
+            val result = Json.parse(line).as[T](reads)
+            result
+          })
+          .toSeq
+      )
+      .recover(ex => {
+        throw ex
+      })
+  }
+
+  sealed trait ImportConflictStrategy
+
+  case object Fail           extends ImportConflictStrategy
+
+  case object MergeOverwrite extends ImportConflictStrategy
+
+  case object Skip           extends ImportConflictStrategy
+
+  case object Replace        extends ImportConflictStrategy
 }

@@ -4,8 +4,23 @@ import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
 import BaseAPISpec._
 import com.github.tomakehurst.wiremock.http.{HttpHeaders, Request}
 import org.awaitility.Awaitility.await
-import play.api.http.Status.{BAD_REQUEST, CREATED, FORBIDDEN, INTERNAL_SERVER_ERROR, NO_CONTENT, OK, UNAUTHORIZED}
-import play.api.libs.json.{JsArray, JsObject, JsString, JsUndefined, JsValue, Json}
+import play.api.http.Status.{
+  BAD_REQUEST,
+  CREATED,
+  FORBIDDEN,
+  INTERNAL_SERVER_ERROR,
+  NO_CONTENT,
+  OK,
+  UNAUTHORIZED
+}
+import play.api.libs.json.{
+  JsArray,
+  JsObject,
+  JsString,
+  JsUndefined,
+  JsValue,
+  Json
+}
 
 import java.util.UUID
 import scala.collection.mutable
@@ -57,13 +72,15 @@ class WebhookAPISpec extends BaseAPISpec {
       )
       response.status mustBe BAD_REQUEST
 
-      val body = s"{\n${(1 to 100_000).map(idx => s""""active$idx": {{payload.active}}""").mkString(",\n")}\n}"
+      val body =
+        s"{\n${(1 to 100_000).map(idx => s""""active$idx": {{payload.active}}""").mkString(",\n")}\n}"
       response = situation.createWebhook(
         "tenant",
         TestWebhook(
           name = "abcdefghij",
           url = s"http://localhost:9000",
-          features = Set(situation.findFeatureId("tenant", "project", "f1").get),
+          features =
+            Set(situation.findFeatureId("tenant", "project", "f1").get),
           bodyTemplate = Some(body)
         )
       )
@@ -75,7 +92,8 @@ class WebhookAPISpec extends BaseAPISpec {
         TestWebhook(
           name = "abcdefghij",
           url = s"http://localhost:9000",
-          features = Set(situation.findFeatureId("tenant", "project", "f1").get),
+          features =
+            Set(situation.findFeatureId("tenant", "project", "f1").get),
           headers = headers
         )
       )
@@ -100,7 +118,8 @@ class WebhookAPISpec extends BaseAPISpec {
         TestWebhook(
           name = "my-hook",
           url = "http://localhost:9999",
-          features = Set(situation.findFeatureId("tenant", "project", "f1").get),
+          features =
+            Set(situation.findFeatureId("tenant", "project", "f1").get),
           bodyTemplate = Some("""{"active": {{}""")
         )
       )
@@ -172,7 +191,8 @@ class WebhookAPISpec extends BaseAPISpec {
         TestWebhook(
           name = "my-hook",
           url = "http://localhost:3000",
-          features = Set(situation.findFeatureId("tenant", "project", "f1").get),
+          features =
+            Set(situation.findFeatureId("tenant", "project", "f1").get),
           global = true
         )
       )
@@ -219,26 +239,38 @@ class WebhookAPISpec extends BaseAPISpec {
                 TestFeature("ff1", enabled = true)
               )
             )
-            .withWebhooks(TestWebhookByName(
-              name = "my-hook",
-              url = "http://localhost:3000",
-              features = Set(("tenant", "project", "f1"))
-            ), TestWebhookByName(
-              name = "my-hook2",
-              url = "http://localhost:4000",
-              projects = Set(("tenant", "project2"))
-            ))
-        ).withUsers(TestUser("testu").withTenantReadRight("tenant").withDefaultReadWebhookRight("tenant"))
+            .withWebhooks(
+              TestWebhookByName(
+                name = "my-hook",
+                url = "http://localhost:3000",
+                features = Set(("tenant", "project", "f1"))
+              ),
+              TestWebhookByName(
+                name = "my-hook2",
+                url = "http://localhost:4000",
+                projects = Set(("tenant", "project2"))
+              )
+            )
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withDefaultReadWebhookRight("tenant")
+        )
         .loggedAs("testu")
         .build()
 
       val response = situation.listWebhook("tenant")
       response.status mustBe OK
-      val json     = response.json.get.as[JsArray]
+      val json = response.json.get.as[JsArray]
       json.value must have size 2
 
-      (json \\ "name").map(js => js.as[String]).toSeq must contain allElementsOf Seq("my-hook", "my-hook2")
-      (json \\ "url").map(js => js.as[String]).toSeq must contain allElementsOf Seq(
+      (json \\ "name")
+        .map(js => js.as[String])
+        .toSeq must contain allElementsOf Seq("my-hook", "my-hook2")
+      (json \\ "url")
+        .map(js => js.as[String])
+        .toSeq must contain allElementsOf Seq(
         "http://localhost:3000",
         "http://localhost:4000"
       )
@@ -280,11 +312,15 @@ class WebhookAPISpec extends BaseAPISpec {
 
       val response = situation.listWebhook("tenant")
       response.status mustBe OK
-      val json     = response.json.get.as[JsArray]
+      val json = response.json.get.as[JsArray]
       json.value must have size 2
 
-      (json \\ "name").map(js => js.as[String]).toSeq must contain allElementsOf Seq("my-hook", "my-hook2")
-      (json \\ "url").map(js => js.as[String]).toSeq must contain allElementsOf Seq(
+      (json \\ "name")
+        .map(js => js.as[String])
+        .toSeq must contain allElementsOf Seq("my-hook", "my-hook2")
+      (json \\ "url")
+        .map(js => js.as[String])
+        .toSeq must contain allElementsOf Seq(
         "http://localhost:3000",
         "http://localhost:4000"
       )
@@ -309,7 +345,9 @@ class WebhookAPISpec extends BaseAPISpec {
             "testu",
             password = "testutestu",
             admin = false,
-            rights = TestRights(Map("tenant" -> TestTenantRight(name = "tenant", level = "Write")))
+            rights = TestRights(
+              Map("tenant" -> TestTenantRight(name = "tenant", level = "Write"))
+            )
           )
         )
         .build()
@@ -332,7 +370,8 @@ class WebhookAPISpec extends BaseAPISpec {
         TestWebhook(
           name = "my-hook2",
           url = "http://localhost:3000",
-          features = Set(newSituation.findFeatureId("tenant", "project2", "ff1").get)
+          features =
+            Set(newSituation.findFeatureId("tenant", "project2", "ff1").get)
         )
       )
       response.status mustBe CREATED
@@ -342,8 +381,12 @@ class WebhookAPISpec extends BaseAPISpec {
       val json = response.json.get.as[JsArray]
       json.value must have size 1
 
-      (json \\ "name").map(js => js.as[String]).toSeq must contain oneElementOf Seq("my-hook2")
-      (json \\ "url").map(js => js.as[String]).toSeq must contain allElementsOf Seq("http://localhost:3000")
+      (json \\ "name")
+        .map(js => js.as[String])
+        .toSeq must contain oneElementOf Seq("my-hook2")
+      (json \\ "url")
+        .map(js => js.as[String])
+        .toSeq must contain allElementsOf Seq("http://localhost:3000")
     }
   }
 
@@ -358,7 +401,9 @@ class WebhookAPISpec extends BaseAPISpec {
               )
             )
         )
-        .withUsers(TestUser(username = "admin", admin = true, password = "barfoofoo"))
+        .withUsers(
+          TestUser(username = "admin", admin = true, password = "barfoofoo")
+        )
         .loggedAs("admin")
         .build()
 
@@ -394,7 +439,9 @@ class WebhookAPISpec extends BaseAPISpec {
           TestUser(
             "testuser",
             password = "foofoo123",
-            rights = TestRights(Map("tenant" -> TestTenantRight(name = "tenant", level = "Write")))
+            rights = TestRights(
+              Map("tenant" -> TestTenantRight(name = "tenant", level = "Write"))
+            )
           )
         )
         .build()
@@ -421,7 +468,11 @@ class WebhookAPISpec extends BaseAPISpec {
 
   "webhook call" should {
 
-    def awaitRequests(port: Int, eventType: String, count: Int = 1): mutable.Seq[(Request, HttpHeaders)] = {
+    def awaitRequests(
+        port: Int,
+        eventType: String,
+        count: Int = 1
+    ): mutable.Seq[(Request, HttpHeaders)] = {
       val requests = getWebhookServerRequests(port)
       await atMost (10, SECONDS) until {
         requests.count { case (request, _) =>
@@ -432,7 +483,7 @@ class WebhookAPISpec extends BaseAPISpec {
     }
 
     "trigger when a targeted feature is updated" in {
-      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
@@ -453,7 +504,12 @@ class WebhookAPISpec extends BaseAPISpec {
         .withWebhookServer(port = 8087, responseCode = OK)
         .build()
 
-      situation.updateFeatureByName(tenant, "project", "f1", f => f ++ Json.obj("enabled" -> true))
+      situation.updateFeatureByName(
+        tenant,
+        "project",
+        "f1",
+        f => f ++ Json.obj("enabled" -> true)
+      )
 
       val requests = awaitRequests(8087, "FEATURE_UPDATED")
 
@@ -465,7 +521,7 @@ class WebhookAPISpec extends BaseAPISpec {
     }
 
     "trigger when a targeted feature name is updated" in {
-      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
@@ -486,7 +542,12 @@ class WebhookAPISpec extends BaseAPISpec {
         .withWebhookServer(port = 8087, responseCode = OK)
         .build()
 
-      situation.updateFeatureByName(tenant, "project", "f1", f => f ++ Json.obj("name" -> "f2"))
+      situation.updateFeatureByName(
+        tenant,
+        "project",
+        "f1",
+        f => f ++ Json.obj("name" -> "f2")
+      )
 
       val requests = awaitRequests(8087, "FEATURE_UPDATED")
 
@@ -498,7 +559,7 @@ class WebhookAPISpec extends BaseAPISpec {
     }
 
     "triggers if feature overload is created" in {
-      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
@@ -540,7 +601,7 @@ class WebhookAPISpec extends BaseAPISpec {
     }
 
     "triggers if feature overload is updated" in {
-      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
@@ -591,7 +652,7 @@ class WebhookAPISpec extends BaseAPISpec {
     }
 
     "triggers if feature overload is deleted" in {
-      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
@@ -622,7 +683,12 @@ class WebhookAPISpec extends BaseAPISpec {
       )
 
       val deleteResponse =
-        situation.deleteFeatureOverload(tenant = tenant, project = "project", path = "prod", feature = "f1")
+        situation.deleteFeatureOverload(
+          tenant = tenant,
+          project = "project",
+          path = "prod",
+          feature = "f1"
+        )
 
       response.status mustEqual NO_CONTENT
       deleteResponse.status mustEqual NO_CONTENT
@@ -637,7 +703,7 @@ class WebhookAPISpec extends BaseAPISpec {
     }
 
     "trigger when a feature is updated is hook is global" in {
-      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
@@ -658,7 +724,12 @@ class WebhookAPISpec extends BaseAPISpec {
         .withWebhookServer(port = 8087, responseCode = OK)
         .build()
 
-      situation.updateFeatureByName(tenant, "project", "f1", f => f ++ Json.obj("enabled" -> true))
+      situation.updateFeatureByName(
+        tenant,
+        "project",
+        "f1",
+        f => f ++ Json.obj("enabled" -> true)
+      )
 
       val requests = awaitRequests(8087, "FEATURE_UPDATED")
 
@@ -670,7 +741,7 @@ class WebhookAPISpec extends BaseAPISpec {
     }
 
     "trigger when a feature from targeted project is updated" in {
-      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
@@ -681,13 +752,22 @@ class WebhookAPISpec extends BaseAPISpec {
               )
             )
             .withWebhooks(
-              TestWebhookByName(name = "test-hook", url = "http://localhost:9996", projects = Set((tenant, "project")))
+              TestWebhookByName(
+                name = "test-hook",
+                url = "http://localhost:9996",
+                projects = Set((tenant, "project"))
+              )
             )
         )
         .withWebhookServer(port = 9996, responseCode = OK)
         .build()
 
-      situation.updateFeatureByName(tenant, "project", "f1", f => f ++ Json.obj("enabled" -> true))
+      situation.updateFeatureByName(
+        tenant,
+        "project",
+        "f1",
+        f => f ++ Json.obj("enabled" -> true)
+      )
 
       val requests = awaitRequests(9996, "FEATURE_UPDATED")
 
@@ -697,7 +777,7 @@ class WebhookAPISpec extends BaseAPISpec {
     }
 
     "call all concerned webhooks when feature is updated" in {
-      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
@@ -708,7 +788,11 @@ class WebhookAPISpec extends BaseAPISpec {
               )
             )
             .withWebhooks(
-              TestWebhookByName(name = "test-hook", url = "http://localhost:9996", projects = Set((tenant, "project")))
+              TestWebhookByName(
+                name = "test-hook",
+                url = "http://localhost:9996",
+                projects = Set((tenant, "project"))
+              )
             )
             .withWebhooks(
               TestWebhookByName(
@@ -722,7 +806,12 @@ class WebhookAPISpec extends BaseAPISpec {
         .withWebhookServer(port = 9995, responseCode = OK)
         .build()
 
-      situation.updateFeatureByName(tenant, "project", "f1", f => f ++ Json.obj("enabled" -> true))
+      situation.updateFeatureByName(
+        tenant,
+        "project",
+        "f1",
+        f => f ++ Json.obj("enabled" -> true)
+      )
 
       val requests1 = awaitRequests(9996, "FEATURE_UPDATED")
       val requests2 = awaitRequests(9995, "FEATURE_UPDATED")
@@ -737,18 +826,27 @@ class WebhookAPISpec extends BaseAPISpec {
     }
 
     "recompute activation for user" in {
-      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant(tenant)
             .withProjects(
               TestProject("project").withFeatures(
-                TestFeature("f1", enabled = false, conditions = Set(TestCondition(rule = TestUserListRule(Set("foo")))))
+                TestFeature(
+                  "f1",
+                  enabled = false,
+                  conditions =
+                    Set(TestCondition(rule = TestUserListRule(Set("foo"))))
+                )
               )
             )
             .withWebhooks(
-              TestWebhookByName(name = "test-hook", url = "http://localhost:9996", projects = Set((tenant, "project")))
+              TestWebhookByName(
+                name = "test-hook",
+                url = "http://localhost:9996",
+                projects = Set((tenant, "project"))
+              )
             )
             .withWebhooks(
               TestWebhookByName(
@@ -763,7 +861,12 @@ class WebhookAPISpec extends BaseAPISpec {
         .withWebhookServer(port = 9995, responseCode = OK)
         .build()
 
-      situation.updateFeatureByName(tenant, "project", "f1", f => f ++ Json.obj("enabled" -> true))
+      situation.updateFeatureByName(
+        tenant,
+        "project",
+        "f1",
+        f => f ++ Json.obj("enabled" -> true)
+      )
 
       val requests = awaitRequests(9996, "FEATURE_UPDATED")
 
@@ -777,23 +880,34 @@ class WebhookAPISpec extends BaseAPISpec {
         r.getBodyAsString.contains("FEATURE_UPDATED")
       }
 
-      (Json.parse(request.get._1.getBodyAsString) \ "payload" \ "active").as[Boolean] mustBe false
-      (Json.parse(request2.get._1.getBodyAsString) \ "payload" \ "active").as[Boolean] mustBe true
+      (Json.parse(request.get._1.getBodyAsString) \ "payload" \ "active")
+        .as[Boolean] mustBe false
+      (Json.parse(request2.get._1.getBodyAsString) \ "payload" \ "active")
+        .as[Boolean] mustBe true
     }
 
     "recompute activation for context" in {
-      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant(tenant)
             .withProjects(
               TestProject("project").withFeatures(
-                TestFeature("f1", enabled = false, conditions = Set(TestCondition(rule = TestUserListRule(Set("foo")))))
+                TestFeature(
+                  "f1",
+                  enabled = false,
+                  conditions =
+                    Set(TestCondition(rule = TestUserListRule(Set("foo"))))
+                )
               )
             )
             .withWebhooks(
-              TestWebhookByName(name = "test-hook", url = "http://localhost:9996", projects = Set((tenant, "project")))
+              TestWebhookByName(
+                name = "test-hook",
+                url = "http://localhost:9996",
+                projects = Set((tenant, "project"))
+              )
             )
             .withWebhooks(
               TestWebhookByName(
@@ -818,21 +932,23 @@ class WebhookAPISpec extends BaseAPISpec {
       )
 
       val requests = awaitRequests(9996, "FEATURE_UPDATED")
-      val request  = requests.toSeq.find { case (r, _) =>
+      val request = requests.toSeq.find { case (r, _) =>
         r.getBodyAsString.contains("FEATURE_UPDATED")
       }
 
       val requests2 = awaitRequests(9995, "FEATURE_UPDATED")
-      val request2  = requests2.toSeq.find { case (r, _) =>
+      val request2 = requests2.toSeq.find { case (r, _) =>
         r.getBodyAsString.contains("FEATURE_UPDATED")
       }
 
-      (Json.parse(request.get._1.getBodyAsString) \ "payload" \ "active").as[Boolean] mustBe false
-      (Json.parse(request2.get._1.getBodyAsString) \ "payload" \ "active").as[Boolean] mustBe true
+      (Json.parse(request.get._1.getBodyAsString) \ "payload" \ "active")
+        .as[Boolean] mustBe false
+      (Json.parse(request2.get._1.getBodyAsString) \ "payload" \ "active")
+        .as[Boolean] mustBe true
     }
 
     "pass authoring user" in {
-      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
@@ -853,19 +969,24 @@ class WebhookAPISpec extends BaseAPISpec {
         .withWebhookServer(port = 9996, responseCode = OK)
         .build()
 
-      situation.updateFeatureByName(tenant, "project", "f1", f => f ++ Json.obj("enabled" -> true))
+      situation.updateFeatureByName(
+        tenant,
+        "project",
+        "f1",
+        f => f ++ Json.obj("enabled" -> true)
+      )
 
       val requests = awaitRequests(9996, "FEATURE_UPDATED")
 
       val request = requests.toSeq.find { case (r, _) =>
         r.getBodyAsString.contains("FEATURE_UPDATED")
       }.get
-      val body    = Json.parse(request._1.getBodyAsString)
+      val body = Json.parse(request._1.getBodyAsString)
       (body \ "metadata" \ "user").as[String] mustEqual "RESERVED_ADMIN_USER"
     }
 
     "pass given headers correctly" in {
-      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
@@ -887,7 +1008,12 @@ class WebhookAPISpec extends BaseAPISpec {
         .withWebhookServer(port = 9996, responseCode = OK)
         .build()
 
-      situation.updateFeatureByName(tenant, "project", "f1", f => f ++ Json.obj("enabled" -> true))
+      situation.updateFeatureByName(
+        tenant,
+        "project",
+        "f1",
+        f => f ++ Json.obj("enabled" -> true)
+      )
 
       val requests = awaitRequests(9996, "FEATURE_UPDATED")
 
@@ -901,14 +1027,19 @@ class WebhookAPISpec extends BaseAPISpec {
     }
 
     "pass activation conditions" in {
-      val tenant    = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant(tenant)
             .withProjects(
               TestProject("project").withFeatures(
-                TestFeature("f1", enabled = false, conditions = Set(TestCondition(rule = TestUserListRule(Set("foo")))))
+                TestFeature(
+                  "f1",
+                  enabled = false,
+                  conditions =
+                    Set(TestCondition(rule = TestUserListRule(Set("foo"))))
+                )
               )
             )
             .withWebhooks(
@@ -923,7 +1054,12 @@ class WebhookAPISpec extends BaseAPISpec {
         .withWebhookServer(port = 9996, responseCode = OK)
         .build()
 
-      situation.updateFeatureByName(tenant, "project", "f1", f => f ++ Json.obj("enabled" -> true))
+      situation.updateFeatureByName(
+        tenant,
+        "project",
+        "f1",
+        f => f ++ Json.obj("enabled" -> true)
+      )
 
       val requests = awaitRequests(9996, "FEATURE_UPDATED")
 
@@ -932,19 +1068,25 @@ class WebhookAPISpec extends BaseAPISpec {
       }.get
 
       val body = Json.parse(request._1.getBodyAsString)
-      val user = body \ "payload" \ "conditions" \ "" \ "conditions" \ 0 \ "rule" \ "users" \ 0
+      val user =
+        body \ "payload" \ "conditions" \ "" \ "conditions" \ 0 \ "rule" \ "users" \ 0
       user.as[String] mustEqual "foo"
     }
 
     "retry if first call failed" in {
-      val tenant    = s"""tenant${UUID.randomUUID().toString.replace("-", "")}"""
+      val tenant = s"""tenant${UUID.randomUUID().toString.replace("-", "")}"""
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant(tenant)
             .withProjects(
               TestProject("project").withFeatures(
-                TestFeature("f1", enabled = false, conditions = Set(TestCondition(rule = TestUserListRule(Set("foo")))))
+                TestFeature(
+                  "f1",
+                  enabled = false,
+                  conditions =
+                    Set(TestCondition(rule = TestUserListRule(Set("foo"))))
+                )
               )
             )
             .withWebhooks(
@@ -958,14 +1100,19 @@ class WebhookAPISpec extends BaseAPISpec {
         .withCustomConfiguration(
           Map(
             "app.webhooks.retry.intial-delay" -> java.lang.Integer.valueOf(1),
-            "app.webhooks.retry.multiplier"   -> java.lang.Integer.valueOf(1),
-            "app.webhooks.retry.check-interval"   -> java.lang.Integer.valueOf(1)
+            "app.webhooks.retry.multiplier" -> java.lang.Integer.valueOf(1),
+            "app.webhooks.retry.check-interval" -> java.lang.Integer.valueOf(1)
           )
         )
         .withWebhookServer(port = 9988, responseCode = INTERNAL_SERVER_ERROR)
         .build()
 
-      situation.updateFeatureByName(tenant = tenant, "project", "f1", f => f ++ Json.obj("enabled" -> true))
+      situation.updateFeatureByName(
+        tenant = tenant,
+        "project",
+        "f1",
+        f => f ++ Json.obj("enabled" -> true)
+      )
 
       await atMost (20, SECONDS) until {
         getWebhookServerRequests(9988).count { case (req, _) =>
@@ -975,14 +1122,19 @@ class WebhookAPISpec extends BaseAPISpec {
     }
 
     "Stop retrying after sucess" in {
-      val tenant    = s"""tenant${UUID.randomUUID().toString.replace("-", "")}"""
+      val tenant = s"""tenant${UUID.randomUUID().toString.replace("-", "")}"""
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant(tenant)
             .withProjects(
               TestProject("project").withFeatures(
-                TestFeature("f1", enabled = false, conditions = Set(TestCondition(rule = TestUserListRule(Set("foo")))))
+                TestFeature(
+                  "f1",
+                  enabled = false,
+                  conditions =
+                    Set(TestCondition(rule = TestUserListRule(Set("foo"))))
+                )
               )
             )
             .withWebhooks(
@@ -996,14 +1148,19 @@ class WebhookAPISpec extends BaseAPISpec {
         .withCustomConfiguration(
           Map(
             "app.webhooks.retry.intial-delay" -> java.lang.Integer.valueOf(1),
-            "app.webhooks.retry.multiplier"   -> java.lang.Integer.valueOf(1),
-            "app.webhooks.retry.check-interval"   -> java.lang.Integer.valueOf(1)
+            "app.webhooks.retry.multiplier" -> java.lang.Integer.valueOf(1),
+            "app.webhooks.retry.check-interval" -> java.lang.Integer.valueOf(1)
           )
         )
         .withWebhookServer(port = 9996, responseCode = INTERNAL_SERVER_ERROR)
         .build()
 
-      situation.updateFeatureByName(tenant = tenant, "project", "f1", f => f ++ Json.obj("enabled" -> true))
+      situation.updateFeatureByName(
+        tenant = tenant,
+        "project",
+        "f1",
+        f => f ++ Json.obj("enabled" -> true)
+      )
 
       Thread.sleep(500)
 
@@ -1017,7 +1174,7 @@ class WebhookAPISpec extends BaseAPISpec {
     }
 
     "Respect given template" in {
-      val tenant    = s"""tenant${UUID.randomUUID().toString.replace("-", "")}"""
+      val tenant = s"""tenant${UUID.randomUUID().toString.replace("-", "")}"""
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
@@ -1032,17 +1189,27 @@ class WebhookAPISpec extends BaseAPISpec {
                 name = "test-hook",
                 url = "http://localhost:9994",
                 features = Set((tenant, "project", "f1")),
-                bodyTemplate = Some(s"""{"type": "{{type}}", "active": {{payload.active}} }""")
+                bodyTemplate = Some(
+                  s"""{"type": "{{type}}", "active": {{payload.active}} }"""
+                )
               )
             )
         )
         .withWebhookServer(port = 9994, responseCode = OK)
         .build()
 
-      situation.updateFeatureByName(tenant, "project", "f1", f => f ++ Json.obj("enabled" -> true))
+      situation.updateFeatureByName(
+        tenant,
+        "project",
+        "f1",
+        f => f ++ Json.obj("enabled" -> true)
+      )
 
       val requests = awaitRequests(9994, "FEATURE_UPDATED")
-      val body     = requests.map(r => r._1.getBodyAsString).filter(str => str.contains("FEATURE_UPDATED")).head
+      val body = requests
+        .map(r => r._1.getBodyAsString)
+        .filter(str => str.contains("FEATURE_UPDATED"))
+        .head
 
       body mustEqual s"""{"type": "FEATURE_UPDATED", "active": true }"""
     }
@@ -1071,21 +1238,28 @@ class WebhookAPISpec extends BaseAPISpec {
         )
         .build()
 
-      val webhookId = situation.findWebhookId(tenant = "tenant", webhook = "my-hook").get
+      val webhookId =
+        situation.findWebhookId(tenant = "tenant", webhook = "my-hook").get
 
       var response = situation.updateWebhook(
         "tenant",
         id = webhookId,
         transformer = json => {
           val result: JsObject = json +
-            ("name"        -> Json.toJson("abcdefghij" * 21)) +
-            ("features"    -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
-            ("projects"    -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
-            ("headers"     -> Json.obj("foo" -> "bar")) +
-            ("url"         -> Json.toJson("http://foo.bar")) +
+            ("name" -> Json.toJson("abcdefghij" * 21)) +
+            ("features" -> JsArray(
+              Seq(
+                JsString(situation.findFeatureId("tenant", "project", "f2").get)
+              )
+            )) +
+            ("projects" -> JsArray(
+              Seq(JsString(situation.findProjectId("tenant", "project2").get))
+            )) +
+            ("headers" -> Json.obj("foo" -> "bar")) +
+            ("url" -> Json.toJson("http://foo.bar")) +
             ("description" -> Json.toJson("My new description")) +
-            ("context"     -> Json.toJson("My new context")) +
-            ("user"        -> Json.toJson("My new user"))
+            ("context" -> Json.toJson("My new context")) +
+            ("user" -> Json.toJson("My new user"))
           result
         }
       )
@@ -1096,14 +1270,20 @@ class WebhookAPISpec extends BaseAPISpec {
         id = webhookId,
         transformer = json => {
           val result: JsObject = json +
-            ("name"        -> Json.toJson("abcdefghij")) +
-            ("features"    -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
-            ("projects"    -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
-            ("headers"     -> Json.obj("foo" -> "bar")) +
-            ("url"         -> Json.toJson("http://foo.bar")) +
+            ("name" -> Json.toJson("abcdefghij")) +
+            ("features" -> JsArray(
+              Seq(
+                JsString(situation.findFeatureId("tenant", "project", "f2").get)
+              )
+            )) +
+            ("projects" -> JsArray(
+              Seq(JsString(situation.findProjectId("tenant", "project2").get))
+            )) +
+            ("headers" -> Json.obj("foo" -> "bar")) +
+            ("url" -> Json.toJson("http://foo.bar")) +
             ("description" -> Json.toJson("abcdefghij" * 51)) +
-            ("context"     -> Json.toJson("My new context")) +
-            ("user"        -> Json.toJson("My new user"))
+            ("context" -> Json.toJson("My new context")) +
+            ("user" -> Json.toJson("My new user"))
           result
         }
       )
@@ -1114,34 +1294,47 @@ class WebhookAPISpec extends BaseAPISpec {
         id = webhookId,
         transformer = json => {
           val result: JsObject = json +
-            ("name"        -> Json.toJson("abcdefghij")) +
-            ("features"    -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
-            ("projects"    -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
-            ("headers"     -> Json.obj("foo" -> "bar")) +
-            ("url"         -> Json.toJson(s"http://${"abcdefghij" * 204}:9000")) +
+            ("name" -> Json.toJson("abcdefghij")) +
+            ("features" -> JsArray(
+              Seq(
+                JsString(situation.findFeatureId("tenant", "project", "f2").get)
+              )
+            )) +
+            ("projects" -> JsArray(
+              Seq(JsString(situation.findProjectId("tenant", "project2").get))
+            )) +
+            ("headers" -> Json.obj("foo" -> "bar")) +
+            ("url" -> Json.toJson(s"http://${"abcdefghij" * 204}:9000")) +
             ("description" -> Json.toJson("abcdefghij")) +
-            ("context"     -> Json.toJson("My new context")) +
-            ("user"        -> Json.toJson("My new user"))
+            ("context" -> Json.toJson("My new context")) +
+            ("user" -> Json.toJson("My new user"))
           result
         }
       )
       response.status mustBe BAD_REQUEST
 
-      val body = s"{\n${(1 to 100_000).map(idx => s""""active$idx": {{payload.active}}""").mkString(",\n")}\n}"
+      val body =
+        s"{\n${(1 to 100_000).map(idx => s""""active$idx": {{payload.active}}""").mkString(",\n")}\n}"
       response = situation.updateWebhook(
         "tenant",
         id = webhookId,
         transformer = json => {
           val result: JsObject = json +
-            ("name"         -> Json.toJson("abcdefghij")) +
-            ("features"     -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
-            ("projects"     -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
-            ("headers"      -> Json.obj("foo" -> "bar")) +
-            ("url"          -> Json.toJson(s"http://localhost:9000")) +
-            ("description"  -> Json.toJson("abcdefghij")) +
-            ("context"      -> Json.toJson("My new context")) +
+            ("name" -> Json.toJson("abcdefghij")) +
+            ("features" -> JsArray(
+              Seq(
+                JsString(situation.findFeatureId("tenant", "project", "f2").get)
+              )
+            )) +
+            ("projects" -> JsArray(
+              Seq(JsString(situation.findProjectId("tenant", "project2").get))
+            )) +
+            ("headers" -> Json.obj("foo" -> "bar")) +
+            ("url" -> Json.toJson(s"http://localhost:9000")) +
+            ("description" -> Json.toJson("abcdefghij")) +
+            ("context" -> Json.toJson("My new context")) +
             ("bodyTemplate" -> Json.toJson(body)) +
-            ("user"         -> Json.toJson("My new user"))
+            ("user" -> Json.toJson("My new user"))
           result
         }
       )
@@ -1153,14 +1346,20 @@ class WebhookAPISpec extends BaseAPISpec {
         id = webhookId,
         transformer = json => {
           val result: JsObject = json +
-            ("name"        -> Json.toJson("abcdefghij")) +
-            ("features"    -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
-            ("projects"    -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
-            ("headers"     -> Json.toJson(headers)) +
-            ("url"         -> Json.toJson(s"http://localhost:9000")) +
+            ("name" -> Json.toJson("abcdefghij")) +
+            ("features" -> JsArray(
+              Seq(
+                JsString(situation.findFeatureId("tenant", "project", "f2").get)
+              )
+            )) +
+            ("projects" -> JsArray(
+              Seq(JsString(situation.findProjectId("tenant", "project2").get))
+            )) +
+            ("headers" -> Json.toJson(headers)) +
+            ("url" -> Json.toJson(s"http://localhost:9000")) +
             ("description" -> Json.toJson("abcdefghij")) +
-            ("context"     -> Json.toJson("My new context")) +
-            ("user"        -> Json.toJson("My new user"))
+            ("context" -> Json.toJson("My new context")) +
+            ("user" -> Json.toJson("My new user"))
           result
         }
       )
@@ -1189,21 +1388,28 @@ class WebhookAPISpec extends BaseAPISpec {
         )
         .build()
 
-      val webhookId = situation.findWebhookId(tenant = "tenant", webhook = "my-hook").get
+      val webhookId =
+        situation.findWebhookId(tenant = "tenant", webhook = "my-hook").get
 
       val response = situation.updateWebhook(
         "tenant",
         id = webhookId,
         transformer = json => {
           val result: JsObject = json +
-            ("name"        -> Json.toJson("my-super-hook")) +
-            ("features"    -> JsArray(Seq(JsString(situation.findFeatureId("tenant", "project", "f2").get)))) +
-            ("projects"    -> JsArray(Seq(JsString(situation.findProjectId("tenant", "project2").get)))) +
-            ("headers"     -> Json.obj("foo" -> "bar")) +
-            ("url"         -> Json.toJson("http://foo.bar")) +
+            ("name" -> Json.toJson("my-super-hook")) +
+            ("features" -> JsArray(
+              Seq(
+                JsString(situation.findFeatureId("tenant", "project", "f2").get)
+              )
+            )) +
+            ("projects" -> JsArray(
+              Seq(JsString(situation.findProjectId("tenant", "project2").get))
+            )) +
+            ("headers" -> Json.obj("foo" -> "bar")) +
+            ("url" -> Json.toJson("http://foo.bar")) +
             ("description" -> Json.toJson("My new description")) +
-            ("context"     -> Json.toJson("My new context")) +
-            ("user"        -> Json.toJson("My new user"))
+            ("context" -> Json.toJson("My new context")) +
+            ("user" -> Json.toJson("My new user"))
           result
         }
       )
@@ -1212,15 +1418,19 @@ class WebhookAPISpec extends BaseAPISpec {
 
       val hooks = situation.listWebhook("tenant").json.get.as[JsArray].value
       hooks must have size 1
-      val head  = hooks.head
+      val head = hooks.head
       (head \ "name").as[String] mustEqual "my-super-hook"
       (head \ "url").as[String] mustEqual "http://foo.bar"
       (head \ "description").as[String] mustEqual "My new description"
       (head \ "headers").as[JsObject] mustEqual Json.obj("foo" -> "bar")
-      (head \ "features" \\ "id").map(v => v.as[String]) must contain theSameElementsAs Seq(
+      (head \ "features" \\ "id").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq(
         situation.findFeatureId("tenant", "project", "f2").get
       )
-      (head \ "projects" \\ "id").map(v => v.as[String]) must contain theSameElementsAs Seq(
+      (head \ "projects" \\ "id").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq(
         situation.findProjectId("tenant", "project2").get
       )
     }
@@ -1248,13 +1458,19 @@ class WebhookAPISpec extends BaseAPISpec {
         .withUsers(
           TestUser(
             "testu",
-            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Read")))
+            rights = TestRights(
+              Map(
+                "tenant" -> TestTenantRight("tenant")
+                  .addWebhookRight("my-hook", "Read")
+              )
+            )
           )
         )
         .loggedAs("testu")
         .build()
 
-      val webhookId = situation.findWebhookId(tenant = "tenant", webhook = "my-hook").get
+      val webhookId =
+        situation.findWebhookId(tenant = "tenant", webhook = "my-hook").get
 
       val response = situation.updateWebhook(
         "tenant",
@@ -1291,21 +1507,22 @@ class WebhookAPISpec extends BaseAPISpec {
         )
         .build()
 
-      val webhookId = situation.findWebhookId(tenant = "tenant", webhook = "my-hook").get
+      val webhookId =
+        situation.findWebhookId(tenant = "tenant", webhook = "my-hook").get
 
       val response = situation.updateWebhook(
         "tenant",
         id = webhookId,
         transformer = json => {
           val result: JsObject = json +
-            ("name"        -> Json.toJson("my-super-hook")) +
-            ("features"    -> JsArray()) +
-            ("projects"    -> JsArray()) +
-            ("headers"     -> Json.obj("foo" -> "bar")) +
-            ("url"         -> Json.toJson("http://foo.bar")) +
+            ("name" -> Json.toJson("my-super-hook")) +
+            ("features" -> JsArray()) +
+            ("projects" -> JsArray()) +
+            ("headers" -> Json.obj("foo" -> "bar")) +
+            ("url" -> Json.toJson("http://foo.bar")) +
             ("description" -> Json.toJson("My new description")) +
-            ("context"     -> Json.toJson("My new context")) +
-            ("user"        -> Json.toJson("My new user"))
+            ("context" -> Json.toJson("My new context")) +
+            ("user" -> Json.toJson("My new user"))
           result
         }
       )
@@ -1338,30 +1555,51 @@ class WebhookAPISpec extends BaseAPISpec {
         .withUsers(
           TestUser(
             "testuHookRead",
-            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Read")))
+            rights = TestRights(
+              Map(
+                "tenant" -> TestTenantRight("tenant")
+                  .addWebhookRight("my-hook", "Read")
+              )
+            )
           )
         )
         .withUsers(
           TestUser(
             "testuHookWrite",
-            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Write")))
+            rights = TestRights(
+              Map(
+                "tenant" -> TestTenantRight("tenant")
+                  .addWebhookRight("my-hook", "Write")
+              )
+            )
           )
         )
         .withUsers(
           TestUser(
             "testuHookAdmin",
-            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Admin")))
+            rights = TestRights(
+              Map(
+                "tenant" -> TestTenantRight("tenant")
+                  .addWebhookRight("my-hook", "Admin")
+              )
+            )
           )
         )
         .withUsers(
-          TestUser("testuTenantAdmin", rights = TestRights(Map("tenant" -> TestTenantRight("tenant", level = "Admin"))))
+          TestUser(
+            "testuTenantAdmin",
+            rights = TestRights(
+              Map("tenant" -> TestTenantRight("tenant", level = "Admin"))
+            )
+          )
         )
         .withUsers(TestUser("testuAdmin", admin = true))
         .build()
 
       val response = situation.fetchWebhookUser(
         "tenant",
-        webhook = situation.findWebhookId(tenant = "tenant", webhook = "my-hook").get
+        webhook =
+          situation.findWebhookId(tenant = "tenant", webhook = "my-hook").get
       )
 
       response.status mustBe OK
@@ -1370,7 +1608,10 @@ class WebhookAPISpec extends BaseAPISpec {
       array must have length 6
 
       def findUser(username: String): JsObject =
-        array.find(js => (js \ "username").as[String] == username).get.as[JsObject]
+        array
+          .find(js => (js \ "username").as[String] == username)
+          .get
+          .as[JsObject]
 
       val defaultUser = findUser("RESERVED_ADMIN_USER")
       (defaultUser \ "right").as[String] mustEqual "Admin"
@@ -1424,13 +1665,21 @@ class WebhookAPISpec extends BaseAPISpec {
         .withUsers(
           TestUser(
             "testu",
-            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Write")))
+            rights = TestRights(
+              Map(
+                "tenant" -> TestTenantRight("tenant")
+                  .addWebhookRight("my-hook", "Write")
+              )
+            )
           )
         )
         .loggedAs("testu")
         .build()
 
-      val response = situation.fetchWebhookUser("tenant", situation.findWebhookId("tenant", "my-hook").get)
+      val response = situation.fetchWebhookUser(
+        "tenant",
+        situation.findWebhookId("tenant", "my-hook").get
+      )
       response.status mustBe FORBIDDEN
     }
   }
@@ -1457,7 +1706,12 @@ class WebhookAPISpec extends BaseAPISpec {
         .withUsers(
           TestUser(
             "testu",
-            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Read")))
+            rights = TestRights(
+              Map(
+                "tenant" -> TestTenantRight("tenant")
+                  .addWebhookRight("my-hook", "Read")
+              )
+            )
           )
         )
         .build()
@@ -1471,9 +1725,17 @@ class WebhookAPISpec extends BaseAPISpec {
 
       response.status mustBe NO_CONTENT
 
-      val users = situation.fetchWebhookUser("tenant", situation.findWebhookId("tenant", "my-hook").get)
+      val users = situation.fetchWebhookUser(
+        "tenant",
+        situation.findWebhookId("tenant", "my-hook").get
+      )
 
-      val testu = users.json.get.as[JsArray].value.find(js => (js \ "username").as[String] == "testu").get.as[JsObject]
+      val testu = users.json.get
+        .as[JsArray]
+        .value
+        .find(js => (js \ "username").as[String] == "testu")
+        .get
+        .as[JsObject]
       (testu \ "right").as[String] mustEqual "Admin"
     }
 
@@ -1507,9 +1769,17 @@ class WebhookAPISpec extends BaseAPISpec {
 
       response.status mustBe NO_CONTENT
 
-      val users = situation.fetchWebhookUser("tenant", situation.findWebhookId("tenant", "my-hook").get)
+      val users = situation.fetchWebhookUser(
+        "tenant",
+        situation.findWebhookId("tenant", "my-hook").get
+      )
 
-      val testu = users.json.get.as[JsArray].value.find(js => (js \ "username").as[String] == "testu").get.as[JsObject]
+      val testu = users.json.get
+        .as[JsArray]
+        .value
+        .find(js => (js \ "username").as[String] == "testu")
+        .get
+        .as[JsObject]
       (testu \ "right").as[String] mustEqual "Admin"
     }
 
@@ -1534,7 +1804,12 @@ class WebhookAPISpec extends BaseAPISpec {
         .withUsers(
           TestUser(
             "testu",
-            rights = TestRights(Map("tenant" -> TestTenantRight("tenant").addWebhookRight("my-hook", "Write")))
+            rights = TestRights(
+              Map(
+                "tenant" -> TestTenantRight("tenant")
+                  .addWebhookRight("my-hook", "Write")
+              )
+            )
           )
         )
         .withUsers(TestUser("testu2"))

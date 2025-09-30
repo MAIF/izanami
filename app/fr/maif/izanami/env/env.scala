@@ -1,23 +1,23 @@
 package fr.maif.izanami.env
 
-import org.apache.pekko.actor.{ActorSystem, Scheduler}
-import org.apache.pekko.stream.Materializer
 import com.typesafe.config.ConfigFactory
-import fr.maif.izanami.datastores._
+import fr.maif.izanami.datastores.*
 import fr.maif.izanami.events.EventService
 import fr.maif.izanami.jobs.WebhookListener
 import fr.maif.izanami.mail.Mails
+import fr.maif.izanami.models.FullIzanamiConfiguration
 import fr.maif.izanami.security.JwtService
+import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
 import fr.maif.izanami.{AppConf, PlayRoot}
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
+import org.apache.pekko.actor.{ActorSystem, Scheduler}
+import org.apache.pekko.stream.Materializer
 import play.api.libs.ws.WSClient
 import play.api.{Configuration, Environment, Logger}
 
 import javax.crypto.spec.SecretKeySpec
-import scala.concurrent._
-import fr.maif.izanami.models.FullIzanamiConfiguration
-import fr.maif.izanami.utils.FutureEither
+import scala.concurrent.*
 
 class Datastores(env: Env) {
 
@@ -63,38 +63,33 @@ class Env(
     val rawConfiguration: Configuration,
     playConfiguration: PlayRoot
 ) {
+  lazy val encryptionKey = new SecretKeySpec(
+    typedConfiguration.authentication.tokenBodySecret.padTo(16, "0").mkString("").take(16).getBytes,
+    "AES"
+  )
+  lazy val expositionUrl: String = typedConfiguration.exposition.url
+    .map(_.toString)
+    .getOrElse(s"http://localhost:${playConfiguration.server.http.port}")
   // TODO variablize with izanami
   val logger: Logger                        = Logger("izanami")
-  private val defaultSecret                 = typedConfiguration.defaultSecret
   val secret: String                        = typedConfiguration.secret
   val extensionsSchema: String              = typedConfiguration.pg.extensionsSchema
   val houseKeepingStartDelayInSeconds: Long = typedConfiguration.housekeeping.startDelayInSeconds
-  val houseKeepingIntervalInSeconds: Long   = typedConfiguration.housekeeping.intervalInSeconds
 
   if (defaultSecret == secret) {
     logger.warn(
       "You're using Izanami default secret, which is not safe for production. Please generate a new secret and provide it to Izanami (see https://maif.github.io/izanami/docs/guides/configuration#secret for details)."
     )
   }
-
-  lazy val encryptionKey = new SecretKeySpec(
-    typedConfiguration.authentication.tokenBodySecret.padTo(16, "0").mkString("").take(16).getBytes,
-    "AES"
-  )
-
-  lazy val expositionUrl: String = typedConfiguration.exposition.url
-    .map(_.toString)
-    .getOrElse(s"http://localhost:${playConfiguration.server.http.port}")
-
+  val houseKeepingIntervalInSeconds: Long   = typedConfiguration.housekeeping.intervalInSeconds
   val actorSystem: ActorSystem = ActorSystem(
     "app-actor-system",
     ConfigFactory.empty
   )
+  val scheduler: Scheduler                        = actorSystem.scheduler
 
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
-  val scheduler: Scheduler                        = actorSystem.scheduler
   val materializer: Materializer                  = Materializer(actorSystem)
-
   // init subsystems
   val eventService    = new EventService(this)
   val postgresql      = new Postgresql(this)
@@ -104,8 +99,8 @@ class Env(
   val jwtService      = new JwtService(this)
   val wasmIntegration: WasmIntegration = WasmIntegration(new IzanamiWasmIntegrationContext(this))
   val jobs            = new Jobs(this)
-
   val maybeOidcConfig = typedConfiguration.openid
+  private val defaultSecret                 = typedConfiguration.defaultSecret
 
   def isOIDCConfigurationEditable: Boolean = {
     (for (
@@ -116,6 +111,17 @@ class Env(
       _          <- oidcConfig.tokenUrl
     ) yield false)
       .getOrElse(true)
+  }
+
+  def onStart(): Future[Unit] = {
+    for {
+      _ <- postgresql.onStart()
+      _ <- datastores.onStart()
+      _ <- jobs.onStart()
+      _ <- wasmIntegration.startF()
+      _ <- webhookListener.onStart()
+      _ <- oidcConfigurationMigration().value
+    } yield ()
   }
 
   def oidcConfigurationMigration(): FutureEither[Option[FutureEither[FullIzanamiConfiguration]]] = {
@@ -132,17 +138,6 @@ class Env(
               })
           })
       })
-  }
-
-  def onStart(): Future[Unit] = {
-    for {
-      _ <- postgresql.onStart()
-      _ <- datastores.onStart()
-      _ <- jobs.onStart()
-      _ <- wasmIntegration.startF()
-      _ <- webhookListener.onStart()
-      _ <- oidcConfigurationMigration().value
-    } yield ()
   }
 
   def onStop(): Future[Unit] = {

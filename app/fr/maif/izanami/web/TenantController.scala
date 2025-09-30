@@ -1,15 +1,15 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.EventDatastore.{parseSortOrder, AscOrder, TenantEventRequest}
+import fr.maif.izanami.datastores.EventDatastore.{AscOrder, TenantEventRequest, parseSortOrder}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.events.{EventAuthentication, EventService}
-import fr.maif.izanami.models.RightLevel.{superiorOrEqualLevels}
-import fr.maif.izanami.models._
+import fr.maif.izanami.models.*
+import fr.maif.izanami.models.RightLevel.superiorOrEqualLevels
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.WasmManagerClient
 import fr.maif.izanami.web.ProjectController.parseStringSet
-import play.api.libs.json._
-import play.api.mvc._
+import play.api.libs.json.*
+import play.api.mvc.*
 
 import java.time.Instant
 import scala.concurrent.{ExecutionContext, Future}

@@ -1,13 +1,13 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
+import fr.maif.izanami.events.*
 import fr.maif.izanami.events.EventService.internalToExternalEvent
-import fr.maif.izanami.events._
+import fr.maif.izanami.models.*
 import fr.maif.izanami.models.features.{ActivationCondition, ResultType}
-import fr.maif.izanami.models._
 import fr.maif.izanami.services.FeatureService
 import fr.maif.izanami.v1.V1FeatureEvents.{createEvent, deleteEvent, keepAliveEvent, updateEvent}
-import fr.maif.izanami.v1.V2FeatureEvents._
+import fr.maif.izanami.v1.V2FeatureEvents.*
 import org.apache.pekko.NotUsed
 import org.apache.pekko.stream.Materializer
 import org.apache.pekko.stream.scaladsl.{Flow, Merge, Source}
@@ -45,30 +45,6 @@ class EventController(
   private implicit val dataExtractor: EventDataExtractor[JsObject] =
     EventDataExtractor[JsObject](event => Json.stringify(event))
 
-  def processForLegacyEndpoint(event: FeatureEvent): JsObject = {
-    event match {
-      case FeatureCreated(_, _, _, _, _, Some(strategiesByContext), _, _, _)    =>
-        createEvent(event.id, Feature.writeFeatureInLegacyFormat(strategiesByContext.get("").get))
-      case FeatureUpdated(_, _, _, _, _, Some(strategiesByContext), _, _, _, _) =>
-        updateEvent(event.id, Feature.writeFeatureInLegacyFormat(strategiesByContext.get("").get))
-      case _                                                                    => deleteEvent(event.id)
-    }
-  }
-
-  def keepAlive(interval: FiniteDuration): Flow[JsObject, JsObject, NotUsed] =
-    Flow[JsObject]
-      .keepAlive(
-        interval,
-        () => keepAliveEvent()
-      )
-
-  def keepAliveV2(interval: FiniteDuration): Flow[JsObject, JsObject, NotUsed] =
-    Flow[JsObject]
-      .keepAlive(
-        interval,
-        () => keepAliveEventV2()
-      )
-
   def events(pattern: String): Action[AnyContent] = clientKeyAction.async { request =>
     val key = request.key
 
@@ -99,6 +75,23 @@ class EventController(
       ).as(ContentTypes.EVENT_STREAM)
     )
   }
+
+  def processForLegacyEndpoint(event: FeatureEvent): JsObject = {
+    event match {
+      case FeatureCreated(_, _, _, _, _, Some(strategiesByContext), _, _, _)    =>
+        createEvent(event.id, Feature.writeFeatureInLegacyFormat(strategiesByContext.get("").get))
+      case FeatureUpdated(_, _, _, _, _, Some(strategiesByContext), _, _, _, _) =>
+        updateEvent(event.id, Feature.writeFeatureInLegacyFormat(strategiesByContext.get("").get))
+      case _                                                                    => deleteEvent(event.id)
+    }
+  }
+
+  def keepAlive(interval: FiniteDuration): Flow[JsObject, JsObject, NotUsed] =
+    Flow[JsObject]
+      .keepAlive(
+        interval,
+        () => keepAliveEvent()
+      )
 
   def newEvents(
       user: String,
@@ -175,14 +168,12 @@ class EventController(
         })
     }
 
-  def killAllSources(): Action[AnyContent] = adminAuthAction.async { request =>
-    Future
-      .sequence(
-        Seq(env.webhookListener.onStop(), env.eventService.killAllSources(excludeIzanamiChannel = true))
+  def keepAliveV2(interval: FiniteDuration): Flow[JsObject, JsObject, NotUsed] =
+    Flow[JsObject]
+      .keepAlive(
+        interval,
+        () => keepAliveEventV2()
       )
-      .map(_ => NoContent)
-
-  }
 
   private def evaluateFeatures(
       tenant: String,
@@ -258,5 +249,14 @@ class EventController(
           Writes.seq(ActivationCondition.activationConditionWrite)
         ))
     }
+  }
+
+  def killAllSources(): Action[AnyContent] = adminAuthAction.async { request =>
+    Future
+      .sequence(
+        Seq(env.webhookListener.onStop(), env.eventService.killAllSources(excludeIzanamiChannel = true))
+      )
+      .map(_ => NoContent)
+
   }
 }

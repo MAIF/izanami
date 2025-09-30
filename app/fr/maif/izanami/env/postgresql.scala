@@ -1,22 +1,22 @@
 package fr.maif.izanami.env
 
-import org.apache.pekko.http.scaladsl.util.FastFuture
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import fr.maif.izanami.datastores.HashUtils
 import fr.maif.izanami.env.PostgresqlErrors.{CHECK_VIOLATION, UNIQUE_VIOLATION}
-import fr.maif.izanami.errors._
+import fr.maif.izanami.errors.*
 import fr.maif.izanami.security.IdGenerator
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.{BetterFutureEither, BetterSyntax}
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.net.{PemKeyCertOptions, PemTrustOptions}
-import io.vertx.pgclient.{PgBuilder, PgConnectOptions, PgException, PgPool, SslMode}
-import io.vertx.sqlclient.{PoolOptions, Row, RowSet, SqlConnection}
+import io.vertx.pgclient.{PgBuilder, PgConnectOptions, PgException, SslMode}
+import io.vertx.sqlclient.{PoolOptions, Row, SqlConnection}
+import org.apache.pekko.http.scaladsl.util.FastFuture
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.exception.FlywayValidateException
+import play.api.Logger
 import play.api.libs.json.{JsArray, JsObject, Json}
-import play.api.{Configuration, Logger}
 
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.{Objects, UUID}
@@ -25,13 +25,10 @@ import scala.util.{Failure, Success, Try}
 
 class Postgresql(env: Env) {
 
-  import pgimplicits._
+  import pgimplicits.*
 
-  import scala.jdk.CollectionConverters._
+  import scala.jdk.CollectionConverters.*
 
-  private val logger                        = Logger("izanami")
-  val pgConfiguration                       = env.typedConfiguration.pg
-  val sslConfiguration                      = pgConfiguration.ssl
   lazy val connectOptions: PgConnectOptions = if (pgConfiguration.uri.isDefined) {
     val uri  = pgConfiguration.uri.get
     logger.info(s"Postgres URI : ${uri}")
@@ -124,14 +121,48 @@ class Postgresql(env: Env) {
     )
   }
   lazy val vertx: Vertx                     = Vertx.vertx()
-
   private lazy val poolOptions = new PoolOptions()
     .setMaxSize(pgConfiguration.poolSize)
     .applyOnWithOpt(pgConfiguration.idleTimeout)((p, v) => p.setIdleTimeout(v))
     .applyOnWithOpt(pgConfiguration.maxLifetime)((p, v) => p.setMaxLifetime(v))
-
   //private lazy val pool = PgPool.pool(connectOptions, poolOptions)
   private lazy val pool = PgBuilder.pool().`with`(poolOptions).connectingTo(connectOptions).using(vertx).build();
+  val pgConfiguration                       = env.typedConfiguration.pg
+  val sslConfiguration                      = pgConfiguration.ssl
+  val pgErrorPartialFunction: PartialFunction[Throwable, IzanamiError] = {
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "featuresnamesize"                 =>
+      FeatureFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "projectsnamesize"                 =>
+      ProjectFieldTooLong
+    case f: PgException
+        if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "wasm_script_configurationsnamesize" =>
+      WasmScriptNameTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "tagsnamesize"                     => TagFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "apikeysnamesize"                  =>
+      ApiKeyFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "global_feature_contextsnamesize"  =>
+      GlobalContextNameTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "feature_contextsnamesize"         =>
+      ContextNameTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "webhooksnamesize"                 =>
+      WebhookFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "tenantnamesize"                   => TenantFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "invitationstextsize"              =>
+      EmailIsTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "usertextsize"                     => UsernameFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "configurationtextsize"            =>
+      ConfigurationFieldTooLong
+    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "personnal_access_tokenstextsize"  =>
+      PersonnalAccessTokenFieldTooLong
+    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "features_pkey"                   =>
+      FeatureWithThisIdAlreadyExist
+    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "unique_feature_name_for_project" =>
+      FeatureWithThisNameAlreadyExist
+    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "new_contexts_pkey"               =>
+      ContextWithThisNameAlreadyExist
+    case ex                                                                                                          => InternalServerError("An unexpected error occured")
+  }
+  private val logger                        = Logger("izanami")
 
   def onStart(): Future[Unit] = {
     updateSchema()
@@ -242,24 +273,22 @@ class Postgresql(env: Env) {
       .scala
   }
 
-  def executeInTransaction[T](callback: SqlConnection => Future[T]): Future[T] = {
-    var future: io.vertx.core.Future[T] = io.vertx.core.Future.succeededFuture()
-    pool
-      .withTransaction(conn => {
-        future = callback(conn).vertx(env.executionContext)
-        future
-      })
-      .recover(err => {
-        logger.error("Failed to execute queries in transaction", err)
-        future
-      })
-      .scala // Bubble up query error instead of TransactionRollbackException that does not carry much information
-  }
-
   def executeInTransaction[T](callback: SqlConnection => FutureEither[T]): FutureEither[T] = {
     executeInTransaction(conn => {
       callback(conn).value
     }).toFEither
+  }
+
+  def executeInOptionalTransaction[T](
+      maybeTransaction: Option[SqlConnection],
+      callback: SqlConnection => FutureEither[T]
+  ): FutureEither[T] = {
+    executeInOptionalTransaction(
+      maybeTransaction,
+      conn => {
+        callback(conn).value
+      }
+    ).toFEither
   }
 
   def executeInOptionalTransaction[T](
@@ -273,16 +302,18 @@ class Postgresql(env: Env) {
     })
   }
 
-  def executeInOptionalTransaction[T](
-      maybeTransaction: Option[SqlConnection],
-      callback: SqlConnection => FutureEither[T]
-  ): FutureEither[T] = {
-    executeInOptionalTransaction(
-      maybeTransaction,
-      conn => {
-        callback(conn).value
-      }
-    ).toFEither
+  def executeInTransaction[T](callback: SqlConnection => Future[T]): Future[T] = {
+    var future: io.vertx.core.Future[T] = io.vertx.core.Future.succeededFuture()
+    pool
+      .withTransaction(conn => {
+        future = callback(conn).vertx(env.executionContext)
+        future
+      })
+      .recover(err => {
+        logger.error("Failed to execute queries in transaction", err)
+        future
+      })
+      .scala // Bubble up query error instead of TransactionRollbackException that does not carry much information
   }
 
   def queryAll[A](
@@ -368,40 +399,6 @@ class Postgresql(env: Env) {
       }(env.executionContext)
   }
 
-  val pgErrorPartialFunction: PartialFunction[Throwable, IzanamiError] = {
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "featuresnamesize"                 =>
-      FeatureFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "projectsnamesize"                 =>
-      ProjectFieldTooLong
-    case f: PgException
-        if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "wasm_script_configurationsnamesize" =>
-      WasmScriptNameTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "tagsnamesize"                     => TagFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "apikeysnamesize"                  =>
-      ApiKeyFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "global_feature_contextsnamesize"  =>
-      GlobalContextNameTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "feature_contextsnamesize"         =>
-      ContextNameTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "webhooksnamesize"                 =>
-      WebhookFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "tenantnamesize"                   => TenantFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "invitationstextsize"              =>
-      EmailIsTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "usertextsize"                     => UsernameFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "configurationtextsize"            =>
-      ConfigurationFieldTooLong
-    case f: PgException if f.getSqlState == CHECK_VIOLATION && f.getConstraint == "personnal_access_tokenstextsize"  =>
-      PersonnalAccessTokenFieldTooLong
-    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "features_pkey"                   =>
-      FeatureWithThisIdAlreadyExist
-    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "unique_feature_name_for_project" =>
-      FeatureWithThisNameAlreadyExist
-    case f: PgException if f.getSqlState == UNIQUE_VIOLATION && f.getConstraint == "new_contexts_pkey"               =>
-      ContextWithThisNameAlreadyExist
-    case ex                                                                                                          => InternalServerError("An unexpected error occured")
-  }
-
   def queryOne[A](
       query: String,
       params: List[Any] = List.empty,
@@ -477,10 +474,6 @@ object pgimplicits {
 
     //def optJValueArray(name: String): Option[Array[JsValue]] = opt(name, "String", (a, b) => a.getJsonObject(b))
 
-    def optStringArray(name: String): Option[Array[String]] = opt(name, "String", (a, b) => a.getArrayOfStrings(b))
-
-    def optUUID(name: String): Option[UUID] = opt(name, "UUID", (a, b) => a.getUUID(b))
-
     def opt[A](name: String, typ: String, extractor: (Row, String) => A): Option[A] = {
       Try(extractor(row, name)) match {
         case Failure(ex)    => {
@@ -490,6 +483,10 @@ object pgimplicits {
         case Success(value) => Option(value)
       }
     }
+
+    def optStringArray(name: String): Option[Array[String]] = opt(name, "String", (a, b) => a.getArrayOfStrings(b))
+
+    def optUUID(name: String): Option[UUID] = opt(name, "UUID", (a, b) => a.getUUID(b))
 
     def optDouble(name: String): Option[Double]   = opt(name, "Double", (a, b) => a.getDouble(b).doubleValue())
     def optInt(name: String): Option[Int]         = opt(name, "Integer", (a, b) => a.getDouble(b).intValue())
@@ -505,12 +502,12 @@ object pgimplicits {
       }
     }
 
+    def optOffsetDatetime(name: String): Option[OffsetDateTime] =
+      opt(name, "OffsetDateTime", (a, b) => a.getOffsetDateTime(b))
+
     def optLocalDateTime(name: String): Option[LocalDateTime] = {
       opt(name, "LocalDateTime", (a, b) => a.getLocalDateTime(b))
     }
-
-    def optOffsetDatetime(name: String): Option[OffsetDateTime] =
-      opt(name, "OffsetDateTime", (a, b) => a.getOffsetDateTime(b))
 
     def optJsObject(name: String): Option[JsObject] =
       opt(

@@ -7,7 +7,7 @@ import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.PathElement.pathElementWrite
 import fr.maif.izanami.web.SearchController.SearchEntityObject
 import play.api.libs.json.{JsObject, Json, Writes}
-import play.api.mvc._
+import play.api.mvc.*
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
@@ -19,17 +19,6 @@ class SearchController(
     val tenantRightAction: TenantRightsAction
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
-
-
-  private def checkSearchParams(query: String, filter: List[String]): Future[Either[IzanamiError, Unit]] = {
-    if (query.isEmpty) {
-      return Future.successful(Left(SearchQueryError()))
-    }
-    if (filter.nonEmpty && !filter.forall(SearchEntityObject.parseSearchEntityType(_).isDefined)) {
-      return Future.successful(Left(SearchFilterError()))
-    }
-    Future.successful(Right(()))
-  }
 
   def search(query: String, filter: List[String]): Action[AnyContent] = tenantRightAction.async {
     implicit request: UserRequestWithTenantRights[AnyContent] => {
@@ -98,6 +87,16 @@ class SearchController(
             })
             .map(res => Ok(Json.toJson(res)))
       }
+  }
+
+  private def checkSearchParams(query: String, filter: List[String]): Future[Either[IzanamiError, Unit]] = {
+    if (query.isEmpty) {
+      return Future.successful(Left(SearchQueryError()))
+    }
+    if (filter.nonEmpty && !filter.forall(SearchEntityObject.parseSearchEntityType(_).isDefined)) {
+      return Future.successful(Left(SearchFilterError()))
+    }
+    Future.successful(Right(()))
   }
 
   private def buildPath(rowType: String, rowJson: JsObject, tenant: String): Future[Seq[PathElement]] = {
@@ -173,14 +172,6 @@ object PathElement {
 object SearchController {
   sealed trait SearchEntityType
   object SearchEntityObject {
-    case object Project extends SearchEntityType
-    case object Feature extends SearchEntityType
-    case object Key extends SearchEntityType
-    case object Tag extends SearchEntityType
-    case object Script extends SearchEntityType
-    case object GlobalContext extends SearchEntityType
-    case object LocalContext extends SearchEntityType
-    case object Webhook extends SearchEntityType
     def parseSearchEntityType(str: String): Option[SearchEntityType] = {
       Option(str).map(_.toUpperCase).flatMap {
         case "PROJECT" => Some(Project)
@@ -194,6 +185,22 @@ object SearchController {
         case _           => None
       }
     }
+
+    case object Project extends SearchEntityType
+
+    case object Feature extends SearchEntityType
+
+    case object Key extends SearchEntityType
+
+    case object Tag extends SearchEntityType
+
+    case object Script extends SearchEntityType
+
+    case object GlobalContext extends SearchEntityType
+
+    case object LocalContext extends SearchEntityType
+
+    case object Webhook extends SearchEntityType
 
   }
 

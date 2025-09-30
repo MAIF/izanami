@@ -1,10 +1,10 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.models.{ApiKey, ProjectRightLevel, ProjectRightUnit, RightLevel, RightTypes, RightUnit}
+import fr.maif.izanami.models.*
 import play.api.libs.json.JsError.toJson
 import play.api.libs.json.{JsValue, Json}
-import play.api.mvc._
+import play.api.mvc.*
 
 import scala.concurrent.{ExecutionContext, Future}
 

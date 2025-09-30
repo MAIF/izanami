@@ -10,7 +10,15 @@ import fr.maif.izanami.api.BaseAPISpec.{
   TestTenant,
   TestUser
 }
-import play.api.http.Status.{ACCEPTED, CREATED, FORBIDDEN, NOT_FOUND, NO_CONTENT, OK, UNAUTHORIZED}
+import play.api.http.Status.{
+  ACCEPTED,
+  CREATED,
+  FORBIDDEN,
+  NOT_FOUND,
+  NO_CONTENT,
+  OK,
+  UNAUTHORIZED
+}
 import play.api.libs.json.{JsNull, JsObject}
 
 import java.util.UUID
@@ -27,15 +35,37 @@ class ImportApiSpec extends BaseAPISpec {
       )
 
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("foo").withProjects(TestProject("proj").withFeatureNames("f1")))
+        .withTenants(
+          TestTenant("foo").withProjects(
+            TestProject("proj").withFeatureNames("f1")
+          )
+        )
         .loggedInWithAdminRights()
         .build()
 
       val res = situation.importV2("foo", data = data)
 
-      val response = situation.changeFeatureStrategyForContext("foo", "proj", contextPath = "prod", feature = "f1", enabled = false)
-      val localResponse = situation.changeFeatureStrategyForContext("foo", "proj", contextPath = "prod/local", feature = "f1", enabled = true)
-      val projectLocalResponse = situation.changeFeatureStrategyForContext("foo", "proj", contextPath = "fifou", feature = "f1", enabled = false)
+      val response = situation.changeFeatureStrategyForContext(
+        "foo",
+        "proj",
+        contextPath = "prod",
+        feature = "f1",
+        enabled = false
+      )
+      val localResponse = situation.changeFeatureStrategyForContext(
+        "foo",
+        "proj",
+        contextPath = "prod/local",
+        feature = "f1",
+        enabled = true
+      )
+      val projectLocalResponse = situation.changeFeatureStrategyForContext(
+        "foo",
+        "proj",
+        contextPath = "fifou",
+        feature = "f1",
+        enabled = false
+      )
 
       res.status mustEqual OK
       response.status mustEqual NO_CONTENT
@@ -46,7 +76,9 @@ class ImportApiSpec extends BaseAPISpec {
     "allow to import features with all rights token" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("testtenant"))
-        .withPersonnalAccessToken(TestPersonnalAccessToken("foo", allRights = true))
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken("foo", allRights = true)
+        )
         .loggedInWithAdminRights()
         .build()
 
@@ -57,7 +89,8 @@ class ImportApiSpec extends BaseAPISpec {
 
       val secret = situation.findTokenSecret(situation.user, "foo");
 
-      val res = importWithToken("testtenant", situation.user, secret, data = data)
+      val res =
+        importWithToken("testtenant", situation.user, secret, data = data)
       res.status mustBe OK
     }
 
@@ -65,7 +98,11 @@ class ImportApiSpec extends BaseAPISpec {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("testtenant"))
         .withPersonnalAccessToken(
-          TestPersonnalAccessToken("foo", allRights = false, rights = Map("testtenant" -> Set("IMPORT")))
+          TestPersonnalAccessToken(
+            "foo",
+            allRights = false,
+            rights = Map("testtenant" -> Set("IMPORT"))
+          )
         )
         .loggedInWithAdminRights()
         .build()
@@ -77,7 +114,8 @@ class ImportApiSpec extends BaseAPISpec {
 
       val secret = situation.findTokenSecret(situation.user, "foo");
 
-      val res = importWithToken("testtenant", situation.user, secret, data = data)
+      val res =
+        importWithToken("testtenant", situation.user, secret, data = data)
       res.status mustBe OK
     }
 
@@ -85,7 +123,11 @@ class ImportApiSpec extends BaseAPISpec {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("testtenant"))
         .withPersonnalAccessToken(
-          TestPersonnalAccessToken("foo", allRights = false, rights = Map("testtenant" -> Set("EXPORT")))
+          TestPersonnalAccessToken(
+            "foo",
+            allRights = false,
+            rights = Map("testtenant" -> Set("EXPORT"))
+          )
         )
         .loggedInWithAdminRights()
         .build()
@@ -97,19 +139,24 @@ class ImportApiSpec extends BaseAPISpec {
 
       val secret = situation.findTokenSecret(situation.user, "foo");
 
-      val res = importWithToken("testtenant", situation.user, secret, data = data)
+      val res =
+        importWithToken("testtenant", situation.user, secret, data = data)
       res.status mustBe UNAUTHORIZED
     }
 
     "prevent to import features if user is not tenant admin" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("testtenant"))
-        .withUsers(TestUser("testu", "testutestu").withTenantReadWriteRight("testtenant"))
+        .withUsers(
+          TestUser("testu", "testutestu").withTenantReadWriteRight("testtenant")
+        )
         .loggedInWithAdminRights()
         .loggedAs("testu")
         .build()
 
-      val resp   = situation.createPersonnalAccessToken(TestPersonnalAccessToken("foo", allRights = true))
+      val resp = situation.createPersonnalAccessToken(
+        TestPersonnalAccessToken("foo", allRights = true)
+      )
       resp.status mustBe CREATED
       val secret = (resp.json.get \ "token").as[String]
 
@@ -123,7 +170,7 @@ class ImportApiSpec extends BaseAPISpec {
     }
 
     "prevent to import features if user is not tenant admin, even if token has import rights" in {
-      val user      = TestUser(
+      val user = TestUser(
         username = "testu",
         admin = true,
         rights = TestRights().addTenantRight("testtenant", level = "Write")
@@ -134,11 +181,16 @@ class ImportApiSpec extends BaseAPISpec {
         .loggedAs(user.username)
         .build()
 
-      val resp               = situation.createPersonnalAccessToken(
-        TestPersonnalAccessToken("foo", allRights = false, rights = Map("testtenant" -> Set("IMPORT")))
+      val resp = situation.createPersonnalAccessToken(
+        TestPersonnalAccessToken(
+          "foo",
+          allRights = false,
+          rights = Map("testtenant" -> Set("IMPORT"))
+        )
       )
       resp.status mustBe CREATED
-      val userUpdateResponse = situation.updateUserRights(user.username, false, user.rights)
+      val userUpdateResponse =
+        situation.updateUserRights(user.username, false, user.rights)
       userUpdateResponse.status mustEqual NO_CONTENT
 
       val secret = (resp.json.get \ "token").as[String]
@@ -157,7 +209,7 @@ class ImportApiSpec extends BaseAPISpec {
         .withTenantNames("testtenant")
         .loggedInWithAdminRights()
         .build()
-      val data      = Seq(
+      val data = Seq(
         """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
         """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"simple feature","enabled":true,"project":"test-project","metadata":{},"conditions":[],"description":"","script_config":null},"_type":"feature"}"""
       )
@@ -205,7 +257,7 @@ class ImportApiSpec extends BaseAPISpec {
       project.status mustBe OK
       val jsonFeatures = (project.json.get \ "features").as[Seq[JsObject]]
       jsonFeatures must have size 1
-      val feature      = jsonFeatures.head
+      val feature = jsonFeatures.head
       (feature \ "name").as[String] mustEqual "foo:default-feature"
       (feature \ "id").as[String] mustEqual "project:foo:default-feature"
       (feature \ "enabled").as[Boolean] mustBe false
@@ -225,7 +277,10 @@ class ImportApiSpec extends BaseAPISpec {
         )
       )
 
-      (situation.fetchUserRights().json.get \ "rights" \ "tenants" \ "testtenant" \ "projects" \ "project" \ "level")
+      (situation
+        .fetchUserRights()
+        .json
+        .get \ "rights" \ "tenants" \ "testtenant" \ "projects" \ "project" \ "level")
         .as[String] mustEqual "Admin"
     }
 
@@ -253,27 +308,40 @@ class ImportApiSpec extends BaseAPISpec {
       jsonFeatures must have size 5
 
       val byId = jsonFeatures.map(obj => ((obj \ "id").as[String], obj)).toMap
-      (byId("project:test:percentage-feature") \ "conditions" \ "percentage").as[Int] mustEqual 75
-      (byId("project:test:percentage-feature") \ "enabled").as[Boolean] mustBe true
+      (byId("project:test:percentage-feature") \ "conditions" \ "percentage")
+        .as[Int] mustEqual 75
+      (byId("project:test:percentage-feature") \ "enabled")
+        .as[Boolean] mustBe true
 
-      (byId("project:test:date-range") \ "conditions" \ "begin").as[String] mustEqual "2022-12-31T23:00:00Z"
-      (byId("project:test:date-range") \ "conditions" \ "end").as[String] mustEqual "2023-12-31T22:59:59Z"
-      (byId("project:test:date-range") \ "conditions" \ "timezone").as[String] mustEqual "Europe/Paris"
+      (byId("project:test:date-range") \ "conditions" \ "begin")
+        .as[String] mustEqual "2022-12-31T23:00:00Z"
+      (byId("project:test:date-range") \ "conditions" \ "end")
+        .as[String] mustEqual "2023-12-31T22:59:59Z"
+      (byId("project:test:date-range") \ "conditions" \ "timezone")
+        .as[String] mustEqual "Europe/Paris"
       (byId("project:test:date-range") \ "enabled").as[Boolean] mustBe true
 
       (byId("project:another:customer-list-feature") \ "conditions" \ "users")
         .as[Seq[String]] must contain theSameElementsAs Seq("foo", "bar", "baz")
-      (byId("project:another:customer-list-feature") \ "enabled").as[Boolean] mustBe true
+      (byId("project:another:customer-list-feature") \ "enabled")
+        .as[Boolean] mustBe true
 
-      (byId("project:baz:release-date") \ "conditions" \ "begin").as[String] mustEqual "2023-07-22T12:18:11Z"
-      (byId("project:baz:release-date") \ "conditions" \ "end").asOpt[String] mustBe None
-      (byId("project:test:date-range") \ "conditions" \ "timezone").as[String] mustEqual "Europe/Paris"
+      (byId("project:baz:release-date") \ "conditions" \ "begin")
+        .as[String] mustEqual "2023-07-22T12:18:11Z"
+      (byId("project:baz:release-date") \ "conditions" \ "end")
+        .asOpt[String] mustBe None
+      (byId("project:test:date-range") \ "conditions" \ "timezone")
+        .as[String] mustEqual "Europe/Paris"
       (byId("project:test:date-range") \ "enabled").as[Boolean] mustBe true
 
-      (byId("project:baz:hour-range-feature") \ "conditions" \ "startTime").as[String] mustEqual "08:00:00"
-      (byId("project:baz:hour-range-feature") \ "conditions" \ "endTime").as[String] mustEqual "18:00:00"
-      (byId("project:baz:hour-range-feature") \ "conditions" \ "timezone").as[String] mustEqual "Europe/Paris"
-      (byId("project:baz:hour-range-feature") \ "enabled").as[Boolean] mustBe true
+      (byId("project:baz:hour-range-feature") \ "conditions" \ "startTime")
+        .as[String] mustEqual "08:00:00"
+      (byId("project:baz:hour-range-feature") \ "conditions" \ "endTime")
+        .as[String] mustEqual "18:00:00"
+      (byId("project:baz:hour-range-feature") \ "conditions" \ "timezone")
+        .as[String] mustEqual "Europe/Paris"
+      (byId("project:baz:hour-range-feature") \ "enabled")
+        .as[Boolean] mustBe true
     }
 
     "import all features in a single project if asked" in {
@@ -298,12 +366,16 @@ class ImportApiSpec extends BaseAPISpec {
       project.status mustBe OK
       val jsonFeatures = (project.json.get \ "features").as[Seq[JsObject]]
       jsonFeatures must have size 3
-      jsonFeatures.map(js => (js \ "name").as[String]) must contain theSameElementsAs Seq(
+      jsonFeatures.map(js =>
+        (js \ "name").as[String]
+      ) must contain theSameElementsAs Seq(
         "project:foo:default-feature",
         "baz:foo",
         "bar:another"
       )
-      jsonFeatures.map(js => (js \ "id").as[String]) must contain theSameElementsAs Seq(
+      jsonFeatures.map(js =>
+        (js \ "id").as[String]
+      ) must contain theSameElementsAs Seq(
         "project:foo:default-feature",
         "baz:foo",
         "bar:another"
@@ -328,29 +400,41 @@ class ImportApiSpec extends BaseAPISpec {
         )
       )
 
-      val project      = situation.fetchProject("testtenant", "project:foo")
+      val project = situation.fetchProject("testtenant", "project:foo")
       val jsonFeatures = (project.json.get \ "features").as[Seq[JsObject]]
       jsonFeatures must have size 2
-      jsonFeatures.map(js => (js \ "name").as[String]) must contain theSameElementsAs Seq(
+      jsonFeatures.map(js =>
+        (js \ "name").as[String]
+      ) must contain theSameElementsAs Seq(
         "default-feature",
         "default-feature2"
       )
-      jsonFeatures.map(js => (js \ "id").as[String]) must contain theSameElementsAs Seq(
+      jsonFeatures.map(js =>
+        (js \ "id").as[String]
+      ) must contain theSameElementsAs Seq(
         "project:foo:default-feature",
         "project:foo:default-feature2"
       )
 
-      val project2      = situation.fetchProject("testtenant", "baz:foo")
+      val project2 = situation.fetchProject("testtenant", "baz:foo")
       val jsonFeatures2 = (project2.json.get \ "features").as[Seq[JsObject]]
       jsonFeatures2 must have size 1
-      jsonFeatures2.map(js => (js \ "name").as[String]) must contain theSameElementsAs Seq("lol")
-      jsonFeatures2.map(js => (js \ "id").as[String]) must contain theSameElementsAs Seq("baz:foo:lol")
+      jsonFeatures2.map(js =>
+        (js \ "name").as[String]
+      ) must contain theSameElementsAs Seq("lol")
+      jsonFeatures2.map(js =>
+        (js \ "id").as[String]
+      ) must contain theSameElementsAs Seq("baz:foo:lol")
 
-      val project3      = situation.fetchProject("testtenant", "baz:another")
+      val project3 = situation.fetchProject("testtenant", "baz:another")
       val jsonFeatures3 = (project3.json.get \ "features").as[Seq[JsObject]]
       jsonFeatures3 must have size 1
-      jsonFeatures3.map(js => (js \ "name").as[String]) must contain theSameElementsAs Seq("bi")
-      jsonFeatures3.map(js => (js \ "id").as[String]) must contain theSameElementsAs Seq("baz:another:bi")
+      jsonFeatures3.map(js =>
+        (js \ "name").as[String]
+      ) must contain theSameElementsAs Seq("bi")
+      jsonFeatures3.map(js =>
+        (js \ "id").as[String]
+      ) must contain theSameElementsAs Seq("baz:another:bi")
     }
 
     "reject import query is project part is too long" in {
@@ -387,11 +471,13 @@ class ImportApiSpec extends BaseAPISpec {
         inlineScript = false
       )
 
-      val project      = situation.fetchProject(tenant = "testtenant", projectId = "project")
+      val project =
+        situation.fetchProject(tenant = "testtenant", projectId = "project")
       val jsonFeatures = (project.json.get \ "features").as[Seq[JsObject]]
       jsonFeatures must have size 1
-      val first        = jsonFeatures.head
-      (first \ "wasmConfig").as[String] mustEqual s"project:foo:script-feature${uuid}_script"
+      val first = jsonFeatures.head
+      (first \ "wasmConfig")
+        .as[String] mustEqual s"project:foo:script-feature${uuid}_script"
 
       var testResponse =
         situation.testExistingFeature(
@@ -433,7 +519,9 @@ class ImportApiSpec extends BaseAPISpec {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("testtenant").withProjects(
-            TestProject("fifou").withFeatures(TestFeature("baz:lalala", enabled = true))
+            TestProject("fifou").withFeatures(
+              TestFeature("baz:lalala", enabled = true)
+            )
           )
         )
         .loggedInWithAdminRights()
@@ -461,7 +549,9 @@ class ImportApiSpec extends BaseAPISpec {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("testtenant").withProjects(
-            TestProject("fifou").withFeatures(TestFeature("baz:lalala", enabled = true))
+            TestProject("fifou").withFeatures(
+              TestFeature("baz:lalala", enabled = true)
+            )
           )
         )
         .loggedInWithAdminRights()
@@ -483,7 +573,9 @@ class ImportApiSpec extends BaseAPISpec {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("testtenant").withProjects(
-            TestProject("fifou").withFeatures(TestFeature("baz:lalala", enabled = true))
+            TestProject("fifou").withFeatures(
+              TestFeature("baz:lalala", enabled = true)
+            )
           )
         )
         .loggedInWithAdminRights()
@@ -501,7 +593,7 @@ class ImportApiSpec extends BaseAPISpec {
 
       (response.json.get \ "status").as[String] mustEqual "Success"
 
-      val project      = situation.fetchProject("testtenant", "fifou")
+      val project = situation.fetchProject("testtenant", "fifou")
       project.status mustBe OK
       val jsonFeatures = (project.json.get \ "features").as[Seq[JsObject]]
       jsonFeatures must have size 1
@@ -534,7 +626,7 @@ class ImportApiSpec extends BaseAPISpec {
         )
       )
 
-      val project      = situation.fetchProject("testtenant", "fifou")
+      val project = situation.fetchProject("testtenant", "fifou")
       project.status mustBe OK
       val jsonFeatures = (project.json.get \ "features").as[Seq[JsObject]]
       jsonFeatures must have size 1
@@ -599,9 +691,11 @@ class ImportApiSpec extends BaseAPISpec {
       userResponse.status mustBe OK
       val userJson = userResponse.json.get
 
-      (userJson \ "username").as[String] mustEqual "project-create-accredited-user"
+      (userJson \ "username")
+        .as[String] mustEqual "project-create-accredited-user"
       (userJson \ "admin").as[Boolean] mustBe false
-      (userJson \ "rights" \ "tenants" \ "testtenant" \ "level").as[String] mustEqual "Read"
+      (userJson \ "rights" \ "tenants" \ "testtenant" \ "level")
+        .as[String] mustEqual "Read"
       (userJson \ "email").as[String] mustEqual "pcau@maif.fr"
       (userJson \ "userType").as[String] mustEqual "INTERNAL"
     }
@@ -629,7 +723,8 @@ class ImportApiSpec extends BaseAPISpec {
       userResponse.status mustBe OK
       val userJson = userResponse.json.get
 
-      (userJson \ "rights" \ "tenants" \ "testtenant" \ "projects" \ "project" \ "level").as[String] mustEqual "Write"
+      (userJson \ "rights" \ "tenants" \ "testtenant" \ "projects" \ "project" \ "level")
+        .as[String] mustEqual "Write"
     }
 
     "Give correct project right to imported users (R => Read)" in {
@@ -655,7 +750,8 @@ class ImportApiSpec extends BaseAPISpec {
       userResponse.status mustBe OK
       val userJson = userResponse.json.get
 
-      (userJson \ "rights" \ "tenants" \ "testtenant" \ "projects" \ "project" \ "level").as[String] mustEqual "Read"
+      (userJson \ "rights" \ "tenants" \ "testtenant" \ "projects" \ "project" \ "level")
+        .as[String] mustEqual "Read"
     }
 
     "Give correct project right to imported users (C,R,U => Write)" in {
@@ -681,7 +777,8 @@ class ImportApiSpec extends BaseAPISpec {
       userResponse.status mustBe OK
       val userJson = userResponse.json.get
 
-      (userJson \ "rights" \ "tenants" \ "testtenant" \ "projects" \ "project" \ "level").as[String] mustEqual "Write"
+      (userJson \ "rights" \ "tenants" \ "testtenant" \ "projects" \ "project" \ "level")
+        .as[String] mustEqual "Write"
     }
 
     "Give correct project right to imported users (C,R,U,D => Admin)" in {
@@ -707,7 +804,8 @@ class ImportApiSpec extends BaseAPISpec {
       userResponse.status mustBe OK
       val userJson = userResponse.json.get
 
-      (userJson \ "rights" \ "tenants" \ "testtenant" \ "projects" \ "project" \ "level").as[String] mustEqual "Admin"
+      (userJson \ "rights" \ "tenants" \ "testtenant" \ "projects" \ "project" \ "level")
+        .as[String] mustEqual "Admin"
     }
 
     "Allow to login as imported user" in {
@@ -766,7 +864,7 @@ class ImportApiSpec extends BaseAPISpec {
       )
 
       val keyResponse = situation.fetchAPIKeys("testtenant")
-      val keysJson    = keyResponse.json.get.as[Seq[JsObject]]
+      val keysJson = keyResponse.json.get.as[Seq[JsObject]]
 
       keysJson must have size 1
 
@@ -813,11 +911,15 @@ class ImportApiSpec extends BaseAPISpec {
         )
       )
 
-      val pid = (situation.fetchProject(tenant = "testtenant", projectId = "project").json.get \ "id").as[String]
+      val pid = (situation
+        .fetchProject(tenant = "testtenant", projectId = "project")
+        .json
+        .get \ "id").as[String]
 
       val result = situation.checkFeaturesWithRawKey(
         clientId = "yfsc5ooy3v3hu5z2",
-        clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw",
+        clientSecret =
+          "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw",
         projects = Seq(pid)
       )
       result.status mustBe OK
@@ -848,10 +950,11 @@ class ImportApiSpec extends BaseAPISpec {
         inlineScript = false
       )
 
-      val project      = situation.fetchProject(tenant = "testtenant", projectId = "project")
+      val project =
+        situation.fetchProject(tenant = "testtenant", projectId = "project")
       val jsonFeatures = (project.json.get \ "features").as[Seq[JsObject]]
       jsonFeatures must have size 1
-      val first        = jsonFeatures.head
+      val first = jsonFeatures.head
       (first \ "wasmConfig").as[String] mustEqual s"project-global-script$uuid"
 
       var testResponse = situation.testExistingFeature(
@@ -876,7 +979,7 @@ class ImportApiSpec extends BaseAPISpec {
         .withTenantNames("testtenant")
         .loggedInWithAdminRights()
         .build()
-      val uuid      = UUID.randomUUID()
+      val uuid = UUID.randomUUID()
 
       val response = situation.importAndWaitTermination(
         tenant = "testtenant",
@@ -886,11 +989,13 @@ class ImportApiSpec extends BaseAPISpec {
         inlineScript = false
       )
 
-      val project      = situation.fetchProject(tenant = "testtenant", projectId = "project")
+      val project =
+        situation.fetchProject(tenant = "testtenant", projectId = "project")
       val jsonFeatures = (project.json.get \ "features").as[Seq[JsObject]]
       jsonFeatures must have size 1
-      val first        = jsonFeatures.head
-      (first \ "wasmConfig").as[String] mustEqual s"project:foo:script-feature${uuid}_script"
+      val first = jsonFeatures.head
+      (first \ "wasmConfig")
+        .as[String] mustEqual s"project:foo:script-feature${uuid}_script"
 
       var testResponse =
         situation.testExistingFeature(
@@ -926,11 +1031,13 @@ class ImportApiSpec extends BaseAPISpec {
         inlineScript = false
       )
 
-      val project      = situation.fetchProject(tenant = "testtenant", projectId = "project")
+      val project =
+        situation.fetchProject(tenant = "testtenant", projectId = "project")
       val jsonFeatures = (project.json.get \ "features").as[Seq[JsObject]]
       jsonFeatures must have size 1
-      val first        = jsonFeatures.head
-      (first \ "wasmConfig").as[String] mustEqual s"project:foo:script-feature${uuid}_script"
+      val first = jsonFeatures.head
+      (first \ "wasmConfig")
+        .as[String] mustEqual s"project:foo:script-feature${uuid}_script"
 
       var testResponse =
         situation.testExistingFeature(
@@ -987,7 +1094,8 @@ class ImportApiSpec extends BaseAPISpec {
         inlineScript = true
       )
 
-      val project      = situation.fetchProject(tenant = "testtenant", projectId = "project")
+      val project =
+        situation.fetchProject(tenant = "testtenant", projectId = "project")
       val jsonFeatures = (project.json.get \ "features").as[Seq[JsObject]]
       jsonFeatures must have size 3
 
@@ -1033,10 +1141,16 @@ class ImportApiSpec extends BaseAPISpec {
         inlineScript = true
       )
 
-      var checkResponse = situation.checkImportStatus("testtenant", response.id.get)
+      var checkResponse =
+        situation.checkImportStatus("testtenant", response.id.get)
       (checkResponse.json.get \ "status").as[String] mustEqual "Pending"
 
-      while ((situation.checkImportStatus("testtenant", response.id.get).json.get \ "status").as[String] == "Pending") {
+      while (
+        (situation
+          .checkImportStatus("testtenant", response.id.get)
+          .json
+          .get \ "status").as[String] == "Pending"
+      ) {
         Thread.sleep(200)
       }
 
@@ -1058,11 +1172,17 @@ class ImportApiSpec extends BaseAPISpec {
         )
       )
 
-      while ((situation.checkImportStatus("testtenant", response.id.get).json.get \ "status").as[String] == "Pending") {
+      while (
+        (situation
+          .checkImportStatus("testtenant", response.id.get)
+          .json
+          .get \ "status").as[String] == "Pending"
+      ) {
         Thread.sleep(200)
       }
 
-      val checkResponse = situation.checkImportStatus("testtenant", response.id.get)
+      val checkResponse =
+        situation.checkImportStatus("testtenant", response.id.get)
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "status").as[String] mustEqual "Failed"
     }
@@ -1080,7 +1200,8 @@ class ImportApiSpec extends BaseAPISpec {
         )
       )
 
-      val deleteResponse = situation.deleteImportResult("testtenant", response.id.get)
+      val deleteResponse =
+        situation.deleteImportResult("testtenant", response.id.get)
       deleteResponse.status mustBe NO_CONTENT
 
       val check = situation.checkImportStatus("testtenant", response.id.get)

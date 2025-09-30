@@ -13,34 +13,51 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .build()
 
       var response =
-        situation.createAPIKey(tenant = "my-tenant", name = "abcdefghij" * 21, description = "my long description")
+        situation.createAPIKey(
+          tenant = "my-tenant",
+          name = "abcdefghij" * 21,
+          description = "my long description"
+        )
       response.status mustBe BAD_REQUEST
 
-      response = situation.createAPIKey(tenant = "my-tenant", name = "abcdefghij", description = "abcdefghij" * 51)
+      response = situation.createAPIKey(
+        tenant = "my-tenant",
+        name = "abcdefghij",
+        description = "abcdefghij" * 51
+      )
       response.status mustBe BAD_REQUEST
     }
 
     "allow to create API key" in {
-      val situation   = TestSituationBuilder()
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenantNames("my-tenant")
         .build();
       val description = "my long description"
-      val response    =
-        situation.createAPIKey(tenant = "my-tenant", name = "my-api-key", description = "my long description")
+      val response =
+        situation.createAPIKey(
+          tenant = "my-tenant",
+          name = "my-api-key",
+          description = "my long description"
+        )
 
       response.status mustBe CREATED
       (response.json.get \ "name").get.as[String] mustEqual "my-api-key"
-      (response.json.get \ "clientId").get.as[String] must startWith("my-tenant")
+      (response.json.get \ "clientId").get.as[String] must startWith(
+        "my-tenant"
+      )
       (response.json.get \ "description").get.as[String] mustEqual description
     }
 
     "allow to create admin API key" in {
-      val situation = TestSituationBuilder().withTenantNames("tenant").loggedInWithAdminRights().build()
+      val situation = TestSituationBuilder()
+        .withTenantNames("tenant")
+        .loggedInWithAdminRights()
+        .build()
 
       val response = situation.createAPIKey("tenant", "my-key", admin = true)
       response.status mustBe CREATED
-      val keyJson  = situation.fetchAPIKeys("tenant").json.get
+      val keyJson = situation.fetchAPIKeys("tenant").json.get
 
       (keyJson \\ "admin").head.as[Boolean] mustBe true
     }
@@ -48,13 +65,22 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
     "allow to create API key with authorized projects" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant("my-tenant").withProjectNames("my-project", "my-project2"))
+        .withTenants(
+          TestTenant("my-tenant").withProjectNames("my-project", "my-project2")
+        )
         .build();
 
       val response =
-        situation.createAPIKey(tenant = "my-tenant", name = "my-api-key", projects = Seq("my-project", "my-project2"))
+        situation.createAPIKey(
+          tenant = "my-tenant",
+          name = "my-api-key",
+          projects = Seq("my-project", "my-project2")
+        )
 
-      (response.json.get \ "projects").as[JsArray].value.map(v => v.as[String]) must contain theSameElementsAs Seq(
+      (response.json.get \ "projects")
+        .as[JsArray]
+        .value
+        .map(v => v.as[String]) must contain theSameElementsAs Seq(
         "my-project",
         "my-project2"
       )
@@ -67,7 +93,8 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build()
 
-      val response = situation.createAPIKey("tenant", name = "my-key", admin = true)
+      val response =
+        situation.createAPIKey("tenant", name = "my-key", admin = true)
 
       response.status mustBe FORBIDDEN
     }
@@ -79,7 +106,11 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .build();
 
       val response =
-        situation.createAPIKey(tenant = "my-tenant", name = "my-api-key", projects = Seq("my-project", "my-project2"))
+        situation.createAPIKey(
+          tenant = "my-tenant",
+          name = "my-api-key",
+          projects = Seq("my-project", "my-project2")
+        )
       response.status mustBe BAD_REQUEST
     }
 
@@ -107,7 +138,11 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .loggedAs("test-u")
         .build();
 
-      val result = situation.createAPIKey("my-tenant", "my-key", projects = Seq("project1", "project2"))
+      val result = situation.createAPIKey(
+        "my-tenant",
+        "my-key",
+        projects = Seq("project1", "project2")
+      )
       result.status mustBe FORBIDDEN
     }
 
@@ -119,8 +154,12 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .build();
 
       val description = "my long description"
-      val response    =
-        situation.createAPIKey(tenant = "my-tenant", name = "my-api-key", description = "my long description")
+      val response =
+        situation.createAPIKey(
+          tenant = "my-tenant",
+          name = "my-api-key",
+          description = "my long description"
+        )
 
       response.status mustBe CREATED
 
@@ -138,8 +177,14 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
           TestTenant("my-tenant")
             .withProjectNames("project-1", "project-2")
             .withApiKeys(
-              TestApiKey(name = "my-key", projects = Seq("project-1", "project-2")),
-              TestApiKey(name = "my-key2", projects = Seq("project-1", "project-2"))
+              TestApiKey(
+                name = "my-key",
+                projects = Seq("project-1", "project-2")
+              ),
+              TestApiKey(
+                name = "my-key2",
+                projects = Seq("project-1", "project-2")
+              )
             )
         )
         .build()
@@ -147,8 +192,12 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
       val result = situation.fetchAPIKeys(tenant = "my-tenant")
 
       result.status mustBe OK
-      (result.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("my-key", "my-key2")
-      (result.json.get \\ "projects").flatMap(v => v.as[Seq[String]]) must contain theSameElementsAs Seq(
+      (result.json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("my-key", "my-key2")
+      (result.json.get \\ "projects").flatMap(v =>
+        v.as[Seq[String]]
+      ) must contain theSameElementsAs Seq(
         "project-1",
         "project-2",
         "project-1",
@@ -158,13 +207,23 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
 
     "return only authorized keys" in {
       val situation = TestSituationBuilder()
-        .withUsers(TestUser("test-u").withTenantReadRight("my-tenant").withApiKeyReadRight("my-key", "my-tenant"))
+        .withUsers(
+          TestUser("test-u")
+            .withTenantReadRight("my-tenant")
+            .withApiKeyReadRight("my-key", "my-tenant")
+        )
         .withTenants(
           TestTenant("my-tenant")
             .withProjectNames("project-1", "project-2")
             .withApiKeys(
-              TestApiKey(name = "my-key", projects = Seq("project-1", "project-2")),
-              TestApiKey(name = "my-key2", projects = Seq("project-1", "project-2"))
+              TestApiKey(
+                name = "my-key",
+                projects = Seq("project-1", "project-2")
+              ),
+              TestApiKey(
+                name = "my-key2",
+                projects = Seq("project-1", "project-2")
+              )
             )
         )
         .loggedAs("test-u")
@@ -173,18 +232,30 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
       val result = situation.fetchAPIKeys(tenant = "my-tenant")
 
       result.status mustBe OK
-      (result.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("my-key")
+      (result.json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("my-key")
     }
 
     "return all keys if user has key default read right" in {
       val situation = TestSituationBuilder()
-        .withUsers(TestUser("test-u").withTenantReadRight("my-tenant").withDefaultReadKeyRight("my-tenant"))
+        .withUsers(
+          TestUser("test-u")
+            .withTenantReadRight("my-tenant")
+            .withDefaultReadKeyRight("my-tenant")
+        )
         .withTenants(
           TestTenant("my-tenant")
             .withProjectNames("project-1", "project-2")
             .withApiKeys(
-              TestApiKey(name = "my-key", projects = Seq("project-1", "project-2")),
-              TestApiKey(name = "my-key2", projects = Seq("project-1", "project-2"))
+              TestApiKey(
+                name = "my-key",
+                projects = Seq("project-1", "project-2")
+              ),
+              TestApiKey(
+                name = "my-key2",
+                projects = Seq("project-1", "project-2")
+              )
             )
         )
         .loggedAs("test-u")
@@ -193,42 +264,62 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
       val result = situation.fetchAPIKeys(tenant = "my-tenant")
 
       result.status mustBe OK
-      (result.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("my-key", "my-key2")
+      (result.json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("my-key", "my-key2")
     }
   }
 
   "API key DELETE endpoint" should {
     "delete given API key" in {
       val situation = TestSituationBuilder()
-        .withUsers(TestUser(username = "admin", admin = true, password = "barfoofoo"))
+        .withUsers(
+          TestUser(username = "admin", admin = true, password = "barfoofoo")
+        )
         .withTenants(
           TestTenant("my-tenant")
             .withProjectNames("project1")
             .withApiKeys(
-              TestApiKey(name = "key1", projects = Seq("project1"), description = "foo"),
-              TestApiKey(name = "key2", projects = Seq("project1"), description = "foo")
+              TestApiKey(
+                name = "key1",
+                projects = Seq("project1"),
+                description = "foo"
+              ),
+              TestApiKey(
+                name = "key2",
+                projects = Seq("project1"),
+                description = "foo"
+              )
             )
         )
         .loggedAs("admin")
         .build()
 
-      val response    = situation.deleteAPIKey("my-tenant", "key1")
+      val response = situation.deleteAPIKey("my-tenant", "key1")
       val keyResponse = situation.fetchAPIKeys("my-tenant")
 
       response.status mustBe NO_CONTENT
       keyResponse.json.get.as[JsArray].value must have size 1
-      (keyResponse.json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("key2")
+      (keyResponse.json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("key2")
 
     }
 
     "return 404 on non existing key" in {
       val situation = TestSituationBuilder()
-        .withUsers(TestUser(username = "admin", admin = true, password = "barfoofoo"))
+        .withUsers(
+          TestUser(username = "admin", admin = true, password = "barfoofoo")
+        )
         .withTenants(
           TestTenant("my-tenant")
             .withProjectNames("project1")
             .withApiKeys(
-              TestApiKey(name = "key1", projects = Seq("project1"), description = "foo")
+              TestApiKey(
+                name = "key1",
+                projects = Seq("project1"),
+                description = "foo"
+              )
             )
         )
         .loggedAs("admin")
@@ -241,7 +332,11 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
 
     "prevent key suppression if user is not admin on the key" in {
       val situation = TestSituationBuilder()
-        .withUsers(TestUser("test-u").withTenantReadRight("my-tenant").withApiKeyReadWriteRight("key1", "my-tenant"))
+        .withUsers(
+          TestUser("test-u")
+            .withTenantReadRight("my-tenant")
+            .withApiKeyReadWriteRight("key1", "my-tenant")
+        )
         .withTenants(
           TestTenant("my-tenant")
             .withProjectNames("project1")
@@ -260,7 +355,9 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
     "allow key suppression from key creator (since it should be made admin by creation)" in {
       val situation = TestSituationBuilder()
         .withUsers(
-          TestUser("test-u").withTenantReadWriteRight("my-tenant").withProjectReadWriteRight("project1", "my-tenant")
+          TestUser("test-u")
+            .withTenantReadWriteRight("my-tenant")
+            .withProjectReadWriteRight("project1", "my-tenant")
         )
         .withTenants(
           TestTenant("my-tenant")
@@ -353,7 +450,8 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
       result.status mustBe NO_CONTENT
 
       val fetch = situation.fetchAPIKeys("my-tenant")
-      ((fetch.json.get.as[JsArray]).value.head \ "enabled").as[Boolean] mustEqual false
+      ((fetch.json.get.as[JsArray]).value.head \ "enabled")
+        .as[Boolean] mustEqual false
     }
 
     "allow to update key description" in {
@@ -362,7 +460,13 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .withTenants(
           TestTenant(name = "my-tenant")
             .withProjectNames("project1", "project2")
-            .withApiKeys(TestApiKey("my-key", projects = Seq("project1", "project2"), description = "Foo"))
+            .withApiKeys(
+              TestApiKey(
+                "my-key",
+                projects = Seq("project1", "project2"),
+                description = "Foo"
+              )
+            )
         )
         .build()
 
@@ -378,7 +482,8 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
       result.status mustBe NO_CONTENT
 
       val fetch = situation.fetchAPIKeys("my-tenant")
-      ((fetch.json.get.as[JsArray]).value.head \ "description").as[String] mustEqual "Bar"
+      ((fetch.json.get.as[JsArray]).value.head \ "description")
+        .as[String] mustEqual "Bar"
     }
 
     "allow to update key name" in {
@@ -387,7 +492,13 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .withTenants(
           TestTenant(name = "my-tenant")
             .withProjectNames("project1", "project2")
-            .withApiKeys(TestApiKey("my-key", projects = Seq("project1", "project2"), description = "Foo"))
+            .withApiKeys(
+              TestApiKey(
+                "my-key",
+                projects = Seq("project1", "project2"),
+                description = "Foo"
+              )
+            )
         )
         .build()
 
@@ -404,7 +515,8 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
       result.status mustBe NO_CONTENT
 
       val fetch = situation.fetchAPIKeys("my-tenant")
-      (fetch.json.get.as[JsArray].value.head \ "name").as[String] mustEqual "my-key2"
+      (fetch.json.get.as[JsArray].value.head \ "name")
+        .as[String] mustEqual "my-key2"
     }
 
     "prevent updating a key by adding an unauthorized project" in {
@@ -420,7 +532,13 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .withTenants(
           TestTenant(name = "my-tenant")
             .withProjectNames("project1", "project2", "project3")
-            .withApiKeys(TestApiKey("my-key", projects = Seq("project1", "project2"), description = "Foo"))
+            .withApiKeys(
+              TestApiKey(
+                "my-key",
+                projects = Seq("project1", "project2"),
+                description = "Foo"
+              )
+            )
         )
         .loggedAs("foo")
         .build()
@@ -449,7 +567,13 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
         .withTenants(
           TestTenant(name = "my-tenant")
             .withProjectNames("project1", "project2", "project3")
-            .withApiKeys(TestApiKey("my-key", projects = Seq("project1", "project2"), description = "Foo"))
+            .withApiKeys(
+              TestApiKey(
+                "my-key",
+                projects = Seq("project1", "project2"),
+                description = "Foo"
+              )
+            )
         )
         .loggedAs("foo")
         .build()
@@ -514,7 +638,6 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
       result.status mustBe FORBIDDEN
     }
 
-
     "prevent updating key if user doesn't have write right on it" in {
       val situation = TestSituationBuilder()
         .withTenants(
@@ -540,7 +663,6 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
 
       result.status mustBe FORBIDDEN
     }
-
 
     "allow updating key if user has write right on it" in {
       val situation = TestSituationBuilder()

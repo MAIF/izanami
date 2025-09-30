@@ -1,6 +1,6 @@
 package fr.maif.izanami.v1
 
-import fr.maif.izanami.models.{ApiKey}
+import fr.maif.izanami.models.ApiKey
 import fr.maif.izanami.v1.OldCommons.{authorizedPatternReads, filterProjects, oldRightToNewRight, toNewRights}
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.{Reads, __}
@@ -14,6 +14,18 @@ case class OldKey(
 )
 
 object OldKey {
+  val oldKeyReads: Reads[OldKey] = {
+    (
+      (__ \ "clientId").read[String].filter(name => "^[@0-9\\p{L} .'-]+$".r.pattern.matcher(name).matches()) and
+      (__ \ "name").read[String].filter(name => "^[@0-9\\p{L} .'-]+$".r.pattern.matcher(name).matches()) and
+      (__ \ "clientSecret").read[String].filter(name => "^[@0-9\\p{L} .'-]+$".r.pattern.matcher(name).matches()) and
+      (__ \ "authorizedPatterns")
+        .read[Seq[AuthorizedPattern]]
+        .orElse((__ \ "authorizedPatterns").read[Seq[AuthorizedPattern]]) and
+      (__ \ "admin").read[Boolean].orElse(Reads.pure(false))
+    )(OldKey.apply _)
+  }
+
   def toNewKey(tenant: String, key: OldKey, projects: Set[String], shoudlFilterProject: Boolean): ApiKey = {
     val filteredProjects = if(shoudlFilterProject){
       key.authorizedPatterns.flatMap(ap => {
@@ -33,17 +45,5 @@ object OldKey {
       legacy = true,
       admin=key.admin
     )
-  }
-
-  val oldKeyReads: Reads[OldKey] = {
-    (
-      (__ \ "clientId").read[String].filter(name => "^[@0-9\\p{L} .'-]+$".r.pattern.matcher(name).matches()) and
-      (__ \ "name").read[String].filter(name => "^[@0-9\\p{L} .'-]+$".r.pattern.matcher(name).matches()) and
-      (__ \ "clientSecret").read[String].filter(name => "^[@0-9\\p{L} .'-]+$".r.pattern.matcher(name).matches()) and
-      (__ \ "authorizedPatterns")
-        .read[Seq[AuthorizedPattern]]
-        .orElse((__ \ "authorizedPatterns").read[Seq[AuthorizedPattern]]) and
-      (__ \ "admin").read[Boolean].orElse(Reads.pure(false))
-    )(OldKey.apply _)
   }
 }

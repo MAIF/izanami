@@ -1,12 +1,12 @@
 package fr.maif.izanami.web
 
-import org.apache.pekko.util.ByteString
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.models.Feature.lightweightFeatureWrite
 import fr.maif.izanami.models.{Export, LightWeightFeature, RightLevel}
+import org.apache.pekko.util.ByteString
 import play.api.http.HttpEntity
-import play.api.libs.json._
-import play.api.mvc._
+import play.api.libs.json.*
+import play.api.mvc.*
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -91,11 +91,12 @@ object ExportController {
     Json.obj("features" -> Json.toJson(exportResult.features)(Writes.list(lightweightFeatureWrite)))
   }
 
+  sealed trait ExportList
+
   case class ExportRequest(tenants: Map[String, TenantExportRequest]) {}
+
   case class TenantExportRequest(projects: ExportList, keys: ExportList, webhooks: ExportList, userRights: Boolean)
 
-  sealed trait ExportList
-  case object ExportAllItems                    extends ExportList
   case class ExportItemList(items: Set[String]) extends ExportList
 
   case class ExportResult(
@@ -107,5 +108,7 @@ object ExportController {
   )
 
   case class ProjectExportResult(features: List[LightWeightFeature])
+
+  case object ExportAllItems                    extends ExportList
 
 }

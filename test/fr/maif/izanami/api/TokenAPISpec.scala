@@ -1,7 +1,20 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{TestPersonnalAccessToken, TestSituationBuilder, TestTenant, TestUser}
-import play.api.http.Status.{BAD_REQUEST, CREATED, FORBIDDEN, NOT_FOUND, NO_CONTENT, OK, UNAUTHORIZED}
+import fr.maif.izanami.api.BaseAPISpec.{
+  TestPersonnalAccessToken,
+  TestSituationBuilder,
+  TestTenant,
+  TestUser
+}
+import play.api.http.Status.{
+  BAD_REQUEST,
+  CREATED,
+  FORBIDDEN,
+  NOT_FOUND,
+  NO_CONTENT,
+  OK,
+  UNAUTHORIZED
+}
 import play.api.libs.json.{JsArray, JsObject}
 
 import java.time.{LocalDateTime, ZoneId}
@@ -19,7 +32,9 @@ class TokenAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build()
 
-      val response = situation.createPersonnalAccessToken(TestPersonnalAccessToken("abcdefghij" * 21, allRights = true))
+      val response = situation.createPersonnalAccessToken(
+        TestPersonnalAccessToken("abcdefghij" * 21, allRights = true)
+      )
       response.status mustBe BAD_REQUEST
     }
 
@@ -33,7 +48,9 @@ class TokenAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build()
 
-      val response = situation.createPersonnalAccessToken(TestPersonnalAccessToken("test-token", allRights = true))
+      val response = situation.createPersonnalAccessToken(
+        TestPersonnalAccessToken("test-token", allRights = true)
+      )
       response.status mustBe CREATED
     }
 
@@ -48,7 +65,11 @@ class TokenAPISpec extends BaseAPISpec {
         .build()
 
       val response = situation.createPersonnalAccessToken(
-        TestPersonnalAccessToken("test-token", allRights = false, rights = Map("tenant" -> Set("EXPORT")))
+        TestPersonnalAccessToken(
+          "test-token",
+          allRights = false,
+          rights = Map("tenant" -> Set("EXPORT"))
+        )
       )
       response.status mustBe CREATED
     }
@@ -63,7 +84,9 @@ class TokenAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build()
 
-      val response = situation.createPersonnalAccessToken(TestPersonnalAccessToken(null, allRights = true))
+      val response = situation.createPersonnalAccessToken(
+        TestPersonnalAccessToken(null, allRights = true)
+      )
       response.status mustBe BAD_REQUEST
     }
 
@@ -78,7 +101,11 @@ class TokenAPISpec extends BaseAPISpec {
         .build()
 
       val response = situation.createPersonnalAccessToken(
-        TestPersonnalAccessToken("foo", allRights = false, rights = Map("tenant" -> Set("EXPORT")))
+        TestPersonnalAccessToken(
+          "foo",
+          allRights = false,
+          rights = Map("tenant" -> Set("EXPORT"))
+        )
       )
       response.status mustBe FORBIDDEN
     }
@@ -89,7 +116,11 @@ class TokenAPISpec extends BaseAPISpec {
         .build()
 
       val response = situation.createPersonnalAccessToken(
-        TestPersonnalAccessToken("test-token", allRights = false, rights = Map("tenant" -> Set("EXPORT")))
+        TestPersonnalAccessToken(
+          "test-token",
+          allRights = false,
+          rights = Map("tenant" -> Set("EXPORT"))
+        )
       )
       response.status mustBe NOT_FOUND
     }
@@ -113,7 +144,7 @@ class TokenAPISpec extends BaseAPISpec {
         )
       )
       response.status mustBe CREATED
-      val json     = response.json.get
+      val json = response.json.get
       (json \ "expiresAt").as[String] mustEqual "2024-01-01T00:00:00"
       (json \ "expirationTimezone").as[String] mustEqual "Europe/Paris"
     }
@@ -148,17 +179,21 @@ class TokenAPISpec extends BaseAPISpec {
           TestPersonnalAccessToken(name = "foo", allRights = true),
           TestPersonnalAccessToken(name = "bar", allRights = true),
           TestPersonnalAccessToken(name = "baz", allRights = false),
-          TestPersonnalAccessToken(name = "lol", allRights = false, rights = Map("tenant" -> Set("EXPORT", "IMPORT")))
+          TestPersonnalAccessToken(
+            name = "lol",
+            allRights = false,
+            rights = Map("tenant" -> Set("EXPORT", "IMPORT"))
+          )
         )
         .build()
 
       val response = situation.fetchPersonnalAccessTokens()
       response.status mustBe OK
-      val arr      = response.json.get.as[JsArray].value
-      val foo      = arr.find(j => (j \ "name").as[String] == "foo").get.as[JsObject]
-      val bar      = arr.find(j => (j \ "name").as[String] == "bar").get.as[JsObject]
-      val baz      = arr.find(j => (j \ "name").as[String] == "baz").get.as[JsObject]
-      val lol      = arr.find(j => (j \ "name").as[String] == "lol").get.as[JsObject]
+      val arr = response.json.get.as[JsArray].value
+      val foo = arr.find(j => (j \ "name").as[String] == "foo").get.as[JsObject]
+      val bar = arr.find(j => (j \ "name").as[String] == "bar").get.as[JsObject]
+      val baz = arr.find(j => (j \ "name").as[String] == "baz").get.as[JsObject]
+      val lol = arr.find(j => (j \ "name").as[String] == "lol").get.as[JsObject]
 
       arr.length mustEqual 4
 
@@ -169,7 +204,8 @@ class TokenAPISpec extends BaseAPISpec {
       (baz \ "rights").as[Map[String, Set[String]]] mustEqual Map.empty
 
       (lol \ "allRights").as[Boolean] mustBe false
-      (lol \ "rights" \ "tenant").as[Set[String]] mustEqual Set("EXPORT", "IMPORT")
+      (lol \ "rights" \ "tenant")
+        .as[Set[String]] mustEqual Set("EXPORT", "IMPORT")
     }
 
     "Prevent reading another user token for non admin user" in {
@@ -182,7 +218,10 @@ class TokenAPISpec extends BaseAPISpec {
           TestPersonnalAccessToken(name = "foo", allRights = true),
           TestPersonnalAccessToken(name = "bar", allRights = true)
         )
-        .withUsers(TestUser("testu", password = "testutestu").withTenantAdminRight("tenant"))
+        .withUsers(
+          TestUser("testu", password = "testutestu")
+            .withTenantAdminRight("tenant")
+        )
         .build()
       situation
         .loggedAs("testu", "testutestu")
@@ -202,7 +241,9 @@ class TokenAPISpec extends BaseAPISpec {
         )
         .withUsers(TestUser("testu", password = "testutestu").withAdminRights)
         .build()
-      val response  = situation.loggedAs("testu", "testutestu").fetchPersonnalAccessTokens("RESERVED_ADMIN_USER")
+      val response = situation
+        .loggedAs("testu", "testutestu")
+        .fetchPersonnalAccessTokens("RESERVED_ADMIN_USER")
       response.status mustBe OK
       response.json.get.as[JsArray].value.length mustEqual 2
     }
@@ -237,7 +278,7 @@ class TokenAPISpec extends BaseAPISpec {
 
       val readResponse = situation.fetchPersonnalAccessTokens()
       readResponse.status mustBe OK
-      val jsonToken    = readResponse.json.get.as[JsArray].value.head
+      val jsonToken = readResponse.json.get.as[JsArray].value.head
       (jsonToken \ "name").as[String] mustEqual "bar"
       (jsonToken \ "allRights").as[Boolean] mustEqual false
       (jsonToken \ "rights" \ "tenant").as[Set[String]] mustEqual Set("EXPORT")
@@ -281,10 +322,13 @@ class TokenAPISpec extends BaseAPISpec {
         .withPersonnalAccessToken(
           TestPersonnalAccessToken(name = "foo", allRights = true)
         )
-        .withUsers(TestUser("testu", password = "testutestu").withTenantReadWriteRight("tenant"))
+        .withUsers(
+          TestUser("testu", password = "testutestu")
+            .withTenantReadWriteRight("tenant")
+        )
         .build()
 
-      val id             = situation.findTokenId(situation.user, "foo")
+      val id = situation.findTokenId(situation.user, "foo")
       val updateResponse = situation
         .loggedAs("testu", "testutestu")
         .updatePersonnalAccessToken(
@@ -307,7 +351,7 @@ class TokenAPISpec extends BaseAPISpec {
         .withUsers(TestUser("testu", password = "testutestu").withAdminRights)
         .build()
 
-      val id             = situation.findTokenId(situation.user, "foo")
+      val id = situation.findTokenId(situation.user, "foo")
       val updateResponse = situation
         .loggedAs("testu", "testutestu")
         .updatePersonnalAccessToken(
@@ -319,7 +363,7 @@ class TokenAPISpec extends BaseAPISpec {
 
       val readResponse = situation.fetchPersonnalAccessTokens()
       readResponse.status mustBe OK
-      val jsonToken    = readResponse.json.get.as[JsArray].value.head
+      val jsonToken = readResponse.json.get.as[JsArray].value.head
       (jsonToken \ "name").as[String] mustEqual "bar"
       (jsonToken \ "allRights").as[Boolean] mustEqual false
     }
@@ -380,12 +424,16 @@ class TokenAPISpec extends BaseAPISpec {
         .withPersonnalAccessToken(
           TestPersonnalAccessToken(name = "foo", allRights = true)
         )
-        .withUsers(TestUser("testu", "testutestu").withTenantReadWriteRight("tenant"))
+        .withUsers(
+          TestUser("testu", "testutestu").withTenantReadWriteRight("tenant")
+        )
         .build()
 
       val id = situation.findTokenId(situation.user, "foo")
 
-      val response = situation.loggedAs("testu", "testutestu").deletePersonnalAccessToken(id, "RESERVED_ADMIN_USER")
+      val response = situation
+        .loggedAs("testu", "testutestu")
+        .deletePersonnalAccessToken(id, "RESERVED_ADMIN_USER")
       response.status mustBe FORBIDDEN
     }
 
@@ -403,7 +451,9 @@ class TokenAPISpec extends BaseAPISpec {
 
       val id = situation.findTokenId(situation.user, "foo")
 
-      val response = situation.loggedAs("testu", "testutestu").deletePersonnalAccessToken(id, "RESERVED_ADMIN_USER")
+      val response = situation
+        .loggedAs("testu", "testutestu")
+        .deletePersonnalAccessToken(id, "RESERVED_ADMIN_USER")
       response.status mustBe NO_CONTENT
 
       val readResponse = situation.fetchPersonnalAccessTokens()
@@ -422,7 +472,8 @@ class TokenAPISpec extends BaseAPISpec {
         )
         .build()
 
-      val response = situation.deletePersonnalAccessToken(UUID.randomUUID().toString)
+      val response =
+        situation.deletePersonnalAccessToken(UUID.randomUUID().toString)
       response.status mustBe NOT_FOUND
     }
   }

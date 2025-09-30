@@ -1,6 +1,6 @@
 package fr.maif.izanami.v1
 
-import fr.maif.izanami.models._
+import fr.maif.izanami.models.*
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldCommons.{authorizedPatternReads, toNewRights}
 
@@ -37,22 +37,12 @@ case class OldOtoroshiUser(
 ) extends OldUser {}
 
 object OldUsers {
-  import play.api.libs.json._
-
-  def toNewUser(tenant: String, user: OldUser, projects: Set[String], filterProject: Boolean): Either[String, UserWithRights] = {
-    user match {
-      case OldIzanamiUser(id, name, email, password, admin, authorizedPatterns) => UserWithRights(username=id, userType = INTERNAL,email=email, password=password.orNull, admin=admin, rights = Rights(tenants=(Map(tenant -> toNewRights(admin, authorizedPatterns, projects, filterProject)))), legacy=true).right
-      case OldOauthUser(id, name, email, admin, authorizedPatterns) => UserWithRights(username=id, userType = OIDC,email=email, password=null, admin=admin, rights = Rights(tenants=(Map(tenant -> toNewRights(admin, authorizedPatterns, projects, filterProject)))), legacy=true).right
-      case OldOtoroshiUser(id, name, email, admin, authorizedPatterns) => UserWithRights(username=id, userType = OTOROSHI,email=email, password=null, admin=admin, rights = Rights(tenants=(Map(tenant -> toNewRights(admin, authorizedPatterns, projects, filterProject)))), legacy=true).right
-      case _ => Left(s"Incorrect user type for ${user}")
-    }
-  }
-
+  import play.api.libs.json.*
 
   // TODO handle pattern
   val oldUserReads: Reads[OldUser] = {
-    import play.api.libs.functional.syntax._
-    import play.api.libs.json._
+    import play.api.libs.functional.syntax.*
+    import play.api.libs.json.*
     val commonReads =
       (__ \ "id").read[String] and
       (__ \ "name").read[String] and
@@ -77,6 +67,15 @@ object OldUsers {
       case Some(UserType.Oauth)    => readOauthUser.asInstanceOf[Reads[OldUser]]
       case Some(UserType.Izanami)  => readIzanamiUser.asInstanceOf[Reads[OldUser]]
       case _                       => readIzanamiUser.asInstanceOf[Reads[OldUser]]
+    }
+  }
+
+  def toNewUser(tenant: String, user: OldUser, projects: Set[String], filterProject: Boolean): Either[String, UserWithRights] = {
+    user match {
+      case OldIzanamiUser(id, name, email, password, admin, authorizedPatterns) => UserWithRights(username=id, userType = INTERNAL,email=email, password=password.orNull, admin=admin, rights = Rights(tenants=(Map(tenant -> toNewRights(admin, authorizedPatterns, projects, filterProject)))), legacy=true).right
+      case OldOauthUser(id, name, email, admin, authorizedPatterns) => UserWithRights(username=id, userType = OIDC,email=email, password=null, admin=admin, rights = Rights(tenants=(Map(tenant -> toNewRights(admin, authorizedPatterns, projects, filterProject)))), legacy=true).right
+      case OldOtoroshiUser(id, name, email, admin, authorizedPatterns) => UserWithRights(username=id, userType = OTOROSHI,email=email, password=null, admin=admin, rights = Rights(tenants=(Map(tenant -> toNewRights(admin, authorizedPatterns, projects, filterProject)))), legacy=true).right
+      case _ => Left(s"Incorrect user type for ${user}")
     }
   }
 }

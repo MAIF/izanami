@@ -10,7 +10,10 @@ class TenantAPISpec extends BaseAPISpec {
     "delete tenant if user is tenant admin" in {
       val testSituation = TestSituationBuilder()
         .withTenantNames("foo")
-        .withUsers(TestUser(username="test-user", password="barbar123").withTenantAdminRight("foo"))
+        .withUsers(
+          TestUser(username = "test-user", password = "barbar123")
+            .withTenantAdminRight("foo")
+        )
         .loggedAs("test-user")
         .build()
 
@@ -24,7 +27,10 @@ class TenantAPISpec extends BaseAPISpec {
     "prevent tenant suppression if user is not tenant admin" in {
       val testSituation = TestSituationBuilder()
         .withTenantNames("foo")
-        .withUsers(TestUser(username="test-user", password="barbar123").withTenantReadWriteRight("foo"))
+        .withUsers(
+          TestUser(username = "test-user", password = "barbar123")
+            .withTenantReadWriteRight("foo")
+        )
         .loggedAs("test-user")
         .build()
 
@@ -36,7 +42,7 @@ class TenantAPISpec extends BaseAPISpec {
 
     "return 404 if tenant does not exist" in {
       val testSituation = TestSituationBuilder()
-        .withUsers(TestUser(username="test-user", password="barbar123"))
+        .withUsers(TestUser(username = "test-user", password = "barbar123"))
         .loggedAs("test-user")
         .build()
 
@@ -55,7 +61,10 @@ class TenantAPISpec extends BaseAPISpec {
       var response = testSituation.createTenant(name)
       response.status mustBe BAD_REQUEST
 
-      response = testSituation.createTenant("abcdefghij", description = "abcdefghij" * 51)
+      response = testSituation.createTenant(
+        "abcdefghij",
+        description = "abcdefghij" * 51
+      )
       response.status mustBe BAD_REQUEST
     }
 
@@ -68,18 +77,18 @@ class TenantAPISpec extends BaseAPISpec {
       response.status mustBe BAD_REQUEST
 
     }
-      "prevent tenant creation if user is not admin" in {
-        val testSituation = TestSituationBuilder()
-          .withUsers(TestUser(username="test-user", password="barbar123"))
-          .loggedAs("test-user")
-          .build()
+    "prevent tenant creation if user is not admin" in {
+      val testSituation = TestSituationBuilder()
+        .withUsers(TestUser(username = "test-user", password = "barbar123"))
+        .loggedAs("test-user")
+        .build()
 
-        val response = testSituation.createTenant("foo")
-        response.status mustBe FORBIDDEN
+      val response = testSituation.createTenant("foo")
+      response.status mustBe FORBIDDEN
 
-      }
+    }
 
-      "require authentication" in {
+    "require authentication" in {
       val testSituation = TestSituationBuilder()
         .build()
 
@@ -96,7 +105,7 @@ class TenantAPISpec extends BaseAPISpec {
       val name = "my-tenant"
       val response = testSituation.createTenant(name)
 
-        response.status mustBe CREATED
+      response.status mustBe CREATED
       val json = response.json
       (json.get \ "name").as[String] mustEqual name
     }
@@ -111,7 +120,8 @@ class TenantAPISpec extends BaseAPISpec {
       response.status mustBe CREATED
 
       val rights = testSituation.fetchUserRights()
-      (rights.json.get \ "rights" \ "tenants" \ "my-tenant" \ "level").as[String] mustEqual "Admin"
+      (rights.json.get \ "rights" \ "tenants" \ "my-tenant" \ "level")
+        .as[String] mustEqual "Admin"
     }
 
     "allow tenant creation with description" in {
@@ -162,40 +172,51 @@ class TenantAPISpec extends BaseAPISpec {
 
       fetchResponse.status mustBe OK
       val json = fetchResponse.json
-      json mustBe a [Success[_]]
-      (json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("foo", "bar")
+      json mustBe a[Success[_]]
+      (json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("foo", "bar")
     }
 
     "return authorized tenants only" in {
       val testSituation = TestSituationBuilder()
         .withTenantNames("foo", "bar", "baz")
-        .withUsers(TestUser("tuser").withTenantReadRight("foo").withTenantReadRight("baz"))
+        .withUsers(
+          TestUser("tuser")
+            .withTenantReadRight("foo")
+            .withTenantReadRight("baz")
+        )
         .loggedAs("tuser")
         .build()
       val fetchResponse = testSituation.fetchTenants()
 
       fetchResponse.status mustBe OK
       val json = fetchResponse.json
-      json mustBe a [Success[_]]
-      (json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("foo", "baz")
+      json mustBe a[Success[_]]
+      (json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("foo", "baz")
     }
 
     "filter tenant with provided right" in {
       val testSituation = TestSituationBuilder()
         .withTenantNames("foo", "bar", "baz")
-        .withUsers(TestUser("tuser")
-          .withTenantReadWriteRight("foo")
-          .withTenantAdminRight("baz")
-          .withTenantReadRight("bar")
+        .withUsers(
+          TestUser("tuser")
+            .withTenantReadWriteRight("foo")
+            .withTenantAdminRight("baz")
+            .withTenantReadRight("bar")
         )
         .loggedAs("tuser")
         .build()
-      val fetchResponse = testSituation.fetchTenants(right="Write")
+      val fetchResponse = testSituation.fetchTenants(right = "Write")
 
       fetchResponse.status mustBe OK
       val json = fetchResponse.json
-      json mustBe a [Success[_]]
-      (json.get \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("foo", "baz")
+      json mustBe a[Success[_]]
+      (json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("foo", "baz")
     }
   }
 
@@ -203,7 +224,9 @@ class TenantAPISpec extends BaseAPISpec {
     "return forbidden if user is not authorized to read tenant" in {
       val tenantName = "foo"
       val testSituation = TestSituationBuilder()
-        .withTenants(TestTenant(tenantName).withProjectNames("foo-1", "foo-2", "foo-3"))
+        .withTenants(
+          TestTenant(tenantName).withProjectNames("foo-1", "foo-2", "foo-3")
+        )
         .withUsers(TestUser("tuser"))
         .loggedAs("tuser")
         .build()
@@ -215,7 +238,9 @@ class TenantAPISpec extends BaseAPISpec {
     "return tenant and its projects if it exists" in {
       val tenantName = "foo"
       val testSituation = TestSituationBuilder()
-        .withTenants(TestTenant(tenantName).withProjectNames("foo-1", "foo-2", "foo-3"))
+        .withTenants(
+          TestTenant(tenantName).withProjectNames("foo-1", "foo-2", "foo-3")
+        )
         .loggedInWithAdminRights()
         .build()
 
@@ -223,7 +248,9 @@ class TenantAPISpec extends BaseAPISpec {
 
       val tenant = fetchResponse.json.get
       (tenant \ "name").as[String] mustEqual tenantName
-      (tenant \ "projects" \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("foo-1", "foo-2", "foo-3")
+      (tenant \ "projects" \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("foo-1", "foo-2", "foo-3")
     }
 
     "return only projects of the given tenant" in {
@@ -240,7 +267,9 @@ class TenantAPISpec extends BaseAPISpec {
 
       val json = fetchResponse.json.get
       (json \ "name").as[String] mustEqual "foo"
-      (json \ "projects" \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("foo-1")
+      (json \ "projects" \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("foo-1")
     }
 
     "return tenant's tags" in {
@@ -248,8 +277,8 @@ class TenantAPISpec extends BaseAPISpec {
       val otherTenantName = "another"
       val testSituation = TestSituationBuilder()
         .withTenants(
-          TestTenant(name=tenantName).withTagNames("tag-1", "tag-2"),
-          TestTenant(name=otherTenantName).withTagNames("tag-3")
+          TestTenant(name = tenantName).withTagNames("tag-1", "tag-2"),
+          TestTenant(name = otherTenantName).withTagNames("tag-3")
         )
         .loggedInWithAdminRights()
         .build()
@@ -258,47 +287,70 @@ class TenantAPISpec extends BaseAPISpec {
 
       val json = fetchResponse.json.get
       (json \ "name").as[String] mustEqual tenantName
-      (json \ "tags" \\ "name").map(v => v.as[String]) must contain theSameElementsAs Seq("tag-1", "tag-2")
+      (json \ "tags" \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("tag-1", "tag-2")
     }
   }
 
   "Tenant update endpoint" should {
     "prevent updating tenant description" in {
-      val situation = TestSituationBuilder().withTenants(TestTenant("foo", "my description"))
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("foo", "my description"))
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.updateTenant("foo", newName="foo", description="abcdefghij" * 51)
+      val response = situation.updateTenant(
+        "foo",
+        newName = "foo",
+        description = "abcdefghij" * 51
+      )
       response.status mustEqual BAD_REQUEST
     }
 
     "allow to update tenant description" in {
-      val situation = TestSituationBuilder().withTenants(TestTenant("foo", "my description"))
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("foo", "my description"))
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.updateTenant("foo", newName="foo", description="new description")
+      val response = situation.updateTenant(
+        "foo",
+        newName = "foo",
+        description = "new description"
+      )
       response.status mustEqual NO_CONTENT
 
       val tenantResponse = situation.fetchTenant("foo")
-      (tenantResponse.json.get \ "description").as[String] mustEqual "new description"
+      (tenantResponse.json.get \ "description")
+        .as[String] mustEqual "new description"
     }
 
     "not allow to update tenant name" in {
-      val situation = TestSituationBuilder().withTenants(TestTenant("foo", "my description"))
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("foo", "my description"))
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.updateTenant("foo", newName="bar", description="my description")
+      val response = situation.updateTenant(
+        "foo",
+        newName = "bar",
+        description = "my description"
+      )
       response.status mustEqual BAD_REQUEST
     }
 
     "return 404 if tenant does not exist" in {
-      val situation = TestSituationBuilder().withTenants(TestTenant("foo", "my description"))
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("foo", "my description"))
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.updateTenant("bar", newName="bar", description="my description")
+      val response = situation.updateTenant(
+        "bar",
+        newName = "bar",
+        description = "my description"
+      )
       response.status mustEqual NOT_FOUND
     }
 
@@ -309,7 +361,11 @@ class TenantAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build()
 
-      val response = situation.updateTenant("foo", newName="foo", description="new description")
+      val response = situation.updateTenant(
+        "foo",
+        newName = "foo",
+        description = "new description"
+      )
       response.status mustEqual FORBIDDEN
     }
   }

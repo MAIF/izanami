@@ -48,7 +48,9 @@ class PluginAPISpec extends BaseAPISpec {
       )
 
       val response = situation.fetchTenantScripts("tenant")
-      (response.json.get \\ "name").map(jsv => jsv.as[String]) must contain theSameElementsAs Seq("wasmScript")
+      (response.json.get \\ "name").map(jsv =>
+        jsv.as[String]
+      ) must contain theSameElementsAs Seq("wasmScript")
     }
   }
 
@@ -75,7 +77,7 @@ class PluginAPISpec extends BaseAPISpec {
       )
 
       val response = situation.fetchTenantScript("tenant", "wasmScript")
-      val json     = response.json.get
+      val json = response.json.get
       (json \ "name").as[String] mustEqual "wasmScript"
       (json \ "source" \ "kind").as[String] mustEqual "Base64"
       (json \ "source" \ "path").as[String] must not be null
@@ -109,7 +111,13 @@ class PluginAPISpec extends BaseAPISpec {
       val deleteScriptResponse = situation.deleteScript("tenant", "wasmScript")
       deleteScriptResponse.status mustEqual NO_CONTENT
 
-      situation.fetchTenantScripts("tenant").json.get.as[JsArray].value.length mustEqual 0
+      situation
+        .fetchTenantScripts("tenant")
+        .json
+        .get
+        .as[JsArray]
+        .value
+        .length mustEqual 0
     }
 
     "prevent script deletion if feature depends on it" in {
@@ -136,7 +144,13 @@ class PluginAPISpec extends BaseAPISpec {
       val deleteScriptResponse = situation.deleteScript("tenant", "wasmScript")
       deleteScriptResponse.status mustEqual BAD_REQUEST
 
-      situation.fetchTenantScripts("tenant").json.get.as[JsArray].value.length mustEqual 1
+      situation
+        .fetchTenantScripts("tenant")
+        .json
+        .get
+        .as[JsArray]
+        .value
+        .length mustEqual 1
     }
   }
 
@@ -178,7 +192,9 @@ class PluginAPISpec extends BaseAPISpec {
       updateScriptResponse.status mustBe NO_CONTENT
       val response = situation.fetchProject("tenant", "foo")
 
-      (response.json.get \\ "wasmConfig").map(js => js.as[String]).head mustEqual "wasmScript2"
+      (response.json.get \\ "wasmConfig")
+        .map(js => js.as[String])
+        .head mustEqual "wasmScript2"
     }
 
     "allow to update script configuration" in {

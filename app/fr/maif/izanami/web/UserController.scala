@@ -2,15 +2,15 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{BadBodyFormat, EmailAlreadyUsed, IzanamiError}
-import fr.maif.izanami.models.Rights._
-import fr.maif.izanami.models.User._
-import fr.maif.izanami.models._
+import fr.maif.izanami.models.*
+import fr.maif.izanami.models.Rights.*
+import fr.maif.izanami.models.User.*
 import fr.maif.izanami.services.RightService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ImportController.Skip
 import play.api.data.validation.{Constraints, Valid}
-import play.api.libs.json._
-import play.api.mvc._
+import play.api.libs.json.*
+import play.api.mvc.*
 
 import java.util.Objects
 import scala.concurrent.{ExecutionContext, Future}
@@ -30,20 +30,6 @@ class UserController(
     val rightService: RightService
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
-
-  def hasRight(loggedInUser: UserWithTenantRights, admin: Boolean, rights: Rights): Boolean = {
-    val loggedInUserTenantsAdmin = loggedInUser.tenantRights.filter { case (_, right) =>
-      right == RightLevel.Admin
-    }.keySet
-    if (!loggedInUser.admin && loggedInUserTenantsAdmin.isEmpty) {
-      false
-    } else if (admin) {
-      loggedInUser.admin
-    } else {
-      val tenants = rights.tenants.keySet
-      loggedInUser.admin || tenants.subsetOf(loggedInUserTenantsAdmin)
-    }
-  }
 
   def sendInvitation(): Action[JsValue] = tenantRightsAction.async(parse.json) { implicit request =>
     {
@@ -95,6 +81,20 @@ class UserController(
                 )
           )
         })
+    }
+  }
+
+  def hasRight(loggedInUser: UserWithTenantRights, admin: Boolean, rights: Rights): Boolean = {
+    val loggedInUserTenantsAdmin = loggedInUser.tenantRights.filter { case (_, right) =>
+      right == RightLevel.Admin
+    }.keySet
+    if (!loggedInUser.admin && loggedInUserTenantsAdmin.isEmpty) {
+      false
+    } else if (admin) {
+      loggedInUser.admin
+    } else {
+      val tenants = rights.tenants.keySet
+      loggedInUser.admin || tenants.subsetOf(loggedInUserTenantsAdmin)
     }
   }
 

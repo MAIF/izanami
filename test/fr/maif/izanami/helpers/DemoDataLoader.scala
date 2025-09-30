@@ -26,8 +26,14 @@ object DemoDataLoader {
                         .beginAt(LocalDateTime.now())
                         .endAt(LocalDateTime.now().plusWeeks(1))
                         .atHours(
-                          TestHourPeriod(LocalTime.of(8, 0), LocalTime.of(12, 0)),
-                          TestHourPeriod(LocalTime.of(14, 0), LocalTime.of(18, 0))
+                          TestHourPeriod(
+                            LocalTime.of(8, 0),
+                            LocalTime.of(12, 0)
+                          ),
+                          TestHourPeriod(
+                            LocalTime.of(14, 0),
+                            LocalTime.of(18, 0)
+                          )
                         )
                         .atDays(
                           DayOfWeek.MONDAY,
@@ -55,7 +61,9 @@ object DemoDataLoader {
                             enabled = false,
                             conditions = Set(
                               TestCondition(period =
-                                TestDateTimePeriod(days = TestDayPeriod(days = Set(DayOfWeek.SUNDAY)))
+                                TestDateTimePeriod(days =
+                                  TestDayPeriod(days = Set(DayOfWeek.SUNDAY))
+                                )
                               )
                             )
                           )
@@ -83,7 +91,11 @@ object DemoDataLoader {
       )
       .withTenants(
         TestTenant("demo2")
-          .withProjects(TestProject("project21").withFeatureNames("feature211", "feature212"), TestProject("project22"))
+          .withProjects(
+            TestProject("project21")
+              .withFeatureNames("feature211", "feature212"),
+            TestProject("project22")
+          )
           .withApiKeyNames("key21", "key22")
       )
       .withUsers(

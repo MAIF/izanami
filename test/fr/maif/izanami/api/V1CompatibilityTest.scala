@@ -30,8 +30,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -44,7 +45,11 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val response =
-        situation.readFeatureAsLegacy("project:foo:default-feature", clientId = clientId, clientSecret = clientSecret)
+        situation.readFeatureAsLegacy(
+          "project:foo:default-feature",
+          clientId = clientId,
+          clientSecret = clientSecret
+        )
       response.status mustBe OK
 
       val json = response.json.get
@@ -59,8 +64,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -91,8 +97,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -114,7 +121,8 @@ class V1CompatibilityTest extends BaseAPISpec {
       val json = response.json.get
 
       (json \ "activationStrategy").as[String] mustEqual "CUSTOMERS_LIST"
-      (json \ "parameters" \ "customers").as[Seq[String]] must contain theSameElementsAs Seq("foo", "bar", "baz")
+      (json \ "parameters" \ "customers")
+        .as[Seq[String]] must contain theSameElementsAs Seq("foo", "bar", "baz")
     }
 
     "convert date range legacy feature to V1 format" in {
@@ -123,8 +131,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -137,7 +146,11 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val response =
-        situation.readFeatureAsLegacy("project:test:date-range", clientId = clientId, clientSecret = clientSecret)
+        situation.readFeatureAsLegacy(
+          "project:test:date-range",
+          clientId = clientId,
+          clientSecret = clientSecret
+        )
       response.status mustBe OK
 
       val json = response.json.get
@@ -153,8 +166,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -167,13 +181,18 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val response =
-        situation.readFeatureAsLegacy("project:baz:release-date", clientId = clientId, clientSecret = clientSecret)
+        situation.readFeatureAsLegacy(
+          "project:baz:release-date",
+          clientId = clientId,
+          clientSecret = clientSecret
+        )
       response.status mustBe OK
 
       val json = response.json.get
 
       (json \ "activationStrategy").as[String] mustEqual "RELEASE_DATE"
-      (json \ "parameters" \ "releaseDate").as[String] mustEqual "2023-07-22 14:18:11"
+      (json \ "parameters" \ "releaseDate")
+        .as[String] mustEqual "2023-07-22 14:18:11"
     }
 
     "convert hour range legacy feature to V1 format" in {
@@ -182,8 +201,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -215,9 +235,10 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val uuid         = UUID.randomUUID()
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val uuid = UUID.randomUUID()
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       val importRest = situation.importAndWaitTermination(
         "tenant",
@@ -263,8 +284,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -273,9 +295,14 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val id       = situation.findFeatureId("tenant", "project", "modern-feature")
-      val response = situation.readFeatureAsLegacy(id.get, clientId = clientId, clientSecret = clientSecret)
-      (response.json.get \ "activationStrategy").as[String] mustEqual "GLOBAL_SCRIPT"
+      val id = situation.findFeatureId("tenant", "project", "modern-feature")
+      val response = situation.readFeatureAsLegacy(
+        id.get,
+        clientId = clientId,
+        clientSecret = clientSecret
+      )
+      (response.json.get \ "activationStrategy")
+        .as[String] mustEqual "GLOBAL_SCRIPT"
       response.status mustBe OK
     }
   }
@@ -287,8 +314,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -303,20 +331,31 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val result =
-        situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern = None, active = true)
+        situation.readFeaturesAsLegacy(
+          clientId = clientId,
+          clientSecret = clientSecret,
+          pattern = None,
+          active = true
+        )
       result.status mustBe OK
 
-      val json         = result.json.get
+      val json = result.json.get
       val featureArray = (json \ "results").as[JsArray]
       featureArray.value must have size 3
 
-      val barFeature = featureArray.value.find(elem => (elem \ "id").as[String] == "project:foo:bar").get
+      val barFeature = featureArray.value
+        .find(elem => (elem \ "id").as[String] == "project:foo:bar")
+        .get
       (barFeature \ "active").as[Boolean] mustBe true
 
-      val bazFeature = featureArray.value.find(elem => (elem \ "id").as[String] == "project:foo:baz").get
+      val bazFeature = featureArray.value
+        .find(elem => (elem \ "id").as[String] == "project:foo:baz")
+        .get
       (bazFeature \ "active").as[Boolean] mustBe false
 
-      val barFeature2 = featureArray.value.find(elem => (elem \ "id").as[String] == "project1:baz:bar").get
+      val barFeature2 = featureArray.value
+        .find(elem => (elem \ "id").as[String] == "project1:baz:bar")
+        .get
       (barFeature2 \ "active").as[Boolean] mustBe true
     }
 
@@ -326,8 +365,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -350,14 +390,18 @@ class V1CompatibilityTest extends BaseAPISpec {
         )
       result.status mustBe OK
 
-      val json         = result.json.get
+      val json = result.json.get
       val featureArray = (json \ "results").as[JsArray]
       featureArray.value must have size 2
 
-      val barFeature = featureArray.value.find(elem => (elem \ "id").as[String] == "project:foo:bar").get
+      val barFeature = featureArray.value
+        .find(elem => (elem \ "id").as[String] == "project:foo:bar")
+        .get
       (barFeature \ "active").as[Boolean] mustBe true
 
-      val bazFeature = featureArray.value.find(elem => (elem \ "id").as[String] == "project:foo:baz").get
+      val bazFeature = featureArray.value
+        .find(elem => (elem \ "id").as[String] == "project:foo:baz")
+        .get
       (bazFeature \ "active").as[Boolean] mustBe false
     }
 
@@ -367,8 +411,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -394,7 +439,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
       result.status mustBe OK
 
-      val json         = result.json.get
+      val json = result.json.get
       val featureArray = (json \ "results").as[JsArray]
       featureArray.value must have size 5
 
@@ -410,8 +455,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -438,7 +484,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
       result.status mustBe OK
 
-      val json         = result.json.get
+      val json = result.json.get
       val featureArray = (json \ "results").as[JsArray]
       featureArray.value must have size 2
 
@@ -454,8 +500,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -504,14 +551,18 @@ class V1CompatibilityTest extends BaseAPISpec {
         .withTenants(
           TestTenant("tenant").withProjects(
             TestProject("project")
-              .withFeatures(TestFeature("modern1", id = "project:f1"), TestFeature("modern2", id = "project:f2"))
+              .withFeatures(
+                TestFeature("modern1", id = "project:f1"),
+                TestFeature("modern2", id = "project:f2")
+              )
           )
         )
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -528,9 +579,13 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val result =
-        situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern = Some("project:*"))
+        situation.readFeaturesAsLegacy(
+          clientId = clientId,
+          clientSecret = clientSecret,
+          pattern = Some("project:*")
+        )
 
-      val json         = result.json.get
+      val json = result.json.get
       val featureArray = (json \ "results").as[JsArray]
       featureArray.value must have size 4
 
@@ -543,8 +598,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -562,9 +618,13 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val result =
-        situation.readFeaturesAsLegacy(clientId = clientId, clientSecret = clientSecret, pattern = Some("project:*"))
+        situation.readFeaturesAsLegacy(
+          clientId = clientId,
+          clientSecret = clientSecret,
+          pattern = Some("project:*")
+        )
 
-      val json         = result.json.get
+      val json = result.json.get
       val featureArray = (json \ "results").as[JsArray]
       featureArray.value must have size 4
 
@@ -579,8 +639,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",

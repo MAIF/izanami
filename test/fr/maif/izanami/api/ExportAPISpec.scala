@@ -1,6 +1,16 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{ADMIN_BASE_URL, RequestResult, TestFeature, TestPersonnalAccessToken, TestProject, TestSituationBuilder, TestTenant, TestUser, ws}
+import fr.maif.izanami.api.BaseAPISpec.{
+  ADMIN_BASE_URL,
+  RequestResult,
+  TestFeature,
+  TestPersonnalAccessToken,
+  TestProject,
+  TestSituationBuilder,
+  TestTenant,
+  TestUser,
+  ws
+}
 import play.api.http.Status.{FORBIDDEN, OK, UNAUTHORIZED}
 import play.api.libs.json.Json
 import play.api.test.Helpers.await
@@ -12,7 +22,11 @@ import scala.util.Try
 import play.api.libs.ws.writeableOf_JsValue
 
 class ExportAPISpec extends BaseAPISpec {
-  def exportWithToken(tenant: String, user: String, secret: String): RequestResult = {
+  def exportWithToken(
+      tenant: String,
+      user: String,
+      secret: String
+  ): RequestResult = {
     val response = await(
       ws.url(s"${ADMIN_BASE_URL}/tenants/$tenant/_export")
         .addHttpHeaders(
@@ -21,12 +35,12 @@ class ExportAPISpec extends BaseAPISpec {
         .post(
           Json.obj(
             "allProjects" -> true,
-            "allKeys"     -> true,
+            "allKeys" -> true,
             "allWebhooks" -> true,
-            "userRights"  -> false,
-            "webhooks"    -> Seq[String](),
-            "projects"    -> Seq[String](),
-            "keys"        -> Seq[String]()
+            "userRights" -> false,
+            "webhooks" -> Seq[String](),
+            "projects" -> Seq[String](),
+            "keys" -> Seq[String]()
           )
         )
     )
@@ -68,7 +82,9 @@ class ExportAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build()
 
-      val resp = situation.createPersonnalAccessToken(TestPersonnalAccessToken(name = "foo", allRights = true))
+      val resp = situation.createPersonnalAccessToken(
+        TestPersonnalAccessToken(name = "foo", allRights = true)
+      )
 
       val secret = (resp.json.get \ "token").as[String]
       exportWithToken("tenant", situation.user, secret).status mustBe OK
@@ -88,7 +104,9 @@ class ExportAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build()
 
-      val resp = situation.createPersonnalAccessToken(TestPersonnalAccessToken(name = "foo", allRights = true))
+      val resp = situation.createPersonnalAccessToken(
+        TestPersonnalAccessToken(name = "foo", allRights = true)
+      )
 
       val secret = (resp.json.get \ "token").as[String]
       exportWithToken("tenant", situation.user, secret).status mustBe FORBIDDEN
@@ -116,9 +134,12 @@ class ExportAPISpec extends BaseAPISpec {
       )
 
       val secret = (resp.json.get \ "token").as[String]
-      exportWithToken("tenant", situation.user, secret).status mustBe UNAUTHORIZED
+      exportWithToken(
+        "tenant",
+        situation.user,
+        secret
+      ).status mustBe UNAUTHORIZED
     }
-
 
     "Allow export with personnal access tokens with all rights if token is not expired" in {
       val situation = TestSituationBuilder()
@@ -190,7 +211,11 @@ class ExportAPISpec extends BaseAPISpec {
       )
 
       val secret = (resp.json.get \ "token").as[String]
-      exportWithToken("tenant", situation.user, secret).status mustBe UNAUTHORIZED
+      exportWithToken(
+        "tenant",
+        situation.user,
+        secret
+      ).status mustBe UNAUTHORIZED
     }
   }
 

@@ -4,7 +4,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.models.{RightLevel, Tag}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
-import play.api.mvc._
+import play.api.mvc.*
 
 import scala.concurrent.{ExecutionContext, Future}
 

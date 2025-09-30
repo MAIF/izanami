@@ -1,18 +1,17 @@
 package fr.maif.izanami.v1
 
-import org.apache.pekko.util.ByteString
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{ConfigurationReadError, IzanamiError, NoWasmManagerConfigured}
-import fr.maif.izanami.models.IzanamiConfiguration
+import fr.maif.izanami.errors.{IzanamiError, NoWasmManagerConfigured}
 import fr.maif.izanami.v1.OldScripts.generateNewScriptContent
 import io.otoroshi.wasm4s.scaladsl.{ApikeyHelper, WasmoSettings}
+import org.apache.pekko.util.ByteString
 import org.mozilla.javascript.Parser
-import org.mozilla.javascript.ast._
+import org.mozilla.javascript.ast.*
 import play.api.Logger
-import play.api.libs.json.{JsBoolean, Json}
-import play.api.libs.ws.WSClient
-import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue
+import play.api.libs.json.Json
 import play.api.libs.ws.DefaultBodyWritables.writeableOf_String
+import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue
+import play.api.libs.ws.WSClient
 
 import java.time.Duration
 import scala.concurrent.{ExecutionContext, Future}
@@ -20,8 +19,6 @@ import scala.concurrent.{ExecutionContext, Future}
 class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
   implicit val logger: Logger = env.logger
   val httpClient: WSClient    = env.Ws
-
-  def wasmoConfiguration: Option[WasmoSettings] = env.datastores.configuration.readWasmConfiguration()
 
   def transferLegacyJsScript(
       name: String,
@@ -40,6 +37,8 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
       }
     }
   }
+
+  def wasmoConfiguration: Option[WasmoSettings] = env.datastores.configuration.readWasmConfiguration()
 
   def createScript(
       name: String,

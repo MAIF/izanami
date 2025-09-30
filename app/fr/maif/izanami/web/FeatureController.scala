@@ -2,18 +2,18 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{FeatureNotFound, IncorrectKey, IzanamiError, TagDoesNotExists}
-import fr.maif.izanami.models.Feature._
+import fr.maif.izanami.models.*
+import fr.maif.izanami.models.Feature.*
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
 import fr.maif.izanami.models.LightWeightFeatureWithUsageInformation.writeLightWeightFeatureWithUsageInformation
-import fr.maif.izanami.models._
-import fr.maif.izanami.models.features._
+import fr.maif.izanami.models.features.*
 import fr.maif.izanami.services.{FeatureService, FeatureUsageService}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
+import play.api.libs.json.*
 import play.api.libs.json.Format.GenericFormat
 import play.api.libs.json.Json.JsValueWrapper
-import play.api.libs.json._
-import play.api.mvc._
+import play.api.mvc.*
 
 import java.time.Instant
 import java.util.Base64
@@ -192,6 +192,96 @@ class FeatureController(
             }
         }
         case None                           => Unauthorized(Json.obj("message" -> "Missing or incorrect authorization headers")).future
+      }
+    }
+  }
+
+  private def queryFeatures(
+      conditions: Boolean,
+      requestContext: RequestContext,
+      featureRequest: FeatureRequest,
+      clientId: String,
+      clientSecret: String,
+      origin: FeatureCallOrigin
+  ): Future[Either[IzanamiError, JsValue]] = {
+
+    val evaluatedFeatures =
+      featureService.evaluateFeatures(conditions, requestContext, featureRequest, clientId, clientSecret)
+    evaluatedFeatures.map {
+      case Left(error)                      => Left(error)
+      case Right(evaluatedCompleteFeatures) =>
+        val response = formatFeatureResponse(evaluatedCompleteFeatures, conditions)
+        featureUsageService.registerCalls(
+          requestContext.tenant,
+          clientId,
+          evaluatedCompleteFeatures,
+          requestContext.context,
+          origin
+        )
+        // TODO handle error
+        Right(response)
+    }
+  }
+
+  private def formatFeatureResponse(
+      evaluatedCompleteFeatures: Seq[EvaluatedCompleteFeature],
+      conditions: Boolean
+  ): JsValue = {
+    val fields = evaluatedCompleteFeatures
+      .map(evaluated => {
+        val active: JsValueWrapper = evaluated.result
+        var baseJson               = Json.obj(
+          "name"    -> evaluated.baseFeature.name,
+          "active"  -> active,
+          "project" -> evaluated.baseFeature.project
+        )
+
+        if (conditions) {
+          val jsonStrategies = Json
+            .toJson(evaluated.featureStrategies.strategies.map {
+              case (ctx, feature) => {
+                (
+                  ctx,
+                  writeConditions(feature)
+                )
+              }
+            })
+            .as[JsObject]
+          baseJson = baseJson + ("conditions" -> jsonStrategies)
+        }
+        (evaluated.baseFeature.id, baseJson)
+      })
+      .toMap
+    Json.toJson(fields)
+  }
+
+  def writeConditions(f: CompleteFeature): JsObject = {
+    val resultType: JsValueWrapper = Json.toJson(f.resultType)(ResultType.resultTypeWrites)
+    val baseJson                   = Json.obj(
+      "enabled"    -> f.enabled,
+      "resultType" -> resultType
+    )
+    f match {
+      case w: CompleteWasmFeature => baseJson + ("wasmConfig" -> Json.obj("name" -> w.wasmConfig.name))
+      case f                      => {
+        val conditions = f match {
+          case s: SingleConditionFeature => s.toModernFeature.resultDescriptor.conditions
+          case f: Feature                => f.resultDescriptor.conditions
+          case _ => throw new RuntimeException("This should never happen")
+        }
+
+        val maybeValue = f match {
+          case f: Feature =>
+            f.resultDescriptor match {
+              case descriptor: ValuedResultDescriptor => Option(descriptor.jsonValue)
+              case _                                  => None
+            }
+          case _          => None
+        }
+
+        baseJson.applyOnWithOpt(maybeValue)((json, v) => json + ("value" -> v)) + ("conditions" -> Json.toJson(
+          conditions
+        )(Writes.seq(ActivationCondition.activationConditionWrite)))
       }
     }
   }
@@ -479,95 +569,5 @@ class FeatureController(
 
   def deleteFeature(tenant: String, id: String): Action[AnyContent] = detailledRightForTenanFactory(tenant).async {
     implicit request => featureService.deleteFeature(tenant, id, request.user, request.authentication).toResult(_ => NoContent)
-  }
-
-  private def queryFeatures(
-      conditions: Boolean,
-      requestContext: RequestContext,
-      featureRequest: FeatureRequest,
-      clientId: String,
-      clientSecret: String,
-      origin: FeatureCallOrigin
-  ): Future[Either[IzanamiError, JsValue]] = {
-
-    val evaluatedFeatures =
-      featureService.evaluateFeatures(conditions, requestContext, featureRequest, clientId, clientSecret)
-    evaluatedFeatures.map {
-      case Left(error)                      => Left(error)
-      case Right(evaluatedCompleteFeatures) =>
-        val response = formatFeatureResponse(evaluatedCompleteFeatures, conditions)
-        featureUsageService.registerCalls(
-          requestContext.tenant,
-          clientId,
-          evaluatedCompleteFeatures,
-          requestContext.context,
-          origin
-        )
-        // TODO handle error
-        Right(response)
-    }
-  }
-
-  private def formatFeatureResponse(
-      evaluatedCompleteFeatures: Seq[EvaluatedCompleteFeature],
-      conditions: Boolean
-  ): JsValue = {
-    val fields = evaluatedCompleteFeatures
-      .map(evaluated => {
-        val active: JsValueWrapper = evaluated.result
-        var baseJson               = Json.obj(
-          "name"    -> evaluated.baseFeature.name,
-          "active"  -> active,
-          "project" -> evaluated.baseFeature.project
-        )
-
-        if (conditions) {
-          val jsonStrategies = Json
-            .toJson(evaluated.featureStrategies.strategies.map {
-              case (ctx, feature) => {
-                (
-                  ctx,
-                  writeConditions(feature)
-                )
-              }
-            })
-            .as[JsObject]
-          baseJson = baseJson + ("conditions" -> jsonStrategies)
-        }
-        (evaluated.baseFeature.id, baseJson)
-      })
-      .toMap
-    Json.toJson(fields)
-  }
-
-  def writeConditions(f: CompleteFeature): JsObject = {
-    val resultType: JsValueWrapper = Json.toJson(f.resultType)(ResultType.resultTypeWrites)
-    val baseJson                   = Json.obj(
-      "enabled"    -> f.enabled,
-      "resultType" -> resultType
-    )
-    f match {
-      case w: CompleteWasmFeature => baseJson + ("wasmConfig" -> Json.obj("name" -> w.wasmConfig.name))
-      case f                      => {
-        val conditions = f match {
-          case s: SingleConditionFeature => s.toModernFeature.resultDescriptor.conditions
-          case f: Feature                => f.resultDescriptor.conditions
-          case _ => throw new RuntimeException("This should never happen")
-        }
-
-        val maybeValue = f match {
-          case f: Feature =>
-            f.resultDescriptor match {
-              case descriptor: ValuedResultDescriptor => Option(descriptor.jsonValue)
-              case _                                  => None
-            }
-          case _          => None
-        }
-
-        baseJson.applyOnWithOpt(maybeValue)((json, v) => json + ("value" -> v)) + ("conditions" -> Json.toJson(
-          conditions
-        )(Writes.seq(ActivationCondition.activationConditionWrite)))
-      }
-    }
   }
 }

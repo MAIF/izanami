@@ -8,15 +8,6 @@ import play.api.libs.json.{JsNull, JsObject, JsValue, Json}
 import java.time.{Instant, LocalDateTime}
 
 object V2FeatureEvents {
-  private def baseJson(feature: JsObject, user: String): JsObject = {
-    Json.obj(
-      "_id"       -> V1FeatureEvents.gen.nextId(),
-      "timestamp" -> Instant.now(),
-      "payload"   -> feature,
-      "metadata" -> Json.obj("user" -> user)
-    )
-  }
-
   def initialEvent(json: JsValue): JsObject = {
     Json.obj(
       "_id"       -> V1FeatureEvents.gen.nextId(),
@@ -38,6 +29,15 @@ object V2FeatureEvents {
   def updateEventV2(feature: JsObject, user: String): JsObject = {
     baseJson(feature, user) ++ Json.obj(
       "type" -> "FEATURE_UPDATED",
+    )
+  }
+
+  private def baseJson(feature: JsObject, user: String): JsObject = {
+    Json.obj(
+      "_id"       -> V1FeatureEvents.gen.nextId(),
+      "timestamp" -> Instant.now(),
+      "payload"   -> feature,
+      "metadata" -> Json.obj("user" -> user)
     )
   }
 
@@ -68,19 +68,20 @@ object V2FeatureEvents {
 
 object V1FeatureEvents {
   val gen: IdGenerator = IdGenerator(1024)
+
+  def updateEvent(id: String, feature: JsObject): JsObject = {
+    baseJson(id, feature) ++ Json.obj(
+      "type"     -> "FEATURE_UPDATED",
+      "oldValue" -> feature
+    )
+  }
+
   private def baseJson(id: String, feature: JsObject): JsObject = {
     Json.obj(
       "_id"       -> gen.nextId(),
       "domain"    -> "Feature",
       "timestamp" -> LocalDateTime.now(),
       "payload"   -> feature
-    )
-  }
-
-  def updateEvent(id: String, feature: JsObject): JsObject = {
-    baseJson(id, feature) ++ Json.obj(
-      "type"     -> "FEATURE_UPDATED",
-      "oldValue" -> feature
     )
   }
 

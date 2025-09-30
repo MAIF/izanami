@@ -3,20 +3,20 @@ package fr.maif.izanami.web
 import fr.maif.izanami.RoleRightMode.Initial
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, MissingOIDCConfigurationError}
+import fr.maif.izanami.models.*
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
 import fr.maif.izanami.models.User.userRightsWrites
-import fr.maif.izanami.models._
 import fr.maif.izanami.services.RightService.RightsByRole
 import fr.maif.izanami.services.{CompleteRights, RightService}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.AuthAction.delayResponse
 import pdi.jwt.{JwtJson, JwtOptions}
 import play.api.Logger
-import play.api.libs.json._
-import play.api.libs.ws.WSAuthScheme
-import play.api.mvc.Cookie.SameSite
-import play.api.mvc._
+import play.api.libs.json.*
 import play.api.libs.ws.DefaultBodyWritables.writeableOf_urlEncodedSimpleForm
+import play.api.libs.ws.WSAuthScheme
+import play.api.mvc.*
+import play.api.mvc.Cookie.SameSite
 
 import java.security.{MessageDigest, SecureRandom}
 import java.util.Base64
@@ -31,27 +31,6 @@ class LoginController(
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
   private val logger = Logger("izanami.login")
-
-
-  private def generatePKCECodes(codeChallengeMethod: Option[String] = Some("S256")) = {
-    val code         = new Array[Byte](120)
-    val secureRandom = new SecureRandom()
-    secureRandom.nextBytes(code)
-
-
-    val codeVerifier = new String(Base64.getUrlEncoder.withoutPadding().encodeToString(code)).slice(0, 120)
-
-    val bytes  = codeVerifier.getBytes("US-ASCII")
-    val md     = MessageDigest.getInstance("SHA-256")
-    md.update(bytes, 0, bytes.length)
-    val digest = md.digest
-
-    codeChallengeMethod match {
-      case Some("S256") =>
-        (codeVerifier, org.apache.commons.codec.binary.Base64.encodeBase64URLSafeString(digest), "S256")
-      case _            => (codeVerifier, codeVerifier, "plain")
-    }
-  }
 
   def openIdConnect: Action[AnyContent] = Action.async { implicit request =>
     env.datastores.configuration.readFullConfiguration().value.map(e => e.toOption.flatMap(_.oidcConfiguration)).map {
@@ -96,6 +75,26 @@ class LoginController(
           }
         }
       }
+    }
+  }
+
+  private def generatePKCECodes(codeChallengeMethod: Option[String] = Some("S256")) = {
+    val code         = new Array[Byte](120)
+    val secureRandom = new SecureRandom()
+    secureRandom.nextBytes(code)
+
+
+    val codeVerifier = new String(Base64.getUrlEncoder.withoutPadding().encodeToString(code)).slice(0, 120)
+
+    val bytes  = codeVerifier.getBytes("US-ASCII")
+    val md     = MessageDigest.getInstance("SHA-256")
+    md.update(bytes, 0, bytes.length)
+    val digest = md.digest
+
+    codeChallengeMethod match {
+      case Some("S256") =>
+        (codeVerifier, org.apache.commons.codec.binary.Base64.encodeBase64URLSafeString(digest), "S256")
+      case _            => (codeVerifier, codeVerifier, "plain")
     }
   }
 

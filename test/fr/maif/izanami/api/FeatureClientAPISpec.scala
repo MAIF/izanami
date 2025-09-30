@@ -10,7 +10,11 @@ class FeatureClientAPISpec extends BaseAPISpec {
   "Feature check GET endpoint" should {
     "return legacy features in modern format" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("tenant").withApiKeys(TestApiKey(name = "my-key", admin = true)))
+        .withTenants(
+          TestTenant("tenant").withApiKeys(
+            TestApiKey(name = "my-key", admin = true)
+          )
+        )
         .loggedInWithAdminRights()
         .build()
 
@@ -22,11 +26,16 @@ class FeatureClientAPISpec extends BaseAPISpec {
         )
       )
 
-      val projectId = (situation.fetchProject("tenant", "project").json.get \ "id").as[String]
+      val projectId =
+        (situation.fetchProject("tenant", "project").json.get \ "id").as[String]
 
-      val response = situation.checkFeatures(key = "my-key", projects = Seq(projectId), conditions = true)
+      val response = situation.checkFeatures(
+        key = "my-key",
+        projects = Seq(projectId),
+        conditions = true
+      )
       response.status mustEqual OK
-      val json     = response.json.get
+      val json = response.json.get
       (json \ "project:another:customer-list-feature" \ "conditions" \ "" \ "conditions" \ 0 \ "rule" \ "users")
         .as[Seq[String]] must contain theSameElementsAs Seq("foo", "bar", "baz")
       (json \ "project:test:percentage-feature" \ "conditions" \ "" \ "conditions" \ 0 \ "rule" \ "percentage")
@@ -34,9 +43,9 @@ class FeatureClientAPISpec extends BaseAPISpec {
     }
 
     "return 403 if key does not authorize feature" in {
-      val tenantName      = "my-tenant"
-      val projectName     = "my-project"
-      val testSitutation  = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val testSitutation = TestSituationBuilder()
         .withTenants(
           TestTenant(tenantName)
             .withProjectNames(projectName)
@@ -50,19 +59,26 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = true
       )
-      val checkResponse   = testSitutation.checkFeature(featureResponse.id.get, key = "my-key")
+      val checkResponse =
+        testSitutation.checkFeature(featureResponse.id.get, key = "my-key")
 
       checkResponse.status mustBe FORBIDDEN
     }
 
     "return 403 if key is disabled" in {
-      val tenantName      = "my-tenant"
-      val projectName     = "my-project"
-      val testSitutation  = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val testSitutation = TestSituationBuilder()
         .withTenants(
           TestTenant(tenantName)
             .withProjectNames(projectName)
-            .withApiKeys(TestApiKey(name = "my-key", enabled = false, projects = Seq("my-project")))
+            .withApiKeys(
+              TestApiKey(
+                name = "my-key",
+                enabled = false,
+                projects = Seq("my-project")
+              )
+            )
         )
         .loggedInWithAdminRights()
         .build()
@@ -72,15 +88,16 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = true
       )
-      val checkResponse   = testSitutation.checkFeature(featureResponse.id.get, key = "my-key")
+      val checkResponse =
+        testSitutation.checkFeature(featureResponse.id.get, key = "my-key")
 
       checkResponse.status mustBe FORBIDDEN
     }
 
     "return 401 if no key is provided" in {
-      val tenantName      = "my-tenant"
-      val projectName     = "my-project"
-      val testSitutation  = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val testSitutation = TestSituationBuilder()
         .withTenants(
           TestTenant(tenantName)
             .withProjectNames(projectName)
@@ -93,15 +110,15 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = true
       )
-      val checkResponse   = checkFeature(featureResponse.id.get)
+      val checkResponse = checkFeature(featureResponse.id.get)
 
       checkResponse.status mustBe UNAUTHORIZED
     }
 
     "return feature activation status if key does not allow for feature project but is admin" in {
-      val tenantName      = "my-tenant"
-      val projectName     = "my-project"
-      val testSitutation  = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val testSitutation = TestSituationBuilder()
         .withTenants(
           TestTenant(tenantName)
             .withProjectNames(projectName)
@@ -115,18 +132,23 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = true
       )
-      val checkResponse   = testSitutation.checkFeature(featureResponse.id.get, key = "my-key")
+      val checkResponse =
+        testSitutation.checkFeature(featureResponse.id.get, key = "my-key")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
     }
 
     "return true for enabled NO_STRATEGY feature" in {
-      val tenantName      = "my-tenant"
-      val projectName     = "my-project"
-      val testSituation   = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val testSituation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureResponse = testSituation.createFeature(
         name = "feature-name",
@@ -134,18 +156,23 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = true
       )
-      val checkResponse   = testSituation.checkFeature(featureResponse.id.get, "my-key")
+      val checkResponse =
+        testSituation.checkFeature(featureResponse.id.get, "my-key")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
     }
 
     "return true for enabled wasm feature that returns true" in {
-      val tenantName      = "my-tenant"
-      val projectName     = "my-project"
-      val testSituation   = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val testSituation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureResponse = testSituation.createFeature(
         name = "feature-name",
@@ -160,18 +187,23 @@ class FeatureClientAPISpec extends BaseAPISpec {
           )
         )
       )
-      val checkResponse   = testSituation.checkFeature(featureResponse.id.get, "my-key")
+      val checkResponse =
+        testSituation.checkFeature(featureResponse.id.get, "my-key")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
     }
 
     "return false for enabled wasm feature that returns false" in {
-      val tenantName      = "my-tenant"
-      val projectName     = "my-project"
-      val testSituation   = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val testSituation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureResponse = testSituation.createFeature(
         name = "feature-name",
@@ -186,78 +218,110 @@ class FeatureClientAPISpec extends BaseAPISpec {
           )
         )
       )
-      val checkResponse   = testSituation.checkFeature(featureResponse.id.get, "my-key")
+      val checkResponse =
+        testSituation.checkFeature(featureResponse.id.get, "my-key")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe false
     }
 
     "return true for enabled RELEASE_DATE feature with past release_date" in {
-      val tenantName      = "my-tenant"
-      val projectName     = "my-project"
-      val situation       = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureResponse = situation.createFeature(
         name = "feature-name",
         project = projectName,
         tenant = tenantName,
         enabled = true,
-        conditions = Set(TestCondition(period = TestDateTimePeriod(begin = LocalDateTime.now().minusDays(1))))
+        conditions = Set(
+          TestCondition(period =
+            TestDateTimePeriod(begin = LocalDateTime.now().minusDays(1))
+          )
+        )
       )
-      val checkResponse   = situation.checkFeature(featureResponse.id.get, "my-key")
+      val checkResponse =
+        situation.checkFeature(featureResponse.id.get, "my-key")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
     }
 
     "return false for disabled RELEASE_DATE feature with past release_date" in {
-      val tenantName      = "my-tenant"
-      val projectName     = "my-project"
-      val situation       = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureResponse = situation.createFeature(
         name = "feature-name",
         project = projectName,
         tenant = tenantName,
         enabled = false,
-        conditions = Set(TestCondition(period = TestDateTimePeriod(begin = LocalDateTime.now().minusDays(1))))
+        conditions = Set(
+          TestCondition(period =
+            TestDateTimePeriod(begin = LocalDateTime.now().minusDays(1))
+          )
+        )
       )
-      val checkResponse   = situation.checkFeature(featureResponse.id.get, "my-key")
+      val checkResponse =
+        situation.checkFeature(featureResponse.id.get, "my-key")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe false
     }
 
     "return false for enabled RELEASE_DATE feature with future release_date" in {
-      val tenantName      = "my-tenant"
-      val projectName     = "my-project"
-      val situation       = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureResponse = situation.createFeature(
         name = "feature-name",
         project = projectName,
         tenant = tenantName,
         enabled = true,
-        conditions = Set(TestCondition(period = TestDateTimePeriod(begin = LocalDateTime.now().plusDays(2))))
+        conditions = Set(
+          TestCondition(period =
+            TestDateTimePeriod(begin = LocalDateTime.now().plusDays(2))
+          )
+        )
       )
-      val checkResponse   = situation.checkFeature(featureResponse.id.get, "my-key")
+      val checkResponse =
+        situation.checkFeature(featureResponse.id.get, "my-key")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe false
     }
 
     "return false for disabled NO_STRATEGY feature" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureRequest = situation.createFeature(
         name = "feature-name",
@@ -265,22 +329,25 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = false
       )
-      val checkResponse  = situation.checkFeature(featureRequest.id.get, "my-key")
+      val checkResponse =
+        situation.checkFeature(featureRequest.id.get, "my-key")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe false
     }
 
     "return true for disabled feature enabled at context level" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val contextName    = "my-context"
-      val featureName    = "feature-name"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val contextName = "my-context"
+      val featureName = "feature-name"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant(tenantName)
-            .withProjects(TestProject(projectName).withContextNames(contextName))
+            .withProjects(
+              TestProject(projectName).withContextNames(contextName)
+            )
             .withAllRightsKey("my-key")
         )
         .build()
@@ -290,23 +357,35 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = false
       )
-      situation.changeFeatureStrategyForContext(tenantName, projectName, contextName, featureName, true)
-      val checkResponse  = situation.checkFeature(featureRequest.id.get, key = "my-key", context = contextName)
+      situation.changeFeatureStrategyForContext(
+        tenantName,
+        projectName,
+        contextName,
+        featureName,
+        true
+      )
+      val checkResponse = situation.checkFeature(
+        featureRequest.id.get,
+        key = "my-key",
+        context = contextName
+      )
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
     }
 
     "return true for disabled feature enabled at context level with context starting with /" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val contextName    = "my-context"
-      val featureName    = "feature-name"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val contextName = "my-context"
+      val featureName = "feature-name"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant(tenantName)
-            .withProjects(TestProject(projectName).withContextNames(contextName))
+            .withProjects(
+              TestProject(projectName).withContextNames(contextName)
+            )
             .withAllRightsKey("my-key")
         )
         .build()
@@ -316,24 +395,37 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = false
       )
-      situation.changeFeatureStrategyForContext(tenantName, projectName, contextName, featureName, true)
-      val checkResponse  = situation.checkFeature(featureRequest.id.get, key = "my-key", context = s"/$contextName")
+      situation.changeFeatureStrategyForContext(
+        tenantName,
+        projectName,
+        contextName,
+        featureName,
+        true
+      )
+      val checkResponse = situation.checkFeature(
+        featureRequest.id.get,
+        key = "my-key",
+        context = s"/$contextName"
+      )
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
     }
 
     "return true for disabled feature enabled at context level (subcontext)" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val contextName    = "my-context"
-      val featureName    = "feature-name"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val contextName = "my-context"
+      val featureName = "feature-name"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant(tenantName)
             .withProjects(
-              TestProject(projectName).withContexts(TestFeatureContext(contextName).withSubContextNames("subcontext"))
+              TestProject(projectName).withContexts(
+                TestFeatureContext(contextName)
+                  .withSubContextNames("subcontext")
+              )
             )
             .withAllRightsKey("my-key")
         )
@@ -344,25 +436,38 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = false
       )
-      val contextPath    = s"${contextName}/subcontext"
-      situation.changeFeatureStrategyForContext(tenantName, projectName, contextPath, featureName, true)
-      val checkResponse  = situation.checkFeature(featureRequest.id.get, key = "my-key", context = contextPath)
+      val contextPath = s"${contextName}/subcontext"
+      situation.changeFeatureStrategyForContext(
+        tenantName,
+        projectName,
+        contextPath,
+        featureName,
+        true
+      )
+      val checkResponse = situation.checkFeature(
+        featureRequest.id.get,
+        key = "my-key",
+        context = contextPath
+      )
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
     }
 
     "return true for disabled feature enabled at an upper context level" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val contextName    = "my-context"
-      val featureName    = "feature-name"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val contextName = "my-context"
+      val featureName = "feature-name"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant(tenantName)
             .withProjects(
-              TestProject(projectName).withContexts(TestFeatureContext(contextName).withSubContextNames("subcontext"))
+              TestProject(projectName).withContexts(
+                TestFeatureContext(contextName)
+                  .withSubContextNames("subcontext")
+              )
             )
             .withAllRightsKey("my-key")
         )
@@ -373,25 +478,38 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = false
       )
-      situation.changeFeatureStrategyForContext(tenantName, projectName, contextName, featureName, true)
-      val checkResponse  =
-        situation.checkFeature(featureRequest.id.get, key = "my-key", context = s"${contextName}/subcontext")
+      situation.changeFeatureStrategyForContext(
+        tenantName,
+        projectName,
+        contextName,
+        featureName,
+        true
+      )
+      val checkResponse =
+        situation.checkFeature(
+          featureRequest.id.get,
+          key = "my-key",
+          context = s"${contextName}/subcontext"
+        )
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
     }
 
     "return false for disabled feature if there is no context override" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val contextName    = "my-context"
-      val featureName    = "feature-name"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val contextName = "my-context"
+      val featureName = "feature-name"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant(tenantName)
             .withProjects(
-              TestProject(projectName).withContexts(TestFeatureContext(contextName).withSubContextNames("subcontext"))
+              TestProject(projectName).withContexts(
+                TestFeatureContext(contextName)
+                  .withSubContextNames("subcontext")
+              )
             )
             .withAllRightsKey("my-key")
         )
@@ -402,24 +520,31 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = false
       )
-      val checkResponse  =
-        situation.checkFeature(featureRequest.id.get, key = "my-key", context = s"${contextName}/subcontext")
+      val checkResponse =
+        situation.checkFeature(
+          featureRequest.id.get,
+          key = "my-key",
+          context = s"${contextName}/subcontext"
+        )
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe false
     }
 
     "prioritize 'lower' context strategy when there is several overrides" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val contextName    = "my-context"
-      val featureName    = "feature-name"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val contextName = "my-context"
+      val featureName = "feature-name"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
         .withTenants(
           TestTenant(tenantName)
             .withProjects(
-              TestProject(projectName).withContexts(TestFeatureContext(contextName).withSubContextNames("subcontext"))
+              TestProject(projectName).withContexts(
+                TestFeatureContext(contextName)
+                  .withSubContextNames("subcontext")
+              )
             )
             .withAllRightsKey("my-key")
         )
@@ -430,7 +555,13 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = false
       )
-      situation.changeFeatureStrategyForContext(tenantName, projectName, contextName, featureName, false)
+      situation.changeFeatureStrategyForContext(
+        tenantName,
+        projectName,
+        contextName,
+        featureName,
+        false
+      )
       situation.changeFeatureStrategyForContext(
         tenantName,
         projectName,
@@ -438,8 +569,12 @@ class FeatureClientAPISpec extends BaseAPISpec {
         featureName,
         true
       )
-      val checkResponse  =
-        situation.checkFeature(featureRequest.id.get, key = "my-key", context = s"${contextName}/subcontext")
+      val checkResponse =
+        situation.checkFeature(
+          featureRequest.id.get,
+          key = "my-key",
+          context = s"${contextName}/subcontext"
+        )
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
@@ -447,20 +582,29 @@ class FeatureClientAPISpec extends BaseAPISpec {
 
     "return 404 for absent feature" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("my-tenant").withProjectNames("my-project").withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant("my-tenant")
+            .withProjectNames("my-project")
+            .withAllRightsKey("my-key")
+        )
         .build()
 
-      val checkResponse = situation.checkFeature("d398cb04-1476-4b32-ae9b-8bb4d5f9f3a5", "my-key")
+      val checkResponse =
+        situation.checkFeature("d398cb04-1476-4b32-ae9b-8bb4d5f9f3a5", "my-key")
 
       checkResponse.status mustBe FORBIDDEN
     }
 
     "return true for enabled DATE_RANGE feature if date is in range" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureRequest = situation.createFeature(
         name = "feature-name",
@@ -476,42 +620,23 @@ class FeatureClientAPISpec extends BaseAPISpec {
           )
         )
       )
-      val checkResponse  = situation.checkFeature(featureRequest.id.get, "my-key")
+      val checkResponse =
+        situation.checkFeature(featureRequest.id.get, "my-key")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
     }
 
     "return true for feature with hour range if current hour is in range" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
-        .build()
-      val featureRequest = situation.createFeature(
-        name = "feature-name",
-        project = projectName,
-        tenant = tenantName,
-        enabled = true,
-        conditions = Set(
-          TestCondition(period =
-            TestDateTimePeriod().atHours(TestHourPeriod(startTime = LocalTime.MIN, endTime = LocalTime.MAX))
-          )
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
         )
-      )
-      val checkResponse  = situation.checkFeature(featureRequest.id.get, "my-key")
-
-      checkResponse.status mustBe OK
-      (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
-    }
-
-    "return false for feature with hour range if current hour is not in range" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val situation      = TestSituationBuilder()
-        .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
         .build()
       val featureRequest = situation.createFeature(
         name = "feature-name",
@@ -521,23 +646,62 @@ class FeatureClientAPISpec extends BaseAPISpec {
         conditions = Set(
           TestCondition(period =
             TestDateTimePeriod().atHours(
-              TestHourPeriod(startTime = LocalTime.now.plusMinutes(10), endTime = LocalTime.now.plusMinutes(20))
+              TestHourPeriod(startTime = LocalTime.MIN, endTime = LocalTime.MAX)
             )
           )
         )
       )
-      val checkResponse  = situation.checkFeature(featureRequest.id.get, "my-key")
+      val checkResponse =
+        situation.checkFeature(featureRequest.id.get, "my-key")
+
+      checkResponse.status mustBe OK
+      (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
+    }
+
+    "return false for feature with hour range if current hour is not in range" in {
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
+        .build()
+      val featureRequest = situation.createFeature(
+        name = "feature-name",
+        project = projectName,
+        tenant = tenantName,
+        enabled = true,
+        conditions = Set(
+          TestCondition(period =
+            TestDateTimePeriod().atHours(
+              TestHourPeriod(
+                startTime = LocalTime.now.plusMinutes(10),
+                endTime = LocalTime.now.plusMinutes(20)
+              )
+            )
+          )
+        )
+      )
+      val checkResponse =
+        situation.checkFeature(featureRequest.id.get, "my-key")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe false
     }
 
     "return true for feature with activation day if active day is today" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureRequest = situation.createFeature(
         name = "feature-name",
@@ -545,21 +709,28 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = true,
         conditions = Set(
-          TestCondition(period = TestDateTimePeriod().atDays(LocalDate.now().getDayOfWeek))
+          TestCondition(period =
+            TestDateTimePeriod().atDays(LocalDate.now().getDayOfWeek)
+          )
         )
       )
-      val checkResponse  = situation.checkFeature(featureRequest.id.get, "my-key")
+      val checkResponse =
+        situation.checkFeature(featureRequest.id.get, "my-key")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
     }
 
     "return false for feature with activation day if active day is not today" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureRequest = situation.createFeature(
         name = "feature-name",
@@ -567,21 +738,30 @@ class FeatureClientAPISpec extends BaseAPISpec {
         tenant = tenantName,
         enabled = true,
         conditions = Set(
-          TestCondition(period = TestDateTimePeriod().atDays(LocalDate.now().minusDays(2).getDayOfWeek))
+          TestCondition(period =
+            TestDateTimePeriod().atDays(
+              LocalDate.now().minusDays(2).getDayOfWeek
+            )
+          )
         )
       )
-      val checkResponse  = situation.checkFeature(featureRequest.id.get, "my-key")
+      val checkResponse =
+        situation.checkFeature(featureRequest.id.get, "my-key")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe false
     }
 
     "return true for feature with user list if user is in list" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureRequest = situation.createFeature(
         name = "feature-name",
@@ -592,18 +772,23 @@ class FeatureClientAPISpec extends BaseAPISpec {
           TestCondition(rule = TestUserListRule(users = Set("me")))
         )
       )
-      val checkResponse  = situation.checkFeature(featureRequest.id.get, "my-key", "me")
+      val checkResponse =
+        situation.checkFeature(featureRequest.id.get, "my-key", "me")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
     }
 
     "return false for feature with user list if user is not in list" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureRequest = situation.createFeature(
         name = "feature-name",
@@ -614,18 +799,23 @@ class FeatureClientAPISpec extends BaseAPISpec {
           TestCondition(rule = TestUserListRule(users = Set("not-me")))
         )
       )
-      val checkResponse  = situation.checkFeature(featureRequest.id.get, "my-key", "me")
+      val checkResponse =
+        situation.checkFeature(featureRequest.id.get, "my-key", "me")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe false
     }
 
     "always return true for percentage if feature activation was true the first time" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureRequest = situation.createFeature(
         name = "feature-name",
@@ -638,7 +828,8 @@ class FeatureClientAPISpec extends BaseAPISpec {
       )
 
       for (i <- 0 until 10) {
-        val checkResponse = situation.checkFeature(featureRequest.id.get, "my-key", "d")
+        val checkResponse =
+          situation.checkFeature(featureRequest.id.get, "my-key", "d")
 
         checkResponse.status mustBe OK
         (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
@@ -646,11 +837,15 @@ class FeatureClientAPISpec extends BaseAPISpec {
     }
 
     "always return false for percentage if feature activation was false the first time" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureRequest = situation.createFeature(
         name = "feature-name",
@@ -663,7 +858,8 @@ class FeatureClientAPISpec extends BaseAPISpec {
       )
 
       for (i <- 0 until 10) {
-        val checkResponse = situation.checkFeature(featureRequest.id.get, "my-key", "a")
+        val checkResponse =
+          situation.checkFeature(featureRequest.id.get, "my-key", "a")
 
         checkResponse.status mustBe OK
         (checkResponse.json.get \ "active").get.as[Boolean] mustBe false
@@ -671,11 +867,15 @@ class FeatureClientAPISpec extends BaseAPISpec {
     }
 
     "Percentage and period feature should be active if both period and percentage match" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureRequest = situation.createFeature(
         name = "feature-name",
@@ -685,24 +885,30 @@ class FeatureClientAPISpec extends BaseAPISpec {
         conditions = Set(
           TestCondition(
             rule = TestPercentageRule(10),
-            period =
-              TestDateTimePeriod().beginAt(LocalDateTime.now().minusDays(1)).endAt(LocalDateTime.now().plusDays(2))
+            period = TestDateTimePeriod()
+              .beginAt(LocalDateTime.now().minusDays(1))
+              .endAt(LocalDateTime.now().plusDays(2))
           )
         )
       )
 
-      val checkResponse = situation.checkFeature(featureRequest.id.get, "my-key", "d")
+      val checkResponse =
+        situation.checkFeature(featureRequest.id.get, "my-key", "d")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
     }
 
     "Period feature should be active when only one of its period is active" in {
-      val tenantName     = "my-tenant"
-      val projectName    = "my-project"
-      val situation      = TestSituationBuilder()
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
-        .withTenants(TestTenant(tenantName).withProjectNames(projectName).withAllRightsKey("my-key"))
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjectNames(projectName)
+            .withAllRightsKey("my-key")
+        )
         .build()
       val featureRequest = situation.createFeature(
         name = "feature-name",
@@ -711,15 +917,20 @@ class FeatureClientAPISpec extends BaseAPISpec {
         enabled = true,
         conditions = Set(
           TestCondition(period =
-            TestDateTimePeriod().beginAt(LocalDateTime.now().minusDays(5)).endAt(LocalDateTime.now().minusDays(3))
+            TestDateTimePeriod()
+              .beginAt(LocalDateTime.now().minusDays(5))
+              .endAt(LocalDateTime.now().minusDays(3))
           ),
           TestCondition(period =
-            TestDateTimePeriod().beginAt(LocalDateTime.now().minusDays(1)).endAt(LocalDateTime.now().plusDays(2))
+            TestDateTimePeriod()
+              .beginAt(LocalDateTime.now().minusDays(1))
+              .endAt(LocalDateTime.now().plusDays(2))
           )
         )
       )
 
-      val checkResponse = situation.checkFeature(featureRequest.id.get, "my-key", "test-user")
+      val checkResponse =
+        situation.checkFeature(featureRequest.id.get, "my-key", "test-user")
 
       checkResponse.status mustBe OK
       (checkResponse.json.get \ "active").get.as[Boolean] mustBe true
@@ -737,16 +948,21 @@ class FeatureClientAPISpec extends BaseAPISpec {
                   TestFeature(
                     name = "test-feature",
                     enabled = true,
-                    conditions = Set(TestCondition(rule = TestUserListRule(Set("my-user"))))
+                    conditions = Set(
+                      TestCondition(rule = TestUserListRule(Set("my-user")))
+                    )
                   )
                 )
             )
-            .withApiKeys(TestApiKey(name = "my-key", projects = Seq("my-project")))
+            .withApiKeys(
+              TestApiKey(name = "my-key", projects = Seq("my-project"))
+            )
         )
         .build()
 
       val result = testSituation.checkFeatures(
-        projects = Seq(testSituation.findProjectId("my-tenant", "my-project").get),
+        projects =
+          Seq(testSituation.findProjectId("my-tenant", "my-project").get),
         key = "my-key",
         user = "my-user"
       )
@@ -760,9 +976,15 @@ class FeatureClientAPISpec extends BaseAPISpec {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("my-tenant")
-            .withProjects(TestProject("my-project").withFeatures(TestFeature("F1")))
-            .withProjects(TestProject("my-project2").withFeatures(TestFeature("F21")))
-            .withProjects(TestProject("my-project3").withFeatures(TestFeature("F31")))
+            .withProjects(
+              TestProject("my-project").withFeatures(TestFeature("F1"))
+            )
+            .withProjects(
+              TestProject("my-project2").withFeatures(TestFeature("F21"))
+            )
+            .withProjects(
+              TestProject("my-project3").withFeatures(TestFeature("F31"))
+            )
         )
         .build()
 
@@ -777,13 +999,18 @@ class FeatureClientAPISpec extends BaseAPISpec {
       val testData = TestSituationBuilder()
         .withTenants(
           TestTenant("my-tenant")
-            .withProjects(TestProject("my-project").withFeatures(TestFeature("F1")))
-            .withApiKeys(TestApiKey(name = "my-key", projects = Seq("my-project")))
+            .withProjects(
+              TestProject("my-project").withFeatures(TestFeature("F1"))
+            )
+            .withApiKeys(
+              TestApiKey(name = "my-key", projects = Seq("my-project"))
+            )
         )
         .build()
 
       val result = checkFeatures(
-        headers = testData.keyHeaders("my-key") + ("Izanami-Client-Secret" -> "aaaa"),
+        headers =
+          testData.keyHeaders("my-key") + ("Izanami-Client-Secret" -> "aaaa"),
         projects = Seq(testData.findProjectId("my-tenant", "my-project").get)
       )
 
@@ -794,14 +1021,19 @@ class FeatureClientAPISpec extends BaseAPISpec {
       val testData = TestSituationBuilder()
         .withTenants(
           TestTenant("my-tenant")
-            .withProjects(TestProject("my-project").withFeatures(TestFeature("F1")))
-            .withApiKeys(TestApiKey(name = "my-key", projects = Seq("my-project")))
+            .withProjects(
+              TestProject("my-project").withFeatures(TestFeature("F1"))
+            )
+            .withApiKeys(
+              TestApiKey(name = "my-key", projects = Seq("my-project"))
+            )
         )
         .build()
 
       val result = checkFeatures(
         projects = Seq(testData.findProjectId("my-tenant", "my-project").get),
-        headers = testData.keyHeaders("my-key") + ("Izanami-Client-Id" -> "aaaa")
+        headers =
+          testData.keyHeaders("my-key") + ("Izanami-Client-Id" -> "aaaa")
       )
 
       result.status mustBe FORBIDDEN
@@ -811,14 +1043,20 @@ class FeatureClientAPISpec extends BaseAPISpec {
       val testData = TestSituationBuilder()
         .withTenants(
           TestTenant("my-tenant")
-            .withProjects(TestProject("my-project").withFeatures(TestFeature("F1")))
-            .withApiKeys(TestApiKey(name = "my-key", projects = Seq("my-project")))
+            .withProjects(
+              TestProject("my-project").withFeatures(TestFeature("F1"))
+            )
+            .withApiKeys(
+              TestApiKey(name = "my-key", projects = Seq("my-project"))
+            )
         )
         .build()
 
       val result = checkFeatures(
         projects = Seq(testData.findProjectId("my-tenant", "my-project").get),
-        headers = testData.keyHeaders("my-key") + ("Izanami-Client-Id" -> "aaaa") + ("Izanami-Client-Secret" -> "aaaa")
+        headers = testData.keyHeaders(
+          "my-key"
+        ) + ("Izanami-Client-Id" -> "aaaa") + ("Izanami-Client-Secret" -> "aaaa")
       )
 
       result.status mustBe FORBIDDEN
@@ -828,14 +1066,17 @@ class FeatureClientAPISpec extends BaseAPISpec {
       val testSituation = TestSituationBuilder()
         .withTenants(
           TestTenant("my-tenant")
-            .withProjects(TestProject("my-project").withFeatures(TestFeature("F1")))
+            .withProjects(
+              TestProject("my-project").withFeatures(TestFeature("F1"))
+            )
             .withApiKeys(TestApiKey(name = "my-key", projects = Seq()))
         )
         .build()
 
       val result = testSituation.checkFeatures(
         key = "my-key",
-        projects = Seq(testSituation.findProjectId("my-tenant", "my-project").get)
+        projects =
+          Seq(testSituation.findProjectId("my-tenant", "my-project").get)
       )
 
       result.status mustBe FORBIDDEN
@@ -845,14 +1086,19 @@ class FeatureClientAPISpec extends BaseAPISpec {
       val testSituation = TestSituationBuilder()
         .withTenants(
           TestTenant("my-tenant")
-            .withProjects(TestProject("my-project").withFeatures(TestFeature("F1")))
-            .withApiKeys(TestApiKey(name = "my-key", projects = Seq(), admin = true))
+            .withProjects(
+              TestProject("my-project").withFeatures(TestFeature("F1"))
+            )
+            .withApiKeys(
+              TestApiKey(name = "my-key", projects = Seq(), admin = true)
+            )
         )
         .build()
 
       val result = testSituation.checkFeatures(
         key = "my-key",
-        projects = Seq(testSituation.findProjectId("my-tenant", "my-project").get)
+        projects =
+          Seq(testSituation.findProjectId("my-tenant", "my-project").get)
       )
 
       result.status mustBe OK
@@ -862,23 +1108,37 @@ class FeatureClientAPISpec extends BaseAPISpec {
       val testSituation = TestSituationBuilder()
         .withTenants(
           TestTenant("my-tenant")
-            .withProjects(TestProject("my-project").withFeatureNames("F1", "F2"))
-            .withProjects(TestProject("my-project2").withFeatures(TestFeature("F21")))
-            .withProjects(TestProject("my-project3").withFeatures(TestFeature("F31")))
-            .withApiKeys(TestApiKey(name = "my-key", projects = Seq("my-project", "my-project2")))
+            .withProjects(
+              TestProject("my-project").withFeatureNames("F1", "F2")
+            )
+            .withProjects(
+              TestProject("my-project2").withFeatures(TestFeature("F21"))
+            )
+            .withProjects(
+              TestProject("my-project3").withFeatures(TestFeature("F31"))
+            )
+            .withApiKeys(
+              TestApiKey(
+                name = "my-key",
+                projects = Seq("my-project", "my-project2")
+              )
+            )
         )
         .build()
 
       val result = testSituation.checkFeatures(
         key = "my-key",
-        projects = Seq(testSituation.findProjectId("my-tenant", "my-project").get)
+        projects =
+          Seq(testSituation.findProjectId("my-tenant", "my-project").get)
       )
 
       result.status mustBe OK
       result.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => (obj \ "name").as[String]) must contain theSameElementsAs Seq(
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq(
         "F1",
         "F2"
       )
@@ -907,10 +1167,13 @@ class FeatureClientAPISpec extends BaseAPISpec {
 
       val result =
         testSituation.checkFeatures(
-          projects = Seq(testSituation.findProjectId("my-tenant", "my-project").get),
+          projects =
+            Seq(testSituation.findProjectId("my-tenant", "my-project").get),
           key = "my-key",
-          oneTagIn =
-            Seq(testSituation.findTagId("my-tenant", "my-tag").get, testSituation.findTagId("my-tenant", "my-tag2").get)
+          oneTagIn = Seq(
+            testSituation.findTagId("my-tenant", "my-tag").get,
+            testSituation.findTagId("my-tenant", "my-tag2").get
+          )
         )
 
       result.status mustBe OK
@@ -946,7 +1209,8 @@ class FeatureClientAPISpec extends BaseAPISpec {
 
       val result =
         testSituation.checkFeatures(
-          projects = Seq(testSituation.findProjectId("my-tenant", "my-project").get),
+          projects =
+            Seq(testSituation.findProjectId("my-tenant", "my-project").get),
           allTagsIn = Seq(
             testSituation.findTagId("my-tenant", "my-tag").get,
             testSituation.findTagId("my-tenant", "my-tag2").get
@@ -970,13 +1234,21 @@ class FeatureClientAPISpec extends BaseAPISpec {
         .withTenants(
           TestTenant("tenant")
             .withProjects(
-              TestProject("project").withContextNames("context").withFeatures(TestFeature("F1", enabled = false))
+              TestProject("project")
+                .withContextNames("context")
+                .withFeatures(TestFeature("F1", enabled = false))
             )
             .withAllRightsKey("key")
         )
         .build()
-      situation.changeFeatureStrategyForContext("tenant", "project", "context", "F1", true)
-      val result    = situation.checkFeatures(
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F1",
+        true
+      )
+      val result = situation.checkFeatures(
         key = "key",
         projects = Seq(situation.findProjectId("tenant", "project").get),
         contextPath = "context"
@@ -994,14 +1266,23 @@ class FeatureClientAPISpec extends BaseAPISpec {
           TestTenant("tenant")
             .withProjects(
               TestProject("project")
-                .withContexts(TestFeatureContext("context").withSubContextNames("subcontext"))
+                .withContexts(
+                  TestFeatureContext("context")
+                    .withSubContextNames("subcontext")
+                )
                 .withFeatures(TestFeature("F1", enabled = false))
             )
             .withAllRightsKey("key")
         )
         .build()
-      situation.changeFeatureStrategyForContext("tenant", "project", "context/subcontext", "F1", true)
-      val result    = situation.checkFeatures(
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context/subcontext",
+        "F1",
+        true
+      )
+      val result = situation.checkFeatures(
         key = "key",
         projects = Seq(situation.findProjectId("tenant", "project").get),
         contextPath = "context/subcontext"
@@ -1019,14 +1300,23 @@ class FeatureClientAPISpec extends BaseAPISpec {
           TestTenant("tenant")
             .withProjects(
               TestProject("project")
-                .withContexts(TestFeatureContext("context").withSubContextNames("subcontext"))
+                .withContexts(
+                  TestFeatureContext("context")
+                    .withSubContextNames("subcontext")
+                )
                 .withFeatures(TestFeature("F1", enabled = false))
             )
             .withAllRightsKey("key")
         )
         .build()
-      situation.changeFeatureStrategyForContext("tenant", "project", "context", "F1", true)
-      val result    = situation.checkFeatures(
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F1",
+        true
+      )
+      val result = situation.checkFeatures(
         key = "key",
         projects = Seq(situation.findProjectId("tenant", "project").get),
         contextPath = "context/subcontext"
@@ -1061,14 +1351,18 @@ class FeatureClientAPISpec extends BaseAPISpec {
       response.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => (obj \ "name").as[String]) must contain theSameElementsAs Seq("F1", "F2", "F3")
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq("F1", "F2", "F3")
 
     }
     "return all features for given projects" in {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withApiKeys(TestApiKey("key", projects = Seq("project", "project2")))
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("project", "project2"))
+            )
             .withProjects(
               TestProject("project")
                 .withFeatureNames(
@@ -1088,18 +1382,31 @@ class FeatureClientAPISpec extends BaseAPISpec {
 
       val response = situation.checkFeatures(
         key = "key",
-        projects = Seq("project", "project2").map(p => situation.findProjectId("tenant", p).get)
+        projects = Seq("project", "project2").map(p =>
+          situation.findProjectId("tenant", p).get
+        )
       )
       response.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => (obj \ "name").as[String]) must contain theSameElementsAs Seq("F1", "F2", "F3", "F21", "F22", "F23")
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq(
+        "F1",
+        "F2",
+        "F3",
+        "F21",
+        "F22",
+        "F23"
+      )
     }
     "return all features for given projects filtered by all tags in" in {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withApiKeys(TestApiKey("key", projects = Seq("project", "project2")))
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("project", "project2"))
+            )
             .withTagNames("t1", "t2", "t3")
             .withProjects(
               TestProject("project")
@@ -1120,19 +1427,26 @@ class FeatureClientAPISpec extends BaseAPISpec {
 
       val response = situation.checkFeatures(
         key = "key",
-        projects = Seq("project", "project2").map(p => situation.findProjectId("tenant", p).get),
-        allTagsIn = Seq("t1", "t2").map(t => situation.findTagId("tenant", t).get)
+        projects = Seq("project", "project2").map(p =>
+          situation.findProjectId("tenant", p).get
+        ),
+        allTagsIn =
+          Seq("t1", "t2").map(t => situation.findTagId("tenant", t).get)
       )
       response.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => (obj \ "name").as[String]) must contain theSameElementsAs Seq("F2", "F3", "F23")
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq("F2", "F3", "F23")
     }
     "return all features for given projects filtered by no tag in" in {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withApiKeys(TestApiKey("key", projects = Seq("project", "project2")))
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("project", "project2"))
+            )
             .withTagNames("t1", "t2", "t3")
             .withProjects(
               TestProject("project")
@@ -1153,19 +1467,25 @@ class FeatureClientAPISpec extends BaseAPISpec {
 
       val response = situation.checkFeatures(
         key = "key",
-        projects = Seq("project", "project2").map(p => situation.findProjectId("tenant", p).get),
+        projects = Seq("project", "project2").map(p =>
+          situation.findProjectId("tenant", p).get
+        ),
         noTagIn = Seq("t1", "t2").map(t => situation.findTagId("tenant", t).get)
       )
       response.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => (obj \ "name").as[String]) must contain theSameElementsAs Seq("F21", "F3")
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq("F21", "F3")
     }
     "return all features for given projects filtered by one tag in" in {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withApiKeys(TestApiKey("key", projects = Seq("project", "project2")))
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("project", "project2"))
+            )
             .withTagNames("t1", "t2", "t3")
             .withProjects(
               TestProject("project")
@@ -1186,19 +1506,26 @@ class FeatureClientAPISpec extends BaseAPISpec {
 
       val response = situation.checkFeatures(
         key = "key",
-        projects = Seq("project", "project2").map(p => situation.findProjectId("tenant", p).get),
-        oneTagIn = Seq("t1", "t3").map(t => situation.findTagId("tenant", t).get)
+        projects = Seq("project", "project2").map(p =>
+          situation.findProjectId("tenant", p).get
+        ),
+        oneTagIn =
+          Seq("t1", "t3").map(t => situation.findTagId("tenant", t).get)
       )
       response.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => (obj \ "name").as[String]) must contain theSameElementsAs Seq("F1", "F2", "F3", "F23")
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq("F1", "F2", "F3", "F23")
     }
     "return specified features" in {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withApiKeys(TestApiKey("key", projects = Seq("project", "project2")))
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("project", "project2"))
+            )
             .withProjects(
               TestProject("project")
                 .withFeatures(
@@ -1227,13 +1554,17 @@ class FeatureClientAPISpec extends BaseAPISpec {
       response.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => (obj \ "name").as[String]) must contain theSameElementsAs Seq("F1", "F3", "F21")
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq("F1", "F3", "F21")
     }
     "not filter specified features with given tags" in {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withApiKeys(TestApiKey("key", projects = Seq("project", "project2")))
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("project", "project2"))
+            )
             .withTagNames("t1", "t2")
             .withProjects(
               TestProject("project")
@@ -1264,7 +1595,9 @@ class FeatureClientAPISpec extends BaseAPISpec {
       response.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => (obj \ "name").as[String]) must contain theSameElementsAs Seq("F1", "F3", "F21")
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq("F1", "F3", "F21")
     }
     "return correct activation for resulting feature" in {
       val situation = TestSituationBuilder()
@@ -1313,12 +1646,17 @@ class FeatureClientAPISpec extends BaseAPISpec {
         )
         .build()
 
-      val result = situation.checkFeatures("key", projects = Seq(situation.findProjectId("tenant", "project").get))
+      val result = situation.checkFeatures(
+        "key",
+        projects = Seq(situation.findProjectId("tenant", "project").get)
+      )
 
       result.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => ((obj \ "name").as[String], (obj \ "active").as[Boolean])) must contain theSameElementsAs Seq(
+        .map(obj =>
+          ((obj \ "name").as[String], (obj \ "active").as[Boolean])
+        ) must contain theSameElementsAs Seq(
         ("F1", true),
         ("F2", false),
         ("F3", true)
@@ -1414,7 +1752,9 @@ class FeatureClientAPISpec extends BaseAPISpec {
       result.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => ((obj \ "name").as[String], (obj \ "active").as[Boolean])) must contain theSameElementsAs Seq(
+        .map(obj =>
+          ((obj \ "name").as[String], (obj \ "active").as[Boolean])
+        ) must contain theSameElementsAs Seq(
         ("F1", false),
         ("F2", true),
         ("F3", false)
@@ -1475,7 +1815,9 @@ class FeatureClientAPISpec extends BaseAPISpec {
       result.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => ((obj \ "name").as[String], (obj \ "active").as[Boolean])) must contain theSameElementsAs Seq(
+        .map(obj =>
+          ((obj \ "name").as[String], (obj \ "active").as[Boolean])
+        ) must contain theSameElementsAs Seq(
         ("F1", true)
       )
     }
@@ -1522,7 +1864,9 @@ class FeatureClientAPISpec extends BaseAPISpec {
       result.json.get
         .as[Map[String, JsObject]]
         .values
-        .map(obj => ((obj \ "name").as[String], (obj \ "active").as[Boolean])) must contain theSameElementsAs Seq(
+        .map(obj =>
+          ((obj \ "name").as[String], (obj \ "active").as[Boolean])
+        ) must contain theSameElementsAs Seq(
         ("F1", true),
         ("F2", false)
       )
@@ -1539,7 +1883,9 @@ class FeatureClientAPISpec extends BaseAPISpec {
                   TestFeature(
                     "foo",
                     enabled = true,
-                    conditions = Set(TestCondition(rule = TestPercentageRule(percentage = 75)))
+                    conditions = Set(
+                      TestCondition(rule = TestPercentageRule(percentage = 75))
+                    )
                   ),
                   TestFeature(
                     "bar",
@@ -1547,21 +1893,47 @@ class FeatureClientAPISpec extends BaseAPISpec {
                     conditions = Set(
                       TestCondition(
                         rule = TestUserListRule(users = Set("user1", "user2")),
-                        period =
-                          TestDateTimePeriod(days = TestDayPeriod(days = Set(DayOfWeek.MONDAY, DayOfWeek.TUESDAY)))
+                        period = TestDateTimePeriod(days =
+                          TestDayPeriod(days =
+                            Set(DayOfWeek.MONDAY, DayOfWeek.TUESDAY)
+                          )
+                        )
                       )
                     )
                   )
                 )
-                .withContexts(TestFeatureContext(
-                  name="dev",
-                  overloads = Seq(TestFeature("foo", enabled = true, conditions = Set(TestCondition(rule = TestPercentageRule(percentage = 80))))),
-                  subContext = Set(
-                    TestFeatureContext(
-                      name="bar",
-                      overloads = Seq(TestFeature("foo", enabled = true, conditions = Set(TestCondition(rule = TestPercentageRule(percentage = 90)))))
+                .withContexts(
+                  TestFeatureContext(
+                    name = "dev",
+                    overloads = Seq(
+                      TestFeature(
+                        "foo",
+                        enabled = true,
+                        conditions = Set(
+                          TestCondition(rule =
+                            TestPercentageRule(percentage = 80)
+                          )
+                        )
+                      )
+                    ),
+                    subContext = Set(
+                      TestFeatureContext(
+                        name = "bar",
+                        overloads = Seq(
+                          TestFeature(
+                            "foo",
+                            enabled = true,
+                            conditions = Set(
+                              TestCondition(rule =
+                                TestPercentageRule(percentage = 90)
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
                   )
-                )))
+                )
             )
         )
         .build()
@@ -1569,18 +1941,24 @@ class FeatureClientAPISpec extends BaseAPISpec {
       val fooId = situation.findFeatureId("tenant", "project", "foo").get
       val barId = situation.findFeatureId("tenant", "project", "bar").get
 
-      val response = situation.checkFeatures(key = "mykey", conditions = true, features = Seq(fooId, barId))
-      val json     = response.json.get
+      val response = situation.checkFeatures(
+        key = "mykey",
+        conditions = true,
+        features = Seq(fooId, barId)
+      )
+      val json = response.json.get
 
-      (json \ fooId \ "conditions" \ "" \ "conditions" \ 0 \ "rule" \ "percentage").as[Int] mustEqual 75
-      (json \ fooId \ "conditions" \ "dev" \ "conditions" \ 0 \ "rule" \ "percentage").as[Int] mustEqual 80
-      (json \ fooId \ "conditions" \ "dev/bar" \ "conditions" \ 0 \ "rule" \ "percentage").as[Int] mustEqual 90
+      (json \ fooId \ "conditions" \ "" \ "conditions" \ 0 \ "rule" \ "percentage")
+        .as[Int] mustEqual 75
+      (json \ fooId \ "conditions" \ "dev" \ "conditions" \ 0 \ "rule" \ "percentage")
+        .as[Int] mustEqual 80
+      (json \ fooId \ "conditions" \ "dev/bar" \ "conditions" \ 0 \ "rule" \ "percentage")
+        .as[Int] mustEqual 90
       (json \ barId \ "conditions" \ "" \ "conditions" \ 0 \ "rule" \ "users")
         .as[Seq[String]] must contain theSameElementsAs Seq("user1", "user2")
       (json \ barId \ "conditions" \ "" \ "conditions" \ 0 \ "period" \ "activationDays" \ "days")
         .as[Seq[String]] must contain theSameElementsAs Seq("MONDAY", "TUESDAY")
     }
-
 
     "return correct subcontext value even when condition parameter present" in {
       val situation = TestSituationBuilder()
@@ -1597,23 +1975,45 @@ class FeatureClientAPISpec extends BaseAPISpec {
                     value = "0.1"
                   )
                 )
-                .withContexts(TestFeatureContext(
-                  name="A",
-                  overloads = Seq(TestFeature("foo", enabled = true, resultType = "number", value = "0.2")),
-                  subContext = Set(
-                    TestFeatureContext(
-                      name="B",
-                      overloads = Seq(TestFeature("foo", enabled = true, resultType = "number", value = "0.3")),
+                .withContexts(
+                  TestFeatureContext(
+                    name = "A",
+                    overloads = Seq(
+                      TestFeature(
+                        "foo",
+                        enabled = true,
+                        resultType = "number",
+                        value = "0.2"
+                      )
+                    ),
+                    subContext = Set(
+                      TestFeatureContext(
+                        name = "B",
+                        overloads = Seq(
+                          TestFeature(
+                            "foo",
+                            enabled = true,
+                            resultType = "number",
+                            value = "0.3"
+                          )
+                        )
+                      )
                     )
-                  )))
+                  )
+                )
             )
         )
         .build()
 
       val fooId = situation.findFeatureId("tenant", "project", "foo").get
 
-      val response = situation.checkFeatures(key = "mykey", conditions = true, features = Seq(fooId), contextPath = "A/B")
-      val json     = response.json.get
+      val response = situation.checkFeatures(
+        key = "mykey",
+        conditions = true,
+        features = Seq(fooId),
+        contextPath = "A/B"
+      )
+      val json = response.json.get
 
       (json \ fooId \ "active").as[Double] mustEqual 0.3
     }

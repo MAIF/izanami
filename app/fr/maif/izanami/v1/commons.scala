@@ -78,20 +78,6 @@ object OldCommons {
     }).getOrElse(JsError(s"Right string too long ${json}"))
   }
 
-  def oldRightToNewRight(right: Set[Right]): Option[RightLevel] = {
-    val OLD_ALL_RIGHTS: Set[Right] = Set(Read, Update, Delete, Create)
-
-    if (right.isEmpty) {
-      None
-    } else if (OLD_ALL_RIGHTS.subsetOf(right)) {
-      RightLevel.Admin.some
-    } else if (right.contains(Read) && right.size == 1) {
-      RightLevel.Read.some
-    } else {
-      RightLevel.Write.some
-    }
-  }
-
   def oldRightToNewProjectRight(right: Set[Right]): Option[ProjectRightLevel] = {
     val OLD_ALL_RIGHTS: Set[Right] = Set(Read, Update, Delete, Create)
 
@@ -105,6 +91,20 @@ object OldCommons {
       ProjectRightLevel.Update.some
     } else {
       ProjectRightLevel.Write.some
+    }
+  }
+
+  def oldRightToNewRight(right: Set[Right]): Option[RightLevel] = {
+    val OLD_ALL_RIGHTS: Set[Right] = Set(Read, Update, Delete, Create)
+
+    if (right.isEmpty) {
+      None
+    } else if (OLD_ALL_RIGHTS.subsetOf(right)) {
+      RightLevel.Admin.some
+    } else if (right.contains(Read) && right.size == 1) {
+      RightLevel.Read.some
+    } else {
+      RightLevel.Write.some
     }
   }
 

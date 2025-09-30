@@ -9,55 +9,85 @@ import pureconfig.error.{CannotConvert, CannotParse, ConfigReaderFailures}
 import pureconfig.generic.semiauto.{deriveEnumerationReader, deriveReader}
 import pureconfig.{ConfigReader, ConfigSource}
 
-
 case class IzanamiTypedConfiguration(app: AppConf, play: PlayRoot)
 case object IzanamiTypedConfiguration {
   def from(conf: Config): IzanamiTypedConfiguration = {
     given ConfigReader[BaseConfigRightLevel] = f => {
       f.asString.flatMap {
-        case "read" => Right(Read)
+        case "read"  => Right(Read)
         case "write" => Right(Write)
         case "admin" => Right(Admin)
-        case "none" => Right(None)
-        case _ => Left(ConfigReaderFailures(CannotParse("Can't read base config right level", origin = Option.empty)))
+        case "none"  => Right(None)
+        case _       =>
+          Left(
+            ConfigReaderFailures(
+              CannotParse(
+                "Can't read base config right level",
+                origin = Option.empty
+              )
+            )
+          )
       }
     }
 
     given ConfigReader[ConfigProjectRightLevel] = f => {
       f.asString.flatMap {
-        case "read" => Right(Read)
-        case "write" => Right(Write)
-        case "admin" => Right(Admin)
+        case "read"   => Right(Read)
+        case "write"  => Right(Write)
+        case "admin"  => Right(Admin)
         case "update" => Right(Update)
-        case "none" => Right(None)
-        case _ => Left(ConfigReaderFailures(CannotParse("Can't read base config right level", origin = Option.empty)))
+        case "none"   => Right(None)
+        case _        =>
+          Left(
+            ConfigReaderFailures(
+              CannotParse(
+                "Can't read base config right level",
+                origin = Option.empty
+              )
+            )
+          )
       }
     }
 
     given ConfigReader[ConfigNonNullableRightLevel] = f => {
       f.asString.flatMap {
-        case "read" => Right(Read)
+        case "read"  => Right(Read)
         case "write" => Right(Write)
         case "admin" => Right(Admin)
-        case _ => Left(ConfigReaderFailures(CannotParse("Can't read base config right level", origin = Option.empty)))
+        case _       =>
+          Left(
+            ConfigReaderFailures(
+              CannotParse(
+                "Can't read base config right level",
+                origin = Option.empty
+              )
+            )
+          )
       }
     }
 
     given ConfigReader[ConfigNonNullableProjectRightLevel] = f => {
       f.asString.flatMap {
-        case "read" => Right(Read)
-        case "write" => Right(Write)
-        case "admin" => Right(Admin)
+        case "read"   => Right(Read)
+        case "write"  => Right(Write)
+        case "admin"  => Right(Admin)
         case "update" => Right(Update)
-        case _ => Left(ConfigReaderFailures(CannotParse("Can't read base config right level", origin = Option.empty)))
+        case _        =>
+          Left(
+            ConfigReaderFailures(
+              CannotParse(
+                "Can't read base config right level",
+                origin = Option.empty
+              )
+            )
+          )
       }
     }
     given ConfigReader[RoleRights] = deriveReader
     given ConfigReader[TenantRoleRights] = deriveReader
     given ConfigReader[OpenId] = deriveReader[OpenId]
-    given ConfigReader[IzanamiTypedConfiguration] = deriveReader[IzanamiTypedConfiguration]
-
-
+    given ConfigReader[IzanamiTypedConfiguration] =
+      deriveReader[IzanamiTypedConfiguration]
 
     ConfigSource
       .fromConfig(conf)
@@ -88,13 +118,18 @@ case class AppConf(
     housekeeping: Housekeeping
 )
 
-
 case class Experimental(staleTracking: StaleTracking)
 case class StaleTracking(enabled: Boolean)
 case class Reporting(url: String)
 case class Audit(eventsHoursTtl: Int)
 case class Webhooks(retry: Retry)
-case class Retry(count: Int, intialDelay: Long, maxDelay: Long, multiplier: Int, checkInterval: Int)
+case class Retry(
+    count: Int,
+    intialDelay: Long,
+    maxDelay: Long,
+    multiplier: Int,
+    checkInterval: Int
+)
 case class Wasm(cache: Cache, queue: WasmQueue)
 case class Cache(ttl: Long)
 case class WasmQueue(buffer: WasmQueueBuffer)
@@ -117,31 +152,38 @@ case class OpenId(
     rightByRoles: Option[Map[String, RoleRights]],
     roleClaim: Option[String],
     roleRightMode: Option[RoleRightMode]
-)                                                                                             {
+) {
   def toIzanamiOAuth2Configuration: Option[OAuth2Configuration] = {
     for (
-      clientId     <- clientId;
+      clientId <- clientId;
       clientSecret <- clientSecret;
       authorizeUrl <- authorizeUrl;
-      tokenUrl     <- tokenUrl
+      tokenUrl <- tokenUrl
     ) yield {
       OAuth2Configuration(
         clientId = clientId,
         clientSecret = clientSecret,
         authorizeUrl = authorizeUrl.toString, // TODO propagate URL type
         tokenUrl = tokenUrl.toString,
-        callbackUrl = redirectUrl.orElse(callbackUrl).map(_.toString).getOrElse(""),
+        callbackUrl =
+          redirectUrl.orElse(callbackUrl).map(_.toString).getOrElse(""),
         emailField = emailField,
         nameField = usernameField,
         scopes = scopes.replace("\"", ""),
         method = OAuth2RawMethodConvert(method),
         enabled = enabled,
         pkce = if (pkce.enabled) {
-          Some(PKCEConfig(enabled = pkce.enabled, algorithm = pkce.algorithm.getOrElse("S256")))
+          Some(
+            PKCEConfig(
+              enabled = pkce.enabled,
+              algorithm = pkce.algorithm.getOrElse("S256")
+            )
+          )
         } else {
           Option.empty
         },
-        userRightsByRoles = rightByRoles.map(r => r.view.mapValues(v => v.toRights).toMap),
+        userRightsByRoles =
+          rightByRoles.map(r => r.view.mapValues(v => v.toRights).toMap),
         roleClaim = roleClaim,
         roleRightMode = roleRightMode
       )
@@ -149,7 +191,11 @@ case class OpenId(
   }
 }
 case class OpenIdPkce(enabled: Boolean, algorithm: Option[String])
-case class Wasmo(url: Option[String], clientId: Option[String], clientSecret: Option[String])
+case class Wasmo(
+    url: Option[String],
+    clientId: Option[String],
+    clientSecret: Option[String]
+)
 case class Pg(
     uri: Option[String],
     poolSize: Int,
@@ -186,17 +232,33 @@ case class Invitations(ttl: Int)
 case class Sessions(ttl: Int)
 case class PasswordResetRequests(ttl: Int)
 case class Search(similarityThreshold: Double)
-case class Feature(callRecords: CallRecords, staleHoursDelay: Long, forceLegacy: Boolean)
-case class CallRecords(callRegisterIntervalInSeconds: Long, callRetentionTimeInHours: Long)
+case class Feature(
+    callRecords: CallRecords,
+    staleHoursDelay: Long,
+    forceLegacy: Boolean
+)
+case class CallRecords(
+    callRegisterIntervalInSeconds: Long,
+    callRetentionTimeInHours: Long
+)
 case class Housekeeping(startDelayInSeconds: Long, intervalInSeconds: Long)
-case class RoleRights(admin: Boolean = false, tenants: Map[String, TenantRoleRights] = Map()) {
+case class RoleRights(
+    admin: Boolean = false,
+    tenants: Map[String, TenantRoleRights] = Map()
+) {
   def toRights: CompleteRights = {
     val tenantRights = tenants.view
       .mapValues(r =>
         TenantRight(
-          projects = r.projects.view.mapValues(v => ProjectAtomicRight(v.toProjectRightLevel)).toMap,
-          keys = r.keys.view.mapValues(v => GeneralAtomicRight(v.toRightLevel)).toMap,
-          webhooks = r.webhooks.view.mapValues(v => GeneralAtomicRight(v.toRightLevel)).toMap,
+          projects = r.projects.view
+            .mapValues(v => ProjectAtomicRight(v.toProjectRightLevel))
+            .toMap,
+          keys = r.keys.view
+            .mapValues(v => GeneralAtomicRight(v.toRightLevel))
+            .toMap,
+          webhooks = r.webhooks.view
+            .mapValues(v => GeneralAtomicRight(v.toRightLevel))
+            .toMap,
           defaultProjectRight = r.defaultProjectRight.toMaybeProjectRightLevel,
           defaultKeyRight = r.defaultKeyRight.toMaybeRightLevel,
           defaultWebhookRight = r.defaultWebhookRight.toMaybeRightLevel,
@@ -229,7 +291,8 @@ sealed trait BaseConfigRightLevel extends ConfigProjectRightLevel {
   def toMaybeRightLevel: Option[RightLevel]
 }
 
-sealed trait ConfigNonNullableRightLevel extends ConfigNonNullableProjectRightLevel {
+sealed trait ConfigNonNullableRightLevel
+    extends ConfigNonNullableProjectRightLevel {
   def toRightLevel: RightLevel
 }
 
@@ -237,37 +300,51 @@ sealed trait ConfigNonNullableProjectRightLevel {
   def toProjectRightLevel: ProjectRightLevel
 }
 
-case object Read   extends BaseConfigRightLevel with ConfigNonNullableRightLevel           {
-  override def toMaybeRightLevel: Option[RightLevel]               = Some(toRightLevel)
-  override def toProjectRightLevel: ProjectRightLevel              = ProjectRightLevel.Read
-  override def toRightLevel: RightLevel                            = RightLevel.Read
-  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(toProjectRightLevel)
+case object Read extends BaseConfigRightLevel with ConfigNonNullableRightLevel {
+  override def toMaybeRightLevel: Option[RightLevel] = Some(toRightLevel)
+  override def toProjectRightLevel: ProjectRightLevel = ProjectRightLevel.Read
+  override def toRightLevel: RightLevel = RightLevel.Read
+  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(
+    toProjectRightLevel
+  )
 }
-case object Write  extends BaseConfigRightLevel with ConfigNonNullableRightLevel           {
-  override def toMaybeRightLevel: Option[RightLevel]               = Some(toRightLevel)
-  override def toRightLevel: RightLevel                            = RightLevel.Write
-  override def toProjectRightLevel: ProjectRightLevel              = ProjectRightLevel.Write
-  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(toProjectRightLevel)
+case object Write
+    extends BaseConfigRightLevel
+    with ConfigNonNullableRightLevel {
+  override def toMaybeRightLevel: Option[RightLevel] = Some(toRightLevel)
+  override def toRightLevel: RightLevel = RightLevel.Write
+  override def toProjectRightLevel: ProjectRightLevel = ProjectRightLevel.Write
+  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(
+    toProjectRightLevel
+  )
 }
-case object Admin  extends BaseConfigRightLevel with ConfigNonNullableRightLevel           {
-  override def toMaybeRightLevel: Option[RightLevel]               = Some(toRightLevel)
-  override def toRightLevel: RightLevel                            = RightLevel.Admin
-  override def toProjectRightLevel: ProjectRightLevel              = ProjectRightLevel.Admin
-  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(toProjectRightLevel)
+case object Admin
+    extends BaseConfigRightLevel
+    with ConfigNonNullableRightLevel {
+  override def toMaybeRightLevel: Option[RightLevel] = Some(toRightLevel)
+  override def toRightLevel: RightLevel = RightLevel.Admin
+  override def toProjectRightLevel: ProjectRightLevel = ProjectRightLevel.Admin
+  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(
+    toProjectRightLevel
+  )
 }
-case object None   extends BaseConfigRightLevel                                            {
-  override def toMaybeRightLevel: Option[RightLevel]               = Option.empty
-  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Option.empty
+case object None extends BaseConfigRightLevel {
+  override def toMaybeRightLevel: Option[RightLevel] = Option.empty
+  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] =
+    Option.empty
 }
-case object Update extends ConfigProjectRightLevel with ConfigNonNullableProjectRightLevel {
-  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(toProjectRightLevel)
-  override def toProjectRightLevel: ProjectRightLevel              = ProjectRightLevel.Update
+case object Update
+    extends ConfigProjectRightLevel
+    with ConfigNonNullableProjectRightLevel {
+  override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(
+    toProjectRightLevel
+  )
+  override def toProjectRightLevel: ProjectRightLevel = ProjectRightLevel.Update
 }
-
 
 case object RoleRightMode {
   case object Supervised extends RoleRightMode
-  case object Initial    extends RoleRightMode
+  case object Initial extends RoleRightMode
 
   def reads: Reads[RoleRightMode] = {
     case JsString("Supervised") => JsSuccess(Supervised)
@@ -280,7 +357,8 @@ case object RoleRightMode {
     case Initial    => JsString("Initial")
   }
 
-  implicit val roleRightModeConvert: ConfigReader[RoleRightMode] = deriveEnumerationReader[RoleRightMode]
+  implicit val roleRightModeConvert: ConfigReader[RoleRightMode] =
+    deriveEnumerationReader[RoleRightMode]
 }
 
 sealed trait RoleRightMode

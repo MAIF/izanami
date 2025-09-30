@@ -1,6 +1,11 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{ADMIN_BASE_URL, TestSituationBuilder, TestUser, ws}
+import fr.maif.izanami.api.BaseAPISpec.{
+  ADMIN_BASE_URL,
+  TestSituationBuilder,
+  TestUser,
+  ws
+}
 import play.api.http.Status._
 import play.api.libs.json.Json
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
@@ -24,7 +29,7 @@ class ConfigurationAPISpec extends BaseAPISpec {
 
       val response = situation.fetchConfiguration()
       response.status mustBe OK
-      val json     = (response.json.get \ "mailerConfiguration")
+      val json = (response.json.get \ "mailerConfiguration")
 
       (json \ "mailer").as[String] mustEqual "MailJet"
       (json \ "apiKey").as[String] mustEqual "my-key"
@@ -36,12 +41,16 @@ class ConfigurationAPISpec extends BaseAPISpec {
 
       val response = situation.fetchConfiguration()
 
-      (response.json.get \ "mailerConfiguration" \ "mailer").as[String] mustEqual "Console"
+      (response.json.get \ "mailerConfiguration" \ "mailer")
+        .as[String] mustEqual "Console"
       response.status mustBe OK
     }
 
     "return 403 if user is not admin" in {
-      val situation = TestSituationBuilder().withUsers(TestUser("toto")).loggedAs("toto").build()
+      val situation = TestSituationBuilder()
+        .withUsers(TestUser("toto"))
+        .loggedAs("toto")
+        .build()
 
       val response = situation.fetchConfiguration()
       response.status mustBe FORBIDDEN
@@ -59,7 +68,13 @@ class ConfigurationAPISpec extends BaseAPISpec {
     "prevent update for unknown mail provider" in {
       val situation = TestSituationBuilder().loggedInWithAdminRights().build()
 
-      val response = situation.updateConfiguration(mailerConfiguration=Json.obj("mailer" -> "foo", "apiKey" -> "my-key", "secret" -> "my-secret"))
+      val response = situation.updateConfiguration(mailerConfiguration =
+        Json.obj(
+          "mailer" -> "foo",
+          "apiKey" -> "my-key",
+          "secret" -> "my-secret"
+        )
+      )
 
       response.status mustBe BAD_REQUEST
     }
@@ -68,8 +83,12 @@ class ConfigurationAPISpec extends BaseAPISpec {
       val situation = TestSituationBuilder().loggedInWithAdminRights().build()
 
       val response = situation.updateConfiguration(
-        mailerConfiguration=Json.obj("mailer" -> "mailjet", "apiKey" -> "my-key", "secret" -> "my-secret"),
-        originEmail = s"""${"abcdefghij"*32}@foobar.bar"""
+        mailerConfiguration = Json.obj(
+          "mailer" -> "mailjet",
+          "apiKey" -> "my-key",
+          "secret" -> "my-secret"
+        ),
+        originEmail = s"""${"abcdefghij" * 32}@foobar.bar"""
       )
 
       response.status mustBe BAD_REQUEST;
@@ -79,17 +98,22 @@ class ConfigurationAPISpec extends BaseAPISpec {
       val situation = TestSituationBuilder().loggedInWithAdminRights().build()
 
       val response = situation.updateConfiguration(
-        mailerConfiguration=Json.obj("mailer" -> "mailjet", "apiKey" -> "my-key", "secret" -> "my-secret"),
+        mailerConfiguration = Json.obj(
+          "mailer" -> "mailjet",
+          "apiKey" -> "my-key",
+          "secret" -> "my-secret"
+        ),
         originEmail = "foo@baz.bar"
       )
 
       response.status mustBe NO_CONTENT
 
-      val configuration = situation.fetchConfiguration().json.get \ "mailerConfiguration"
+      val configuration =
+        situation.fetchConfiguration().json.get \ "mailerConfiguration"
 
       (configuration \ "mailer").as[String] mustEqual "MailJet"
       (configuration \ "secret").asOpt[String] mustBe None
-      (configuration \ "apiKey").as[String] mustEqual  "my-key"
+      (configuration \ "apiKey").as[String] mustEqual "my-key"
     }
 
     "return 403 if user is not admin" in {
@@ -98,7 +122,9 @@ class ConfigurationAPISpec extends BaseAPISpec {
         .loggedAs("toto")
         .build()
 
-      val response = situation.updateConfiguration(mailerConfiguration = Json.obj("mailer" -> "Console"))
+      val response = situation.updateConfiguration(mailerConfiguration =
+        Json.obj("mailer" -> "Console")
+      )
       response.status mustBe FORBIDDEN
     }
 
@@ -107,21 +133,32 @@ class ConfigurationAPISpec extends BaseAPISpec {
         .withUsers(TestUser("toto"))
         .build()
 
-      val response = situation.updateConfiguration(mailerConfiguration = Json.obj("mailer"-> "Console"))
+      val response = situation.updateConfiguration(mailerConfiguration =
+        Json.obj("mailer" -> "Console")
+      )
       response.status mustBe UNAUTHORIZED
     }
 
     "allow to change mail provider to mailjet" in {
       val situation = TestSituationBuilder().loggedInWithAdminRights().build()
 
-      val response = situation.updateConfiguration(mailerConfiguration = Json.obj("mailer" -> "Mailjet", "apiKey" -> "foofoo", "secret"-> "barbar"), originEmail = "foo.bar@gmail.com")
+      val response = situation.updateConfiguration(
+        mailerConfiguration = Json.obj(
+          "mailer" -> "Mailjet",
+          "apiKey" -> "foofoo",
+          "secret" -> "barbar"
+        ),
+        originEmail = "foo.bar@gmail.com"
+      )
       response.status mustBe NO_CONTENT
     }
 
     "return 400 if provided mail provider is incorrect" in {
       val situation = TestSituationBuilder().loggedInWithAdminRights().build()
 
-      val response = situation.updateConfiguration(mailerConfiguration = Json.obj("mailer"-> "foo"))
+      val response = situation.updateConfiguration(mailerConfiguration =
+        Json.obj("mailer" -> "foo")
+      )
       response.status mustBe BAD_REQUEST
     }
   }

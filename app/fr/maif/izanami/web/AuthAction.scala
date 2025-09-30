@@ -5,14 +5,14 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.UserNotFound
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.events.EventAuthentication.{BackOfficeAuthentication, TokenAuthentication}
-import fr.maif.izanami.models.{ApiKey, ApiKeyWithCompleteRights, ProjectRightLevel, RightLevel, TenantTokenRights, UserWithCompleteRightForOneTenant, UserWithRights, UserWithTenantRights}
+import fr.maif.izanami.models.*
 import fr.maif.izanami.security.JwtService.decodeJWT
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.AuthAction.{extractAndCheckPersonnalAccessToken, extractClaims}
 import pdi.jwt.JwtClaim
-import play.api.libs.json._
+import play.api.libs.json.*
+import play.api.mvc.*
 import play.api.mvc.Results.{BadRequest, Forbidden, Unauthorized}
-import play.api.mvc._
 
 import java.time.Duration
 import java.util.concurrent.{Executors, TimeUnit}
@@ -51,7 +51,6 @@ case class SessionIdRequest[A](request: Request[A], sessionId: String) extends W
 class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext)
     extends ActionBuilder[ClientKeyRequest, AnyContent] {
   override def parser: BodyParser[AnyContent]               = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](request: Request[A], block: ClientKeyRequest[A] => Future[Result]): Future[Result] = {
     val maybeFutureKey =
@@ -71,13 +70,14 @@ class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit 
       )
       .getOrElse(Future.successful(Unauthorized(Json.obj("message" -> "Invalid key"))))
   }
+
+  override protected def executionContext: ExecutionContext = ec
 }
 
 class TenantRightsAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
     ec: ExecutionContext
 ) extends ActionBuilder[UserRequestWithTenantRights, AnyContent] {
   override def parser: BodyParser[AnyContent]               = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](
       request: Request[A],
@@ -94,13 +94,14 @@ class TenantRightsAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
           }
       })
   }
+
+  override protected def executionContext: ExecutionContext = ec
 }
 
 class DetailledAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
     ec: ExecutionContext
 ) extends ActionBuilder[UserRequestWithCompleteRights, AnyContent] {
   override def parser: BodyParser[AnyContent]               = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](
       request: Request[A],
@@ -117,13 +118,14 @@ class DetailledAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
           }
       })
   }
+
+  override protected def executionContext: ExecutionContext = ec
 }
 
 class AdminAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext)
     extends ActionBuilder[UserNameRequest, AnyContent] {
 
   override def parser: BodyParser[AnyContent]               = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
     extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
@@ -143,13 +145,14 @@ class AdminAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec:
           }
       })
   }
+
+  override protected def executionContext: ExecutionContext = ec
 }
 
 class AuthenticatedAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext)
     extends ActionBuilder[UserNameRequest, AnyContent] {
 
   override def parser: BodyParser[AnyContent]               = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
     extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
@@ -167,13 +170,14 @@ class AuthenticatedAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
         }
       )
   }
+
+  override protected def executionContext: ExecutionContext = ec
 }
 
 class AuthenticatedSessionAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext)
     extends ActionBuilder[SessionIdRequest, AnyContent] {
 
   override def parser: BodyParser[AnyContent]               = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](request: Request[A], block: SessionIdRequest[A] => Future[Result]): Future[Result] = {
     extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
@@ -182,6 +186,8 @@ class AuthenticatedSessionAction(bodyParser: BodyParser[AnyContent], env: Env)(i
         block(SessionIdRequest(request = request, sessionId = sessionId))
       )
   }
+
+  override protected def executionContext: ExecutionContext = ec
 }
 
 class DetailledRightForTenantAction(bodyParser: BodyParser[AnyContent], env: Env, tenant: String)(implicit
@@ -189,7 +195,6 @@ class DetailledRightForTenantAction(bodyParser: BodyParser[AnyContent], env: Env
 ) extends ActionBuilder[UserRequestWithCompleteRightForOneTenant, AnyContent] {
 
   override def parser: BodyParser[AnyContent]               = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](
       request: Request[A],
@@ -213,6 +218,8 @@ class DetailledRightForTenantAction(bodyParser: BodyParser[AnyContent], env: Env
           }
       })
   }
+
+  override protected def executionContext: ExecutionContext = ec
 }
 
 class PersonnalAccessTokenTenantAuthAction(
@@ -225,7 +232,6 @@ class PersonnalAccessTokenTenantAuthAction(
     ec: ExecutionContext
 ) extends ActionBuilder[UserNameRequest, AnyContent] {
   override def parser: BodyParser[AnyContent]               = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](
       request: Request[A],
@@ -283,6 +289,8 @@ class PersonnalAccessTokenTenantAuthAction(
         }
     }
   }
+
+  override protected def executionContext: ExecutionContext = ec
 }
 
 class TenantAuthAction(bodyParser: BodyParser[AnyContent], env: Env, tenant: String, minimumLevel: RightLevel)(implicit
@@ -290,7 +298,6 @@ class TenantAuthAction(bodyParser: BodyParser[AnyContent], env: Env, tenant: Str
 ) extends ActionBuilder[UserNameRequest, AnyContent] {
 
   override def parser: BodyParser[AnyContent]               = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
     extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
@@ -311,12 +318,13 @@ class TenantAuthAction(bodyParser: BodyParser[AnyContent], env: Env, tenant: Str
           }
       })
   }
+
+  override protected def executionContext: ExecutionContext = ec
 }
 
 class ValidatePasswordAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
     ec: ExecutionContext
 ) extends ActionBuilder[UserNameRequest, AnyContent] {
-  override protected def executionContext: ExecutionContext = ec
   override def parser: BodyParser[AnyContent]               = bodyParser
 
   override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
@@ -355,6 +363,8 @@ class ValidatePasswordAction(bodyParser: BodyParser[AnyContent], env: Env)(impli
         Future.successful(BadRequest(Json.obj("message" -> "Invalid request body")))
     }
   }
+
+  override protected def executionContext: ExecutionContext = ec
 }
 
 class ProjectAuthAction(
@@ -367,7 +377,6 @@ class ProjectAuthAction(
     extends ActionBuilder[ProjectIdUserNameRequest, AnyContent] {
 
   override def parser: BodyParser[AnyContent]               = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](
       request: Request[A],
@@ -398,6 +407,8 @@ class ProjectAuthAction(
           )
       })
   }
+
+  override protected def executionContext: ExecutionContext = ec
 }
 
 class WebhookAuthAction(
@@ -410,7 +421,6 @@ class WebhookAuthAction(
     extends ActionBuilder[HookAndUserNameRequest, AnyContent] {
 
   override def parser: BodyParser[AnyContent]               = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](
       request: Request[A],
@@ -441,6 +451,8 @@ class WebhookAuthAction(
           )
       })
   }
+
+  override protected def executionContext: ExecutionContext = ec
 }
 
 class KeyAuthAction(
@@ -453,7 +465,6 @@ class KeyAuthAction(
     extends ActionBuilder[UserNameRequest, AnyContent] {
 
   override def parser: BodyParser[AnyContent]               = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
     extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
@@ -480,6 +491,8 @@ class KeyAuthAction(
           )
       })
   }
+
+  override protected def executionContext: ExecutionContext = ec
 }
 
 class DetailledRightForTenantFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
