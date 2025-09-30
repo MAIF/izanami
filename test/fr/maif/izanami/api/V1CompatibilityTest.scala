@@ -21,6 +21,13 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
+import izanami.javadsl.IzanamiClient
+import izanami.commons.IzanamiException
+import izanami.{ClientConfig, Strategy, Crash}
+import akka.actor.ActorSystem
+import org.reactivecouchbase.json.{Json, Syntax}
+import org.awaitility.Awaitility.await
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 class V1CompatibilityTest extends BaseAPISpec {
   "Legacy check endpoint" should {
@@ -674,15 +681,16 @@ class V1CompatibilityTest extends BaseAPISpec {
   }
 
   "legacy jvm client" should {
-    /*"allow to retrieve feature activation for single feature" in {
+    "allow to retrieve feature activation for single feature" in {
       val system = ActorSystem.create()
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant"))
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -702,8 +710,11 @@ class V1CompatibilityTest extends BaseAPISpec {
           .withClientSecret(clientSecret)
       )
 
-      val featureClient = client.featureClient(Strategy.FetchStrategy(errorStrategy = Crash))
-      featureClient.checkFeature("project:foo:default-feature").get() mustBe false
+      val featureClient =
+        client.featureClient(Strategy.FetchStrategy(errorStrategy = Crash))
+      featureClient
+        .checkFeature("project:foo:default-feature")
+        .get() mustBe false
     }
 
     "allow to retrieve feature activation for single feature with context" in {
@@ -712,8 +723,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -733,7 +745,8 @@ class V1CompatibilityTest extends BaseAPISpec {
           .withClientSecret(clientSecret)
       )
 
-      val featureClient = client.featureClient(Strategy.FetchStrategy(errorStrategy = Crash))
+      val featureClient =
+        client.featureClient(Strategy.FetchStrategy(errorStrategy = Crash))
       featureClient
         .checkFeature(
           "project:another:customer-list-feature",
@@ -759,8 +772,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -780,8 +794,11 @@ class V1CompatibilityTest extends BaseAPISpec {
           .withClientSecret(clientSecret)
       )
 
-      val featureClient = client.featureClient(Strategy.FetchStrategy(errorStrategy = Crash))
-      val thrown        = the[IzanamiException] thrownBy featureClient.checkFeature("project:foo:default-feature").get()
+      val featureClient =
+        client.featureClient(Strategy.FetchStrategy(errorStrategy = Crash))
+      val thrown = the[IzanamiException] thrownBy featureClient
+        .checkFeature("project:foo:default-feature")
+        .get()
       thrown.getMessage must include("403")
     }
 
@@ -791,8 +808,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -813,7 +831,8 @@ class V1CompatibilityTest extends BaseAPISpec {
           .withClientSecret(clientSecret)
       )
 
-      val featureClient = client.featureClient(Strategy.FetchStrategy(errorStrategy = Crash))
+      val featureClient =
+        client.featureClient(Strategy.FetchStrategy(errorStrategy = Crash))
 
       val result = featureClient.features("project:foo:*").get()
       result.isActive("project:foo:default-feature") mustBe false
@@ -826,8 +845,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -848,7 +868,8 @@ class V1CompatibilityTest extends BaseAPISpec {
           .withClientSecret(clientSecret)
       )
 
-      val featureClient = client.featureClient(Strategy.FetchStrategy(errorStrategy = Crash))
+      val featureClient =
+        client.featureClient(Strategy.FetchStrategy(errorStrategy = Crash))
 
       val result = featureClient.features("project:foo:*").get()
       result.isActive("project:foo:default-feature") mustBe false
@@ -861,8 +882,9 @@ class V1CompatibilityTest extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val clientId     = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       situation.importAndWaitTermination(
         "tenant",
@@ -890,15 +912,25 @@ class V1CompatibilityTest extends BaseAPISpec {
           errorStrategy = Crash
         )
       )
-      featureClient.checkFeature("project:foo:default-feature").get() mustBe false
+      featureClient
+        .checkFeature("project:foo:default-feature")
+        .get() mustBe false
 
-      val feature        = (situation.fetchProject("tenant", "project").json.get \ "features" \ 0).as[JsObject]
+      val feature =
+        (situation.fetchProject("tenant", "project").json.get \ "features" \ 0)
+          .as[JsObject]
       val updatedFeature = feature + ("enabled" -> JsTrue)
-      situation.updateFeature("tenant", "project:foo:default-feature", updatedFeature)
+      situation.updateFeature(
+        "tenant",
+        "project:foo:default-feature",
+        updatedFeature
+      )
 
-      await until { () => featureClient.checkFeature("project:foo:default-feature").get() == true }
+      await until { () =>
+        featureClient.checkFeature("project:foo:default-feature").get() == true
+      }
     }
-     */
+
     /*"allow to get feature change state via SSE (feature update)" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant"))
