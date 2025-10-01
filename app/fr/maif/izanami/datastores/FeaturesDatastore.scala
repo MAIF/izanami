@@ -1268,7 +1268,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         ArrayBuffer[Feature],
         ArrayBuffer[CompleteWasmFeature],
         ArrayBuffer[SingleConditionFeature]
-    ) = (ArrayBuffer(), ArrayBuffer(), ArrayBuffer())
+    ) = (ArrayBuffer():ArrayBuffer[Feature], ArrayBuffer():ArrayBuffer[CompleteWasmFeature], ArrayBuffer():ArrayBuffer[SingleConditionFeature])
     features.foreach {
       case f: Feature                => modernFeatures.addOne(f)
       case wf: CompleteWasmFeature   => wasmFeatures.addOne(wf)

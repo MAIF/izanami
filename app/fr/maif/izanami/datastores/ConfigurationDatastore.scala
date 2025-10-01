@@ -1,23 +1,36 @@
 package fr.maif.izanami.datastores
 
-import org.apache.pekko.http.scaladsl.util.FastFuture
-import fr.maif.izanami.datastores.ConfigurationDatastore.{parseDbMailer, parseInvitationMode}
-import fr.maif.izanami.datastores.configurationImplicits.{ConfigurationRow, MailerConfigurationRow}
+import fr.maif.izanami.datastores.ConfigurationDatastore.{
+  parseDbMailer,
+  parseInvitationMode
+}
+import fr.maif.izanami.datastores.configurationImplicits.MailerConfigurationRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{ConfigurationReadError, InternalServerError, IzanamiError}
+import fr.maif.izanami.errors.{
+  ConfigurationReadError,
+  InternalServerError,
+  IzanamiError
+}
+import fr.maif.izanami.mail.*
 import fr.maif.izanami.mail.MailerTypes.MailerType
-import fr.maif.izanami.mail._
-import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTPConfigurationWrites, mailGunConfigurationReads, mailJetConfigurationReads, mailJetConfigurationWriteForDisplay}
-import fr.maif.izanami.models.{FullIzanamiConfiguration, InvitationMode, IzanamiConfiguration, OAuth2Configuration, Rights, Tenant, User}
+import fr.maif.izanami.models.IzanamiConfiguration.{
+  SMTPConfigurationReads,
+  SMTPConfigurationWrites,
+  mailGunConfigurationReads,
+  mailJetConfigurationReads
+}
+import fr.maif.izanami.models.*
 import fr.maif.izanami.services.CompleteRights
 import fr.maif.izanami.services.RightService.RightsByRole
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterFutureEither,
+  BetterJsValue
+}
 import fr.maif.izanami.utils.{Datastore, FutureEither}
-import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import io.vertx.sqlclient.{Row, SqlConnection}
-import play.api.libs.json.{JsNull, JsObject, Json, Writes}
+import play.api.libs.json.{JsNull, Json, Writes}
 
 import java.time.ZoneOffset
 import java.util.UUID
@@ -110,7 +123,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
           anonymousReporting <- row.optBoolean("anonymous_reporting")
         )
         yield {
-          val oidcConfiguration = row.optJsObject("oidc_configuration").flatMap(r => r.asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads))
+          val oidcConfiguration = row.optJsObject("oidc_configuration").flatMap(r => r.asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads(_)))
           FullIzanamiConfiguration(
             invitationMode = parseInvitationMode(invitationMode),
             mailConfiguration = mailProviderConfig,
@@ -173,7 +186,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
                 java.lang.Boolean.valueOf(newConfig.anonymousReporting),
                 newConfig.anonymousReportingLastAsked.map(_.atOffset(ZoneOffset.UTC)).orNull,
                 newConfig.oidcConfiguration
-                  .map(r => Json.toJson(r)(OAuth2Configuration._fmt.writes))
+                  .map(r => Json.toJson(r)(OAuth2Configuration._fmt.writes(_)))
                   .getOrElse(JsNull)
                   .vertxJsValue
               )
@@ -183,7 +196,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
                 anonymousReporting <- row.optBoolean("anonymous_reporting")
               )
               yield {
-                val oidcConfiguration = row.optJsObject("oidc_configuration").flatMap(r => r.asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads))
+                val oidcConfiguration = row.optJsObject("oidc_configuration").flatMap(r => r.asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads(_)))
                 FullIzanamiConfiguration(
                   invitationMode = parseInvitationMode(invitationModeStr),
                   mailConfiguration = mailConfig,
@@ -273,7 +286,7 @@ object ConfigurationDatastore {
       case "MAILJET" => MailerTypes.MailJet
       case "MAILGUN" => MailerTypes.MailGun
       case "SMTP" => MailerTypes.SMTP
-      case _ => throw new RuntimeException(s"Failed to read Mailer (readed ${dbMailer})")
+      case _ => throw new RuntimeException(s"Failed to read Mailer (readed $dbMailer)")
     }
   }
 
@@ -295,7 +308,7 @@ object configurationImplicits {
         anonymousReporting <- row.optBoolean("anonymous_reporting")
       )
       yield {
-        val oidcConfiguration = row.optJsObject("oidc_configuration").flatMap(r => r.asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads))
+        val oidcConfiguration = row.optJsObject("oidc_configuration").flatMap(r => r.asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads(_)))
         IzanamiConfiguration(
           parseDbMailer(mailerStr),
           parseInvitationMode(invitationModeStr),

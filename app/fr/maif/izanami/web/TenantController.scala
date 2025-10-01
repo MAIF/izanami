@@ -74,7 +74,7 @@ class TenantController(
             .map(tokenNamesByIds => {
               (
                 events.map(e => {
-                  val json = Json.toJson(e)(EventService.eventFormat.writes).as[JsObject]
+                  val json = Json.toJson(e)(EventService.eventFormat.writes(_)).as[JsObject]
                   e.authentication match {
                     case EventAuthentication.TokenAuthentication(tokenId) => {
                       val tokenName = tokenNamesByIds.getOrElse(tokenId, s"<Deleted token> (token id was $tokenId)")

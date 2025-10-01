@@ -335,11 +335,11 @@ class ValidatePasswordAction(bodyParser: BodyParser[AnyContent], env: Env)(impli
             Future.successful(BadRequest(Json.obj("message" -> "Missing password")))
           case Some(password) =>
             val userRequest = request match {
-              case r: HookAndUserNameRequest[A]        => Some(r.user.username)
-              case r: UserNameRequest[A]               => Some(r.user.username)
-              case r: UserRequestWithCompleteRights[A] => Some(r.user.username)
-              case r: UserRequestWithTenantRights[A]   => Some(r.user.username)
-              case r: ProjectIdUserNameRequest[A]      => Some(r.user.username)
+              case r: HookAndUserNameRequest[_]        => Some(r.user.username)
+              case r: UserNameRequest[_]               => Some(r.user.username)
+              case r: UserRequestWithCompleteRights[_] => Some(r.user.username)
+              case r: UserRequestWithTenantRights[_]   => Some(r.user.username)
+              case r: ProjectIdUserNameRequest[_]      => Some(r.user.username)
               case _                                   => None
             }
             userRequest match {

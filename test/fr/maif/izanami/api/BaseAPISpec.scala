@@ -250,7 +250,7 @@ class IzanamiServerFactory extends DefaultTestServerFactory {
       rootDir = app.path
     )
     sc.copy(configuration =
-      sc.configuration ++ overrideServerConfiguration(app)
+      sc.configuration.withFallback(overrideServerConfiguration(app))
     )
   }
 }
@@ -448,7 +448,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
 
   def cleanUpDB(hard: Boolean): Unit = {
-    classOf[org.postgresql.Driver]
+    classOf[org.postgresql.Driver]: @annotation.nowarn("msg=pure expression does nothing")
     val con_str =
       "jdbc:postgresql://localhost:5432/postgres?user=postgres&password=postgres"
     val conn = DriverManager.getConnection(con_str)
@@ -598,7 +598,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
 
   def executeInDatabase(callback: (Connection => Unit)): Unit = {
-    classOf[org.postgresql.Driver]
+    classOf[org.postgresql.Driver]: @annotation.nowarn("msg=pure expression does nothing")
     val con_str = dbConnectionChain
     val conn = DriverManager.getConnection(con_str)
 
@@ -4256,9 +4256,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                   wasmManagerClient
                     .createScript(name, fileContent, local = false)
                 )
-                .map(ids => {
-                  ids._2
-                })
+                .map(ids => ())
             }
           }
         })

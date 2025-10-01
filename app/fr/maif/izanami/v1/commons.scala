@@ -1,6 +1,5 @@
 package fr.maif.izanami.v1
 
-import fr.maif.izanami.models.RightLevel.Write
 import fr.maif.izanami.models.{ProjectAtomicRight, ProjectRightLevel, RightLevel, TenantRight}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.{JsError, JsSuccess, Reads}
@@ -36,7 +35,7 @@ object OldCommons {
           .reduce((r1, r2) => if (ProjectRightLevel.superiorOrEqualLevels(r1).contains(r2)) r2 else r1)
       )
       .view
-      .mapValues(ProjectAtomicRight)
+      .mapValues(ProjectAtomicRight.apply)
 
     val tenantRight = if (admin) {
       RightLevel.Admin

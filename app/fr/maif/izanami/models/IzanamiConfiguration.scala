@@ -75,7 +75,6 @@ object OAuth2Configuration {
   def OAuth2MethodWrites: Writes[OAuth2Method] = {
     case OAuth2POSTMethod  => JsString("POST")
     case OAuth2BASICMethod => JsString("BASIC")
-    case _                 => JsNull
   }
 
   def OAuth2RawMethodConvert(rawStr: String): OAuth2Method = rawStr match {
@@ -134,7 +133,7 @@ object OAuth2Configuration {
             nameField = nameField,
             emailField = emailField,
             scopes = scopes,
-            pkce = (json \ "pkce").asOpt[PKCEConfig](PKCEConfig._fmt.reads),
+            pkce = (json \ "pkce").asOpt[PKCEConfig](PKCEConfig._fmt.reads(_)),
             callbackUrl = callbackUrl,
             userRightsByRoles = userRightsByRoles,
             roleClaim = (json \ "roleClaim").asOpt[String],
@@ -341,7 +340,7 @@ object IzanamiConfiguration {
     ) yield {
       val anonymousReportingLastAsked =
         (json \ "anonymousReportingLastAsked").asOpt[Instant](instantReads(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-      val oidcConfiguration           = (json \ "oidcConfiguration").asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads)
+      val oidcConfiguration           = (json \ "oidcConfiguration").asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads(_))
       val originEmail                 = (json \ "originEmail").asOpt[String]
 
       (mailer, originEmail) match {
@@ -396,7 +395,7 @@ object IzanamiConfiguration {
     ) yield {
       val anonymousReportingLastAsked =
         (json \ "anonymousReportingLastAsked").asOpt[Instant](instantReads(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-      val oidcConfiguration           = (json \ "oidcConfiguration").asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads)
+      val oidcConfiguration           = (json \ "oidcConfiguration").asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads(_))
       val originEmail                 = (json \ "originEmail").asOpt[String]
 
       (mailer, originEmail) match {

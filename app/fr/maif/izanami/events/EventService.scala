@@ -35,7 +35,7 @@ import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.v1.V2FeatureEvents.{createEventV2, deleteEventV2, updateEventV2}
 import play.api.Logger
 
-import java.time.{Instant, OffsetDateTime, ZoneOffset}
+import java.time.{Instant, OffsetDateTime}
 import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -69,13 +69,12 @@ object EventAuthentication {
     authentication match {
       case TokenAuthentication(_)   => "TOKEN"
       case BackOfficeAuthentication => "BACKOFFICE"
-      case _                        => throw new RuntimeException(s"Unknown authentication $authentication")
     }
   }
 
-  case class TokenAuthentication(tokenId: UUID) extends EventAuthentication;
+  case class TokenAuthentication(tokenId: UUID) extends EventAuthentication
 
-  case object BackOfficeAuthentication extends EventAuthentication;
+  case object BackOfficeAuthentication extends EventAuthentication
 
   def eventAuthenticationReads: Reads[EventAuthentication] = json => {
     (json \ "authentication")
