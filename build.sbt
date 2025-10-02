@@ -26,7 +26,6 @@ lazy val excludeLegacyClientDep = Seq(
 
 version := (ThisBuild / version).value
 
-//scalaVersion := "2.13.13"
 scalaVersion := "3.3.6"
 
 scalacOptions ++= {
@@ -74,12 +73,10 @@ libraryDependencies += "io.dropwizard.metrics" % "metrics-json" % "4.2.23" exclu
 libraryDependencies += "org.mozilla" % "rhino" % "1.7.14"
 libraryDependencies += "com.squareup.okhttp3" % "okhttp" % "4.12.0" excludeAll (excludesJackson: _*)
 libraryDependencies += "fr.maif" %% "wasm4s" % "5.0.3" classifier "bundle"
-//libraryDependencies += "fr.maif" % "wasm4s_3" % "5.0.3"
 libraryDependencies += "com.auth0" % "java-jwt" % "4.4.0" excludeAll (excludesJackson: _*) // needed by wasm4s
 libraryDependencies += "com.github.jknack" % "handlebars" % "4.4.0"
 libraryDependencies += "com.github.jknack" % "handlebars-jackson" % "4.4.0" excludeAll (excludesJackson: _*)
 libraryDependencies += "net.logstash.logback" % "logstash-logback-encoder" % "8.0" excludeAll (excludesJackson: _*)
-//libraryDependencies += "com.github.pureconfig" %% "pureconfig"                  % "0.17.9"
 libraryDependencies += "org.apache.pekko" %% "pekko-slf4j" % "1.1.5"
 libraryDependencies += "org.apache.pekko" %% "pekko-serialization-jackson" % "1.1.5"
 libraryDependencies += "org.apache.pekko" %% "pekko-actor-typed" % "1.1.5"
@@ -88,17 +85,6 @@ libraryDependencies += "org.apache.pekko" %% "pekko-stream" % "1.1.5"
 libraryDependencies += "com.github.pureconfig" %% "pureconfig-core" % "0.17.9"
 libraryDependencies += "com.github.pureconfig" %% "pureconfig-generic-base" % "0.17.9"
 libraryDependencies += "com.github.pureconfig" %% "pureconfig-generic-scala3" % "0.17.9"
-/*libraryDependencies ++= {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, _)) => {
-      Seq("com.github.pureconfig" %% "pureconfig-generic" % "0.17.9")
-    }
-    case Some((3, _)) => {
-      Seq("com.github.pureconfig" %% "pureconfig-generic-scala3" % "0.17.9")
-    }
-    case _            => sys.error("Unsupported scala version")
-  }
-}*/
 
 libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.2" % Test
 libraryDependencies += "org.scalatest" %% "scalatest-flatspec" % "3.2.12" % "test"
@@ -115,8 +101,6 @@ libraryDependencies += ("fr.maif" %% "izanami-client" % "1.11.5" % Test)
 libraryDependencies += "org.awaitility" % "awaitility-scala" % "4.2.0" % Test
 libraryDependencies += "com.github.mifmif" % "generex" % "1.0.1" % Test
 libraryDependencies += "org.apache.pekko" %% "pekko-connectors-sse" % "1.2.0" % Test
-//libraryDependencies += "com.typesafe.akka" %% "akka-stream" % "2.6.20" % Test cross CrossVersion.for3Use2_13
-//libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.6.20" % Test cross CrossVersion.for3Use2_13
 
 routesImport += "fr.maif.izanami.models.CustomBinders._"
 
@@ -162,11 +146,6 @@ assembly / assemblyMergeStrategy := {
 }
 
 crossPaths := false
-
-/*publish / packagedArtifacts := {
-  val log = streams.value.log
-  Map(Artifact(moduleName.value, "jar", "jar") -> assembly.value)
-}*/
 
 val sonatypeCentralDeploymentName =
   settingKey[String](s"fr.maif-izanami")
