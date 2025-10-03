@@ -31,7 +31,7 @@ class FeatureService(env: Env) {
       id: String,
       user: UserWithCompleteRightForOneTenant
   ): FutureEither[LightWeightFeature] = {
-    env.datastores.features
+    datastore
       .findByIdLightweight(tenant, id)
       .flatMap(o =>
         o
@@ -92,8 +92,8 @@ class FeatureService(env: Env) {
                               .map(_ => ())
                           else FutureEither.success(());
           _            <- validateFeature(feature).toFEither;
-          maybeFeature <- datastore.findById(tenant, id).toFEither;
-          oldFeature   <- maybeFeature.toRight(FeatureNotFound(id)).toFEither;
+          oldFeature <- datastore.findActivationStrategiesForFeature(tenant = tenant, id = id)
+            .map(maybeFeature => maybeFeature.toRight(FeatureNotFound(id))).toFEither;
           _            <- isUpdateRequestValid(
                             newFeature = feature,
                             oldFeature = oldFeature,
@@ -218,14 +218,14 @@ class FeatureService(env: Env) {
 object FeatureService {
   private def isUpdateRequestValid(
       newFeature: CompleteFeature,
-      oldFeature: CompleteFeature,
+      oldFeature: FeatureWithOverloads,
       user: UserWithCompleteRightForOneTenant,
       forceLegacy: Boolean
   ): Either[IzanamiError, CompleteFeature] = {
-    if (!canUpdateFeature(oldFeature, user)) {
+    if (!canUpdateFeatureForProject(oldFeature.project, user)) {
       NotEnoughRights.left
     } else if (
-      oldFeature.isInstanceOf[SingleConditionFeature] && !newFeature
+      oldFeature.baseFeature.isInstanceOf[SingleConditionFeature] && !newFeature
         .isInstanceOf[SingleConditionFeature] && forceLegacy
     ) {
       ModernFeaturesForbiddenByConfig.left
@@ -234,12 +234,12 @@ object FeatureService {
     }
   }
 
-  private def canUpdateFeature(feature: AbstractFeature, user: UserWithCompleteRightForOneTenant): Boolean = {
+  private def canUpdateFeatureForProject(project: String, user: UserWithCompleteRightForOneTenant): Boolean = {
     if (user.admin) {
       true
     } else {
       val projectRight =
-        user.tenantRight.flatMap(tr => tr.projects.get(feature.project).map(_.level).orElse(tr.defaultProjectRight))
+        user.tenantRight.flatMap(tr => tr.projects.get(project).map(_.level).orElse(tr.defaultProjectRight))
       projectRight.exists(currentRight =>
         ProjectRightLevel.superiorOrEqualLevels(ProjectRightLevel.Update).contains(currentRight)
       )

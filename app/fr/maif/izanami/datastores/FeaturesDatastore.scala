@@ -34,7 +34,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       tenant: String,
       name: String,
       project: String
-  ): Future[Option[Map[String, LightWeightFeature]]] = {
+  ): Future[Option[FeatureWithOverloads]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryOne(
@@ -52,7 +52,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
   def findActivationStrategiesForFeature(
       tenant: String,
       id: String
-  ): Future[Option[Map[String, LightWeightFeature]]] = {
+  ): Future[Option[FeatureWithOverloads]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql.queryRaw(
       s"""SELECT
@@ -180,7 +180,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 })
                 .flatMap(_.toSeq)
                 .toMap
-              overloadByContext + ("" -> feature)
+              FeatureWithOverloads(baseFeature = feature, overloads = overloadByContext)
             })
         }
       }
@@ -192,7 +192,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       tenant: String,
       ids: Set[String],
       conn: Option[SqlConnection] = None
-  ): Future[Map[String, Map[String, LightWeightFeature]]] = {
+  ): Future[Map[String, FeatureWithOverloads]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryAll(
@@ -314,7 +314,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 .getOrElse(Set())
                 .flatMap(_.toSeq)
                 .toMap
-              (feature.id, overloadByContext + ("" -> feature))
+              (feature.id, FeatureWithOverloads(baseFeature = feature, overloads = overloadByContext))
             })
           maybeTuple
         }
@@ -402,8 +402,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                   }
                   .flatMap {
                     case Some((id, name, project, enabled)) => {
-                      val completeFeatureStrategies = FeatureWithOverloads(oldFeatures(id))
-                      val hasChanged                = completeFeatureStrategies.baseFeature().enabled != value
+                      val completeFeatureStrategies = oldFeatures(id)
+                      val hasChanged                = completeFeatureStrategies.baseFeature.enabled != value
                       if (hasChanged) {
                         env.eventService.emitEvent(
                           channel = tenant,
@@ -412,8 +412,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                             project = project,
                             tenant = tenant,
                             user = user.username,
-                            previous = FeatureWithOverloads(oldFeatures(id)),
-                            feature = FeatureWithOverloads(oldFeatures(id)).setEnabling(value),
+                            previous = oldFeatures(id),
+                            feature = oldFeatures(id).setEnabling(value),
                             origin = NormalOrigin,
                             authentication = user.authentication
                           )
@@ -449,8 +449,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                           project = project,
                           tenant = tenant,
                           user = user.username,
-                          previous = FeatureWithOverloads(oldFeatures(id)),
-                          feature = FeatureWithOverloads(oldFeatures(id)).setProject(value),
+                          previous = oldFeatures(id),
+                          feature = oldFeatures(id).setProject(value),
                           origin = NormalOrigin,
                           authentication = user.authentication
                         )
@@ -1719,7 +1719,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
 
       // Updating result type of a feature automatically trigger overload delete, to avoid
       // returning a string for some contexts and a boolean in others
-      val maybeDeleteFuture = if (oldFeature.baseFeature().resultType != feature.resultType) {
+      val maybeDeleteFuture = if (oldFeature.baseFeature.resultType != feature.resultType) {
         env.datastores.featureContext.deleteFeatureStrategies(tenant, feature.project, feature.name, conn = conn)
       } else {
         Future.successful(())
@@ -1827,7 +1827,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                   })
               )
               .flatMap {
-                case Right(_) if !oldFeature.baseFeature().hasSameActivationStrategy(feature) =>
+                case Right(_) if !oldFeature.baseFeature.hasSameActivationStrategy(feature) =>
                   env.eventService
                     .emitEvent(
                       channel = tenant,
@@ -1851,7 +1851,6 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     }
     // TODO allow updating metadata
     findActivationStrategiesForFeature(tenant = tenant, id = id)
-      .map(o => o.map(f => FeatureWithOverloads(f)))
       .flatMap {
         case None             => Future.successful(Left(FeatureDoesNotExist(id)))
         case Some(oldFeature) => {

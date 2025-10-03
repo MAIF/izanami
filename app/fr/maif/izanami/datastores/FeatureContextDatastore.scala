@@ -290,7 +290,6 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
         env.datastores.features
           .findActivationStrategiesForFeatureByName(tenant, feature, project)
           .map(o => o.toRight(InternalServerError()))
-          .map(e => e.map(map => FeatureWithOverloads(map)))
           .flatMap {
         case Left(error)                          => Left(error).future
         case Right(featureWithOverloads) => {
@@ -349,7 +348,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       Tenant.isTenantValid(tenant)
       env.datastores.features
         .findActivationStrategiesForFeatureByName(tenant, feature, project)
-        .map(o => o.toRight(FeatureDoesNotExist(feature)).map(m => FeatureWithOverloads(m)))
+        .map(o => o.toRight(FeatureDoesNotExist(feature)))
       .flatMap {
         case Left(value)                => Left(value).future
         case Right(oldFeature) => {

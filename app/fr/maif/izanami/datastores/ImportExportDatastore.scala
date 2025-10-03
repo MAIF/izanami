@@ -1,9 +1,17 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.ImportExportDatastore.{DBImportResult, TableMetadata, UnitDBImportResult}
+import fr.maif.izanami.datastores.ImportExportDatastore.{
+  DBImportResult,
+  TableMetadata,
+  UnitDBImportResult
+}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{InternalServerError, IzanamiError, PartialImportFailure}
+import fr.maif.izanami.errors.{
+  InternalServerError,
+  IzanamiError,
+  PartialImportFailure
+}
 import fr.maif.izanami.events.EventOrigin.ImportOrigin
 import fr.maif.izanami.events.{
   PreviousProject,
@@ -26,9 +34,22 @@ import fr.maif.izanami.models.{
 import fr.maif.izanami.models.ExportedType.exportedTypeToString
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.web.ExportController.{projectExportResultWrites, ExportResult, TenantExportRequest}
-import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, MergeOverwrite, Replace}
-import fr.maif.izanami.web.{ExportController, ImportController, ImportResult, UserInformation}
+import fr.maif.izanami.web.ExportController.{
+  projectExportResultWrites,
+  ExportResult,
+  TenantExportRequest
+}
+import fr.maif.izanami.web.ImportController.{
+  ImportConflictStrategy,
+  MergeOverwrite,
+  Replace
+}
+import fr.maif.izanami.web.{
+  ExportController,
+  ImportController,
+  ImportResult,
+  UserInformation
+}
 import io.vertx.core.json.JsonArray
 import io.vertx.sqlclient.SqlConnection
 import play.api.libs.json.{JsObject, Json}
@@ -38,9 +59,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
 
 class ImportExportDatastore(val env: Env) extends Datastore {
-  val extensionSchema = env.extensionsSchema
+  private val extensionSchema: String = env.extensionsSchema
 
-  private def tableMetadata(tenant: String, table: String): Future[Option[TableMetadata]] = {
+  private def tableMetadata(
+      tenant: String,
+      table: String
+  ): Future[Option[TableMetadata]] = {
     env.postgresql.queryOne(
       s"""
          |SELECT ccu.constraint_name as pk_constraint, array_agg(distinct cs.column_name) as table_columns
@@ -60,8 +84,13 @@ class ImportExportDatastore(val env: Env) extends Datastore {
     ) { r =>
       for (
         constraint <- r.optString("pk_constraint");
-        columns    <- r.optStringArray("table_columns")
-      ) yield TableMetadata(table = table, primaryKeyConstraint = constraint, tableColumns = columns.toSet)
+        columns <- r.optStringArray("table_columns")
+      )
+        yield TableMetadata(
+          table = table,
+          primaryKeyConstraint = constraint,
+          tableColumns = columns.toSet
+        )
     }
   }
 
@@ -78,60 +107,108 @@ class ImportExportDatastore(val env: Env) extends Datastore {
           .sortBy { case (t, _) =>
             t.order
           }
-          .map(t => tableMetadata(tenant, t._1.table).map(maybeMetdata => (maybeMetdata, t._2, t._1)))
+          .map(t =>
+            tableMetadata(tenant, t._1.table)
+              .map(maybeMetdata => (maybeMetdata, t._2, t._1))
+          )
       )
       .flatMap(s => {
         if (s.exists(_._1.isEmpty)) {
           // TODO precise table in error
-          Future.successful(Left(InternalServerError(s"Failed to fetch metadata for one table")))
+          Future.successful(
+            Left(InternalServerError(s"Failed to fetch metadata for one table"))
+          )
         } else {
           env.postgresql.executeInTransaction(conn => {
             s
-              .collect { case (Some(metadata), jsons, exportedType) => (metadata, jsons, exportedType) }
+              .collect { case (Some(metadata), jsons, exportedType) =>
+                (metadata, jsons, exportedType)
+              }
               .foldLeft(
-                Future.successful(Right(Map())): Future[Either[IzanamiError, Map[ExportedType, UnitDBImportResult]]]
+                Future.successful(Right(Map())): Future[
+                  Either[IzanamiError, Map[ExportedType, UnitDBImportResult]]
+                ]
               )((agg, t) => {
-                val maybeId = if (t._3 == FeatureType || t._3 == ProjectType) Some("id") else None
+                val maybeId =
+                  if (t._3 == FeatureType || t._3 == ProjectType) Some("id")
+                  else None
                 agg.flatMap {
                   case Right(previousResult) => {
-                    val f: Future[Either[IzanamiError, UnitDBImportResult]] = conflictStrategy match {
-                      case ImportController.MergeOverwrite =>
-                        importTenantDataWithMergeOnConflict(tenant, t._1, t._2, maybeId).map(r => Right(r))
-                      case ImportController.Skip           =>
-                        importTenantDataWithSkipOnConflict(tenant, t._1, t._2, maybeId).map(r => Right(r))
-                      case ImportController.Fail           =>
-                        importTenantDataWithFailOnConflict(tenant, t._1, t._2, conn).map {
-                          case Right(_)    =>
+                    val f: Future[Either[IzanamiError, UnitDBImportResult]] =
+                      conflictStrategy match {
+                        case ImportController.MergeOverwrite =>
+                          importTenantDataWithMergeOnConflict(
+                            tenant,
+                            t._1,
+                            t._2,
                             maybeId
-                              .map(idCol =>
-                                t._2.map(json => (json \ idCol).asOpt[String]).collect { case Some(id) =>
-                                  id
-                                }
-                              )
-                              .map(ids => Right(UnitDBImportResult(createdElements = ids.toSet)))
-                              .getOrElse(Right(UnitDBImportResult()))
-                          case Left(jsons) => Left(PartialImportFailure(Map(t._3 -> jsons)))
-                        }
-                      case Replace                         =>
-                        throw new IllegalArgumentException("Replace strategy can't be used for tenant import")
-                    }
+                          ).map(r => Right(r))
+                        case ImportController.Skip =>
+                          importTenantDataWithSkipOnConflict(
+                            tenant,
+                            t._1,
+                            t._2,
+                            maybeId
+                          ).map(r => Right(r))
+                        case ImportController.Fail =>
+                          importTenantDataWithFailOnConflict(
+                            tenant,
+                            t._1,
+                            t._2,
+                            conn
+                          ).map {
+                            case Right(_) =>
+                              maybeId
+                                .map(idCol =>
+                                  t._2
+                                    .map(json => (json \ idCol).asOpt[String])
+                                    .collect { case Some(id) =>
+                                      id
+                                    }
+                                )
+                                .map(ids =>
+                                  Right(
+                                    UnitDBImportResult(createdElements =
+                                      ids.toSet
+                                    )
+                                  )
+                                )
+                                .getOrElse(Right(UnitDBImportResult()))
+                            case Left(jsons) =>
+                              Left(PartialImportFailure(Map(t._3 -> jsons)))
+                          }
+                        case Replace =>
+                          throw new IllegalArgumentException(
+                            "Replace strategy can't be used for tenant import"
+                          )
+                      }
 
                     f.flatMap {
-                      case Left(err) => Future.successful(Left(err): Either[IzanamiError, UnitDBImportResult])
-                      case Right(r)  =>
+                      case Left(err) =>
+                        Future.successful(
+                          Left(err): Either[IzanamiError, UnitDBImportResult]
+                        )
+                      case Right(r) =>
                         updateUserTenantRightIfNeeded(
                           tenant,
                           entries,
-                          if (conflictStrategy == ImportController.Fail) Some(conn) else None
-                        ).map(_ => Right(r): Either[IzanamiError, UnitDBImportResult])
+                          if (conflictStrategy == ImportController.Fail)
+                            Some(conn)
+                          else None
+                        ).map(_ =>
+                          Right(r): Either[IzanamiError, UnitDBImportResult]
+                        )
                     }.map(e => e.map(v => previousResult + (t._3 -> v)))
                   }
-                  case Left(err)             => Future.successful(Left(err))
+                  case Left(err) => Future.successful(Left(err))
                 }
               })
               .map(e => e.map(m => DBImportResult.from(m)))
               .flatMap {
-                case Left(err)     => (Future.successful(Left(err)): Future[Either[IzanamiError, Unit]])
+                case Left(err) => (
+                  Future
+                    .successful(Left(err)): Future[Either[IzanamiError, Unit]]
+                )
                 case Right(result) => {
                   val projectNamesBydId = entries
                     .get(ProjectType)
@@ -139,7 +216,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     .flatten
                     .map(json => {
                       for (
-                        id   <- (json \ "id").asOpt[UUID];
+                        id <- (json \ "id").asOpt[UUID];
                         name <- (json \ "name").asOpt[String]
                       ) yield (id, name)
                     })
@@ -165,17 +242,25 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     .flatMap(_ => {
                       if (result.updatedProjects.nonEmpty) {
                         val previousProjectNames: Future[Map[UUID, String]] =
-                          if (conflictStrategy == MergeOverwrite && entries.get(FeatureType).exists(s => s.nonEmpty)) {
+                          if (
+                            conflictStrategy == MergeOverwrite && entries
+                              .get(FeatureType)
+                              .exists(s => s.nonEmpty)
+                          ) {
                             env.postgresql
                               .queryAll(
                                 s"""
                                    |SELECT id, name FROM "${tenant}".projects WHERE id=ANY($$1)
                                    |""".stripMargin,
-                                List(result.updatedProjects.map(s => UUID.fromString(s)).toArray)
+                                List(
+                                  result.updatedProjects
+                                    .map(s => UUID.fromString(s))
+                                    .toArray
+                                )
                               ) { r =>
                                 {
                                   for (
-                                    id   <- r.optUUID("id");
+                                    id <- r.optUUID("id");
                                     name <- r.optString("name")
                                   ) yield (id, name)
                                 }
@@ -186,20 +271,26 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                             Future.successful(Map())
                           }
                         previousProjectNames.flatMap(ids => {
-                          Future.sequence(result.updatedProjects.map(projectId => {
-                            env.eventService.emitEvent(
-                              tenant,
-                              SourceProjectUpdated(
-                                tenant = tenant,
-                                id = projectId,
-                                name = projectNamesBydId(UUID.fromString(projectId)),
-                                previous = PreviousProject(ids.get(UUID.fromString(projectId)).orNull),
-                                user = user.username,
-                                origin = ImportOrigin,
-                                authentication = user.authentication
-                              )
-                            )(conn)
-                          }))
+                          Future.sequence(
+                            result.updatedProjects.map(projectId => {
+                              env.eventService.emitEvent(
+                                tenant,
+                                SourceProjectUpdated(
+                                  tenant = tenant,
+                                  id = projectId,
+                                  name = projectNamesBydId(
+                                    UUID.fromString(projectId)
+                                  ),
+                                  previous = PreviousProject(
+                                    ids.get(UUID.fromString(projectId)).orNull
+                                  ),
+                                  user = user.username,
+                                  origin = ImportOrigin,
+                                  authentication = user.authentication
+                                )
+                              )(conn)
+                            })
+                          )
                         })
                       } else {
                         Future.successful(())
@@ -212,7 +303,6 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                           result.createdFeatures ++ result.updatedFeatures,
                           conn = Some(conn)
                         )
-                        .map(m => m.map { case (feature, strat) => (feature, FeatureWithOverloads(strat)) })
                         .flatMap(strategiesByFeature => {
                           Future
                             .sequence(result.createdFeatures.map(created => {
@@ -223,7 +313,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                                     tenant,
                                     SourceFeatureCreated(
                                       id = created,
-                                      project = strategies.baseFeature().project,
+                                      project = strategies.baseFeature.project,
                                       tenant = tenant,
                                       user = user.username,
                                       feature = strategies,
@@ -236,49 +326,64 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                             }))
                             .flatMap(_ => {
                               if (result.updatedFeatures.nonEmpty) {
-                                val previousFeatureStates: Future[Map[String, FeatureWithOverloads]] = if (
-                                  conflictStrategy == MergeOverwrite && entries.get(FeatureType).exists(s => s.nonEmpty)
+                                val previousFeatureStates: Future[
+                                  Map[String, FeatureWithOverloads]
+                                ] = if (
+                                  conflictStrategy == MergeOverwrite && entries
+                                    .get(FeatureType)
+                                    .exists(s => s.nonEmpty)
                                 ) {
                                   env.datastores.features
                                     .findActivationStrategiesForFeatures(
                                       tenant,
-                                      entries(FeatureType).map(f => (f \ "id").as[String]).toSet
+                                      entries(FeatureType)
+                                        .map(f => (f \ "id").as[String])
+                                        .toSet
                                     )
-                                    .map(m => m.map { case (f, s) => (f, FeatureWithOverloads(s)) })
                                     .recover(_ => Map())
                                 } else {
                                   Future.successful(Map())
                                 }
-                                previousFeatureStates.flatMap(previousStates => {
-                                  Future.sequence(
-                                    result.updatedFeatures
-                                      .filter(updated => {
-                                        !strategiesByFeature
-                                          .get(updated)
-                                          .exists(newStrat => previousStates.get(updated).contains(newStrat))
-                                      })
-                                      .map(updated => {
-                                        strategiesByFeature
-                                          .get(updated)
-                                          .map(strategies => {
-                                            env.eventService.emitEvent(
-                                              tenant,
-                                              SourceFeatureUpdated(
-                                                id = updated,
-                                                project = strategies.baseFeature().project,
-                                                tenant = tenant,
-                                                user = user.username,
-                                                feature = strategies,
-                                                previous = previousStates.get(updated).orNull,
-                                                authentication = user.authentication,
-                                                origin = ImportOrigin
-                                              )
-                                            )(conn = conn)
-                                          })
-                                          .getOrElse(Future.successful(()))
-                                      })
-                                  )
-                                })
+                                previousFeatureStates.flatMap(
+                                  previousStates => {
+                                    Future.sequence(
+                                      result.updatedFeatures
+                                        .filter(updated => {
+                                          !strategiesByFeature
+                                            .get(updated)
+                                            .exists(newStrat =>
+                                              previousStates
+                                                .get(updated)
+                                                .contains(newStrat)
+                                            )
+                                        })
+                                        .map(updated => {
+                                          strategiesByFeature
+                                            .get(updated)
+                                            .map(strategies => {
+                                              env.eventService.emitEvent(
+                                                tenant,
+                                                SourceFeatureUpdated(
+                                                  id = updated,
+                                                  project =
+                                                    strategies.baseFeature.project,
+                                                  tenant = tenant,
+                                                  user = user.username,
+                                                  feature = strategies,
+                                                  previous = previousStates
+                                                    .get(updated)
+                                                    .orNull,
+                                                  authentication =
+                                                    user.authentication,
+                                                  origin = ImportOrigin
+                                                )
+                                              )(conn = conn)
+                                            })
+                                            .getOrElse(Future.successful(()))
+                                        })
+                                    )
+                                  }
+                                )
                               } else {
                                 Future.successful(())
                               }
@@ -303,18 +408,22 @@ class ImportExportDatastore(val env: Env) extends Datastore {
   ): Future[UnitDBImportResult] = {
     Tenant.isTenantValid(tenant)
     val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
-    val cols           = metadata.tableColumns.mkString(",")
+    val cols = metadata.tableColumns.mkString(",")
 
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
-        .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) { _ => () }
+        .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) {
+          _ => ()
+        }
         .flatMap(_ => {
           env.postgresql
             .queryRaw(
               s"""
                  |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::"${tenant}".${metadata.table}, $$1)
                  |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO UPDATE SET($cols)=(select $cols from json_populate_recordset(NULL::"${tenant}".${metadata.table}, $$1))
-                 |RETURNING (xmax = 0) AS inserted ${maybeId.map(idCol => s", ${idCol}::TEXT as id").getOrElse("")}
+                 |RETURNING (xmax = 0) AS inserted ${maybeId
+                  .map(idCol => s", ${idCol}::TEXT as id")
+                  .getOrElse("")}
                  |""".stripMargin,
               List(vertxJsonArray),
               conn = Some(conn)
@@ -325,7 +434,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     val insertedMap = rows
                       .map(r => {
                         (for (
-                          id       <- r.optString("id");
+                          id <- r.optString("id");
                           inserted <- r.optBoolean("inserted")
                         ) yield (id, inserted))
                       })
@@ -335,8 +444,10 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                       .groupMap(_._2)(_._1)
 
                     UnitDBImportResult(
-                      createdElements = insertedMap.getOrElse(true, List[String]()).toSet,
-                      updatedElements = insertedMap.getOrElse(false, List[String]()).toSet
+                      createdElements =
+                        insertedMap.getOrElse(true, List[String]()).toSet,
+                      updatedElements =
+                        insertedMap.getOrElse(false, List[String]()).toSet
                     )
                   })
                   .getOrElse(UnitDBImportResult())
@@ -344,40 +455,46 @@ class ImportExportDatastore(val env: Env) extends Datastore {
             }
             .recoverWith {
               case _ => {
-                logger.info(s"There has been import errors, switching to unit import mode for ${metadata.table}")
-                rows.foldLeft(Future.successful(UnitDBImportResult()))((facc, row) => {
-                  facc.flatMap(acc =>
-                    env.postgresql
-                      .queryOne(
-                        s"""
+                logger.info(
+                  s"There has been import errors, switching to unit import mode for ${metadata.table}"
+                )
+                rows.foldLeft(Future.successful(UnitDBImportResult()))(
+                  (facc, row) => {
+                    facc.flatMap(acc =>
+                      env.postgresql
+                        .queryOne(
+                          s"""
                            |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::${metadata.table}, $$1)
                            |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO UPDATE SET($cols)=((select $cols from json_populate_record(NULL::${metadata.table}, $$1)))
                            |RETURNING (xmax = 0) AS inserted ${maybeId
-                          .map(idCol => s", ${idCol}::TEXT as id")
-                          .getOrElse("")}
+                              .map(idCol => s", ${idCol}::TEXT as id")
+                              .getOrElse("")}
                            |""".stripMargin,
-                        List(row.vertxJsValue)
-                      ) { r =>
-                        {
-                          (for (
-                            id       <- r.optString("id");
-                            inserted <- r.optBoolean("inserted")
-                          ) yield (id, inserted))
-                            .map {
-                              case (id, false) => acc.addUpdatedElements(id)
-                              case (id, true)  => acc.addCreatedElements(id)
-                            }
+                          List(row.vertxJsValue)
+                        ) { r =>
+                          {
+                            (for (
+                              id <- r.optString("id");
+                              inserted <- r.optBoolean("inserted")
+                            ) yield (id, inserted))
+                              .map {
+                                case (id, false) => acc.addUpdatedElements(id)
+                                case (id, true)  => acc.addCreatedElements(id)
+                              }
+                          }
                         }
-                      }
-                      .map(r => r.getOrElse(acc))
-                      .recoverWith {
-                        case _ => {
-                          logger.info(s"Import of following row failed for table ${metadata.table} : ${row}")
-                          Future.successful(acc.addFailedElement(row))
+                        .map(r => r.getOrElse(acc))
+                        .recoverWith {
+                          case _ => {
+                            logger.info(
+                              s"Import of following row failed for table ${metadata.table} : ${row}"
+                            )
+                            Future.successful(acc.addFailedElement(row))
+                          }
                         }
-                      }
-                  )
-                })
+                    )
+                  }
+                )
               }
             }
         })
@@ -393,9 +510,11 @@ class ImportExportDatastore(val env: Env) extends Datastore {
   ): Future[Either[Seq[JsObject], Unit]] = {
     Tenant.isTenantValid(tenant)
     val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
-    val cols           = metadata.tableColumns.mkString(",")
+    val cols = metadata.tableColumns.mkString(",")
     env.postgresql
-      .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) { _ => () }
+      .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) {
+        _ => ()
+      }
       .flatMap(_ =>
         env.postgresql
           .queryOne(
@@ -411,7 +530,10 @@ class ImportExportDatastore(val env: Env) extends Datastore {
               logger.info(
                 s"There has been import errors, since strategy is to fail on conflict, all elements will be attempted"
               )
-              rows.foldLeft(Future.successful(Right(())): Future[Either[Seq[JsObject], Unit]])((facc, row) => {
+              rows.foldLeft(
+                Future
+                  .successful(Right(())): Future[Either[Seq[JsObject], Unit]]
+              )((facc, row) => {
                 facc.flatMap {
                   case Left(failedRow) => Future.successful((Left(failedRow)))
                   case Right(_)        => {
@@ -426,7 +548,9 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                       .map(_ => Right(()))
                       .recoverWith {
                         case _ => {
-                          logger.info(s"Import of following row failed for table ${metadata.table} : ${row}")
+                          logger.info(
+                            s"Import of following row failed for table ${metadata.table} : ${row}"
+                          )
                           Future.successful(Left(Seq(row)))
                         }
                       }
@@ -446,17 +570,21 @@ class ImportExportDatastore(val env: Env) extends Datastore {
   ): Future[UnitDBImportResult] = {
     Tenant.isTenantValid(tenant)
     val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
-    val cols           = metadata.tableColumns.mkString(",")
+    val cols = metadata.tableColumns.mkString(",")
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
-        .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) { _ => () }
+        .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) {
+          _ => ()
+        }
         .flatMap(_ => {
           env.postgresql
             .queryRaw(
               s"""
                  |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::"${tenant}".${metadata.table}, $$1)
                  |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO NOTHING
-                 |RETURNING (xmax = 0) AS inserted ${maybeId.map(idCol => s", ${idCol}::TEXT as id").getOrElse("")}
+                 |RETURNING (xmax = 0) AS inserted ${maybeId
+                  .map(idCol => s", ${idCol}::TEXT as id")
+                  .getOrElse("")}
                  |""".stripMargin,
               List(vertxJsonArray),
               conn = Some(conn)
@@ -467,7 +595,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     val insertedIds = rows
                       .map(r => {
                         (for (
-                          id       <- r.optString("id");
+                          id <- r.optString("id");
                           inserted <- r.optBoolean("inserted")
                         ) yield (id, inserted))
                       })
@@ -483,8 +611,14 @@ class ImportExportDatastore(val env: Env) extends Datastore {
             }
             .recoverWith {
               case _ => {
-                logger.info(s"There has been import errors, switching to unit import mode for ${metadata.table}")
-                rows.foldLeft(Future.successful(UnitDBImportResult()): Future[UnitDBImportResult])((facc, row) => {
+                logger.info(
+                  s"There has been import errors, switching to unit import mode for ${metadata.table}"
+                )
+                rows.foldLeft(
+                  Future.successful(UnitDBImportResult()): Future[
+                    UnitDBImportResult
+                  ]
+                )((facc, row) => {
                   facc.flatMap(acc =>
                     env.postgresql
                       .queryOne(
@@ -492,8 +626,8 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                            |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::${metadata.table}, $$1)
                            |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO NOTHING
                            |RETURNING (xmax = 0) AS inserted ${maybeId
-                          .map(idCol => s", ${idCol}::TEXT as id")
-                          .getOrElse("")}
+                            .map(idCol => s", ${idCol}::TEXT as id")
+                            .getOrElse("")}
                            |""".stripMargin,
                         List(row.vertxJsValue)
                       ) { r =>
@@ -509,7 +643,9 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                       .map(r => r.getOrElse(acc))
                       .recoverWith {
                         case _ => {
-                          logger.info(s"Import of following row failed for table ${metadata.table} : ${row}")
+                          logger.info(
+                            s"Import of following row failed for table ${metadata.table} : ${row}"
+                          )
                           Future.successful(acc.addFailedElement(row))
                         }
                       }
@@ -526,7 +662,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       request: TenantExportRequest
   ): Future[List[JsObject]] = {
     Tenant.isTenantValid(tenant)
-    val paramIndex    = new AtomicInteger(1)
+    val paramIndex = new AtomicInteger(1)
     val projectFilter = request.projects match {
       case ExportController.ExportItemList(projects) => Some(projects)
       case _                                         => None
@@ -547,7 +683,9 @@ class ImportExportDatastore(val env: Env) extends Datastore {
          |WITH project_results AS (
          |    SELECT DISTINCT p.name as pname, p.id, (jsonb_build_object('_type', 'project', 'row', to_jsonb(p.*)::jsonb)) as result
          |    FROM "${tenant}".projects p
-         |    ${projectFilter.map(_ => s"WHERE p.name=ANY($$${paramIndex.getAndIncrement()})").getOrElse("")}
+         |    ${projectFilter
+          .map(_ => s"WHERE p.name=ANY($$${paramIndex.getAndIncrement()})")
+          .getOrElse("")}
          |), feature_results AS (
          |    SELECT DISTINCT f.script_config, f.id as fid, f.name as fname, jsonb_build_object('_type', 'feature' , 'row', to_jsonb(f.*)) as result
          |    FROM project_results, "${tenant}".features f
@@ -555,11 +693,11 @@ class ImportExportDatastore(val env: Env) extends Datastore {
          |), tag_results AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'tag', 'row', row_to_json(t.*)::jsonb) as result
          |    FROM "${tenant}".tags t ${projectFilter
-        .map(_ => """
+          .map(_ => """
          |, features_tags ft, feature_results
          |    WHERE ft.feature=feature_results.fid
          |    AND t.name=ft.tag""".stripMargin)
-        .getOrElse("")}
+          .getOrElse("")}
          |), features_tags_results AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'feature_tag', 'row', to_jsonb(ft.*)) as result
          |    FROM "${tenant}".features_tags ft, feature_results
@@ -572,15 +710,17 @@ class ImportExportDatastore(val env: Env) extends Datastore {
          |), context_results AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'context', 'row', to_jsonb(c.*) - 'ctx_path') as result
          |    FROM "${tenant}".new_contexts c${projectFilter
-        .map(_ => """
+          .map(_ => """
          |    , overload_results ors
          |    WHERE c.ctx_path = ors.context
          |    AND c.project = ors.project""".stripMargin)
-        .getOrElse("")}
+          .getOrElse("")}
          |), key_results AS (
          |    SELECT DISTINCT k.name, jsonb_build_object('_type', 'key', 'row', to_jsonb(k.*)) as result
          |    FROM "${tenant}".apikeys k
-         |    ${keyFilter.map(_ => s"WHERE k.name=ANY($$${paramIndex.getAndIncrement()})").getOrElse("")}
+         |    ${keyFilter
+          .map(_ => s"WHERE k.name=ANY($$${paramIndex.getAndIncrement()})")
+          .getOrElse("")}
          |), apikeys_projects_result AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'apikey_project', 'row', to_jsonb(ap.*)) as result
          |    FROM "${tenant}".apikeys_projects ap, key_results kr
@@ -588,7 +728,9 @@ class ImportExportDatastore(val env: Env) extends Datastore {
          |), webhook_results AS (
          |    SELECT DISTINCT w.id, w.name, jsonb_build_object('_type', 'webhook', 'row', to_jsonb(w.*)) as result
          |    FROM "${tenant}".webhooks w
-         |     ${webhookFilter.map(_ => s"WHERE w.name=ANY($$${paramIndex.getAndIncrement()})").getOrElse("")}
+         |     ${webhookFilter
+          .map(_ => s"WHERE w.name=ANY($$${paramIndex.getAndIncrement()})")
+          .getOrElse("")}
          |), webhooks_features_result AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'webhook_feature', 'row', to_jsonb(wf.*)) as result
          |    FROM "${tenant}".webhooks_features wf, webhook_results w, feature_results
@@ -601,8 +743,9 @@ class ImportExportDatastore(val env: Env) extends Datastore {
          |    SELECT DISTINCT jsonb_build_object('_type', 'script', 'row', to_jsonb(wsc.*)) as result
          |    FROM "${tenant}".wasm_script_configurations wsc, feature_results fr
          |    WHERE wsc.id = fr.script_config
-         |)${if (request.userRights)
-        s""", users_webhooks_rights_result AS (
+         |)${
+          if (request.userRights)
+            s""", users_webhooks_rights_result AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'user_webhook_right', 'row', to_jsonb(uwr.*)) as result
          |    FROM "${tenant}".users_webhooks_rights uwr, webhook_results
          |    WHERE uwr.webhook=webhook_results.name
@@ -615,7 +758,8 @@ class ImportExportDatastore(val env: Env) extends Datastore {
          |    FROM "${tenant}".users_keys_rights ukr, key_results kr
          |    WHERE ukr.apikey=kr.name
          |)"""
-      else ""}
+          else ""
+        }
          |SELECT result FROM tag_results
          |UNION ALL
          |SELECT result FROM project_results
@@ -639,16 +783,20 @@ class ImportExportDatastore(val env: Env) extends Datastore {
          |SELECT result FROM webhooks_features_result
          |UNION ALL
          |SELECT result FROM script_results
-         |${if (request.userRights)
-        s"""UNION ALL
+         |${
+          if (request.userRights)
+            s"""UNION ALL
              |SELECT result FROM users_webhooks_rights_result
              |UNION ALL
              |SELECT result FROM project_rights
              |UNION ALL
              |SELECT result FROM key_rights"""
-      else ""}
+          else ""
+        }
          |""".stripMargin,
-      List(projectFilter, keyFilter, webhookFilter).flatMap(_.toList).map(s => s.toArray)
+      List(projectFilter, keyFilter, webhookFilter)
+        .flatMap(_.toList)
+        .map(s => s.toArray)
     ) { r =>
       {
         r.optJsObject("result")
@@ -694,7 +842,11 @@ class ImportExportDatastore(val env: Env) extends Datastore {
 }
 
 object ImportExportDatastore {
-  case class TableMetadata(table: String, primaryKeyConstraint: String, tableColumns: Set[String])
+  case class TableMetadata(
+      table: String,
+      primaryKeyConstraint: String,
+      tableColumns: Set[String]
+  )
 
   case class DBImportResult(
       failedElements: Set[JsObject] = Set(),
@@ -704,16 +856,23 @@ object ImportExportDatastore {
       updatedProjects: Set[String] = Set(),
       previousStrategies: Map[String, FeatureWithOverloads] = Map()
   ) {
-    def addFailedElement(json: JsObject): DBImportResult = copy(failedElements = failedElements + json)
+    def addFailedElement(json: JsObject): DBImportResult =
+      copy(failedElements = failedElements + json)
 
-    def addUpdatedFeatures(id: String): DBImportResult        = copy(updatedFeatures = updatedFeatures + id)
-    def withUpdatedFeatures(ids: Set[String]): DBImportResult = copy(updatedFeatures = updatedFeatures ++ ids)
+    def addUpdatedFeatures(id: String): DBImportResult =
+      copy(updatedFeatures = updatedFeatures + id)
+    def withUpdatedFeatures(ids: Set[String]): DBImportResult =
+      copy(updatedFeatures = updatedFeatures ++ ids)
 
-    def addCreatedFeatures(id: String): DBImportResult        = copy(createdFeatures = createdFeatures + id)
-    def withCreatedFeatures(ids: Set[String]): DBImportResult = copy(createdFeatures = createdFeatures ++ ids)
+    def addCreatedFeatures(id: String): DBImportResult =
+      copy(createdFeatures = createdFeatures + id)
+    def withCreatedFeatures(ids: Set[String]): DBImportResult =
+      copy(createdFeatures = createdFeatures ++ ids)
 
-    def withCreatedProjects(ids: Set[String]): DBImportResult = copy(createdProjects = createdProjects ++ ids)
-    def withUpdatedProjects(ids: Set[String]): DBImportResult = copy(updatedProjects = updatedProjects ++ ids)
+    def withCreatedProjects(ids: Set[String]): DBImportResult =
+      copy(createdProjects = createdProjects ++ ids)
+    def withUpdatedProjects(ids: Set[String]): DBImportResult =
+      copy(updatedProjects = updatedProjects ++ ids)
 
     def mergeWith(other: DBImportResult): DBImportResult = {
       copy(
@@ -749,11 +908,14 @@ object ImportExportDatastore {
       createdElements: Set[String] = Set(),
       previousStrategies: Map[String, FeatureWithOverloads] = Map()
   ) {
-    def addFailedElement(json: JsObject): UnitDBImportResult = copy(failedElements = failedElements + json)
+    def addFailedElement(json: JsObject): UnitDBImportResult =
+      copy(failedElements = failedElements + json)
 
-    def addUpdatedElements(id: String): UnitDBImportResult = copy(updatedElements = updatedElements + id)
+    def addUpdatedElements(id: String): UnitDBImportResult =
+      copy(updatedElements = updatedElements + id)
 
-    def addCreatedElements(id: String): UnitDBImportResult = copy(createdElements = createdElements + id)
+    def addCreatedElements(id: String): UnitDBImportResult =
+      copy(createdElements = createdElements + id)
 
     def mergeWith(other: UnitDBImportResult): UnitDBImportResult = {
       copy(
