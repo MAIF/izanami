@@ -94,7 +94,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           rs.head
             .optFeature()
             .map(feature => {
-              val overloadByContext: Map[String, LightWeightFeature] = rs
+              val overloadByContext: Map[FeatureContextPath, LightWeightFeature] = rs
                 .flatMap(r => {
                   r
                     .optJsObject("overloads")
@@ -108,8 +108,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                               .map(enabled => {
                                 val maybeConditionsJson             = (json \ "conditions").asOpt[JsArray]
                                 val maybeScriptName                 = (json \ "config").asOpt[String]
-                                val r: (String, LightWeightFeature) = (
-                                  context,
+                                val r: (FeatureContextPath, LightWeightFeature) = (
+                                  FeatureContextPath.fromDBString(context),
                                   maybeConditionsJson
                                     .flatMap(conditions => {
                                       val maybeResultDescriptor = feature.resultType match {
@@ -230,7 +230,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           val maybeTuple = r
             .optFeature()
             .map(feature => {
-              val overloadByContext: Map[String, LightWeightFeature] = r
+              val overloadByContext: Map[FeatureContextPath, LightWeightFeature] = r
                 .optJsObject("overloads")
                 .map(overloads => {
                   overloads.keys.map(context => {
@@ -243,8 +243,8 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                         ) yield {
                           val maybeConditionsJson             = (json \ "conditions").asOpt[JsArray]
                           val maybeScriptName                 = (json \ "config").asOpt[String]
-                          val r: (String, LightWeightFeature) = (
-                            context,
+                          val r: (FeatureContextPath, LightWeightFeature) = (
+                            FeatureContextPath.fromDBString(context),
                             maybeConditionsJson
                               .flatMap(conditions => {
                                 val maybeResultDescriptor = feature.resultType match {

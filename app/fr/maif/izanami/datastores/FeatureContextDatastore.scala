@@ -324,7 +324,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                         tenant = tenant,
                         user = user.username,
                         previous = featureWithOverloads,
-                        feature = featureWithOverloads.removeOverload(path.toUserPath),
+                        feature = featureWithOverloads.removeOverload(path),
                         origin = NormalOrigin,
                         authentication = user.authentication
                       )
@@ -453,7 +453,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                         user = user.username,
                         previous = oldFeature,
                         feature = oldFeature
-                          .updateConditionsForContext(path.toUserPath, strategy.toLightWeightContextualStrategy),
+                          .updateConditionsForContext(path, strategy.toLightWeightContextualStrategy),
                         origin = NormalOrigin,
                         authentication = user.authentication
                       )

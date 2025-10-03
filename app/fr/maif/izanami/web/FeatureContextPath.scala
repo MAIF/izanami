@@ -5,12 +5,28 @@ import play.api.mvc.{PathBindable, QueryStringBindable}
 case class FeatureContextPath(elements: Seq[String] = Seq()) {
   def toUserPath: String = elements.mkString("/")
   def toDBPath: String = elements.mkString(".")
+  def isAscendantOf(other: FeatureContextPath): Boolean = {
+    other.elements.startsWith(elements)
+  }
+  def isDescendantOf(other: FeatureContextPath): Boolean = {
+    elements.startsWith(other.elements)
+  }
+  def isEmpty: Boolean = elements.isEmpty
 }
 
 object FeatureContextPath {
-  implicit def pathBinder(implicit strBinder: PathBindable[String]): PathBindable[FeatureContextPath] =
+  def fromDBString(dbString: String):FeatureContextPath = {
+    FeatureContextPath(dbString.split("\\.").toSeq)
+  }
+
+  implicit def pathBinder(implicit
+      strBinder: PathBindable[String]
+  ): PathBindable[FeatureContextPath] =
     new PathBindable[FeatureContextPath] {
-      override def bind(key: String, value: String): Either[String, FeatureContextPath] = {
+      override def bind(
+          key: String,
+          value: String
+      ): Either[String, FeatureContextPath] = {
         strBinder
           .bind(key, value)
           .map(str => {
@@ -26,11 +42,22 @@ object FeatureContextPath {
       seqBinder: QueryStringBindable[Seq[String]]
   ): QueryStringBindable[FeatureContextPath] =
     new QueryStringBindable[FeatureContextPath] {
-      override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, FeatureContextPath]] = {
+      override def bind(
+          key: String,
+          params: Map[String, Seq[String]]
+      ): Option[Either[String, FeatureContextPath]] = {
         for (eitherContext <- seqBinder.bind("context", params)) yield {
           Right(
             FeatureContextPath(elements =
-              eitherContext.map(seq => seq.filter(str => str.nonEmpty).flatMap(str => str.split("/").toSeq.filter(s => s.nonEmpty))).getOrElse(Seq())
+              eitherContext
+                .map(seq =>
+                  seq
+                    .filter(str => str.nonEmpty)
+                    .flatMap(str =>
+                      str.split("/").toSeq.filter(s => s.nonEmpty)
+                    )
+                )
+                .getOrElse(Seq())
             )
           )
         }

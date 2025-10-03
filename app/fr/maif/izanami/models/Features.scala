@@ -26,7 +26,7 @@ import scala.util.{Failure, Success, Try}
 
 case class FeatureWithOverloads(
     baseFeature: LightWeightFeature,
-    overloads: Map[String, LightWeightFeature]
+    overloads: Map[FeatureContextPath, LightWeightFeature]
 ) {
   def id: String = baseFeature.id
 
@@ -38,43 +38,27 @@ case class FeatureWithOverloads(
     )
 
   def setEnabling(enabling: Boolean): FeatureWithOverloads =
-    setEnablingForContext(enabling, "")
+    copy(baseFeature = baseFeature.withEnabled(enabling))
 
   def setFeature(feature: LightWeightFeature): FeatureWithOverloads =
-    setFeatureForContext(feature, "")
+    copy(baseFeature = feature)
 
-  def setEnablingForContext(
-      enabling: Boolean,
-      context: String
-  ): FeatureWithOverloads = {
-    if (context == "") {
-      setEnabling(enabling)
-    }
-    overloads
-      .get(context)
-      .map(f => f.withEnabled(enabling))
-      .map(f => copy(overloads = overloads + (context -> f)))
-      .getOrElse(this)
-  }
-
-  def setFeatureForContext(
-      feature: LightWeightFeature,
-      context: String
-  ): FeatureWithOverloads =
-    copy(overloads = overloads + (context -> feature))
-
-  def removeOverload(context: String): FeatureWithOverloads =
+  def removeOverload(context: FeatureContextPath): FeatureWithOverloads =
     copy(overloads = overloads - context)
 
   def updateConditionsForContext(
-      context: String,
+      context: FeatureContextPath,
       contextualFeatureStrategy: LightweightContextualStrategy
-  ): FeatureWithOverloads = overloads
-    .get(context)
-    .orElse(overloads.get(""))
-    .map(f => f.withStrategy(strategy = contextualFeatureStrategy))
-    .map(f => copy(overloads = overloads + (context -> f)))
-    .getOrElse(this)
+  ): FeatureWithOverloads = {
+    val currentStrategy = overloads
+      .getOrElse(context, baseFeature)
+
+    copy(overloads =
+      overloads + (context -> baseFeature.withStrategy(
+        contextualFeatureStrategy
+      ))
+    )
+  }
 }
 
 object FeatureWithOverloads {
@@ -85,23 +69,12 @@ object FeatureWithOverloads {
     )
 
   def featureWithOverloadWrite: Writes[FeatureWithOverloads] = obj =>
-    Json.toJson(obj.overloads + ("" -> obj.baseFeature))(
+    val writtableMap = obj.overloads.map { (ctx, f) =>
+      (ctx.toUserPath, f)
+    }
+    Json.toJson(writtableMap + ("" -> obj.baseFeature))(
       Writes.genericMapWrites(lightweightFeatureWrite)
     )
-
-  def featureWithOverloadRead
-      : Reads[FeatureWithOverloads] = Reads[FeatureWithOverloads] { json =>
-    (for(
-      map <- json.asOpt[Map[String, LightWeightFeature]](Reads.map(lightweightFeatureRead));
-      baseFeature <- map.get("")
-    ) yield {
-      FeatureWithOverloads(baseFeature = baseFeature, overloads = map - "")
-    }).fold(
-      JsError("Failed to read FeatureWithOverloads"): JsResult[
-        FeatureWithOverloads
-      ]
-    )(f => JsSuccess(f))
-  }
 }
 
 case class RequestContext(
