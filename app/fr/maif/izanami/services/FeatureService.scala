@@ -1,30 +1,14 @@
 package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{
-  FeatureDoesNotExist,
-  FeatureNotFound,
-  IncorrectKey,
-  InternalServerError,
-  IzanamiError,
-  ModernFeaturesForbiddenByConfig,
-  NotEnoughRights,
-  OPAResultMustBeBoolean
-}
+import fr.maif.izanami.errors.{FeatureDoesNotExist, FeatureNotFound, IncorrectKey, InternalServerError, IzanamiError, ModernFeaturesForbiddenByConfig, NoProtectedContextAccess, NotEnoughRights, OPAResultMustBeBoolean}
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models.*
+import fr.maif.izanami.models.ProjectRightLevel.Admin
 import fr.maif.izanami.models.features.BooleanResult
-import fr.maif.izanami.services.FeatureService.{
-  canCreateOrDeleteFeature,
-  isUpdateRequestValid,
-  validateFeature
-}
+import fr.maif.izanami.services.FeatureService.{canCreateOrDeleteFeature, impactedProtectedContextsByRootUpdate, isUpdateRequestValid, validateFeature}
 import fr.maif.izanami.utils.{FutureEither, Helpers}
-import fr.maif.izanami.utils.syntax.implicits.{
-  BetterEither,
-  BetterFutureEither,
-  BetterSyntax
-}
+import fr.maif.izanami.utils.syntax.implicits.{BetterEither, BetterFuture, BetterFutureEither, BetterSyntax}
 import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
 import io.vertx.sqlclient.SqlConnection
 
@@ -118,11 +102,18 @@ class FeatureService(env: Env) {
             .findActivationStrategiesForFeature(tenant = tenant, id = id)
             .map(maybeFeature => maybeFeature.toRight(FeatureNotFound(id)))
             .toFEither;
+          protectedContexts <- env.datastores.featureContext
+            .readProtectedContexts(tenant, feature.project).map(ctxs => ctxs.map(_.fullyQualifiedName)).mapToFEither;
+          /*impactedGlobalContexts = impactedProtectedContextsByRootUpdate(
+            protectedContexts.map(_.fullyQualifiedName).toSet,
+            oldFeature
+          );*/
           _ <- isUpdateRequestValid(
             newFeature = feature,
             oldFeature = oldFeature,
             user = user,
-            forceLegacy = env.typedConfiguration.feature.forceLegacy
+            forceLegacy = env.typedConfiguration.feature.forceLegacy,
+            protectedContexts = protectedContexts.toSet
           ).toFEither;
           _ <- datastore
             .update(
@@ -263,21 +254,29 @@ class FeatureService(env: Env) {
 
 object FeatureService {
 
-  /*def impactedContextsByRootUpdate(potentialContexts: Set[FeatureContextPath], feature: FeatureWithOverloads): Set[FeatureContextPath] = {
-    val contextWithOverloads = feature.overloads.keySet.map(path => FeatureContextPath())
-   potentialContexts.filter(path => {
-
-   })
-  }*/
+  def impactedProtectedContextsByRootUpdate(
+      protectedContexts: Set[FeatureContextPath],
+      feature: FeatureWithOverloads
+  ): Set[FeatureContextPath] = {
+    val contextWithOverloads = feature.overloads.keySet
+    protectedContexts.diff(contextWithOverloads)
+  }
 
   private def isUpdateRequestValid(
       newFeature: CompleteFeature,
       oldFeature: FeatureWithOverloads,
       user: UserWithCompleteRightForOneTenant,
-      forceLegacy: Boolean
+      forceLegacy: Boolean,
+      protectedContexts: Set[FeatureContextPath]
   ): Either[IzanamiError, CompleteFeature] = {
     if (!canUpdateFeatureForProject(oldFeature.project, user)) {
       NotEnoughRights.left
+    } else if(
+      newFeature.resultType != oldFeature.baseFeature.resultType &&
+        protectedContexts.nonEmpty &&
+      !user.hasRightForProject(oldFeature.project, Admin)
+    ) {
+      Left(NoProtectedContextAccess(protectedContexts.map(_.toUserPath).mkString(",")))
     } else if (
       oldFeature.baseFeature.isInstanceOf[SingleConditionFeature] && !newFeature
         .isInstanceOf[SingleConditionFeature] && forceLegacy

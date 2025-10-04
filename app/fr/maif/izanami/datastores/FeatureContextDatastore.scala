@@ -25,6 +25,20 @@ import scala.concurrent.Future
 class FeatureContextDatastore(val env: Env) extends Datastore {
   val postgresql: Postgresql = env.postgresql
   val extensionSchema = env.extensionsSchema
+  
+  
+  def readProtectedContexts(tenant: String, project: String): Future[Seq[Context]] = {
+    require(Tenant.isTenantValid(tenant))
+    postgresql.queryAll(
+      s"""
+         |SELECT global, name, project, "${extensionSchema}".ltree2text(parent) as parent, protected
+         |FROM "${tenant}".new_contexts
+         |WHERE global=true
+         |OR project=$$1
+         |""".stripMargin,
+      params = List(project)
+    ) { r => r.optContext }
+  }
 
   def readContext(tenant: String, path: FeatureContextPath): Future[Option[Context]] = {
     require(Tenant.isTenantValid(tenant))
@@ -531,7 +545,7 @@ object FeatureContextDatastore {
     def optGlobalContext: Option[GlobalContext] = {
       for (
         name        <- row.optString("name");
-        parent <- row.optString("parent").map(ltree => ltree.split("\\.")).map(_.toSeq).orElse(Some(Seq()));
+        parent = row.optString("parent").map(ltree => FeatureContextPath.fromDBString(ltree)).getOrElse(FeatureContextPath());
         isProtected <- row.optBoolean("protected")
       ) yield GlobalContext(name = name, path = parent, isProtected = isProtected)
     }

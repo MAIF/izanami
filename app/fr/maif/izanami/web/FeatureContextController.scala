@@ -133,7 +133,7 @@ class FeatureContextController(
                   .exists(ctx => ctx.isProtected) && !request.user.hasRightForProject(project, ProjectRightLevel.Admin)
               ) {
                 val protectedSubContexts =
-                  contexts.filter(c => c.isProtected).map(c => c.fullyQualifiedName.mkString("/"))
+                  contexts.filter(c => c.isProtected).map(c => c.fullyQualifiedName.toUserPath)
                 Forbidden(
                   Json.obj("message" -> s"Context can't be deleted since it has following protected subcontexts : ${protectedSubContexts
                     .mkString(", ")}")
@@ -161,7 +161,7 @@ class FeatureContextController(
 
   def createFeatureContextHierarchy(contexts: Seq[ContextHolder]): Seq[ContextNode] = {
     val byParent     = contexts.groupBy(g => g.context.path)
-    val topOfTheTree = byParent.getOrElse(Seq(), Seq())
+    val topOfTheTree = byParent.getOrElse(FeatureContextPath(), Seq())
 
     def fillChildren(current: ContextHolder): ContextNode = {
       val children = byParent.getOrElse(current.context.fullyQualifiedName, Seq())
@@ -307,7 +307,7 @@ class FeatureContextController(
             .findChildrenForGlobalContext(tenant, context)
             .flatMap(ctxs => {
               if (ctxs.exists(c => c.isProtected) && !request.user.hasRightForTenant(RightLevel.Admin)) {
-                val protectedSubContexts = ctxs.filter(c => c.isProtected).map(c => c.fullyQualifiedName.mkString("/"))
+                val protectedSubContexts = ctxs.filter(c => c.isProtected).map(c => c.fullyQualifiedName.toUserPath)
                 Forbidden(
                   Json.obj("message" -> s"Context can't be deleted since it has following protecting subcontexts : ${protectedSubContexts
                     .mkString(", ")}")

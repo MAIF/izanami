@@ -1235,6 +1235,56 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature PUT endpoint" should {
+    "allow to change feature result type if project has a protected context only if user is admin on project" in {
+      var situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = true))
+              .withFeatures(TestFeature("F2", enabled = true))
+              .withContexts(TestFeatureContext(name = "prod", isProtected = true).withFeatureOverload(TestFeature("F1", enabled = false)))
+            )
+        )
+        .withUsers(
+          TestUser(username = "testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "foo", tenant = "tenant"),
+          TestUser(username = "admin")
+            .withTenantReadRight("tenant")
+            .withProjectAdminRight(project = "foo", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build();
+
+
+      var updateResponse = situation.updateFeatureByName(
+        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+          jsonFeature ++ Json.obj("resultType" -> "string", "value" -> "bar")
+        }
+      )
+      updateResponse.status mustBe FORBIDDEN
+      updateResponse = situation.updateFeatureByName(
+        tenant = "tenant", project = "foo", name = "F2", transformer = jsonFeature => {
+          jsonFeature ++ Json.obj("resultType" -> "string", "value" -> "bar")
+        }
+      )
+      updateResponse.status mustBe FORBIDDEN
+
+      situation = situation.loggedAsAdmin()
+      updateResponse = situation.updateFeatureByName(
+        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+          jsonFeature ++ Json.obj("resultType" -> "string", "value" -> "bar")
+        }
+      )
+      updateResponse.status mustBe OK
+      updateResponse = situation.updateFeatureByName(
+        tenant = "tenant", project = "foo", name = "F2", transformer = jsonFeature => {
+          jsonFeature ++ Json.obj("resultType" -> "string", "value" -> "bar")
+        }
+      )
+      updateResponse.status mustBe OK
+
+    }
+
     "prevent feature update from legacy to modern feature if force-legacy param is set" in {
       val situation = TestSituationBuilder()
         .withTenants(

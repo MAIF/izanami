@@ -12,6 +12,8 @@ case class FeatureContextPath(elements: Seq[String] = Seq()) {
     elements.startsWith(other.elements)
   }
   def isEmpty: Boolean = elements.isEmpty
+
+  def append(name: String): FeatureContextPath = FeatureContextPath(elements.appended(name))
 }
 
 object FeatureContextPath {

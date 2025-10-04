@@ -35,23 +35,23 @@ case object ContextHolder {
 
 sealed trait Context extends ContextHolder {
   def name: String
-  def path: Seq[String]
+  def path: FeatureContextPath
   def global: Boolean
   def isProtected: Boolean
-  def fullyQualifiedName: Seq[String] = Option(path).getOrElse(Seq()).appended(name)
+  def fullyQualifiedName: FeatureContextPath = Option(path).map(path => path.append(name)).getOrElse(FeatureContextPath())
   def context: Context = this
 }
 
 case class LocalContext(
     name: String,
-    path: Seq[String],
+    path: FeatureContextPath,
     isProtected: Boolean,
     project: String
 ) extends Context {
   override def global: Boolean = false
 }
 
-case class GlobalContext(name: String, path: Seq[String], isProtected: Boolean) extends Context {
+case class GlobalContext(name: String, path: FeatureContextPath, isProtected: Boolean) extends Context {
   override def global: Boolean = true
 }
 
