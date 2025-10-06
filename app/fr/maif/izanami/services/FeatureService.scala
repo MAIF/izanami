@@ -1,34 +1,14 @@
 package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{
-  FeatureDoesNotExist,
-  FeatureNotFound,
-  IncorrectKey,
-  InternalServerError,
-  IzanamiError,
-  ModernFeaturesForbiddenByConfig,
-  NoProtectedContextAccess,
-  NotEnoughRights,
-  OPAResultMustBeBoolean
-}
+import fr.maif.izanami.errors.{FeatureDoesNotExist, FeatureNotFound, IncorrectKey, InternalServerError, IzanamiError, ModernFeaturesForbiddenByConfig, NoProtectedContextAccess, NotEnoughRights, OPAResultMustBeBoolean}
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.ProjectRightLevel.Admin
 import fr.maif.izanami.models.features.BooleanResult
-import fr.maif.izanami.services.FeatureService.{
-  canCreateOrDeleteFeature,
-  impactedProtectedContextsByRootUpdate,
-  isUpdateRequestValid,
-  validateFeature
-}
+import fr.maif.izanami.services.FeatureService.{canCreateOrDeleteFeature, computeRootContexts, impactedProtectedContextsByRootUpdate, isUpdateRequestValid, validateFeature}
 import fr.maif.izanami.utils.{FutureEither, Helpers}
-import fr.maif.izanami.utils.syntax.implicits.{
-  BetterEither,
-  BetterFuture,
-  BetterFutureEither,
-  BetterSyntax
-}
+import fr.maif.izanami.utils.syntax.implicits.{BetterEither, BetterFuture, BetterFutureEither, BetterSyntax}
 import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
 import io.vertx.sqlclient.SqlConnection
 
@@ -139,7 +119,8 @@ class FeatureService(env: Env) {
             for(
               oldStrategy <- oldFeature.baseFeature.toCompleteFeature(tenant, env)
                 .toFEither.map(completeFeature => completeFeature.toCompleteContextualStrategy);
-              res <- protectedContexts.foldLeft(FutureEither.success(()))((res, ctx) => {
+              targetContexts = computeRootContexts(protectedContexts.toSet);
+              res <- targetContexts.foldLeft(FutureEither.success(()))((res, ctx) => {
                 res.flatMap(_ => env.datastores.featureContext.updateFeatureStrategy(
                   tenant = tenant,
                   project = oldFeature.project,
@@ -302,6 +283,14 @@ object FeatureService {
         )
       })
     })
+  }
+  
+  def computeRootContexts(contexts: Set[FeatureContextPath]): Set[FeatureContextPath] = {
+    contexts
+      .filter(_.elements.nonEmpty)
+      .groupBy(ctx => ctx.elements.head)
+      .map(ctxGroup => ctxGroup._2.minBy(_.elements.length))
+      .toSet
   }
 
   private def isUpdateRequestValid(

@@ -1,34 +1,8 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{
-  disabledFeatureBase64,
-  enabledFeatureBase64,
-  TestCondition,
-  TestDateTimePeriod,
-  TestDayPeriod,
-  TestFeature,
-  TestFeatureContext,
-  TestFeaturePatch,
-  TestProject,
-  TestSituationBuilder,
-  TestTenant,
-  TestUser,
-  TestUserListRule,
-  TestWasmConfig
-}
-import play.api.libs.json.{
-  JsArray,
-  JsBoolean,
-  JsDefined,
-  JsFalse,
-  JsNull,
-  JsNumber,
-  JsObject,
-  JsString,
-  JsTrue,
-  Json
-}
-import play.api.test.Helpers._
+import fr.maif.izanami.api.BaseAPISpec.{TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestFeaturePatch, TestProject, TestSituationBuilder, TestTenant, TestUser, TestUserListRule, TestWasmConfig, disabledFeatureBase64, enabledFeatureBase64}
+import play.api.libs.json.{JsArray, JsBoolean, JsDefined, JsFalse, JsNull, JsNumber, JsObject, JsString, JsTrue, JsValue, Json}
+import play.api.test.Helpers.*
 
 import java.time.{LocalDateTime, OffsetDateTime}
 
@@ -1235,6 +1209,45 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature PUT endpoint" should {
+    "preserve old strategy only for higher protected context, not for their child" in {
+      var situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = true))
+              .withContexts(TestFeatureContext(name = "prod", isProtected = true, subContext = Set(TestFeatureContext(name = "mobile", isProtected = true))))
+            )
+        )
+        .withUsers(
+          TestUser(username = "testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "foo", tenant = "tenant"),
+          TestUser(username = "admin")
+            .withTenantReadRight("tenant")
+            .withProjectAdminRight(project = "foo", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build();
+
+
+      val updateResponse = situation.updateFeatureByName(
+        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+          jsonFeature ++ Json.obj("enabled" -> JsFalse)
+        },
+        preserveProtectedContexts = true
+      )
+      updateResponse.status mustBe OK
+
+      val contexts = situation.fetchContexts("tenant", project = "foo").json.get
+
+      val prodCtx = (contexts \ 0).as[JsObject]
+      val mobileCtx = (prodCtx \ "children" \ 0).as[JsObject]
+
+      def overloads(context: JsObject): Seq[JsValue] = (context \ "overloads").as[JsArray].value.toSeq
+
+      overloads(prodCtx) must have size 1
+      overloads(mobileCtx) must have size 0
+    }
+
     "preserve old strategy for protected context when updating a feature with protectedContextPreservation" in {
       var situation = TestSituationBuilder()
         .withTenants(
