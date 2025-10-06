@@ -1209,6 +1209,35 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature PUT endpoint" should {
+    "not update existing overload for protected context, even if old strategy preservation is set" in {
+      var situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = true))
+              .withContexts(TestFeatureContext(name = "prod", isProtected = true, overloads = Seq(TestFeature("F1", enabled = false))))
+            )
+        )
+        .withUsers(
+          TestUser(username = "testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "foo", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build();
+
+
+      val updateResponse = situation.updateFeatureByName(
+        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+          jsonFeature ++ Json.obj("enabled" -> JsFalse)
+        },
+        preserveProtectedContexts = true
+      )
+      updateResponse.status mustBe OK
+
+      val contexts = situation.fetchContexts("tenant", project = "foo").json.get
+      (contexts \ 0 \ "overloads" \ 0 \ "enabled").as[JsBoolean].value mustBe false
+    }
+
     "preserve old strategy only for higher protected context, not for their child" in {
       var situation = TestSituationBuilder()
         .withTenants(

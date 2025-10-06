@@ -115,11 +115,15 @@ class FeatureService(env: Env) {
             protectedContexts = protectedContexts.toSet,
             preserveProtectedContexts = preserveProtectedContexts
           ).toFEither;
+          impactedProtectedContexts = impactedProtectedContextsByRootUpdate(
+            protectedContexts = protectedContexts.toSet,
+            currentOverloads = oldFeature.overloads.keySet
+          );
           f <- if(preserveProtectedContexts && protectedContexts.nonEmpty) {
             for(
               oldStrategy <- oldFeature.baseFeature.toCompleteFeature(tenant, env)
                 .toFEither.map(completeFeature => completeFeature.toCompleteContextualStrategy);
-              targetContexts = computeRootContexts(protectedContexts.toSet);
+              targetContexts = computeRootContexts(impactedProtectedContexts);
               res <- targetContexts.foldLeft(FutureEither.success(()))((res, ctx) => {
                 res.flatMap(_ => env.datastores.featureContext.updateFeatureStrategy(
                   tenant = tenant,
@@ -284,7 +288,7 @@ object FeatureService {
       })
     })
   }
-  
+
   def computeRootContexts(contexts: Set[FeatureContextPath]): Set[FeatureContextPath] = {
     contexts
       .filter(_.elements.nonEmpty)
