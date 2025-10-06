@@ -68,6 +68,15 @@ case class UserPercentage(percentage: Int) extends ActivationRule            {
 
 sealed trait LegacyCompatibleCondition {
   def active(requestContext: RequestContext, featureId: String): Boolean
+  def toBooleanActivationCondition: BooleanActivationCondition = {
+    this match {
+      case All => BooleanActivationCondition()
+      case userList: UserList => BooleanActivationCondition(rule = userList)
+      case userPercentage: UserPercentage => BooleanActivationCondition(rule = userPercentage)
+      case d@DateRangeActivationCondition(begin, end, timezone) => BooleanActivationCondition(period = FeaturePeriod(begin=begin, end=end, timezone=timezone))
+      case ZonedHourPeriod(hourPeriod, timezone) => BooleanActivationCondition(period = FeaturePeriod(hourPeriods= Set(hourPeriod),timezone=timezone))
+    }
+  }
 }
 case class DateRangeActivationCondition(begin: Option[Instant] = None, end: Option[Instant] = None, timezone: ZoneId)
     extends LegacyCompatibleCondition  {

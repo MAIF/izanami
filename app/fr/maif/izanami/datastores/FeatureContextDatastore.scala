@@ -357,7 +357,8 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                              path: FeatureContextPath,
                              feature: String,
                              strategy: CompleteContextualStrategy,
-                             user: UserInformation
+                             user: UserInformation,
+                             conn: Option[SqlConnection] = None
                            ): Future[Either[IzanamiError, Unit]] = {
       Tenant.isTenantValid(tenant)
       env.datastores.features
@@ -366,7 +367,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       .flatMap {
         case Left(value)                => Left(value).future
         case Right(oldFeature) => {
-          postgresql.executeInTransaction(
+          postgresql.executeInOptionalTransaction(conn,
             implicit conn => {
               (strategy match {
                 case ClassicalFeatureStrategy(enabled, _, resultDescriptor) =>

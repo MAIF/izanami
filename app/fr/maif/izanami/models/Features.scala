@@ -29,6 +29,7 @@ case class FeatureWithOverloads(
     overloads: Map[FeatureContextPath, LightWeightFeature]
 ) {
   def id: String = baseFeature.id
+  def name: String = baseFeature.name
 
   def project: String = baseFeature.project
 
@@ -133,6 +134,60 @@ sealed trait CompleteFeature extends AbstractFeature {
           resultType = resultType
         )
       case f: LightWeightFeature => f
+    }
+  }
+
+  def toCompleteContextualStrategy: CompleteContextualStrategy = {
+    this match {
+      case SingleConditionFeature(
+            id,
+            name,
+            project,
+            condition,
+            enabled,
+            tags,
+            metadata,
+            description
+          ) =>
+        ClassicalFeatureStrategy(
+          enabled = enabled,
+          feature = name,
+          resultDescriptor = BooleanResultDescriptor(
+            conditions = Seq(condition.toBooleanActivationCondition)
+          )
+        )
+      case Feature(
+            id,
+            name,
+            project,
+            enabled,
+            tags,
+            metadata,
+            description,
+            resultDescriptor
+          ) =>
+        ClassicalFeatureStrategy(
+          enabled = enabled,
+          feature = name,
+          resultDescriptor = resultDescriptor
+        )
+      case CompleteWasmFeature(
+            id,
+            name,
+            project,
+            enabled,
+            wasmConfig,
+            tags,
+            metadata,
+            description,
+            resultType
+          ) =>
+        CompleteWasmFeatureStrategy(
+          enabled = enabled,
+          wasmConfig = wasmConfig,
+          feature = name,
+          resultType = resultType
+        )
     }
   }
 }

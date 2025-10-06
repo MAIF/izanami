@@ -25,7 +25,7 @@ DELETE        /api/admin/tenants/:tenant/projects/:project                      
 GET           /api/admin/tenants/:tenant/projects/:project/logs                                    fr.maif.izanami.web.ProjectController.readEventsForProject(tenant: String, project: String, order: Option[String], users: Option[String], types: Option[String], features: Option[String], start: Option[String], end: Option[String], cursor:Option[Long], count: Int ?= 50, total: Option[Boolean])
 
 POST          /api/admin/tenants/:tenant/projects/:project/features                                fr.maif.izanami.web.FeatureController.createFeature(tenant: String, project: String)
-PUT           /api/admin/tenants/:tenant/features/:id                                              fr.maif.izanami.web.FeatureController.updateFeature(tenant: String, id: String)
+PUT           /api/admin/tenants/:tenant/features/:id                                              fr.maif.izanami.web.FeatureController.updateFeature(tenant: String, id: String, preserveProtectedContexts: Boolean ?= false)
 DELETE        /api/admin/tenants/:tenant/features/:id                                              fr.maif.izanami.web.FeatureController.deleteFeature(tenant: String, id: String)
 GET           /api/admin/tenants/:tenant/features/_test                                            fr.maif.izanami.web.FeatureController.testFeaturesForContext(tenant: String, user: String ?= "", date: Option[java.time.Instant], featureRequest: fr.maif.izanami.models.FeatureRequest)
 GET           /api/admin/tenants/:tenant/features/:id                                              fr.maif.izanami.web.FeatureController.findFeature(tenant: String, id: String)

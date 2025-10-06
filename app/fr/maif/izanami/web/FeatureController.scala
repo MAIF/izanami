@@ -526,7 +526,7 @@ class FeatureController(
       }
     }
 
-  def updateFeature(tenant: String, id: String): Action[JsValue] =
+  def updateFeature(tenant: String, id: String, preserveProtectedContexts: Boolean): Action[JsValue] =
     detailledRightForTenanFactory(tenant).async(parse.json) { implicit request =>
       Feature.readCompleteFeature(request.body) match {
         case JsError(e)                         => BadRequest(Json.obj("message" -> "bad body format")).future
@@ -538,7 +538,8 @@ class FeatureController(
               id = id,
               feature = feature,
               user = request.user,
-              authentication = request.authentication
+              authentication = request.authentication,
+              preserveProtectedContexts = preserveProtectedContexts
             )
             .toResult(feature => Ok(Json.toJson(feature)(featureWrite)))
         }

@@ -21,6 +21,10 @@ object FeatureContextPath {
     FeatureContextPath(dbString.split("\\.").toSeq)
   }
 
+  def fromUserString(userString: String): FeatureContextPath = {
+    FeatureContextPath(userString.split("/").toSeq)
+  }
+
   implicit def pathBinder(implicit
       strBinder: PathBindable[String]
   ): PathBindable[FeatureContextPath] =

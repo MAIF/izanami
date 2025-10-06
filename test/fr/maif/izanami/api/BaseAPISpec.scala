@@ -935,10 +935,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       tenant: String,
       id: String,
       json: JsValue,
+      preserveProtectedContexts: Boolean,
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
     val response = await(
-      ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/features/${id}")
+      ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/features/${id}?preserveProtectedContexts=${if(preserveProtectedContexts) "true" else "false"}")
         .withCookies(cookies: _*)
         .put(json)
     )
@@ -2860,9 +2861,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     def updateFeature(
         tenant: String,
         id: String,
-        json: JsValue
+        json: JsValue,
+        preserveProtectedContexts: Boolean = false
     ): RequestResult = {
-      BaseAPISpec.this.updateFeature(tenant, id, json, cookies)
+      BaseAPISpec.this.updateFeature(tenant, id, json, preserveProtectedContexts, cookies)
     }
 
     def updateFeatureByName(
@@ -2870,7 +2872,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         project: String,
         name: String,
         transformer: JsObject => JsObject,
-        id: Option[String] = None
+        id: Option[String] = None,
+        preserveProtectedContexts: Boolean = false
     ): RequestResult = {
       val idToUse = id.getOrElse(this.findFeatureId(tenant, project, name).get)
       val projectResponse = this.fetchProject(tenant, project)
@@ -2880,7 +2883,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .map(js => js.as[JsObject])
         .get
       val newFeature = transformer(jsonFeature)
-      BaseAPISpec.this.updateFeature(tenant, idToUse, newFeature, cookies)
+      BaseAPISpec.this.updateFeature(tenant, idToUse, newFeature, preserveProtectedContexts, cookies)
     }
 
     def findFeatureId(

@@ -1,14 +1,34 @@
 package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{FeatureDoesNotExist, FeatureNotFound, IncorrectKey, InternalServerError, IzanamiError, ModernFeaturesForbiddenByConfig, NoProtectedContextAccess, NotEnoughRights, OPAResultMustBeBoolean}
+import fr.maif.izanami.errors.{
+  FeatureDoesNotExist,
+  FeatureNotFound,
+  IncorrectKey,
+  InternalServerError,
+  IzanamiError,
+  ModernFeaturesForbiddenByConfig,
+  NoProtectedContextAccess,
+  NotEnoughRights,
+  OPAResultMustBeBoolean
+}
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.ProjectRightLevel.Admin
 import fr.maif.izanami.models.features.BooleanResult
-import fr.maif.izanami.services.FeatureService.{canCreateOrDeleteFeature, impactedProtectedContextsByRootUpdate, isUpdateRequestValid, validateFeature}
+import fr.maif.izanami.services.FeatureService.{
+  canCreateOrDeleteFeature,
+  impactedProtectedContextsByRootUpdate,
+  isUpdateRequestValid,
+  validateFeature
+}
 import fr.maif.izanami.utils.{FutureEither, Helpers}
-import fr.maif.izanami.utils.syntax.implicits.{BetterEither, BetterFuture, BetterFutureEither, BetterSyntax}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterEither,
+  BetterFuture,
+  BetterFutureEither,
+  BetterSyntax
+}
 import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
 import io.vertx.sqlclient.SqlConnection
 
@@ -79,6 +99,7 @@ class FeatureService(env: Env) {
       feature: CompleteFeature,
       user: UserWithCompleteRightForOneTenant,
       authentication: EventAuthentication,
+      preserveProtectedContexts: Boolean,
       maybeConn: Option[SqlConnection] = None
   ): FutureEither[AbstractFeature] = {
     env.postgresql.executeInOptionalTransaction(
@@ -103,18 +124,34 @@ class FeatureService(env: Env) {
             .map(maybeFeature => maybeFeature.toRight(FeatureNotFound(id)))
             .toFEither;
           protectedContexts <- env.datastores.featureContext
-            .readProtectedContexts(tenant, feature.project).map(ctxs => ctxs.map(_.fullyQualifiedName)).mapToFEither;
-          /*impactedGlobalContexts = impactedProtectedContextsByRootUpdate(
-            protectedContexts.map(_.fullyQualifiedName).toSet,
-            oldFeature
-          );*/
+            .readProtectedContexts(tenant, feature.project)
+            .map(ctxs => ctxs.map(_.fullyQualifiedName))
+            .mapToFEither;
           _ <- isUpdateRequestValid(
             newFeature = feature,
             oldFeature = oldFeature,
             user = user,
             forceLegacy = env.typedConfiguration.feature.forceLegacy,
-            protectedContexts = protectedContexts.toSet
+            protectedContexts = protectedContexts.toSet,
+            preserveProtectedContexts = preserveProtectedContexts
           ).toFEither;
+          f <- if(preserveProtectedContexts && protectedContexts.nonEmpty) {
+            for(
+              oldStrategy <- oldFeature.baseFeature.toCompleteFeature(tenant, env)
+                .toFEither.map(completeFeature => completeFeature.toCompleteContextualStrategy);
+              res <- protectedContexts.foldLeft(FutureEither.success(()))((res, ctx) => {
+                res.flatMap(_ => env.datastores.featureContext.updateFeatureStrategy(
+                  tenant = tenant,
+                  project = oldFeature.project,
+                  path = ctx,
+                  feature = oldFeature.name,
+                  strategy = oldStrategy,
+                  user = UserInformation(username = user.username, authentication = authentication),
+                  conn=Some(conn)
+                ).toFEither)
+              })
+            ) yield res
+          } else FutureEither.success(());
           _ <- datastore
             .update(
               tenant = tenant,
@@ -256,10 +293,15 @@ object FeatureService {
 
   def impactedProtectedContextsByRootUpdate(
       protectedContexts: Set[FeatureContextPath],
-      feature: FeatureWithOverloads
+      currentOverloads: Set[FeatureContextPath]
   ): Set[FeatureContextPath] = {
-    val contextWithOverloads = feature.overloads.keySet
-    protectedContexts.diff(contextWithOverloads)
+    protectedContexts.filterNot(protectedContext => {
+      currentOverloads.exists(overloadContext => {
+        overloadContext == protectedContext || overloadContext.isAscendantOf(
+          protectedContext
+        )
+      })
+    })
   }
 
   private def isUpdateRequestValid(
@@ -267,16 +309,38 @@ object FeatureService {
       oldFeature: FeatureWithOverloads,
       user: UserWithCompleteRightForOneTenant,
       forceLegacy: Boolean,
-      protectedContexts: Set[FeatureContextPath]
+      protectedContexts: Set[FeatureContextPath],
+      preserveProtectedContexts: Boolean
   ): Either[IzanamiError, CompleteFeature] = {
     if (!canUpdateFeatureForProject(oldFeature.project, user)) {
       NotEnoughRights.left
-    } else if(
+    } else if (
       newFeature.resultType != oldFeature.baseFeature.resultType &&
-        protectedContexts.nonEmpty &&
+      protectedContexts.nonEmpty &&
       !user.hasRightForProject(oldFeature.project, Admin)
     ) {
-      Left(NoProtectedContextAccess(protectedContexts.map(_.toUserPath).mkString(",")))
+      Left(
+        NoProtectedContextAccess(
+          protectedContexts.map(_.toUserPath).mkString(",")
+        )
+      )
+    } else if (
+      impactedProtectedContextsByRootUpdate(
+        protectedContexts = protectedContexts,
+        currentOverloads = oldFeature.overloads.keySet
+      ).nonEmpty &&
+      !user.hasRightForProject(oldFeature.project, Admin) &&
+      !preserveProtectedContexts
+    ) {
+      val problematicContexts = impactedProtectedContextsByRootUpdate(
+        protectedContexts = protectedContexts,
+        currentOverloads = oldFeature.overloads.keySet
+      )
+      Left(
+        NoProtectedContextAccess(
+          problematicContexts.map(_.toUserPath).mkString(",")
+        )
+      )
     } else if (
       oldFeature.baseFeature.isInstanceOf[SingleConditionFeature] && !newFeature
         .isInstanceOf[SingleConditionFeature] && forceLegacy

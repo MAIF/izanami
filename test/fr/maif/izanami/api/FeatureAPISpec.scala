@@ -1235,6 +1235,75 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature PUT endpoint" should {
+    "preserve old strategy for protected context when updating a feature with protectedContextPreservation" in {
+      var situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = true))
+              .withContexts(TestFeatureContext(name = "prod", isProtected = true))
+            )
+        )
+        .withUsers(
+          TestUser(username = "testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "foo", tenant = "tenant"),
+          TestUser(username = "admin")
+            .withTenantReadRight("tenant")
+            .withProjectAdminRight(project = "foo", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build();
+
+
+      val updateResponse = situation.updateFeatureByName(
+        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+          jsonFeature ++ Json.obj("enabled" -> JsFalse)
+        },
+        preserveProtectedContexts = true
+      )
+      updateResponse.status mustBe OK
+
+      val contexts = situation.fetchContexts("tenant", project = "foo").json.get
+      val overloads = (contexts \ 0 \ "overloads").as[JsArray].value
+      overloads must have size 1
+    }
+
+    "reject update request without protected context preservation if user is not project admin and protected context exist" in {
+      var situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = true))
+              .withContexts(TestFeatureContext(name = "prod", isProtected = true))
+            )
+        )
+        .withUsers(
+          TestUser(username = "testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "foo", tenant = "tenant"),
+          TestUser(username = "admin")
+            .withTenantReadRight("tenant")
+            .withProjectAdminRight(project = "foo", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build();
+
+
+      var updateResponse = situation.updateFeatureByName(
+        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+          jsonFeature ++ Json.obj("enabled" -> JsFalse)
+        }
+      )
+      updateResponse.status mustBe FORBIDDEN
+
+      situation = situation.loggedAsAdmin()
+      updateResponse = situation.updateFeatureByName(
+        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+          jsonFeature ++ Json.obj("enabled" -> JsFalse)
+        }
+      )
+      updateResponse.status mustBe OK
+    }
+    
     "allow to change feature result type if project has a protected context only if user is admin on project" in {
       var situation = TestSituationBuilder()
         .withTenants(

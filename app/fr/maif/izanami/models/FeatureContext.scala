@@ -2,7 +2,17 @@ package fr.maif.izanami.models
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.models.features.{ActivationCondition, BooleanActivationCondition, BooleanResult, BooleanResultDescriptor, ResultDescriptor, ResultType, ValuedActivationCondition, ValuedResultDescriptor, ValuedResultType}
+import fr.maif.izanami.models.features.{
+  ActivationCondition,
+  BooleanActivationCondition,
+  BooleanResult,
+  BooleanResultDescriptor,
+  ResultDescriptor,
+  ResultType,
+  ValuedActivationCondition,
+  ValuedResultDescriptor,
+  ValuedResultType
+}
 import fr.maif.izanami.wasm.{WasmConfig, WasmUtils}
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json._
@@ -10,25 +20,13 @@ import play.api.libs.json._
 import scala.concurrent.Future
 import scala.util.matching.Regex
 
-/*case class FeatureContext(
-    id: String,
-    name: String,
-    parent: String = null,
-    children: Seq[FeatureContext] = Seq(),
-    overloads: Seq[AbstractFeature] = Seq(),
-    global: Boolean,
-    project: Option[String] = None,
-    isProtected: Boolean
-)*/
-
-
 sealed trait ContextHolder {
   def context: Context
 }
 
 case object ContextHolder {
   def writes: Writes[ContextHolder] = {
-    case c: Context => Context.writes.writes(c)
+    case c: Context              => Context.writes.writes(c)
     case c: ContextWithOverloads => ContextWithOverloads.writes.writes(c)
   }
 }
@@ -38,7 +36,8 @@ sealed trait Context extends ContextHolder {
   def path: FeatureContextPath
   def global: Boolean
   def isProtected: Boolean
-  def fullyQualifiedName: FeatureContextPath = Option(path).map(path => path.append(name)).getOrElse(FeatureContextPath())
+  def fullyQualifiedName: FeatureContextPath =
+    Option(path).map(path => path.append(name)).getOrElse(FeatureContextPath())
   def context: Context = this
 }
 
@@ -51,7 +50,11 @@ case class LocalContext(
   override def global: Boolean = false
 }
 
-case class GlobalContext(name: String, path: FeatureContextPath, isProtected: Boolean) extends Context {
+case class GlobalContext(
+    name: String,
+    path: FeatureContextPath,
+    isProtected: Boolean
+) extends Context {
   override def global: Boolean = true
 }
 
@@ -63,16 +66,16 @@ case object Context {
     }
     Json.obj(
       "name" -> context.name,
-      "global"    -> context.global,
+      "global" -> context.global,
       "protected" -> context.isProtected,
-      "project"   -> project
+      "project" -> project
     )
   }
 }
 
 case class ContextWithOverloads(
-   context: Context,
-   overloads: Seq[AbstractFeature] = Seq()
+    context: Context,
+    overloads: Seq[AbstractFeature] = Seq()
 ) extends ContextHolder
 
 case object ContextWithOverloads {
@@ -80,7 +83,7 @@ case object ContextWithOverloads {
     val json = Context.writes.writes(c.context).as[JsObject]
     json ++
       Json.obj(
-        "overloads" -> c.overloads.map(f => Feature.featureWrite.writes(f)),
+        "overloads" -> c.overloads.map(f => Feature.featureWrite.writes(f))
       )
   }
 }
@@ -97,11 +100,10 @@ case object ContextNode {
     val json = ContextHolder.writes.writes(c.underlying).as[JsObject]
     json ++
       Json.obj(
-        "children"  -> c.children.map(f => ContextNode.writes.writes(f))
+        "children" -> c.children.map(f => ContextNode.writes.writes(f))
       )
   }
 }
-
 
 sealed trait FeatureContextCreationRequest {
   def name: String
@@ -117,7 +119,8 @@ case class LocalFeatureContextCreationRequest(
     project: String,
     isProtected: Boolean
 ) extends FeatureContextCreationRequest {
-  override def withProtected(b: Boolean): FeatureContextCreationRequest = copy(isProtected = b)
+  override def withProtected(b: Boolean): FeatureContextCreationRequest =
+    copy(isProtected = b)
 }
 case class GlobalFeatureContextCreationRequest(
     name: String,
@@ -125,17 +128,26 @@ case class GlobalFeatureContextCreationRequest(
     global: Boolean,
     isProtected: Boolean
 ) extends FeatureContextCreationRequest {
-  override def withProtected(b: Boolean): FeatureContextCreationRequest = copy(isProtected = b)
+  override def withProtected(b: Boolean): FeatureContextCreationRequest =
+    copy(isProtected = b)
 }
 
 sealed trait LightweightContextualStrategy extends ContextualFeatureStrategy
 
 sealed trait CompleteContextualStrategy extends ContextualFeatureStrategy {
-  def value(requestContext: RequestContext, env: Env): Future[Either[IzanamiError, JsValue]]
+  def value(
+      requestContext: RequestContext,
+      env: Env
+  ): Future[Either[IzanamiError, JsValue]]
   def toLightWeightContextualStrategy: LightweightContextualStrategy = {
     this match {
-      case f: ClassicalFeatureStrategy                                           => f
-      case CompleteWasmFeatureStrategy(enabled, wasmConfig, feature, resultType) =>
+      case f: ClassicalFeatureStrategy => f
+      case CompleteWasmFeatureStrategy(
+            enabled,
+            wasmConfig,
+            feature,
+            resultType
+          ) =>
         LightWeightWasmFeatureStrategy(
           enabled = enabled,
           wasmConfigName = wasmConfig.name,
@@ -158,13 +170,20 @@ case class ClassicalFeatureStrategy(
     resultDescriptor: ResultDescriptor
 ) extends CompleteContextualStrategy
     with LightweightContextualStrategy {
-  def value(requestContext: RequestContext, env: Env): Future[Either[IzanamiError, JsValue]] = {
+  def value(
+      requestContext: RequestContext,
+      env: Env
+  ): Future[Either[IzanamiError, JsValue]] = {
     Future.successful(Right((enabled, resultDescriptor) match {
       case (false, r: BooleanResultDescriptor)         => JsFalse
       case (false, _)                                  => JsNull
       case (true, BooleanResultDescriptor(conditions)) =>
-        JsBoolean(conditions.isEmpty || conditions.exists(c => c.active(requestContext, feature)))
-      case (true, v: ValuedResultDescriptor)           => {
+        JsBoolean(
+          conditions.isEmpty || conditions.exists(c =>
+            c.active(requestContext, feature)
+          )
+        )
+      case (true, v: ValuedResultDescriptor) => {
         v.conditions
           .find(condition => condition.active(requestContext, feature))
           .map(condition => condition.jsonValue)
@@ -182,11 +201,17 @@ case class CompleteWasmFeatureStrategy(
     feature: String,
     resultType: ResultType
 ) extends CompleteContextualStrategy {
-  def value(requestContext: RequestContext, env: Env): Future[Either[IzanamiError, JsValue]] = {
+  def value(
+      requestContext: RequestContext,
+      env: Env
+  ): Future[Either[IzanamiError, JsValue]] = {
     if (!enabled) {
       Future { Right(null.asInstanceOf) }(env.executionContext)
     } else {
-      WasmUtils.handle(wasmConfig, requestContext, resultType)(env.executionContext, env)
+      WasmUtils.handle(wasmConfig, requestContext, resultType)(
+        env.executionContext,
+        env
+      )
     }
   }
 }
@@ -205,16 +230,27 @@ object FeatureContext {
       feature: String
   ): JsResult[CompleteContextualStrategy] = {
 
-    val enabled         = (json \ "enabled").asOpt[Boolean].getOrElse(true)
-    val maybeWasmConfig = (json \ "wasmConfig").asOpt[WasmConfig](WasmConfig.format)
+    val enabled = (json \ "enabled").asOpt[Boolean].getOrElse(true)
+    val maybeWasmConfig =
+      (json \ "wasmConfig").asOpt[WasmConfig](WasmConfig.format)
     (json \ "resultType")
       .asOpt[ResultType](ResultType.resultTypeReads)
       .map {
         case resultType: ValuedResultType => {
           val maybeConditions = json
-            .asOpt[ValuedResultDescriptor](ValuedResultDescriptor.valuedDescriptorReads)
+            .asOpt[ValuedResultDescriptor](
+              ValuedResultDescriptor.valuedDescriptorReads
+            )
           (maybeWasmConfig, maybeConditions) match {
-            case (Some(config), _)     => JsSuccess(CompleteWasmFeatureStrategy(enabled, config, feature, resultType))
+            case (Some(config), _) =>
+              JsSuccess(
+                CompleteWasmFeatureStrategy(
+                  enabled,
+                  config,
+                  feature,
+                  resultType
+                )
+              )
             case (_, Some(descriptor)) =>
               JsSuccess(
                 ClassicalFeatureStrategy(
@@ -223,14 +259,27 @@ object FeatureContext {
                   descriptor
                 )
               )
-            case (None, None) => throw new RuntimeException("Failed to read feature strategy: it is neither wasm no classical.")
+            case (None, None) =>
+              throw new RuntimeException(
+                "Failed to read feature strategy: it is neither wasm no classical."
+              )
           }
         }
-        case BooleanResult                => {
+        case BooleanResult => {
           val maybeConditions = (json \ "conditions")
-            .asOpt[Seq[BooleanActivationCondition]](Reads.seq(ActivationCondition.booleanActivationConditionRead))
+            .asOpt[Seq[BooleanActivationCondition]](
+              Reads.seq(ActivationCondition.booleanActivationConditionRead)
+            )
           (maybeWasmConfig, maybeConditions) match {
-            case (Some(config), _)    => JsSuccess(CompleteWasmFeatureStrategy(enabled, config, feature, BooleanResult))
+            case (Some(config), _) =>
+              JsSuccess(
+                CompleteWasmFeatureStrategy(
+                  enabled,
+                  config,
+                  feature,
+                  BooleanResult
+                )
+              )
             case (_, maybeConditions) => {
               JsSuccess(
                 ClassicalFeatureStrategy(
@@ -249,32 +298,5 @@ object FeatureContext {
       .getOrElse(JsError("Missing result type"))
   }
 
-
-
-
-
-
-
   val CONTEXT_REGEXP: Regex = "^[a-zA-Z0-9-]+$".r
-  /*def readFeatureContext(json: JsValue, global: Boolean): JsResult[Context] = {
-
-    for(
-      name <- (json \ "name").asOpt[String].filter(id => CONTEXT_REGEXP.pattern.matcher(id).matches());
-      id <- (json \ "id").asOpt[String];
-      isProtected <- (json \ "protected").asOpt[Boolean].getOrElse(false);
-
-    path
-    global
-    isProtected
-    id
-    val name        =
-    val id          =
-    val
-
-    name
-      .map(n => FeatureContext(id.orNull, n, global = global, isProtected = isProtected))
-      .map(JsSuccess(_))
-      .getOrElse(JsError("Error reading context"))
-
-  }*/
 }
