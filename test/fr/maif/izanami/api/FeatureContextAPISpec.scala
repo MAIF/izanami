@@ -1239,6 +1239,59 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Context feature PUT endpoint" should {
+    "not create preserved stratgey in protected context child of another protected context for which old strategy was preserved" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("proj")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withContexts(
+                  TestFeatureContext(
+                    "production",
+                    isProtected = true
+                  ),
+                  TestFeatureContext(
+                    "ctx",
+                    subContext =
+                      Set(TestFeatureContext("prod", isProtected = true, subContext = Set(TestFeatureContext("mobile", isProtected = true))))
+                  )
+                )
+            )
+        )
+        .build()
+
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "proj",
+        "ctx",
+        "F1",
+        enabled = false,
+        preserveProtectedContexts = true
+      )
+
+      res.status mustEqual NO_CONTENT
+
+      val contexts =
+        situation.fetchContexts("tenant", project = "proj").json.get
+      val ctx = (contexts)
+        .as[JsArray]
+        .value
+        .find(json => (json \ "name").as[String] == "ctx")
+        .get
+        .as[JsObject]
+      val prodCtx = (ctx \ "children" \ 0).as[JsObject]
+      val mobileCtx = (prodCtx \ "children" \ 0).as[JsObject]
+
+      def overloads(context: JsObject): Seq[JsValue] =
+        (context \ "overloads").as[JsArray].value.toSeq
+
+      overloads(ctx) must have size 1
+      overloads(prodCtx) must have size 1
+      overloads(mobileCtx) must have size 0
+    }
+
     "prevent overload upsert in context with protected subcontext without overload if user is not project admin and old strategy preservation is not set" in {
       var situation = TestSituationBuilder()
         .withUsers(
