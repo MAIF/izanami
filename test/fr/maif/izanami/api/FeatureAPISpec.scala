@@ -1209,12 +1209,98 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature PUT endpoint" should {
+    "not preserve old strategy on protected context that are children of context that already define an overload" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("foo")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withContexts(
+                  TestFeatureContext(
+                    name = "rec",
+                    subContext =
+                      Set(TestFeatureContext("mobile", isProtected = true))
+                  ),
+                  TestFeatureContext(
+                    name = "prod",
+                    isProtected = true,
+                    overloads = Seq(TestFeature("F1", enabled = false)),
+                    subContext =
+                      Set(TestFeatureContext("mobile", isProtected = true))
+                  ),
+                  TestFeatureContext(
+                    name = "dev",
+                    overloads = Seq(TestFeature("F1", enabled = false)),
+                    subContext =
+                      Set(TestFeatureContext("mobile", isProtected = true))
+                  )
+                )
+            )
+        )
+        .loggedInWithAdminRights()
+        .build();
+
+      val updateResponse = situation.updateFeatureByName(
+        tenant = "tenant",
+        project = "foo",
+        name = "F1",
+        transformer = jsonFeature => {
+          jsonFeature ++ Json.obj("enabled" -> JsFalse)
+        },
+        preserveProtectedContexts = true
+      )
+      updateResponse.status mustBe OK
+
+      val contexts =
+        situation.fetchContexts("tenant", project = "foo").json.get
+      val prod = (contexts)
+        .as[JsArray]
+        .value
+        .find(json => (json \ "name").as[String] == "prod")
+        .get
+        .as[JsObject]
+      val dev = (contexts)
+        .as[JsArray]
+        .value
+        .find(json => (json \ "name").as[String] == "dev")
+        .get
+        .as[JsObject]
+      val rec = (contexts)
+        .as[JsArray]
+        .value
+        .find(json => (json \ "name").as[String] == "rec")
+        .get
+        .as[JsObject]
+      val prodMobile = (prod \ "children" \ 0).as[JsObject]
+      val devMobile = (dev \ "children" \ 0).as[JsObject]
+      val recMobile = (rec \ "children" \ 0).as[JsObject]
+
+      def overloads(context: JsObject): Seq[JsValue] =
+        (context \ "overloads").as[JsArray].value.toSeq
+
+      overloads(prod) must have length 1
+      overloads(dev) must have length 1
+      overloads(rec) must have length 0
+      overloads(prodMobile) must have length 0
+      overloads(devMobile) must have length 0
+      overloads(recMobile) must have length 1
+    }
+
     "not update existing overload for protected context, even if old strategy preservation is set" in {
       var situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = true))
-              .withContexts(TestFeatureContext(name = "prod", isProtected = true, overloads = Seq(TestFeature("F1", enabled = false))))
+            .withProjects(
+              TestProject("foo")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withContexts(
+                  TestFeatureContext(
+                    name = "prod",
+                    isProtected = true,
+                    overloads = Seq(TestFeature("F1", enabled = false))
+                  )
+                )
             )
         )
         .withUsers(
@@ -1225,9 +1311,11 @@ class FeatureAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build();
 
-
       val updateResponse = situation.updateFeatureByName(
-        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+        tenant = "tenant",
+        project = "foo",
+        name = "F1",
+        transformer = jsonFeature => {
           jsonFeature ++ Json.obj("enabled" -> JsFalse)
         },
         preserveProtectedContexts = true
@@ -1235,15 +1323,27 @@ class FeatureAPISpec extends BaseAPISpec {
       updateResponse.status mustBe OK
 
       val contexts = situation.fetchContexts("tenant", project = "foo").json.get
-      (contexts \ 0 \ "overloads" \ 0 \ "enabled").as[JsBoolean].value mustBe false
+      (contexts \ 0 \ "overloads" \ 0 \ "enabled")
+        .as[JsBoolean]
+        .value mustBe false
     }
 
     "preserve old strategy only for higher protected context, not for their child" in {
       var situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = true))
-              .withContexts(TestFeatureContext(name = "prod", isProtected = true, subContext = Set(TestFeatureContext(name = "mobile", isProtected = true))))
+            .withProjects(
+              TestProject("foo")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withContexts(
+                  TestFeatureContext(
+                    name = "prod",
+                    isProtected = true,
+                    subContext = Set(
+                      TestFeatureContext(name = "mobile", isProtected = true)
+                    )
+                  )
+                )
             )
         )
         .withUsers(
@@ -1257,9 +1357,11 @@ class FeatureAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build();
 
-
       val updateResponse = situation.updateFeatureByName(
-        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+        tenant = "tenant",
+        project = "foo",
+        name = "F1",
+        transformer = jsonFeature => {
           jsonFeature ++ Json.obj("enabled" -> JsFalse)
         },
         preserveProtectedContexts = true
@@ -1271,7 +1373,8 @@ class FeatureAPISpec extends BaseAPISpec {
       val prodCtx = (contexts \ 0).as[JsObject]
       val mobileCtx = (prodCtx \ "children" \ 0).as[JsObject]
 
-      def overloads(context: JsObject): Seq[JsValue] = (context \ "overloads").as[JsArray].value.toSeq
+      def overloads(context: JsObject): Seq[JsValue] =
+        (context \ "overloads").as[JsArray].value.toSeq
 
       overloads(prodCtx) must have size 1
       overloads(mobileCtx) must have size 0
@@ -1281,8 +1384,12 @@ class FeatureAPISpec extends BaseAPISpec {
       var situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = true))
-              .withContexts(TestFeatureContext(name = "prod", isProtected = true))
+            .withProjects(
+              TestProject("foo")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withContexts(
+                  TestFeatureContext(name = "prod", isProtected = true)
+                )
             )
         )
         .withUsers(
@@ -1296,9 +1403,11 @@ class FeatureAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build();
 
-
       val updateResponse = situation.updateFeatureByName(
-        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+        tenant = "tenant",
+        project = "foo",
+        name = "F1",
+        transformer = jsonFeature => {
           jsonFeature ++ Json.obj("enabled" -> JsFalse)
         },
         preserveProtectedContexts = true
@@ -1314,8 +1423,12 @@ class FeatureAPISpec extends BaseAPISpec {
       var situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = true))
-              .withContexts(TestFeatureContext(name = "prod", isProtected = true))
+            .withProjects(
+              TestProject("foo")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withContexts(
+                  TestFeatureContext(name = "prod", isProtected = true)
+                )
             )
         )
         .withUsers(
@@ -1329,9 +1442,11 @@ class FeatureAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build();
 
-
       var updateResponse = situation.updateFeatureByName(
-        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+        tenant = "tenant",
+        project = "foo",
+        name = "F1",
+        transformer = jsonFeature => {
           jsonFeature ++ Json.obj("enabled" -> JsFalse)
         }
       )
@@ -1339,20 +1454,28 @@ class FeatureAPISpec extends BaseAPISpec {
 
       situation = situation.loggedAsAdmin()
       updateResponse = situation.updateFeatureByName(
-        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+        tenant = "tenant",
+        project = "foo",
+        name = "F1",
+        transformer = jsonFeature => {
           jsonFeature ++ Json.obj("enabled" -> JsFalse)
         }
       )
       updateResponse.status mustBe OK
     }
-    
+
     "allow to change feature result type if project has a protected context only if user is admin on project" in {
       var situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withProjects(TestProject("foo").withFeatures(TestFeature("F1", enabled = true))
-              .withFeatures(TestFeature("F2", enabled = true))
-              .withContexts(TestFeatureContext(name = "prod", isProtected = true).withFeatureOverload(TestFeature("F1", enabled = false)))
+            .withProjects(
+              TestProject("foo")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withFeatures(TestFeature("F2", enabled = true))
+                .withContexts(
+                  TestFeatureContext(name = "prod", isProtected = true)
+                    .withFeatureOverload(TestFeature("F1", enabled = false))
+                )
             )
         )
         .withUsers(
@@ -1366,15 +1489,20 @@ class FeatureAPISpec extends BaseAPISpec {
         .loggedAs("testu")
         .build();
 
-
       var updateResponse = situation.updateFeatureByName(
-        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+        tenant = "tenant",
+        project = "foo",
+        name = "F1",
+        transformer = jsonFeature => {
           jsonFeature ++ Json.obj("resultType" -> "string", "value" -> "bar")
         }
       )
       updateResponse.status mustBe FORBIDDEN
       updateResponse = situation.updateFeatureByName(
-        tenant = "tenant", project = "foo", name = "F2", transformer = jsonFeature => {
+        tenant = "tenant",
+        project = "foo",
+        name = "F2",
+        transformer = jsonFeature => {
           jsonFeature ++ Json.obj("resultType" -> "string", "value" -> "bar")
         }
       )
@@ -1382,13 +1510,19 @@ class FeatureAPISpec extends BaseAPISpec {
 
       situation = situation.loggedAsAdmin()
       updateResponse = situation.updateFeatureByName(
-        tenant = "tenant", project = "foo", name = "F1", transformer = jsonFeature => {
+        tenant = "tenant",
+        project = "foo",
+        name = "F1",
+        transformer = jsonFeature => {
           jsonFeature ++ Json.obj("resultType" -> "string", "value" -> "bar")
         }
       )
       updateResponse.status mustBe OK
       updateResponse = situation.updateFeatureByName(
-        tenant = "tenant", project = "foo", name = "F2", transformer = jsonFeature => {
+        tenant = "tenant",
+        project = "foo",
+        name = "F2",
+        transformer = jsonFeature => {
           jsonFeature ++ Json.obj("resultType" -> "string", "value" -> "bar")
         }
       )

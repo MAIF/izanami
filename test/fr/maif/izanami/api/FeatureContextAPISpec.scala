@@ -1239,6 +1239,82 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Context feature PUT endpoint" should {
+    "not preserve old strategy on protected context that are children of context that already define an overload" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("foo")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withContexts(
+                  TestFeatureContext(
+                    "base",
+                    subContext = Set(
+                      TestFeatureContext(
+                        name = "rec",
+                        subContext =
+                          Set(TestFeatureContext("mobile", isProtected = true))
+                      ),
+                      TestFeatureContext(
+                        name = "prod",
+                        isProtected = true,
+                        overloads = Seq(TestFeature("F1", enabled = false)),
+                        subContext =
+                          Set(TestFeatureContext("mobile", isProtected = true))
+                      ),
+                      TestFeatureContext(
+                        name = "dev",
+                        overloads = Seq(TestFeature("F1", enabled = false)),
+                        subContext =
+                          Set(TestFeatureContext("mobile", isProtected = true))
+                      )
+                    )
+                  )
+                )
+            )
+        )
+        .loggedInWithAdminRights()
+        .build();
+
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "foo",
+        "base",
+        "F1",
+        enabled = false,
+        preserveProtectedContexts = true
+      )
+      res.status mustBe NO_CONTENT
+
+      val contexts =
+        (situation.fetchContexts("tenant", project = "foo").json.get \ 0 \ "children").as[JsArray].value
+      val prod = contexts
+        .find(json => (json \ "name").as[String] == "prod")
+        .get
+        .as[JsObject]
+      val dev = contexts
+        .find(json => (json \ "name").as[String] == "dev")
+        .get
+        .as[JsObject]
+      val rec = contexts
+        .find(json => (json \ "name").as[String] == "rec")
+        .get
+        .as[JsObject]
+      val prodMobile = (prod \ "children" \ 0).as[JsObject]
+      val devMobile = (dev \ "children" \ 0).as[JsObject]
+      val recMobile = (rec \ "children" \ 0).as[JsObject]
+
+      def overloads(context: JsObject): Seq[JsValue] =
+        (context \ "overloads").as[JsArray].value.toSeq
+
+      overloads(prod) must have length 1
+      overloads(dev) must have length 1
+      overloads(rec) must have length 0
+      overloads(prodMobile) must have length 0
+      overloads(devMobile) must have length 0
+      overloads(recMobile) must have length 1
+    }
+
     "not create preserved stratgey in protected context child of another protected context for which old strategy was preserved" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -1254,8 +1330,14 @@ class FeatureContextAPISpec extends BaseAPISpec {
                   ),
                   TestFeatureContext(
                     "ctx",
-                    subContext =
-                      Set(TestFeatureContext("prod", isProtected = true, subContext = Set(TestFeatureContext("mobile", isProtected = true))))
+                    subContext = Set(
+                      TestFeatureContext(
+                        "prod",
+                        isProtected = true,
+                        subContext =
+                          Set(TestFeatureContext("mobile", isProtected = true))
+                      )
+                    )
                   )
                 )
             )
@@ -1347,7 +1429,6 @@ class FeatureContextAPISpec extends BaseAPISpec {
       overloads(ctx) must have size 0
       overloads(prodCtx) must have size 0
 
-
       situation = situation.loggedAsAdmin()
       res = situation.changeFeatureStrategyForContext(
         "tenant",
@@ -1359,8 +1440,7 @@ class FeatureContextAPISpec extends BaseAPISpec {
       )
       res.status mustEqual NO_CONTENT
 
-      contexts =
-        situation.fetchContexts("tenant", project = "proj").json.get
+      contexts = situation.fetchContexts("tenant", project = "proj").json.get
       ctx = (contexts)
         .as[JsArray]
         .value
