@@ -1,11 +1,12 @@
 package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{FeatureDoesNotExist, FeatureNotFound, IncorrectKey, InternalServerError, IzanamiError, ModernFeaturesForbiddenByConfig, NoProtectedContextAccess, NotEnoughRights, OPAResultMustBeBoolean}
+import fr.maif.izanami.errors.{FeatureContextDoesNotExist, FeatureDoesNotExist, FeatureNotFound, IncorrectKey, InternalServerError, IzanamiError, ModernFeaturesForbiddenByConfig, NoProtectedContextAccess, NotEnoughRights, OPAResultMustBeBoolean}
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.ProjectRightLevel.Admin
 import fr.maif.izanami.models.features.BooleanResult
+import fr.maif.izanami.requests.OverloadUpsertRequest
 import fr.maif.izanami.services.FeatureService.{canCreateOrDeleteFeature, computeRootContexts, impactedProtectedContextsByRootUpdate, isUpdateRequestValid, validateFeature}
 import fr.maif.izanami.utils.{FutureEither, Helpers}
 import fr.maif.izanami.utils.syntax.implicits.{BetterEither, BetterFuture, BetterFutureEither, BetterSyntax}
@@ -73,6 +74,65 @@ class FeatureService(env: Env) {
       }
   }
 
+
+
+  def upsertOverload(
+      request: OverloadUpsertRequest
+  ): FutureEither[Unit] = {
+    val featureContextDatastore = env.datastores.featureContext
+
+    env.postgresql.executeInTransaction(conn => {
+      for (
+        context <- featureContextDatastore.getFeatureContext(request.tenant, request.project, request.parents)
+          .map(_.toRight(FeatureContextDoesNotExist(request.parents.toUserPath)))
+          .toFEither;
+        protectedContexts <- env.datastores.featureContext
+          .readProtectedContexts(request.tenant, request.project, parent = Some(request.parents))
+          .map(ctxs => ctxs.map(_.fullyQualifiedName))
+          .mapToFEither;
+        oldFeature <- datastore
+          .findActivationStrategiesForFeatureByName(tenant = request.tenant, name = request.name, project = request.project)
+          .map(maybeFeature => maybeFeature.toRight(FeatureNotFound(request.name)))
+          .toFEither;
+        impactedProtectedContexts = impactedProtectedContextsByRootUpdate(
+          protectedContexts = protectedContexts.toSet,
+          currentOverloads = oldFeature.overloads.keySet
+        );
+        _ <- FeatureService.validateOverloadUpsertRequest(context, request, impactedProtectedContexts).toFEither;
+        f <- if (request.preserveProtectedContexts && impactedProtectedContexts.nonEmpty) {
+          val strategy = oldFeature.strategyFor(request.parents);
+          for (
+            oldStrategyF <- strategy.toCompleteFeature(request.tenant, env).toFEither;
+            oldStrategy = oldStrategyF.toCompleteContextualStrategy;
+            targetContexts = computeRootContexts(impactedProtectedContexts);
+            res <- targetContexts.foldLeft(FutureEither.success(()))((res, ctx) => {
+              res.flatMap(_ => env.datastores.featureContext.updateFeatureStrategy(
+                tenant = request.tenant,
+                project = oldFeature.project,
+                path = ctx,
+                feature = oldFeature.name,
+                strategy = oldStrategy,
+                user = UserInformation(username = request.user.username, authentication = request.authentication),
+                conn = Some(conn)
+              ).toFEither)
+            })
+          ) yield res
+        } else FutureEither.success(());
+        res <- env.datastores.featureContext
+          .updateFeatureStrategy(
+            request.tenant,
+            request.project,
+            request.parents,
+            request.name,
+            request.strategy,
+            UserInformation(username = request.user.username, authentication = request.authentication),
+            conn = Some(conn)
+          ).toFEither
+      ) yield res
+    })
+
+  }
+
   def updateFeature(
       tenant: String,
       id: String,
@@ -119,7 +179,7 @@ class FeatureService(env: Env) {
             protectedContexts = protectedContexts.toSet,
             currentOverloads = oldFeature.overloads.keySet
           );
-          f <- if(preserveProtectedContexts && protectedContexts.nonEmpty) {
+          f <- if(preserveProtectedContexts && impactedProtectedContexts.nonEmpty) {
             for(
               oldStrategy <- oldFeature.baseFeature.toCompleteFeature(tenant, env)
                 .toFEither.map(completeFeature => completeFeature.toCompleteContextualStrategy);
@@ -275,6 +335,19 @@ class FeatureService(env: Env) {
 }
 
 object FeatureService {
+
+  def validateOverloadUpsertRequest(ctx: Context, request: OverloadUpsertRequest, impactedProtectedContexts: Set[FeatureContextPath]): Either[IzanamiError, Unit] = {
+    if (ctx.isProtected && !request.user.hasRightForProject(
+      request.project,
+      ProjectRightLevel.Admin
+    )) {
+      Left(NoProtectedContextAccess(ctx.fullyQualifiedName.toUserPath))
+    } else if(impactedProtectedContexts.nonEmpty && !request.user.hasRightForProject(request.project, Admin)) {
+      Left(NoProtectedContextAccess(impactedProtectedContexts.map(c => c.toUserPath).mkString(",")))
+    } else {
+      Right(())
+    }
+  }
 
   def impactedProtectedContextsByRootUpdate(
       protectedContexts: Set[FeatureContextPath],

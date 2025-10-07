@@ -1681,7 +1681,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       wasmConfig: TestWasmConfig = null,
       cookies: Seq[WSCookie] = Seq(),
       resultType: String = "boolean",
-      value: String = null
+      value: String = null,
+      preserveProtectedContexts: Boolean
   ): RequestResult = {
     val response = await(
       changeFeatureStrategyForContextAsync(
@@ -1694,7 +1695,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         wasmConfig,
         cookies,
         resultType,
-        value
+        value,
+        preserveProtectedContexts
       )
     )
 
@@ -1714,10 +1716,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       wasmConfig: TestWasmConfig = null,
       cookies: Seq[WSCookie] = Seq(),
       resultType: String = "boolean",
-      value: String = null
+      value: String = null,
+      preserveProtectedContexts: Boolean = false
   ): Future[WSResponse] = {
     ws.url(
-      s"""${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/contexts/${contextPath}/features/${feature}"""
+      s"""${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/contexts/${contextPath}/features/${feature}?preserveProtectedContexts=${if(preserveProtectedContexts) "true" else "false"}"""
     ).withCookies(cookies: _*)
       .put(
         Json
@@ -3041,7 +3044,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         conditions: Set[TestCondition] = Set(),
         wasmConfig: TestWasmConfig = null,
         resultType: String = "boolean",
-        value: String = null
+        value: String = null,
+        preserveProtectedContexts: Boolean = false
     ): RequestResult = {
       BaseAPISpec.this.changeFeatureStrategyForContext(
         tenant,
@@ -3053,7 +3057,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         wasmConfig,
         cookies,
         resultType,
-        value
+        value,
+        preserveProtectedContexts
       )
     }
 

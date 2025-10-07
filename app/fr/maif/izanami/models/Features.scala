@@ -33,6 +33,8 @@ case class FeatureWithOverloads(
 
   def project: String = baseFeature.project
 
+  def strategyFor(context: FeatureContextPath): LightWeightFeature = overloads.getOrElse(context, baseFeature)
+  
   def setProject(project: String): FeatureWithOverloads =
     copy(overloads =
       overloads.view.mapValues(f => f.withProject(project)).toMap

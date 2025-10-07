@@ -1,8 +1,9 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec._
-import play.api.http.Status._
-import play.api.libs.json.{JsArray, JsObject, JsUndefined, Json}
+import fr.maif.izanami.api.BaseAPISpec.*
+import play.api.http.Status.*
+import play.api.libs.json
+import play.api.libs.json.{JsArray, JsObject, JsUndefined, JsValue, Json}
 
 import java.time.LocalDateTime
 
@@ -1238,6 +1239,146 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Context feature PUT endpoint" should {
+    "prevent overload upsert in context with protected subcontext without overload if user is not project admin and old strategy preservation is not set" in {
+      var situation = TestSituationBuilder()
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "proj", tenant = "tenant")
+        )
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("proj")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withContexts(
+                  TestFeatureContext(
+                    "production",
+                    isProtected = true
+                  ),
+                  TestFeatureContext(
+                    "ctx",
+                    subContext =
+                      Set(TestFeatureContext("prod", isProtected = true))
+                  )
+                )
+            )
+        )
+        .loggedAs("testu")
+        .build()
+
+      var res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "proj",
+        "ctx",
+        "F1",
+        enabled = false,
+        preserveProtectedContexts = false
+      )
+
+      res.status mustEqual FORBIDDEN
+
+      var contexts =
+        situation.fetchContexts("tenant", project = "proj").json.get
+      var ctx = (contexts)
+        .as[JsArray]
+        .value
+        .find(json => (json \ "name").as[String] == "ctx")
+        .get
+        .as[JsObject]
+      var prodCtx = (ctx \ "children" \ 0).as[JsObject]
+
+      def overloads(context: JsObject): Seq[JsValue] =
+        (context \ "overloads").as[JsArray].value.toSeq
+
+      overloads(ctx) must have size 0
+      overloads(prodCtx) must have size 0
+
+
+      situation = situation.loggedAsAdmin()
+      res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "proj",
+        "ctx",
+        "F1",
+        enabled = false,
+        preserveProtectedContexts = false
+      )
+      res.status mustEqual NO_CONTENT
+
+      contexts =
+        situation.fetchContexts("tenant", project = "proj").json.get
+      ctx = (contexts)
+        .as[JsArray]
+        .value
+        .find(json => (json \ "name").as[String] == "ctx")
+        .get
+        .as[JsObject]
+      prodCtx = (ctx \ "children" \ 0).as[JsObject]
+
+      overloads(ctx) must have size 1
+      overloads(prodCtx) must have size 0
+    }
+
+    "preserve old strategy when creating an overload in context with protected subcontext" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("proj")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withContexts(
+                  TestFeatureContext(
+                    "production",
+                    isProtected = true
+                  ),
+                  TestFeatureContext(
+                    "ctx",
+                    subContext =
+                      Set(TestFeatureContext("prod", isProtected = true))
+                  )
+                )
+            )
+        )
+        .build()
+
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "proj",
+        "ctx",
+        "F1",
+        enabled = false,
+        preserveProtectedContexts = true
+      )
+
+      res.status mustEqual NO_CONTENT
+
+      val contexts =
+        situation.fetchContexts("tenant", project = "proj").json.get
+
+      val production = (contexts)
+        .as[JsArray]
+        .value
+        .find(json => (json \ "name").as[String] == "production")
+        .get
+        .as[JsObject]
+      val ctx = (contexts)
+        .as[JsArray]
+        .value
+        .find(json => (json \ "name").as[String] == "ctx")
+        .get
+        .as[JsObject]
+      val prodCtx = (ctx \ "children" \ 0).as[JsObject]
+
+      def overloads(context: JsObject): Seq[JsValue] =
+        (context \ "overloads").as[JsArray].value.toSeq
+
+      overloads(ctx) must have size 1
+      overloads(prodCtx) must have size 1
+      overloads(production) must have size 0
+    }
+
     "Reject overload creation with incorrect resultType" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()

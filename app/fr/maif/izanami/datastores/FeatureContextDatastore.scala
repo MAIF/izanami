@@ -23,20 +23,22 @@ import java.util.Objects
 import scala.concurrent.Future
 
 class FeatureContextDatastore(val env: Env) extends Datastore {
-  val postgresql: Postgresql = env.postgresql
-  val extensionSchema = env.extensionsSchema
+  private val postgresql: Postgresql = env.postgresql
+  private val extensionSchema = env.extensionsSchema
   
   
-  def readProtectedContexts(tenant: String, project: String): Future[Seq[Context]] = {
+  def readProtectedContexts(tenant: String, project: String, parent: Option[FeatureContextPath] = None): Future[Seq[Context]] = {
     require(Tenant.isTenantValid(tenant))
     postgresql.queryAll(
       s"""
          |SELECT global, name, project, "${extensionSchema}".ltree2text(parent) as parent, protected
          |FROM "${tenant}".new_contexts
-         |WHERE global=true
-         |OR project=$$1
+         |WHERE (global=true
+         |OR project=$$1)
+         |AND protected=true
+         |${parent.map(path => s"""AND "${extensionSchema}".text2ltree($$2) OPERATOR("${extensionSchema}".@>) ctx_path""").getOrElse("")}
          |""".stripMargin,
-      params = List(project)
+      params = parent.fold(List(project))(p => List(project, p.toDBPath))
     ) { r => r.optContext }
   }
 
