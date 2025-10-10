@@ -1,15 +1,40 @@
 package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{FeatureContextDoesNotExist, FeatureDoesNotExist, FeatureNotFound, IncorrectKey, InternalServerError, IzanamiError, ModernFeaturesForbiddenByConfig, NoProtectedContextAccess, NotEnoughRights, OPAResultMustBeBoolean}
+import fr.maif.izanami.errors.{
+  FeatureContextDoesNotExist,
+  FeatureDoesNotExist,
+  FeatureNotFound,
+  IncorrectKey,
+  InternalServerError,
+  IzanamiError,
+  ModernFeaturesForbiddenByConfig,
+  NoProtectedContextAccess,
+  NotEnoughRights,
+  OPAResultMustBeBoolean
+}
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.ProjectRightLevel.{Admin, Read, Update, Write}
 import fr.maif.izanami.models.features.BooleanResult
-import fr.maif.izanami.requests.{BaseFeatureUpdateRequest, FeatureUpdateRequest, OverloadFeatureUpdateRequest}
-import fr.maif.izanami.services.FeatureService.{canCreateOrDeleteFeature, computeRootContexts, impactedProtectedContextsByRootUpdate, validateFeature}
+import fr.maif.izanami.requests.{
+  BaseFeatureUpdateRequest,
+  FeatureUpdateRequest,
+  OverloadFeatureUpdateRequest
+}
+import fr.maif.izanami.services.FeatureService.{
+  canCreateOrDeleteFeature,
+  computeRootContexts,
+  impactedProtectedContextsByRootUpdate,
+  validateFeature
+}
 import fr.maif.izanami.utils.{FutureEither, Helpers}
-import fr.maif.izanami.utils.syntax.implicits.{BetterEither, BetterFuture, BetterFutureEither, BetterSyntax}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterEither,
+  BetterFuture,
+  BetterFutureEither,
+  BetterSyntax
+}
 import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
 import io.vertx.sqlclient.SqlConnection
 
@@ -108,71 +133,116 @@ class FeatureService(env: Env) {
       )
   }
 
-  def updateFeature(
+  def upsertOverload(request: OverloadFeatureUpdateRequest): FutureEither[Unit] = {
+    for (
+        oldFeature <- datastore
+          .findActivationStrategiesForFeatureByName(
+            tenant = request.tenant,
+            name = request.featureName,
+            project = request.project
+          )
+          .map(maybeFeature =>
+            maybeFeature.toRight(FeatureNotFound(request.featureName))
+          )
+          .toFEither;
+        res <- doUpdateFeature(request, oldFeature)
+      ) yield res
+
+  }
+
+  def updateFeature(request: BaseFeatureUpdateRequest): FutureEither[AbstractFeature] = {
+    env.postgresql.executeInTransaction(conn => {
+      for (
+        _ <- env.datastores.tags
+          .createTags(
+            request.tags
+              .map(name => TagCreationRequest(name = name))
+              .toList,
+            request.tenant,
+            Some(conn)
+          )
+          .toFEither;
+        oldFeature <- datastore
+          .findActivationStrategiesForFeature(
+            tenant = request.tenant,
+            id = request.id
+          )
+          .map(maybeFeature =>
+            maybeFeature.toRight(FeatureNotFound(request.featureName))
+          )
+          .toFEither;
+        _ <- if (
+          request.feature.project != oldFeature.project &&
+          (!request.user
+            .hasRightForProject(request.feature.project, Write) || !request.user
+            .hasRightForProject(oldFeature.project, Write))
+        ) {
+          FutureEither.failure(
+            NotEnoughRights
+          )
+        } else {
+          FutureEither.success(())
+        };
+        _ <- if (
+          oldFeature.baseFeature
+            .isInstanceOf[SingleConditionFeature] && !request.feature
+            .isInstanceOf[
+              SingleConditionFeature
+            ] && env.typedConfiguration.feature.forceLegacy
+        ) {
+          FutureEither.failure(ModernFeaturesForbiddenByConfig)
+        } else {
+          FutureEither.success(())
+        };
+        _ <- doUpdateFeature(request, oldFeature, Some(conn));
+        id = request.id;
+        maybeRes <- datastore
+          .findById(request.tenant, id, conn = Some(conn))
+          .toFEither;
+        res <- maybeRes
+          .toRight(
+            InternalServerError("Failed to read feature after its update")
+          )
+          .toFEither
+      ) yield res
+    })
+  }
+
+  private def doUpdateFeature(
       request: FeatureUpdateRequest,
+      oldFeature: FeatureWithOverloads,
       maybeConn: Option[SqlConnection] = None
-  ): FutureEither[AbstractFeature] = {
+  ): FutureEither[Unit] = {
 
     env.postgresql.executeInOptionalTransaction(
       maybeConn,
       conn => {
         for (
-          _ <- env.datastores.tags
-            .createTags(
-              request.tags
-                .map(name => TagCreationRequest(name = name))
-                .toList,
-              request.tenant,
-              Some(conn)
-            )
-            .toFEither
-            .map(_ => ());
           _ <- validateFeature(
             request.strategy
           ).toFEither; // TODO replace by validation on Reads[AbstractFeature]
-          oldFeature <- (request match {
-            case r:BaseFeatureUpdateRequest => datastore.findActivationStrategiesForFeature(
-              tenant = request.tenant,
-              id = r.id
-            )
-            case r:OverloadFeatureUpdateRequest => datastore.findActivationStrategiesForFeatureByName(tenant = request.tenant, name = request.featureName, project = request.project)
-          }).map(maybeFeature =>
-              maybeFeature.toRight(FeatureNotFound(request.featureName))
-            )
-            .toFEither;
           protectedContexts <- env.datastores.featureContext
-            .readProtectedContexts(request.tenant, request.project, request.maybeContext)
+            .readProtectedContexts(
+              request.tenant,
+              request.project,
+              request.maybeContext
+            )
             .map(ctxs => ctxs.map(_.fullyQualifiedName))
             .mapToFEither;
           impactedProtectedContexts = impactedProtectedContextsByRootUpdate(
             protectedContexts = protectedContexts.toSet,
             currentOverloads = oldFeature.overloads.keySet
           );
-          _ <- request match {
-            case r: BaseFeatureUpdateRequest
-                if oldFeature.baseFeature
-                  .isInstanceOf[SingleConditionFeature] && !r.feature
-                  .isInstanceOf[
-                    SingleConditionFeature
-                  ] && env.typedConfiguration.feature.forceLegacy => {
-              FutureEither.failure(ModernFeaturesForbiddenByConfig)
-            }
-            case r: BaseFeatureUpdateRequest
-                if (r.feature.resultType != oldFeature.baseFeature.resultType && protectedContexts.nonEmpty && !r.user
-                  .hasRightForProject(r.project, Admin)) =>
-              FutureEither.failure(
-                NoProtectedContextAccess(
-                  impactedProtectedContexts.map(_.toUserPath).mkString(",")
-                )
+          _ <- if (
+            request.strategy.resultType != oldFeature.baseFeature.resultType && protectedContexts.nonEmpty && !request.user
+              .hasRightForProject(request.project, Admin)
+          ) {
+            FutureEither.failure(
+              NoProtectedContextAccess(
+                impactedProtectedContexts.map(_.toUserPath).mkString(",")
               )
-            case r: BaseFeatureUpdateRequest
-              if (r.feature.project != oldFeature.project &&
-                (!r.user.hasRightForProject(r.feature.project, Write) || !r.user.hasRightForProject(oldFeature.project, Write))) =>
-              FutureEither.failure(
-                NotEnoughRights
-              )
-            case _ => FutureEither.success(())
-          };
+            )
+          } else { FutureEither.success(()) };
           protectedContextToUpdate = computeRootContexts(
             impactedProtectedContexts
           );
@@ -211,7 +281,7 @@ class FeatureService(env: Env) {
                 })
             ) yield res
           } else FutureEither.success(());
-          _ <- request match {
+          res <- request match {
             case r: BaseFeatureUpdateRequest =>
               datastore
                 .update(
@@ -221,7 +291,7 @@ class FeatureService(env: Env) {
                   user = r.userInformation,
                   conn = Some(conn)
                 )
-                .toFEither;
+                .toFEither.map(_ => ());
             case r: OverloadFeatureUpdateRequest =>
               env.datastores.featureContext
                 .updateFeatureStrategy(
@@ -237,19 +307,7 @@ class FeatureService(env: Env) {
                   conn = Some(conn)
                 )
                 .toFEither
-          };
-          id = request match {
-            case r: BaseFeatureUpdateRequest     => r.id
-            case r: OverloadFeatureUpdateRequest => oldFeature.id
-          };
-          maybeRes <- datastore
-            .findById(request.tenant, id, conn = Some(conn))
-            .toFEither;
-          res <- maybeRes
-            .toRight(
-              InternalServerError("Failed to read feature after its update")
-            )
-            .toFEither
+          }
         ) yield res
       }
     )

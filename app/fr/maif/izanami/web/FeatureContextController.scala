@@ -247,7 +247,7 @@ class FeatureContextController(
         ) match {
           case JsSuccess(value, path) =>
             featureService
-              .updateFeature(
+              .upsertOverload(
                 OverloadFeatureUpdateRequest(
                   tenant = tenant,
                   project = project,
