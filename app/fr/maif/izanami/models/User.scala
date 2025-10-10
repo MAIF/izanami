@@ -1,11 +1,12 @@
 package fr.maif.izanami.models
 
+import fr.maif.izanami.models.ProjectRightLevel.Admin
 import fr.maif.izanami.models.Rights.{TenantRightDiff, UpsertTenantRights, compare}
 import fr.maif.izanami.services.CompleteRights
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.data.validation.{Constraints, Valid}
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
-import play.api.libs.json._
+import play.api.libs.json.*
 import play.api.mvc.QueryStringBindable
 
 import scala.collection.mutable.ArrayBuffer
@@ -347,6 +348,17 @@ case class UserWithCompleteRightForOneTenant(
 
   def hasRightForTenant(level: RightLevel): Boolean = {
     admin || tenantRight.exists(t => RightLevel.superiorOrEqualLevels(level).contains(t.level))
+  }
+  
+  def rightLevelForProject(project: String): Option[ProjectRightLevel] = {
+    val isTenantAdmin = admin || tenantRight.exists(t => t.level == RightLevel.Admin)
+    
+    if(isTenantAdmin) {
+      Some(Admin)
+    } else {
+      tenantRight
+        .flatMap(tr => tr.projects.get(project).map(_.level).orElse(tr.defaultProjectRight))
+    }
   }
 }
 

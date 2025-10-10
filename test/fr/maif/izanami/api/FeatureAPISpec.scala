@@ -1,7 +1,34 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestFeaturePatch, TestProject, TestSituationBuilder, TestTenant, TestUser, TestUserListRule, TestWasmConfig, disabledFeatureBase64, enabledFeatureBase64}
-import play.api.libs.json.{JsArray, JsBoolean, JsDefined, JsFalse, JsNull, JsNumber, JsObject, JsString, JsTrue, JsValue, Json}
+import fr.maif.izanami.api.BaseAPISpec.{
+  TestCondition,
+  TestDateTimePeriod,
+  TestDayPeriod,
+  TestFeature,
+  TestFeatureContext,
+  TestFeaturePatch,
+  TestProject,
+  TestSituationBuilder,
+  TestTenant,
+  TestUser,
+  TestUserListRule,
+  TestWasmConfig,
+  disabledFeatureBase64,
+  enabledFeatureBase64
+}
+import play.api.libs.json.{
+  JsArray,
+  JsBoolean,
+  JsDefined,
+  JsFalse,
+  JsNull,
+  JsNumber,
+  JsObject,
+  JsString,
+  JsTrue,
+  JsValue,
+  Json
+}
 import play.api.test.Helpers.*
 
 import java.time.{LocalDateTime, OffsetDateTime}
@@ -1788,6 +1815,90 @@ class FeatureAPISpec extends BaseAPISpec {
 
       updateResponse.status mustBe OK
       overloadCount mustEqual 0
+    }
+
+    "prevent updating feature project if user doesn't have write right on target project" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("foo").withFeatures(TestFeature("F1")),
+              TestProject("bar")
+            )
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadRight(project = "bar", tenant = "tenant")
+            .withProjectReadWriteRight(project = "foo", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build();
+
+      val projectResponse = situation.fetchProject("tenant", "foo")
+      val jsonFeature = (projectResponse.json.get \ "features" \ 0).as[JsObject]
+
+      val newFeature = jsonFeature ++ Json.obj("project" -> "bar")
+
+      val updateResponse = situation.updateFeature(
+        "tenant",
+        (jsonFeature \ "id").as[String],
+        newFeature
+      )
+
+      updateResponse.status mustBe FORBIDDEN
+
+      val originProjectResponse = situation.fetchProject("tenant", "foo")
+      val targetProjectResponse = situation.fetchProject("tenant", "bar")
+
+      (targetProjectResponse.json.get \ "features")
+        .as[JsArray]
+        .value mustBe empty
+
+      (originProjectResponse.json.get \ "features" \ 0 \ "name")
+        .as[String] mustEqual "F1"
+    }
+
+    "prevent updating feature project if user doesn't have write right on source project" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("foo").withFeatures(TestFeature("F1")),
+              TestProject("bar")
+            )
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadRight(project = "foo", tenant = "tenant")
+            .withProjectReadWriteRight(project = "bar", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build();
+
+      val projectResponse = situation.fetchProject("tenant", "foo")
+      val jsonFeature = (projectResponse.json.get \ "features" \ 0).as[JsObject]
+
+      val newFeature = jsonFeature ++ Json.obj("project" -> "bar")
+
+      val updateResponse = situation.updateFeature(
+        "tenant",
+        (jsonFeature \ "id").as[String],
+        newFeature
+      )
+
+      updateResponse.status mustBe FORBIDDEN
+
+      val originProjectResponse = situation.fetchProject("tenant", "foo")
+      val targetProjectResponse = situation.fetchProject("tenant", "bar")
+
+      (targetProjectResponse.json.get \ "features")
+        .as[JsArray]
+        .value mustBe empty
+
+      (originProjectResponse.json.get \ "features" \ 0 \ "name")
+        .as[String] mustEqual "F1"
     }
 
     "allow to update feature project" in {

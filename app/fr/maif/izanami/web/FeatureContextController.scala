@@ -3,7 +3,7 @@ package fr.maif.izanami.web
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.models.*
-import fr.maif.izanami.requests.OverloadUpsertRequest
+import fr.maif.izanami.requests.{OverloadFeatureUpdateRequest}
 import fr.maif.izanami.services.FeatureService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.*
@@ -247,12 +247,12 @@ class FeatureContextController(
         ) match {
           case JsSuccess(value, path) =>
             featureService
-              .upsertOverload(
-                OverloadUpsertRequest(
+              .updateFeature(
+                OverloadFeatureUpdateRequest(
                   tenant = tenant,
                   project = project,
-                  parents = parents,
-                  name = name,
+                  context = parents,
+                  featureName = name,
                   preserveProtectedContexts = preserveProtectedContexts,
                   strategy = value,
                   user = request.user,

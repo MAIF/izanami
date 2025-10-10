@@ -34,14 +34,18 @@ class TagsDatastore(val env: Env) extends Datastore {
       conn: Option[SqlConnection] = None
   ): Future[Either[IzanamiError, List[Tag]]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
-      .queryAll(
-        s"""insert into "${tenant}".tags (name, description) values (unnest($$1::text[]), unnest($$2::text[])) ON CONFLICT (name) DO NOTHING returning *""",
-        List(tags.map(_.name).toArray, tags.map(_.description).toArray),
-        conn = conn
-      ) { row => row.optTag() }
-      .map(ts => Right(ts))
-      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+    if(tags.isEmpty) {
+      Future.successful(Right(List()))
+    } else {
+      env.postgresql
+        .queryAll(
+          s"""insert into "${tenant}".tags (name, description) values (unnest($$1::text[]), unnest($$2::text[])) ON CONFLICT (name) DO NOTHING returning *""",
+          List(tags.map(_.name).toArray, tags.map(_.description).toArray),
+          conn = conn
+        ) { row => row.optTag() }
+        .map(ts => Right(ts))
+        .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))  
+    }
   }
 
   def readTag(tenant: String, name: String): Future[Either[IzanamiError, Tag]] = {
