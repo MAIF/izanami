@@ -1942,6 +1942,37 @@ function Pill({
   );
 }
 
+function extractContextsMatching(
+  contexts: TContext[],
+  predicate: (ctx: TContext) => boolean,
+  stopOnMatch: boolean = true,
+  stopCondition?: (ctx: TContext) => boolean,
+  prefix: string[] = []
+): (TContext & { parent: string[] })[] {
+  return contexts.flatMap((context) => {
+    const res = [];
+    if (predicate(context)) {
+      if (stopOnMatch) {
+        return [{ ...context, parent: prefix }];
+      } else {
+        res.push({ ...context, parent: prefix });
+      }
+    } else if (stopCondition?.(context)) {
+      return [];
+    }
+
+    return res.concat(
+      extractContextsMatching(
+        context.children,
+        predicate,
+        stopOnMatch,
+        stopCondition,
+        prefix.concat(context.name)
+      )
+    );
+  });
+}
+
 export function FeatureTable(props: {
   features: TLightFeature[];
   fields: FeatureFields[];
@@ -1959,9 +1990,10 @@ export function FeatureTable(props: {
 
   const featureUpdateMutation = useMutation({
     mutationFn: (data: {
+      startegyPreservation: boolean;
       id: string;
       feature: Omit<TCompleteFeature, "stale" | "creationDate">;
-    }) => updateFeature(tenant!, data.id, data.feature),
+    }) => updateFeature(tenant!, data.id, startegyPreservation, data.feature),
 
     onSuccess: () => {
       refresh();
@@ -2152,12 +2184,48 @@ export function FeatureTable(props: {
                     feature.name
                   }`}
                   onChange={() => {
+                    const impactedProtectedContexts = extractContextsMatching(
+                      contextQueries.flatMap((q) => q.data ?? []),
+                      (c) =>
+                        c.protected &&
+                        (!c.overloads || c.overloads.length === 0),
+                      false,
+                      (ctx) => ctx.overloads?.length >= 0
+                    );
+
+                    const impactedProtectedRootContexts =
+                      extractContextsMatching(
+                        contextQueries.flatMap((q) => q.data ?? []),
+                        (c) =>
+                          c.protected &&
+                          (!c.overloads || c.overloads.length === 0),
+                        true,
+                        (ctx) => ctx.overloads?.length >= 0
+                      );
+
+                    const hasUserAdminRightOnFeature = hasRightForProject(
+                      user!,
+                      TProjectLevel.Admin,
+                      feature.project!,
+                      tenant!
+                    );
+
                     askConfirmation(
-                      `Are you sure you want to ${
-                        isEnabled ? "disable" : "enable"
-                      } feature ${feature.name} ?`,
+                      <OverloadUpdateConfirmationModal
+                        impactedProtectedContexts={impactedProtectedContexts}
+                        rootImpactedProtectedContexts={
+                          impactedProtectedRootContexts
+                        }
+                        hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
+                        onStartegyPreservationUpdate={(
+                          newStrategyPreservation
+                        ) => {
+                          setStrategyPreservation(newStrategyPreservation);
+                        }}
+                      />,
                       () =>
                         featureUpdateMutation.mutateAsync({
+                          startegyPreservation,
                           id: feature.id!,
                           feature: {
                             ...feature,
@@ -2251,6 +2319,8 @@ export function FeatureTable(props: {
     });
   }
 
+  const [startegyPreservation, setStrategyPreservation] = useState(false);
+
   const customActions: { [x: string]: TCustomAction<TLightFeature> } = {
     edit: {
       icon: (
@@ -2282,9 +2352,33 @@ export function FeatureTable(props: {
                     return ctx.name;
                   });
 
-                const callback = () =>
+                const impactedProtectedContexts = extractContextsMatching(
+                  contextQueries.flatMap((q) => q.data ?? []),
+                  (c) =>
+                    c.protected && (!c.overloads || c.overloads.length === 0),
+                  false,
+                  (ctx) => ctx.overloads?.length >= 0
+                );
+
+                const impactedProtectedRootContexts = extractContextsMatching(
+                  contextQueries.flatMap((q) => q.data ?? []),
+                  (c) =>
+                    c.protected && (!c.overloads || c.overloads.length === 0),
+                  true,
+                  (ctx) => ctx.overloads?.length >= 0
+                );
+
+                const hasUserAdminRightOnFeature = hasRightForProject(
+                  user!,
+                  TProjectLevel.Admin,
+                  feature.project!,
+                  tenant!
+                );
+
+                const callback = (startegyPreservation: boolean) =>
                   featureUpdateMutation.mutateAsync(
                     {
+                      startegyPreservation,
                       id: datum.id!,
                       feature,
                     },
@@ -2314,10 +2408,26 @@ export function FeatureTable(props: {
                       Updating result type to ${feature.resultType} will delete
                       all overloads, are you sure that it is what you want ?
                     </>,
-                    () => callback()
+                    () => callback(false)
+                  );
+                } else if (impactedProtectedRootContexts.length > 0) {
+                  return askConfirmation(
+                    <OverloadUpdateConfirmationModal
+                      impactedProtectedContexts={impactedProtectedContexts}
+                      rootImpactedProtectedContexts={
+                        impactedProtectedRootContexts
+                      }
+                      hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
+                      onStartegyPreservationUpdate={(
+                        newStrategyPreservation
+                      ) => {
+                        setStrategyPreservation(newStrategyPreservation);
+                      }}
+                    />,
+                    () => callback(startegyPreservation)
                   );
                 } else {
-                  return callback();
+                  return callback(false);
                 }
               }}
               cancel={cancel}
@@ -2519,5 +2629,71 @@ export function FeatureTable(props: {
         }
       />
     </div>
+  );
+}
+
+function OverloadUpdateConfirmationModal(props: {
+  impactedProtectedContexts: (TContext & { parent: string[] })[];
+  rootImpactedProtectedContexts: (TContext & { parent: string[] })[];
+  hasUserAdminRightOnFeature: boolean;
+  onStartegyPreservationUpdate: (newValue: boolean) => any;
+}) {
+  const {
+    impactedProtectedContexts,
+    hasUserAdminRightOnFeature,
+    rootImpactedProtectedContexts,
+  } = props;
+  const [strategyPreservation, setStrategyPreservation] = useState(false);
+  return (
+    <>
+      This update will impact below protected contexts:
+      <ul>
+        {impactedProtectedContexts.map((c) => (
+          <li key={c.name}>{c.parent.concat(c.name).join("/")}</li>
+        ))}
+      </ul>
+      {hasUserAdminRightOnFeature ? (
+        <>
+          These contexts strategies can be left unchanged by duplicating old
+          strategy in below contexts:
+          <ul>
+            {rootImpactedProtectedContexts.map((c) => {
+              const display = c.parent.concat(c.name).join("/");
+              return <li key={display}>{display}</li>;
+            })}
+          </ul>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <input
+              style={{ marginTop: 0 }}
+              type="checkbox"
+              checked={strategyPreservation}
+              className="izanami-checkbox"
+              onChange={(e) => {
+                setStrategyPreservation(e.target.checked);
+                props.onStartegyPreservationUpdate(e.target.checked);
+              }}
+            ></input>
+            &nbsp;Duplicate old strategy for these contexts
+          </label>
+        </>
+      ) : (
+        <>
+          You don't have enough rights to update these contexts, therefore old
+          strategy will be apply to below contexts:
+          <ul>
+            {rootImpactedProtectedContexts.map((c) => {
+              const display = c.parent.concat(c.name).join("/");
+              return <li key={display}>{display}</li>;
+            })}
+          </ul>
+        </>
+      )}
+    </>
   );
 }

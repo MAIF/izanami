@@ -490,16 +490,22 @@ export function queryProjectById(
 export function updateFeature(
   tenant: string,
   id: string,
+  startegyPreservation: boolean,
   feature: Omit<TCompleteFeature, "stale" | "creationDate">
 ): Promise<TCompleteFeature> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/features/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(feature),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
+    fetch(
+      `/api/admin/tenants/${tenant}/features/${id}?preserveProtectedContexts=${
+        startegyPreservation ? "true" : "false"
+      }`,
+      {
+        method: "PUT",
+        body: JSON.stringify(feature),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    )
   );
 }
 

@@ -2,7 +2,12 @@ import * as React from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { FeatureTable } from "../components/FeatureTable";
-import { createFeature, projectQueryKey, queryProject } from "../utils/queries";
+import {
+  createFeature,
+  projectContextKey,
+  projectQueryKey,
+  queryProject,
+} from "../utils/queries";
 import { TProjectLevel } from "../utils/types";
 import { useProjectRight } from "../securityContext";
 import queryClient from "../queryClient";
@@ -166,9 +171,14 @@ export function Project({
                 : ["test", "overloads", "url"]
             }
             refresh={() =>
-              queryClient.invalidateQueries({
-                queryKey: [projectQueryKey(tenant, project)],
-              })
+              Promise.all([
+                queryClient.invalidateQueries({
+                  queryKey: [projectQueryKey(tenant, project)],
+                }),
+                queryClient.invalidateQueries({
+                  queryKey: [projectContextKey(tenant, project)],
+                }),
+              ])
             }
           />
         )}
