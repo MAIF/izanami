@@ -95,7 +95,7 @@ class FeatureContextController(
                     Left(NotEnoughRights).future
                   }
                 } else {
-                  canUpdateContext(tenant, request.user, parents)
+                  featureService.canUpdateContext(tenant, request.user, parents)
                     .map(either => either.map(ctx => ctx.isProtected))
                 }
 
@@ -136,28 +136,13 @@ class FeatureContextController(
       tenant: String,
       project: String,
       context: FeatureContextPath,
-      name: String
+      name: String,
+      preserveProtectedContexts: Boolean
   ): Action[AnyContent] =
     detailledRightForTenantFactory(tenant)
-      .async { // TODO check that user has write right on project
-        implicit request =>
-          canUpdateContext(tenant, request.user, context).flatMap {
-            case Left(err) => err.toHttpResponse.future
-            case Right(_)  => {
-              datastore
-                .deleteFeatureStrategy(
-                  tenant,
-                  project,
-                  context,
-                  name,
-                  request.userInformation
-                )
-                .map {
-                  case Left(err) => err.toHttpResponse
-                  case Right(_)  => NoContent
-                }
-            }
-          }
+      .async { implicit request =>
+        featureService.deleteOverload(tenant, project = project, name = name, contextPath = context, user = request.user, userInformation = request.userInformation, preserveProtectedContexts = preserveProtectedContexts)
+          .toResult(_ => NoContent)
       }
 
   def deleteFeatureContext(
@@ -166,7 +151,7 @@ class FeatureContextController(
       context: FeatureContextPath
   ): Action[AnyContent] =
     detailledRightForTenantFactory(tenant).async { implicit request =>
-      canUpdateContext(tenant, request.user, context).flatMap {
+      featureService.canUpdateContext(tenant, request.user, context).flatMap {
         case Left(err) => err.toHttpResponse.future
         case Right(_)  => {
           datastore
@@ -287,7 +272,7 @@ class FeatureContextController(
                   Right(false).future
                 }
               } else {
-                canUpdateContext(tenant, request.user, parents)
+                featureService.canUpdateContext(tenant, request.user, parents)
                   .map(either => either.map(c => c.isProtected))
               }
 
@@ -376,7 +361,7 @@ class FeatureContextController(
       context: fr.maif.izanami.web.FeatureContextPath
   ): Action[AnyContent] =
     detailledRightForTenantFactory(tenant).async { implicit request =>
-      canUpdateContext(tenant, request.user, context).flatMap {
+      featureService.canUpdateContext(tenant, request.user, context).flatMap {
         case Left(err) => err.toHttpResponse.future
         case Right(_)  => {
           datastore
@@ -406,36 +391,6 @@ class FeatureContextController(
       }
     }
 
-  def canUpdateContext(
-      tenant: String,
-      user: UserWithCompleteRightForOneTenant,
-      contextPath: FeatureContextPath
-  ): Future[Either[IzanamiError, Context]] = {
-    datastore
-      .readContext(tenant, contextPath)
-      .map(o => o.toRight(FeatureContextDoesNotExist(contextPath.toUserPath)))
-      .map(e =>
-        e.flatMap {
-          case c: GlobalContext
-              if c.isProtected && user.hasRightForTenant(RightLevel.Admin) =>
-            Right(c)
-          case c: GlobalContext if c.isProtected =>
-            Left(NoProtectedContextAccess(contextPath.toUserPath))
-          case c: GlobalContext if user.hasRightForTenant(RightLevel.Write) =>
-            Right(c)
-          case c: GlobalContext => Left(NotEnoughRights)
-          case c: LocalContext
-              if c.isProtected && user
-                .hasRightForProject(c.project, ProjectRightLevel.Admin) =>
-            Right(c)
-          case c: LocalContext if c.isProtected =>
-            Left(NoProtectedContextAccess(contextPath.toUserPath))
-          case c: LocalContext
-              if user.hasRightForProject(c.project, ProjectRightLevel.Write) =>
-            Right(c)
-          case _ => Left(NotEnoughRights)
-        }
-      )
-  }
+  
 
 }

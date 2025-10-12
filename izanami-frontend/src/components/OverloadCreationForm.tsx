@@ -95,7 +95,9 @@ export function OverloadCreationForm(props: {
                     const selectedFeature = projectQuery.data.features.find(
                       (f) => f.name === e?.value
                     );
+                    // FIXME can we use hook form value without local state ?
                     setFeatureResultType(selectedFeature?.resultType);
+                    setValue("resultType", selectedFeature!.resultType!);
                     onChange(e?.value);
                   }}
                   styles={customStyles}

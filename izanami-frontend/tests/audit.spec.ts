@@ -77,6 +77,7 @@ test.describe("Project audit screen should", () => {
     await page.getByRole("checkbox", { name: "select all rows" }).check();
     await page.getByLabel("Bulk action").click();
     await page.getByRole("option", { name: "Enable" }).click();
+
     await page.getByRole("button", { name: "Enable 6 features" }).click();
     await expect(page.getByRole("cell", { name: "Enabled" })).toHaveCount(6);
     await page.getByRole("combobox", { name: "Bulk action" }).click();
@@ -86,6 +87,7 @@ test.describe("Project audit screen should", () => {
     await page.getByLabel("Bulk action").click();
     await page.getByRole("option", { name: "Enable" }).click();
     await page.getByRole("button", { name: "Enable 6 features" }).click();
+
     await expect(page.getByRole("cell", { name: "Enabled" })).toHaveCount(6);
     await page.getByRole("link", { name: "project logs" }).click();
     await expect(page.getByText("30 results")).toBeVisible();

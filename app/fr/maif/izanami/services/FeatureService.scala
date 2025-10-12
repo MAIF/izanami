@@ -15,8 +15,21 @@ import fr.maif.izanami.errors.{
 }
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models.*
-import fr.maif.izanami.models.ProjectRightLevel.{Admin, Read, Update, Write}
-import fr.maif.izanami.models.features.BooleanResult
+import fr.maif.izanami.models.ProjectRightLevel.{
+  Admin,
+  Read,
+  Update,
+  Write,
+  projectRightLevelReads
+}
+import fr.maif.izanami.models.features.{
+  BooleanResult,
+  EnabledFeaturePatch,
+  FeaturePatch,
+  ProjectFeaturePatch,
+  RemoveFeaturePatch,
+  TagsFeaturePatch
+}
 import fr.maif.izanami.requests.{
   BaseFeatureUpdateRequest,
   FeatureUpdateRequest,
@@ -25,16 +38,17 @@ import fr.maif.izanami.requests.{
 import fr.maif.izanami.services.FeatureService.{
   canCreateOrDeleteFeature,
   computeRootContexts,
-  impactedProtectedContextsByRootUpdate,
+  impactedProtectedContextsByUpdate,
   validateFeature
 }
-import fr.maif.izanami.utils.{FutureEither, Helpers}
+import fr.maif.izanami.utils.{Done, FutureEither, Helpers}
 import fr.maif.izanami.utils.syntax.implicits.{
   BetterEither,
   BetterFuture,
   BetterFutureEither,
   BetterSyntax
 }
+import fr.maif.izanami.v1.OldFeature
 import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
 import io.vertx.sqlclient.SqlConnection
 
@@ -43,6 +57,137 @@ import scala.concurrent.{ExecutionContext, Future}
 class FeatureService(env: Env) {
   private val datastore = env.datastores.features
   implicit val ec: ExecutionContext = env.executionContext
+
+  private def hasProtectedOverload(
+      tenant: String,
+      featureIds: Set[String]
+  ): FutureEither[Map[String, Boolean]] = {
+    for (
+      featureById <- datastore
+        .findActivationStrategiesForFeatures(tenant, featureIds)
+        .mapToFEither;
+      projects = featureById.values.map(f => f.project).toSet;
+      protectedContextsByProject <- Future
+        .sequence(
+          projects.map(p =>
+            env.datastores.featureContext
+              .readProtectedContexts(
+                tenant = tenant,
+                project = p
+              )
+              .map(protectedContects => (p, protectedContects.toSet))
+          )
+        )
+        .map(s => s.toMap)
+        .mapToFEither
+    ) yield {
+      featureById.map { (fid, feature) =>
+        {
+          val protectedContetxs =
+            protectedContextsByProject.getOrElse(feature.project, Set())
+          val hasProtectedOverload =
+            protectedContetxs
+              .map(c => c.fullyQualifiedName)
+              .exists(p => feature.overloads.keySet.contains(p))
+
+          (fid, hasProtectedOverload)
+        }
+      }
+    }
+  }
+
+  private def hasProtectedOverload(
+      tenant: String,
+      feature: FeatureWithOverloads
+  ): FutureEither[Boolean] = {
+    env.datastores.featureContext
+      .readProtectedContexts(
+        tenant = tenant,
+        project = feature.project
+      )
+      .map(protectedContetxs => {
+        protectedContetxs
+          .map(c => c.fullyQualifiedName)
+          .exists(p => feature.overloads.keySet.contains(p))
+      })
+      .mapToFEither
+  }
+
+  def patchFeatureV2(
+      tenant: String,
+      patches: Seq[FeaturePatch],
+      user: UserWithCompleteRightForOneTenant,
+      authentication: EventAuthentication
+  ): FutureEither[Done] = {
+    datastore
+      .findByIds(
+        tenant,
+        patches.map(_.id).toSet
+      )
+      .flatMap(features => {
+        FutureEither
+          .sequence(patches.map {
+            case EnabledFeaturePatch(value, id, preserveProtectedContexts) => {
+              features
+                .get(id)
+                .map(feature => {
+                  val featureToUpdate = feature.withEnabled(value)
+                  updateFeature(
+                    BaseFeatureUpdateRequest(
+                      feature = featureToUpdate,
+                      tenant = tenant,
+                      id = id,
+                      authentication = authentication,
+                      user = user,
+                      preserveProtectedContexts = preserveProtectedContexts
+                    )
+                  ).map(_ => Done.done())
+                })
+                .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)))
+            }
+            case ProjectFeaturePatch(value, id) => {
+              features
+                .get(id)
+                .map(feature => {
+                  val featureToUpdate = feature.withProject(value)
+                  updateFeature(
+                    BaseFeatureUpdateRequest(
+                      feature = featureToUpdate,
+                      tenant = tenant,
+                      id = id,
+                      authentication = authentication,
+                      user = user,
+                      preserveProtectedContexts = false
+                    )
+                  ).map(_ => Done.done())
+                })
+                .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)))
+            }
+            case TagsFeaturePatch(value, id) => {
+              features
+                .get(id)
+                .map(feature => {
+                  val featureToUpdate = feature.appendedTags(value)
+                  updateFeature(
+                    BaseFeatureUpdateRequest(
+                      feature = featureToUpdate,
+                      tenant = tenant,
+                      id = id,
+                      authentication = authentication,
+                      user = user,
+                      preserveProtectedContexts = false
+                    )
+                  ).map(_ => Done.done())
+                })
+                .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)))
+            }
+            case RemoveFeaturePatch(id) =>
+              deleteFeature(tenant, id, user, authentication)
+                .map(_ => Done.done())
+          })
+          .map(dones => Done.done())
+      })
+  }
 
   def findLightWeightFeature(
       tenant: String,
@@ -64,51 +209,210 @@ class FeatureService(env: Env) {
       )
   }
 
+  def deleteOverload(
+      tenant: String,
+      project: String,
+      name: String,
+      contextPath: FeatureContextPath,
+      preserveProtectedContexts: Boolean,
+      user: UserWithCompleteRightForOneTenant,
+      userInformation: UserInformation
+  ): FutureEither[Done] = {
+    for (
+      context <- env.datastores.featureContext
+        .readContext(tenant = tenant, path = contextPath)
+        .map(o => o.toRight(FeatureContextDoesNotExist(contextPath.toUserPath)))
+        .toFEither;
+      _ <- if (
+        context.isProtected && !user.hasRightForProject(
+          project,
+          ProjectRightLevel.Admin
+        )
+      ) {
+        FutureEither.failure(NoProtectedContextAccess(contextPath.toUserPath))
+      } else {
+        FutureEither.success(())
+      };
+      _ <- if (!user.hasRightForProject(project, ProjectRightLevel.Write)) {
+        FutureEither.failure(NotEnoughRights())
+      } else {
+        FutureEither.success(())
+      };
+      oldFeature <- datastore
+        .findActivationStrategiesForFeatureByName(
+          tenant = tenant,
+          name = name,
+          project = project
+        )
+        .map(maybeFeature => maybeFeature.toRight(FeatureNotFound(name)))
+        .toFEither;
+      protectedContexts <- env.datastores.featureContext
+        .readProtectedContexts(
+          tenant,
+          project,
+          Some(contextPath)
+        )
+        .map(ctxs => ctxs.map(_.fullyQualifiedName))
+        .mapToFEither;
+      impactedProtectedContexts = impactedProtectedContextsByUpdate(
+        protectedContexts = protectedContexts.toSet,
+        currentOverloads = oldFeature.overloads.keySet,
+        updatedContext = contextPath
+      );
+      _ <- if (
+        impactedProtectedContexts.nonEmpty && !preserveProtectedContexts && !user
+          .hasRightForProject(
+            project = project,
+            level = ProjectRightLevel.Admin
+          ) && LightWeightFeature.hasStrategyChanged(
+          oldFeature.strategyFor(contextPath),
+          oldFeature.removeOverload(contextPath).strategyFor(contextPath)
+        )
+      ) {
+        FutureEither.failure(NotEnoughRights()) // FIXME better message
+      } else if (
+        impactedProtectedContexts.nonEmpty && preserveProtectedContexts
+      ) {
+        val protectedContextToUpdate = computeRootContexts(
+          impactedProtectedContexts
+        );
+        env.postgresql.executeInTransaction(conn => {
+          for (
+            oldStrategy <- oldFeature
+              .strategyFor(contextPath)
+              .toCompleteFeature(tenant, env)
+              .toFEither
+              .map(completeFeature =>
+                completeFeature.toCompleteContextualStrategy
+              );
+            _ <- protectedContextToUpdate
+              .foldLeft(FutureEither.success(()))((res, ctx) => {
+                res.flatMap(_ =>
+                  env.datastores.featureContext
+                    .updateFeatureStrategy(
+                      tenant = tenant,
+                      project = oldFeature.project,
+                      path = ctx,
+                      feature = oldFeature.name,
+                      strategy = oldStrategy,
+                      user = UserInformation(
+                        username = user.username,
+                        authentication = userInformation.authentication
+                      ),
+                      conn = Some(conn)
+                    )
+                    .toFEither
+                )
+              });
+            res <- env.datastores.featureContext
+              .deleteFeatureStrategy(
+                tenant,
+                project,
+                contextPath,
+                name,
+                userInformation,
+                conn = Some(conn)
+              )
+              .toFEither
+          ) yield res
+        })
+
+      } else {
+        // TODO handle preserveProtectedContexts
+        env.datastores.featureContext
+          .deleteFeatureStrategy(
+            tenant,
+            project,
+            contextPath,
+            name,
+            userInformation
+          )
+          .toFEither
+      }
+    ) yield Done.done()
+  }
+
+  def canUpdateContext(
+      tenant: String,
+      user: UserWithCompleteRightForOneTenant,
+      contextPath: FeatureContextPath
+  ): Future[Either[IzanamiError, Context]] = {
+    env.datastores.featureContext
+      .readContext(tenant, contextPath)
+      .map(o => o.toRight(FeatureContextDoesNotExist(contextPath.toUserPath)))
+      .map(e =>
+        e.flatMap {
+          case c: GlobalContext
+              if c.isProtected && user.hasRightForTenant(RightLevel.Admin) =>
+            Right(c)
+          case c: GlobalContext if c.isProtected =>
+            Left(NoProtectedContextAccess(contextPath.toUserPath))
+          case c: GlobalContext if user.hasRightForTenant(RightLevel.Write) =>
+            Right(c)
+          case c: GlobalContext => Left(NotEnoughRights)
+          case c: LocalContext
+              if c.isProtected && user
+                .hasRightForProject(c.project, ProjectRightLevel.Admin) =>
+            Right(c)
+          case c: LocalContext if c.isProtected =>
+            Left(NoProtectedContextAccess(contextPath.toUserPath))
+          case c: LocalContext
+              if user.hasRightForProject(c.project, ProjectRightLevel.Write) =>
+            Right(c)
+          case _ => Left(NotEnoughRights)
+        }
+      )
+  }
+
   def deleteFeature(
       tenant: String,
       id: String,
       user: UserWithCompleteRightForOneTenant,
       authentification: EventAuthentication
-  ): FutureEither[String] = {
+  ): FutureEither[Unit] = {
     for (
       maybeFeature <- datastore
         .findActivationStrategiesForFeature(tenant, id)
         .mapToFEither;
-      feature <- maybeFeature.toRight(FeatureDoesNotExist(id)).toFEither;
-      protectedContexts <- env.datastores.featureContext
-        .readProtectedContexts(tenant = tenant, project = feature.project)
-        .mapToFEither;
-      _ <- if !canCreateOrDeleteFeature(feature.baseFeature, user) then
-        FutureEither.failure(NotEnoughRights)
-      else FutureEither.success(());
-      _ <- if protectedContexts
-          .map(_.fullyQualifiedName)
-          .exists(feature.overloads.contains) && !user.hasRightForProject(
-          feature.project,
-          Admin
-        )
-      then {
-        val problematicContexts = protectedContexts
-          .map(_.fullyQualifiedName)
-          .intersect(feature.overloads.toSeq)
+      feature <- maybeFeature
+        .map(f => FutureEither.success(f))
+        .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)));
+      hasProtectedOverload <- hasProtectedOverload(
+        tenant,
+        feature = feature
+      );
+      hasDeleteRightOnProject = canCreateOrDeleteFeature(feature.project, user);
+      res <- if (!hasDeleteRightOnProject) {
         FutureEither.failure(
-          NoProtectedContextAccess(
-            problematicContexts.map(_.toUserPath).mkString(",")
-          )
-        );
-      } else {
-        FutureEither.success(())
-      };
-      res <- datastore
-        .delete(
-          tenant,
-          id,
-          UserInformation(
-            username = user.username,
-            authentication = authentification
+          NotEnoughRights(
+            "You don't have right to delete feature for this project"
           )
         )
-        .toFEither
+      } else if (
+        hasProtectedOverload && !user.hasRightForProject(feature.project, Admin)
+      ) {
+        FutureEither.failure(
+          NotEnoughRights(
+            "You don't have right to delete a feature with protected overload for this project"
+          )
+        )
+      } else {
+        datastore
+          .delete(
+            tenant,
+            id,
+            UserInformation(
+              username = user.username,
+              authentication = authentification
+            )
+          )
+          .map(maybeFeature =>
+            maybeFeature
+              .map(_ => Right(()))
+              .getOrElse(Left(FeatureDoesNotExist(id)))
+          )
+          .toFEither
+      }
     ) yield res
   }
 
@@ -124,27 +428,6 @@ class FeatureService(env: Env) {
       hasProtectedContext: Boolean,
       impactedProtectedContexts: Set[FeatureContextPath]
   )
-
-  private def computeUpdateContextInformation(
-      tenant: String,
-      project: String,
-      contextsWithOverloads: Set[FeatureContextPath]
-  ): FutureEither[UpdateContextInformation] = {
-    for (
-      protectedContexts <- env.datastores.featureContext
-        .readProtectedContexts(tenant, project)
-        .map(ctxs => ctxs.map(_.fullyQualifiedName))
-        .mapToFEither;
-      impactedProtectedContexts = impactedProtectedContextsByRootUpdate(
-        protectedContexts = protectedContexts.toSet,
-        currentOverloads = contextsWithOverloads
-      )
-    )
-      yield UpdateContextInformation(
-        hasProtectedContext = protectedContexts.nonEmpty,
-        impactedProtectedContexts = impactedProtectedContexts
-      )
-  }
 
   def upsertOverload(
       request: OverloadFeatureUpdateRequest
@@ -166,63 +449,70 @@ class FeatureService(env: Env) {
   }
 
   def updateFeature(
-      request: BaseFeatureUpdateRequest
+      request: BaseFeatureUpdateRequest,
+      conn: Option[SqlConnection] = None
   ): FutureEither[AbstractFeature] = {
-    env.postgresql.executeInTransaction(conn => {
-      for (
-        _ <- env.datastores.tags
-          .createTags(
-            request.tags
-              .map(name => TagCreationRequest(name = name))
-              .toList,
-            request.tenant,
-            Some(conn)
-          )
-          .toFEither;
-        oldFeature <- datastore
-          .findActivationStrategiesForFeature(
-            tenant = request.tenant,
-            id = request.id
-          )
-          .map(maybeFeature =>
-            maybeFeature.toRight(FeatureNotFound(request.featureName))
-          )
-          .toFEither;
-        _ <- if (
-          request.feature.project != oldFeature.project &&
-          (!request.user
-            .hasRightForProject(request.feature.project, Write) || !request.user
-            .hasRightForProject(oldFeature.project, Write))
-        ) {
-          FutureEither.failure(
-            NotEnoughRights
-          )
-        } else {
-          FutureEither.success(())
-        };
-        _ <- if (
-          oldFeature.baseFeature
-            .isInstanceOf[SingleConditionFeature] && !request.feature
-            .isInstanceOf[
-              SingleConditionFeature
-            ] && env.typedConfiguration.feature.forceLegacy
-        ) {
-          FutureEither.failure(ModernFeaturesForbiddenByConfig)
-        } else {
-          FutureEither.success(())
-        };
-        _ <- doUpdateFeature(request, oldFeature, Some(conn));
-        id = request.id;
-        maybeRes <- datastore
-          .findById(request.tenant, id, conn = Some(conn))
-          .toFEither;
-        res <- maybeRes
-          .toRight(
-            InternalServerError("Failed to read feature after its update")
-          )
-          .toFEither
-      ) yield res
-    })
+    env.postgresql.executeInOptionalTransaction(
+      conn,
+      conn => {
+        for (
+          _ <- env.datastores.tags
+            .createTags(
+              request.tags
+                .map(name => TagCreationRequest(name = name))
+                .toList,
+              request.tenant,
+              Some(conn)
+            )
+            .toFEither;
+          oldFeature <- datastore
+            .findActivationStrategiesForFeature(
+              tenant = request.tenant,
+              id = request.id
+            )
+            .map(maybeFeature =>
+              maybeFeature.toRight(FeatureNotFound(request.featureName))
+            )
+            .toFEither;
+          _ <- if (
+            request.feature.project != oldFeature.project &&
+            (!request.user
+              .hasRightForProject(
+                request.feature.project,
+                Write
+              ) || !request.user
+              .hasRightForProject(oldFeature.project, Write))
+          ) {
+            FutureEither.failure(
+              NotEnoughRights
+            )
+          } else {
+            FutureEither.success(())
+          };
+          _ <- if (
+            oldFeature.baseFeature
+              .isInstanceOf[SingleConditionFeature] && !request.feature
+              .isInstanceOf[
+                SingleConditionFeature
+              ] && env.typedConfiguration.feature.forceLegacy
+          ) {
+            FutureEither.failure(ModernFeaturesForbiddenByConfig)
+          } else {
+            FutureEither.success(())
+          };
+          _ <- doUpdateFeature(request, oldFeature, Some(conn));
+          id = request.id;
+          maybeRes <- datastore
+            .findById(request.tenant, id, conn = Some(conn))
+            .toFEither;
+          res <- maybeRes
+            .toRight(
+              InternalServerError("Failed to read feature after its update")
+            )
+            .toFEither
+        ) yield res
+      }
+    )
   }
 
   private def doUpdateFeature(
@@ -246,9 +536,11 @@ class FeatureService(env: Env) {
             )
             .map(ctxs => ctxs.map(_.fullyQualifiedName))
             .mapToFEither;
-          impactedProtectedContexts = impactedProtectedContextsByRootUpdate(
+          impactedProtectedContexts = impactedProtectedContextsByUpdate(
             protectedContexts = protectedContexts.toSet,
-            currentOverloads = oldFeature.overloads.keySet
+            currentOverloads = oldFeature.overloads.keySet,
+            updatedContext =
+              request.maybeContext.getOrElse(FeatureContextPath(Seq()))
           );
           _ <- if (
             request.strategy.resultType != oldFeature.baseFeature.resultType && protectedContexts.nonEmpty && !request.user
@@ -264,6 +556,7 @@ class FeatureService(env: Env) {
             impactedProtectedContexts
           );
           _ <- hasRightToUpdate(
+            oldFeature = oldFeature,
             updateRequest = request,
             impactedRootProtectedContexts = protectedContextToUpdate
           );
@@ -271,7 +564,10 @@ class FeatureService(env: Env) {
             request.preserveProtectedContexts && protectedContextToUpdate.nonEmpty
           ) {
             for (
-              oldStrategy <- oldFeature.baseFeature
+              oldStrategy <- oldFeature
+                .strategyFor(
+                  request.maybeContext.getOrElse(FeatureContextPath())
+                )
                 .toCompleteFeature(request.tenant, env)
                 .toFEither
                 .map(completeFeature =>
@@ -443,17 +739,37 @@ class FeatureService(env: Env) {
   }
 
   private def hasRightToUpdate(
+      oldFeature: FeatureWithOverloads,
       updateRequest: FeatureUpdateRequest,
       impactedRootProtectedContexts: Set[FeatureContextPath]
   ): FutureEither[Unit] = {
     (
       updateRequest,
-      updateRequest.user.rightLevelForProject(updateRequest.project)
+      updateRequest.user.rightLevelForProject(updateRequest.project),
+      oldFeature
     ) match {
-      case (_, None)        => FutureEither.failure(NotEnoughRights)
-      case (_, Some(Read))  => FutureEither.failure(NotEnoughRights)
-      case (_, Some(Admin)) => FutureEither.success(())
-      case (f, _)
+      case (_, None, _)       => FutureEither.failure(NotEnoughRights)
+      case (_, Some(Read), _) => FutureEither.failure(NotEnoughRights)
+      case (f: BaseFeatureUpdateRequest, _, oldF)
+          if oldF.project != f.project && !f.user.hasRightForProject(
+            oldF.project,
+            Admin
+          ) =>
+        FutureEither.failure(
+          NotEnoughRights(
+            "You are not allowed to transfer a feature with protected context overloads, since this operation would destroy protected overloads"
+          )
+        )
+      case (_, Some(Admin), _) => FutureEither.success(())
+      case (f: BaseFeatureUpdateRequest, r, oldF)
+          if (!LightWeightFeature.hasStrategyChanged(
+            f.feature.toLightWeightFeature,
+            oldF.baseFeature
+          )) && r.exists(l =>
+            ProjectRightLevel.superiorOrEqualLevels(Update).contains(l)
+          ) =>
+        FutureEither.success(())
+      case (f, _, _)
           if !f.preserveProtectedContexts && impactedRootProtectedContexts.nonEmpty => {
         FutureEither.failure(
           NoProtectedContextAccess(
@@ -463,7 +779,7 @@ class FeatureService(env: Env) {
           )
         )
       }
-      case (f: OverloadFeatureUpdateRequest, _) => {
+      case (f: OverloadFeatureUpdateRequest, _, _) => {
         env.datastores.featureContext
           .readContext(f.tenant, f.context)
           .mapToFEither
@@ -485,17 +801,22 @@ class FeatureService(env: Env) {
 }
 
 object FeatureService {
-  def impactedProtectedContextsByRootUpdate(
+  def impactedProtectedContextsByUpdate(
       protectedContexts: Set[FeatureContextPath],
-      currentOverloads: Set[FeatureContextPath]
+      currentOverloads: Set[FeatureContextPath],
+      updatedContext: FeatureContextPath
   ): Set[FeatureContextPath] = {
-    protectedContexts.filterNot(protectedContext => {
-      currentOverloads.exists(overloadContext => {
-        overloadContext == protectedContext || overloadContext.isAscendantOf(
-          protectedContext
-        )
+    protectedContexts
+      .filter(protectedContext =>
+        updatedContext.isAscendantOf(protectedContext)
+      )
+      .filterNot(protectedContext => {
+        currentOverloads.exists(overloadContext => {
+          overloadContext == protectedContext || overloadContext.isAscendantOf(
+            protectedContext
+          ) && overloadContext != updatedContext
+        })
       })
-    })
   }
 
   def computeRootContexts(
@@ -539,7 +860,7 @@ object FeatureService {
   }
 
   private def canCreateOrDeleteFeature(
-      feature: AbstractFeature,
+      project: String,
       user: UserWithCompleteRightForOneTenant
   ): Boolean = {
     if (user.admin) {
@@ -548,7 +869,7 @@ object FeatureService {
       val projectRight =
         user.tenantRight.flatMap(tr =>
           tr.projects
-            .get(feature.project)
+            .get(project)
             .map(_.level)
             .orElse(tr.defaultProjectRight)
         )

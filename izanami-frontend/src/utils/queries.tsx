@@ -490,16 +490,22 @@ export function queryProjectById(
 export function updateFeature(
   tenant: string,
   id: string,
+  strategyPreservation: boolean,
   feature: Omit<TCompleteFeature, "stale" | "creationDate">
 ): Promise<TCompleteFeature> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/features/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(feature),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
+    fetch(
+      `/api/admin/tenants/${tenant}/features/${id}?preserveProtectedContexts=${
+        strategyPreservation ? "true" : "false"
+      }`,
+      {
+        method: "PUT",
+        body: JSON.stringify(feature),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    )
   );
 }
 
@@ -510,13 +516,14 @@ export function updateFeatureActivationForContext(
   feature: string,
   enabled: boolean,
   resultType: FeatureTypeName,
+  strategyPreservation: boolean,
   conditions?: TClassicalCondition[],
   wasmConfig?: TWasmConfig,
   value?: string | boolean | number
 ) {
   return handleFetchWithoutResponse(
     fetch(
-      `/api/admin/tenants/${tenant}/projects/${project}/contexts/${path}/features/${feature}`,
+      `/api/admin/tenants/${tenant}/projects/${project}/contexts/${path}/features/${feature}?preserveProtectedContexts=${strategyPreservation}`,
       {
         method: "PUT",
         body: JSON.stringify({
@@ -582,11 +589,14 @@ export function deleteFeatureActivationForContext(
   tenant: string,
   project: string,
   path: string,
-  feature: string
+  feature: string,
+  strategyPreservation: boolean = false
 ) {
   return handleFetchWithoutResponse(
     fetch(
-      `/api/admin/tenants/${tenant}/projects/${project}/contexts/${path}/features/${feature}`,
+      `/api/admin/tenants/${tenant}/projects/${project}/contexts/${path}/features/${feature}?preserveProtectedContexts=${
+        strategyPreservation ? "true" : "false"
+      }`,
       {
         method: "DELETE",
       }

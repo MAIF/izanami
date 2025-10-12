@@ -33,8 +33,9 @@ case class FeatureWithOverloads(
 
   def project: String = baseFeature.project
 
-  def strategyFor(context: FeatureContextPath): LightWeightFeature = overloads.getOrElse(context, baseFeature)
-  
+  def strategyFor(context: FeatureContextPath): LightWeightFeature =
+    overloads.getOrElse(context, baseFeature)
+
   def setProject(project: String): FeatureWithOverloads =
     copy(overloads =
       overloads.view.mapValues(f => f.withProject(project)).toMap
@@ -110,6 +111,8 @@ sealed trait CompleteFeature extends AbstractFeature {
   override def withName(name: String): CompleteFeature
 
   override def withEnabled(enable: Boolean): CompleteFeature
+
+  override def appendedTags(tags: Set[String]): CompleteFeature
 
   def toLightWeightFeature: LightWeightFeature = {
     this match {
@@ -190,6 +193,36 @@ sealed trait CompleteFeature extends AbstractFeature {
           feature = name,
           resultType = resultType
         )
+    }
+  }
+}
+
+object LightWeightFeature {
+  def hasStrategyChanged(
+      f1: LightWeightFeature,
+      f2: LightWeightFeature
+  ): Boolean = {
+    (f1, f2) match {
+      case (f1: LightWeightWasmFeature, f2: LightWeightWasmFeature) =>
+        f1.enabled != f2.enabled || f1.wasmConfigName != f2.wasmConfigName || f1.name != f2.name || f1.resultType != f2.resultType
+      case (f1: SingleConditionFeature, f2: SingleConditionFeature) =>
+        f1.enabled != f2.enabled || f1.condition != f2.condition || f1.name != f2.name || f1.resultType != f2.resultType
+      case (f1: Feature, f2: Feature) =>
+        f1.enabled != f2.enabled || f1.resultDescriptor != f2.resultDescriptor || f1.name != f2.name || f1.resultType != f2.resultType
+      case _ => true
+    }
+  }
+
+  def hasStrategyChanged(
+      f1: LightWeightFeature,
+      f2: LightweightContextualStrategy
+  ): Boolean = {
+    (f1, f2) match {
+      case (f1: LightWeightWasmFeature, f2: LightWeightWasmFeatureStrategy) =>
+        f1.enabled != f2.enabled || f1.wasmConfigName != f2.wasmConfigName ||  f1.resultType != f2.resultType
+      case (f1: Feature, f2: ClassicalFeatureStrategy) =>
+        f1.enabled != f2.enabled || f1.resultDescriptor != f2.resultDescriptor || f1.resultType != f2.resultType
+      case _ => true
     }
   }
 }
@@ -343,6 +376,8 @@ sealed trait AbstractFeature {
   def withName(name: String): AbstractFeature
 
   def withEnabled(enable: Boolean): AbstractFeature
+
+  def appendedTags(tags: Set[String]): AbstractFeature
 }
 
 case class SingleConditionFeature(
@@ -405,6 +440,9 @@ case class SingleConditionFeature(
 
   override def withName(name: String): SingleConditionFeature =
     copy(name = name)
+
+  override def appendedTags(tags: Set[String]): SingleConditionFeature =
+    copy(tags = this.tags.concat(tags))
 }
 
 case class Feature(
@@ -450,6 +488,9 @@ case class Feature(
   override def withName(name: String): Feature = copy(name = name)
 
   override def resultType: ResultType = resultDescriptor.resultType
+
+  override def appendedTags(tags: Set[String]): Feature =
+    copy(tags = this.tags.concat(tags))
 }
 
 case class LightWeightWasmFeature(
@@ -499,6 +540,9 @@ case class LightWeightWasmFeature(
 
   override def withName(name: String): LightWeightWasmFeature =
     copy(name = name)
+
+  override def appendedTags(tags: Set[String]): LightWeightWasmFeature =
+    copy(tags = this.tags.concat(tags))
 }
 
 case class CompleteWasmFeature(
@@ -535,6 +579,9 @@ case class CompleteWasmFeature(
   override def withId(id: String): CompleteWasmFeature = copy(id = id)
 
   override def withName(name: String): CompleteWasmFeature = copy(name = name)
+
+  override def appendedTags(tags: Set[String]): CompleteFeature =
+    copy(tags = this.tags.concat(tags))
 }
 
 object LightWeightWasmFeature {

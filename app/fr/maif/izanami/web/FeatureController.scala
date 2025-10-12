@@ -1,7 +1,12 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{FeatureNotFound, IncorrectKey, IzanamiError, TagDoesNotExists}
+import fr.maif.izanami.errors.{
+  FeatureNotFound,
+  IncorrectKey,
+  IzanamiError,
+  TagDoesNotExists
+}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.Feature.*
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
@@ -518,68 +523,21 @@ class FeatureController(
     })
   }
 
-  def patchFeatures(tenant: String): Action[JsValue] = detailledRightForTenanFactory(
-    tenant
-  ).async(parse.json) { implicit request =>
-    request.body
-      .asOpt[Seq[FeaturePatch]]
-      .map(fs => {
-        env.datastores.features
-          .findFeaturesProjects(tenant, fs.map(fp => fp.id).toSet)
-          .map(sourceProjects => {
-            sourceProjects ++
-              fs.collect { case ProjectFeaturePatch(target, id) =>
-                id -> target
-              }
-          })
-          .flatMap(projectByFeatures => {
-            val requiredRightByFeature = fs
-              .groupMap(_.id)(_.requiredRight)
-
-            val featureByProjects =
-              projectByFeatures.toList.groupMap { case (feature, project) =>
-                project
-              } { case (feature, _) =>
-                feature
-              }
-            val neededRightByProject = featureByProjects.view
-              .mapValues(features =>
-                features
-                  .flatMap(f => requiredRightByFeature(f))
-                  .max(ProjectRightLevel.ProjectRightOrdering)
-              )
-              .toMap
-
-            val unauthorizedProjects =
-              neededRightByProject.filter { case (project, requiredRight) =>
-                !request.user.hasRightForProject(project, requiredRight)
-              }
-
-            if (unauthorizedProjects.nonEmpty) {
-              Forbidden(
-                Json.obj(
-                  "message" -> s"Your are not allowed to transfer to projects ${unauthorizedProjects.mkString(",")}"
-                )
-              ).toFuture
-            } else {
-              env.datastores.features
-                .applyPatch(
-                  tenant,
-                  fs,
-                  UserInformation(
-                    username = request.user.username,
-                    authentication = request.authentication
-                  )
-                )
-                .map {
-                  case Left(value) => value.toHttpResponse
-                  case Right(_)    => NoContent
-                }
-            }
-          })
-      })
-      .getOrElse(BadRequest("").future)
-  }
+  def patchFeatures(tenant: String): Action[JsValue] =
+    detailledRightForTenanFactory(
+      tenant
+    ).async(parse.json) { implicit request =>
+      request.body
+        .asOpt[Seq[FeaturePatch]]
+        .map(fs => {
+          featureService
+            .patchFeatureV2(tenant, fs, request.user, request.authentication)
+            .toResult(r => {
+              NoContent
+            })
+        })
+        .getOrElse(BadRequest("").future)
+    }
 
   def createFeature(tenant: String, project: String): Action[JsValue] =
     projectAuthAction(tenant, project, ProjectRightLevel.Write).async(

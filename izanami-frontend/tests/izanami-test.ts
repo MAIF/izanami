@@ -1,6 +1,9 @@
-import { test as base } from "@playwright/test";
+import { test as base, Browser } from "@playwright/test";
 
-export async function tenantFromTitleAndBrowser(title, browser) {
+export async function tenantFromTitleAndBrowser(
+  title: string,
+  browser: Browser
+) {
   const browserName = (await browser.browserType()).name();
   const neutralizedTitle = title
     .replaceAll(" ", "-")

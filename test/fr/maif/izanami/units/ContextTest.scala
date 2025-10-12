@@ -9,30 +9,44 @@ import org.scalatest.wordspec.AnyWordSpec
 class ContextTest extends AnyWordSpec with Matchers {
   "impactedProtectedContextsByRootUpdate" should {
     "return contexts without overload" in {
-      val res = FeatureService.impactedProtectedContextsByRootUpdate(
+      val res = FeatureService.impactedProtectedContextsByUpdate(
         protectedContexts = Set(FeatureContextPath(Seq("prod")), FeatureContextPath(Seq("bar"))),
-        currentOverloads = Set(FeatureContextPath(Seq("prod")))
+        currentOverloads = Set(FeatureContextPath(Seq("prod"))),
+        updatedContext = FeatureContextPath()
       )
 
       res should contain theSameElementsAs Seq(FeatureContextPath(Seq("bar")))
     }
 
     "not return context that have overloaded parent context" in {
-      val res = FeatureService.impactedProtectedContextsByRootUpdate(
+      val res = FeatureService.impactedProtectedContextsByUpdate(
         protectedContexts = Set(FeatureContextPath.fromUserString("prod"), FeatureContextPath.fromUserString("prod/mobile")),
-        currentOverloads = Set(FeatureContextPath(Seq("prod")))
+        currentOverloads = Set(FeatureContextPath(Seq("prod"))),
+        updatedContext = FeatureContextPath()
       )
 
       res shouldBe empty
     }
 
     "return contexts that are parent context of overloaded contexts" in {
-      val res = FeatureService.impactedProtectedContextsByRootUpdate(
+      val res = FeatureService.impactedProtectedContextsByUpdate(
         protectedContexts = Set(FeatureContextPath.fromUserString("prod"), FeatureContextPath.fromUserString("prod/mobile")),
-        currentOverloads = Set(FeatureContextPath.fromUserString("prod/mobile"))
+        currentOverloads = Set(FeatureContextPath.fromUserString("prod/mobile")),
+        updatedContext = FeatureContextPath()
       )
 
       res should contain theSameElementsAs Seq(FeatureContextPath(Seq("prod")))
+    }
+
+    "take current update context into account" in {
+      val res = FeatureService.impactedProtectedContextsByUpdate(
+        protectedContexts = Set(FeatureContextPath.fromUserString("prod"), FeatureContextPath.fromUserString("prod/mobile"), FeatureContextPath.fromUserString("dev"), FeatureContextPath.fromUserString("dev/mobile")),
+        currentOverloads = Set(FeatureContextPath.fromUserString("dev")),
+        updatedContext = FeatureContextPath.fromUserString("dev")
+      )
+
+
+      res should contain theSameElementsAs Seq(FeatureContextPath.fromUserString("dev/mobile"))
     }
   }
 

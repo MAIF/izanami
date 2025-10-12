@@ -1117,6 +1117,132 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Overloaded feature DELETE endpoint" should {
+    "allow overload delete for non admin user if it does not impact child protected context because base strategy is identical to deleted overload" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(TestFeature(name = "F1", enabled = false))
+                .withContexts(
+                  TestFeatureContext(
+                    "context",
+                    isProtected = false,
+                    subContext =
+                      Set(TestFeatureContext("prod", isProtected = true))
+                  )
+                    .withFeatureOverload(TestFeature("F1", enabled = false))
+                )
+            )
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "project", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build()
+
+      val response =
+        situation.deleteFeatureOverload(
+          "tenant",
+          "project",
+          "context",
+          "F1",
+          preserveProtectedContexts = false
+        )
+
+      response.status mustBe NO_CONTENT
+    }
+
+    "prevent deleting an overload in non protected context with child protected context without overload & without context preservation if user is not admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(TestFeature(name = "F1", enabled = false))
+                .withContexts(
+                  TestFeatureContext(
+                    "context",
+                    isProtected = false,
+                    subContext =
+                      Set(TestFeatureContext("prod", isProtected = true))
+                  )
+                    .withFeatureOverload(TestFeature("F1", enabled = true))
+                )
+            )
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "project", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build()
+
+      val response =
+        situation.deleteFeatureOverload(
+          "tenant",
+          "project",
+          "context",
+          "F1",
+          preserveProtectedContexts = false
+        )
+
+      response.status mustBe FORBIDDEN
+    }
+
+    "prevent deleting an overload in non protected context with child protected context without overload if user is not admin and context preservation is true" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(TestFeature(name = "F1", enabled = false))
+                .withContexts(
+                  TestFeatureContext(
+                    "context",
+                    isProtected = false,
+                    subContext =
+                      Set(TestFeatureContext("prod", isProtected = true))
+                  )
+                    .withFeatureOverload(TestFeature("F1", enabled = true))
+                )
+            )
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "project", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build()
+
+      val response =
+        situation.deleteFeatureOverload(
+          "tenant",
+          "project",
+          "context",
+          "F1",
+          preserveProtectedContexts = true
+        )
+
+      response.status mustBe NO_CONTENT
+
+
+      val contexts = situation.fetchContexts("tenant", project = "project").json.get
+
+      val ctx = (contexts \ 0).as[JsObject]
+      val prodCtx = (ctx \ "children" \ 0).as[JsObject]
+
+      def overloads(context: JsObject): Seq[JsValue] =
+        (context \ "overloads").as[JsArray].value.toSeq
+
+      overloads(prodCtx) must have size 1
+      overloads(ctx) must have size 0
+    }
+
     "prevent deleting an overload in protected context if user it not project admin" in {
       val situation = TestSituationBuilder()
         .withTenants(
@@ -1287,7 +1413,10 @@ class FeatureContextAPISpec extends BaseAPISpec {
       res.status mustBe NO_CONTENT
 
       val contexts =
-        (situation.fetchContexts("tenant", project = "foo").json.get \ 0 \ "children").as[JsArray].value
+        (situation
+          .fetchContexts("tenant", project = "foo")
+          .json
+          .get \ 0 \ "children").as[JsArray].value
       val prod = contexts
         .find(json => (json \ "name").as[String] == "prod")
         .get
@@ -1374,7 +1503,7 @@ class FeatureContextAPISpec extends BaseAPISpec {
       overloads(mobileCtx) must have size 0
     }
 
-    "prevent overload upsert in context with protected subcontext without overload if user is not project admin and old strategy preservation is not set" in {
+    "prevent overload creation in context with protected subcontext without overload if user is not project admin and old strategy preservation is not set" in {
       var situation = TestSituationBuilder()
         .withUsers(
           TestUser("testu")
@@ -1451,6 +1580,102 @@ class FeatureContextAPISpec extends BaseAPISpec {
 
       overloads(ctx) must have size 1
       overloads(prodCtx) must have size 0
+    }
+
+    "prevent overload update in context with protected subcontext without overload if user is not project admin and old strategy preservation is not set" in {
+      var situation = TestSituationBuilder()
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "proj", tenant = "tenant")
+        )
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("proj")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withContexts(
+                  TestFeatureContext(
+                    "production",
+                    isProtected = true
+                  ),
+                  TestFeatureContext(
+                    "ctx",
+                    subContext =
+                      Set(TestFeatureContext("prod", isProtected = true)),
+                    overloads = Seq(TestFeature("F1", enabled = false))
+                  )
+                )
+            )
+        )
+        .loggedAs("testu")
+        .build()
+
+      var res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "proj",
+        "ctx",
+        "F1",
+        enabled = true,
+        preserveProtectedContexts = false
+      )
+
+      res.status mustEqual FORBIDDEN
+    }
+
+    "preserve old parent context strategy when its updated with context preservation requested" in {
+      var situation = TestSituationBuilder()
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "proj", tenant = "tenant")
+        )
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("proj")
+                .withFeatures(TestFeature("F1", enabled = true))
+                .withContexts(
+                  TestFeatureContext(
+                    "production",
+                    isProtected = true
+                  ),
+                  TestFeatureContext(
+                    "ctx",
+                    subContext =
+                      Set(TestFeatureContext("prod", isProtected = true)),
+                    overloads = Seq(TestFeature("F1", enabled = false))
+                  )
+                )
+            )
+        )
+        .loggedAs("testu")
+        .build()
+
+      var res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "proj",
+        "ctx",
+        "F1",
+        enabled = true,
+        preserveProtectedContexts = true
+      )
+
+      res.status mustEqual NO_CONTENT
+
+      val contexts =
+        situation.fetchContexts("tenant", project = "proj").json.get
+      val ctx = (contexts)
+        .as[JsArray]
+        .value
+        .find(json => (json \ "name").as[String] == "ctx")
+        .get
+        .as[JsObject]
+      val prodCtx = (ctx \ "children" \ 0).as[JsObject]
+      val prodFeatureEnabled =
+        (prodCtx \ "overloads" \ 0 \ "enabled").as[Boolean]
+
+      prodFeatureEnabled mustBe false
     }
 
     "preserve old strategy when creating an overload in context with protected subcontext" in {

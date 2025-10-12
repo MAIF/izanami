@@ -652,9 +652,11 @@ export interface TContext {
   children: TContext[];
   overloads: TContextOverload[];
   global: boolean;
-  project: string;
+  project?: string;
   protected: boolean;
 }
+
+export type TContextWithPath = TContext & { parent: string[] };
 
 export interface IzanamiV1ImportRequest {
   featureFiles: FileList;

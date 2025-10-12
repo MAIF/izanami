@@ -8,6 +8,10 @@ export const PASSWORD = "ADMIN_DEFAULT_PASSWORD";
 
 export async function logAsInNewPage(browser: Browser, user: string) {
   const page = await (await browser.newContext()).newPage();
+  return logAs(page, user);
+}
+
+export async function logAs(page: Page, user: string) {
   await page.goto("/login");
   await page.getByLabel("Username").fill(user);
   await page.getByLabel("Password").fill(DEFAULT_TEST_PASSWORD);

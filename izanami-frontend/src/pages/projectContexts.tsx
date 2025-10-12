@@ -22,13 +22,15 @@ import {
   TProjectLevel,
   TWasmConfig,
 } from "../utils/types";
-import { useProjectRight } from "../securityContext";
-import { OverloadTable } from "../components/FeatureTable";
+import { IzanamiContext, useProjectRight } from "../securityContext";
 import { OverloadCreationForm } from "../components/OverloadCreationForm";
 import { useParams } from "react-router-dom";
 import { useState } from "react";
 import { Loader } from "../components/Loader";
 import { LocalContext } from "../components/ContextTreeLocalContext";
+import { OverloadTable } from "../components/OverloadTable";
+import { analyzeUpdateImpact } from "../utils/contextUtils";
+import { OverloadUpdateConfirmationModal } from "../components/OverloadUpdateConfirmationModal";
 
 export function ProjectContexts(props: {
   tenant: string;
@@ -166,9 +168,18 @@ function ProjectOverloadTable({
       wasm?: TWasmConfig;
       value?: string | number | boolean;
       resultType: FeatureTypeName;
+      strategyPreservation: boolean;
     }) => {
-      const { project, name, enabled, conditions, wasm, value, resultType } =
-        data;
+      const {
+        project,
+        name,
+        enabled,
+        conditions,
+        wasm,
+        value,
+        resultType,
+        strategyPreservation,
+      } = data;
       return updateFeatureActivationForContext(
         tenant,
         project,
@@ -176,6 +187,7 @@ function ProjectOverloadTable({
         name,
         enabled,
         resultType,
+        strategyPreservation,
         conditions,
         wasm,
         value
@@ -192,6 +204,7 @@ function ProjectOverloadTable({
   );
   const updateRight = useProjectRight(tenant, project, TProjectLevel.Update);
   const { allContexts } = React.useContext(LocalContext);
+  const { user, displayModal } = React.useContext(IzanamiContext);
   if (projectQuery.data) {
     return (
       <>
@@ -213,25 +226,86 @@ function ProjectOverloadTable({
             project={project!}
             cancel={() => setCreating(false)}
             submit={(datum) => {
-              updateOverload.mutateAsync(
-                {
-                  project: project!,
-                  name: datum.name,
-                  enabled: datum.enabled,
-                  conditions: "conditions" in datum ? datum.conditions : [],
-                  wasm: "wasmConfig" in datum ? datum.wasmConfig : undefined,
-                  value: "value" in datum ? datum.value : undefined,
-                  resultType: datum.resultType,
-                },
-                {
-                  onSuccess: () => {
-                    setCreating(false);
-                    queryClient.invalidateQueries({
-                      queryKey: [projectContextKey(tenant, project!)],
-                    });
+              const oldFeature = projectQuery.data.features.find(
+                (f) => f.name === datum.name
+              )!;
+
+              const {
+                impactedProtectedContexts,
+                impactedRootProtectedContexts,
+                unprotectedUpdateAllowed,
+              } = analyzeUpdateImpact({
+                contexts: allContexts,
+                project: datum.project!,
+                tenant: tenant!,
+                user: user!,
+                updatedFeatureId: oldFeature.id!,
+                updatedContext: path,
+              });
+
+              if (impactedProtectedContexts.length > 0) {
+                displayModal(({ close }) => {
+                  return (
+                    <OverloadUpdateConfirmationModal
+                      hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
+                      impactedProtectedContexts={impactedProtectedContexts}
+                      impactedRootProtectedContexts={
+                        impactedRootProtectedContexts
+                      }
+                      context={path}
+                      newFeature={datum as any}
+                      onCancel={() => close()}
+                      onConfirm={(strategyPreservation) => {
+                        return updateOverload.mutateAsync(
+                          {
+                            project: project!,
+                            name: datum.name,
+                            enabled: datum.enabled,
+                            conditions:
+                              "conditions" in datum ? datum.conditions : [],
+                            wasm:
+                              "wasmConfig" in datum
+                                ? datum.wasmConfig
+                                : undefined,
+                            value: "value" in datum ? datum.value : undefined,
+                            resultType: datum.resultType,
+                            strategyPreservation: strategyPreservation,
+                          },
+                          {
+                            onSuccess: () => {
+                              setCreating(false);
+                              queryClient.invalidateQueries({
+                                queryKey: [projectContextKey(tenant, project!)],
+                              });
+                            },
+                          }
+                        );
+                      }}
+                    />
+                  );
+                });
+              } else {
+                updateOverload.mutateAsync(
+                  {
+                    project: project!,
+                    name: datum.name,
+                    enabled: datum.enabled,
+                    conditions: "conditions" in datum ? datum.conditions : [],
+                    wasm: "wasmConfig" in datum ? datum.wasmConfig : undefined,
+                    value: "value" in datum ? datum.value : undefined,
+                    resultType: datum.resultType,
+                    strategyPreservation: false,
                   },
-                }
-              );
+                  {
+                    onSuccess: () => {
+                      setCreating(false);
+                      queryClient.invalidateQueries({
+                        queryKey: [projectContextKey(tenant, project!)],
+                      });
+                    },
+                  }
+                );
+              }
             }}
           />
         )}

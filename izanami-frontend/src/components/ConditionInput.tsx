@@ -9,7 +9,7 @@ import {
 import Select from "react-select";
 import CreatableSelect from "react-select/creatable";
 import { customStyles } from "../styles/reactSelect";
-import { Rule, Strategy, Period as PeriodDetails } from "./FeatureTable";
+import { Strategy } from "./FeatureTable";
 import { useEffect } from "react";
 import {
   useFieldArray,
@@ -22,6 +22,7 @@ import { TimeZoneSelect } from "./TimeZoneSelect";
 import { ErrorDisplay } from "./FeatureForm";
 import { Tooltip } from "./Tooltip";
 import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
+import { PeriodDetails, Rule } from "./FeatureDetails";
 
 export function ConditionsInput(props: { folded: boolean }) {
   const { control, watch } = useFormContext();
