@@ -2338,19 +2338,13 @@ export function FeatureTable(props: {
             <FeatureForm
               defaultValue={datum}
               submit={(feature) => {
-                const contextsWithOverload = contextQueries
-                  .flatMap((queryResult) => {
-                    return queryResult?.data || [];
-                  })
-                  .filter((ctx) => {
-                    return ctx.overloads.some(
-                      (o) =>
-                        o.project === datum.project && o.name === datum.name
-                    );
-                  })
-                  .map((ctx) => {
-                    return ctx.name;
-                  });
+                const contextsWithOverload = extractContextsMatching(
+                  contextQueries.flatMap((q) => q.data ?? []),
+                  (c) => c.overloads.length > 0,
+                  false
+                ).map((ctx) => {
+                  return ctx.name;
+                });
 
                 const impactedProtectedContexts = extractContextsMatching(
                   contextQueries.flatMap((q) => q.data ?? []),
@@ -2405,7 +2399,7 @@ export function FeatureTable(props: {
                       This feature has {contextsWithOverload.length} overload(s)
                       with {datum.resultType} result type.
                       <br />
-                      Updating result type to ${feature.resultType} will delete
+                      Updating result type to {feature.resultType} will delete
                       all overloads, are you sure that it is what you want ?
                     </>,
                     () => callback(false)
