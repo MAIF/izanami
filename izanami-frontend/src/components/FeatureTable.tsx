@@ -2214,7 +2214,7 @@ export function FeatureTable(props: {
                       feature.project!,
                       tenant!
                     );
-
+                    setStrategyPreservation(!hasUserAdminRightOnFeature);
                     askConfirmation(
                       <OverloadUpdateConfirmationModal
                         impactedProtectedContexts={impactedProtectedContexts}
@@ -2423,6 +2423,7 @@ export function FeatureTable(props: {
                     () => callback(false)
                   );
                 } else if (impactedProtectedRootContexts.length > 0) {
+                  setStrategyPreservation(!hasUserAdminRightOnFeature);
                   return askConfirmation(
                     <OverloadUpdateConfirmationModal
                       impactedProtectedContexts={impactedProtectedContexts}
@@ -2435,6 +2436,7 @@ export function FeatureTable(props: {
                       ) => {
                         setStrategyPreservation(newStrategyPreservation);
                       }}
+                      feature={feature}
                     />,
                     () => callback(startegyPreservation)
                   );
@@ -2658,10 +2660,44 @@ function OverloadUpdateConfirmationModal(props: {
   } = props;
   const [strategyPreservation, setStrategyPreservation] = useState(false);
 
-  const oldStrategy = <TextualFeatureDetails feature={props.feature} />;
+  const oldStrategy = (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        marginTop: "1rem",
+      }}
+    >
+      <div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          Old strategy is
+        </div>
+        <div
+          style={{
+            border: "1px solid var(--bg-color_level3)",
+            padding: "0.5rem",
+            margin: "0.5rem 0",
+          }}
+        >
+          "{props.feature.name}" is{" "}
+          <span style={{ fontWeight: "bold" }}>
+            {props.feature.enabled ? "enabled" : "disabled"}
+          </span>
+          <TextualFeatureDetails feature={props.feature} />
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <>
-      This update will impact below protected contexts:
+      This update will impact below protected contexts, since neither them or
+      their parent define overload for this feature:
       <ul>
         {impactedProtectedContexts.map((c) => (
           <li key={c.name}>{c.parent.concat(c.name).join("/")}</li>
@@ -2699,37 +2735,7 @@ function OverloadUpdateConfirmationModal(props: {
               Duplicate old strategy for these contexts
             </span>
           </label>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              marginTop: "1rem",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                }}
-              >
-                Old strategy is
-              </div>
-              <div
-                style={{
-                  border: "1px solid var(--bg-color_level3)",
-                  padding: "0.5rem",
-                  margin: "0.5rem 0",
-                }}
-              >
-                "{props.feature.name}" is{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {props.feature.enabled ? "enabled" : "disabled"}
-                </span>
-                <TextualFeatureDetails feature={props.feature} />
-              </div>
-            </div>
-          </div>
+          {oldStrategy}
         </>
       ) : (
         <>
@@ -2741,10 +2747,7 @@ function OverloadUpdateConfirmationModal(props: {
               return <li key={display}>{display}</li>;
             })}
           </ul>
-          <div>
-            Old strategy is <br />
-            <TextualFeatureDetails feature={props.feature} />
-          </div>
+          {oldStrategy}
         </>
       )}
     </>
