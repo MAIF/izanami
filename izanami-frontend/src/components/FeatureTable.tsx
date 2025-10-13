@@ -2186,11 +2186,16 @@ export function FeatureTable(props: {
                   onChange={() => {
                     const impactedProtectedContexts = extractContextsMatching(
                       contextQueries.flatMap((q) => q.data ?? []),
-                      (c) =>
-                        c.protected &&
-                        (!c.overloads || c.overloads.length === 0),
+                      (c) => {
+                        return (
+                          c.protected &&
+                          (!c.overloads || c.overloads.length === 0)
+                        );
+                      },
                       false,
-                      (ctx) => ctx.overloads?.length >= 0
+                      (ctx) => {
+                        return ctx.overloads?.length > 0;
+                      }
                     );
 
                     const impactedProtectedRootContexts =
@@ -2200,7 +2205,7 @@ export function FeatureTable(props: {
                           c.protected &&
                           (!c.overloads || c.overloads.length === 0),
                         true,
-                        (ctx) => ctx.overloads?.length >= 0
+                        (ctx) => ctx.overloads?.length > 0
                       );
 
                     const hasUserAdminRightOnFeature = hasRightForProject(
@@ -2222,6 +2227,7 @@ export function FeatureTable(props: {
                         ) => {
                           setStrategyPreservation(newStrategyPreservation);
                         }}
+                        feature={feature}
                       />,
                       () =>
                         featureUpdateMutation.mutateAsync({
@@ -2348,10 +2354,22 @@ export function FeatureTable(props: {
 
                 const impactedProtectedContexts = extractContextsMatching(
                   contextQueries.flatMap((q) => q.data ?? []),
-                  (c) =>
-                    c.protected && (!c.overloads || c.overloads.length === 0),
+                  (c) => {
+                    console.log("c", c);
+                    console.log(
+                      "result",
+                      c.protected && (!c.overloads || c.overloads.length === 0)
+                    );
+                    return (
+                      c.protected && (!c.overloads || c.overloads.length === 0)
+                    );
+                  },
                   false,
-                  (ctx) => ctx.overloads?.length >= 0
+                  (ctx) => {
+                    console.log("c", ctx);
+                    console.log("result2", ctx.overloads?.length >= 0);
+                    return ctx.overloads?.length > 0;
+                  }
                 );
 
                 const impactedProtectedRootContexts = extractContextsMatching(
@@ -2359,7 +2377,7 @@ export function FeatureTable(props: {
                   (c) =>
                     c.protected && (!c.overloads || c.overloads.length === 0),
                   true,
-                  (ctx) => ctx.overloads?.length >= 0
+                  (ctx) => ctx.overloads?.length > 0
                 );
 
                 const hasUserAdminRightOnFeature = hasRightForProject(
@@ -2631,6 +2649,7 @@ function OverloadUpdateConfirmationModal(props: {
   rootImpactedProtectedContexts: (TContext & { parent: string[] })[];
   hasUserAdminRightOnFeature: boolean;
   onStartegyPreservationUpdate: (newValue: boolean) => any;
+  feature: TLightFeature;
 }) {
   const {
     impactedProtectedContexts,
@@ -2638,6 +2657,8 @@ function OverloadUpdateConfirmationModal(props: {
     rootImpactedProtectedContexts,
   } = props;
   const [strategyPreservation, setStrategyPreservation] = useState(false);
+
+  const oldStrategy = <TextualFeatureDetails feature={props.feature} />;
   return (
     <>
       This update will impact below protected contexts:
@@ -2673,19 +2694,57 @@ function OverloadUpdateConfirmationModal(props: {
                 props.onStartegyPreservationUpdate(e.target.checked);
               }}
             ></input>
-            &nbsp;Duplicate old strategy for these contexts
+            &nbsp;
+            <span style={{ fontSize: "16px" }}>
+              Duplicate old strategy for these contexts
+            </span>
           </label>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginTop: "1rem",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                }}
+              >
+                Old strategy is
+              </div>
+              <div
+                style={{
+                  border: "1px solid var(--bg-color_level3)",
+                  padding: "0.5rem",
+                  margin: "0.5rem 0",
+                }}
+              >
+                "{props.feature.name}" is{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {props.feature.enabled ? "enabled" : "disabled"}
+                </span>
+                <TextualFeatureDetails feature={props.feature} />
+              </div>
+            </div>
+          </div>
         </>
       ) : (
         <>
           You don't have enough rights to update these contexts, therefore old
-          strategy will be apply to below contexts:
+          strategy will be applied to below contexts:
           <ul>
             {rootImpactedProtectedContexts.map((c) => {
               const display = c.parent.concat(c.name).join("/");
               return <li key={display}>{display}</li>;
             })}
           </ul>
+          <div>
+            Old strategy is <br />
+            <TextualFeatureDetails feature={props.feature} />
+          </div>
         </>
       )}
     </>
