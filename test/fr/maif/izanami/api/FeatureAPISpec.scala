@@ -2314,6 +2314,48 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature DELETE endpoint" should {
+    "prevent deleting a feature with protected overload if user doesn't have admin right on project" in {
+      var testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant").withProjects(
+            TestProject("project")
+              .withFeatures(TestFeature("f1", enabled = false))
+              .withContexts(
+                TestFeatureContext(
+                  "prod",
+                  isProtected = true,
+                  overloads = Seq(TestFeature("f1", enabled = false))
+                )
+              )
+          )
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "project", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build()
+
+      val idToDelete = testSituation.findFeatureId(
+        tenant = "tenant",
+        project = "project",
+        feature = "f1"
+      ).get
+      var response = testSituation.deleteFeature(
+        tenant = "tenant",
+        id = idToDelete
+      )
+      response.status mustBe FORBIDDEN
+
+      testSituation = testSituation.loggedAsAdmin()
+      response = testSituation.deleteFeature(
+        tenant = "tenant",
+        id = idToDelete
+      )
+      response.status mustBe NO_CONTENT
+    }
+
     "allow to delete existing feature if user has default write project right" in {
       val tenantName = "my-tenant"
       val projectName = "my-project"

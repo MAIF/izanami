@@ -69,34 +69,47 @@ class FeatureService(env: Env) {
       id: String,
       user: UserWithCompleteRightForOneTenant,
       authentification: EventAuthentication
-  ): FutureEither[Unit] = {
-    datastore
-      .findById(tenant, id)
-      .toFEither
-      .flatMap {
-        case None          => Left(FeatureDoesNotExist(id)).toFEither
-        case Some(feature) => {
-          if (canCreateOrDeleteFeature(feature, user)) {
-            datastore
-              .delete(
-                tenant,
-                id,
-                UserInformation(
-                  username = user.username,
-                  authentication = authentification
-                )
-              )
-              .map(maybeFeature =>
-                maybeFeature
-                  .map(_ => Right(()))
-                  .getOrElse(Left(FeatureDoesNotExist(id)))
-              )
-              .toFEither
-          } else {
-            Left(NotEnoughRights).toFEither
-          }
-        }
-      }
+  ): FutureEither[String] = {
+    for (
+      maybeFeature <- datastore
+        .findActivationStrategiesForFeature(tenant, id)
+        .mapToFEither;
+      feature <- maybeFeature.toRight(FeatureDoesNotExist(id)).toFEither;
+      protectedContexts <- env.datastores.featureContext
+        .readProtectedContexts(tenant = tenant, project = feature.project)
+        .mapToFEither;
+      _ <- if !canCreateOrDeleteFeature(feature.baseFeature, user) then
+        FutureEither.failure(NotEnoughRights)
+      else FutureEither.success(());
+      _ <- if protectedContexts
+          .map(_.fullyQualifiedName)
+          .exists(feature.overloads.contains) && !user.hasRightForProject(
+          feature.project,
+          Admin
+        )
+      then {
+        val problematicContexts = protectedContexts
+          .map(_.fullyQualifiedName)
+          .intersect(feature.overloads.toSeq)
+        FutureEither.failure(
+          NoProtectedContextAccess(
+            problematicContexts.map(_.toUserPath).mkString(",")
+          )
+        );
+      } else {
+        FutureEither.success(())
+      };
+      res <- datastore
+        .delete(
+          tenant,
+          id,
+          UserInformation(
+            username = user.username,
+            authentication = authentification
+          )
+        )
+        .toFEither
+    ) yield res
   }
 
   /** Data container providing information about an update impact on context
@@ -133,24 +146,28 @@ class FeatureService(env: Env) {
       )
   }
 
-  def upsertOverload(request: OverloadFeatureUpdateRequest): FutureEither[Unit] = {
+  def upsertOverload(
+      request: OverloadFeatureUpdateRequest
+  ): FutureEither[Unit] = {
     for (
-        oldFeature <- datastore
-          .findActivationStrategiesForFeatureByName(
-            tenant = request.tenant,
-            name = request.featureName,
-            project = request.project
-          )
-          .map(maybeFeature =>
-            maybeFeature.toRight(FeatureNotFound(request.featureName))
-          )
-          .toFEither;
-        res <- doUpdateFeature(request, oldFeature)
-      ) yield res
+      oldFeature <- datastore
+        .findActivationStrategiesForFeatureByName(
+          tenant = request.tenant,
+          name = request.featureName,
+          project = request.project
+        )
+        .map(maybeFeature =>
+          maybeFeature.toRight(FeatureNotFound(request.featureName))
+        )
+        .toFEither;
+      res <- doUpdateFeature(request, oldFeature)
+    ) yield res
 
   }
 
-  def updateFeature(request: BaseFeatureUpdateRequest): FutureEither[AbstractFeature] = {
+  def updateFeature(
+      request: BaseFeatureUpdateRequest
+  ): FutureEither[AbstractFeature] = {
     env.postgresql.executeInTransaction(conn => {
       for (
         _ <- env.datastores.tags
@@ -291,7 +308,8 @@ class FeatureService(env: Env) {
                   user = r.userInformation,
                   conn = Some(conn)
                 )
-                .toFEither.map(_ => ());
+                .toFEither
+                .map(_ => ());
             case r: OverloadFeatureUpdateRequest =>
               env.datastores.featureContext
                 .updateFeatureStrategy(
