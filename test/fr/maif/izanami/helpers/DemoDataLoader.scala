@@ -7,7 +7,7 @@ import java.time.{DayOfWeek, LocalDateTime, LocalTime}
 object DemoDataLoader {
   def main(args: Array[String]): Unit = {
     cleanUpDB(hard = true)
-    TestSituationBuilder()
+    val situation = TestSituationBuilder()
       .withTenants(
         TestTenant("demo")
           .withProjects(
@@ -49,7 +49,16 @@ object DemoDataLoader {
           .withProjectReadWriteRight(project = "stock", tenant = "demo")
           .withProjectReadWriteRight(project = "shop", tenant = "demo")
       )
+      .loggedInWithAdminRights()
       .build()
+
+    val res = situation.changeFeatureStrategyForContext(
+      tenant = "demo",
+      project = "shop",
+      contextPath = "publicglobal",
+      enabled = false,
+      feature = "new ui"
+    )
     System.exit(0)
   }
 }

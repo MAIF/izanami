@@ -17,6 +17,7 @@ import {
   ProjectUpdated,
   tenantEventTypeOptions,
   TFeatureEventTypes,
+  TLightFeature,
 } from "../utils/types";
 import { useState } from "react";
 import { isEqual, range } from "lodash";
@@ -1007,74 +1008,10 @@ function NaturalLanguageUpdateEventDisplay(props: { event: FeatureUpdated }) {
                 data-bs-parent={`#${`accordion-${ctx}`}`}
               >
                 <div className="accordion-body">
-                  <div className="d-flex justify-content-start">
-                    <div>
-                      <h5>Before</h5>
-                      {oldConditions ? (
-                        <>
-                          {oldConditions.name}
-                          {oldConditions.enabled ? (
-                            <div className="fw-bold">Enabled</div>
-                          ) : (
-                            <div>Disabled</div>
-                          )}
-                          <>
-                            {oldConditions.resultType === "boolean" ? (
-                              <div style={{ marginTop: "8px" }}>
-                                <h6>Activation conditions</h6>
-                              </div>
-                            ) : (
-                              <div style={{ marginTop: "8px" }}>
-                                <h6>Possible values</h6>
-                              </div>
-                            )}
-                          </>
-                          <FeatureDetails feature={oldConditions} />
-                        </>
-                      ) : (
-                        <span className="fst-italic">No specific strategy</span>
-                      )}
-                    </div>
-                    <div
-                      className="d-flex justify-content-center align-items-center"
-                      style={{ fontSize: 60, margin: "0px 48px" }}
-                    >
-                      <i className="fa-solid fa-arrow-right"></i>
-                    </div>
-                    <div>
-                      <h5>After</h5>
-                      {hasChanged ? (
-                        newConditions ? (
-                          <>
-                            {newConditions.name}
-                            {newConditions.enabled ? (
-                              <div className="fw-bold">Enabled</div>
-                            ) : (
-                              <div>Disabled</div>
-                            )}
-                            <>
-                              {newConditions.resultType === "boolean" ? (
-                                <div style={{ marginTop: "8px" }}>
-                                  <h6>Activation conditions</h6>
-                                </div>
-                              ) : (
-                                <div style={{ marginTop: "8px" }}>
-                                  <h6>Possible values</h6>
-                                </div>
-                              )}
-                            </>
-                            <FeatureDetails feature={newConditions} />
-                          </>
-                        ) : (
-                          <span className="fst-italic">
-                            No specific strategy
-                          </span>
-                        )
-                      ) : (
-                        <span className="fst-italic">No changes</span>
-                      )}
-                    </div>
-                  </div>
+                  <ConditionDiff
+                    oldConditions={oldConditions}
+                    newConditions={newConditions}
+                  />
                 </div>
               </div>
             </div>
@@ -1082,6 +1019,82 @@ function NaturalLanguageUpdateEventDisplay(props: { event: FeatureUpdated }) {
         );
       })}
     </>
+  );
+}
+
+export function ConditionDiff(props: {
+  oldConditions: TLightFeature;
+  newConditions: TLightFeature;
+}) {
+  const { oldConditions, newConditions } = props;
+  const hasChanged = !isEqual(oldConditions, newConditions);
+  return (
+    <div className="d-flex justify-content-start">
+      <div>
+        <h5>Before</h5>
+        {oldConditions ? (
+          <>
+            {oldConditions.name}
+            {oldConditions.enabled ? (
+              <div className="fw-bold">Enabled</div>
+            ) : (
+              <div>Disabled</div>
+            )}
+            <>
+              {oldConditions.resultType === "boolean" ? (
+                <div style={{ marginTop: "8px" }}>
+                  <h6>Activation conditions</h6>
+                </div>
+              ) : (
+                <div style={{ marginTop: "8px" }}>
+                  <h6>Possible values</h6>
+                </div>
+              )}
+            </>
+            <FeatureDetails feature={oldConditions} />
+          </>
+        ) : (
+          <span className="fst-italic">No specific strategy</span>
+        )}
+      </div>
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ fontSize: 60, margin: "0px 48px" }}
+      >
+        <i className="fa-solid fa-arrow-right"></i>
+      </div>
+      <div>
+        <h5>After</h5>
+        {hasChanged ? (
+          newConditions ? (
+            <>
+              {newConditions.name}
+              {newConditions.enabled ? (
+                <div className="fw-bold">Enabled</div>
+              ) : (
+                <div>Disabled</div>
+              )}
+              <>
+                {newConditions.resultType === "boolean" ? (
+                  <div style={{ marginTop: "8px" }}>
+                    <h6>Activation conditions</h6>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: "8px" }}>
+                    <h6>Possible values</h6>
+                  </div>
+                )}
+              </>
+              <FeatureDetails feature={newConditions} />
+            </>
+          ) : (
+            <span className="fst-italic">No specific strategy</span>
+          )
+        ) : (
+          <span className="fst-italic">No changes</span>
+        )}
+      </div>
+    </div>
   );
 }
 

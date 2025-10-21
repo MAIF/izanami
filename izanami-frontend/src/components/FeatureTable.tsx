@@ -69,6 +69,7 @@ import { json } from "@codemirror/lang-json";
 import { GlobalContextIcon } from "../utils/icons";
 import { possiblePaths } from "../utils/contextUtils";
 import { toLegacyFeatureFormat } from "../utils/featureUtils";
+import { ConditionDiff } from "./AuditLogs";
 
 type FeatureFields =
   | "id"
@@ -1349,6 +1350,7 @@ export function OverloadTable(props: {
   const { tenant } = useParams();
   const { fields, overloads, actions, refresh, project, contexts } = props;
   const columns: ColumnDef<TContextOverload>[] = [];
+  const [strategyPreservation, setStrategyPreservation] = useState(false);
   const updateStrategyMutation = useMutation({
     mutationFn: (
       data: TContextOverload & {
@@ -1484,7 +1486,72 @@ export function OverloadTable(props: {
                     feature.name
                   }`}
                   onChange={() => {
+                    const contextsToUse = getSubtreeMatchingPath(
+                      contexts,
+                      feature.path.split("/")
+                    );
+
+                    const impactedProtectedContexts = extractContextsMatching(
+                      contextsToUse,
+                      (c) => {
+                        return (
+                          c.protected &&
+                          (!c.overloads || c.overloads.length === 0)
+                        );
+                      },
+                      false,
+                      (ctx) => {
+                        return ctx.overloads?.length > 0;
+                      }
+                    );
+
+                    const impactedProtectedRootContexts =
+                      extractContextsMatching(
+                        contextsToUse,
+                        (c) =>
+                          c.protected &&
+                          (!c.overloads || c.overloads.length === 0),
+                        true,
+                        (ctx) => ctx.overloads?.length > 0
+                      );
+
+                    const hasUserAdminRightOnFeature = hasRightForProject(
+                      user!,
+                      TProjectLevel.Admin,
+                      feature.project!,
+                      tenant!
+                    );
+                    setStrategyPreservation(!hasUserAdminRightOnFeature);
                     askConfirmation(
+                      <OverloadUpdateConfirmationModal
+                        impactedProtectedContexts={impactedProtectedContexts}
+                        rootImpactedProtectedContexts={
+                          impactedProtectedRootContexts
+                        }
+                        hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
+                        onStartegyPreservationUpdate={(
+                          newStrategyPreservation
+                        ) => {
+                          setStrategyPreservation(newStrategyPreservation);
+                        }}
+                        oldFeature={feature as any}
+                        newFeature={
+                          {
+                            feature: feature.name,
+                            ...feature,
+                            enabled: !isEnabled,
+                          } as any
+                        }
+                      />,
+                      () =>
+                        updateStrategyMutation.mutateAsync({
+                          feature: feature.name,
+                          ...feature,
+                          enabled: !isEnabled,
+                        } as any)
+                    );
+
+                    /*askConfirmation(
                       `Are you sure you want to ${
                         isEnabled ? "disable" : "enable"
                       } feature ${feature.name} for context ${context?.name} ?`,
@@ -1494,7 +1561,7 @@ export function OverloadTable(props: {
                           ...feature,
                           enabled: !isEnabled,
                         } as any)
-                    );
+                    );*/
                   }}
                 />
                 &nbsp;
@@ -1942,6 +2009,18 @@ function Pill({
   );
 }
 
+function getSubtreeMatchingPath(contexts: TContext[], path: string[]) {
+  return path.reduce((acc: TContext[], nextPath: string) => {
+    const maybeChild = acc.find((c) => c.name === nextPath);
+
+    if (maybeChild) {
+      return maybeChild.children;
+    } else {
+      return [];
+    }
+  }, contexts);
+}
+
 function extractContextsMatching(
   contexts: TContext[],
   predicate: (ctx: TContext) => boolean,
@@ -2227,7 +2306,13 @@ export function FeatureTable(props: {
                         ) => {
                           setStrategyPreservation(newStrategyPreservation);
                         }}
-                        feature={feature}
+                        oldFeature={feature as TLightFeature}
+                        newFeature={
+                          {
+                            ...feature,
+                            enabled: !isEnabled,
+                          } as any
+                        }
                       />,
                       () =>
                         featureUpdateMutation.mutateAsync({
@@ -2436,7 +2521,8 @@ export function FeatureTable(props: {
                       ) => {
                         setStrategyPreservation(newStrategyPreservation);
                       }}
-                      feature={feature}
+                      oldFeature={datum as TLightFeature}
+                      newFeature={feature as TLightFeature}
                     />,
                     () => callback(startegyPreservation)
                   );
@@ -2651,7 +2737,8 @@ function OverloadUpdateConfirmationModal(props: {
   rootImpactedProtectedContexts: (TContext & { parent: string[] })[];
   hasUserAdminRightOnFeature: boolean;
   onStartegyPreservationUpdate: (newValue: boolean) => any;
-  feature: TLightFeature;
+  oldFeature: TLightFeature;
+  newFeature: TLightFeature;
 }) {
   const {
     impactedProtectedContexts,
@@ -2660,42 +2747,9 @@ function OverloadUpdateConfirmationModal(props: {
   } = props;
   const [strategyPreservation, setStrategyPreservation] = useState(false);
 
-  const oldStrategy = (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        marginTop: "1rem",
-      }}
-    >
-      <div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          Old strategy is
-        </div>
-        <div
-          style={{
-            border: "1px solid var(--bg-color_level3)",
-            padding: "0.5rem",
-            margin: "0.5rem 0",
-          }}
-        >
-          "{props.feature.name}" is{" "}
-          <span style={{ fontWeight: "bold" }}>
-            {props.feature.enabled ? "enabled" : "disabled"}
-          </span>
-          <TextualFeatureDetails feature={props.feature} />
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <>
+      <h3>Protected contexts impacts</h3>
       This update will impact below protected contexts, since neither them or
       their parent define overload for this feature:
       <ul>
@@ -2735,7 +2789,20 @@ function OverloadUpdateConfirmationModal(props: {
               Duplicate old strategy for these contexts
             </span>
           </label>
-          {oldStrategy}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <h4 style={{ marginBottom: "1rem" }}>Changes</h4>
+            <ConditionDiff
+              newConditions={props.newFeature}
+              oldConditions={props.oldFeature}
+            />
+          </div>
         </>
       ) : (
         <>
@@ -2747,7 +2814,20 @@ function OverloadUpdateConfirmationModal(props: {
               return <li key={display}>{display}</li>;
             })}
           </ul>
-          {oldStrategy}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <h4 style={{ marginBottom: "1rem" }}>Changes</h4>
+            <ConditionDiff
+              newConditions={props.newFeature}
+              oldConditions={props.oldFeature}
+            />
+          </div>
         </>
       )}
     </>
