@@ -33,68 +33,83 @@ class LoginController(
   private val logger = Logger("izanami.login")
 
   def openIdConnect: Action[AnyContent] = Action.async { implicit request =>
-    env.datastores.configuration.readFullConfiguration().value.map(e => e.toOption.flatMap(_.oidcConfiguration)).map {
-      case None => MissingOIDCConfigurationError().toHttpResponse
-      case Some(
-            OAuth2Configuration(
-              enabled,
-              method,
-              clientId,
-              _clientSecret,
-              _tokenUrl,
-              authorizeUrl,
-              scopes,
-              pkce,
-              _nameField,
-              _emailField,
-              callbackUrl,
-              defaultOIDCUserRights,
-              userRightsByRoles,
-              roleRightMode
-            )
-          ) => {
+    env.datastores.configuration
+      .readFullConfiguration()
+      .value
+      .map(e => e.toOption.flatMap(_.oidcConfiguration))
+      .map {
+        case None => MissingOIDCConfigurationError().toHttpResponse
+        case Some(
+              OAuth2Configuration(
+                enabled,
+                method,
+                clientId,
+                _clientSecret,
+                _tokenUrl,
+                authorizeUrl,
+                scopes,
+                pkce,
+                _nameField,
+                _emailField,
+                callbackUrl,
+                defaultOIDCUserRights,
+                userRightsByRoles,
+                roleRightMode
+              )
+            ) => {
 
-        if (!enabled) {
-          BadRequest(Json.obj("message" -> "Something wrong happened"))
-        } else {
-          val hasOpenIdInScope = scopes.split(" ").toSet.exists(s => s.equalsIgnoreCase("openid"))
-          val actualScope      = (if (!hasOpenIdInScope) scopes + " openid" else scopes).replace(" ", "%20")
-
-          if (pkce.exists(_.enabled)) {
-            val (codeVerifier, codeChallenge, codeChallengeMethod) = generatePKCECodes(pkce.get.algorithm.some)
-
-            Redirect(
-              s"$authorizeUrl?scope=$actualScope&client_id=$clientId&response_type=code&redirect_uri=$callbackUrl&code_challenge=$codeChallenge&code_challenge_method=$codeChallengeMethod"
-            ).addingToSession(
-              "code_verifier" -> codeVerifier
-            )
+          if (!enabled) {
+            BadRequest(Json.obj("message" -> "Something wrong happened"))
           } else {
-            Redirect(
-              s"$authorizeUrl?scope=$actualScope&client_id=$clientId&response_type=code&redirect_uri=$callbackUrl"
-            )
+            val hasOpenIdInScope =
+              scopes.split(" ").toSet.exists(s => s.equalsIgnoreCase("openid"))
+            val actualScope = (if (!hasOpenIdInScope) scopes + " openid"
+                               else scopes).replace(" ", "%20")
+
+            if (pkce.exists(_.enabled)) {
+              val (codeVerifier, codeChallenge, codeChallengeMethod) =
+                generatePKCECodes(pkce.get.algorithm.some)
+
+              Redirect(
+                s"$authorizeUrl?scope=$actualScope&client_id=$clientId&response_type=code&redirect_uri=$callbackUrl&code_challenge=$codeChallenge&code_challenge_method=$codeChallengeMethod"
+              ).addingToSession(
+                "code_verifier" -> codeVerifier
+              )
+            } else {
+              Redirect(
+                s"$authorizeUrl?scope=$actualScope&client_id=$clientId&response_type=code&redirect_uri=$callbackUrl"
+              )
+            }
           }
         }
       }
-    }
   }
 
-  private def generatePKCECodes(codeChallengeMethod: Option[String] = Some("S256")) = {
-    val code         = new Array[Byte](120)
+  private def generatePKCECodes(
+      codeChallengeMethod: Option[String] = Some("S256")
+  ) = {
+    val code = new Array[Byte](120)
     val secureRandom = new SecureRandom()
     secureRandom.nextBytes(code)
 
+    val codeVerifier = new String(
+      Base64.getUrlEncoder.withoutPadding().encodeToString(code)
+    ).slice(0, 120)
 
-    val codeVerifier = new String(Base64.getUrlEncoder.withoutPadding().encodeToString(code)).slice(0, 120)
-
-    val bytes  = codeVerifier.getBytes("US-ASCII")
-    val md     = MessageDigest.getInstance("SHA-256")
+    val bytes = codeVerifier.getBytes("US-ASCII")
+    val md = MessageDigest.getInstance("SHA-256")
     md.update(bytes, 0, bytes.length)
     val digest = md.digest
 
     codeChallengeMethod match {
       case Some("S256") =>
-        (codeVerifier, org.apache.commons.codec.binary.Base64.encodeBase64URLSafeString(digest), "S256")
-      case _            => (codeVerifier, codeVerifier, "plain")
+        (
+          codeVerifier,
+          org.apache.commons.codec.binary.Base64
+            .encodeBase64URLSafeString(digest),
+          "S256"
+        )
+      case _ => (codeVerifier, codeVerifier, "plain")
     }
   }
 
@@ -102,17 +117,36 @@ class LoginController(
     // TODO handle refresh_token
     {
       for (
-        code                   <- request.body.asJson.flatMap(json => (json \ "code").get.asOpt[String]).asFuture;
+        code <- request.body.asJson
+          .flatMap(json => (json \ "code").get.asOpt[String])
+          .asFuture;
         oauth2ConfigurationOpt <-
-          env.datastores.configuration.readFullConfiguration().value.map(_.toOption.flatMap(_.oidcConfiguration))
+          env.datastores.configuration
+            .readFullConfiguration()
+            .value
+            .map(_.toOption.flatMap(_.oidcConfiguration))
       )
         yield {
-          if(code.isEmpty) {
-            logger.error("Izanami failed to extract code from oauth provider call")
-            InternalServerError(Json.obj("message" -> "Failed to extract code from token")).asFuture
-          } else if(oauth2ConfigurationOpt.isEmpty || oauth2ConfigurationOpt.exists(_.enabled == false)) {
-            logger.error("Izanami received oauth provider call however oauth configuration is either disabled or not set")
-            InternalServerError(Json.obj("message" -> "OAuth2 configuration is either absent or disabled")).asFuture
+          if (code.isEmpty) {
+            logger.error(
+              "Izanami failed to extract code from oauth provider call"
+            )
+            InternalServerError(
+              Json.obj("message" -> "Failed to extract code from token")
+            ).asFuture
+          } else if (
+            oauth2ConfigurationOpt.isEmpty || oauth2ConfigurationOpt.exists(
+              _.enabled == false
+            )
+          ) {
+            logger.error(
+              "Izanami received oauth provider call however oauth configuration is either disabled or not set"
+            )
+            InternalServerError(
+              Json.obj(
+                "message" -> "OAuth2 configuration is either absent or disabled"
+              )
+            ).asFuture
           } else {
             val OAuth2Configuration(
               _enabled,
@@ -133,10 +167,12 @@ class LoginController(
 
             var builder = env.Ws
               .url(tokenUrl)
-              .withHttpHeaders(("content-type", "application/x-www-form-urlencoded"))
-            var body    = Map(
-              "grant_type"   -> "authorization_code",
-              "code"         -> code.get,
+              .withHttpHeaders(
+                ("content-type", "application/x-www-form-urlencoded")
+              )
+            var body = Map(
+              "grant_type" -> "authorization_code",
+              "code" -> code.get,
               "redirect_uri" -> callbackUrl
             )
 
@@ -145,118 +181,187 @@ class LoginController(
                 .withAuth(clientId, clientSecret, WSAuthScheme.BASIC)
             } else {
               body = Map(
-                "grant_type"    -> "authorization_code",
-                "code"          -> code.get,
-                "redirect_uri"  -> callbackUrl,
-                "client_id"     -> clientId,
+                "grant_type" -> "authorization_code",
+                "code" -> code.get,
+                "redirect_uri" -> callbackUrl,
+                "client_id" -> clientId,
                 "client_secret" -> clientSecret
               )
             }
 
             if (_pkce.exists(_.enabled)) {
-              body = body + ("code_verifier" -> request.session.get(s"code_verifier").getOrElse(""))
+              val maybeCodeVerifier = request.session.get(s"code_verifier")
+              if (maybeCodeVerifier.isEmpty) {
+                logger.error(
+                  "PKCE flow is required but no code_verifier was found"
+                )
+              }
+              body = body + ("code_verifier" -> maybeCodeVerifier.getOrElse(""))
             }
 
             builder
               .post(body)
               .flatMap(r => {
-                val maybeToken = (r.json \ "id_token").get.asOpt[String]
+                val maybeToken = if (r.status >= 400) {
+                  logger.error(
+                    s"Failed to retrieve id token from distant authentication provider. Return code is ${r.status}, response body is ${r.body}"
+                  )
+                  None
+                } else {
+                  val jsonBody = r.json
+                  val token = (jsonBody \ "id_token").asOpt[String]
 
-                maybeToken.fold(Future(InternalServerError(Json.obj("message" -> "Failed to retrieve token"))))(
-                  token => {
-                    val maybeClaims = JwtJson.decode(token, JwtOptions(signature = false, leeway = 1))
-                    maybeClaims.toOption
-                      .flatMap(claims => Json.parse(claims.content).asOpt[JsObject])
-                      .flatMap(json => {
-                        val roles = extractRoles(json, roleClaim).getOrElse(Set())
-                        logger.debug(s"Extracted roles [${roles.mkString(",")}] from id_token. ")
+                  if (token.isEmpty) {
+                    logger.error(
+                      s"Failed to read id token from distant authentication provider response. Response body is ${jsonBody}"
+                    )
+                  }
+                  token
+                }
 
-                        for (
-                          username <- (json \ nameField).asOpt[String];
-                          email    <- (json \ emailField).asOpt[String]
-                        )
-                          yield {
-                            env.datastores.users
-                              .findUser(username)
-                              .flatMap(maybeUser => {
-                                def createOrUpdateUser(rs: Option[RightsByRole]) = {
-                                    val rights = rs.map(r => RightService.effectiveRights(r, roles)).getOrElse(CompleteRights.EMPTY)
-                                      env.postgresql.executeInTransaction(conn =>
-                                      maybeUser
-                                        .fold {
-                                          env.datastores.users
-                                            .createUser(
-                                              User(username, email = email, userType = OIDC, admin = rights.admin)
-                                                .withRights(Rights(rights.tenants)),
-                                              conn=Some(conn)
-                                            )
-                                        }(user => {
-                                          if (user.admin == rights.admin && user.tenantRights == rights.tenants && roleRightMode.contains(Initial)) {
-                                            Future.successful(Right(()))
-                                          } else {
-                                            rightService.updateUserRights(
-                                              user.username,
-                                              UserRightsUpdateRequest.fromRights(rights),
-                                              force=true,
-                                              conn=Some(conn)
-                                            )
-                                          }
-                                        })
+                maybeToken.fold(
+                  Future(
+                    InternalServerError(
+                      Json.obj("message" -> "Failed to retrieve token")
+                    )
+                  )
+                )(token => {
+                  val maybeClaims = JwtJson
+                    .decode(token, JwtOptions(signature = false, leeway = 1))
+                  maybeClaims.toOption
+                    .flatMap(claims =>
+                      Json.parse(claims.content).asOpt[JsObject]
+                    )
+                    .flatMap(json => {
+                      val roles = extractRoles(json, roleClaim).getOrElse(Set())
+                      logger.debug(
+                        s"Extracted roles [${roles.mkString(",")}] from id_token. "
+                      )
+
+                      for (
+                        username <- (json \ nameField).asOpt[String];
+                        email <- (json \ emailField).asOpt[String]
+                      )
+                        yield {
+                          env.datastores.users
+                            .findUser(username)
+                            .flatMap(maybeUser => {
+                              def createOrUpdateUser(
+                                  rs: Option[RightsByRole]
+                              ) = {
+                                val rights = rs
+                                  .map(r =>
+                                    RightService.effectiveRights(r, roles)
+                                  )
+                                  .getOrElse(CompleteRights.EMPTY)
+                                env.postgresql.executeInTransaction(conn =>
+                                  maybeUser
+                                    .fold {
+                                      env.datastores.users
+                                        .createUser(
+                                          User(
+                                            username,
+                                            email = email,
+                                            userType = OIDC,
+                                            admin = rights.admin
+                                          )
+                                            .withRights(Rights(rights.tenants)),
+                                          conn = Some(conn)
+                                        )
+                                    }(user => {
+                                      if (
+                                        user.admin == rights.admin && user.tenantRights == rights.tenants && roleRightMode
+                                          .contains(Initial)
+                                      ) {
+                                        Future.successful(Right(()))
+                                      } else {
+                                        rightService.updateUserRights(
+                                          user.username,
+                                          UserRightsUpdateRequest
+                                            .fromRights(rights),
+                                          force = true,
+                                          conn = Some(conn)
+                                        )
+                                      }
+                                    })
+                                )
+                              }
+                              val rightByRolesFromEnvIfAny =
+                                env.typedConfiguration.openid
+                                  .flatMap(_.toIzanamiOAuth2Configuration)
+                                  .flatMap(_.userRightsByRoles)
+                                  .orElse(userRightsByRoles)
+                              createOrUpdateUser(rightByRolesFromEnvIfAny)
+                                .flatMap {
+                                  case Left(err)
+                                      if (rightByRolesFromEnvIfAny.isDefined) => {
+                                    env.datastores.configuration
+                                      .updateOIDCRightByRolesIfNeeded(
+                                        rightByRolesFromEnvIfAny.get
                                       )
-                                }
-                                val rightByRolesFromEnvIfAny = env.typedConfiguration.openid.flatMap(_.toIzanamiOAuth2Configuration).flatMap(_.userRightsByRoles).orElse(userRightsByRoles)
-                                createOrUpdateUser(rightByRolesFromEnvIfAny).flatMap {
-                                  case Left(err) if(rightByRolesFromEnvIfAny.isDefined) => {
-                                        env.datastores.configuration
-                                          .updateOIDCRightByRolesIfNeeded(rightByRolesFromEnvIfAny.get)
-                                          .flatMap(newRights => createOrUpdateUser(Some(newRights)))
+                                      .flatMap(newRights =>
+                                        createOrUpdateUser(Some(newRights))
+                                      )
                                   }
-                                  case Left(err) => Future(Left(err))
+                                  case Left(err)    => Future(Left(err))
                                   case Right(value) => Future(Right(value))
                                 }
-                              })
-                              .map(either => either.map(_ => username))
-                          }
-                      })
-                      .getOrElse(
-                        Future(Left(InternalServerError(Json.obj("message" -> "Failed to read token claims"))))
-                      )
-                      .flatMap {
-                        // TODO refactor this whole method
-                        case Right(username) => {
-                          env.datastores.users.createSession(username).map(id => Right(id))
+                            })
+                            .map(either => either.map(_ => username))
                         }
-                        case Left(err)       => Future(Left(err))
+                    })
+                    .getOrElse(
+                      Future(
+                        Left(
+                          InternalServerError(
+                            Json.obj("message" -> "Failed to read token claims")
+                          )
+                        )
+                      )
+                    )
+                    .flatMap {
+                      // TODO refactor this whole method
+                      case Right(username) => {
+                        env.datastores.users
+                          .createSession(username)
+                          .map(id => Right(id))
                       }
-                      .map(maybeId => {
-                        maybeId
-                          .map(id => {
-                            env.jwtService.generateToken(id)
-                          })
-                          .map(token => {
-                            NoContent
-                              .withCookies(
-                                Cookie(
-                                  name = "token",
-                                  value = token,
-                                  httpOnly = false,
-                                  sameSite = Some(SameSite.Strict)
-                                )
+                      case Left(err) => Future(Left(err))
+                    }
+                    .map(maybeId => {
+                      maybeId
+                        .map(id => {
+                          env.jwtService.generateToken(id)
+                        })
+                        .map(token => {
+                          NoContent
+                            .withCookies(
+                              Cookie(
+                                name = "token",
+                                value = token,
+                                httpOnly = false,
+                                sameSite = Some(SameSite.Strict)
                               )
-                          })
-                          .getOrElse(InternalServerError(Json.obj("message" -> "Failed to read token claims")))
-                      })
-                  }
-                )
+                            )
+                        })
+                        .getOrElse(
+                          InternalServerError(
+                            Json.obj("message" -> "Failed to read token claims")
+                          )
+                        )
+                    })
+                })
               })
           }
         }
     }.flatten
-    //.getOrElse(Future(InternalServerError(Json.obj("message" -> "Failed to read token claims"))))
+    // .getOrElse(Future(InternalServerError(Json.obj("message" -> "Failed to read token claims"))))
   }
 
-
-  private def extractRoles(claims: JsObject, roleClaim: Option[String]): Option[Set[String]] = {
+  private def extractRoles(
+      claims: JsObject,
+      roleClaim: Option[String]
+  ): Option[Set[String]] = {
     if (roleClaim.isEmpty) {
       logger.debug("No role claim defined, skipping role extraction")
       None
@@ -266,12 +371,15 @@ class LoginController(
       val maybeRoleClaimContent = (claims \ claimName).toOption
 
       if (maybeRoleClaimContent.isEmpty) {
-        logger.debug(s"Missing claim $claimName in token, no role were extracted")
+        logger.debug(
+          s"Missing claim $claimName in token, no role were extracted"
+        )
       }
 
       val roles = maybeRoleClaimContent match {
         case Some(JsString(value)) => Set(value)
-        case Some(arr:JsArray) => arr.value.map((el: JsValue) => el.as[String]).toSet
+        case Some(arr: JsArray)    =>
+          arr.value.map((el: JsValue) => el.as[String]).toSet
         case _ => Set(): Set[String]
       }
 
@@ -279,7 +387,7 @@ class LoginController(
     }
   }
 
-    /*maybeJson.toOption.flatMap(roleClaim => roleClaim.)
+  /*maybeJson.toOption.flatMap(roleClaim => roleClaim.)
 
 
     val roles      =
@@ -295,104 +403,125 @@ class LoginController(
       }
       .getOrElse(Set(): Set[String])*/
 
-  def fetchOpenIdConnectConfiguration: Action[AnyContent] = Action.async { implicit request =>
-    request.body.asJson.flatMap(body => (body \ "url").asOpt[String]) match {
-      case None      => BadRequest(Json.obj("error" -> "missing field")).future
-      case Some(url) =>
-        env.Ws
-          .url(url)
-          .withRequestTimeout(10.seconds)
-          .get()
-          .map { resp =>
-            val result: Option[OAuth2Configuration] = if (resp.status == 200) {
-              val body         = Json.parse(resp.body)
-              val tokenUrl     = (body \ "token_endpoint").asOpt[String];
-              val authorizeUrl = (body \ "authorization_endpoint").asOpt[String];
+  def fetchOpenIdConnectConfiguration: Action[AnyContent] = Action.async {
+    implicit request =>
+      request.body.asJson.flatMap(body => (body \ "url").asOpt[String]) match {
+        case None => BadRequest(Json.obj("error" -> "missing field")).future
+        case Some(url) =>
+          env.Ws
+            .url(url)
+            .withRequestTimeout(10.seconds)
+            .get()
+            .map { resp =>
+              val result: Option[OAuth2Configuration] =
+                if (resp.status == 200) {
+                  val body = Json.parse(resp.body)
+                  val tokenUrl = (body \ "token_endpoint").asOpt[String];
+                  val authorizeUrl =
+                    (body \ "authorization_endpoint").asOpt[String];
 
-              val scope = (body \ "scopes_supported")
-                .asOpt[Seq[String]]
-                .map(_.mkString(" "))
-                .getOrElse("openid email profile")
+                  val scope = (body \ "scopes_supported")
+                    .asOpt[Seq[String]]
+                    .map(_.mkString(" "))
+                    .getOrElse("openid email profile")
 
-              OAuth2Configuration(
-                clientId = null,
-                clientSecret = null,
-                tokenUrl = tokenUrl.getOrElse(""),
-                authorizeUrl = authorizeUrl.getOrElse(""),
-                scopes = scope,
-                pkce = None,
-                callbackUrl = s"${env.expositionUrl}/login",
-                method = OAuth2BASICMethod,
-                enabled = true,
-                userRightsByRoles = None,
-                roleClaim = None,
-                roleRightMode = None
-              ).some
-            } else {
-              None
+                  OAuth2Configuration(
+                    clientId = null,
+                    clientSecret = null,
+                    tokenUrl = tokenUrl.getOrElse(""),
+                    authorizeUrl = authorizeUrl.getOrElse(""),
+                    scopes = scope,
+                    pkce = None,
+                    callbackUrl = s"${env.expositionUrl}/login",
+                    method = OAuth2BASICMethod,
+                    enabled = true,
+                    userRightsByRoles = None,
+                    roleClaim = None,
+                    roleRightMode = None
+                  ).some
+                } else {
+                  None
+                }
+
+              result match {
+                case Some(value) => Ok(OAuth2Configuration._fmt.writes(value))
+                case None        => NotFound(Json.obj())
+              }
             }
-
-            result match {
-              case Some(value) => Ok(OAuth2Configuration._fmt.writes(value))
-              case None        => NotFound(Json.obj())
-            }
-          }
-    }
+      }
   }
 
-  def logout(): Action[AnyContent] = sessionAuthAction.async { implicit request =>
-    env.datastores.users
-      .deleteSession(request.sessionId)
-      .map(_ => {
-        NoContent.withCookies(
-          Cookie(
-            name = "token",
-            value = "",
-            httpOnly = false,
-            sameSite = Some(SameSite.Strict),
-            maxAge = Some(0)
-          )
-        )
-      })
-  }
-
-  def login(rights: Boolean = false): Action[AnyContent] = Action.async { implicit request =>
-    request.headers
-      .get("Authorization")
-      .map(header => header.split("Basic "))
-      .filter(splitted => splitted.length == 2)
-      .map(splitted => splitted(1))
-      .map(header => {
-        Base64.getDecoder.decode(header.getBytes)
-      })
-      .map(bytes => new String(bytes))
-      .map(header => header.split(":"))
-      .filter(arr => arr.length == 2) match {
-      case Some(Array(username, password, _*)) =>
-        env.datastores.users.isUserValid(username, password).flatMap {
-          case None       => delayResponse(Forbidden(Json.obj("message" -> "Incorrect credentials")))
-          case Some(user) =>
-            for {
-              _         <- if (user.legacy) env.datastores.users.updateLegacyUser(username, password)
-                           else Future.successful(())
-              sessionId <- env.datastores.users.createSession(user.username)
-              token     <- env.jwtService.generateToken(sessionId).future
-              response  <- if (rights) env.datastores.users.findUserWithCompleteRights(user.username).map {
-                             case Some(user) => Ok(Json.toJson(user)(userRightsWrites))
-                             case None       => InternalServerError(Json.obj("message" -> "Failed to read rights"))
-                           }
-                           else Future.successful(Ok)
-            } yield response.withCookies(
-              Cookie(
-                name = "token",
-                value = token,
-                httpOnly = false,
-                sameSite = Some(SameSite.Strict),
-                maxAge = Some(env.typedConfiguration.sessions.ttl - 120)
-              )
+  def logout(): Action[AnyContent] = sessionAuthAction.async {
+    implicit request =>
+      env.datastores.users
+        .deleteSession(request.sessionId)
+        .map(_ => {
+          NoContent.withCookies(
+            Cookie(
+              name = "token",
+              value = "",
+              httpOnly = false,
+              sameSite = Some(SameSite.Strict),
+              maxAge = Some(0)
             )
-        }
-      case _                                   => delayResponse(Unauthorized(Json.obj("message" -> "Missing credentials")))
-    }
+          )
+        })
+  }
+
+  def login(rights: Boolean = false): Action[AnyContent] = Action.async {
+    implicit request =>
+      request.headers
+        .get("Authorization")
+        .map(header => header.split("Basic "))
+        .filter(splitted => splitted.length == 2)
+        .map(splitted => splitted(1))
+        .map(header => {
+          Base64.getDecoder.decode(header.getBytes)
+        })
+        .map(bytes => new String(bytes))
+        .map(header => header.split(":"))
+        .filter(arr => arr.length == 2) match {
+        case Some(Array(username, password, _*)) =>
+          env.datastores.users.isUserValid(username, password).flatMap {
+            case None =>
+              delayResponse(
+                Forbidden(Json.obj("message" -> "Incorrect credentials"))
+              )
+            case Some(user) =>
+              for {
+                _ <-
+                  if (user.legacy)
+                    env.datastores.users.updateLegacyUser(username, password)
+                  else Future.successful(())
+                sessionId <- env.datastores.users.createSession(user.username)
+                token <- env.jwtService.generateToken(sessionId).future
+                response <-
+                  if (rights)
+                    env.datastores.users
+                      .findUserWithCompleteRights(user.username)
+                      .map {
+                        case Some(user) =>
+                          Ok(Json.toJson(user)(userRightsWrites))
+                        case None =>
+                          InternalServerError(
+                            Json.obj("message" -> "Failed to read rights")
+                          )
+                      }
+                  else Future.successful(Ok)
+              } yield response.withCookies(
+                Cookie(
+                  name = "token",
+                  value = token,
+                  httpOnly = false,
+                  sameSite = Some(SameSite.Strict),
+                  maxAge = Some(env.typedConfiguration.sessions.ttl - 120)
+                )
+              )
+          }
+        case _ =>
+          delayResponse(
+            Unauthorized(Json.obj("message" -> "Missing credentials"))
+          )
+      }
   }
 }
