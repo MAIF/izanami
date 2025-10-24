@@ -228,10 +228,17 @@ class LoginController(
                 )(token => {
                   val maybeClaims = JwtJson
                     .decode(token, JwtOptions(signature = false, leeway = 1))
+                  if(maybeClaims.isFailure) {
+                    logger.error(s"Failed to decode id token ${token}", maybeClaims.failed.get)
+                  }
                   maybeClaims.toOption
-                    .flatMap(claims =>
-                      Json.parse(claims.content).asOpt[JsObject]
-                    )
+                    .flatMap(claims => {
+                      val maybeJsonClaims = Json.parse(claims.content).asOpt[JsObject]
+                      if(maybeJsonClaims.isEmpty) {
+                        logger.error(s"Failed to read json claims from ${claims}")
+                      }
+                      maybeJsonClaims
+                    })
                     .flatMap(json => {
                       val roles = extractRoles(json, roleClaim).getOrElse(Set())
                       logger.debug(
