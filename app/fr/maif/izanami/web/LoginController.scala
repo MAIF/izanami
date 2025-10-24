@@ -204,6 +204,9 @@ class LoginController(
               .flatMap(r => {
                 val maybeToken = if (r.status >= 400) {
                   logger.error(
+                    s"Failed to retrieve id token from distant authentication provider. Return code is ${r.status}."
+                  )
+                  logger.debug(
                     s"Failed to retrieve id token from distant authentication provider. Return code is ${r.status}, response body is ${r.body}"
                   )
                   None
@@ -213,6 +216,9 @@ class LoginController(
 
                   if (token.isEmpty) {
                     logger.error(
+                      s"Failed to read id token from distant authentication provider response."
+                    )
+                    logger.debug(
                       s"Failed to read id token from distant authentication provider response. Response body is ${jsonBody}"
                     )
                   }
@@ -229,13 +235,15 @@ class LoginController(
                   val maybeClaims = JwtJson
                     .decode(token, JwtOptions(signature = false, leeway = 1))
                   if(maybeClaims.isFailure) {
-                    logger.error(s"Failed to decode id token ${token}", maybeClaims.failed.get)
+                    logger.error("Failed to decode id token")
+                    logger.debug(s"Failed to decode id token ${token}", maybeClaims.failed.get)
                   }
                   maybeClaims.toOption
                     .flatMap(claims => {
                       val maybeJsonClaims = Json.parse(claims.content).asOpt[JsObject]
                       if(maybeJsonClaims.isEmpty) {
-                        logger.error(s"Failed to read json claims from ${claims}")
+                        logger.error(s"Failed to read json claims")
+                        logger.debug(s"Failed to read json claims from ${claims}")
                       }
                       maybeJsonClaims
                     })
