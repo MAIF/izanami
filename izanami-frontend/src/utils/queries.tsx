@@ -490,13 +490,13 @@ export function queryProjectById(
 export function updateFeature(
   tenant: string,
   id: string,
-  startegyPreservation: boolean,
+  strategyPreservation: boolean,
   feature: Omit<TCompleteFeature, "stale" | "creationDate">
 ): Promise<TCompleteFeature> {
   return handleFetchJsonResponse(
     fetch(
       `/api/admin/tenants/${tenant}/features/${id}?preserveProtectedContexts=${
-        startegyPreservation ? "true" : "false"
+        strategyPreservation ? "true" : "false"
       }`,
       {
         method: "PUT",
@@ -516,13 +516,14 @@ export function updateFeatureActivationForContext(
   feature: string,
   enabled: boolean,
   resultType: FeatureTypeName,
+  strategyPreservation: boolean,
   conditions?: TClassicalCondition[],
   wasmConfig?: TWasmConfig,
   value?: string | boolean | number
 ) {
   return handleFetchWithoutResponse(
     fetch(
-      `/api/admin/tenants/${tenant}/projects/${project}/contexts/${path}/features/${feature}`,
+      `/api/admin/tenants/${tenant}/projects/${project}/contexts/${path}/features/${feature}?preserveProtectedContexts=${strategyPreservation}`,
       {
         method: "PUT",
         body: JSON.stringify({

@@ -932,6 +932,7 @@ function OverloadDetails(props: {
       data: TContextOverload & {
         feature: string;
         project: string;
+        strategyPreservation: boolean;
       }
     ) => {
       return updateFeatureActivationForContext(
@@ -941,6 +942,7 @@ function OverloadDetails(props: {
         data.feature,
         data.enabled,
         data.resultType,
+        data.strategyPreservation,
         "conditions" in data ? data.conditions : undefined,
         "wasmConfig" in data ? data.wasmConfig : undefined,
         "value" in data ? data.value : undefined
@@ -1356,6 +1358,7 @@ export function OverloadTable(props: {
       data: TContextOverload & {
         feature: string;
         project: string;
+        strategyPreservation: boolean;
       }
     ) => {
       return updateFeatureActivationForContext(
@@ -1365,6 +1368,7 @@ export function OverloadTable(props: {
         data.feature,
         data.enabled,
         data.resultType,
+        strategyPreservation,
         "conditions" in data ? data.conditions : undefined,
         "wasmConfig" in data ? data.wasmConfig : undefined,
         "value" in data ? data.value : undefined
@@ -1463,7 +1467,6 @@ export function OverloadTable(props: {
           feature.project!,
           tenant!
         );
-        const context = contextByPath.get(feature.path);
 
         return (
           <label
@@ -1529,7 +1532,7 @@ export function OverloadTable(props: {
                           impactedProtectedRootContexts
                         }
                         hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
-                        onStartegyPreservationUpdate={(
+                        onstrategyPreservationUpdate={(
                           newStrategyPreservation
                         ) => {
                           setStrategyPreservation(newStrategyPreservation);
@@ -1548,6 +1551,7 @@ export function OverloadTable(props: {
                           feature: feature.name,
                           ...feature,
                           enabled: !isEnabled,
+                          strategyPreservation: strategyPreservation,
                         } as any)
                     );
 
@@ -1653,14 +1657,66 @@ export function OverloadTable(props: {
                     `Updating feature ${datum}`
                   );
                 } else {
-                  return updateStrategyMutation.mutateAsync(
-                    {
-                      feature: overload.name,
-                      ...overload,
-                    } as any,
-                    {
-                      onSuccess: () => cancel(),
+                  const contextsToUse = getSubtreeMatchingPath(
+                    contexts,
+                    datum.path.split("/")
+                  );
+
+                  const impactedProtectedContexts = extractContextsMatching(
+                    contextsToUse,
+                    (c) => {
+                      return (
+                        c.protected &&
+                        (!c.overloads || c.overloads.length === 0)
+                      );
+                    },
+                    false,
+                    (ctx) => {
+                      return ctx.overloads?.length > 0;
                     }
+                  );
+
+                  const impactedProtectedRootContexts = extractContextsMatching(
+                    contextsToUse,
+                    (c) =>
+                      c.protected && (!c.overloads || c.overloads.length === 0),
+                    true,
+                    (ctx) => ctx.overloads?.length > 0
+                  );
+
+                  const hasUserAdminRightOnFeature = hasRightForProject(
+                    user!,
+                    TProjectLevel.Admin,
+                    datum.project!,
+                    tenant!
+                  );
+                  setStrategyPreservation(!hasUserAdminRightOnFeature);
+                  askConfirmation(
+                    <OverloadUpdateConfirmationModal
+                      impactedProtectedContexts={impactedProtectedContexts}
+                      rootImpactedProtectedContexts={
+                        impactedProtectedRootContexts
+                      }
+                      hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
+                      onstrategyPreservationUpdate={(
+                        newStrategyPreservation
+                      ) => {
+                        setStrategyPreservation(newStrategyPreservation);
+                      }}
+                      oldFeature={datum as any}
+                      newFeature={overload as any}
+                    />,
+                    () =>
+                      updateStrategyMutation.mutateAsync(
+                        {
+                          feature: overload.name,
+                          ...overload,
+                          strategyPreservation: strategyPreservation,
+                        } as any,
+                        {
+                          onSuccess: () => cancel(),
+                        }
+                      )
                   );
                 }
               }}
@@ -2069,10 +2125,10 @@ export function FeatureTable(props: {
 
   const featureUpdateMutation = useMutation({
     mutationFn: (data: {
-      startegyPreservation: boolean;
+      strategyPreservation: boolean;
       id: string;
       feature: Omit<TCompleteFeature, "stale" | "creationDate">;
-    }) => updateFeature(tenant!, data.id, startegyPreservation, data.feature),
+    }) => updateFeature(tenant!, data.id, strategyPreservation, data.feature),
 
     onSuccess: () => {
       refresh();
@@ -2301,7 +2357,7 @@ export function FeatureTable(props: {
                           impactedProtectedRootContexts
                         }
                         hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
-                        onStartegyPreservationUpdate={(
+                        onstrategyPreservationUpdate={(
                           newStrategyPreservation
                         ) => {
                           setStrategyPreservation(newStrategyPreservation);
@@ -2316,7 +2372,7 @@ export function FeatureTable(props: {
                       />,
                       () =>
                         featureUpdateMutation.mutateAsync({
-                          startegyPreservation,
+                          strategyPreservation,
                           id: feature.id!,
                           feature: {
                             ...feature,
@@ -2410,7 +2466,7 @@ export function FeatureTable(props: {
     });
   }
 
-  const [startegyPreservation, setStrategyPreservation] = useState(false);
+  const [strategyPreservation, setStrategyPreservation] = useState(false);
 
   const customActions: { [x: string]: TCustomAction<TLightFeature> } = {
     edit: {
@@ -2472,10 +2528,10 @@ export function FeatureTable(props: {
                   tenant!
                 );
 
-                const callback = (startegyPreservation: boolean) =>
+                const callback = (strategyPreservation: boolean) =>
                   featureUpdateMutation.mutateAsync(
                     {
-                      startegyPreservation,
+                      strategyPreservation,
                       id: datum.id!,
                       feature,
                     },
@@ -2516,7 +2572,7 @@ export function FeatureTable(props: {
                         impactedProtectedRootContexts
                       }
                       hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
-                      onStartegyPreservationUpdate={(
+                      onstrategyPreservationUpdate={(
                         newStrategyPreservation
                       ) => {
                         setStrategyPreservation(newStrategyPreservation);
@@ -2524,7 +2580,7 @@ export function FeatureTable(props: {
                       oldFeature={datum as TLightFeature}
                       newFeature={feature as TLightFeature}
                     />,
-                    () => callback(startegyPreservation)
+                    () => callback(strategyPreservation)
                   );
                 } else {
                   return callback(false);
@@ -2736,7 +2792,7 @@ function OverloadUpdateConfirmationModal(props: {
   impactedProtectedContexts: (TContext & { parent: string[] })[];
   rootImpactedProtectedContexts: (TContext & { parent: string[] })[];
   hasUserAdminRightOnFeature: boolean;
-  onStartegyPreservationUpdate: (newValue: boolean) => any;
+  onstrategyPreservationUpdate: (newValue: boolean) => any;
   oldFeature: TLightFeature;
   newFeature: TLightFeature;
 }) {
@@ -2781,7 +2837,7 @@ function OverloadUpdateConfirmationModal(props: {
               className="izanami-checkbox"
               onChange={(e) => {
                 setStrategyPreservation(e.target.checked);
-                props.onStartegyPreservationUpdate(e.target.checked);
+                props.onstrategyPreservationUpdate(e.target.checked);
               }}
             ></input>
             &nbsp;

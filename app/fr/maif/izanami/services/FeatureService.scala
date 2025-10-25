@@ -25,7 +25,7 @@ import fr.maif.izanami.requests.{
 import fr.maif.izanami.services.FeatureService.{
   canCreateOrDeleteFeature,
   computeRootContexts,
-  impactedProtectedContextsByRootUpdate,
+  impactedProtectedContextsByUpdate,
   validateFeature
 }
 import fr.maif.izanami.utils.{FutureEither, Helpers}
@@ -111,27 +111,6 @@ class FeatureService(env: Env) {
       hasProtectedContext: Boolean,
       impactedProtectedContexts: Set[FeatureContextPath]
   )
-
-  private def computeUpdateContextInformation(
-      tenant: String,
-      project: String,
-      contextsWithOverloads: Set[FeatureContextPath]
-  ): FutureEither[UpdateContextInformation] = {
-    for (
-      protectedContexts <- env.datastores.featureContext
-        .readProtectedContexts(tenant, project)
-        .map(ctxs => ctxs.map(_.fullyQualifiedName))
-        .mapToFEither;
-      impactedProtectedContexts = impactedProtectedContextsByRootUpdate(
-        protectedContexts = protectedContexts.toSet,
-        currentOverloads = contextsWithOverloads
-      )
-    )
-      yield UpdateContextInformation(
-        hasProtectedContext = protectedContexts.nonEmpty,
-        impactedProtectedContexts = impactedProtectedContexts
-      )
-  }
 
   def upsertOverload(request: OverloadFeatureUpdateRequest): FutureEither[Unit] = {
     for (
@@ -229,9 +208,10 @@ class FeatureService(env: Env) {
             )
             .map(ctxs => ctxs.map(_.fullyQualifiedName))
             .mapToFEither;
-          impactedProtectedContexts = impactedProtectedContextsByRootUpdate(
+          impactedProtectedContexts = impactedProtectedContextsByUpdate(
             protectedContexts = protectedContexts.toSet,
-            currentOverloads = oldFeature.overloads.keySet
+            currentOverloads = oldFeature.overloads.keySet,
+            updatedContext = request.maybeContext.getOrElse(FeatureContextPath(Seq()))
           );
           _ <- if (
             request.strategy.resultType != oldFeature.baseFeature.resultType && protectedContexts.nonEmpty && !request.user
@@ -254,7 +234,7 @@ class FeatureService(env: Env) {
             request.preserveProtectedContexts && protectedContextToUpdate.nonEmpty
           ) {
             for (
-              oldStrategy <- oldFeature.baseFeature
+              oldStrategy <- oldFeature.strategyFor(request.maybeContext.getOrElse(FeatureContextPath()))
                 .toCompleteFeature(request.tenant, env)
                 .toFEither
                 .map(completeFeature =>
@@ -467,15 +447,18 @@ class FeatureService(env: Env) {
 }
 
 object FeatureService {
-  def impactedProtectedContextsByRootUpdate(
+  def impactedProtectedContextsByUpdate(
       protectedContexts: Set[FeatureContextPath],
-      currentOverloads: Set[FeatureContextPath]
+      currentOverloads: Set[FeatureContextPath],
+      updatedContext: FeatureContextPath
   ): Set[FeatureContextPath] = {
-    protectedContexts.filterNot(protectedContext => {
+    protectedContexts
+      .filter(protectedContext => updatedContext.isAscendantOf(protectedContext))
+      .filterNot(protectedContext => {
       currentOverloads.exists(overloadContext => {
         overloadContext == protectedContext || overloadContext.isAscendantOf(
           protectedContext
-        )
+        ) && overloadContext != updatedContext
       })
     })
   }

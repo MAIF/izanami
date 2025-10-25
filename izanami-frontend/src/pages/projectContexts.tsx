@@ -166,9 +166,18 @@ function ProjectOverloadTable({
       wasm?: TWasmConfig;
       value?: string | number | boolean;
       resultType: FeatureTypeName;
+      strategyPreservation: boolean;
     }) => {
-      const { project, name, enabled, conditions, wasm, value, resultType } =
-        data;
+      const {
+        project,
+        name,
+        enabled,
+        conditions,
+        wasm,
+        value,
+        resultType,
+        strategyPreservation,
+      } = data;
       return updateFeatureActivationForContext(
         tenant,
         project,
@@ -176,6 +185,7 @@ function ProjectOverloadTable({
         name,
         enabled,
         resultType,
+        strategyPreservation,
         conditions,
         wasm,
         value
@@ -222,6 +232,7 @@ function ProjectOverloadTable({
                   wasm: "wasmConfig" in datum ? datum.wasmConfig : undefined,
                   value: "value" in datum ? datum.value : undefined,
                   resultType: datum.resultType,
+                  strategyPreservation: false,
                 },
                 {
                   onSuccess: () => {
