@@ -994,6 +994,7 @@ function OverloadDetails(props: {
                   path: selectedContext as string,
                   feature: feature.name,
                   project: feature.project!,
+                  strategyPreservation: false,
                 })
                 .then(() => setCreating(false))
             }

@@ -35,6 +35,46 @@ import java.time.{LocalDateTime, OffsetDateTime}
 
 class FeatureAPISpec extends BaseAPISpec {
   "Feature PATCH endpoint" should {
+    "prevent updating project if feature has protected overload and user doesn't have admin rights" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withFeatureNames("F1")
+                .withContexts(
+                  TestFeatureContext(
+                    "ctx",
+                    overloads = Seq(TestFeature("F1", enabled = false)),
+                    isProtected = true
+                  )
+                ),
+              TestProject("new-project")
+            )
+        )
+        .withUsers(
+          TestUser("testuser")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "project", tenant = "tenant")
+            .withProjectAdminRight(project = "new-project", tenant = "tenant")
+        )
+        .loggedAs("testuser")
+        .build()
+
+      val response = situation.patchFeatures(
+        "tenant",
+        patches = Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "F1").get}/project",
+            value = JsString("new-project")
+          )
+        )
+      )
+      response.status mustBe FORBIDDEN
+    }
+
     "allow to modify feature enabling if user has default update right on projects" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -2314,6 +2354,45 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature DELETE endpoint" should {
+    "prevent deleting a feature with protected overload if user is not admin on project" in {
+      val tenantName = "my-tenant"
+      val projectName = "my-project"
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant(tenantName)
+            .withProjects(
+              TestProject(projectName)
+                .withFeatures(TestFeature("f1", enabled = true))
+                .withContexts(
+                  TestFeatureContext(
+                    name = "ctx",
+                    isProtected = true,
+                    overloads = Seq(TestFeature("f1", enabled = false))
+                  )
+                )
+            )
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight(tenantName)
+            .withDefaultWriteProjectRight(tenantName)
+        )
+        .loggedAs("testu")
+        .build()
+
+      val deleteResponse =
+        testSituation.deleteFeature(
+          tenantName,
+          testSituation.findFeatureId(
+            tenantName,
+            project = projectName,
+            feature = "f1"
+          ).get
+        )
+
+      deleteResponse.status mustBe FORBIDDEN
+    }
+
     "allow to delete existing feature if user has default write project right" in {
       val tenantName = "my-tenant"
       val projectName = "my-project"
