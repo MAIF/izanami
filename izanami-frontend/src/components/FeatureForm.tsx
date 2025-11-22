@@ -26,10 +26,14 @@ import Select from "react-select";
 import { ExistingScript, WasmInput } from "./WasmInput";
 import { JSX, useState } from "react";
 import { customStyles } from "../styles/reactSelect";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
-import { queryTags, tagsQueryKey, toCompleteFeature } from "../utils/queries";
-import { FeatureTestForm } from "./FeatureTable";
+import {
+  queryTags,
+  tagsQueryKey,
+  testFeature,
+  toCompleteFeature,
+} from "../utils/queries";
 import CreatableSelect from "react-select/creatable";
 import { FEATURE_NAME_REGEXP, LEGACY_ID_REGEXP } from "../utils/patterns";
 import { format, isBefore, parse } from "date-fns";
@@ -39,7 +43,11 @@ import { Loader } from "./Loader";
 import { ResultTypeIcon } from "./ResultTypeIcon";
 import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
 import { toLegacyFeatureFormat, toModernFeature } from "../utils/featureUtils";
-import { IzanamiContext } from "../securityContext";
+import { IzanamiContext, Modes } from "../securityContext";
+import CodeMirror from "@uiw/react-codemirror";
+import { Tooltip as LocalToolTip } from "./Tooltip";
+import { FeatureTestType } from "./ExistingFeatureTestForm";
+import { json } from "@codemirror/lang-json";
 
 export type LegacyFeature =
   | NoStrategyFeature
@@ -1241,6 +1249,150 @@ export function V2FeatureForm(props: {
   } else {
     return <Loader message="Loading..." />;
   }
+}
+
+function FeatureTestForm(props: {
+  feature: TCompleteFeature;
+  cancel?: () => any;
+}) {
+  const { tenant } = useParams();
+  const { control, register, handleSubmit } = useForm<FeatureTestType>();
+
+  const [message, setMessage] = useState<object | undefined>(undefined);
+
+  // TODO handle context
+  const featureTestMutation = useMutation({
+    mutationFn: ({
+      feature,
+      user,
+      date,
+      payload,
+    }: {
+      date: Date;
+      user: string;
+      feature: TCompleteFeature;
+      payload?: { [x: string]: any };
+    }) => testFeature(tenant!, feature, user, date, payload),
+  });
+
+  const { mode } = React.useContext(IzanamiContext);
+
+  return (
+    <form
+      onSubmit={handleSubmit(({ user, date, payload }) => {
+        setMessage(undefined);
+        let json = {};
+        if (payload) {
+          try {
+            json = JSON.parse(payload);
+          } catch {
+            console.error("Failed to parse json payload", payload);
+          }
+        }
+
+        featureTestMutation
+          .mutateAsync({
+            feature: props.feature,
+            user: user ?? "",
+            date,
+            payload: json as { [x: string]: any },
+          })
+          .then((result) => {
+            setMessage(result);
+          });
+      })}
+      className="d-flex flex-column"
+    >
+      <label className="mt-3">
+        Date
+        <LocalToolTip id="date-tooltip-id">
+          Date to use for feature evaluation
+        </LocalToolTip>
+        <Controller
+          name="date"
+          defaultValue={new Date()}
+          control={control}
+          render={({ field: { onChange, value } }) => {
+            return (
+              <input
+                className="form-control"
+                defaultValue={format(new Date(), "yyyy-MM-dd")}
+                value={value ? format(value, "yyyy-MM-dd") : ""}
+                onChange={(e) => {
+                  onChange(parse(e.target.value, "yyyy-MM-dd", new Date()));
+                }}
+                type="date"
+              />
+            );
+          }}
+        />
+      </label>
+      <label className="mt-3">
+        User
+        <LocalToolTip id="date-tooltip-id">
+          User to use for feature evaluation
+        </LocalToolTip>
+        <input
+          type="text"
+          className="form-control"
+          {...register("user")}
+        ></input>
+      </label>
+      <label className="mt-3">
+        Payload
+        <LocalToolTip id="payload-tooltip-id">
+          Payload to use for feature evaluation.
+          <br />
+          This will only be used by script features.
+        </LocalToolTip>
+        <Controller
+          name="payload"
+          control={control}
+          render={({ field: { onChange, value } }) => (
+            <CodeMirror
+              value={value}
+              onChange={onChange}
+              extensions={[json()]}
+              theme={`${mode === Modes.dark ? "dark" : "light"}`}
+              id="test-payload"
+              minHeight="100px"
+              maxHeight="300px"
+            />
+          )}
+        />
+      </label>
+      <div className="d-flex justify-content-end  mt-3">
+        {props.cancel && (
+          <button
+            type="button"
+            className="btn btn-danger-light"
+            onClick={() => props.cancel?.()}
+          >
+            Cancel
+          </button>
+        )}
+        <button type="submit" className="btn btn-secondary">
+          Test feature
+        </button>
+      </div>
+      {message && (
+        <label>
+          Result
+          <CodeMirror
+            value={
+              message
+                ? JSON.stringify(message, null, 2)
+                : 'No result yet, click "Test feature"\nto fetch feature state'
+            }
+            extensions={message ? [json()] : []}
+            readOnly={true}
+            theme={`${mode === Modes.dark ? "dark" : "light"}`}
+            id="test-result"
+          />
+        </label>
+      )}
+    </form>
+  );
 }
 
 function CustomTestForm() {

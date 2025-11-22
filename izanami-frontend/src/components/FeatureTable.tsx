@@ -1,26 +1,14 @@
 import * as React from "react";
-import { JSX, useState } from "react";
-import { Link, NavLink, useParams } from "react-router-dom";
+import { useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import CodeMirror from "@uiw/react-codemirror";
 import {
-  ClassicalFeature,
-  DAYS,
-  isPercentageRule,
-  isSingleConditionFeature,
-  isUserListRule,
   TContext,
   TContextOverload,
-  TDayOfWeepPeriod,
-  TFeaturePeriod,
-  TFeatureRule,
-  THourPeriod,
   TLevel,
   TLightFeature,
   TUser,
   TCompleteFeature,
-  isLightWasmFeature,
-  TValuedCondition,
-  TClassicalCondition,
   StaleStatus,
   TProjectLevel,
 } from "../utils/types";
@@ -29,7 +17,6 @@ import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import {
   createFeature,
   deleteFeature,
-  deleteFeatureActivationForContext,
   patchFeatures,
   projectContextKey,
   projectQueryKey,
@@ -37,7 +24,6 @@ import {
   queryTenant,
   tagsQueryKey,
   tenantQueryKey,
-  testExistingFeature,
   testFeature,
   updateFeature,
   queryTags,
@@ -53,23 +39,31 @@ import {
 import { GenericTable, TCustomAction } from "./GenericTable";
 import { ColumnDef, Row } from "@tanstack/react-table";
 import queryClient from "../queryClient";
-import { FeatureForm, LegacyFeature } from "./FeatureForm";
+import { FeatureForm } from "./FeatureForm";
 import { OverloadCreationForm } from "./OverloadCreationForm";
 import { useForm, Controller } from "react-hook-form";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { Tooltip } from "react-tooltip";
-import { Tooltip as LocalToolTip } from "./Tooltip";
+
 import { Form } from "./Form";
 import { Loader } from "./Loader";
 import MultiSelect, { Option } from "./MultiSelect";
 import { constraints } from "@maif/react-forms";
-import { ResultTypeIcon } from "./ResultTypeIcon";
 import { json } from "@codemirror/lang-json";
 import { GlobalContextIcon } from "../utils/icons";
-import { possiblePaths } from "../utils/contextUtils";
-import { toLegacyFeatureFormat } from "../utils/featureUtils";
-import { ConditionDiff } from "./AuditLogs";
+import {
+  extractContextsMatching,
+  findContextWithOverloadsForFeature,
+  findImpactedProtectedContextForFeatures,
+  findImpactedProtectedContexts,
+  findOverloadsForFeature,
+  possiblePaths,
+} from "../utils/contextUtils";
+import { TextualFeatureDetails } from "./FeatureDetails";
+import { OverloadUpdateConfirmationModal } from "./OverloadUpdateConfirmationModal";
+import { OverloadTable } from "./OverloadTable";
+import { ExistingFeatureTestForm } from "./ExistingFeatureTestForm";
 
 type FeatureFields =
   | "id"
@@ -80,10 +74,6 @@ type FeatureFields =
   | "project"
   | "overloadCount";
 
-type OverloadFields = "name" | "enabled" | "details" | "path" | "linkedPath";
-
-type OverloadActionNames = "delete" | "edit" | "test";
-
 type FeatureActionNames =
   | "delete"
   | "edit"
@@ -92,13 +82,6 @@ type FeatureActionNames =
   | "duplicate"
   | "transfer"
   | "url";
-
-interface FeatureTestType {
-  user?: string;
-  date: Date;
-  context?: string;
-  payload?: string;
-}
 
 export const Strategy = {
   all: { id: "All", label: "All" },
@@ -120,264 +103,6 @@ const BULK_OPERATIONS = [
 ] as const;
 
 const UPDATE_BULK_OPERATIONS = ["Enable", "Disable", "Apply Tags"] as const;
-
-function days(days: TDayOfWeepPeriod): string {
-  return `on ${days.days
-    .sort((d1, d2) => {
-      const index1 = DAYS.indexOf(d1);
-      const index2 = DAYS.indexOf(d2);
-
-      return index1 - index2;
-    })
-    .join(", ")}`;
-}
-
-function formatHours(hours: string): string {
-  return hours;
-}
-
-function hours(hours: THourPeriod): string {
-  return `from ${formatHours(hours.startTime)} to ${formatHours(
-    hours.endTime
-  )}`;
-}
-
-function PeriodDetails(props: { period: TFeaturePeriod }): JSX.Element {
-  const { period } = props;
-  if (period.activationDays || period.hourPeriods.length > 0) {
-    return (
-      <>
-        {period.activationDays && period.activationDays.days.length != 7 && (
-          <div>{days(period.activationDays)}</div>
-        )}
-        {period.hourPeriods.map((hour) => {
-          const hourDisplay = hours(hour);
-          return <div key={hourDisplay}>{hourDisplay}</div>;
-        })}
-      </>
-    );
-  } else {
-    return <></>;
-  }
-}
-
-export function Period({ period }: { period: TFeaturePeriod }): JSX.Element {
-  let display = "";
-  if (period.begin && period.end) {
-    display = `from ${format(period.begin, "PPPp")} to ${format(
-      period.end,
-      "PPPp"
-    )}`;
-  } else if (period.begin) {
-    display = `after ${format(period.begin, "PPPp")}`;
-  } else if (period.end) {
-    display = `until ${format(period.end, "PPPp")}`;
-  }
-  return (
-    <>
-      <div>{display}</div>
-      <PeriodDetails period={period} />
-    </>
-  );
-}
-
-export function Rule(props: { rule: TFeatureRule }): JSX.Element {
-  const { rule } = props;
-  if (isPercentageRule(rule)) {
-    return <>for {`${rule.percentage}% of users`}</>;
-  } else if (isUserListRule(rule)) {
-    return <>{`only for : ${rule.users.join(", ")}`}</>;
-  } else {
-    return <>for all users</>;
-  }
-}
-
-function ScriptDetails({ config }: { config: string }) {
-  return <div>Depends on script {config}</div>;
-}
-
-function SingleConditionFeatureDetail({ feature }: { feature: LegacyFeature }) {
-  switch (feature.activationStrategy) {
-    case "PERCENTAGE":
-      return <>For {feature.parameters.percentage}% of users</>;
-    case "CUSTOMERS_LIST":
-      return <>Only for : {feature.parameters.customers.join(", ")}</>;
-    case "NO_STRATEGY":
-      return <>For all users</>;
-    case "DATE_RANGE":
-      return (
-        <>
-          from {format(feature.parameters.from, "PPP")} to{" "}
-          {format(feature.parameters.to, "PPP")}
-        </>
-      );
-    case "HOUR_RANGE":
-      return (
-        <>
-          from {formatHours(feature.parameters.startAt)} to{" "}
-          {formatHours(feature.parameters.endAt)}
-        </>
-      );
-    case "RELEASE_DATE":
-      return <>from {format(feature.parameters.date, "PPP")}</>;
-    default:
-      return <></>;
-  }
-}
-
-function NonBooleanConditionsDetails({
-  conditions,
-  resultDetail,
-}: {
-  conditions: TValuedCondition<string | number>[];
-  resultDetail: {
-    resultType: "number" | "string";
-    value: number | string;
-  };
-}) {
-  const { value } = resultDetail;
-  return (
-    <>
-      {conditions.map((cond, idx) => {
-        return (
-          <div key={idx}>
-            <NonBooleanConditionDetails key={idx} condition={cond} />
-            <div className="feature-separator">-OR-</div>
-          </div>
-        );
-      })}
-      <span className="fw-semibold">
-        {conditions.length > 0 ? "Otherwise value is" : "Value is"}
-      </span>
-      &nbsp;
-      <span className="fst-italic">{value}</span>
-    </>
-  );
-}
-
-function NonBooleanConditionDetails({
-  condition,
-}: {
-  condition: TValuedCondition<string | number>;
-}) {
-  return (
-    <div>
-      <span className="fw-semibold mt-2">Value is</span>&nbsp;
-      <span className="fst-italic">{condition.value}</span>
-      <br />
-      {condition.rule && <Rule rule={condition.rule} />}{" "}
-      {condition.period && <Period period={condition.period} />}
-    </div>
-  );
-}
-
-export function ConditionDetails({
-  conditions,
-  resultDetail,
-}: {
-  conditions: TClassicalCondition[];
-  resultDetail:
-    | {
-        resultType: "boolean";
-      }
-    | {
-        resultType: "number" | "string";
-        value: number | string;
-      };
-}) {
-  if (resultDetail.resultType === "boolean") {
-    return <BooleanConditionsDetails conditions={conditions} />;
-  } else {
-    return (
-      <NonBooleanConditionsDetails
-        conditions={conditions as TValuedCondition<any>[]}
-        resultDetail={resultDetail}
-      />
-    );
-  }
-}
-
-function BooleanConditionsDetails({
-  conditions,
-}: {
-  conditions: TClassicalCondition[];
-}) {
-  if (conditions.length === 0) {
-    return (
-      <>
-        <div className="fw-semibold">Active :</div>
-        For all users
-      </>
-    );
-  }
-  return (
-    <>
-      {conditions.map(({ period, rule }, index, array) => {
-        if (index === array.length - 1) {
-          return (
-            <React.Fragment key={index}>
-              {(period || rule) && <div className="fw-semibold">Active : </div>}
-              {period && <Period period={period} />}
-              {rule && <Rule rule={rule} />}
-            </React.Fragment>
-          );
-        } else {
-          return (
-            <React.Fragment key={index}>
-              {(period || rule) && <div className="fw-semibold">Active : </div>}
-              {period && <Period period={period} />}
-              {rule && <Rule rule={rule} />}
-              <div className="feature-separator">-OR-</div>
-            </React.Fragment>
-          );
-        }
-      })}
-    </>
-  );
-}
-
-function findOverloadsForFeature(
-  name: string,
-  contexts: TContext[],
-  path: string[] = []
-): TContextOverload[] {
-  return contexts.flatMap((ctx) => {
-    const maybeOverload = ctx.overloads
-      .filter((o) => o.name === name)
-      .map((o) => ({ ...o, path: [...path, ctx.name].join("/") }));
-    const childOverloads = findOverloadsForFeature(name, ctx.children, [
-      ...path,
-      ctx.name,
-    ]);
-
-    if (maybeOverload) {
-      return [...maybeOverload, ...childOverloads];
-    } else {
-      return childOverloads;
-    }
-  });
-}
-
-function findContextWithOverloadsForFeature(
-  name: string,
-  contexts: TContext[],
-  path = ""
-): string[] {
-  return contexts.flatMap((ctx) => {
-    const hasOverload = ctx.overloads.some((o) => o.name === name);
-    const childOverloadsCtx = findContextWithOverloadsForFeature(
-      name,
-      ctx.children,
-      path + "/" + ctx.name
-    );
-
-    if (hasOverload) {
-      return [path + "/" + ctx.name, ...childOverloadsCtx];
-    } else {
-      return childOverloadsCtx;
-    }
-  });
-}
 
 function OperationButton(props: {
   tenant: string;
@@ -1025,7 +750,7 @@ function OverloadDetails(props: {
                           hasRightForProject(
                             user!,
                             TLevel.Admin,
-                            context.project,
+                            context.project!,
                             tenant!
                           );
                       }
@@ -1077,908 +802,6 @@ function OverloadDetails(props: {
   }
 }
 
-function ExistingFeatureTestForm(props: {
-  feature: TLightFeature | TContextOverload;
-  cancel?: () => any;
-  context?: string;
-}) {
-  const { control, register, handleSubmit } = useForm<FeatureTestType>();
-  const { feature } = props;
-
-  const [message, setMessage] = useState<object | undefined>(undefined);
-  const { tenant } = useParams();
-
-  const contextQuery = useQuery({
-    queryKey: [projectContextKey(tenant!, feature.project!)],
-    queryFn: () => queryContextsForProject(tenant!, feature.project!),
-  });
-
-  const { mode } = React.useContext(IzanamiContext);
-
-  const featureTestMutation = useMutation({
-    mutationFn: ({
-      context,
-      user,
-      date,
-      payload,
-    }: {
-      date: Date;
-      user: string;
-      context: string;
-      payload?: string;
-    }) =>
-      testExistingFeature(
-        tenant!,
-        feature.id!,
-        date,
-        context ?? "",
-        user ?? "",
-        payload
-      ),
-  });
-
-  if (contextQuery.error) {
-    return <div>Error while fetching contexts</div>;
-  } else if (contextQuery.data) {
-    const allContexts = possiblePaths(contextQuery.data).map(
-      ({ path }) => path
-    );
-    return (
-      <div className="position-relative">
-        <div className="position-absolute top-0 end-0 px-3">
-          <button
-            className="btn btn-danger-light btn-lg"
-            aria-label="Close test feature form"
-            onClick={() => props?.cancel?.()}
-          >
-            <i className="fa-solid fa-xmark" />
-          </button>
-        </div>
-        <div className="my-4">
-          <form
-            onSubmit={handleSubmit(({ user, date, context, payload }) => {
-              setMessage(undefined);
-              featureTestMutation
-                .mutateAsync({
-                  context: context ?? "",
-                  user: user ?? "",
-                  date,
-                  payload,
-                })
-                .then((response) => {
-                  setMessage(response);
-                });
-            })}
-            className="container"
-          >
-            <div className="row justify-content-center">
-              <div className="col-10">
-                <h4>Test feature</h4>
-                <div className="d-flex">
-                  <div style={{ width: "45%" }}>
-                    <div className="row ">
-                      <label>
-                        Context
-                        <LocalToolTip id="context-tooltip-id">
-                          Context to use for feature evaluation
-                        </LocalToolTip>
-                        <Controller
-                          name={`context`}
-                          control={control}
-                          defaultValue={props.context ?? undefined}
-                          render={({ field: { onChange, value } }) => (
-                            <Select
-                              value={value ? { label: value, value } : null}
-                              onChange={(e) => {
-                                onChange(e?.value ?? null);
-                              }}
-                              styles={customStyles}
-                              options={allContexts
-                                .map((c) => c.substring(1))
-                                .sort()
-                                .map((c) => ({ value: c, label: c }))}
-                              isClearable
-                              isDisabled={allContexts?.length === 0}
-                              placeholder={
-                                allContexts?.length > 0
-                                  ? "Specify context"
-                                  : "No context available"
-                              }
-                            />
-                          )}
-                        />
-                      </label>
-                    </div>
-                    <div className="row ">
-                      <label className="mt-3">
-                        Date
-                        <LocalToolTip id="date-tooltip-id">
-                          Date to use for feature evaluation
-                        </LocalToolTip>
-                        <br />
-                        <Controller
-                          name="date"
-                          defaultValue={new Date()}
-                          control={control}
-                          render={({ field: { onChange, value } }) => {
-                            return (
-                              <input
-                                style={{ width: "100%" }}
-                                className="form-control"
-                                defaultValue={format(
-                                  new Date(),
-                                  "yyyy-MM-dd'T'HH:mm"
-                                )}
-                                value={
-                                  value
-                                    ? format(value, "yyyy-MM-dd'T'HH:mm")
-                                    : ""
-                                }
-                                onChange={(e) => {
-                                  onChange(
-                                    parse(
-                                      e.target.value,
-                                      "yyyy-MM-dd'T'HH:mm",
-                                      new Date()
-                                    )
-                                  );
-                                }}
-                                type="datetime-local"
-                              />
-                            );
-                          }}
-                        />
-                      </label>
-                    </div>
-                    <div className="row ">
-                      <label className="mt-3">
-                        User
-                        <LocalToolTip id="user-tooltip-id">
-                          User to use for feature evaluation
-                        </LocalToolTip>
-                        <input
-                          type="text"
-                          className="form-control"
-                          {...register("user")}
-                        ></input>
-                      </label>
-                    </div>
-                    <div className="row">
-                      <label className="mt-3">
-                        Payload
-                        <LocalToolTip id="payload-tooltip-id">
-                          Payload to use for feature evaluation.
-                          <br />
-                          This will only be used by script features.
-                        </LocalToolTip>
-                        <Controller
-                          name="payload"
-                          control={control}
-                          render={({ field: { onChange, value } }) => (
-                            <CodeMirror
-                              value={value}
-                              onChange={onChange}
-                              extensions={[json()]}
-                              theme={`${
-                                mode === Modes.dark ? "dark" : "light"
-                              }`}
-                              id="test-payload"
-                              minHeight="100px"
-                              maxHeight="300px"
-                            />
-                          )}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                  <div
-                    className="d-flex align-items-center justify-content-center"
-                    style={{ width: "10%" }}
-                  >
-                    <div
-                      style={{
-                        borderRight: "2px solid var(--color_level2)",
-                        height: "100%",
-                      }}
-                    />
-                  </div>
-                  <div
-                    style={{ width: "45%" }}
-                    className="d-flex flex-column justify-content-center"
-                  >
-                    <div className="row justify-content-center align-items-center">
-                      <label>
-                        Result
-                        <CodeMirror
-                          value={
-                            message
-                              ? JSON.stringify(message, null, 2)
-                              : 'No result yet, click "Test feature"\nto fetch feature state'
-                          }
-                          extensions={message ? [json()] : []}
-                          readOnly={true}
-                          theme={`${mode === Modes.dark ? "dark" : "light"}`}
-                          id="test-result"
-                        />
-                      </label>
-                      <div className="d-flex justify-content-end ">
-                        <button type="submit" className="btn btn-primary mt-2">
-                          Test feature
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
-  } else {
-    return <Loader message="Loading..." />;
-  }
-}
-
-function findContextForPath(
-  path: string,
-  contexts: TContext[]
-): TContext | null {
-  const strippedPath = path.startsWith("/") ? path.substring(1) : path;
-  const firstSlashIndex = path.indexOf("/");
-  const firstPart =
-    firstSlashIndex !== -1
-      ? strippedPath.substring(0, firstSlashIndex)
-      : strippedPath;
-  const nextContext = contexts.find((ctx) => ctx.name == firstPart);
-
-  if (nextContext && firstSlashIndex == -1) {
-    return nextContext;
-  } else if (nextContext) {
-    const nextPath = strippedPath.substring(firstSlashIndex + 1);
-    return findContextForPath(nextPath, nextContext.children);
-  } else {
-    return null;
-  }
-}
-
-export function OverloadTable(props: {
-  project?: string;
-  overloads: TContextOverload[];
-  fields: OverloadFields[];
-  actions: (t: TContextOverload) => OverloadActionNames[];
-  refresh: () => any;
-  contexts: TContext[];
-}) {
-  const { tenant } = useParams();
-  const { fields, overloads, actions, refresh, project, contexts } = props;
-  const columns: ColumnDef<TContextOverload>[] = [];
-  const [strategyPreservation, setStrategyPreservation] = useState(false);
-  const updateStrategyMutation = useMutation({
-    mutationFn: (
-      data: TContextOverload & {
-        feature: string;
-        project: string;
-        strategyPreservation: boolean;
-      }
-    ) => {
-      return updateFeatureActivationForContext(
-        tenant!,
-        data.project,
-        data.path,
-        data.feature,
-        data.enabled,
-        data.resultType,
-        strategyPreservation,
-        "conditions" in data ? data.conditions : undefined,
-        "wasmConfig" in data ? data.wasmConfig : undefined,
-        "value" in data ? data.value : undefined
-      );
-    },
-
-    onSuccess: () => {
-      refresh();
-    },
-  });
-
-  const deleteStrategyMutation = useMutation({
-    mutationFn: (data: { feature: string; path: string; project: string }) =>
-      deleteFeatureActivationForContext(
-        tenant!,
-        data.project, // TODO this should not be necessary
-        data.path,
-        data.feature
-      ),
-
-    onSuccess: () => {
-      refresh();
-    },
-  });
-
-  const { askConfirmation, askInputConfirmation, user } =
-    React.useContext(IzanamiContext);
-  const contextByPath = new Map(
-    overloads
-      .map((o) => o.path)
-      .map((p) => [p, findContextForPath(p, contexts)])
-  );
-
-  const hasPath = fields.includes("path");
-  const hasLinkedPath = fields.includes("linkedPath");
-  if (hasPath || hasLinkedPath) {
-    columns.push({
-      accessorKey: "path",
-      header: () => "Overload path",
-      cell: (info: any) => {
-        const context = contextByPath.get(info.getValue());
-        return hasLinkedPath ? (
-          <NavLink
-            to={`/tenants/${tenant}/projects/${project}/contexts?open=["${info.getValue()}"]`}
-          >
-            {info.getValue()}
-            {context?.protected && (
-              <>
-                &nbsp;
-                <i className="fa-solid fa-lock fs-6" aria-label="protected"></i>
-              </>
-            )}
-            {context?.global && (
-              <>
-                &nbsp;
-                <GlobalContextIcon />
-              </>
-            )}
-          </NavLink>
-        ) : (
-          info.getValue()
-        );
-      },
-      minSize: 350,
-      size: 15,
-    });
-  }
-  if (fields.includes("name")) {
-    columns.push({
-      accessorKey: "name",
-      header: () => "Feature name",
-      cell: (props: { row: Row<any> }) => {
-        const feature = props.row.original;
-        return (
-          <div className="d-flex justify-start align-items-center">
-            <ResultTypeIcon resultType={feature.resultType} />
-            <span className="px-1">{feature.name}</span>
-          </div>
-        );
-      },
-      minSize: 150,
-      size: 15,
-    });
-  }
-  if (fields.includes("enabled")) {
-    columns.push({
-      accessorKey: "enabled",
-      header: () => "Enabled",
-      cell: (info: any) => {
-        const feature = info.row.original as TContextOverload;
-        const isEnabled = feature.enabled;
-
-        const hasUpdateRight = hasRightForProject(
-          user!,
-          TProjectLevel.Update,
-          feature.project!,
-          tenant!
-        );
-
-        return (
-          <label
-            style={{
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-            }}
-          >
-            {hasUpdateRight && (
-              <>
-                <input
-                  checked={isEnabled ? true : false}
-                  disabled={!hasUpdateRight}
-                  type="checkbox"
-                  className="izanami-checkbox"
-                  style={{ marginTop: 0 }}
-                  aria-label={`${isEnabled ? "Disable" : "Enable"} ${
-                    feature.name
-                  }`}
-                  onChange={() => {
-                    const contextsToUse = getSubtreeMatchingPath(
-                      contexts,
-                      feature.path.split("/")
-                    );
-
-                    const impactedProtectedContexts = extractContextsMatching(
-                      contextsToUse,
-                      (c) => {
-                        return (
-                          c.protected &&
-                          (!c.overloads || c.overloads.length === 0)
-                        );
-                      },
-                      false,
-                      (ctx) => {
-                        return ctx.overloads?.length > 0;
-                      }
-                    );
-
-                    const impactedProtectedRootContexts =
-                      extractContextsMatching(
-                        contextsToUse,
-                        (c) =>
-                          c.protected &&
-                          (!c.overloads || c.overloads.length === 0),
-                        true,
-                        (ctx) => ctx.overloads?.length > 0
-                      );
-
-                    const hasUserAdminRightOnFeature = hasRightForProject(
-                      user!,
-                      TProjectLevel.Admin,
-                      feature.project!,
-                      tenant!
-                    );
-                    setStrategyPreservation(!hasUserAdminRightOnFeature);
-                    askConfirmation(
-                      <OverloadUpdateConfirmationModal
-                        impactedProtectedContexts={impactedProtectedContexts}
-                        rootImpactedProtectedContexts={
-                          impactedProtectedRootContexts
-                        }
-                        hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
-                        onstrategyPreservationUpdate={(
-                          newStrategyPreservation
-                        ) => {
-                          setStrategyPreservation(newStrategyPreservation);
-                        }}
-                        oldFeature={feature as any}
-                        newFeature={
-                          {
-                            feature: feature.name,
-                            ...feature,
-                            enabled: !isEnabled,
-                          } as any
-                        }
-                      />,
-                      () =>
-                        updateStrategyMutation.mutateAsync({
-                          feature: feature.name,
-                          ...feature,
-                          enabled: !isEnabled,
-                          strategyPreservation: strategyPreservation,
-                        } as any)
-                    );
-
-                    /*askConfirmation(
-                      `Are you sure you want to ${
-                        isEnabled ? "disable" : "enable"
-                      } feature ${feature.name} for context ${context?.name} ?`,
-                      () =>
-                        updateStrategyMutation.mutateAsync({
-                          feature: feature.name,
-                          ...feature,
-                          enabled: !isEnabled,
-                        } as any)
-                    );*/
-                  }}
-                />
-                &nbsp;
-              </>
-            )}
-            <span
-              className={`activation-status ${
-                isEnabled ? "enabled" : "disabled"
-              }-status`}
-            >
-              {isEnabled ? "Enabled" : "Disabled"}
-            </span>
-          </label>
-        );
-      },
-      minSize: 150,
-      size: 5,
-      meta: {
-        valueType: "status",
-      },
-    });
-  }
-  if (fields.includes("details")) {
-    columns.push({
-      id: "details",
-      header: () => "Details",
-      minSize: 250,
-      cell: (props: any) => <FeatureDetails feature={props.row.original!} />,
-    });
-  }
-
-  const customActions = {
-    edit: {
-      icon: (
-        <>
-          <i className="bi bi-pencil-square" aria-hidden></i> Edit
-        </>
-      ),
-      hasRight: (user: TUser, overload: TContextOverload) => {
-        const canEdit = actions(overload).includes("edit");
-        const context = contextByPath.get(overload.path);
-        if (context?.protected) {
-          if (context.global && hasRightForTenant(user, tenant!, "Admin")) {
-            return canEdit;
-          } else if (
-            hasRightForProject(user, "Admin", overload.project!, tenant!)
-          ) {
-            return canEdit;
-          } else {
-            return false;
-          }
-        } else {
-          return canEdit;
-        }
-      },
-      customForm: (datum: TContextOverload, cancel: () => void) => {
-        const context = contextByPath.get(datum.path);
-        return (
-          <>
-            <h4>Edit overload</h4>
-            <OverloadCreationForm
-              resultType={datum.resultType}
-              project={datum.project!}
-              defaultValue={datum}
-              submit={(overload) => {
-                if (context?.protected) {
-                  askInputConfirmation(
-                    <>
-                      Updating this overload will impact protected context{" "}
-                      {context.name}.<br />
-                      Please type feature name below to confirm.
-                      <LocalToolTip id="overload-update-confirmation">
-                        Typing feature name is required since this overload is
-                        for a protected context.
-                      </LocalToolTip>
-                    </>,
-                    () => {
-                      return updateStrategyMutation.mutateAsync(
-                        {
-                          feature: overload.name,
-                          ...overload,
-                        } as any,
-                        {
-                          onSuccess: () => cancel(),
-                        }
-                      );
-                    },
-                    datum.name,
-                    `Updating feature ${datum}`
-                  );
-                } else {
-                  const contextsToUse = getSubtreeMatchingPath(
-                    contexts,
-                    datum.path.split("/")
-                  );
-
-                  const impactedProtectedContexts = extractContextsMatching(
-                    contextsToUse,
-                    (c) => {
-                      return (
-                        c.protected &&
-                        (!c.overloads || c.overloads.length === 0)
-                      );
-                    },
-                    false,
-                    (ctx) => {
-                      return ctx.overloads?.length > 0;
-                    }
-                  );
-
-                  const impactedProtectedRootContexts = extractContextsMatching(
-                    contextsToUse,
-                    (c) =>
-                      c.protected && (!c.overloads || c.overloads.length === 0),
-                    true,
-                    (ctx) => ctx.overloads?.length > 0
-                  );
-
-                  const hasUserAdminRightOnFeature = hasRightForProject(
-                    user!,
-                    TProjectLevel.Admin,
-                    datum.project!,
-                    tenant!
-                  );
-                  setStrategyPreservation(!hasUserAdminRightOnFeature);
-                  askConfirmation(
-                    <OverloadUpdateConfirmationModal
-                      impactedProtectedContexts={impactedProtectedContexts}
-                      rootImpactedProtectedContexts={
-                        impactedProtectedRootContexts
-                      }
-                      hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
-                      onstrategyPreservationUpdate={(
-                        newStrategyPreservation
-                      ) => {
-                        setStrategyPreservation(newStrategyPreservation);
-                      }}
-                      oldFeature={datum as any}
-                      newFeature={overload as any}
-                    />,
-                    () =>
-                      updateStrategyMutation.mutateAsync(
-                        {
-                          feature: overload.name,
-                          ...overload,
-                          strategyPreservation: strategyPreservation,
-                        } as any,
-                        {
-                          onSuccess: () => cancel(),
-                        }
-                      )
-                  );
-                }
-              }}
-              cancel={cancel}
-              noName
-            />
-          </>
-        );
-      },
-    },
-    test: {
-      icon: (
-        <>
-          <i className="bi bi-wrench" aria-hidden></i> Test overload
-        </>
-      ),
-      hasRight: (user: TUser, overload: TContextOverload) => {
-        return actions(overload).includes("test");
-      },
-      customForm: (datum: TContextOverload, cancel: () => void) => {
-        return (
-          <ExistingFeatureTestForm
-            context={datum.path}
-            feature={datum}
-            cancel={cancel}
-          />
-        );
-      },
-    },
-    delete: {
-      icon: (
-        <>
-          <i className="bi bi-trash" aria-hidden></i> Delete
-        </>
-      ),
-      hasRight: (user: TUser, overload: TContextOverload) => {
-        const context = contextByPath.get(overload.path);
-        const canDelete = actions(overload).includes("delete");
-        if (context?.protected) {
-          if (context.global && hasRightForTenant(user, tenant!, "Admin")) {
-            return canDelete;
-          } else if (
-            hasRightForProject(user, "Admin", overload.project!, tenant!)
-          ) {
-            return canDelete;
-          } else {
-            return false;
-          }
-        } else {
-          return canDelete;
-        }
-      },
-      action: (overload: TContextOverload) => {
-        const context = contextByPath.get(overload.path);
-        if (context?.protected) {
-          return askInputConfirmation(
-            <>
-              Are you sure you want to delete feature {overload.name} overload
-              for context {context?.name} ?<br />
-              Please confirm by typing feature name below.
-              <LocalToolTip id="overload-delete-confirmation">
-                Typing feature name is required since this overload is for a
-                protected context.
-              </LocalToolTip>
-            </>,
-            () =>
-              deleteStrategyMutation.mutateAsync({
-                feature: overload.name,
-                path: overload.path!,
-                project: overload.project as any,
-              }),
-            overload.name
-          );
-        } else {
-          return askConfirmation(
-            `Are you sure you want to delete feature ${overload.name} overload for context ${context?.name} ?`,
-            () =>
-              deleteStrategyMutation.mutateAsync({
-                feature: overload.name,
-                path: overload.path!,
-                project: overload.project as any,
-              })
-          );
-        }
-      },
-    },
-  };
-
-  return (
-    <GenericTable
-      idAccessor={(datum: TContextOverload) =>
-        `${datum.path ?? ""} ${datum.name}`
-      }
-      columns={columns}
-      data={overloads}
-      customRowActions={customActions}
-      defaultSort="name"
-    />
-  );
-}
-
-export function FeatureTestForm(props: {
-  feature: TCompleteFeature;
-  cancel?: () => any;
-}) {
-  const { tenant } = useParams();
-  const { control, register, handleSubmit } = useForm<FeatureTestType>();
-
-  const [message, setMessage] = useState<object | undefined>(undefined);
-
-  // TODO handle context
-  const featureTestMutation = useMutation({
-    mutationFn: ({
-      feature,
-      user,
-      date,
-      payload,
-    }: {
-      date: Date;
-      user: string;
-      feature: TCompleteFeature;
-      payload?: { [x: string]: any };
-    }) => testFeature(tenant!, feature, user, date, payload),
-  });
-
-  const { mode } = React.useContext(IzanamiContext);
-
-  return (
-    <form
-      onSubmit={handleSubmit(({ user, date, payload }) => {
-        setMessage(undefined);
-        let json = {};
-        if (payload) {
-          try {
-            json = JSON.parse(payload);
-          } catch {
-            console.error("Failed to parse json payload", payload);
-          }
-        }
-
-        featureTestMutation
-          .mutateAsync({
-            feature: props.feature,
-            user: user ?? "",
-            date,
-            payload: json as { [x: string]: any },
-          })
-          .then((result) => {
-            setMessage(result);
-            /*if (props.feature.resultType === "boolean") {
-                                                              setMessage(
-                                                                `feature ${props.feature.name} would be ${
-                                                                  active ? "active" : "inactive"
-                                                                } on ${format(date, "yyyy-MM-dd")}${
-                                                                  user ? ` for user ${user}` : ""
-                                                                }${context ? ` for context ${context}` : ""}`
-                                                              );
-                                                            } else {
-                                                              setMessage(
-                                                                `feature ${props.feature.name} value would be ${active}
-                                                                 on ${format(date, "yyyy-MM-dd")}${
-                                                                  user ? ` for user ${user}` : ""
-                                                                }${context ? ` for context ${context}` : ""}`
-                                                              );
-                                                            }*/
-          });
-      })}
-      className="d-flex flex-column"
-    >
-      <label className="mt-3">
-        Date
-        <LocalToolTip id="date-tooltip-id">
-          Date to use for feature evaluation
-        </LocalToolTip>
-        <Controller
-          name="date"
-          defaultValue={new Date()}
-          control={control}
-          render={({ field: { onChange, value } }) => {
-            return (
-              <input
-                className="form-control"
-                defaultValue={format(new Date(), "yyyy-MM-dd")}
-                value={value ? format(value, "yyyy-MM-dd") : ""}
-                onChange={(e) => {
-                  onChange(parse(e.target.value, "yyyy-MM-dd", new Date()));
-                }}
-                type="date"
-              />
-            );
-          }}
-        />
-      </label>
-      <label className="mt-3">
-        User
-        <LocalToolTip id="date-tooltip-id">
-          User to use for feature evaluation
-        </LocalToolTip>
-        <input
-          type="text"
-          className="form-control"
-          {...register("user")}
-        ></input>
-      </label>
-      <label className="mt-3">
-        Payload
-        <LocalToolTip id="payload-tooltip-id">
-          Payload to use for feature evaluation.
-          <br />
-          This will only be used by script features.
-        </LocalToolTip>
-        <Controller
-          name="payload"
-          control={control}
-          render={({ field: { onChange, value } }) => (
-            <CodeMirror
-              value={value}
-              onChange={onChange}
-              extensions={[json()]}
-              theme={`${mode === Modes.dark ? "dark" : "light"}`}
-              id="test-payload"
-              minHeight="100px"
-              maxHeight="300px"
-            />
-          )}
-        />
-      </label>
-      <div className="d-flex justify-content-end  mt-3">
-        {props.cancel && (
-          <button
-            type="button"
-            className="btn btn-danger-light"
-            onClick={() => props.cancel?.()}
-          >
-            Cancel
-          </button>
-        )}
-        <button type="submit" className="btn btn-secondary">
-          Test feature
-        </button>
-      </div>
-      {message && (
-        <label>
-          Result
-          <CodeMirror
-            value={
-              message
-                ? JSON.stringify(message, null, 2)
-                : 'No result yet, click "Test feature"\nto fetch feature state'
-            }
-            extensions={message ? [json()] : []}
-            readOnly={true}
-            theme={`${mode === Modes.dark ? "dark" : "light"}`}
-            id="test-result"
-          />
-        </label>
-      )}
-    </form>
-  );
-}
-
 export function FeatureDetails({ feature }: { feature: TLightFeature }) {
   return (
     <div className="d-flex">
@@ -1987,41 +810,6 @@ export function FeatureDetails({ feature }: { feature: TLightFeature }) {
       </div>
     </div>
   );
-}
-
-function TextualFeatureDetails({ feature }: { feature: TLightFeature }) {
-  if (isLightWasmFeature(feature)) {
-    return (
-      <>
-        {feature.description && <div>{feature.description}</div>}
-        <ScriptDetails config={feature.wasmConfig} />
-      </>
-    );
-  } else if (isSingleConditionFeature(feature)) {
-    return (
-      <>
-        {feature.description && <div>{feature.description}</div>}
-        <div className="fw-semibold">Active :</div>
-        <SingleConditionFeatureDetail
-          feature={toLegacyFeatureFormat(feature)}
-        />
-      </>
-    );
-  } else {
-    const resultDetail =
-      feature.resultType === "boolean"
-        ? { resultType: "boolean" }
-        : { resultType: feature.resultType, value: feature.value };
-    return (
-      <>
-        {feature.description && <div>{feature.description}</div>}
-        <ConditionDetails
-          conditions={(feature as ClassicalFeature).conditions}
-          resultDetail={resultDetail as any}
-        />
-      </>
-    );
-  }
 }
 
 function Pill({
@@ -2064,49 +852,6 @@ function Pill({
       {children}
     </span>
   );
-}
-
-function getSubtreeMatchingPath(contexts: TContext[], path: string[]) {
-  return path.reduce((acc: TContext[], nextPath: string) => {
-    const maybeChild = acc.find((c) => c.name === nextPath);
-
-    if (maybeChild) {
-      return maybeChild.children;
-    } else {
-      return [];
-    }
-  }, contexts);
-}
-
-function extractContextsMatching(
-  contexts: TContext[],
-  predicate: (ctx: TContext) => boolean,
-  stopOnMatch: boolean = true,
-  stopCondition?: (ctx: TContext) => boolean,
-  prefix: string[] = []
-): (TContext & { parent: string[] })[] {
-  return contexts.flatMap((context) => {
-    const res = [];
-    if (predicate(context)) {
-      if (stopOnMatch) {
-        return [{ ...context, parent: prefix }];
-      } else {
-        res.push({ ...context, parent: prefix });
-      }
-    } else if (stopCondition?.(context)) {
-      return [];
-    }
-
-    return res.concat(
-      extractContextsMatching(
-        context.children,
-        predicate,
-        stopOnMatch,
-        stopCondition,
-        prefix.concat(context.name)
-      )
-    );
-  });
 }
 
 export function FeatureTable(props: {
@@ -2320,29 +1065,22 @@ export function FeatureTable(props: {
                     feature.name
                   }`}
                   onChange={() => {
-                    const impactedProtectedContexts = extractContextsMatching(
-                      contextQueries.flatMap((q) => q.data ?? []),
-                      (c) => {
-                        return (
-                          c.protected &&
-                          (!c.overloads || c.overloads.length === 0)
-                        );
-                      },
-                      false,
-                      (ctx) => {
-                        return ctx.overloads?.length > 0;
-                      }
+                    const contexts = contextQueries.flatMap(
+                      (q) => q.data ?? []
                     );
+                    const impactedProtectedContexts =
+                      findImpactedProtectedContexts({
+                        contexts: contexts,
+                        featureId: feature.id!,
+                        rootOnly: false,
+                      });
 
                     const impactedProtectedRootContexts =
-                      extractContextsMatching(
-                        contextQueries.flatMap((q) => q.data ?? []),
-                        (c) =>
-                          c.protected &&
-                          (!c.overloads || c.overloads.length === 0),
-                        true,
-                        (ctx) => ctx.overloads?.length > 0
-                      );
+                      findImpactedProtectedContexts({
+                        contexts: contexts,
+                        featureId: feature.id!,
+                        rootOnly: true,
+                      });
 
                     const hasUserAdminRightOnFeature = hasRightForProject(
                       user!,
@@ -2486,48 +1224,37 @@ export function FeatureTable(props: {
             <FeatureForm
               defaultValue={datum}
               submit={(feature) => {
-                const contextsWithOverload = extractContextsMatching(
-                  contextQueries.flatMap((q) => q.data ?? []),
-                  (c) => c.overloads.length > 0,
-                  false
-                ).map((ctx) => {
-                  return ctx.name;
-                });
-
-                const impactedProtectedContexts = extractContextsMatching(
-                  contextQueries.flatMap((q) => q.data ?? []),
-                  (c) => {
-                    console.log("c", c);
-                    console.log(
-                      "result",
-                      c.protected && (!c.overloads || c.overloads.length === 0)
-                    );
-                    return (
-                      c.protected && (!c.overloads || c.overloads.length === 0)
-                    );
-                  },
-                  false,
-                  (ctx) => {
-                    console.log("c", ctx);
-                    console.log("result2", ctx.overloads?.length >= 0);
-                    return ctx.overloads?.length > 0;
-                  }
-                );
-
-                const impactedProtectedRootContexts = extractContextsMatching(
-                  contextQueries.flatMap((q) => q.data ?? []),
-                  (c) =>
-                    c.protected && (!c.overloads || c.overloads.length === 0),
-                  true,
-                  (ctx) => ctx.overloads?.length > 0
-                );
-
                 const hasUserAdminRightOnFeature = hasRightForProject(
                   user!,
                   TProjectLevel.Admin,
                   feature.project!,
                   tenant!
                 );
+                const contexts = contextQueries.flatMap((q) => q.data ?? []);
+
+                const contextsWithOverload = extractContextsMatching(
+                  contexts,
+                  (c) => c.overloads?.some((o) => o.id === datum.id),
+                  false
+                );
+
+                const protectedContextsWithOverloads =
+                  contextsWithOverload.filter((c) => c.protected);
+
+                const impactedProtectedContexts = findImpactedProtectedContexts(
+                  {
+                    contexts: contexts,
+                    featureId: datum.id!,
+                    rootOnly: false,
+                  }
+                );
+
+                const impactedProtectedRootContexts =
+                  findImpactedProtectedContexts({
+                    contexts: contexts,
+                    featureId: datum.id!,
+                    rootOnly: true,
+                  });
 
                 const callback = (strategyPreservation: boolean) =>
                   featureUpdateMutation.mutateAsync(
@@ -2550,20 +1277,101 @@ export function FeatureTable(props: {
                       },
                     }
                   );
+
                 if (
                   contextsWithOverload.length > 0 &&
                   feature.resultType !== datum.resultType
                 ) {
-                  return askConfirmation(
-                    <>
-                      This feature has {contextsWithOverload.length} overload(s)
-                      with {datum.resultType} result type.
-                      <br />
-                      Updating result type to {feature.resultType} will delete
-                      all overloads, are you sure that it is what you want ?
-                    </>,
-                    () => callback(false)
-                  );
+                  if (
+                    !hasUserAdminRightOnFeature &&
+                    protectedContextsWithOverloads.length > 0
+                  ) {
+                    const protectedContextNames =
+                      protectedContextsWithOverloads.map((c) => {
+                        const displayname = c.parent.concat(c.name).join("/");
+                        return (
+                          <span key={displayname}>
+                            {displayname}&nbsp;
+                            {c.global && (
+                              <>
+                                <GlobalContextIcon />
+                                &nbsp;
+                              </>
+                            )}
+                            {c.protected && (
+                              <i
+                                className="fa-solid fa-lock fs-6"
+                                aria-label="protected"
+                              ></i>
+                            )}
+                          </span>
+                        );
+                      });
+
+                    askConfirmation(
+                      <>
+                        This feature has overloads for below protected contexts
+                        with result type{" "}
+                        <span className="fw-bold">{datum.resultType}</span>:
+                        <ul>
+                          {protectedContextNames.map((n, index) => (
+                            <li key={index}>{n}</li>
+                          ))}
+                        </ul>
+                        Updating feature result type to{" "}
+                        <span className="fw-bold">{feature.resultType}</span>
+                        will delete these overloads.
+                        <br />
+                        You are not allowed to delete these overload since only
+                        a project admin can update protected contexts,
+                        therefore&nbsp;
+                        <span className="fw-bold">
+                          you are not allowed to perform this operation
+                        </span>
+                        .
+                      </>
+                    );
+                  } else {
+                    return askConfirmation(
+                      <>
+                        This feature has overload for below contexts with{" "}
+                        <span className="fw-bold">{datum.resultType}</span>{" "}
+                        result type:
+                        <ul>
+                          {contextsWithOverload.map((c) => {
+                            const displayname = c.parent
+                              .concat(c.name)
+                              .join("/");
+
+                            return (
+                              <li key={displayname}>
+                                <span>
+                                  {displayname}&nbsp;
+                                  {c.global && (
+                                    <>
+                                      <GlobalContextIcon />
+                                      &nbsp;
+                                    </>
+                                  )}
+                                  {c.protected && (
+                                    <i
+                                      className="fa-solid fa-lock fs-6"
+                                      aria-label="protected"
+                                    ></i>
+                                  )}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        Updating result type to{" "}
+                        <span className="fw-bold">{feature.resultType}</span>{" "}
+                        will delete all these overloads, are you sure that it is
+                        what you want ?
+                      </>,
+                      () => callback(false)
+                    );
+                  }
                 } else if (impactedProtectedRootContexts.length > 0) {
                   setStrategyPreservation(!hasUserAdminRightOnFeature);
                   return askConfirmation(
@@ -2718,6 +1526,10 @@ export function FeatureTable(props: {
     undefined
   );
 
+  const selectedFeatures = features.filter((f) =>
+    selectedRows.map((item) => item.id).includes(f.id)
+  );
+
   const canDeleteSelected = selectedRows
     .map((f) => f.project!)
     .every((p) => hasRightForProject(user!, TProjectLevel.Write, p, tenant!));
@@ -2740,11 +1552,152 @@ export function FeatureTable(props: {
             ).map((op) => ({ label: op, value: op }))}
             value={
               bulkOperation
-                ? { label: bulkOperation, value: bulkOperation }
+                ? {
+                    label: bulkOperation,
+                    value: bulkOperation,
+                  }
                 : null
             }
             onChange={(e) => {
-              setBulkOperation(e?.value);
+              // TODO
+              // * if enabled / disabled is selected, project has protected context without overlaods, display usual modal asking / imposing to protect old strategy
+
+              const contexts = contextQueries.flatMap((q) => q.data ?? []);
+              const protectedContexts = extractContextsMatching(
+                contexts,
+                (ctx) => ctx.protected
+              );
+
+              const protectedOverloadsByProjectAndFeatures = protectedContexts
+                .flatMap((ctx) =>
+                  ctx.overloads
+                    .map((o) => {
+                      return {
+                        id: o.id,
+                        feature: o.name,
+                        path: ctx.parent.concat(ctx.name),
+                        project: o.project,
+                      };
+                    })
+                    .filter(({ id }) =>
+                      selectedFeatures.map((f) => f.id).includes(id)
+                    )
+                )
+                .reduce((acc, { feature, path, project }) => {
+                  if (!acc.has(project!)) {
+                    const newEntry = new Map();
+                    newEntry.set(feature, [path]);
+                    acc.set(project!, newEntry);
+                  } else {
+                    const projectEntry = acc.get(project!)!;
+                    if (!projectEntry.has(feature)) {
+                      const newEntry = new Map();
+                      newEntry.set(feature, [path]);
+                    } else {
+                      projectEntry.get(feature)!.push(path.join("/"));
+                    }
+                  }
+                  return acc;
+                }, new Map<string, Map<string, string[]>>());
+
+              const forbiddenOverloadToDelete =
+                protectedOverloadsByProjectAndFeatures
+                  .entries()
+                  .filter(
+                    ([project]) =>
+                      !hasRightForProject(user!, TLevel.Admin, project, tenant!)
+                  )
+                  .reduce((acc, [project, overloadByFeature]) => {
+                    acc.set(project, overloadByFeature);
+                    return acc;
+                  }, new Map<string, Map<string, string[]>>());
+
+              if (
+                e?.value === "Delete" ||
+                (e?.value === "Transfer" && forbiddenOverloadToDelete.size > 0)
+              ) {
+                askConfirmation(
+                  <div
+                    style={{
+                      padding: "0.5rem",
+                    }}
+                  >
+                    {e.value === "Delete" ? "Deleting" : "Transfering"} these
+                    features would cause deletion of overload for the following
+                    protected contexts :
+                    <ul>
+                      {forbiddenOverloadToDelete
+                        .entries()
+                        .flatMap(([project, pathByFeatures]) =>
+                          pathByFeatures
+                            .entries()
+                            .flatMap(([feature, pathes]) => {
+                              return pathes.map((path) => [
+                                project,
+                                feature,
+                                path,
+                              ]);
+                            })
+                            .map(([project, feature, path]) => {
+                              return (
+                                <li key={`${project}-${feature}-${path}`}>
+                                  <i className="fas fa-building" />
+                                  &nbsp;{project} {">"}{" "}
+                                  <i className="fas fa-rocket" />
+                                  &nbsp;{feature} {">"} <GlobalContextIcon />
+                                  &nbsp;{path}
+                                </li>
+                              );
+                            })
+                        )}
+                    </ul>
+                    You don't have admin right on these projects and therefore
+                    cannot delete these overloards.
+                  </div>
+                );
+              } else if (e?.value === "Enable" || e?.value === "Disable") {
+                const impactedProtectedContexts =
+                  findImpactedProtectedContextForFeatures({
+                    contexts: contexts,
+                    featureIds: selectedFeatures.map((f) => f.id!),
+                    rootOnly: false,
+                  });
+
+                const featureWithoutOverloadInImpactedProtectedContexts =
+                  selectedFeatures.filter((f) => {
+                    return impactedProtectedContexts.every(
+                      (ctx) => !ctx.overloads.some((o) => o.id === f.id)
+                    );
+                  });
+
+                const projectToCheckRightFor = new Set(
+                  featureWithoutOverloadInImpactedProtectedContexts.map(
+                    (f) => f.project!
+                  )
+                );
+
+                const hasAdminRightsOnProjects = [
+                  ...projectToCheckRightFor,
+                ].reduce((acc, next) => {
+                  return (
+                    acc &&
+                    hasRightForProject(user!, TLevel.Admin, next, tenant!)
+                  );
+                }, true);
+
+                /*const missingFeatureByContext = impactedProtectedContexts.map(
+                  (ctx) => {}
+                );
+
+                if (!hasAdminRightsOnProjects) {
+                } else {
+                }
+              } else*/ if (e?.value) {
+                  setBulkOperation(e.value);
+                } else {
+                  setBulkOperation(undefined);
+                }
+              }
             }}
             styles={customStyles}
             isClearable={true}
@@ -2756,10 +1709,8 @@ export function FeatureTable(props: {
           {bulkOperation && (
             <OperationForm
               tenant={tenant!}
-              bulkOperation={bulkOperation!}
-              selectedRows={features.filter((f) =>
-                selectedRows.map((item) => item.id).includes(f.id)
-              )}
+              bulkOperation={bulkOperation}
+              selectedRows={selectedFeatures}
               cancel={() => setBulkOperation(undefined)}
               refresh={() => refresh()}
             />
@@ -2786,107 +1737,5 @@ export function FeatureTable(props: {
         }
       />
     </div>
-  );
-}
-
-function OverloadUpdateConfirmationModal(props: {
-  impactedProtectedContexts: (TContext & { parent: string[] })[];
-  rootImpactedProtectedContexts: (TContext & { parent: string[] })[];
-  hasUserAdminRightOnFeature: boolean;
-  onstrategyPreservationUpdate: (newValue: boolean) => any;
-  oldFeature: TLightFeature;
-  newFeature: TLightFeature;
-}) {
-  const {
-    impactedProtectedContexts,
-    hasUserAdminRightOnFeature,
-    rootImpactedProtectedContexts,
-  } = props;
-  const [strategyPreservation, setStrategyPreservation] = useState(false);
-
-  return (
-    <>
-      <h3>Protected contexts impacts</h3>
-      This update will impact below protected contexts, since neither them or
-      their parent define overload for this feature:
-      <ul>
-        {impactedProtectedContexts.map((c) => (
-          <li key={c.name}>{c.parent.concat(c.name).join("/")}</li>
-        ))}
-      </ul>
-      {hasUserAdminRightOnFeature ? (
-        <>
-          These contexts strategies can be left unchanged by duplicating old
-          strategy in below contexts:
-          <ul>
-            {rootImpactedProtectedContexts.map((c) => {
-              const display = c.parent.concat(c.name).join("/");
-              return <li key={display}>{display}</li>;
-            })}
-          </ul>
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <input
-              style={{ marginTop: 0 }}
-              type="checkbox"
-              checked={strategyPreservation}
-              className="izanami-checkbox"
-              onChange={(e) => {
-                setStrategyPreservation(e.target.checked);
-                props.onstrategyPreservationUpdate(e.target.checked);
-              }}
-            ></input>
-            &nbsp;
-            <span style={{ fontSize: "16px" }}>
-              Duplicate old strategy for these contexts
-            </span>
-          </label>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <h4 style={{ marginBottom: "1rem" }}>Changes</h4>
-            <ConditionDiff
-              newConditions={props.newFeature}
-              oldConditions={props.oldFeature}
-            />
-          </div>
-        </>
-      ) : (
-        <>
-          You don't have enough rights to update these contexts, therefore old
-          strategy will be applied to below contexts:
-          <ul>
-            {rootImpactedProtectedContexts.map((c) => {
-              const display = c.parent.concat(c.name).join("/");
-              return <li key={display}>{display}</li>;
-            })}
-          </ul>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <h4 style={{ marginBottom: "1rem" }}>Changes</h4>
-            <ConditionDiff
-              newConditions={props.newFeature}
-              oldConditions={props.oldFeature}
-            />
-          </div>
-        </>
-      )}
-    </>
   );
 }

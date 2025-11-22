@@ -4,12 +4,14 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
+    "compile": "tsc",
     "build": "tsc && vite build && mkdir -p ../public && rm -rf ../public/* &&  cp -r ./dist/* ../public/ && cp ../swagger.json ../public/",
     "preview": "vite preview",
     "test": "BACKEND_URL=http://localhost:9000 playwright test --workers 1 --trace on",
     "test:ci": "playwright test --workers 1 --trace on",
     "screenshots": "npx tsx ./tests/screenshots/index.ts",
-    "lint": "eslint ./src --ext .js,.jsx,.ts,.tsx"
+    "lint": "eslint ./src --ext .js,.jsx,.ts,.tsx",
+    "unit-tests": "vitest"
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.1",
@@ -61,7 +63,8 @@
     "sass": "^1.86.0",
     "terser": "^5.39.0",
     "typescript": "^5.8.2",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "vitest": "^4.0.8"
   },
   "overrides": {
     "@codemirror/state": "6.4.1"

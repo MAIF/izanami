@@ -23,12 +23,12 @@ import {
   TWasmConfig,
 } from "../utils/types";
 import { useProjectRight } from "../securityContext";
-import { OverloadTable } from "../components/FeatureTable";
 import { OverloadCreationForm } from "../components/OverloadCreationForm";
 import { useParams } from "react-router-dom";
 import { useState } from "react";
 import { Loader } from "../components/Loader";
 import { LocalContext } from "../components/ContextTreeLocalContext";
+import { OverloadTable } from "../components/OverloadTable";
 
 export function ProjectContexts(props: {
   tenant: string;
