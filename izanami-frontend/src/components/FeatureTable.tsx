@@ -908,7 +908,8 @@ export function FeatureTable(props: {
 
   const columns: ColumnDef<TLightFeature>[] = [];
 
-  const { askConfirmation, user } = React.useContext(IzanamiContext);
+  const { askConfirmation, user, askInputConfirmation } =
+    React.useContext(IzanamiContext);
 
   const featureUpdateMutation = useMutation({
     mutationFn: (data: {
@@ -1552,9 +1553,52 @@ export function FeatureTable(props: {
         return actions(feature).includes("delete");
       },
       action: (feature: TLightFeature) => {
-        return askConfirmation(
-          `Are you sure you want to delete feature ${feature.name} ?`,
-          () => featureDeleteMutation.mutateAsync(feature.id!)
+        const contexts = contextQueries.flatMap((ctxq) => ctxq.data ?? []);
+        const protectedOverloads = findOverloadsForFeature(
+          feature.name,
+          contexts,
+          (ctx) => ctx.protected
+        );
+
+        if (
+          !hasRightForProject(user!, TLevel.Admin, feature.project!, tenant!)
+        ) {
+          return askConfirmation(
+            <>
+              <h3>Operation not permitted</h3>
+              <div>
+                {feature.name} have overload in below protected contexts
+              </div>
+              <ul>
+                {protectedOverloads.map((o) => (
+                  <li key={o.path}>{o.path}</li>
+                ))}
+              </ul>
+              <p>
+                You don't have admin right on this project, therefore you can't
+                delete this feature.
+              </p>
+            </>
+          );
+        }
+
+        return askInputConfirmation(
+          <>
+            <h3>Delete confirmation</h3>
+            <div>{feature.name} have overload in below protected contexts</div>
+            <ul>
+              {protectedOverloads.map((o) => (
+                <li key={o.path}>{o.path}</li>
+              ))}
+            </ul>
+            <p>
+              Deleting {feature.name} will delete{" "}
+              <span className="fw-bold">all associated overloads</span>.
+            </p>
+            Type feature name below to confirm.
+          </>,
+          () => featureDeleteMutation.mutateAsync(feature.id!),
+          feature.name
         );
       },
     },

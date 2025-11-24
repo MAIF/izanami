@@ -179,28 +179,33 @@ export function findContextForPath(
  * find overload for given feature among given contexts
  * @param name feature name
  * @param contexts context list into wich overload should be searched
+ * @param filter callback function that can be used to filter resulting contexts
  * @returns overloads of given feature among given contexts
  */
 export function findOverloadsForFeature(
   name: string,
-  contexts: TContext[]
+  contexts: TContext[],
+  filter: (ctx: TContext) => boolean = () => true
 ): TContextOverload[] {
-  return findOverloadsForFeatureRec(name, contexts, []);
+  return findOverloadsForFeatureRec(name, contexts, [], filter);
 }
 
 function findOverloadsForFeatureRec(
   name: string,
   contexts: TContext[],
-  path: string[]
+  path: string[],
+  filter: (ctx: TContext) => boolean
 ): TContextOverload[] {
   return contexts.flatMap((ctx) => {
     const maybeOverload = ctx.overloads
-      .filter((o) => o.name === name)
+      .filter((o) => o.name === name && filter(ctx))
       .map((o) => ({ ...o, path: [...path, ctx.name].join("/") }));
-    const childOverloads = findOverloadsForFeatureRec(name, ctx.children, [
-      ...path,
-      ctx.name,
-    ]);
+    const childOverloads = findOverloadsForFeatureRec(
+      name,
+      ctx.children,
+      [...path, ctx.name],
+      filter
+    );
 
     if (maybeOverload) {
       return [...maybeOverload, ...childOverloads];
