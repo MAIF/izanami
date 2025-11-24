@@ -2383,11 +2383,13 @@ class FeatureAPISpec extends BaseAPISpec {
       val deleteResponse =
         testSituation.deleteFeature(
           tenantName,
-          testSituation.findFeatureId(
-            tenantName,
-            project = projectName,
-            feature = "f1"
-          ).get
+          testSituation
+            .findFeatureId(
+              tenantName,
+              project = projectName,
+              feature = "f1"
+            )
+            .get
         )
 
       deleteResponse.status mustBe FORBIDDEN

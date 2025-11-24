@@ -1,7 +1,6 @@
 import * as React from "react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import CodeMirror from "@uiw/react-codemirror";
 import {
   TContext,
   TContextOverload,
@@ -12,7 +11,7 @@ import {
   StaleStatus,
   TProjectLevel,
 } from "../utils/types";
-import { format, parse } from "date-fns";
+import { format } from "date-fns";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import {
   createFeature,
@@ -24,14 +23,12 @@ import {
   queryTenant,
   tagsQueryKey,
   tenantQueryKey,
-  testFeature,
   updateFeature,
   queryTags,
   updateFeatureActivationForContext,
 } from "../utils/queries";
 import {
   IzanamiContext,
-  Modes,
   hasRightForProject,
   hasRightForTenant,
   useProjectRight,
@@ -41,7 +38,6 @@ import { ColumnDef, Row } from "@tanstack/react-table";
 import queryClient from "../queryClient";
 import { FeatureForm } from "./FeatureForm";
 import { OverloadCreationForm } from "./OverloadCreationForm";
-import { useForm, Controller } from "react-hook-form";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { Tooltip } from "react-tooltip";
@@ -50,18 +46,20 @@ import { Form } from "./Form";
 import { Loader } from "./Loader";
 import MultiSelect, { Option } from "./MultiSelect";
 import { constraints } from "@maif/react-forms";
-import { json } from "@codemirror/lang-json";
 import { GlobalContextIcon } from "../utils/icons";
 import {
+  analyzeUpdateImpact,
   extractContextsMatching,
   findContextWithOverloadsForFeature,
-  findImpactedProtectedContextForFeatures,
-  findImpactedProtectedContexts,
   findOverloadsForFeature,
+  ImpactAnalysisResult,
   possiblePaths,
 } from "../utils/contextUtils";
 import { TextualFeatureDetails } from "./FeatureDetails";
-import { OverloadUpdateConfirmationModal } from "./OverloadUpdateConfirmationModal";
+import {
+  MultiFeatureOverloadUpdateConfirmationModal,
+  OverloadUpdateConfirmationModal,
+} from "./OverloadUpdateConfirmationModal";
 import { OverloadTable } from "./OverloadTable";
 import { ExistingFeatureTestForm } from "./ExistingFeatureTestForm";
 
@@ -110,8 +108,19 @@ function OperationButton(props: {
   selectedRows: TLightFeature[];
   cancel: () => void;
   refresh: () => any;
+  validationCallback: (
+    action: string,
+    features: TLightFeature[]
+  ) => Promise<any>;
 }) {
-  const { tenant, bulkOperation, selectedRows, cancel, refresh } = props;
+  const {
+    tenant,
+    bulkOperation,
+    selectedRows,
+    cancel,
+    refresh,
+    validationCallback,
+  } = props;
   const hasSelectedRows = selectedRows.length > 0;
   const { askConfirmation } = React.useContext(IzanamiContext);
   return (
@@ -121,50 +130,55 @@ function OperationButton(props: {
         type="button"
         disabled={!hasSelectedRows || !bulkOperation}
         onClick={() => {
-          switch (bulkOperation) {
-            case "Delete":
-              askConfirmation(
-                `Are you sure you want to delete ${
-                  selectedRows.length
-                } feature${selectedRows.length > 1 ? "s" : ""} ?`,
-                () => {
-                  return patchFeatures(
-                    tenant!,
-                    selectedRows.map((f) => ({
-                      op: "remove",
-                      path: `/${f.id}`,
+          validationCallback(bulkOperation, selectedRows).then(() => {
+            switch (bulkOperation) {
+              case "Delete":
+                askConfirmation(
+                  `Are you sure you want to delete ${
+                    selectedRows.length
+                  } feature${selectedRows.length > 1 ? "s" : ""} ?`,
+                  () =>
+                    patchFeatures(
+                      tenant!,
+                      selectedRows.map((f) => ({
+                        op: "remove",
+                        path: `/${f.id}`,
+                      }))
+                    ).then(() => refresh())
+                );
+                break;
+              case "Enable":
+                patchFeatures(
+                  tenant!,
+                  selectedRows
+                    .filter((f) => !f.enabled)
+                    .map((f) => ({
+                      op: "replace",
+                      path: `/${f.id}/enabled`,
+                      value: true,
                     }))
-                  ).then(() => refresh());
-                }
-              );
-              break;
-            case "Enable":
-              patchFeatures(
-                tenant!,
-                selectedRows.map((f) => ({
-                  op: "replace",
-                  path: `/${f.id}/enabled`,
-                  value: true,
-                }))
-              )
-                .then(() => refresh())
-                .then(() => {
-                  cancel();
-                });
-              break;
-            case "Disable":
-              patchFeatures(
-                tenant!,
-                selectedRows.map((f) => ({
-                  op: "replace",
-                  path: `/${f.id}/enabled`,
-                  value: false,
-                }))
-              )
-                .then(() => refresh())
-                .then(() => cancel());
-              break;
-          }
+                )
+                  .then(() => refresh())
+                  .then(() => {
+                    cancel();
+                  });
+                break;
+              case "Disable":
+                patchFeatures(
+                  tenant!,
+                  selectedRows
+                    .filter((f) => f.enabled)
+                    .map((f) => ({
+                      op: "replace",
+                      path: `/${f.id}/enabled`,
+                      value: false,
+                    }))
+                )
+                  .then(() => refresh())
+                  .then(() => cancel());
+                break;
+            }
+          });
         }}
       >
         {bulkOperation} {selectedRows.length} feature
@@ -179,8 +193,12 @@ function OperationTransferForm(props: {
   selectedRows: TLightFeature[];
   cancel: () => void;
   refresh: () => any;
+  validationCallback: (
+    action: string,
+    features: TLightFeature[]
+  ) => Promise<any>;
 }) {
-  const { tenant, selectedRows, cancel, refresh } = props;
+  const { tenant, selectedRows, cancel, refresh, validationCallback } = props;
   const selectedRowProjects = selectedRows.map((f) => f.project);
   const selectedRowProject = selectedRowProjects.filter(
     (q, idx) => selectedRowProjects.indexOf(q) === idx
@@ -219,21 +237,23 @@ function OperationTransferForm(props: {
           },
         }}
         onSubmit={(data: { project: string }) => {
-          return askConfirmation(
-            `Transferring ${selectedRows.length} feature${
-              selectedRows.length > 1 ? "s" : ""
-            }  will delete existing local overloads (if any), are you sure ?`,
-            () =>
-              patchFeatures(
-                tenant!,
-                selectedRows.map((f) => ({
-                  op: "replace",
-                  path: `/${f.id}/project`,
-                  value: data.project,
-                }))
-              )
-                .then(refresh)
-                .then(cancel)
+          return validationCallback("Transfer", selectedRows).then(() =>
+            askConfirmation(
+              `Transferring ${selectedRows.length} feature${
+                selectedRows.length > 1 ? "s" : ""
+              }  will delete existing local overloads (if any), are you sure ?`,
+              () =>
+                patchFeatures(
+                  tenant!,
+                  selectedRows.map((f) => ({
+                    op: "replace",
+                    path: `/${f.id}/project`,
+                    value: data.project,
+                  }))
+                )
+                  .then(refresh)
+                  .then(cancel)
+            )
           );
         }}
         footer={({ valid }: { valid: () => void }) => {
@@ -263,8 +283,12 @@ function OperationTagForm(props: {
   selectedRows: TLightFeature[];
   cancel: () => void;
   refresh: () => any;
+  validationCallback: (
+    action: string,
+    features: TLightFeature[]
+  ) => Promise<any>;
 }) {
-  const { tenant, selectedRows, cancel, refresh } = props;
+  const { tenant, selectedRows, cancel, refresh, validationCallback } = props;
   const tagsQuery = useQuery({
     queryKey: [tagsQueryKey(tenant)],
     queryFn: () => queryTags(tenant),
@@ -277,23 +301,25 @@ function OperationTagForm(props: {
     setSelectedValues(selectedOptions);
   };
   const OnSubmit = (selectedRows: TLightFeature[], values: Option[]) => {
-    askConfirmation(
-      `Are you sure to apply ${values.length} tag${
-        selectedRows.length > 1 ? "s" : ""
-      } on ${selectedRows.length} feature${
-        selectedRows.length > 1 ? "s" : ""
-      }?`,
-      () =>
-        patchFeatures(
-          tenant!,
-          selectedRows.map((f) => ({
-            op: "replace",
-            path: `/${f.id}/tags`,
-            value: [...new Set(values.map((value) => value.value))],
-          }))
-        )
-          .then(refresh)
-          .then(cancel)
+    validationCallback("Apply Tags", selectedRows).then(() =>
+      askConfirmation(
+        `Are you sure to apply ${values.length} tag${
+          selectedRows.length > 1 ? "s" : ""
+        } on ${selectedRows.length} feature${
+          selectedRows.length > 1 ? "s" : ""
+        }?`,
+        () =>
+          patchFeatures(
+            tenant!,
+            selectedRows.map((f) => ({
+              op: "replace",
+              path: `/${f.id}/tags`,
+              value: [...new Set(values.map((value) => value.value))],
+            }))
+          )
+            .then(refresh)
+            .then(cancel)
+      )
     );
   };
   if (tagsQuery.isLoading) {
@@ -420,8 +446,19 @@ function OperationForm(props: {
   selectedRows: TLightFeature[];
   cancel: () => void;
   refresh: () => any;
+  validationCallback: (
+    action: string,
+    features: TLightFeature[]
+  ) => Promise<any>;
 }) {
-  const { tenant, bulkOperation, selectedRows, cancel, refresh } = props;
+  const {
+    tenant,
+    bulkOperation,
+    selectedRows,
+    cancel,
+    refresh,
+    validationCallback,
+  } = props;
   switch (bulkOperation) {
     case "Transfer":
       return (
@@ -430,6 +467,7 @@ function OperationForm(props: {
           selectedRows={selectedRows}
           cancel={cancel}
           refresh={refresh}
+          validationCallback={validationCallback}
         />
       );
     case "Apply Tags":
@@ -439,6 +477,7 @@ function OperationForm(props: {
           selectedRows={selectedRows}
           cancel={cancel}
           refresh={refresh}
+          validationCallback={validationCallback}
         />
       );
     default:
@@ -449,6 +488,7 @@ function OperationForm(props: {
           selectedRows={selectedRows}
           cancel={cancel}
           refresh={refresh}
+          validationCallback={validationCallback}
         />
       );
   }
@@ -1068,34 +1108,26 @@ export function FeatureTable(props: {
                     const contexts = contextQueries.flatMap(
                       (q) => q.data ?? []
                     );
-                    const impactedProtectedContexts =
-                      findImpactedProtectedContexts({
-                        contexts: contexts,
-                        featureId: feature.id!,
-                        rootOnly: false,
-                      });
+                    const {
+                      impactedProtectedContexts,
+                      impactedRootProtectedContexts,
+                      unprotectedUpdateAllowed,
+                    } = analyzeUpdateImpact({
+                      updatedFeatureId: feature.id!,
+                      tenant: tenant!,
+                      project: feature.project!,
+                      user: user!,
+                      contexts: contexts,
+                    });
 
-                    const impactedProtectedRootContexts =
-                      findImpactedProtectedContexts({
-                        contexts: contexts,
-                        featureId: feature.id!,
-                        rootOnly: true,
-                      });
-
-                    const hasUserAdminRightOnFeature = hasRightForProject(
-                      user!,
-                      TProjectLevel.Admin,
-                      feature.project!,
-                      tenant!
-                    );
-                    setStrategyPreservation(!hasUserAdminRightOnFeature);
+                    setStrategyPreservation(!unprotectedUpdateAllowed);
                     askConfirmation(
                       <OverloadUpdateConfirmationModal
                         impactedProtectedContexts={impactedProtectedContexts}
-                        rootImpactedProtectedContexts={
-                          impactedProtectedRootContexts
+                        impactedRootProtectedContexts={
+                          impactedRootProtectedContexts
                         }
-                        hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
+                        hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
                         onstrategyPreservationUpdate={(
                           newStrategyPreservation
                         ) => {
@@ -1224,12 +1256,6 @@ export function FeatureTable(props: {
             <FeatureForm
               defaultValue={datum}
               submit={(feature) => {
-                const hasUserAdminRightOnFeature = hasRightForProject(
-                  user!,
-                  TProjectLevel.Admin,
-                  feature.project!,
-                  tenant!
-                );
                 const contexts = contextQueries.flatMap((q) => q.data ?? []);
 
                 const contextsWithOverload = extractContextsMatching(
@@ -1241,20 +1267,17 @@ export function FeatureTable(props: {
                 const protectedContextsWithOverloads =
                   contextsWithOverload.filter((c) => c.protected);
 
-                const impactedProtectedContexts = findImpactedProtectedContexts(
-                  {
-                    contexts: contexts,
-                    featureId: datum.id!,
-                    rootOnly: false,
-                  }
-                );
-
-                const impactedProtectedRootContexts =
-                  findImpactedProtectedContexts({
-                    contexts: contexts,
-                    featureId: datum.id!,
-                    rootOnly: true,
-                  });
+                const {
+                  impactedProtectedContexts,
+                  impactedRootProtectedContexts,
+                  unprotectedUpdateAllowed,
+                } = analyzeUpdateImpact({
+                  contexts: contexts,
+                  project: feature.project!,
+                  tenant: tenant!,
+                  user: user!,
+                  updatedFeatureId: feature.id!,
+                });
 
                 const callback = (strategyPreservation: boolean) =>
                   featureUpdateMutation.mutateAsync(
@@ -1283,7 +1306,7 @@ export function FeatureTable(props: {
                   feature.resultType !== datum.resultType
                 ) {
                   if (
-                    !hasUserAdminRightOnFeature &&
+                    !unprotectedUpdateAllowed &&
                     protectedContextsWithOverloads.length > 0
                   ) {
                     const protectedContextNames =
@@ -1372,15 +1395,15 @@ export function FeatureTable(props: {
                       () => callback(false)
                     );
                   }
-                } else if (impactedProtectedRootContexts.length > 0) {
-                  setStrategyPreservation(!hasUserAdminRightOnFeature);
+                } else if (impactedRootProtectedContexts.length > 0) {
+                  setStrategyPreservation(!unprotectedUpdateAllowed);
                   return askConfirmation(
                     <OverloadUpdateConfirmationModal
                       impactedProtectedContexts={impactedProtectedContexts}
-                      rootImpactedProtectedContexts={
-                        impactedProtectedRootContexts
+                      impactedRootProtectedContexts={
+                        impactedRootProtectedContexts
                       }
-                      hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
+                      hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
                       onstrategyPreservationUpdate={(
                         newStrategyPreservation
                       ) => {
@@ -1561,142 +1584,10 @@ export function FeatureTable(props: {
             onChange={(e) => {
               // TODO
               // * if enabled / disabled is selected, project has protected context without overlaods, display usual modal asking / imposing to protect old strategy
-
-              const contexts = contextQueries.flatMap((q) => q.data ?? []);
-              const protectedContexts = extractContextsMatching(
-                contexts,
-                (ctx) => ctx.protected
-              );
-
-              const protectedOverloadsByProjectAndFeatures = protectedContexts
-                .flatMap((ctx) =>
-                  ctx.overloads
-                    .map((o) => {
-                      return {
-                        id: o.id,
-                        feature: o.name,
-                        path: ctx.parent.concat(ctx.name),
-                        project: o.project,
-                      };
-                    })
-                    .filter(({ id }) =>
-                      selectedFeatures.map((f) => f.id).includes(id)
-                    )
-                )
-                .reduce((acc, { feature, path, project }) => {
-                  if (!acc.has(project!)) {
-                    const newEntry = new Map();
-                    newEntry.set(feature, [path]);
-                    acc.set(project!, newEntry);
-                  } else {
-                    const projectEntry = acc.get(project!)!;
-                    if (!projectEntry.has(feature)) {
-                      const newEntry = new Map();
-                      newEntry.set(feature, [path]);
-                    } else {
-                      projectEntry.get(feature)!.push(path.join("/"));
-                    }
-                  }
-                  return acc;
-                }, new Map<string, Map<string, string[]>>());
-
-              const forbiddenOverloadToDelete =
-                protectedOverloadsByProjectAndFeatures
-                  .entries()
-                  .filter(
-                    ([project]) =>
-                      !hasRightForProject(user!, TLevel.Admin, project, tenant!)
-                  )
-                  .reduce((acc, [project, overloadByFeature]) => {
-                    acc.set(project, overloadByFeature);
-                    return acc;
-                  }, new Map<string, Map<string, string[]>>());
-
-              if (
-                e?.value === "Delete" ||
-                (e?.value === "Transfer" && forbiddenOverloadToDelete.size > 0)
-              ) {
-                askConfirmation(
-                  <div
-                    style={{
-                      padding: "0.5rem",
-                    }}
-                  >
-                    {e.value === "Delete" ? "Deleting" : "Transfering"} these
-                    features would cause deletion of overload for the following
-                    protected contexts :
-                    <ul>
-                      {forbiddenOverloadToDelete
-                        .entries()
-                        .flatMap(([project, pathByFeatures]) =>
-                          pathByFeatures
-                            .entries()
-                            .flatMap(([feature, pathes]) => {
-                              return pathes.map((path) => [
-                                project,
-                                feature,
-                                path,
-                              ]);
-                            })
-                            .map(([project, feature, path]) => {
-                              return (
-                                <li key={`${project}-${feature}-${path}`}>
-                                  <i className="fas fa-building" />
-                                  &nbsp;{project} {">"}{" "}
-                                  <i className="fas fa-rocket" />
-                                  &nbsp;{feature} {">"} <GlobalContextIcon />
-                                  &nbsp;{path}
-                                </li>
-                              );
-                            })
-                        )}
-                    </ul>
-                    You don't have admin right on these projects and therefore
-                    cannot delete these overloards.
-                  </div>
-                );
-              } else if (e?.value === "Enable" || e?.value === "Disable") {
-                const impactedProtectedContexts =
-                  findImpactedProtectedContextForFeatures({
-                    contexts: contexts,
-                    featureIds: selectedFeatures.map((f) => f.id!),
-                    rootOnly: false,
-                  });
-
-                const featureWithoutOverloadInImpactedProtectedContexts =
-                  selectedFeatures.filter((f) => {
-                    return impactedProtectedContexts.every(
-                      (ctx) => !ctx.overloads.some((o) => o.id === f.id)
-                    );
-                  });
-
-                const projectToCheckRightFor = new Set(
-                  featureWithoutOverloadInImpactedProtectedContexts.map(
-                    (f) => f.project!
-                  )
-                );
-
-                const hasAdminRightsOnProjects = [
-                  ...projectToCheckRightFor,
-                ].reduce((acc, next) => {
-                  return (
-                    acc &&
-                    hasRightForProject(user!, TLevel.Admin, next, tenant!)
-                  );
-                }, true);
-
-                /*const missingFeatureByContext = impactedProtectedContexts.map(
-                  (ctx) => {}
-                );
-
-                if (!hasAdminRightsOnProjects) {
-                } else {
-                }
-              } else*/ if (e?.value) {
-                  setBulkOperation(e.value);
-                } else {
-                  setBulkOperation(undefined);
-                }
+              if (e?.value) {
+                setBulkOperation(e.value);
+              } else {
+                setBulkOperation(undefined);
               }
             }}
             styles={customStyles}
@@ -1713,6 +1604,172 @@ export function FeatureTable(props: {
               selectedRows={selectedFeatures}
               cancel={() => setBulkOperation(undefined)}
               refresh={() => refresh()}
+              validationCallback={(action, features) => {
+                const contexts = contextQueries.flatMap((q) => q.data ?? []);
+                const protectedContexts = extractContextsMatching(
+                  contexts,
+                  (ctx) => ctx.protected
+                );
+
+                const protectedOverloadsByProjectAndFeatures = protectedContexts
+                  .flatMap((ctx) =>
+                    ctx.overloads
+                      .map((o) => {
+                        return {
+                          id: o.id,
+                          feature: o.name,
+                          path: ctx.parent.concat(ctx.name),
+                          project: o.project,
+                        };
+                      })
+                      .filter(({ id }) =>
+                        features.map((f) => f.id).includes(id)
+                      )
+                  )
+                  .reduce((acc, { feature, path, project }) => {
+                    if (!acc.has(project!)) {
+                      const newEntry = new Map();
+                      newEntry.set(feature, [path]);
+                      acc.set(project!, newEntry);
+                    } else {
+                      const projectEntry = acc.get(project!)!;
+                      if (!projectEntry.has(feature)) {
+                        const newEntry = new Map();
+                        newEntry.set(feature, [path]);
+                      } else {
+                        projectEntry.get(feature)!.push(path.join("/"));
+                      }
+                    }
+                    return acc;
+                  }, new Map<string, Map<string, string[]>>());
+
+                const forbiddenOverloadToDelete =
+                  protectedOverloadsByProjectAndFeatures
+                    .entries()
+                    .filter(
+                      ([project]) =>
+                        !hasRightForProject(
+                          user!,
+                          TLevel.Admin,
+                          project,
+                          tenant!
+                        )
+                    )
+                    .reduce((acc, [project, overloadByFeature]) => {
+                      acc.set(project, overloadByFeature);
+                      return acc;
+                    }, new Map<string, Map<string, string[]>>());
+
+                if (
+                  (bulkOperation === "Delete" ||
+                    bulkOperation === "Transfer") &&
+                  forbiddenOverloadToDelete.size > 0
+                ) {
+                  console.log(
+                    "forbiddenOverloadToDelete",
+                    forbiddenOverloadToDelete
+                  );
+                  return askConfirmation(
+                    <div
+                      style={{
+                        padding: "0.5rem",
+                      }}
+                    >
+                      {bulkOperation === "Delete" ? "Deleting" : "Transfering"}{" "}
+                      these features would cause deletion of overload for the
+                      following protected contexts :
+                      <ul>
+                        {forbiddenOverloadToDelete
+                          .entries()
+                          .flatMap(([project, pathByFeatures]) =>
+                            pathByFeatures
+                              .entries()
+                              .flatMap(([feature, pathes]) => {
+                                return pathes.map((path) => [
+                                  project,
+                                  feature,
+                                  path,
+                                ]);
+                              })
+                              .map(([project, feature, path]) => {
+                                return (
+                                  <li key={`${project}-${feature}-${path}`}>
+                                    <i className="fas fa-building" />
+                                    &nbsp;{project} {">"}{" "}
+                                    <i className="fas fa-rocket" />
+                                    &nbsp;{feature} {">"} <GlobalContextIcon />
+                                    &nbsp;{path}
+                                  </li>
+                                );
+                              })
+                          )}
+                      </ul>
+                      You don't have admin right on these projects and therefore
+                      cannot delete these overloards.
+                    </div>
+                  );
+                } else if (
+                  bulkOperation === "Enable" ||
+                  bulkOperation === "Disable"
+                ) {
+                  const impactByFeature = features
+                    .filter((feat) => {
+                      return (
+                        (feat.enabled && bulkOperation === "Disable") ||
+                        (!feat.enabled && bulkOperation === "Enable")
+                      );
+                    })
+                    .reduce(
+                      (acc, f) => {
+                        const impact = analyzeUpdateImpact({
+                          updatedFeatureId: f.id!,
+                          project: f.project!,
+                          contexts: contexts,
+                          tenant: tenant!,
+                          user: user!,
+                        });
+
+                        const enabling =
+                          bulkOperation === "Enable" ? true : false;
+                        acc[f.id!] = {
+                          ...impact,
+                          newFeature: {
+                            ...f,
+                            enabled: enabling,
+                          } as TLightFeature,
+                          oldFeature: f,
+                          hasUserAdminRightOnFeature:
+                            impact.unprotectedUpdateAllowed,
+                        };
+
+                        return acc;
+                      },
+                      {} as {
+                        [x: string]: ImpactAnalysisResult & {
+                          newFeature: TLightFeature;
+                          oldFeature: TLightFeature;
+                          hasUserAdminRightOnFeature: boolean;
+                        };
+                      }
+                    );
+
+                  if (Object.entries(impactByFeature).length > 0) {
+                    return askConfirmation(
+                      <MultiFeatureOverloadUpdateConfirmationModal
+                        features={impactByFeature}
+                        onStrategyPreservationUpdate={(v) =>
+                          setStrategyPreservation(v)
+                        }
+                      />,
+                      () => Promise.resolve()
+                    );
+                  } else {
+                    return Promise.resolve();
+                  }
+                } else {
+                  return Promise.resolve();
+                }
+              }}
             />
           )}
         </div>

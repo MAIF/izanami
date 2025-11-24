@@ -1,4 +1,11 @@
-import { TContext, TContextOverload, TContextWithPath } from "./types";
+import { hasRightForProject } from "../securityContext";
+import {
+  TContext,
+  TContextOverload,
+  TContextWithPath,
+  TProjectLevel,
+  TUser,
+} from "./types";
 
 /**
  * return all possible paths extracted from a context list
@@ -28,7 +35,7 @@ function possiblePathsRec(
 }
 
 /**
- * Given context roots, children of context that matches given path
+ * Given context roots, find children of context that matches given path
  * @param contexts context roots
  * @param path patch to match
  * @returns children of context matching given path (if any)
@@ -89,6 +96,7 @@ export function extractContextsMatching(
  * Find all protected contexts that would be impacted by a given feature update.
  * @param contexts all contexts for the project
  * @param featureId id of updated feature
+ * @param project feature project
  * @param from path to start from : should be empty if base strategy has been updated, otherwise should contain path of context that has been updated
  * @rootOnly whether only "root" impacted context should be returned, or their children as well.
  * @returns all protected contexts (as a flat array) that would be impacted by the update.
@@ -96,42 +104,16 @@ export function extractContextsMatching(
 export function findImpactedProtectedContexts({
   contexts,
   featureId,
+  project,
   from,
   rootOnly,
 }: {
   contexts: TContext[];
   featureId: string;
+  project: string;
   from?: string;
   rootOnly?: boolean;
 }): TContextWithPath[] {
-  return findImpactedProtectedContextForFeatures({
-    contexts: contexts,
-    featureIds: [featureId],
-    from: from,
-    rootOnly: rootOnly,
-  });
-}
-
-/**
- * Find all protected contexts that would be impacted update of any given features.
- * @param contexts all contexts for the project
- * @param featureIds list of updated feature ids
- * @param from path to start from : should be empty if base strategy has been updated, otherwise should contain path of context that has been updated
- * @rootOnly whether only "root" impacted context should be returned, or their children as well.
- * @returns all protected contexts (as a flat array) that would be impacted by the update.
- */
-export function findImpactedProtectedContextForFeatures({
-  contexts,
-  featureIds,
-  from,
-  rootOnly,
-}: {
-  contexts: TContext[];
-  featureIds: string[];
-  from?: string;
-  rootOnly?: boolean;
-}): TContextWithPath[] {
-  const featureIdsAsSet = new Set(featureIds);
   const fromTouse = from
     ? from.split("/").filter((part) => part.length > 0)
     : [];
@@ -144,12 +126,15 @@ export function findImpactedProtectedContextForFeatures({
         c.protected &&
         (!c.overloads ||
           c.overloads.length === 0 ||
-          c.overloads.every((o) => !featureIdsAsSet.has(o.id)))
+          c.overloads.every((o) => o.id !== featureId))
       );
     },
     rootOnly,
     (ctx) => {
-      return ctx.overloads?.length > 0;
+      return (
+        ctx.overloads.some((o) => o.id === featureId) ||
+        (ctx.project !== undefined && ctx.project === project)
+      );
     }
   );
 }
@@ -257,4 +242,81 @@ function findContextWithOverloadsForFeatureRec(
       return childOverloadsCtx;
     }
   });
+}
+
+export type ImpactAnalysisResult =
+  | {
+      impactedProtectedContexts: [];
+      impactedRootProtectedContexts: [];
+      unprotectedUpdateAllowed: true;
+    }
+  | {
+      impactedProtectedContexts: [TContextWithPath, ...TContextWithPath[]];
+      impactedRootProtectedContexts: [TContextWithPath, ...TContextWithPath[]];
+      unprotectedUpdateAllowed: boolean;
+    };
+
+/**
+ * Analyse impact of one update to detect one of the following :
+ * - update change strategy of protected context, update requires duplicating old strategy
+ * - update change strategy of protected context, user is project admin => update requires confirmation
+ *
+ */
+export function analyzeUpdateImpact({
+  updatedFeatureId,
+  project,
+  tenant,
+  updatedContext,
+  contexts,
+  user,
+}: {
+  updatedFeatureId: string;
+  project: string;
+  tenant: string;
+  updatedContext?: string;
+  contexts: TContext[];
+  user: TUser;
+}): ImpactAnalysisResult {
+  const impactedProtectedContexts = findImpactedProtectedContexts({
+    contexts: contexts,
+    featureId: updatedFeatureId,
+    project: project,
+    rootOnly: false,
+    from: updatedContext,
+  });
+
+  if (impactedProtectedContexts.length === 0) {
+    return {
+      impactedProtectedContexts: [],
+      impactedRootProtectedContexts: [],
+      unprotectedUpdateAllowed: true,
+    };
+  }
+
+  const impactedProtectedRootContexts = findImpactedProtectedContexts({
+    contexts: contexts,
+    featureId: updatedFeatureId,
+    project: project,
+    rootOnly: true,
+    from: updatedContext,
+  });
+
+  const isAdmin = hasRightForProject(
+    user,
+    TProjectLevel.Admin,
+    project,
+    tenant
+  );
+
+  return {
+    impactedProtectedContexts: impactedProtectedContexts as [
+      TContextWithPath,
+      ...TContextWithPath[]
+    ],
+    unprotectedUpdateAllowed: isAdmin,
+    impactedRootProtectedContexts: impactedProtectedRootContexts as [
+      TContextWithPath,
+      ...TContextWithPath[]
+    ],
+  };
 }

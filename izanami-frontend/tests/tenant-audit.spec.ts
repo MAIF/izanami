@@ -40,6 +40,7 @@ test.describe("Tenant audit screen should", () => {
     await page.getByRole("combobox", { name: "Bulk action" }).click();
     await page.getByRole("option", { name: "Enable" }).click();
     await page.getByRole("button", { name: "Enable 3 features" }).click();
+    await page.getByRole("button", { name: "Confirm" }).click();
     await page
       .getByRole("link", { name: "chromium-display-log-events" })
       .click();

@@ -78,14 +78,17 @@ test.describe("Project audit screen should", () => {
     await page.getByLabel("Bulk action").click();
     await page.getByRole("option", { name: "Enable" }).click();
     await page.getByRole("button", { name: "Enable 6 features" }).click();
+    await page.getByRole("button", { name: "Confirm" }).click();
     await expect(page.getByRole("cell", { name: "Enabled" })).toHaveCount(6);
     await page.getByRole("combobox", { name: "Bulk action" }).click();
     await page.getByRole("option", { name: "Disable" }).click();
     await page.getByRole("button", { name: "Disable 6 features" }).click();
+    await page.getByRole("button", { name: "Confirm" }).click();
     await expect(page.getByRole("cell", { name: "Disabled" })).toHaveCount(6);
     await page.getByLabel("Bulk action").click();
     await page.getByRole("option", { name: "Enable" }).click();
     await page.getByRole("button", { name: "Enable 6 features" }).click();
+    await page.getByRole("button", { name: "Confirm" }).click();
     await expect(page.getByRole("cell", { name: "Enabled" })).toHaveCount(6);
     await page.getByRole("link", { name: "project logs" }).click();
     await expect(page.getByText("30 results")).toBeVisible();
