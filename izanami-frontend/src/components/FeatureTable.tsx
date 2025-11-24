@@ -62,6 +62,7 @@ import {
 } from "./OverloadUpdateConfirmationModal";
 import { OverloadTable } from "./OverloadTable";
 import { ExistingFeatureTestForm } from "./ExistingFeatureTestForm";
+import { isEqual } from "lodash";
 
 type FeatureFields =
   | "id"
@@ -1256,28 +1257,32 @@ export function FeatureTable(props: {
             <FeatureForm
               defaultValue={datum}
               submit={(feature) => {
-                const contexts = contextQueries.flatMap((q) => q.data ?? []);
+                let hasConditionChanged = false;
+                if ("conditions" in feature) {
+                  if (!("conditions" in datum)) {
+                    hasConditionChanged = true;
+                  } else {
+                    hasConditionChanged =
+                      hasConditionChanged ||
+                      !isEqual(feature.conditions, datum.conditions);
+                  }
+                } else if ("wasmConfig" in feature) {
+                  if (!("wasmConfig" in datum)) {
+                    hasConditionChanged = true;
+                  } else {
+                    hasConditionChanged =
+                      hasConditionChanged ||
+                      !isEqual(feature.wasmConfig, datum.wasmConfig);
+                  }
+                }
 
-                const contextsWithOverload = extractContextsMatching(
-                  contexts,
-                  (c) => c.overloads?.some((o) => o.id === datum.id),
-                  false
-                );
-
-                const protectedContextsWithOverloads =
-                  contextsWithOverload.filter((c) => c.protected);
-
-                const {
-                  impactedProtectedContexts,
-                  impactedRootProtectedContexts,
-                  unprotectedUpdateAllowed,
-                } = analyzeUpdateImpact({
-                  contexts: contexts,
-                  project: feature.project!,
-                  tenant: tenant!,
-                  user: user!,
-                  updatedFeatureId: feature.id!,
-                });
+                if (feature.enabled !== datum.enabled) {
+                  hasConditionChanged = true;
+                } else if (feature.name !== datum.name) {
+                  hasConditionChanged = true;
+                } else if (feature.resultType !== datum.resultType) {
+                  hasConditionChanged = true;
+                }
 
                 const callback = (strategyPreservation: boolean) =>
                   featureUpdateMutation.mutateAsync(
@@ -1301,119 +1306,146 @@ export function FeatureTable(props: {
                     }
                   );
 
-                if (
-                  contextsWithOverload.length > 0 &&
-                  feature.resultType !== datum.resultType
-                ) {
-                  if (
-                    !unprotectedUpdateAllowed &&
-                    protectedContextsWithOverloads.length > 0
-                  ) {
-                    const protectedContextNames =
-                      protectedContextsWithOverloads.map((c) => {
-                        const displayname = c.parent.concat(c.name).join("/");
-                        return (
-                          <span key={displayname}>
-                            {displayname}&nbsp;
-                            {c.global && (
-                              <>
-                                <GlobalContextIcon />
-                                &nbsp;
-                              </>
-                            )}
-                            {c.protected && (
-                              <i
-                                className="fa-solid fa-lock fs-6"
-                                aria-label="protected"
-                              ></i>
-                            )}
-                          </span>
-                        );
-                      });
+                if (hasConditionChanged) {
+                  const contexts = contextQueries.flatMap((q) => q.data ?? []);
 
-                    askConfirmation(
-                      <>
-                        This feature has overloads for below protected contexts
-                        with result type{" "}
-                        <span className="fw-bold">{datum.resultType}</span>:
-                        <ul>
-                          {protectedContextNames.map((n, index) => (
-                            <li key={index}>{n}</li>
-                          ))}
-                        </ul>
-                        Updating feature result type to{" "}
-                        <span className="fw-bold">{feature.resultType}</span>
-                        will delete these overloads.
-                        <br />
-                        You are not allowed to delete these overload since only
-                        a project admin can update protected contexts,
-                        therefore&nbsp;
-                        <span className="fw-bold">
-                          you are not allowed to perform this operation
-                        </span>
-                        .
-                      </>
+                  const contextsWithOverload = extractContextsMatching(
+                    contexts,
+                    (c) => c.overloads?.some((o) => o.id === datum.id),
+                    false
+                  );
+
+                  const protectedContextsWithOverloads =
+                    contextsWithOverload.filter((c) => c.protected);
+
+                  const {
+                    impactedProtectedContexts,
+                    impactedRootProtectedContexts,
+                    unprotectedUpdateAllowed,
+                  } = analyzeUpdateImpact({
+                    contexts: contexts,
+                    project: feature.project!,
+                    tenant: tenant!,
+                    user: user!,
+                    updatedFeatureId: feature.id!,
+                  });
+
+                  if (
+                    contextsWithOverload.length > 0 &&
+                    feature.resultType !== datum.resultType
+                  ) {
+                    if (
+                      !unprotectedUpdateAllowed &&
+                      protectedContextsWithOverloads.length > 0
+                    ) {
+                      const protectedContextNames =
+                        protectedContextsWithOverloads.map((c) => {
+                          const displayname = c.parent.concat(c.name).join("/");
+                          return (
+                            <span key={displayname}>
+                              {displayname}&nbsp;
+                              {c.global && (
+                                <>
+                                  <GlobalContextIcon />
+                                  &nbsp;
+                                </>
+                              )}
+                              {c.protected && (
+                                <i
+                                  className="fa-solid fa-lock fs-6"
+                                  aria-label="protected"
+                                ></i>
+                              )}
+                            </span>
+                          );
+                        });
+
+                      askConfirmation(
+                        <>
+                          This feature has overloads for below protected
+                          contexts with result type{" "}
+                          <span className="fw-bold">{datum.resultType}</span>:
+                          <ul>
+                            {protectedContextNames.map((n, index) => (
+                              <li key={index}>{n}</li>
+                            ))}
+                          </ul>
+                          Updating feature result type to{" "}
+                          <span className="fw-bold">{feature.resultType}</span>
+                          will delete these overloads.
+                          <br />
+                          You are not allowed to delete these overload since
+                          only a project admin can update protected contexts,
+                          therefore&nbsp;
+                          <span className="fw-bold">
+                            you are not allowed to perform this operation
+                          </span>
+                          .
+                        </>
+                      );
+                    } else {
+                      return askConfirmation(
+                        <>
+                          This feature has overload for below contexts with{" "}
+                          <span className="fw-bold">{datum.resultType}</span>{" "}
+                          result type:
+                          <ul>
+                            {contextsWithOverload.map((c) => {
+                              const displayname = c.parent
+                                .concat(c.name)
+                                .join("/");
+
+                              return (
+                                <li key={displayname}>
+                                  <span>
+                                    {displayname}&nbsp;
+                                    {c.global && (
+                                      <>
+                                        <GlobalContextIcon />
+                                        &nbsp;
+                                      </>
+                                    )}
+                                    {c.protected && (
+                                      <i
+                                        className="fa-solid fa-lock fs-6"
+                                        aria-label="protected"
+                                      ></i>
+                                    )}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                          Updating result type to{" "}
+                          <span className="fw-bold">{feature.resultType}</span>{" "}
+                          will delete all these overloads, are you sure that it
+                          is what you want ?
+                        </>,
+                        () => callback(false)
+                      );
+                    }
+                  } else if (impactedRootProtectedContexts.length > 0) {
+                    setStrategyPreservation(!unprotectedUpdateAllowed);
+                    return askConfirmation(
+                      <OverloadUpdateConfirmationModal
+                        impactedProtectedContexts={impactedProtectedContexts}
+                        impactedRootProtectedContexts={
+                          impactedRootProtectedContexts
+                        }
+                        hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
+                        onstrategyPreservationUpdate={(
+                          newStrategyPreservation
+                        ) => {
+                          setStrategyPreservation(newStrategyPreservation);
+                        }}
+                        oldFeature={datum as TLightFeature}
+                        newFeature={feature as TLightFeature}
+                      />,
+                      () => callback(strategyPreservation)
                     );
                   } else {
-                    return askConfirmation(
-                      <>
-                        This feature has overload for below contexts with{" "}
-                        <span className="fw-bold">{datum.resultType}</span>{" "}
-                        result type:
-                        <ul>
-                          {contextsWithOverload.map((c) => {
-                            const displayname = c.parent
-                              .concat(c.name)
-                              .join("/");
-
-                            return (
-                              <li key={displayname}>
-                                <span>
-                                  {displayname}&nbsp;
-                                  {c.global && (
-                                    <>
-                                      <GlobalContextIcon />
-                                      &nbsp;
-                                    </>
-                                  )}
-                                  {c.protected && (
-                                    <i
-                                      className="fa-solid fa-lock fs-6"
-                                      aria-label="protected"
-                                    ></i>
-                                  )}
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        Updating result type to{" "}
-                        <span className="fw-bold">{feature.resultType}</span>{" "}
-                        will delete all these overloads, are you sure that it is
-                        what you want ?
-                      </>,
-                      () => callback(false)
-                    );
+                    return callback(false);
                   }
-                } else if (impactedRootProtectedContexts.length > 0) {
-                  setStrategyPreservation(!unprotectedUpdateAllowed);
-                  return askConfirmation(
-                    <OverloadUpdateConfirmationModal
-                      impactedProtectedContexts={impactedProtectedContexts}
-                      impactedRootProtectedContexts={
-                        impactedRootProtectedContexts
-                      }
-                      hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
-                      onstrategyPreservationUpdate={(
-                        newStrategyPreservation
-                      ) => {
-                        setStrategyPreservation(newStrategyPreservation);
-                      }}
-                      oldFeature={datum as TLightFeature}
-                      newFeature={feature as TLightFeature}
-                    />,
-                    () => callback(strategyPreservation)
-                  );
                 } else {
                   return callback(false);
                 }
@@ -1582,8 +1614,6 @@ export function FeatureTable(props: {
                 : null
             }
             onChange={(e) => {
-              // TODO
-              // * if enabled / disabled is selected, project has protected context without overlaods, display usual modal asking / imposing to protect old strategy
               if (e?.value) {
                 setBulkOperation(e.value);
               } else {
