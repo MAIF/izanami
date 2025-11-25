@@ -44,7 +44,6 @@ export function OverloadTable(props: {
   const { tenant } = useParams();
   const { fields, overloads, actions, refresh, project, contexts } = props;
   const columns: ColumnDef<TContextOverload>[] = [];
-  const [strategyPreservation, setStrategyPreservation] = useState(false);
   const updateStrategyMutation = useMutation({
     mutationFn: (
       data: TContextOverload & {
@@ -60,7 +59,7 @@ export function OverloadTable(props: {
         data.feature,
         data.enabled,
         data.resultType,
-        strategyPreservation,
+        data.strategyPreservation,
         "conditions" in data ? data.conditions : undefined,
         "wasmConfig" in data ? data.wasmConfig : undefined,
         "value" in data ? data.value : undefined
@@ -86,7 +85,7 @@ export function OverloadTable(props: {
     },
   });
 
-  const { askConfirmation, askInputConfirmation, user } =
+  const { askConfirmation, askInputConfirmation, user, displayModal } =
     useContext(IzanamiContext);
   const contextByPath = new Map(
     overloads
@@ -205,48 +204,48 @@ export function OverloadTable(props: {
                       feature.project!,
                       tenant!
                     );
-                    setStrategyPreservation(!hasUserAdminRightOnFeature);
-                    askConfirmation(
-                      <OverloadUpdateConfirmationModal
-                        impactedProtectedContexts={impactedProtectedContexts}
-                        impactedRootProtectedContexts={
-                          impactedProtectedRootContexts
-                        }
-                        hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
-                        onstrategyPreservationUpdate={(
-                          newStrategyPreservation
-                        ) => {
-                          setStrategyPreservation(newStrategyPreservation);
-                        }}
-                        oldFeature={feature as any}
-                        newFeature={
-                          {
-                            feature: feature.name,
-                            ...feature,
-                            enabled: !isEnabled,
-                          } as any
-                        }
-                      />,
-                      () =>
-                        updateStrategyMutation.mutateAsync({
-                          feature: feature.name,
-                          ...feature,
-                          enabled: !isEnabled,
-                          strategyPreservation: strategyPreservation,
-                        } as any)
-                    );
-
-                    /*askConfirmation(
-                      `Are you sure you want to ${
-                        isEnabled ? "disable" : "enable"
-                      } feature ${feature.name} for context ${context?.name} ?`,
-                      () =>
-                        updateStrategyMutation.mutateAsync({
-                          feature: feature.name,
-                          ...feature,
-                          enabled: !isEnabled,
-                        } as any)
-                    );*/
+                    if (impactedProtectedContexts.length > 0) {
+                      displayModal(({ close }) => {
+                        return (
+                          <OverloadUpdateConfirmationModal
+                            impactedProtectedContexts={
+                              impactedProtectedContexts
+                            }
+                            impactedRootProtectedContexts={
+                              impactedProtectedRootContexts
+                            }
+                            hasUserAdminRightOnFeature={
+                              hasUserAdminRightOnFeature
+                            }
+                            onCancel={() => close()}
+                            onConfirm={(strategyPreservation) => {
+                              close();
+                              return updateStrategyMutation.mutateAsync({
+                                feature: feature.name,
+                                ...feature,
+                                enabled: !isEnabled,
+                                strategyPreservation: strategyPreservation,
+                              } as any);
+                            }}
+                            oldFeature={feature as any}
+                            newFeature={
+                              {
+                                feature: feature.name,
+                                ...feature,
+                                enabled: !isEnabled,
+                              } as any
+                            }
+                          />
+                        );
+                      });
+                    } else {
+                      return updateStrategyMutation.mutateAsync({
+                        feature: feature.name,
+                        ...feature,
+                        enabled: !isEnabled,
+                        strategyPreservation: false,
+                      } as any);
+                    }
                   }}
                 />
                 &nbsp;
@@ -368,34 +367,44 @@ export function OverloadTable(props: {
                     datum.project!,
                     tenant!
                   );
-                  setStrategyPreservation(!hasUserAdminRightOnFeature);
-                  askConfirmation(
-                    <OverloadUpdateConfirmationModal
-                      impactedProtectedContexts={impactedProtectedContexts}
-                      impactedRootProtectedContexts={
-                        impactedProtectedRootContexts
-                      }
-                      hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
-                      onstrategyPreservationUpdate={(
-                        newStrategyPreservation
-                      ) => {
-                        setStrategyPreservation(newStrategyPreservation);
-                      }}
-                      oldFeature={datum as any}
-                      newFeature={overload as any}
-                    />,
-                    () =>
-                      updateStrategyMutation.mutateAsync(
-                        {
-                          feature: overload.name,
-                          ...overload,
-                          strategyPreservation: strategyPreservation,
-                        } as any,
-                        {
-                          onSuccess: () => cancel(),
+
+                  if (impactedProtectedContexts.length > 0) {
+                    return displayModal(({ close }) => (
+                      <OverloadUpdateConfirmationModal
+                        impactedProtectedContexts={impactedProtectedContexts}
+                        impactedRootProtectedContexts={
+                          impactedProtectedRootContexts
                         }
-                      )
-                  );
+                        hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
+                        oldFeature={datum as any}
+                        newFeature={overload as any}
+                        onCancel={() => close()}
+                        onConfirm={(strategyPreservation) =>
+                          updateStrategyMutation.mutateAsync(
+                            {
+                              feature: overload.name,
+                              ...overload,
+                              strategyPreservation: strategyPreservation,
+                            } as any,
+                            {
+                              onSuccess: () => cancel(),
+                            }
+                          )
+                        }
+                      />
+                    ));
+                  } else {
+                    updateStrategyMutation.mutateAsync(
+                      {
+                        feature: overload.name,
+                        ...overload,
+                        strategyPreservation: false,
+                      } as any,
+                      {
+                        onSuccess: () => cancel(),
+                      }
+                    );
+                  }
                 }
               }}
               cancel={cancel}

@@ -97,11 +97,10 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
         <ul>
           {Object.entries(impactedContexts).map(([ctx, features]) => (
             <li key={ctx}>
-              {ctx} (
+              {ctx}
               {!singleFeature && (
-                <span className="fw-bold">{features.join(", ")}</span>
+                <span className="fw-bold">({features.join(", ")})</span>
               )}
-              )
             </li>
           ))}
         </ul>
@@ -219,7 +218,10 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
             const names = featureEntries.map(
               ({ oldFeature }) => oldFeature.name
             );
-            if (names.some((name) => name === confirmationText)) {
+            if (
+              strategyPreservation ||
+              names.some((name) => name === confirmationText)
+            ) {
               onConfirm(strategyPreservation).then(() => onCancel());
             } else {
               setError("Name does not match");

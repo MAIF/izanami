@@ -918,7 +918,14 @@ export function FeatureTable(props: {
       strategyPreservation: boolean;
       id: string;
       feature: Omit<TCompleteFeature, "stale" | "creationDate">;
-    }) => updateFeature(tenant!, data.id, strategyPreservation, data.feature),
+    }) => {
+      return updateFeature(
+        tenant!,
+        data.id,
+        data.strategyPreservation,
+        data.feature
+      );
+    },
 
     onSuccess: () => {
       refresh();
@@ -1801,10 +1808,6 @@ export function FeatureTable(props: {
                     bulkOperation === "Transfer") &&
                   forbiddenOverloadToDelete.size > 0
                 ) {
-                  console.log(
-                    "forbiddenOverloadToDelete",
-                    forbiddenOverloadToDelete
-                  );
                   return askConfirmation(
                     <div
                       style={{
