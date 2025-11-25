@@ -1131,35 +1131,50 @@ export function FeatureTable(props: {
                       contexts: contexts,
                     });
 
-                    displayModal(({ close }) => {
-                      return (
-                        <OverloadUpdateConfirmationModal
-                          onCancel={() => close()}
-                          onConfirm={(strategyPreservation) => {
-                            return featureUpdateMutation.mutateAsync({
-                              strategyPreservation,
-                              id: feature.id!,
-                              feature: {
+                    if (impactedProtectedContexts.length > 0) {
+                      displayModal(({ close }) => {
+                        return (
+                          <OverloadUpdateConfirmationModal
+                            onCancel={() => close()}
+                            onConfirm={(strategyPreservation) => {
+                              return featureUpdateMutation.mutateAsync({
+                                strategyPreservation,
+                                id: feature.id!,
+                                feature: {
+                                  ...feature,
+                                  enabled: !isEnabled,
+                                },
+                              });
+                            }}
+                            impactedProtectedContexts={
+                              impactedProtectedContexts
+                            }
+                            impactedRootProtectedContexts={
+                              impactedRootProtectedContexts
+                            }
+                            hasUserAdminRightOnFeature={
+                              unprotectedUpdateAllowed
+                            }
+                            oldFeature={feature as TLightFeature}
+                            newFeature={
+                              {
                                 ...feature,
                                 enabled: !isEnabled,
-                              },
-                            });
-                          }}
-                          impactedProtectedContexts={impactedProtectedContexts}
-                          impactedRootProtectedContexts={
-                            impactedRootProtectedContexts
-                          }
-                          hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
-                          oldFeature={feature as TLightFeature}
-                          newFeature={
-                            {
-                              ...feature,
-                              enabled: !isEnabled,
-                            } as any
-                          }
-                        />
-                      );
-                    });
+                              } as any
+                            }
+                          />
+                        );
+                      });
+                    } else {
+                      featureUpdateMutation.mutateAsync({
+                        strategyPreservation: false,
+                        id: feature.id!,
+                        feature: {
+                          ...feature,
+                          enabled: !isEnabled,
+                        },
+                      });
+                    }
                   }}
                 />
                 &nbsp;
@@ -1245,11 +1260,6 @@ export function FeatureTable(props: {
       },
     });
   }
-
-  const [strategyPreservation, setStrategyPreservation] = useState(false);
-  const [confirmationText, setConfirmationText] = useState<undefined | string>(
-    undefined
-  );
 
   const customActions: { [x: string]: TCustomAction<TLightFeature> } = {
     edit: {
