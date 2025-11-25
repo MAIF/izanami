@@ -238,6 +238,26 @@ export function OverloadTable(props: {
                           />
                         );
                       });
+                    } else if (contextByPath.get(feature.path)) {
+                      askInputConfirmation(
+                        <>
+                          <p>
+                            This context is protected, are you sure you want to
+                            update{" "}
+                            <span className="fw-bold">{feature.name}</span>{" "}
+                            strategy for it ?
+                          </p>
+                          <p>Type feature name below to confirm</p>
+                        </>,
+                        () =>
+                          updateStrategyMutation.mutateAsync({
+                            feature: feature.name,
+                            ...feature,
+                            enabled: !isEnabled,
+                            strategyPreservation: false,
+                          } as any),
+                        feature.name
+                      );
                     } else {
                       return updateStrategyMutation.mutateAsync({
                         feature: feature.name,
