@@ -377,11 +377,11 @@ function TransferForm(props: {
   project: string;
   feature: TLightFeature;
   cancel: () => void;
+  validationCallback: (features: TLightFeature[]) => Promise<any>;
 }) {
-  const { project, tenant, feature, cancel } = props;
+  const { project, tenant, feature, cancel, validationCallback } = props;
   const projectQuery = useQuery({
     queryKey: [tenantQueryKey(tenant)],
-
     queryFn: () => queryTenant(tenant),
   });
 
@@ -429,9 +429,11 @@ function TransferForm(props: {
           },
         }}
         onSubmit={(data) => {
-          return askConfirmation(
-            "Transferring this feature will delete existing local overloads (if any), are you sure ?",
-            () => featureUpdateMutation.mutateAsync(data as any)
+          return validationCallback([feature]).then(() =>
+            askConfirmation(
+              "Transferring this feature will delete existing local overloads (if any), are you sure ?",
+              () => featureUpdateMutation.mutateAsync(data as any)
+            )
           );
         }}
         onClose={() => cancel()}
@@ -908,7 +910,7 @@ export function FeatureTable(props: {
 
   const columns: ColumnDef<TLightFeature>[] = [];
 
-  const { askConfirmation, user, askInputConfirmation } =
+  const { askConfirmation, displayModal, user, askInputConfirmation } =
     React.useContext(IzanamiContext);
 
   const featureUpdateMutation = useMutation({
@@ -1122,37 +1124,35 @@ export function FeatureTable(props: {
                       contexts: contexts,
                     });
 
-                    setStrategyPreservation(!unprotectedUpdateAllowed);
-                    askConfirmation(
-                      <OverloadUpdateConfirmationModal
-                        impactedProtectedContexts={impactedProtectedContexts}
-                        impactedRootProtectedContexts={
-                          impactedRootProtectedContexts
-                        }
-                        hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
-                        onstrategyPreservationUpdate={(
-                          newStrategyPreservation
-                        ) => {
-                          setStrategyPreservation(newStrategyPreservation);
-                        }}
-                        oldFeature={feature as TLightFeature}
-                        newFeature={
-                          {
-                            ...feature,
-                            enabled: !isEnabled,
-                          } as any
-                        }
-                      />,
-                      () =>
-                        featureUpdateMutation.mutateAsync({
-                          strategyPreservation,
-                          id: feature.id!,
-                          feature: {
-                            ...feature,
-                            enabled: !isEnabled,
-                          },
-                        })
-                    );
+                    displayModal(({ close }) => {
+                      return (
+                        <OverloadUpdateConfirmationModal
+                          onCancel={() => close()}
+                          onConfirm={(strategyPreservation) => {
+                            return featureUpdateMutation.mutateAsync({
+                              strategyPreservation,
+                              id: feature.id!,
+                              feature: {
+                                ...feature,
+                                enabled: !isEnabled,
+                              },
+                            });
+                          }}
+                          impactedProtectedContexts={impactedProtectedContexts}
+                          impactedRootProtectedContexts={
+                            impactedRootProtectedContexts
+                          }
+                          hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
+                          oldFeature={feature as TLightFeature}
+                          newFeature={
+                            {
+                              ...feature,
+                              enabled: !isEnabled,
+                            } as any
+                          }
+                        />
+                      );
+                    });
                   }}
                 />
                 &nbsp;
@@ -1240,6 +1240,9 @@ export function FeatureTable(props: {
   }
 
   const [strategyPreservation, setStrategyPreservation] = useState(false);
+  const [confirmationText, setConfirmationText] = useState<undefined | string>(
+    undefined
+  );
 
   const customActions: { [x: string]: TCustomAction<TLightFeature> } = {
     edit: {
@@ -1426,24 +1429,23 @@ export function FeatureTable(props: {
                       );
                     }
                   } else if (impactedRootProtectedContexts.length > 0) {
-                    setStrategyPreservation(!unprotectedUpdateAllowed);
-                    return askConfirmation(
-                      <OverloadUpdateConfirmationModal
-                        impactedProtectedContexts={impactedProtectedContexts}
-                        impactedRootProtectedContexts={
-                          impactedRootProtectedContexts
-                        }
-                        hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
-                        onstrategyPreservationUpdate={(
-                          newStrategyPreservation
-                        ) => {
-                          setStrategyPreservation(newStrategyPreservation);
-                        }}
-                        oldFeature={datum as TLightFeature}
-                        newFeature={feature as TLightFeature}
-                      />,
-                      () => callback(strategyPreservation)
-                    );
+                    return displayModal(({ close }) => {
+                      return (
+                        <OverloadUpdateConfirmationModal
+                          impactedProtectedContexts={impactedProtectedContexts}
+                          impactedRootProtectedContexts={
+                            impactedRootProtectedContexts
+                          }
+                          hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
+                          oldFeature={datum as TLightFeature}
+                          newFeature={feature as TLightFeature}
+                          onCancel={() => close()}
+                          onConfirm={(strategyPreservation) =>
+                            callback(strategyPreservation)
+                          }
+                        />
+                      );
+                    });
                   } else {
                     return callback(false);
                   }
@@ -1538,6 +1540,66 @@ export function FeatureTable(props: {
               tenant={tenant!}
               feature={datum}
               cancel={cancel}
+              validationCallback={([feature]) => {
+                const contexts = contextQueries.flatMap(
+                  (ctxq) => ctxq.data ?? []
+                );
+                const protectedOverloads = findOverloadsForFeature(
+                  feature.name,
+                  contexts,
+                  (ctx) => ctx.protected
+                );
+                if (
+                  !hasRightForProject(
+                    user!,
+                    TLevel.Admin,
+                    feature.project!,
+                    tenant!
+                  )
+                ) {
+                  return askConfirmation(
+                    <>
+                      <h3>Operation not permitted</h3>
+                      <div>
+                        {feature.name} have overload in below protected contexts
+                      </div>
+                      <ul>
+                        {protectedOverloads.map((o) => (
+                          <li key={o.path}>{o.path}</li>
+                        ))}
+                      </ul>
+                      <p>
+                        Transferring this feature would delete these overloads.
+                        You don't have admin right on this project,{" "}
+                        <span className="fw-bold">
+                          therefore you can't transfer this feature.
+                        </span>
+                      </p>
+                    </>
+                  );
+                }
+
+                return askInputConfirmation(
+                  <>
+                    <h3>Transfer confirmation</h3>
+                    <div>
+                      {feature.name} have overload in below protected contexts
+                    </div>
+                    <ul>
+                      {protectedOverloads.map((o) => (
+                        <li key={o.path}>{o.path}</li>
+                      ))}
+                    </ul>
+                    <p>
+                      Transferring {feature.name} will delete{" "}
+                      <span className="fw-bold">all associated overloads</span>.
+                    </p>
+                    Type feature name below to confirm.
+                  </>,
+                  () => featureDeleteMutation.mutateAsync(feature.id!),
+                  feature.name
+                );
+              }}
             />
           </div>
         );
@@ -1828,15 +1890,22 @@ export function FeatureTable(props: {
                     );
 
                   if (Object.entries(impactByFeature).length > 0) {
-                    return askConfirmation(
+                    let ok = false; // FIXME this is ugly
+                    return displayModal(({ close }) => (
                       <MultiFeatureOverloadUpdateConfirmationModal
                         features={impactByFeature}
-                        onStrategyPreservationUpdate={(v) =>
-                          setStrategyPreservation(v)
-                        }
-                      />,
-                      () => Promise.resolve()
-                    );
+                        onCancel={() => close()}
+                        onConfirm={() => {
+                          ok = true;
+                          close();
+                          return Promise.resolve();
+                        }}
+                      />
+                    )).then(() => {
+                      if (!ok) {
+                        throw new Error("");
+                      }
+                    });
                   } else {
                     return Promise.resolve();
                   }
