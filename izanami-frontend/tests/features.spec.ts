@@ -240,7 +240,6 @@ test.describe("Project screen should", () => {
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
     await page.getByRole("button", { name: "Enable 3 features" }).click();
-    await page.getByRole("button", { name: "Confirm" }).click();
     await expect(page.getByRole("cell", { name: "Enabled" })).toHaveCount(3);
 
     await page.getByRole("checkbox", { name: "select all rows" }).check();
@@ -250,7 +249,6 @@ test.describe("Project screen should", () => {
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
     await page.getByRole("button", { name: "Disable 3 features" }).click();
-    await page.getByRole("button", { name: "Confirm" }).click();
     await expect(page.getByRole("cell", { name: "Disabled" })).toHaveCount(3);
   });
 

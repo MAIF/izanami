@@ -1662,29 +1662,38 @@ export function FeatureTable(props: {
               </p>
             </>
           );
+        } else if (protectedOverloads.length > 0) {
+          return askInputConfirmation(
+            <>
+              <h3>Delete confirmation</h3>
+              <div>
+                Feature <span className="fw-bold">{feature.name}</span> have
+                overload(s) in below protected context(s)
+              </div>
+              <ul>
+                {protectedOverloads.map((o) => (
+                  <li key={o.path}>{o.path}</li>
+                ))}
+              </ul>
+              <p>
+                Deleting {feature.name} will delete{" "}
+                <span className="fw-bold">all associated overloads</span>.
+              </p>
+              Type feature name below to confirm.
+            </>,
+            () => featureDeleteMutation.mutateAsync(feature.id!),
+            feature.name
+          );
+        } else {
+          return askConfirmation(
+            <>
+              <h3>Delete confirmation</h3>
+              Are you sure you want to delete feature{" "}
+              <span className="fw-bold">{feature.name}</span> ?
+            </>,
+            () => featureDeleteMutation.mutateAsync(feature.id!)
+          );
         }
-
-        return askInputConfirmation(
-          <>
-            <h3>Delete confirmation</h3>
-            <div>
-              Feature {feature.name} have overload(s) in below protected
-              context(s)
-            </div>
-            <ul>
-              {protectedOverloads.map((o) => (
-                <li key={o.path}>{o.path}</li>
-              ))}
-            </ul>
-            <p>
-              Deleting {feature.name} will delete{" "}
-              <span className="fw-bold">all associated overloads</span>.
-            </p>
-            Type feature name below to confirm.
-          </>,
-          () => featureDeleteMutation.mutateAsync(feature.id!),
-          feature.name
-        );
       },
     },
     url: {
@@ -1907,8 +1916,10 @@ export function FeatureTable(props: {
                         };
                       }
                     );
-
-                  if (Object.entries(impactByFeature).length > 0) {
+                  const hasProtectedContextImpact = Object.values(
+                    impactByFeature
+                  ).some((i) => i.impactedProtectedContexts.length > 0);
+                  if (hasProtectedContextImpact) {
                     let ok = false; // FIXME this is ugly
                     return displayModal(({ close }) => (
                       <MultiFeatureOverloadUpdateConfirmationModal
