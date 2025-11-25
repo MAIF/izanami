@@ -360,7 +360,7 @@ export function OverloadTable(props: {
                       );
                     },
                     datum.name,
-                    `Updating feature ${datum}`
+                    `Updating feature ${datum.name}`
                   );
                 } else {
                   const impactedProtectedContexts =
@@ -481,12 +481,13 @@ export function OverloadTable(props: {
         if (context?.protected) {
           return askInputConfirmation(
             <>
-              Are you sure you want to delete feature {overload.name} overload
-              for context {context?.name} ?<br />
+              Are you sure you want to delete feature{" "}
+              <span className="fw-bold">{overload.name}</span> overload for
+              context {context?.name} ?<br />
               Please confirm by typing feature name below.
               <LocalToolTip id="overload-delete-confirmation">
-                Typing feature name is required since this overload is for a
-                protected context.
+                Typing feature name is required since this {context.name} is
+                protected.
               </LocalToolTip>
             </>,
             () =>
@@ -499,7 +500,11 @@ export function OverloadTable(props: {
           );
         } else {
           return askConfirmation(
-            `Are you sure you want to delete feature ${overload.name} overload for context ${context?.name} ?`,
+            <>
+              Are you sure you want to delete feature{" "}
+              <span className="fw-bold">{overload.name}</span> overload for
+              context {context?.name} ?
+            </>,
             () =>
               deleteStrategyMutation.mutateAsync({
                 feature: overload.name,

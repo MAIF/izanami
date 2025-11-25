@@ -81,157 +81,159 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
 
   return (
     <>
-      <div className="modal-header">
-        <h3>Protected contexts impacts</h3>
-      </div>
-      <div className="modal-body">
-        Updating{" "}
-        {singleFeature ? (
-          <span className="fw-bold">{singleFeature}</span>
-        ) : (
-          "these features"
-        )}{" "}
-        will impact below protected contexts, since neither them nor their
-        parents define overload for{" "}
-        {singleFeature ? "this feature" : "these features"}:
-        <ul>
-          {Object.entries(impactedContexts).map(([ctx, features]) => (
-            <li key={ctx}>
-              {ctx}
-              {!singleFeature && (
-                <span className="fw-bold">({features.join(", ")})</span>
-              )}
-            </li>
-          ))}
-        </ul>
-        {Object.keys(forbiddenUpdateByProject).length === 0 ? (
-          <>
-            These contexts strategies can be left unchanged by duplicating old
-            strategy in below contexts:
-            <ul>
-              {Object.entries(rootImpactedContexts).map(([ctx, features]) => {
-                return (
-                  <li key={ctx}>
-                    {ctx}
-                    {!singleFeature && `(${features.join(",")})`}
-                  </li>
-                );
-              })}
-            </ul>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <input
-                style={{ marginTop: 0 }}
-                type="checkbox"
-                checked={strategyPreservation}
-                className="izanami-checkbox"
-                onChange={(e) => {
-                  setError(undefined);
-                  setStrategyPreservation(e.target.checked);
-                }}
-              ></input>
-              &nbsp;
-              <span style={{ fontSize: "16px" }}>
-                Duplicate old strategy for these contexts
-              </span>
-            </label>
-            {!strategyPreservation && (
-              <div
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const names = featureEntries.map(({ oldFeature }) => oldFeature.name);
+          if (
+            strategyPreservation ||
+            names.some((name) => name === confirmationText)
+          ) {
+            onConfirm(strategyPreservation).then(() => onCancel());
+          } else {
+            setError("Name does not match");
+          }
+        }}
+      >
+        <div className="modal-header">
+          <h3>Protected contexts impacts</h3>
+        </div>
+        <div className="modal-body">
+          Updating{" "}
+          {singleFeature ? (
+            <span className="fw-bold">{singleFeature}</span>
+          ) : (
+            "these features"
+          )}{" "}
+          will impact below protected contexts, since neither them nor their
+          parents define overload for{" "}
+          {singleFeature ? "this feature" : "these features"}:
+          <ul>
+            {Object.entries(impactedContexts).map(([ctx, features]) => (
+              <li key={ctx}>
+                {ctx}
+                {!singleFeature && (
+                  <span className="fw-bold">({features.join(", ")})</span>
+                )}
+              </li>
+            ))}
+          </ul>
+          {Object.keys(forbiddenUpdateByProject).length === 0 ? (
+            <>
+              These contexts strategies can be left unchanged by duplicating old
+              strategy in below contexts:
+              <ul>
+                {Object.entries(rootImpactedContexts).map(([ctx, features]) => {
+                  return (
+                    <li key={ctx}>
+                      {ctx}
+                      {!singleFeature && `(${features.join(",")})`}
+                    </li>
+                  );
+                })}
+              </ul>
+              <label
                 style={{
-                  marginTop: "1rem",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  flexDirection: "column",
-                  fontSize: "16px",
-                  fontWeight: "bold",
                 }}
               >
-                <label
+                <input
+                  style={{ marginTop: 0 }}
+                  type="checkbox"
+                  checked={strategyPreservation}
+                  className="izanami-checkbox"
+                  onChange={(e) => {
+                    setError(undefined);
+                    setStrategyPreservation(e.target.checked);
+                  }}
+                ></input>
+                &nbsp;
+                <span style={{ fontSize: "16px" }}>
+                  Duplicate old strategy for these contexts
+                </span>
+              </label>
+              {!strategyPreservation && (
+                <div
                   style={{
+                    marginTop: "1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexDirection: "column",
                     fontSize: "16px",
-                    maxWidth: "400px",
+                    fontWeight: "bold",
                   }}
                 >
-                  <span style={{ alignSelf: "flex-start" }}>
-                    Type{" "}
-                    {singleFeature
-                      ? "feature name"
-                      : "one of the feature names"}{" "}
-                    below to confirm.
-                  </span>
-                  <input
-                    className="form-control"
-                    type="text"
-                    onChange={(e) => {
-                      setError(undefined);
-                      setConfirmationText(e?.target?.value);
+                  <label
+                    style={{
+                      fontSize: "16px",
+                      maxWidth: "400px",
                     }}
-                  />
-                  {error && <div className="error-message">{error}</div>}
-                </label>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            You don't have enough rights to update these contexts, therefore{" "}
-            <span className="fw-bold">
-              old {singleFeature ? "strategy" : "strategies"} will be applied to
-              below contexts
-            </span>
-            :
-            <ul>
-              {Object.entries(rootImpactedContexts).map(([ctx, features]) => {
-                return (
-                  <li key={ctx}>
-                    {ctx}
-                    {!singleFeature && `(${features.join(",")})`}
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        )}
-        <h4>Changes</h4>
-        <FeaturesDiffs oldNewfeatures={oldNewFeatures} />
-      </div>
-      <div className="modal-footer">
-        <button
-          type="button"
-          className="btn btn-danger-light"
-          data-bs-dismiss="modal"
-          onClick={() => onCancel()}
-        >
-          Close
-        </button>
+                  >
+                    <span style={{ alignSelf: "flex-start" }}>
+                      Type{" "}
+                      {singleFeature
+                        ? "feature name"
+                        : "one of the feature names"}{" "}
+                      below to confirm.
+                    </span>
+                    <input
+                      className="form-control"
+                      type="text"
+                      onChange={(e) => {
+                        setError(undefined);
+                        setConfirmationText(e?.target?.value);
+                      }}
+                    />
+                    {error && <div className="error-message">{error}</div>}
+                  </label>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              You don't have enough rights to update these contexts, therefore{" "}
+              <span className="fw-bold">
+                old {singleFeature ? "strategy" : "strategies"} will be applied
+                to below contexts
+              </span>
+              :
+              <ul>
+                {Object.entries(rootImpactedContexts).map(([ctx, features]) => {
+                  return (
+                    <li key={ctx}>
+                      {ctx}
+                      {!singleFeature && `(${features.join(",")})`}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+          <h4>Changes</h4>
+          <FeaturesDiffs oldNewfeatures={oldNewFeatures} />
+        </div>
+        <div className="modal-footer">
+          <button
+            type="button"
+            className="btn btn-danger-light"
+            data-bs-dismiss="modal"
+            onClick={() => onCancel()}
+          >
+            Close
+          </button>
 
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => {
-            const names = featureEntries.map(
-              ({ oldFeature }) => oldFeature.name
-            );
-            if (
-              strategyPreservation ||
-              names.some((name) => name === confirmationText)
-            ) {
-              onConfirm(strategyPreservation).then(() => onCancel());
-            } else {
-              setError("Name does not match");
-            }
-          }}
-          aria-label="Confirm"
-        >
-          Confirm
-        </button>
-      </div>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            aria-label="Confirm"
+          >
+            Confirm
+          </button>
+        </div>
+      </form>
     </>
   );
 }

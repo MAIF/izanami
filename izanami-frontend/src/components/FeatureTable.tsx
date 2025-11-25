@@ -1578,7 +1578,8 @@ export function FeatureTable(props: {
                     <>
                       <h3>Operation not permitted</h3>
                       <div>
-                        {feature.name} have overload in below protected contexts
+                        Feature {feature.name} have overload(s) in below
+                        protected context(s)
                       </div>
                       <ul>
                         {protectedOverloads.map((o) => (
@@ -1600,7 +1601,8 @@ export function FeatureTable(props: {
                   <>
                     <h3>Transfer confirmation</h3>
                     <div>
-                      {feature.name} have overload in below protected contexts
+                      Feature <span className="fw-bold">{feature.name}</span>{" "}
+                      have overload(s) in below protected context(s)
                     </div>
                     <ul>
                       {protectedOverloads.map((o) => (
@@ -1646,7 +1648,8 @@ export function FeatureTable(props: {
             <>
               <h3>Operation not permitted</h3>
               <div>
-                {feature.name} have overload in below protected contexts
+                Feature {feature.name} have overload(s) in below protected
+                context(s)
               </div>
               <ul>
                 {protectedOverloads.map((o) => (
@@ -1664,7 +1667,10 @@ export function FeatureTable(props: {
         return askInputConfirmation(
           <>
             <h3>Delete confirmation</h3>
-            <div>{feature.name} have overload in below protected contexts</div>
+            <div>
+              Feature {feature.name} have overload(s) in below protected
+              context(s)
+            </div>
             <ul>
               {protectedOverloads.map((o) => (
                 <li key={o.path}>{o.path}</li>
