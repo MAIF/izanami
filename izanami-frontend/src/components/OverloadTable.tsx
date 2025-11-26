@@ -19,6 +19,7 @@ import {
   IzanamiContext,
 } from "../securityContext";
 import {
+  analyzeUpdateImpact,
   findContextForPath,
   findImpactedProtectedContexts,
 } from "../utils/contextUtils";
@@ -29,6 +30,7 @@ import { TextualFeatureDetails } from "./FeatureDetails";
 import { OverloadCreationForm } from "./OverloadCreationForm";
 import { ExistingFeatureTestForm } from "./ExistingFeatureTestForm";
 import { GenericTable } from "./GenericTable";
+import { over } from "lodash";
 
 type OverloadFields = "name" | "enabled" | "details" | "path" | "linkedPath";
 type OverloadActionNames = "delete" | "edit" | "test";
@@ -180,91 +182,79 @@ export function OverloadTable(props: {
                     feature.name
                   }`}
                   onChange={() => {
-                    const impactedProtectedContexts =
-                      findImpactedProtectedContexts({
-                        project: feature.project!,
-                        contexts: contexts,
-                        featureId: feature.id,
-                        from: feature.path,
-                        rootOnly: false,
-                      });
+                    const context = contextByPath.get(feature.path);
+                    const {
+                      impactedProtectedContexts,
+                      impactedRootProtectedContexts,
+                      unprotectedUpdateAllowed,
+                    } = analyzeUpdateImpact({
+                      contexts: contexts,
+                      project: feature.project!,
+                      tenant: tenant!,
+                      user: user!,
+                      updatedFeatureId: feature.id,
+                      updatedContext: feature.path ?? "" + "/" + context?.name,
+                    });
 
-                    const impactedProtectedRootContexts =
-                      findImpactedProtectedContexts({
-                        project: feature.project!,
-                        contexts: contexts,
-                        featureId: feature.id,
-                        from: feature.path,
-                        rootOnly: true,
-                      });
-
-                    const hasUserAdminRightOnFeature = hasRightForProject(
-                      user!,
-                      TProjectLevel.Admin,
-                      feature.project!,
-                      tenant!
-                    );
-                    if (impactedProtectedContexts.length > 0) {
-                      displayModal(({ close }) => {
-                        return (
-                          <OverloadUpdateConfirmationModal
-                            impactedProtectedContexts={
-                              impactedProtectedContexts
-                            }
-                            impactedRootProtectedContexts={
-                              impactedProtectedRootContexts
-                            }
-                            hasUserAdminRightOnFeature={
-                              hasUserAdminRightOnFeature
-                            }
-                            onCancel={() => close()}
-                            onConfirm={(strategyPreservation) => {
-                              close();
-                              return updateStrategyMutation.mutateAsync({
-                                feature: feature.name,
-                                ...feature,
-                                enabled: !isEnabled,
-                                strategyPreservation: strategyPreservation,
-                              } as any);
-                            }}
-                            oldFeature={feature as any}
-                            newFeature={
-                              {
-                                feature: feature.name,
-                                ...feature,
-                                enabled: !isEnabled,
-                              } as any
-                            }
-                          />
-                        );
-                      });
-                    } else if (contextByPath.get(feature.path)) {
+                    if (
+                      context?.protected &&
+                      impactedProtectedContexts.length === 0
+                    ) {
                       askInputConfirmation(
                         <>
-                          <p>
-                            This context is protected, are you sure you want to
-                            update{" "}
-                            <span className="fw-bold">{feature.name}</span>{" "}
-                            strategy for it ?
-                          </p>
-                          <p>Type feature name below to confirm</p>
+                          Updating this overload will impact protected context{" "}
+                          {context.name}.<br />
+                          Please type feature name below to confirm.
+                          <LocalToolTip id="overload-update-confirmation">
+                            Typing feature name is required since this overload
+                            is for a protected context.
+                          </LocalToolTip>
                         </>,
-                        () =>
-                          updateStrategyMutation.mutateAsync({
+                        () => {
+                          return updateStrategyMutation.mutateAsync({
                             feature: feature.name,
+                            project: feature.project!,
                             ...feature,
                             enabled: !isEnabled,
                             strategyPreservation: false,
-                          } as any),
-                        feature.name
+                          });
+                        },
+                        feature.name,
+                        `Updating feature ${feature.name}`
                       );
+                    } else if (impactedProtectedContexts.length > 0) {
+                      return displayModal(({ close }) => (
+                        <OverloadUpdateConfirmationModal
+                          impactedProtectedContexts={impactedProtectedContexts}
+                          impactedRootProtectedContexts={
+                            impactedRootProtectedContexts
+                          }
+                          hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
+                          oldFeature={feature as any}
+                          newFeature={
+                            { ...feature, enabled: !isEnabled } as any
+                          }
+                          onCancel={() => close()}
+                          onConfirm={(strategyPreservation) =>
+                            updateStrategyMutation.mutateAsync({
+                              feature: feature.name,
+                              project: feature.project!,
+                              ...feature,
+                              enabled: !isEnabled,
+                              strategyPreservation: strategyPreservation,
+                            })
+                          }
+                          context={feature.path}
+                        />
+                      ));
                     } else {
-                      return updateStrategyMutation.mutateAsync({
+                      updateStrategyMutation.mutateAsync({
                         feature: feature.name,
+                        project: feature.project!,
                         ...feature,
                         enabled: !isEnabled,
                         strategyPreservation: false,
-                      } as any);
+                      });
                     }
                   }}
                 />
@@ -337,7 +327,23 @@ export function OverloadTable(props: {
               project={datum.project!}
               defaultValue={datum}
               submit={(overload) => {
-                if (context?.protected) {
+                const {
+                  impactedProtectedContexts,
+                  impactedRootProtectedContexts,
+                  unprotectedUpdateAllowed,
+                } = analyzeUpdateImpact({
+                  contexts: contexts,
+                  project: datum.project!,
+                  tenant: tenant!,
+                  user: user!,
+                  updatedFeatureId: datum.id,
+                  updatedContext: datum.path ?? "" + "/" + context?.name,
+                });
+
+                if (
+                  context?.protected &&
+                  impactedProtectedContexts.length === 0
+                ) {
                   askInputConfirmation(
                     <>
                       Updating this overload will impact protected context{" "}
@@ -362,69 +368,43 @@ export function OverloadTable(props: {
                     datum.name,
                     `Updating feature ${datum.name}`
                   );
-                } else {
-                  const impactedProtectedContexts =
-                    findImpactedProtectedContexts({
-                      project: datum.project!,
-                      contexts: contexts,
-                      featureId: datum.id,
-                      rootOnly: false,
-                      from: datum.path,
-                    });
-
-                  const impactedProtectedRootContexts =
-                    findImpactedProtectedContexts({
-                      project: datum.project!,
-                      contexts: contexts,
-                      featureId: datum.id,
-                      rootOnly: true,
-                      from: datum.path,
-                    });
-
-                  const hasUserAdminRightOnFeature = hasRightForProject(
-                    user!,
-                    TProjectLevel.Admin,
-                    datum.project!,
-                    tenant!
-                  );
-
-                  if (impactedProtectedContexts.length > 0) {
-                    return displayModal(({ close }) => (
-                      <OverloadUpdateConfirmationModal
-                        impactedProtectedContexts={impactedProtectedContexts}
-                        impactedRootProtectedContexts={
-                          impactedProtectedRootContexts
-                        }
-                        hasUserAdminRightOnFeature={hasUserAdminRightOnFeature}
-                        oldFeature={datum as any}
-                        newFeature={overload as any}
-                        onCancel={() => close()}
-                        onConfirm={(strategyPreservation) =>
-                          updateStrategyMutation.mutateAsync(
-                            {
-                              feature: overload.name,
-                              ...overload,
-                              strategyPreservation: strategyPreservation,
-                            } as any,
-                            {
-                              onSuccess: () => cancel(),
-                            }
-                          )
-                        }
-                      />
-                    ));
-                  } else {
-                    updateStrategyMutation.mutateAsync(
-                      {
-                        feature: overload.name,
-                        ...overload,
-                        strategyPreservation: false,
-                      } as any,
-                      {
-                        onSuccess: () => cancel(),
+                } else if (impactedProtectedContexts.length > 0) {
+                  return displayModal(({ close }) => (
+                    <OverloadUpdateConfirmationModal
+                      impactedProtectedContexts={impactedProtectedContexts}
+                      impactedRootProtectedContexts={
+                        impactedRootProtectedContexts
                       }
-                    );
-                  }
+                      hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
+                      oldFeature={datum as any}
+                      newFeature={overload as any}
+                      onCancel={() => close()}
+                      onConfirm={(strategyPreservation) =>
+                        updateStrategyMutation.mutateAsync(
+                          {
+                            feature: overload.name,
+                            ...overload,
+                            strategyPreservation: strategyPreservation,
+                          } as any,
+                          {
+                            onSuccess: () => cancel(),
+                          }
+                        )
+                      }
+                      context={datum.path}
+                    />
+                  ));
+                } else {
+                  updateStrategyMutation.mutateAsync(
+                    {
+                      feature: overload.name,
+                      ...overload,
+                      strategyPreservation: false,
+                    } as any,
+                    {
+                      onSuccess: () => cancel(),
+                    }
+                  );
                 }
               }}
               cancel={cancel}
@@ -478,16 +458,29 @@ export function OverloadTable(props: {
       },
       action: (overload: TContextOverload) => {
         const context = contextByPath.get(overload.path);
-        if (context?.protected) {
-          return askInputConfirmation(
+
+        const {
+          impactedProtectedContexts,
+          impactedRootProtectedContexts,
+          unprotectedUpdateAllowed,
+        } = analyzeUpdateImpact({
+          contexts: contexts,
+          project: overload.project!,
+          tenant: tenant!,
+          user: user!,
+          updatedFeatureId: overload.id,
+          updatedContext: overload.path ?? "" + "/" + context?.name,
+        });
+
+        if (context?.protected && impactedProtectedContexts.length === 0) {
+          askInputConfirmation(
             <>
-              Are you sure you want to delete feature{" "}
-              <span className="fw-bold">{overload.name}</span> overload for
-              context {context?.name} ?<br />
-              Please confirm by typing feature name below.
-              <LocalToolTip id="overload-delete-confirmation">
-                Typing feature name is required since this {context.name} is
-                protected.
+              Deleting this overload will impact protected context{" "}
+              {context.name}.<br />
+              Please type feature name below to confirm.
+              <LocalToolTip id="overload-update-confirmation">
+                Typing feature name is required since this overload is for a
+                protected context.
               </LocalToolTip>
             </>,
             () =>
@@ -496,22 +489,35 @@ export function OverloadTable(props: {
                 path: overload.path!,
                 project: overload.project as any,
               }),
-            overload.name
+            overload.name,
+            `Deleting feature ${overload.name}`
           );
+        } else if (impactedProtectedContexts.length > 0) {
+          return displayModal(({ close }) => (
+            <OverloadUpdateConfirmationModal
+              impactedProtectedContexts={impactedProtectedContexts}
+              impactedRootProtectedContexts={impactedRootProtectedContexts}
+              hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
+              oldFeature={overload as any}
+              onCancel={() => close()}
+              onConfirm={(
+                strategyPreservation // FIXME handle strategyPreservation for delete
+              ) =>
+                deleteStrategyMutation.mutateAsync({
+                  feature: overload.name,
+                  path: overload.path!,
+                  project: overload.project as any,
+                })
+              }
+              context={overload.path}
+            />
+          ));
         } else {
-          return askConfirmation(
-            <>
-              Are you sure you want to delete feature{" "}
-              <span className="fw-bold">{overload.name}</span> overload for
-              context {context?.name} ?
-            </>,
-            () =>
-              deleteStrategyMutation.mutateAsync({
-                feature: overload.name,
-                path: overload.path!,
-                project: overload.project as any,
-              })
-          );
+          deleteStrategyMutation.mutateAsync({
+            feature: overload.name,
+            path: overload.path!,
+            project: overload.project as any,
+          });
         }
       },
     },

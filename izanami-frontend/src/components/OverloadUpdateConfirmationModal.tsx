@@ -2,23 +2,26 @@ import { useState } from "react";
 import { TContext, TLightFeature } from "../utils/types";
 import { ConditionDiff } from "./AuditLogs";
 import { ImpactAnalysisResult } from "../utils/contextUtils";
+import { Tooltip } from "./Tooltip";
 
 export type OverloadUpdateConfirmationModalProps = {
   features: {
     [x: string]: Omit<ImpactAnalysisResult, "unprotectedUpdateAllowed"> & {
-      newFeature: TLightFeature;
+      newFeature?: TLightFeature;
       oldFeature: TLightFeature;
       hasUserAdminRightOnFeature: boolean;
     };
   };
   onConfirm: (strategyPreservation: boolean) => Promise<any>;
   onCancel: () => any;
+  context?: string;
 };
 
 export function MultiFeatureOverloadUpdateConfirmationModal({
   features,
   onConfirm,
   onCancel,
+  context,
 }: OverloadUpdateConfirmationModalProps) {
   const [strategyPreservation, setStrategyPreservation] = useState(false);
   const [confirmationText, setConfirmationText] = useState<string | undefined>(
@@ -28,15 +31,17 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
   const featureEntries = Object.values(features);
   const singleFeature =
     featureEntries.length === 1 ? featureEntries[0].oldFeature.name : undefined;
-  const oldNewFeatures: [TLightFeature, TLightFeature][] = Object.values(
+  const oldNewFeatures: [TLightFeature, TLightFeature?][] = Object.values(
     features
   ).map(({ oldFeature, newFeature }) => {
     return [oldFeature, newFeature];
   });
+
+  const isDelete = featureEntries.every((e) => !e.newFeature);
   const { impactedContexts, rootImpactedContexts, forbiddenUpdateByProject } =
     featureEntries.reduce(
       (acc, impact) => {
-        const featureName = impact.newFeature.name;
+        const featureName = impact.oldFeature.name;
         const { impactedProtectedContexts, impactedRootProtectedContexts } =
           impact;
 
@@ -99,12 +104,19 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
           <h3>Protected contexts impacts</h3>
         </div>
         <div className="modal-body">
-          Updating{" "}
+          {isDelete ? "Deleting " : "Updating "}
           {singleFeature ? (
             <span className="fw-bold">{singleFeature}</span>
           ) : (
             "these features"
           )}{" "}
+          {context ? (
+            <>
+              overload(s) for context <span className="fw-bold">{context}</span>{" "}
+            </>
+          ) : (
+            ""
+          )}
           will impact below protected contexts, since neither them nor their
           parents define overload for{" "}
           {singleFeature ? "this feature" : "these features"}:
@@ -121,19 +133,30 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
           {Object.keys(forbiddenUpdateByProject).length === 0 ? (
             <>
               These contexts strategies can be left unchanged by duplicating old
-              strategy in below contexts:
-              <ul>
-                {Object.entries(rootImpactedContexts).map(([ctx, features]) => {
-                  return (
-                    <li key={ctx}>
-                      {ctx}
-                      {!singleFeature && `(${features.join(",")})`}
-                    </li>
-                  );
-                })}
-              </ul>
+              strategy{" "}
+              {Object.keys(impactedContexts).length !==
+              Object.keys(rootImpactedContexts).length ? (
+                <>
+                  in below contexts:
+                  <ul>
+                    {Object.entries(rootImpactedContexts).map(
+                      ([ctx, features]) => {
+                        return (
+                          <li key={ctx}>
+                            {ctx}
+                            {!singleFeature && `(${features.join(",")})`}
+                          </li>
+                        );
+                      }
+                    )}
+                  </ul>
+                </>
+              ) : (
+                "in them."
+              )}
               <label
                 style={{
+                  marginTop: "1rem",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -152,6 +175,14 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
                 &nbsp;
                 <span style={{ fontSize: "16px" }}>
                   Duplicate old strategy for these contexts
+                  <Tooltip id="strategy-preservation-tooltip">
+                    If you choose to duplicate old stragegy in impacted
+                    contexts, Izanami will copy old
+                    <br /> strategy of updated feature(s) in impacted contexts.
+                    <br /> This will prevent "cascading update" and only{" "}
+                    {context ? "current context" : "feature base strategy"} will
+                    be impacted.
+                  </Tooltip>
                 </span>
               </label>
               {!strategyPreservation && (
@@ -285,9 +316,10 @@ export function OverloadUpdateConfirmationModal(props: {
   impactedRootProtectedContexts: (TContext & { parent: string[] })[];
   hasUserAdminRightOnFeature: boolean;
   oldFeature: TLightFeature;
-  newFeature: TLightFeature;
+  newFeature?: TLightFeature;
   onConfirm: (strategyPreservation: boolean) => Promise<any>;
   onCancel: () => any;
+  context?: string;
 }) {
   const features = {
     [props.oldFeature.id!]: {
@@ -303,6 +335,7 @@ export function OverloadUpdateConfirmationModal(props: {
       features={features as any}
       onConfirm={props?.onConfirm}
       onCancel={props?.onCancel}
+      context={props.context}
     />
   );
 }
