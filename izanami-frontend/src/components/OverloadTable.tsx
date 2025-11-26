@@ -30,7 +30,6 @@ import { TextualFeatureDetails } from "./FeatureDetails";
 import { OverloadCreationForm } from "./OverloadCreationForm";
 import { ExistingFeatureTestForm } from "./ExistingFeatureTestForm";
 import { GenericTable } from "./GenericTable";
-import { over } from "lodash";
 
 type OverloadFields = "name" | "enabled" | "details" | "path" | "linkedPath";
 type OverloadActionNames = "delete" | "edit" | "test";
@@ -364,6 +363,7 @@ export function OverloadTable(props: {
                       return updateStrategyMutation.mutateAsync(
                         {
                           feature: overload.name,
+                          strategyPreservation: false,
                           ...overload,
                         } as any,
                         {

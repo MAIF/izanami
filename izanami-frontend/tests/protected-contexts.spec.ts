@@ -76,13 +76,14 @@ test.describe("Protected overload should", () => {
     await page.getByRole("checkbox", { name: "Enabled" }).uncheck();
     await page.getByRole("button", { name: "Save" }).click();
     await page.getByRole("textbox", { name: "Confirmation" }).click();
-    await page.getByRole("textbox", { name: "Confirmation" }).fill("f1");
-    await page
-      .getByRole("button", { name: "Confirm" })
-      .press("Alt+ControlOrMeta+î");
+
     await page.getByRole("button", { name: "Confirm" }).click();
-    await page
-      .getByRole("button", { name: "Confirm" })
-      .press("Alt+ControlOrMeta+î");
+
+    await page.getByRole("textbox", { name: "Confirmation" }).click();
+    await page.getByRole("textbox", { name: "Confirmation" }).fill("f1");
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await expect(
+      page.getByRole("link", { name: "prod protected" })
+    ).toBeVisible();
   });
 });
