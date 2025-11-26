@@ -589,11 +589,14 @@ export function deleteFeatureActivationForContext(
   tenant: string,
   project: string,
   path: string,
-  feature: string
+  feature: string,
+  strategyPreservation: boolean = false
 ) {
   return handleFetchWithoutResponse(
     fetch(
-      `/api/admin/tenants/${tenant}/projects/${project}/contexts/${path}/features/${feature}`,
+      `/api/admin/tenants/${tenant}/projects/${project}/contexts/${path}/features/${feature}?preserveProtectedContexts=${
+        strategyPreservation ? "true" : "false"
+      }`,
       {
         method: "DELETE",
       }

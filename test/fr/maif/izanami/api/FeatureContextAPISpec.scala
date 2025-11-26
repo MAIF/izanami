@@ -1117,6 +1117,94 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Overloaded feature DELETE endpoint" should {
+    "prevent deleting an overload in non protected context with child protected context without overload & without context preservation if user is not admin" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(TestFeature(name = "F1", enabled = false))
+                .withContexts(
+                  TestFeatureContext(
+                    "context",
+                    isProtected = false,
+                    subContext =
+                      Set(TestFeatureContext("prod", isProtected = true))
+                  )
+                    .withFeatureOverload(TestFeature("F1", enabled = true))
+                )
+            )
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "project", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build()
+
+      val response =
+        situation.deleteFeatureOverload(
+          "tenant",
+          "project",
+          "context",
+          "F1",
+          preserveProtectedContexts = false
+        )
+
+      response.status mustBe FORBIDDEN
+    }
+
+    "prevent deleting an overload in non protected context with child protected context without overload if user is not admin and context preservation is true" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(TestFeature(name = "F1", enabled = false))
+                .withContexts(
+                  TestFeatureContext(
+                    "context",
+                    isProtected = false,
+                    subContext =
+                      Set(TestFeatureContext("prod", isProtected = true))
+                  )
+                    .withFeatureOverload(TestFeature("F1", enabled = true))
+                )
+            )
+        )
+        .withUsers(
+          TestUser("testu")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight(project = "project", tenant = "tenant")
+        )
+        .loggedAs("testu")
+        .build()
+
+      val response =
+        situation.deleteFeatureOverload(
+          "tenant",
+          "project",
+          "context",
+          "F1",
+          preserveProtectedContexts = true
+        )
+
+      response.status mustBe NO_CONTENT
+
+
+      val contexts = situation.fetchContexts("tenant", project = "project").json.get
+
+      val ctx = (contexts \ 0).as[JsObject]
+      val prodCtx = (ctx \ "children" \ 0).as[JsObject]
+
+      def overloads(context: JsObject): Seq[JsValue] =
+        (context \ "overloads").as[JsArray].value.toSeq
+
+      overloads(prodCtx) must have size 1
+      overloads(ctx) must have size 0
+    }
+
     "prevent deleting an overload in protected context if user it not project admin" in {
       val situation = TestSituationBuilder()
         .withTenants(

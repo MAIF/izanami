@@ -141,7 +141,7 @@ class FeatureContextController(
   ): Action[AnyContent] =
     detailledRightForTenantFactory(tenant)
       .async { implicit request =>
-        featureService.deleteOverload(tenant, project = project, name = name, contextPath = context, user = request.user, userInformation = request.userInformation)
+        featureService.deleteOverload(tenant, project = project, name = name, contextPath = context, user = request.user, userInformation = request.userInformation, preserveProtectedContexts = preserveProtectedContexts)
           .toResult(_ => NoContent)
       }
 

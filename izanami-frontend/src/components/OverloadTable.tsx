@@ -74,12 +74,18 @@ export function OverloadTable(props: {
   });
 
   const deleteStrategyMutation = useMutation({
-    mutationFn: (data: { feature: string; path: string; project: string }) =>
+    mutationFn: (data: {
+      feature: string;
+      path: string;
+      project: string;
+      strategyPreservation: boolean;
+    }) =>
       deleteFeatureActivationForContext(
         tenant!,
         data.project, // TODO this should not be necessary
         data.path,
-        data.feature
+        data.feature,
+        data.strategyPreservation
       ),
 
     onSuccess: () => {
@@ -87,7 +93,7 @@ export function OverloadTable(props: {
     },
   });
 
-  const { askConfirmation, askInputConfirmation, user, displayModal } =
+  const { askInputConfirmation, user, displayModal } =
     useContext(IzanamiContext);
   const contextByPath = new Map(
     overloads
@@ -488,6 +494,7 @@ export function OverloadTable(props: {
                 feature: overload.name,
                 path: overload.path!,
                 project: overload.project as any,
+                strategyPreservation: false,
               }),
             overload.name,
             `Deleting feature ${overload.name}`
@@ -500,13 +507,12 @@ export function OverloadTable(props: {
               hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
               oldFeature={overload as any}
               onCancel={() => close()}
-              onConfirm={(
-                strategyPreservation // FIXME handle strategyPreservation for delete
-              ) =>
+              onConfirm={(strategyPreservation) =>
                 deleteStrategyMutation.mutateAsync({
                   feature: overload.name,
                   path: overload.path!,
                   project: overload.project as any,
+                  strategyPreservation,
                 })
               }
               context={overload.path}

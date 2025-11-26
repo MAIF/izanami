@@ -214,20 +214,100 @@ class FeatureService(env: Env) {
       project: String,
       name: String,
       contextPath: FeatureContextPath,
+      preserveProtectedContexts: Boolean,
       user: UserWithCompleteRightForOneTenant,
       userInformation: UserInformation
   ): FutureEither[Done] = {
     for (
+      oldFeature <- datastore
+        .findActivationStrategiesForFeatureByName(
+          tenant = tenant,
+          name = name,
+          project = project
+        )
+        .map(maybeFeature => maybeFeature.toRight(FeatureNotFound(name)))
+        .toFEither;
       _ <- canUpdateContext(tenant, user, contextPath).toFEither;
-      _ <- env.datastores.featureContext
-        .deleteFeatureStrategy(
+      protectedContexts <- env.datastores.featureContext
+        .readProtectedContexts(
           tenant,
           project,
-          contextPath,
-          name,
-          userInformation
+          Some(contextPath)
         )
-        .toFEither
+        .map(ctxs => ctxs.map(_.fullyQualifiedName))
+        .mapToFEither;
+      impactedProtectedContexts = impactedProtectedContextsByUpdate(
+        protectedContexts = protectedContexts.toSet,
+        currentOverloads = oldFeature.overloads.keySet,
+        updatedContext = contextPath
+      );
+      _ <- if (
+        impactedProtectedContexts.nonEmpty && !preserveProtectedContexts && !user
+          .hasRightForProject(
+            project = project,
+            level = ProjectRightLevel.Admin
+          )
+      ) {
+        FutureEither.failure(NotEnoughRights()) // FIXME better message
+      } else if (
+        impactedProtectedContexts.nonEmpty && preserveProtectedContexts
+      ) {
+        val protectedContextToUpdate = computeRootContexts(
+          impactedProtectedContexts
+        );
+        env.postgresql.executeInTransaction(conn => {
+          for (
+            oldStrategy <- oldFeature
+              .strategyFor(contextPath)
+              .toCompleteFeature(tenant, env)
+              .toFEither
+              .map(completeFeature =>
+                completeFeature.toCompleteContextualStrategy
+              );
+            _ <- protectedContextToUpdate
+              .foldLeft(FutureEither.success(()))((res, ctx) => {
+                res.flatMap(_ =>
+                  env.datastores.featureContext
+                    .updateFeatureStrategy(
+                      tenant = tenant,
+                      project = oldFeature.project,
+                      path = ctx,
+                      feature = oldFeature.name,
+                      strategy = oldStrategy,
+                      user = UserInformation(
+                        username = user.username,
+                        authentication = userInformation.authentication
+                      ),
+                      conn = Some(conn)
+                    )
+                    .toFEither
+                )
+              });
+            res <- env.datastores.featureContext
+              .deleteFeatureStrategy(
+                tenant,
+                project,
+                contextPath,
+                name,
+                userInformation,
+                conn = Some(conn)
+              )
+              .toFEither
+          ) yield res
+        })
+
+      } else {
+        // TODO handle preserveProtectedContexts
+        env.datastores.featureContext
+          .deleteFeatureStrategy(
+            tenant,
+            project,
+            contextPath,
+            name,
+            userInformation
+          )
+          .toFEither
+      }
     ) yield Done.done()
   }
 

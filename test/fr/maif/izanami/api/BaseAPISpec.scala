@@ -448,7 +448,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
 
   def cleanUpDB(hard: Boolean): Unit = {
-    classOf[org.postgresql.Driver]: @annotation.nowarn("msg=pure expression does nothing")
+    classOf[org.postgresql.Driver]: @annotation.nowarn(
+      "msg=pure expression does nothing"
+    )
     val con_str =
       "jdbc:postgresql://localhost:5432/postgres?user=postgres&password=postgres"
     val conn = DriverManager.getConnection(con_str)
@@ -598,7 +600,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
 
   def executeInDatabase(callback: (Connection => Unit)): Unit = {
-    classOf[org.postgresql.Driver]: @annotation.nowarn("msg=pure expression does nothing")
+    classOf[org.postgresql.Driver]: @annotation.nowarn(
+      "msg=pure expression does nothing"
+    )
     val con_str = dbConnectionChain
     val conn = DriverManager.getConnection(con_str)
 
@@ -939,8 +943,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
     val response = await(
-      ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/features/${id}?preserveProtectedContexts=${if(preserveProtectedContexts) "true" else "false"}")
-        .withCookies(cookies: _*)
+      ws.url(
+        s"${ADMIN_BASE_URL}/tenants/${tenant}/features/${id}?preserveProtectedContexts=${
+            if (preserveProtectedContexts) "true" else "false"
+          }"
+      ).withCookies(cookies: _*)
         .put(json)
     )
     RequestResult(json = Try { response.json }, status = response.status)
@@ -1720,7 +1727,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       preserveProtectedContexts: Boolean = false
   ): Future[WSResponse] = {
     ws.url(
-      s"""${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/contexts/${contextPath}/features/${feature}?preserveProtectedContexts=${if(preserveProtectedContexts) "true" else "false"}"""
+      s"""${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/contexts/${contextPath}/features/${feature}?preserveProtectedContexts=${
+          if (preserveProtectedContexts) "true" else "false"
+        }"""
     ).withCookies(cookies: _*)
       .put(
         Json
@@ -2867,7 +2876,13 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         json: JsValue,
         preserveProtectedContexts: Boolean = false
     ): RequestResult = {
-      BaseAPISpec.this.updateFeature(tenant, id, json, preserveProtectedContexts, cookies)
+      BaseAPISpec.this.updateFeature(
+        tenant,
+        id,
+        json,
+        preserveProtectedContexts,
+        cookies
+      )
     }
 
     def updateFeatureByName(
@@ -2886,7 +2901,13 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .map(js => js.as[JsObject])
         .get
       val newFeature = transformer(jsonFeature)
-      BaseAPISpec.this.updateFeature(tenant, idToUse, newFeature, preserveProtectedContexts, cookies)
+      BaseAPISpec.this.updateFeature(
+        tenant,
+        idToUse,
+        newFeature,
+        preserveProtectedContexts,
+        cookies
+      )
     }
 
     def findFeatureId(
@@ -3066,11 +3087,12 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         tenant: String,
         project: String,
         path: String,
-        feature: String
+        feature: String,
+        preserveProtectedContexts: Boolean = false
     ): RequestResult = {
       val response = await(
         ws.url(
-          s"${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/contexts/${path}/features/${feature}"
+          s"${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}/contexts/${path}/features/${feature}?preserveProtectedContexts=${preserveProtectedContexts}"
         ).withCookies(cookies: _*)
           .delete()
       )
