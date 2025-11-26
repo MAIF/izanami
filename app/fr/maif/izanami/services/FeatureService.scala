@@ -1,15 +1,53 @@
 package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{FeatureContextDoesNotExist, FeatureDoesNotExist, FeatureNotFound, IncorrectKey, InternalServerError, IzanamiError, ModernFeaturesForbiddenByConfig, NoProtectedContextAccess, NotEnoughRights, OPAResultMustBeBoolean}
+import fr.maif.izanami.errors.{
+  FeatureContextDoesNotExist,
+  FeatureDoesNotExist,
+  FeatureNotFound,
+  IncorrectKey,
+  InternalServerError,
+  IzanamiError,
+  ModernFeaturesForbiddenByConfig,
+  NoProtectedContextAccess,
+  NotEnoughRights,
+  OPAResultMustBeBoolean
+}
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models.*
-import fr.maif.izanami.models.ProjectRightLevel.{Admin, Read, Update, Write, projectRightLevelReads}
-import fr.maif.izanami.models.features.{BooleanResult, EnabledFeaturePatch, FeaturePatch, ProjectFeaturePatch, RemoveFeaturePatch, TagsFeaturePatch}
-import fr.maif.izanami.requests.{BaseFeatureUpdateRequest, FeatureUpdateRequest, OverloadFeatureUpdateRequest}
-import fr.maif.izanami.services.FeatureService.{canCreateOrDeleteFeature, computeRootContexts, impactedProtectedContextsByUpdate, validateFeature}
+import fr.maif.izanami.models.ProjectRightLevel.{
+  Admin,
+  Read,
+  Update,
+  Write,
+  projectRightLevelReads
+}
+import fr.maif.izanami.models.features.{
+  BooleanResult,
+  EnabledFeaturePatch,
+  FeaturePatch,
+  ProjectFeaturePatch,
+  RemoveFeaturePatch,
+  TagsFeaturePatch
+}
+import fr.maif.izanami.requests.{
+  BaseFeatureUpdateRequest,
+  FeatureUpdateRequest,
+  OverloadFeatureUpdateRequest
+}
+import fr.maif.izanami.services.FeatureService.{
+  canCreateOrDeleteFeature,
+  computeRootContexts,
+  impactedProtectedContextsByUpdate,
+  validateFeature
+}
 import fr.maif.izanami.utils.{Done, FutureEither, Helpers}
-import fr.maif.izanami.utils.syntax.implicits.{BetterEither, BetterFuture, BetterFutureEither, BetterSyntax}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterEither,
+  BetterFuture,
+  BetterFutureEither,
+  BetterSyntax
+}
 import fr.maif.izanami.v1.OldFeature
 import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
 import io.vertx.sqlclient.SqlConnection
@@ -150,7 +188,6 @@ class FeatureService(env: Env) {
           .map(dones => Done.done())
       })
   }
-  
 
   def findLightWeightFeature(
       tenant: String,
@@ -169,6 +206,60 @@ class FeatureService(env: Env) {
               LightWeightFeature
             ]
           )(f => Right(f).toFEither)
+      )
+  }
+
+  def deleteOverload(
+      tenant: String,
+      project: String,
+      name: String,
+      contextPath: FeatureContextPath,
+      user: UserWithCompleteRightForOneTenant,
+      userInformation: UserInformation
+  ): FutureEither[Done] = {
+    for (
+      _ <- canUpdateContext(tenant, user, contextPath).toFEither;
+      _ <- env.datastores.featureContext
+        .deleteFeatureStrategy(
+          tenant,
+          project,
+          contextPath,
+          name,
+          userInformation
+        )
+        .toFEither
+    ) yield Done.done()
+  }
+
+  def canUpdateContext(
+      tenant: String,
+      user: UserWithCompleteRightForOneTenant,
+      contextPath: FeatureContextPath
+  ): Future[Either[IzanamiError, Context]] = {
+    env.datastores.featureContext
+      .readContext(tenant, contextPath)
+      .map(o => o.toRight(FeatureContextDoesNotExist(contextPath.toUserPath)))
+      .map(e =>
+        e.flatMap {
+          case c: GlobalContext
+              if c.isProtected && user.hasRightForTenant(RightLevel.Admin) =>
+            Right(c)
+          case c: GlobalContext if c.isProtected =>
+            Left(NoProtectedContextAccess(contextPath.toUserPath))
+          case c: GlobalContext if user.hasRightForTenant(RightLevel.Write) =>
+            Right(c)
+          case c: GlobalContext => Left(NotEnoughRights)
+          case c: LocalContext
+              if c.isProtected && user
+                .hasRightForProject(c.project, ProjectRightLevel.Admin) =>
+            Right(c)
+          case c: LocalContext if c.isProtected =>
+            Left(NoProtectedContextAccess(contextPath.toUserPath))
+          case c: LocalContext
+              if user.hasRightForProject(c.project, ProjectRightLevel.Write) =>
+            Right(c)
+          case _ => Left(NotEnoughRights)
+        }
       )
   }
 
@@ -556,9 +647,18 @@ class FeatureService(env: Env) {
       updateRequest.user.rightLevelForProject(updateRequest.project),
       oldFeature
     ) match {
-      case (_, None, _)        => FutureEither.failure(NotEnoughRights)
-      case (_, Some(Read), _)  => FutureEither.failure(NotEnoughRights)
-      case (f: BaseFeatureUpdateRequest, _, oldF) if oldF.project != f.project  && !f.user.hasRightForProject(oldF.project, Admin) => FutureEither.failure(NotEnoughRights("You are not allowed to transfer a feature with protected context overloads, since this operation would destroy protected overloads"))
+      case (_, None, _)       => FutureEither.failure(NotEnoughRights)
+      case (_, Some(Read), _) => FutureEither.failure(NotEnoughRights)
+      case (f: BaseFeatureUpdateRequest, _, oldF)
+          if oldF.project != f.project && !f.user.hasRightForProject(
+            oldF.project,
+            Admin
+          ) =>
+        FutureEither.failure(
+          NotEnoughRights(
+            "You are not allowed to transfer a feature with protected context overloads, since this operation would destroy protected overloads"
+          )
+        )
       case (_, Some(Admin), _) => FutureEither.success(())
       case (f, _, _)
           if !f.preserveProtectedContexts && impactedRootProtectedContexts.nonEmpty => {
