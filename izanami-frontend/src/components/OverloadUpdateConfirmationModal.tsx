@@ -243,8 +243,13 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
               </ul>
             </>
           )}
-          <h4>Changes</h4>
-          <FeaturesDiffs oldNewfeatures={oldNewFeatures} />
+          {!isDelete && (
+            <>
+              {" "}
+              <h4>Changes</h4>
+              <FeaturesDiffs oldNewfeatures={oldNewFeatures as any} />
+            </>
+          )}
         </div>
         <div className="modal-footer">
           <button
