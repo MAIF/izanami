@@ -23,7 +23,6 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
   onCancel,
   context,
 }: OverloadUpdateConfirmationModalProps) {
-  const [strategyPreservation, setStrategyPreservation] = useState(false);
   const [confirmationText, setConfirmationText] = useState<string | undefined>(
     undefined
   );
@@ -83,6 +82,10 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
         forbiddenUpdateByProject: { [x: string]: string[] };
       }
     );
+
+  const [strategyPreservation, setStrategyPreservation] = useState(
+    Object.keys(forbiddenUpdateByProject).length > 0
+  );
 
   return (
     <>

@@ -385,8 +385,8 @@ export function OverloadTable(props: {
                       oldFeature={datum as any}
                       newFeature={overload as any}
                       onCancel={() => close()}
-                      onConfirm={(strategyPreservation) =>
-                        updateStrategyMutation.mutateAsync(
+                      onConfirm={(strategyPreservation) => {
+                        return updateStrategyMutation.mutateAsync(
                           {
                             feature: overload.name,
                             ...overload,
@@ -395,8 +395,8 @@ export function OverloadTable(props: {
                           {
                             onSuccess: () => cancel(),
                           }
-                        )
-                      }
+                        );
+                      }}
                       context={datum.path}
                     />
                   ));
@@ -523,6 +523,7 @@ export function OverloadTable(props: {
             feature: overload.name,
             path: overload.path!,
             project: overload.project as any,
+            strategyPreservation: false,
           });
         }
       },
