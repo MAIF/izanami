@@ -1641,24 +1641,35 @@ export function FeatureTable(props: {
           (ctx) => ctx.protected
         );
 
-        if (
-          !hasRightForProject(user!, TLevel.Admin, feature.project!, tenant!)
-        ) {
+        const { impactedProtectedContexts, unprotectedUpdateAllowed } =
+          analyzeUpdateImpact({
+            tenant: tenant!,
+            project: feature.project!,
+            user: user!,
+            contexts: contexts,
+            updatedFeatureId: feature.id!,
+          });
+
+        if (impactedProtectedContexts.length > 0 && !unprotectedUpdateAllowed) {
           return askConfirmation(
             <>
               <h3>Operation not permitted</h3>
               <div>
-                Feature {feature.name} have overload(s) in below protected
-                context(s)
+                Deleting feature <span className="fw-bold">{feature.name}</span>{" "}
+                would impact below protected contexts:
+                <ul>
+                  {impactedProtectedContexts.map((ctx) => {
+                    return <li key={ctx.name}>{ctx.name}</li>;
+                  })}
+                </ul>
               </div>
-              <ul>
-                {protectedOverloads.map((o) => (
-                  <li key={o.path}>{o.path}</li>
-                ))}
-              </ul>
               <p>
-                You don't have admin right on this project, therefore you can't
-                delete this feature.
+                You don't have admin rights on this project, therefore you can't
+                delete{" "}
+                {impactedProtectedContexts.length > 1
+                  ? "these features"
+                  : "this feature"}
+                .
               </p>
             </>
           );

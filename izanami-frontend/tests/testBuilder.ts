@@ -4,7 +4,7 @@ import {
   handleFetchWithoutResponse,
 } from "../src/utils/queries";
 import { TLevel } from "../src/utils/types";
-import { backendUrl } from "./utils";
+import { backendUrl, logAs } from "./utils";
 
 type featureIdByName = [string, string];
 export const DEFAULT_TEST_PASSWORD = "notARealPassword";
@@ -12,6 +12,7 @@ export const DEFAULT_TEST_PASSWORD = "notARealPassword";
 export class TestSituationBuilder {
   tenants: TestTenant[] = [];
   users: TestUser[] = [];
+  connectedUser?: string;
   static newBuilder(): TestSituationBuilder {
     return new TestSituationBuilder();
   }
@@ -23,6 +24,11 @@ export class TestSituationBuilder {
 
   withTenant(tenant: TestTenant): TestSituationBuilder {
     this.tenants.push(tenant);
+    return this;
+  }
+
+  loggedAs(username: string): TestSituationBuilder {
+    this.connectedUser = username;
     return this;
   }
 
@@ -356,6 +362,12 @@ export class TestSituationBuilder {
         return Promise.all(
           this.users.map((user) => this.createUser(page, user, url))
         ).then(() => pairs);
+      })
+      .then((pairs) => {
+        if (this.connectedUser) {
+          return logAs(page, this.connectedUser).then(() => pairs);
+        }
+        return pairs;
       })
       .then((pairs) => new Map(pairs.flat().flat()))
       .then((m) => new TestSituation(m))

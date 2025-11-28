@@ -497,7 +497,7 @@ export function OverloadTable(props: {
                 strategyPreservation: false,
               }),
             overload.name,
-            `Deleting feature ${overload.name}`
+            `Deleting ${overload.path} overload for feature ${overload.name}`
           );
         } else if (impactedProtectedContexts.length > 0) {
           return displayModal(({ close }) => (
