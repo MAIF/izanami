@@ -1650,6 +1650,14 @@ export function FeatureTable(props: {
             updatedFeatureId: feature.id!,
           });
 
+        console.log({ impactedProtectedContexts, unprotectedUpdateAllowed });
+
+        const isProjectAdmin = hasRightForProject(
+          user!,
+          TProjectLevel.Admin,
+          feature.project!,
+          tenant!
+        );
         if (impactedProtectedContexts.length > 0 && !unprotectedUpdateAllowed) {
           return askConfirmation(
             <>
@@ -1673,7 +1681,7 @@ export function FeatureTable(props: {
               </p>
             </>
           );
-        } else if (protectedOverloads.length > 0) {
+        } else if (protectedOverloads.length > 0 && isProjectAdmin) {
           return askInputConfirmation(
             <>
               <h3>Delete confirmation</h3>
@@ -1694,6 +1702,28 @@ export function FeatureTable(props: {
             </>,
             () => featureDeleteMutation.mutateAsync(feature.id!),
             feature.name
+          );
+        } else if (protectedOverloads.length > 0 && !isProjectAdmin) {
+          return askConfirmation(
+            <>
+              <h3>Delete confirmation</h3>
+              Feature <span className="fw-bold">{feature.name}</span> have
+              overloads for below protected contexts:
+              <ul>
+                {protectedOverloads
+                  .map((o) => o.name)
+                  .map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+              </ul>
+              <p>
+                Updating protected overloads require admin rights on project.
+              </p>
+              <p>
+                You don't have admin rights on this project, therefore you can't
+                delete this feature.
+              </p>
+            </>
           );
         } else {
           return askConfirmation(

@@ -94,6 +94,7 @@ export class TestSituationBuilder {
       })
       .then((userResponse) => userResponse.json())
       .then((json) => {
+        console.log("json", json);
         const url = json.invitationUrl;
         const token = url.split("token=")[1];
         return fetch(`${baseUrl}/api/admin/users`, {
@@ -301,45 +302,75 @@ export class TestSituationBuilder {
     return Promise.all(
       this.tenants.map((t) =>
         this.createTenant(t, cookie, url)
+          .catch((err) => {
+            console.error("Failed to create tenant", err);
+            throw err;
+          })
           .then(() => {
             Promise.all(
               t.contexts.map((c) => {
                 return this.buildContextHierarchy(page, t, c, url);
               })
-            );
+            ).catch((err) => {
+              console.error("Failed to create context hierarchy", err);
+              throw err;
+            });
           })
           .then(() => {
             return Promise.all(
               t.webhooks.map((webhook) =>
                 this.createWebhook(t, webhook, cookie, url)
               )
-            );
+            ).catch((err) => {
+              console.error("Failed to create webhooks", err);
+              throw err;
+            });
           })
           .then(() =>
             Promise.all(
               t.tags.map((tag) => this.createTag(t, tag, cookie, url))
-            )
+            ).catch((err) => {
+              console.error("Failed to create tags", err);
+              throw err;
+            })
           )
           .then(() => {
             return Promise.all(
               t.keys.map((key) => this.createKey(t, key, cookie, url))
-            );
+            ).catch((err) => {
+              console.error("Failed to create keys", err);
+              throw err;
+            });
           })
           .then(() =>
             Promise.all(
               t.projects.map((p) =>
                 this.createProject(t, p, cookie, url)
+                  .catch((err) => {
+                    console.error("Failed to create project", err);
+                    throw err;
+                  })
                   .then(() =>
                     Promise.all(
                       p.contexts.map((c) =>
                         this.buildLocalContextHierarchy(page, t, p, c, url)
                       )
-                    )
+                    ).catch((err) => {
+                      console.error(
+                        "Failed to build local context hierarchy",
+                        err
+                      );
+                      throw err;
+                    })
                   )
                   .then(() =>
                     Promise.all(
                       p.features.map((f) =>
                         this.createFeature(t, p, f, cookie, url)
+                          .catch((err) => {
+                            console.error("Failed to create feature", err);
+                            throw err;
+                          })
                           .then(
                             ({ id, name }) => [name, id!] as featureIdByName
                           )
@@ -348,7 +379,15 @@ export class TestSituationBuilder {
                               f.overloads.map((o) =>
                                 this.createOverload(t, p, f, o, cookie, url)
                               )
-                            ).then(() => featureIds);
+                            )
+                              .catch((err) => {
+                                console.error(
+                                  "Failed to create overloads",
+                                  err
+                                );
+                                throw err;
+                              })
+                              .then(() => featureIds);
                           })
                       )
                     )
@@ -361,17 +400,28 @@ export class TestSituationBuilder {
       .then((pairs) => {
         return Promise.all(
           this.users.map((user) => this.createUser(page, user, url))
-        ).then(() => pairs);
+        )
+          .catch((err) => {
+            console.error("Failed to create users", err);
+            throw err;
+          })
+          .then(() => pairs);
       })
       .then((pairs) => {
         if (this.connectedUser) {
-          return logAs(page, this.connectedUser).then(() => pairs);
+          return logAs(page, this.connectedUser)
+            .catch((err) => {
+              console.error("Failed to login as asked user", err);
+              throw err;
+            })
+            .then(() => pairs);
         }
         return pairs;
       })
       .then((pairs) => new Map(pairs.flat().flat()))
       .then((m) => new TestSituation(m))
       .catch((err) => {
+        console.log("err", err);
         throw err;
       });
   }
