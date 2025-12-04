@@ -122,6 +122,7 @@ test.describe("protected overload", async () => {
     await logAs(page, "testu113");
     await page.goto(`/tenants/${tenantName}/projects/project`);
 
+    await page.waitForTimeout(500); // Ugly, wait for context query to load...
     await clickAction(page, "Delete");
     await expect(
       page.getByText(
@@ -166,9 +167,9 @@ test.describe("non protected overload update", async () => {
     await page.getByRole("checkbox", { name: "Enabled" }).uncheck();
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.locator("#root")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
       - list:
-        - listitem: protected
+        - listitem: unprotected/protected
       - checkbox "Duplicate old strategy for these contexts"
       - text: Duplicate old strategy for these contexts Type feature name below to confirm.
       - textbox "Type feature name below to confirm."
@@ -213,9 +214,9 @@ test.describe("non protected overload update", async () => {
     await page.getByRole("button", { name: "Overload" }).click();
     await page.getByRole("checkbox", { name: "Disable f1" }).click();
 
-    await expect(page.locator("#root")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
       - list:
-        - listitem: protected
+        - listitem: unprotected/protected
       - checkbox "Duplicate old strategy for these contexts"
       - text: Duplicate old strategy for these contexts Type feature name below to confirm.
       - textbox "Type feature name below to confirm."
@@ -267,9 +268,9 @@ test.describe("non protected overload update", async () => {
     await page.getByRole("checkbox", { name: "Enabled" }).uncheck();
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.locator("#root")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
       - list:
-        - listitem: protected
+        - listitem: unprotected/protected
       - checkbox "Duplicate old strategy for these contexts"
       - text: Duplicate old strategy for these contexts Type feature name below to confirm.
       - textbox "Type feature name below to confirm."
@@ -319,9 +320,9 @@ test.describe("non protected overload update", async () => {
 
     await page.getByRole("checkbox", { name: "Disable f1" }).click();
 
-    await expect(page.locator("#root")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
       - list:
-        - listitem: protected
+        - listitem: unprotected/protected
       - checkbox "Duplicate old strategy for these contexts"
       - text: Duplicate old strategy for these contexts Type feature name below to confirm.
       - textbox "Type feature name below to confirm."
@@ -445,7 +446,7 @@ test.describe("non protected overload update", async () => {
     await expect(page.locator("form")).toMatchAriaSnapshot(`
           - text: "You don't have enough rights to update these contexts, therefore old strategy will be applied to below contexts:"
           - list:
-            - listitem: protected
+            - listitem: unprotected/protected
           `);
     await page.getByRole("button", { name: "Confirm" }).click();
 
@@ -493,9 +494,9 @@ test.describe(
 
       await page.getByRole("link", { name: "Delete", exact: true }).click();
 
-      await expect(page.locator("#root")).toMatchAriaSnapshot(`
+      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
       - list:
-        - listitem: protected
+        - listitem: unprotected/protected
       - checkbox "Duplicate old strategy for these contexts"
       - text: Duplicate old strategy for these contexts Type feature name below to confirm.
       - textbox "Type feature name below to confirm."
@@ -541,9 +542,9 @@ test.describe(
 
       await page.getByRole("link", { name: "Delete", exact: true }).click();
 
-      await expect(page.locator("#root")).toMatchAriaSnapshot(`
+      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
       - list:
-        - listitem: protected
+        - listitem: unprotected/protected
       - checkbox "Duplicate old strategy for these contexts"
       - text: Duplicate old strategy for these contexts Type feature name below to confirm.
       - textbox "Type feature name below to confirm."
@@ -646,7 +647,7 @@ test.describe(
       await clickAction(page, "Edit");
       await page.getByRole("checkbox", { name: "Enabled" }).check();
       await page.getByRole("button", { name: "Save" }).click();
-      await expect(page.locator("#root")).toMatchAriaSnapshot(`
+      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - text: "You don't have enough rights to update these contexts, therefore old strategy will be applied to below contexts:"
         - list:
           - listitem: protected
@@ -688,7 +689,7 @@ test.describe(
 
       await page.getByRole("checkbox", { name: "Enable f1" }).click();
 
-      await expect(page.locator("#root")).toMatchAriaSnapshot(`
+      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - text: "You don't have enough rights to update these contexts, therefore old strategy will be applied to below contexts:"
         - list:
           - listitem: protected
@@ -722,7 +723,7 @@ test.describe(
       await page.getByRole("checkbox", { name: "Enabled" }).check();
       await page.getByRole("button", { name: "Save" }).click();
 
-      await expect(page.locator("#root")).toMatchAriaSnapshot(`
+      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - list:
           - listitem: protected
         - text: These contexts strategies can be left unchanged by duplicating old strategy in them.
@@ -761,7 +762,7 @@ test.describe(
 
       await page.getByRole("checkbox", { name: "Enable f1" }).click();
 
-      await expect(page.locator("#root")).toMatchAriaSnapshot(`
+      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - list:
           - listitem: protected
         - text: These contexts strategies can be left unchanged by duplicating old strategy in them.
@@ -802,7 +803,7 @@ test.describe(
       await page.getByRole("checkbox", { name: "Enabled" }).check();
       await page.getByRole("button", { name: "Save" }).click();
 
-      await expect(page.locator("#root")).toMatchAriaSnapshot(`
+      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - list:
           - listitem: protected
         - text: These contexts strategies can be left unchanged by duplicating old strategy in them.
@@ -849,7 +850,7 @@ test.describe(
 
       await page.getByRole("checkbox", { name: "Enable f1" }).click();
 
-      await expect(page.locator("#root")).toMatchAriaSnapshot(`
+      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - list:
           - listitem: protected
         - text: These contexts strategies can be left unchanged by duplicating old strategy in them.
@@ -908,7 +909,7 @@ test.describe(
 
       //await page.getByRole("button", { name: "actions" }).click();
       //await page.getByRole("link", { name: "Delete", exact: true }).click();
-      await expect(page.locator("#root")).toMatchAriaSnapshot(`
+      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - text: "Deleting feature f1 would impact below protected contexts:"
         - list:
           - listitem: protected
@@ -991,7 +992,7 @@ test.describe(
       await page.getByText("unprotected", { exact: true }).click();
       await page.getByRole("button", { name: "Save" }).click();
 
-      await expect(page.locator("#root")).toMatchAriaSnapshot(`
+      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
       - text: "Creatingf1 overload(s) for context unprotected will impact below protected contexts, since neither them nor their parents define overload for this feature:"
       - list:
         - listitem: unprotected/protected
@@ -1041,7 +1042,7 @@ test.describe(
       await page.getByText("unprotected", { exact: true }).click();
       await page.getByRole("button", { name: "Save" }).click();
 
-      await expect(page.locator("#root")).toMatchAriaSnapshot(`
+      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
       - text: "Creatingf1 overload(s) for context unprotected will impact below protected contexts, since neither them nor their parents define overload for this feature:"
       - list:
         - listitem: unprotected/protected
@@ -1114,7 +1115,7 @@ test.describe(
       await page.getByText("unprotected", { exact: true }).click();
       await page.getByRole("button", { name: "Save" }).click();
 
-      await expect(page.locator("#root")).toMatchAriaSnapshot(`
+      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - list:
           - listitem: unprotected/protected
         - text: "You don't have enough rights to update these contexts, therefore old strategy will be applied to below contexts:"

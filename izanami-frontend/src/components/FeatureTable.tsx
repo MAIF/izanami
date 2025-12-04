@@ -1691,8 +1691,6 @@ export function FeatureTable(props: {
             updatedFeatureId: feature.id!,
           });
 
-        console.log({ impactedProtectedContexts, unprotectedUpdateAllowed });
-
         const isProjectAdmin = hasRightForProject(
           user!,
           TProjectLevel.Admin,

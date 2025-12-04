@@ -84,6 +84,7 @@ export function RawModal(props: {
   return (
     <>
       <div
+        id="modal"
         className="modal"
         tabIndex={-1}
         aria-hidden={visible ? "false" : "true"}
