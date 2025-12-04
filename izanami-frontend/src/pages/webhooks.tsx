@@ -270,11 +270,22 @@ export function WebHooks(props: { tenant: string }) {
                     tenant={tenant}
                     cancel={() => cancel()}
                     submit={(hook) => {
+                      const objectHeaders = hook.headers.reduce(
+                        (
+                          acc: { [x: string]: string },
+                          { name, value }: { name: string; value: string }
+                        ) => {
+                          acc[name] = value;
+                          return acc;
+                        },
+                        {}
+                      );
                       return webhookUpdateMutation
                         .mutateAsync({
                           id: data.id,
                           webhook: {
                             ...hook,
+                            headers: objectHeaders,
                             bodyTemplate: hook.bodyOverloadedActive
                               ? hook.bodyTemplate
                               : undefined,
