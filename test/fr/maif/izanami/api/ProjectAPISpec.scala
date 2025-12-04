@@ -86,6 +86,20 @@ class ProjectAPISpec extends BaseAPISpec {
   }
 
   "Project DELETE endpoint" should {
+    "Delete project with local overloads" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("my-tenant").withProjects(
+            TestProject("proj").withContexts(TestFeatureContext("localctx"))
+          )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val response = situation.deleteProject("proj", "my-tenant")
+      response.status mustBe NO_CONTENT
+    }
+
     "Delete project if user is project admin" in {
       // FIXME
       val situation = TestSituationBuilder()
