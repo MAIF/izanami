@@ -23,6 +23,7 @@ import com.github.tomakehurst.wiremock.http.{HttpHeaders, Request}
 import com.typesafe.config.ConfigValueFactory
 import fr.maif.izanami.IzanamiLoader
 import fr.maif.izanami.api.BaseAPISpec.{
+  RequestResult,
   cleanUpDB,
   eventKillSwitch,
   isAvailable,
@@ -48,11 +49,11 @@ import org.scalatestplus.play.PlaySpec
 import org.testcontainers.containers.DockerComposeContainer
 import play.api.ApplicationLoader.Context
 import play.api.inject.DefaultApplicationLifecycle
-import play.api.libs.json._
+import play.api.libs.json.*
 import play.api.libs.ws.ahc.{AhcWSClient, StandaloneAhcWSClient}
 import play.api.libs.ws.{WSAuthScheme, WSClient, WSCookie, WSResponse}
 import play.api.mvc.MultipartFormData.FilePart
-import play.api.test.Helpers.{await, OK}
+import play.api.test.Helpers.{OK, await}
 import play.api.test.{
   DefaultAwaitTimeout,
   DefaultTestServerFactory,
@@ -66,7 +67,7 @@ import java.net.Socket
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.sql.{Connection, DriverManager}
-import java.time._
+import java.time.*
 import java.time.format.DateTimeFormatter
 import java.util.{Base64, Objects, TimeZone}
 import scala.collection.concurrent.TrieMap
@@ -76,7 +77,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{DurationInt, SECONDS}
 import scala.concurrent.{ExecutionContextExecutor, Future, Promise}
 import scala.util.Try
-
 import play.api.libs.ws.writeableOf_JsValue
 import play.api.libs.ws.writeableOf_String
 import play.api.libs.ws.writeableOf_ByteArray
@@ -1753,6 +1753,50 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                |}
                |""".stripMargin)
       )
+  }
+
+  def deleteProjectWithToken(
+      tenant: String,
+      project: String,
+      username: String,
+      token: String
+  ): RequestResult = {
+    val auth = Base64.getEncoder.encodeToString(
+      s"${username}:$token".getBytes(StandardCharsets.UTF_8)
+    )
+    val response = await(
+      ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}")
+        .addHttpHeaders("Authorization" -> s"Basic $auth")
+        .delete()
+    )
+    RequestResult(
+      json = Try {
+        response.json
+      },
+      status = response.status
+    )
+  }
+
+  def deleteApiKeyWithToken(
+      tenant: String,
+      name: String,
+      username: String,
+      token: String
+  ): RequestResult = {
+    val auth = Base64.getEncoder.encodeToString(
+      s"${username}:$token".getBytes(StandardCharsets.UTF_8)
+    )
+
+    val response = await(
+      ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/keys/${name}")
+        .addHttpHeaders("Authorization" -> s"Basic $auth")
+        .delete()
+    )
+
+    val jsonTry = Try {
+      response.json
+    }
+    RequestResult(json = jsonTry, status = response.status)
   }
 
   def importWithToken(

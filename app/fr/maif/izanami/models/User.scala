@@ -1,6 +1,6 @@
 package fr.maif.izanami.models
 
-import fr.maif.izanami.models.ProjectRightLevel.Admin
+import fr.maif.izanami.models.ProjectRightLevel.{Admin, superiorOrEqualLevels}
 import fr.maif.izanami.models.Rights.{TenantRightDiff, UpsertTenantRights, compare}
 import fr.maif.izanami.services.CompleteRights
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -282,6 +282,24 @@ case class UserWithRights(
     override val defaultTenant: Option[String] = None,
     override val legacy: Boolean = false
 ) extends UserTrait {
+  def hasRightForProject(project: String, tenant: String, rightLevel: ProjectRightLevel): Boolean = {
+    admin || rights.tenants
+      .get(tenant)
+      .exists(tenantRight =>
+        tenantRight.level == RightLevel.Admin || tenantRight.projects
+          .get(project)
+          .exists(r => superiorOrEqualLevels(rightLevel).contains(r.level))
+      )
+  }
+
+  def hasRightForKey(key: String, tenant: String, rightLevel: RightLevel): Boolean = {
+    admin || rights.tenants
+      .get(tenant)
+      .exists(tenantRight =>
+        tenantRight.level == RightLevel.Admin || tenantRight.keys.get(key).exists(r => RightLevel.superiorOrEqualLevels(rightLevel).contains(r.level))
+      )
+  }
+  
   def hasAdminRightForProject(project: String, tenant: String): Boolean = {
     admin || rights.tenants
       .get(tenant)

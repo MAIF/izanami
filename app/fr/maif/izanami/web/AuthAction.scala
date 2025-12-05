@@ -1,14 +1,23 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{TokenCheckFailure, TokenCheckSuccess}
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{
+  TokenCheckFailure,
+  TokenCheckSuccess
+}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.UserNotFound
 import fr.maif.izanami.events.EventAuthentication
-import fr.maif.izanami.events.EventAuthentication.{BackOfficeAuthentication, TokenAuthentication}
+import fr.maif.izanami.events.EventAuthentication.{
+  BackOfficeAuthentication,
+  TokenAuthentication
+}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.security.JwtService.decodeJWT
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.AuthAction.{extractAndCheckPersonnalAccessToken, extractClaims}
+import fr.maif.izanami.web.AuthAction.{
+  extractAndCheckPersonnalAccessToken,
+  extractClaims
+}
 import pdi.jwt.JwtClaim
 import play.api.libs.json.*
 import play.api.mvc.*
@@ -20,42 +29,61 @@ import java.util.{Base64, UUID}
 import javax.crypto.spec.SecretKeySpec
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
-case class UserInformation(username: String, authentication: EventAuthentication)
+case class UserInformation(
+    username: String,
+    authentication: EventAuthentication
+)
 
-case class ClientKeyRequest[A](request: Request[A], key: ApiKeyWithCompleteRights) extends WrappedRequest[A](request)
+case class ClientKeyRequest[A](
+    request: Request[A],
+    key: ApiKeyWithCompleteRights
+) extends WrappedRequest[A](request)
 case class UserRequestWithCompleteRights[A](
     request: Request[A],
     user: UserWithRights,
     authentication: EventAuthentication
-)                                                                                  extends WrappedRequest[A](request)
+) extends WrappedRequest[A](request)
 case class UserRequestWithTenantRights[A](
     request: Request[A],
     user: UserWithTenantRights,
     authentication: EventAuthentication
-)                                                                                  extends WrappedRequest[A](request)
+) extends WrappedRequest[A](request)
 case class UserRequestWithCompleteRightForOneTenant[A](
     request: Request[A],
     user: UserWithCompleteRightForOneTenant,
     authentication: EventAuthentication
-)                                                                                  extends WrappedRequest[A](request) {
-  def userInformation: UserInformation = UserInformation(username = user.username, authentication = authentication)
+) extends WrappedRequest[A](request) {
+  def userInformation: UserInformation =
+    UserInformation(username = user.username, authentication = authentication)
 }
-case class UserNameRequest[A](request: Request[A], user: UserInformation)          extends WrappedRequest[A](request)
-case class ProjectIdUserNameRequest[A](request: Request[A], user: UserInformation, projectId: UUID)
+case class UserNameRequest[A](request: Request[A], user: UserInformation)
+    extends WrappedRequest[A](request)
+case class ProjectIdUserNameRequest[A](
+    request: Request[A],
+    user: UserInformation,
+    projectId: UUID
+) extends WrappedRequest[A](request)
+
+case class HookAndUserNameRequest[A](
+    request: Request[A],
+    user: UserInformation,
+    hookName: String
+) extends WrappedRequest[A](request)
+case class SessionIdRequest[A](request: Request[A], sessionId: String)
     extends WrappedRequest[A](request)
 
-case class HookAndUserNameRequest[A](request: Request[A], user: UserInformation, hookName: String)
-    extends WrappedRequest[A](request)
-case class SessionIdRequest[A](request: Request[A], sessionId: String) extends WrappedRequest[A](request)
+class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
+    ec: ExecutionContext
+) extends ActionBuilder[ClientKeyRequest, AnyContent] {
+  override def parser: BodyParser[AnyContent] = bodyParser
 
-class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext)
-    extends ActionBuilder[ClientKeyRequest, AnyContent] {
-  override def parser: BodyParser[AnyContent]               = bodyParser
-
-  override def invokeBlock[A](request: Request[A], block: ClientKeyRequest[A] => Future[Result]): Future[Result] = {
+  override def invokeBlock[A](
+      request: Request[A],
+      block: ClientKeyRequest[A] => Future[Result]
+  ): Future[Result] = {
     val maybeFutureKey =
       for (
-        clientId     <- request.headers.get("Izanami-Client-Id");
+        clientId <- request.headers.get("Izanami-Client-Id");
         clientSecret <- request.headers.get("Izanami-Client-Secret")
       ) yield env.datastores.apiKeys.readAndCheckApiKey(clientId, clientSecret)
 
@@ -63,12 +91,17 @@ class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit 
       .map(futureKey =>
         futureKey.flatMap(eitherKey => {
           eitherKey.fold(
-            error => Future.successful(Unauthorized(Json.obj("message" -> "Invalid key"))),
+            error =>
+              Future.successful(
+                Unauthorized(Json.obj("message" -> "Invalid key"))
+              ),
             key => block(ClientKeyRequest(request, key))
           )
         })
       )
-      .getOrElse(Future.successful(Unauthorized(Json.obj("message" -> "Invalid key"))))
+      .getOrElse(
+        Future.successful(Unauthorized(Json.obj("message" -> "Invalid key")))
+      )
   }
 
   override protected def executionContext: ExecutionContext = ec
@@ -77,20 +110,34 @@ class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit 
 class TenantRightsAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
     ec: ExecutionContext
 ) extends ActionBuilder[UserRequestWithTenantRights, AnyContent] {
-  override def parser: BodyParser[AnyContent]               = bodyParser
+  override def parser: BodyParser[AnyContent] = bodyParser
 
   override def invokeBlock[A](
       request: Request[A],
       block: UserRequestWithTenantRights[A] => Future[Result]
   ): Future[Result] = {
-    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
+    extractClaims(
+      request,
+      env.typedConfiguration.authentication.secret,
+      env.encryptionKey
+    )
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized("")))(subject => {
         env.datastores.users
           .findSessionWithTenantRights(subject)
           .flatMap {
-            case None       => Unauthorized(Json.obj("message" -> "User is not connected")).future
-            case Some(user) => block(UserRequestWithTenantRights(request, user, BackOfficeAuthentication))
+            case None =>
+              Unauthorized(
+                Json.obj("message" -> "User is not connected")
+              ).future
+            case Some(user) =>
+              block(
+                UserRequestWithTenantRights(
+                  request,
+                  user,
+                  BackOfficeAuthentication
+                )
+              )
           }
       })
   }
@@ -101,20 +148,33 @@ class TenantRightsAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
 class DetailledAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
     ec: ExecutionContext
 ) extends ActionBuilder[UserRequestWithCompleteRights, AnyContent] {
-  override def parser: BodyParser[AnyContent]               = bodyParser
+  override def parser: BodyParser[AnyContent] = bodyParser
 
   override def invokeBlock[A](
       request: Request[A],
       block: UserRequestWithCompleteRights[A] => Future[Result]
   ): Future[Result] = {
-    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
+    extractClaims(
+      request,
+      env.typedConfiguration.authentication.secret,
+      env.encryptionKey
+    )
       .flatMap(claims => claims.subject)
-      .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
+      .fold(
+        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
+      )(subject => {
         env.datastores.users
           .findSessionWithCompleteRights(subject)
           .flatMap {
             case None       => UserNotFound(subject).toHttpResponse.future
-            case Some(user) => block(UserRequestWithCompleteRights(request, user, BackOfficeAuthentication))
+            case Some(user) =>
+              block(
+                UserRequestWithCompleteRights(
+                  request,
+                  user,
+                  BackOfficeAuthentication
+                )
+              )
           }
       })
   }
@@ -122,15 +182,25 @@ class DetailledAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
   override protected def executionContext: ExecutionContext = ec
 }
 
-class AdminAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext)
-    extends ActionBuilder[UserNameRequest, AnyContent] {
+class AdminAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
+    ec: ExecutionContext
+) extends ActionBuilder[UserNameRequest, AnyContent] {
 
-  override def parser: BodyParser[AnyContent]               = bodyParser
+  override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
-    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
+  override def invokeBlock[A](
+      request: Request[A],
+      block: UserNameRequest[A] => Future[Result]
+  ): Future[Result] = {
+    extractClaims(
+      request,
+      env.typedConfiguration.authentication.secret,
+      env.encryptionKey
+    )
       .flatMap(claims => claims.subject)
-      .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
+      .fold(
+        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
+      )(subject => {
         env.datastores.users
           .findAdminSession(subject)
           .flatMap {
@@ -138,10 +208,16 @@ class AdminAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec:
               block(
                 UserNameRequest(
                   request = request,
-                  UserInformation(username = username, authentication = BackOfficeAuthentication)
+                  UserInformation(
+                    username = username,
+                    authentication = BackOfficeAuthentication
+                  )
                 )
               )
-            case None           => Future.successful(Forbidden(Json.obj("message" -> "User is not connected")))
+            case None =>
+              Future.successful(
+                Forbidden(Json.obj("message" -> "User is not connected"))
+              )
           }
       })
   }
@@ -149,24 +225,40 @@ class AdminAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec:
   override protected def executionContext: ExecutionContext = ec
 }
 
-class AuthenticatedAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext)
-    extends ActionBuilder[UserNameRequest, AnyContent] {
+class AuthenticatedAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
+    ec: ExecutionContext
+) extends ActionBuilder[UserNameRequest, AnyContent] {
 
-  override def parser: BodyParser[AnyContent]               = bodyParser
+  override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
-    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
+  override def invokeBlock[A](
+      request: Request[A],
+      block: UserNameRequest[A] => Future[Result]
+  ): Future[Result] = {
+    extractClaims(
+      request,
+      env.typedConfiguration.authentication.secret,
+      env.encryptionKey
+    )
       .flatMap(claims => claims.subject)
-      .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(sessionId =>
+      .fold(
+        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
+      )(sessionId =>
         env.datastores.users.findSession(sessionId).flatMap {
           case Some(username) =>
             block(
               UserNameRequest(
                 request = request,
-                UserInformation(username = username, authentication = BackOfficeAuthentication)
+                UserInformation(
+                  username = username,
+                  authentication = BackOfficeAuthentication
+                )
               )
             )
-          case None           => Future.successful(Unauthorized(Json.obj("message" -> "User is not connected")))
+          case None =>
+            Future.successful(
+              Unauthorized(Json.obj("message" -> "User is not connected"))
+            )
         }
       )
   }
@@ -174,15 +266,25 @@ class AuthenticatedAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
   override protected def executionContext: ExecutionContext = ec
 }
 
-class AuthenticatedSessionAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext)
-    extends ActionBuilder[SessionIdRequest, AnyContent] {
+class AuthenticatedSessionAction(bodyParser: BodyParser[AnyContent], env: Env)(
+    implicit ec: ExecutionContext
+) extends ActionBuilder[SessionIdRequest, AnyContent] {
 
-  override def parser: BodyParser[AnyContent]               = bodyParser
+  override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](request: Request[A], block: SessionIdRequest[A] => Future[Result]): Future[Result] = {
-    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
+  override def invokeBlock[A](
+      request: Request[A],
+      block: SessionIdRequest[A] => Future[Result]
+  ): Future[Result] = {
+    extractClaims(
+      request,
+      env.typedConfiguration.authentication.secret,
+      env.encryptionKey
+    )
       .flatMap(claims => claims.subject)
-      .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(sessionId =>
+      .fold(
+        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
+      )(sessionId =>
         block(SessionIdRequest(request = request, sessionId = sessionId))
       )
   }
@@ -190,19 +292,29 @@ class AuthenticatedSessionAction(bodyParser: BodyParser[AnyContent], env: Env)(i
   override protected def executionContext: ExecutionContext = ec
 }
 
-class DetailledRightForTenantAction(bodyParser: BodyParser[AnyContent], env: Env, tenant: String)(implicit
+class DetailledRightForTenantAction(
+    bodyParser: BodyParser[AnyContent],
+    env: Env,
+    tenant: String
+)(implicit
     ec: ExecutionContext
 ) extends ActionBuilder[UserRequestWithCompleteRightForOneTenant, AnyContent] {
 
-  override def parser: BodyParser[AnyContent]               = bodyParser
+  override def parser: BodyParser[AnyContent] = bodyParser
 
   override def invokeBlock[A](
       request: Request[A],
       block: UserRequestWithCompleteRightForOneTenant[A] => Future[Result]
   ): Future[Result] = {
-    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
+    extractClaims(
+      request,
+      env.typedConfiguration.authentication.secret,
+      env.encryptionKey
+    )
       .flatMap(claims => claims.subject)
-      .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
+      .fold(
+        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
+      )(subject => {
         env.datastores.users
           .findSessionWithRightForTenant(subject, tenant)
           .flatMap {
@@ -222,6 +334,238 @@ class DetailledRightForTenantAction(bodyParser: BodyParser[AnyContent], env: Env
   override protected def executionContext: ExecutionContext = ec
 }
 
+class PersonnalAccessTokenProjectAuthAction(
+    bodyParser: BodyParser[AnyContent],
+    env: Env,
+    tenant: String,
+    project: String,
+    minimumLevel: ProjectRightLevel,
+    operation: TenantTokenRights
+)(implicit
+    ec: ExecutionContext
+) extends ActionBuilder[UserNameRequest, AnyContent] {
+  override def parser: BodyParser[AnyContent] = bodyParser
+
+  override def invokeBlock[A](
+      request: Request[A],
+      block: UserNameRequest[A] => Future[Result]
+  ): Future[Result] = {
+
+    def maybeTokenAuth: Future[Either[Result, UserInformation]] = {
+      extractAndCheckPersonnalAccessToken(request, env, tenant, operation)
+        .flatMap {
+          case Some((username, tokenId)) =>
+            env.datastores.users
+              .findCompleteRightsFromTenant(
+                username = username,
+                tenants = Set(tenant)
+              )
+              .map {
+                case Some(user)
+                    if user.hasRightForProject(
+                      tenant = tenant,
+                      project = project,
+                      rightLevel = minimumLevel
+                    ) =>
+                  Right(
+                    UserInformation(
+                      username = username,
+                      TokenAuthentication(tokenId = tokenId)
+                    )
+                  )
+                case Some(user) =>
+                  Left(
+                    Forbidden(
+                      Json.obj(
+                        "message" -> "User does not have enough rights for this operation"
+                      )
+                    )
+                  )
+                case None =>
+                  Left(Unauthorized(Json.obj("message" -> "User not found")))
+              }
+          case None =>
+            Future.successful(
+              Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
+            )
+        }
+    }
+
+    def maybeCookieAuth: Future[Either[Result, String]] = {
+      extractClaims(
+        request,
+        env.typedConfiguration.authentication.secret,
+        env.encryptionKey
+      )
+        .flatMap(claims => claims.subject)
+        .fold(
+          Future
+            .successful(
+              Left(
+                Unauthorized(Json.obj("message" -> "Invalid token"))
+              ): Either[Result, String]
+            )
+        )(subject => {
+          env.datastores.users
+            .hasRightForProject(
+              session = subject,
+              tenant = tenant,
+              projectIdOrName = Right(project),
+              level = minimumLevel
+            )
+            .map {
+              case Right(Some((username, _))) => Right(username)
+              case _                          =>
+                Left(
+                  Forbidden(
+                    Json.obj(
+                      "message" -> "User does not have enough rights for this operation"
+                    )
+                  )
+                )
+            }
+        })
+    }
+
+    maybeCookieAuth.flatMap {
+      case Right(username) =>
+        block(
+          UserNameRequest(
+            request = request,
+            UserInformation(
+              username = username,
+              authentication = BackOfficeAuthentication
+            )
+          )
+        )
+      case Left(result) =>
+        maybeTokenAuth.flatMap {
+          case Right(userInformation) =>
+            block(UserNameRequest(request = request, userInformation))
+          case Left(result) => Future.successful(result)
+        }
+    }
+  }
+
+  override protected def executionContext: ExecutionContext = ec
+}
+
+class PersonnalAccessTokenKeyAuthAction(
+    bodyParser: BodyParser[AnyContent],
+    env: Env,
+    tenant: String,
+    key: String,
+    minimumLevel: RightLevel,
+    operation: TenantTokenRights
+)(implicit
+    ec: ExecutionContext
+) extends ActionBuilder[UserNameRequest, AnyContent] {
+  override def parser: BodyParser[AnyContent] = bodyParser
+
+  override def invokeBlock[A](
+      request: Request[A],
+      block: UserNameRequest[A] => Future[Result]
+  ): Future[Result] = {
+
+    def maybeTokenAuth: Future[Either[Result, UserInformation]] = {
+      extractAndCheckPersonnalAccessToken(request, env, tenant, operation)
+        .flatMap {
+          case Some((username, tokenId)) =>
+            env.datastores.users
+              .findCompleteRightsFromTenant(
+                username = username,
+                tenants = Set(tenant)
+              )
+              .map {
+                case Some(user)
+                    if user.hasRightForKey(
+                      tenant = tenant,
+                      key = key,
+                      rightLevel = minimumLevel
+                    ) =>
+                  Right(
+                    UserInformation(
+                      username = username,
+                      TokenAuthentication(tokenId = tokenId)
+                    )
+                  )
+                case Some(user) =>
+                  Left(
+                    Forbidden(
+                      Json.obj(
+                        "message" -> "User does not have enough rights for this operation"
+                      )
+                    )
+                  )
+                case None =>
+                  Left(Unauthorized(Json.obj("message" -> "User not found")))
+              }
+          case None =>
+            Future.successful(
+              Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
+            )
+        }
+    }
+
+    def maybeCookieAuth: Future[Either[Result, String]] = {
+      extractClaims(
+        request,
+        env.typedConfiguration.authentication.secret,
+        env.encryptionKey
+      )
+        .flatMap(claims => claims.subject)
+        .fold(
+          Future
+            .successful(
+              Left(
+                Unauthorized(Json.obj("message" -> "Invalid token"))
+              ): Either[Result, String]
+            )
+        )(subject => {
+          env.datastores.users
+            .hasRightForKey(
+              session = subject,
+              tenant = tenant,
+              key = key,
+              level = minimumLevel
+            )
+            .map {
+              case Right(Some(username)) => Right(username)
+              case _                     =>
+                Left(
+                  Forbidden(
+                    Json.obj(
+                      "message" -> "User does not have enough rights for this operation"
+                    )
+                  )
+                )
+            }
+        })
+    }
+
+    maybeCookieAuth.flatMap {
+      case Right(username) =>
+        block(
+          UserNameRequest(
+            request = request,
+            UserInformation(
+              username = username,
+              authentication = BackOfficeAuthentication
+            )
+          )
+        )
+      case Left(result) =>
+        maybeTokenAuth.flatMap {
+          case Right(userInformation) =>
+            block(UserNameRequest(request = request, userInformation))
+          case Left(result) => Future.successful(result)
+        }
+    }
+  }
+
+  override protected def executionContext: ExecutionContext = ec
+}
+
 class PersonnalAccessTokenTenantAuthAction(
     bodyParser: BodyParser[AnyContent],
     env: Env,
@@ -231,7 +575,7 @@ class PersonnalAccessTokenTenantAuthAction(
 )(implicit
     ec: ExecutionContext
 ) extends ActionBuilder[UserNameRequest, AnyContent] {
-  override def parser: BodyParser[AnyContent]               = bodyParser
+  override def parser: BodyParser[AnyContent] = bodyParser
 
   override def invokeBlock[A](
       request: Request[A],
@@ -248,30 +592,64 @@ class PersonnalAccessTokenTenantAuthAction(
                 case Some(user)
                     if user.admin || user.tenantRights
                       .get(tenant)
-                      .exists(r => RightLevel.superiorOrEqualLevels(minimumLevel).contains(r)) =>
-                  Right(UserInformation(username = username, TokenAuthentication(tokenId = tokenId)))
+                      .exists(r =>
+                        RightLevel
+                          .superiorOrEqualLevels(minimumLevel)
+                          .contains(r)
+                      ) =>
+                  Right(
+                    UserInformation(
+                      username = username,
+                      TokenAuthentication(tokenId = tokenId)
+                    )
+                  )
                 case Some(user) =>
-                  Left(Forbidden(Json.obj("message" -> "User does not have enough rights for this operation")))
-                case None       => Left(Unauthorized(Json.obj("message" -> "User not found")))
+                  Left(
+                    Forbidden(
+                      Json.obj(
+                        "message" -> "User does not have enough rights for this operation"
+                      )
+                    )
+                  )
+                case None =>
+                  Left(Unauthorized(Json.obj("message" -> "User not found")))
               }
-          case None                      => Future.successful(Left(Unauthorized(Json.obj("message" -> "Invalid access token"))))
+          case None =>
+            Future.successful(
+              Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
+            )
         }
     }
 
     def maybeCookieAuth: Future[Either[Result, String]] = {
-      extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
+      extractClaims(
+        request,
+        env.typedConfiguration.authentication.secret,
+        env.encryptionKey
+      )
         .flatMap(claims => claims.subject)
-        .fold(Future.successful(Left(Unauthorized(Json.obj("message" -> "Invalid token"))): Either[Result, String]))(
-          subject => {
-            env.datastores.users
-              .hasRightForTenant(subject, tenant, minimumLevel)
-              .map {
-                case Some(username) => Right(username)
-                case None           =>
-                  Left(Forbidden(Json.obj("message" -> "User does not have enough rights for this operation")))
-              }
-          }
-        )
+        .fold(
+          Future
+            .successful(
+              Left(
+                Unauthorized(Json.obj("message" -> "Invalid token"))
+              ): Either[Result, String]
+            )
+        )(subject => {
+          env.datastores.users
+            .hasRightForTenant(subject, tenant, minimumLevel)
+            .map {
+              case Some(username) => Right(username)
+              case None           =>
+                Left(
+                  Forbidden(
+                    Json.obj(
+                      "message" -> "User does not have enough rights for this operation"
+                    )
+                  )
+                )
+            }
+        })
     }
 
     maybeCookieAuth.flatMap {
@@ -279,13 +657,17 @@ class PersonnalAccessTokenTenantAuthAction(
         block(
           UserNameRequest(
             request = request,
-            UserInformation(username = username, authentication = BackOfficeAuthentication)
+            UserInformation(
+              username = username,
+              authentication = BackOfficeAuthentication
+            )
           )
         )
-      case Left(result)    =>
+      case Left(result) =>
         maybeTokenAuth.flatMap {
-          case Right(userInformation) => block(UserNameRequest(request = request, userInformation))
-          case Left(result)           => Future.successful(result)
+          case Right(userInformation) =>
+            block(UserNameRequest(request = request, userInformation))
+          case Left(result) => Future.successful(result)
         }
     }
   }
@@ -293,16 +675,30 @@ class PersonnalAccessTokenTenantAuthAction(
   override protected def executionContext: ExecutionContext = ec
 }
 
-class TenantAuthAction(bodyParser: BodyParser[AnyContent], env: Env, tenant: String, minimumLevel: RightLevel)(implicit
+class TenantAuthAction(
+    bodyParser: BodyParser[AnyContent],
+    env: Env,
+    tenant: String,
+    minimumLevel: RightLevel
+)(implicit
     ec: ExecutionContext
 ) extends ActionBuilder[UserNameRequest, AnyContent] {
 
-  override def parser: BodyParser[AnyContent]               = bodyParser
+  override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
-    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
+  override def invokeBlock[A](
+      request: Request[A],
+      block: UserNameRequest[A] => Future[Result]
+  ): Future[Result] = {
+    extractClaims(
+      request,
+      env.typedConfiguration.authentication.secret,
+      env.encryptionKey
+    )
       .flatMap(claims => claims.subject)
-      .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
+      .fold(
+        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
+      )(subject => {
         env.datastores.users
           .hasRightForTenant(subject, tenant, minimumLevel)
           .flatMap {
@@ -310,11 +706,20 @@ class TenantAuthAction(bodyParser: BodyParser[AnyContent], env: Env, tenant: Str
               block(
                 UserNameRequest(
                   request = request,
-                  UserInformation(username = username, authentication = BackOfficeAuthentication)
+                  UserInformation(
+                    username = username,
+                    authentication = BackOfficeAuthentication
+                  )
                 )
               )
-            case None           =>
-              Future.successful(Forbidden(Json.obj("message" -> "User does not have enough rights for this operation")))
+            case None =>
+              Future.successful(
+                Forbidden(
+                  Json.obj(
+                    "message" -> "User does not have enough rights for this operation"
+                  )
+                )
+              )
           }
       })
   }
@@ -322,17 +727,22 @@ class TenantAuthAction(bodyParser: BodyParser[AnyContent], env: Env, tenant: Str
   override protected def executionContext: ExecutionContext = ec
 }
 
-class ValidatePasswordAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
-    ec: ExecutionContext
+class ValidatePasswordAction(bodyParser: BodyParser[AnyContent], env: Env)(
+    implicit ec: ExecutionContext
 ) extends ActionBuilder[UserNameRequest, AnyContent] {
-  override def parser: BodyParser[AnyContent]               = bodyParser
+  override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
+  override def invokeBlock[A](
+      request: Request[A],
+      block: UserNameRequest[A] => Future[Result]
+  ): Future[Result] = {
     request.body match {
       case json: JsObject =>
         (json \ "password").asOpt[String] match {
-          case None           =>
-            Future.successful(BadRequest(Json.obj("message" -> "Missing password")))
+          case None =>
+            Future.successful(
+              BadRequest(Json.obj("message" -> "Missing password"))
+            )
           case Some(password) =>
             val userRequest = request match {
               case r: HookAndUserNameRequest[_]        => Some(r.user.username)
@@ -349,18 +759,31 @@ class ValidatePasswordAction(bodyParser: BodyParser[AnyContent], env: Env)(impli
                     block(
                       UserNameRequest(
                         request,
-                        user = UserInformation(username = user, authentication = BackOfficeAuthentication)
+                        user = UserInformation(
+                          username = user,
+                          authentication = BackOfficeAuthentication
+                        )
                       )
                     )
-                  case None    => Future.successful(Unauthorized(Json.obj("message" -> "Your password is invalid.")))
+                  case None =>
+                    Future.successful(
+                      Unauthorized(
+                        Json.obj("message" -> "Your password is invalid.")
+                      )
+                    )
                 }
-              case _          => Future.successful(BadRequest(Json.obj("message" -> "Invalid request")))
+              case _ =>
+                Future.successful(
+                  BadRequest(Json.obj("message" -> "Invalid request"))
+                )
 
             }
 
         }
-      case _              =>
-        Future.successful(BadRequest(Json.obj("message" -> "Invalid request body")))
+      case _ =>
+        Future.successful(
+          BadRequest(Json.obj("message" -> "Invalid request body"))
+        )
     }
   }
 
@@ -376,32 +799,48 @@ class ProjectAuthAction(
 )(implicit ec: ExecutionContext)
     extends ActionBuilder[ProjectIdUserNameRequest, AnyContent] {
 
-  override def parser: BodyParser[AnyContent]               = bodyParser
+  override def parser: BodyParser[AnyContent] = bodyParser
 
   override def invokeBlock[A](
       request: Request[A],
       block: ProjectIdUserNameRequest[A] => Future[Result]
   ): Future[Result] = {
-    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
+    extractClaims(
+      request,
+      env.typedConfiguration.authentication.secret,
+      env.encryptionKey
+    )
       .flatMap(claims => claims.subject)
-      .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
+      .fold(
+        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
+      )(subject => {
         env.datastores.users
           .hasRightForProject(subject, tenant, projectIdOrName, minimumLevel)
           .flatMap(authorized =>
             authorized.fold(
-              err => Future.successful(Results.Status(err.status)(Json.toJson(err))),
+              err =>
+                Future.successful(Results.Status(err.status)(Json.toJson(err))),
               {
                 case Some((username, projectId)) =>
                   block(
                     ProjectIdUserNameRequest(
                       request = request,
-                      user = UserInformation(username = username, authentication = BackOfficeAuthentication),
+                      user = UserInformation(
+                        username = username,
+                        authentication = BackOfficeAuthentication
+                      ),
                       projectId = projectId
                     )
                   )
-                case None                        =>
+                case None =>
                   Future
-                    .successful(Forbidden(Json.obj("message" -> "User does not have enough rights for this operation")))
+                    .successful(
+                      Forbidden(
+                        Json.obj(
+                          "message" -> "User does not have enough rights for this operation"
+                        )
+                      )
+                    )
               }
             )
           )
@@ -420,32 +859,48 @@ class WebhookAuthAction(
 )(implicit ec: ExecutionContext)
     extends ActionBuilder[HookAndUserNameRequest, AnyContent] {
 
-  override def parser: BodyParser[AnyContent]               = bodyParser
+  override def parser: BodyParser[AnyContent] = bodyParser
 
   override def invokeBlock[A](
       request: Request[A],
       block: HookAndUserNameRequest[A] => Future[Result]
   ): Future[Result] = {
-    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
+    extractClaims(
+      request,
+      env.typedConfiguration.authentication.secret,
+      env.encryptionKey
+    )
       .flatMap(claims => claims.subject)
-      .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
+      .fold(
+        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
+      )(subject => {
         env.datastores.users
           .hasRightForWebhook(subject, tenant, webhook, minimumLevel)
           .flatMap(authorized =>
             authorized.fold(
-              err => Future.successful(Results.Status(err.status)(Json.toJson(err))),
+              err =>
+                Future.successful(Results.Status(err.status)(Json.toJson(err))),
               {
                 case Some((username, hookName)) =>
                   block(
                     HookAndUserNameRequest(
                       request = request,
-                      user = UserInformation(username = username, authentication = BackOfficeAuthentication),
+                      user = UserInformation(
+                        username = username,
+                        authentication = BackOfficeAuthentication
+                      ),
                       hookName = hookName
                     )
                   )
-                case None                       =>
+                case None =>
                   Future
-                    .successful(Forbidden(Json.obj("message" -> "User does not have enough rights for this operation")))
+                    .successful(
+                      Forbidden(
+                        Json.obj(
+                          "message" -> "User does not have enough rights for this operation"
+                        )
+                      )
+                    )
               }
             )
           )
@@ -464,28 +919,47 @@ class KeyAuthAction(
 )(implicit ec: ExecutionContext)
     extends ActionBuilder[UserNameRequest, AnyContent] {
 
-  override def parser: BodyParser[AnyContent]               = bodyParser
+  override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](request: Request[A], block: UserNameRequest[A] => Future[Result]): Future[Result] = {
-    extractClaims(request, env.typedConfiguration.authentication.secret, env.encryptionKey)
+  override def invokeBlock[A](
+      request: Request[A],
+      block: UserNameRequest[A] => Future[Result]
+  ): Future[Result] = {
+    extractClaims(
+      request,
+      env.typedConfiguration.authentication.secret,
+      env.encryptionKey
+    )
       .flatMap(claims => claims.subject)
-      .fold(Future.successful(Unauthorized(Json.obj("message" -> "Invalid token"))))(subject => {
+      .fold(
+        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
+      )(subject => {
         env.datastores.users
           .hasRightForKey(subject, tenant, key, minimumLevel)
           .flatMap(authorized =>
             authorized.fold(
-              err => Future.successful(Results.Status(err.status)(Json.toJson(err))),
+              err =>
+                Future.successful(Results.Status(err.status)(Json.toJson(err))),
               {
                 case Some(username) =>
                   block(
                     UserNameRequest(
                       request = request,
-                      user = UserInformation(username = username, authentication = BackOfficeAuthentication)
+                      user = UserInformation(
+                        username = username,
+                        authentication = BackOfficeAuthentication
+                      )
                     )
                   )
-                case None           =>
+                case None =>
                   Future
-                    .successful(Forbidden(Json.obj("message" -> "User does not have enough rights for this operation")))
+                    .successful(
+                      Forbidden(
+                        Json.obj(
+                          "message" -> "User does not have enough rights for this operation"
+                        )
+                      )
+                    )
               }
             )
           )
@@ -495,37 +969,70 @@ class KeyAuthAction(
   override protected def executionContext: ExecutionContext = ec
 }
 
-class DetailledRightForTenantFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
+class DetailledRightForTenantFactory(
+    bodyParser: BodyParser[AnyContent],
+    env: Env
+)(implicit ec: ExecutionContext) {
   def apply(tenant: String): DetailledRightForTenantAction =
     new DetailledRightForTenantAction(bodyParser, env, tenant)
 }
 
-class KeyAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
-  def apply(tenant: String, key: String, minimumLevel: RightLevel): KeyAuthAction =
+class KeyAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
+    implicit ec: ExecutionContext
+) {
+  def apply(
+      tenant: String,
+      key: String,
+      minimumLevel: RightLevel
+  ): KeyAuthAction =
     new KeyAuthAction(bodyParser, env, tenant, key, minimumLevel)
 }
 
-class WebhookAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
-  def apply(tenant: String, webhook: String, minimumLevel: RightLevel): WebhookAuthAction =
+class WebhookAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
+    implicit ec: ExecutionContext
+) {
+  def apply(
+      tenant: String,
+      webhook: String,
+      minimumLevel: RightLevel
+  ): WebhookAuthAction =
     new WebhookAuthAction(bodyParser, env, tenant, webhook, minimumLevel)
 }
 
-class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
-  def apply(tenant: String, project: String, minimumLevel: ProjectRightLevel): ProjectAuthAction =
+class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
+    implicit ec: ExecutionContext
+) {
+  def apply(
+      tenant: String,
+      project: String,
+      minimumLevel: ProjectRightLevel
+  ): ProjectAuthAction =
     new ProjectAuthAction(bodyParser, env, tenant, Right(project), minimumLevel)
 }
 
-class ProjectAuthActionByIdFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
-  def apply(tenant: String, project: UUID, minimumLevel: ProjectRightLevel): ProjectAuthAction =
+class ProjectAuthActionByIdFactory(
+    bodyParser: BodyParser[AnyContent],
+    env: Env
+)(implicit ec: ExecutionContext) {
+  def apply(
+      tenant: String,
+      project: UUID,
+      minimumLevel: ProjectRightLevel
+  ): ProjectAuthAction =
     new ProjectAuthAction(bodyParser, env, tenant, Left(project), minimumLevel)
 }
 
-class TenantAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit ec: ExecutionContext) {
+class TenantAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
+    implicit ec: ExecutionContext
+) {
   def apply(tenant: String, minimumLevel: RightLevel): TenantAuthAction =
     new TenantAuthAction(bodyParser, env, tenant, minimumLevel)
 }
 
-class PersonnalAccessTokenTenantAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(implicit
+class PersonnalAccessTokenTenantAuthActionFactory(
+    bodyParser: BodyParser[AnyContent],
+    env: Env
+)(implicit
     ec: ExecutionContext
 ) {
   def apply(
@@ -533,19 +1040,80 @@ class PersonnalAccessTokenTenantAuthActionFactory(bodyParser: BodyParser[AnyCont
       minimumLevel: RightLevel,
       operation: TenantTokenRights
   ): PersonnalAccessTokenTenantAuthAction =
-    new PersonnalAccessTokenTenantAuthAction(bodyParser, env, tenant, minimumLevel, operation)
+    new PersonnalAccessTokenTenantAuthAction(
+      bodyParser,
+      env,
+      tenant,
+      minimumLevel,
+      operation
+    )
+}
+
+class PersonnalAccessTokenProjectAuthActionFactory(
+    bodyParser: BodyParser[AnyContent],
+    env: Env
+)(implicit
+    ec: ExecutionContext
+) {
+  def apply(
+      tenant: String,
+      project: String,
+      minimumLevel: ProjectRightLevel,
+      operation: TenantTokenRights
+  ): PersonnalAccessTokenProjectAuthAction =
+    new PersonnalAccessTokenProjectAuthAction(
+      bodyParser,
+      env,
+      tenant,
+      project,
+      minimumLevel,
+      operation
+    )
+}
+
+class PersonnalAccessTokenKeyAuthActionFactory(
+    bodyParser: BodyParser[AnyContent],
+    env: Env
+)(implicit
+    ec: ExecutionContext
+) {
+  def apply(
+      tenant: String,
+      key: String,
+      minimumLevel: RightLevel,
+      operation: TenantTokenRights
+  ): PersonnalAccessTokenKeyAuthAction =
+    new PersonnalAccessTokenKeyAuthAction(
+      bodyParser,
+      env,
+      tenant,
+      key,
+      minimumLevel,
+      operation
+    )
 }
 
 object AuthAction {
   private val TIMER = Executors.newSingleThreadScheduledExecutor()
 
-  def delayResponse(result: Result, duration: Duration = Duration.ofSeconds(3)): Future[Result] = {
+  def delayResponse(
+      result: Result,
+      duration: Duration = Duration.ofSeconds(3)
+  ): Future[Result] = {
     val promise = Promise[Result]()
-    TIMER.schedule(() => promise.success(result), duration.toMillis, TimeUnit.MILLISECONDS)
+    TIMER.schedule(
+      () => promise.success(result),
+      duration.toMillis,
+      TimeUnit.MILLISECONDS
+    )
     promise.future
   }
 
-  def extractClaims[A](request: Request[A], secret: String, bodySecretKey: SecretKeySpec): Option[JwtClaim] = {
+  def extractClaims[A](
+      request: Request[A],
+      secret: String,
+      bodySecretKey: SecretKeySpec
+  ): Option[JwtClaim] = {
     request.cookies
       .get("token")
       .map(cookie => cookie.value)
@@ -579,7 +1147,7 @@ object AuthAction {
           }(env.executionContext)
 
       }
-      case _                             => Future.successful(None)
+      case _ => Future.successful(None)
     }
   }
 }

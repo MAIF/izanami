@@ -37,7 +37,14 @@ export type LogSearchQuery = {
   additionalFields: { [x: string]: any };
 };
 
-export const POSSIBLE_TOKEN_RIGHTS = ["EXPORT", "IMPORT"] as const;
+export const POSSIBLE_TOKEN_RIGHTS = [
+  "EXPORT",
+  "IMPORT",
+  "DELETE FEATURE",
+  "DELETE PROJECT",
+  "DELETE KEY",
+  "CREATE TENANT",
+] as const;
 export type TokenTenantRight = typeof POSSIBLE_TOKEN_RIGHTS[number];
 
 export type TokenTenantRightsArray = [string | null, TokenTenantRight[]][];

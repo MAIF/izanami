@@ -5,12 +5,12 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.ProjectDoesNotExists
 import fr.maif.izanami.events.{EventAuthentication, EventService, FeatureEvent, TenantCreated, TenantDeleted}
 import fr.maif.izanami.models.ProjectWithUsageInformation.projectWithUsageInformationWrites
-import fr.maif.izanami.models.{Project, ProjectRightLevel, ProjectWithUsageInformation, RightLevel}
+import fr.maif.izanami.models.{DeleteProject, Project, ProjectRightLevel, ProjectWithUsageInformation, RightLevel}
 import fr.maif.izanami.services.FeatureUsageService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ProjectController.parseStringSet
 import play.api.libs.json.{JsError, JsNull, JsNumber, JsObject, JsSuccess, JsValue, Json, Writes}
-import play.api.mvc._
+import play.api.mvc.*
 
 import java.time.Instant
 import java.util.UUID
@@ -24,7 +24,8 @@ class ProjectController(
     val projectAuthAction: ProjectAuthActionFactory,
     val projectAuthActionById: ProjectAuthActionByIdFactory,
     val detailledRightForTenanFactory: DetailledRightForTenantFactory,
-    val featureUsageService: FeatureUsageService
+    val featureUsageService: FeatureUsageService,
+    val personnalAccessTokenAuthAction: PersonnalAccessTokenProjectAuthActionFactory
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
 
@@ -177,7 +178,7 @@ class ProjectController(
     }
 
   def deleteProject(tenant: String, project: String): Action[AnyContent] =
-    (projectAuthAction(tenant, project, ProjectRightLevel.Admin)).async { implicit request =>
+    (personnalAccessTokenAuthAction(tenant, project, ProjectRightLevel.Admin, DeleteProject)).async { implicit request =>
       env.datastores.projects
         .deleteProject(tenant, project, request.user)
         .map {

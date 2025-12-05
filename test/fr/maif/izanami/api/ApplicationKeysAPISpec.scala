@@ -271,6 +271,28 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
   }
 
   "API key DELETE endpoint" should {
+    "allow to delete key by personnal access token" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("testtenant").withApiKeyNames("mykey"))
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(
+            "foo",
+            allRights = false,
+            rights = Map("testtenant" -> Set("DELETE KEY"))
+          )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val secret = situation.findTokenSecret(situation.user, "foo");
+
+      val res =
+        deleteApiKeyWithToken(tenant = "testtenant", name = "mykey", username = situation.user, token = secret)
+      res.status mustBe NO_CONTENT
+
+      situation.fetchAPIKeys("testtenant").json.get.as[JsArray].value mustBe empty
+    }
+
     "delete given API key" in {
       val situation = TestSituationBuilder()
         .withUsers(

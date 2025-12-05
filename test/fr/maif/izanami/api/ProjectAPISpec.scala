@@ -86,6 +86,26 @@ class ProjectAPISpec extends BaseAPISpec {
   }
 
   "Project DELETE endpoint" should {
+    "Delete project with personnal access token with DELETE PROJECT right" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("testtenant").withProjectNames("ppp"))
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(
+            "foo",
+            allRights = false,
+            rights = Map("testtenant" -> Set("DELETE PROJECT"))
+          )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val secret = situation.findTokenSecret(situation.user, "foo");
+
+      val res =
+        deleteProjectWithToken(tenant = "testtenant", project = "ppp", username=situation.user, token=secret)
+      res.status mustBe NO_CONTENT
+    }
+    
     "Delete project with local overloads" in {
       val situation = TestSituationBuilder()
         .withTenants(
