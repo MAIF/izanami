@@ -1455,6 +1455,55 @@ class UsersDatastore(val env: Env) extends Datastore {
       .map(_ => ())
   }
 
+  def findUserWithRightForTenant(
+                                     username: String,
+                                     tenant: String
+                                   ): Future[Either[IzanamiError, UserWithCompleteRightForOneTenant]] = {
+    require(Tenant.isTenantValid(tenant))
+    env.postgresql
+      .queryOne(
+        s"""
+           |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant,
+           |    COALESCE((
+           |      select (json_build_object('level', utr.level, 'defaultProjectRight', utr.default_project_right, 'projects', (
+           |        select json_object_agg(p.project, json_build_object('level', p.level))
+           |        from "${tenant}".users_projects_rights p
+           |        where p.username=u.username
+           |      )))
+           |      from izanami.users_tenants_rights utr
+           |      where utr.username=u.username
+           |      and utr.tenant=$$2
+           |    ), '{}'::json) as rights
+           |from izanami.users u
+           |WHERE u.username=$$1
+           |""".stripMargin,
+        List(username, tenant)
+      ) { row => {
+        for (
+          username <- row.optString("username");
+          userType <- row.optString("user_type").map(dbUserTypeToUserType);
+          admin <- row.optBoolean("admin");
+          right <- row.optJsObject("rights")
+        ) yield {
+          val parsedRights = right.asOpt[TenantRight]
+          UserWithCompleteRightForOneTenant(
+            username = username,
+            email = row.optString("email").orNull,
+            password = null,
+            admin = admin,
+            tenantRight = parsedRights,
+            userType = userType
+          )
+        }
+      }
+      }
+      .map(o => o.toRight(UserNotFound(username)))
+      .recover {
+        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
+        case _ => Left(InternalServerError())
+      }
+  }
+
   def findSessionWithRightForTenant(
       session: String,
       tenant: String

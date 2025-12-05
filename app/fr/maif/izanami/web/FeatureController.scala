@@ -1,16 +1,12 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{
-  FeatureNotFound,
-  IncorrectKey,
-  IzanamiError,
-  TagDoesNotExists
-}
+import fr.maif.izanami.errors.{FeatureNotFound, IncorrectKey, IzanamiError, TagDoesNotExists}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.Feature.*
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
 import fr.maif.izanami.models.LightWeightFeatureWithUsageInformation.writeLightWeightFeatureWithUsageInformation
+import fr.maif.izanami.models.ProjectRightLevel.Write
 import fr.maif.izanami.models.features.*
 import fr.maif.izanami.requests.{BaseFeatureUpdateRequest, FeatureUpdateRequest}
 import fr.maif.izanami.services.{FeatureService, FeatureUsageService}
@@ -31,6 +27,7 @@ class FeatureController(
     val projectAuthAction: ProjectAuthActionFactory,
     val authenticatedAction: AuthenticatedAction,
     val detailledRightForTenanFactory: DetailledRightForTenantFactory,
+    val personnalAccessTokenAuth: PersonnalAccessTokenFeatureAuthActionFactory,
     featureService: FeatureService,
     featureUsageService: FeatureUsageService
 ) extends BaseController {
@@ -667,7 +664,7 @@ class FeatureController(
     }
 
   def deleteFeature(tenant: String, id: String): Action[AnyContent] =
-    detailledRightForTenanFactory(tenant).async { implicit request =>
+    personnalAccessTokenAuth(tenant, featureId = id, minimumLevel = Write, operation = DeleteFeature).async { implicit request =>
       featureService
         .deleteFeature(tenant, id, request.user, request.authentication)
         .toResult(_ => NoContent)

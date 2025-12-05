@@ -622,7 +622,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
   def findFeaturesProjects(
       tenant: String,
       featureIds: Set[String]
-  ): Future[Map[String, String]] = {
+  ): FutureEither[Map[String, String]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryAll(
@@ -638,7 +638,13 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           ) yield (id, project)
         }
       }
-      .map(_.toMap)
+      .map(fs => Right(fs.toMap))
+      .recover {
+        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
+          Left(TenantDoesNotExists(tenant))
+        case _ => Left(InternalServerError())
+      }
+      .toFEither
   }
 
   def findByIdLightweight(

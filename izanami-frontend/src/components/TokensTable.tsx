@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
   PersonnalAccessToken,
+  TokenGlobalRightsArray,
   TokenTenantRights,
   TokenTenantRightsArray,
 } from "../utils/types";
@@ -121,6 +122,7 @@ export function TokensTable(props: { user: string }) {
       expirationTimezone: string;
       allRights: boolean;
       rights: TokenTenantRights;
+      globalRights: TokenGlobalRightsArray;
     }) =>
       updatePersonnalAccessToken({
         username: user,
@@ -131,6 +133,7 @@ export function TokensTable(props: { user: string }) {
         createdAt: data.old.createdAt,
         allRights: data.allRights,
         rights: data.rights,
+        globalRights: data.globalRights,
       }).then(() => {
         queryClient.invalidateQueries({
           queryKey: [personnalAccessTokenKey(user)],
@@ -179,6 +182,9 @@ export function TokensTable(props: { user: string }) {
                           rights: newValue.allRights
                             ? {}
                             : tokenRightsToObject(newValue.rights),
+                          globalRights: newValue.allRights
+                            ? []
+                            : newValue.globalRights,
                         })
                         .then(() => cancel());
                     }}

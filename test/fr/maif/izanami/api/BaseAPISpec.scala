@@ -1755,6 +1755,56 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
   }
 
+  def createTenantWithToken(
+      name: String,
+      description: String = "",
+      username: String,
+      token: String
+  ): RequestResult = {
+    val auth = Base64.getEncoder.encodeToString(
+      s"${username}:$token".getBytes(StandardCharsets.UTF_8)
+    )
+
+    val response = await(
+      ws
+        .url(s"${ADMIN_BASE_URL}/tenants")
+        .addHttpHeaders("Authorization" -> s"Basic $auth")
+        .post(Json.parse(s"""{ "name": "${name}" ${
+            if (description != null) s""", "description": "${description}" """
+            else ""
+          } }"""))
+    )
+
+    RequestResult(
+      json = Try {
+        response.json
+      },
+      status = response.status
+    )
+  }
+
+  def deleteFeatureWithToken(
+      tenant: String,
+      featureId: String,
+      username: String,
+      token: String
+  ): RequestResult = {
+    val auth = Base64.getEncoder.encodeToString(
+      s"${username}:$token".getBytes(StandardCharsets.UTF_8)
+    )
+    val response = await(
+      ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/features/${featureId}")
+        .addHttpHeaders("Authorization" -> s"Basic $auth")
+        .delete()
+    )
+    RequestResult(
+      json = Try {
+        response.json
+      },
+      status = response.status
+    )
+  }
+
   def deleteProjectWithToken(
       tenant: String,
       project: String,
@@ -2260,13 +2310,19 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       name: String,
       allRights: Boolean,
       rights: Map[String, Set[String]] = Map(),
+      globalRights: Set[String] = Set(),
       expiresAt: Option[LocalDateTime] = None,
       expirationTimezone: Option[ZoneId] = None,
       id: String = null
   ) {
     def toJson: JsObject = {
       Json
-        .obj("name" -> name, "allRights" -> allRights, "rights" -> rights)
+        .obj(
+          "name" -> name,
+          "allRights" -> allRights,
+          "rights" -> rights,
+          "globalRights" -> globalRights
+        )
         .applyOnWithOpt(expiresAt)((obj, expiration) => {
           obj + ("expiresAt" -> Json.toJson(expiration))
         })
@@ -4337,262 +4393,270 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       futures.addOne(wasmManagerFuture)
 
       val tenantFuture =
-        Future.sequence(
-          tenants.map(tenant => {
-            tagsData.put(tenant.name, TrieMap())
-            featuresData.put(tenant.name, TrieMap())
-            projectsData.put(tenant.name, TrieMap())
-            createTenantAsync(
-              name = tenant.name,
-              description = tenant.description,
-              cookies = buildCookies
-            )
-              .map { res =>
-                if (res.status >= 400) {
-                  throw new RuntimeException("Failed to create tenant")
-                } else ()
-              }
-              .flatMap(_ => {
-                Future
-                  .sequence(tenant.contexts.map(ctx => {
-                    createGlobalContextHierarchyAsync(
-                      tenant.name,
-                      ctx,
-                      cookies = buildCookies
-                    )
-                  }))
-                  .flatMap(_ =>
-                    Future.sequence(tenant.tags.map(tag => {
-                      createTagAsync(
-                        name = tag.name,
-                        tenant = tenant.name,
-                        description = tag.description,
+        Future
+          .sequence(
+            tenants.map(tenant => {
+              tagsData.put(tenant.name, TrieMap())
+              featuresData.put(tenant.name, TrieMap())
+              projectsData.put(tenant.name, TrieMap())
+              createTenantAsync(
+                name = tenant.name,
+                description = tenant.description,
+                cookies = buildCookies
+              )
+                .map { res =>
+                  if (res.status >= 400) {
+                    throw new RuntimeException("Failed to create tenant")
+                  } else ()
+                }
+                .flatMap(_ => {
+                  Future
+                    .sequence(tenant.contexts.map(ctx => {
+                      createGlobalContextHierarchyAsync(
+                        tenant.name,
+                        ctx,
                         cookies = buildCookies
                       )
-                        .map(res => {
-                          if (res.status >= 400) {
-                            throw new RuntimeException("Failed to create tags")
-                          } else {
-                            val id = (res.json \ "id").get.as[String]
-                            tagsData
-                              .getOrElse(
-                                tenant.name, {
-                                  val map = TrieMap[String, String]()
-                                  tagsData.put(tenant.name, map)
-                                  map
-                                }
-                              )
-                              .put(tag.name, id)
-                          }
-                        })
                     }))
-                  )
-                  .flatMap(_ =>
-                    Future.sequence(
-                      tenant.projects.map(project => {
-                        createProjectAsync(
-                          name = project.name,
+                    .flatMap(_ =>
+                      Future.sequence(tenant.tags.map(tag => {
+                        createTagAsync(
+                          name = tag.name,
                           tenant = tenant.name,
-                          description = project.description,
+                          description = tag.description,
                           cookies = buildCookies
-                        ).map(res => {
-                          if (res.status >= 400) {
-                            throw new RuntimeException(
-                              "Failed to create projects"
-                            )
-                          } else {
-                            val id = (res.json \ "id").get.as[String]
-                            projectsData
-                              .getOrElse(
-                                tenant.name, {
-                                  val map = TrieMap[String, String]()
-                                  projectsData.put(tenant.name, map)
-                                  map
-                                }
+                        )
+                          .map(res => {
+                            if (res.status >= 400) {
+                              throw new RuntimeException(
+                                "Failed to create tags"
                               )
-                              .put(project.name, id)
-                          }
-                        }).flatMap(_ => {
-                          val tenantMap = featuresData.getOrElse(
-                            tenant.name, {
-                              val map =
-                                TrieMap[String, TrieMap[String, String]]()
-                              featuresData.put(tenant.name, map)
-                              map
-                            }
-                          )
-                          val projectMap = tenantMap.getOrElse(
-                            project.name, {
-                              val map = TrieMap[String, String]()
-                              tenantMap.put(project.name, map)
-                              map
-                            }
-                          )
-                          Future
-                            .sequence(
-                              project.features
-                                .map(feature => {
-                                  createFeatureAsync(
-                                    name = feature.name,
-                                    project = project.name,
-                                    tenant = tenant.name,
-                                    enabled = feature.enabled,
-                                    tags = feature.tags,
-                                    metadata = feature.metadata,
-                                    conditions = feature.conditions,
-                                    wasmConfig = feature.wasmConfig,
-                                    id = feature.id,
-                                    cookies = buildCookies,
-                                    resultType = feature.resultType,
-                                    value = feature.value
-                                  ).map(res => {
-                                    if (res.status >= 400) {
-                                      throw new RuntimeException(
-                                        "Failed to create features"
-                                      )
-                                    } else {
-                                      projectMap.put(
-                                        feature.name,
-                                        (res.json \ "id").as[String]
-                                      )
-                                    }
-                                  })
-                                })
-                            )
-                            .flatMap(_ => {
-                              Future.sequence(project.contexts.map(context => {
-                                createContextHierarchyAsync(
-                                  tenant.name,
-                                  project.name,
-                                  context,
-                                  cookies = buildCookies
-                                )
-                              }))
-                            })
-                        })
-                      })
-                    )
-                  )
-                  .flatMap(_ =>
-                    Future.sequence(
-                      tenant.webhooks
-                        .map(webhook => {
-                          TestWebhook(
-                            name = webhook.name,
-                            url = webhook.url,
-                            features = webhook.features.map {
-                              case (tenant, project, name) =>
-                                featuresData(tenant)(project)(name)
-                            },
-                            projects =
-                              webhook.projects.map { case (tenant, project) =>
-                                projectsData(tenant)(project)
-                              },
-                            headers = webhook.headers,
-                            description = webhook.description,
-                            user = webhook.user,
-                            enabled = webhook.enabled,
-                            context = webhook.context,
-                            bodyTemplate = webhook.bodyTemplate,
-                            global = webhook.global
-                          )
-                        })
-                        .map(webhook => {
-                          createWebhook(
-                            tenant = tenant.name,
-                            webhook = webhook,
-                            cookies = buildCookies
-                          )
-                            .map(res => {
-                              if (res.status >= 400) {
-                                throw new RuntimeException(
-                                  "Failed to create tags"
-                                )
-                              } else {
-                                val id = (res.json \ "id").get.as[String]
-                                webhooksData
-                                  .getOrElse(
-                                    tenant.name, {
-                                      val map = TrieMap[String, String]()
-                                      webhooksData.put(tenant.name, map)
-                                      map
-                                    }
-                                  )
-                                  .put(webhook.name, id)
-                              }
-                            })
-                        })
-                    )
-                  )
-                  .flatMap(_ => {
-                    Future
-                      .sequence(
-                        tenant.apiKeys
-                          .map(key => {
-                            createAPIKeyAsync(
-                              tenant = tenant.name,
-                              name = key.name,
-                              projects = key.projects,
-                              description = key.description,
-                              enabled = key.enabled,
-                              admin = key.admin,
-                              cookies = buildCookies
-                            )
-                          })
-                          .concat(tenant.allRightKeys.map(ak => {
-                            createAPIKeyAsync(
-                              tenant = tenant.name,
-                              name = ak,
-                              projects = tenant.projects.map(p => p.name).toSeq,
-                              cookies = buildCookies
-                            )
-                          }))
-                      )
-                      .map(responses => {
-                        responses
-                          .map(result => {
-                            val json = result.json
-                            TestSituationKey(
-                              name = (json \ "name").as[String],
-                              clientId = (json \ "clientId").as[String],
-                              clientSecret = (json \ "clientSecret").as[String],
-                              enabled = (json \ "enabled").as[Boolean]
-                            )
-                          })
-                          .foreach(key => keyData = keyData + (key.name -> key))
-                      })
-                  })
-                  .flatMap(_ => {
-                    Future
-                      .sequence(
-                        personnalAccessTokens
-                          .map(token => {
-                            createPersonnalAccessToken(
-                              token,
-                              user = loggedInUser.get,
-                              cookies = buildCookies
-                            ).map(resp => {
-                              val secret = (resp.json \ "token").as[String]
-                              val id = (resp.json \ "id").as[String]
-                              tokenIdAndSecretsByUser
+                            } else {
+                              val id = (res.json \ "id").get.as[String]
+                              tagsData
                                 .getOrElse(
-                                  loggedInUser.get, {
-                                    val newMap =
-                                      TrieMap[String, (String, String)]()
-                                    tokenIdAndSecretsByUser
-                                      .update(loggedInUser.get, newMap)
-                                    newMap
+                                  tenant.name, {
+                                    val map = TrieMap[String, String]()
+                                    tagsData.put(tenant.name, map)
+                                    map
                                   }
                                 )
-                                .update(token.name, (id, secret))
-                              resp
-                            })
+                                .put(tag.name, id)
+                            }
+                          })
+                      }))
+                    )
+                    .flatMap(_ =>
+                      Future.sequence(
+                        tenant.projects.map(project => {
+                          createProjectAsync(
+                            name = project.name,
+                            tenant = tenant.name,
+                            description = project.description,
+                            cookies = buildCookies
+                          ).map(res => {
+                            if (res.status >= 400) {
+                              throw new RuntimeException(
+                                "Failed to create projects"
+                              )
+                            } else {
+                              val id = (res.json \ "id").get.as[String]
+                              projectsData
+                                .getOrElse(
+                                  tenant.name, {
+                                    val map = TrieMap[String, String]()
+                                    projectsData.put(tenant.name, map)
+                                    map
+                                  }
+                                )
+                                .put(project.name, id)
+                            }
+                          }).flatMap(_ => {
+                            val tenantMap = featuresData.getOrElse(
+                              tenant.name, {
+                                val map =
+                                  TrieMap[String, TrieMap[String, String]]()
+                                featuresData.put(tenant.name, map)
+                                map
+                              }
+                            )
+                            val projectMap = tenantMap.getOrElse(
+                              project.name, {
+                                val map = TrieMap[String, String]()
+                                tenantMap.put(project.name, map)
+                                map
+                              }
+                            )
+                            Future
+                              .sequence(
+                                project.features
+                                  .map(feature => {
+                                    createFeatureAsync(
+                                      name = feature.name,
+                                      project = project.name,
+                                      tenant = tenant.name,
+                                      enabled = feature.enabled,
+                                      tags = feature.tags,
+                                      metadata = feature.metadata,
+                                      conditions = feature.conditions,
+                                      wasmConfig = feature.wasmConfig,
+                                      id = feature.id,
+                                      cookies = buildCookies,
+                                      resultType = feature.resultType,
+                                      value = feature.value
+                                    ).map(res => {
+                                      if (res.status >= 400) {
+                                        throw new RuntimeException(
+                                          "Failed to create features"
+                                        )
+                                      } else {
+                                        projectMap.put(
+                                          feature.name,
+                                          (res.json \ "id").as[String]
+                                        )
+                                      }
+                                    })
+                                  })
+                              )
+                              .flatMap(_ => {
+                                Future.sequence(
+                                  project.contexts.map(context => {
+                                    createContextHierarchyAsync(
+                                      tenant.name,
+                                      project.name,
+                                      context,
+                                      cookies = buildCookies
+                                    )
+                                  })
+                                )
+                              })
+                          })
+                        })
+                      )
+                    )
+                    .flatMap(_ =>
+                      Future.sequence(
+                        tenant.webhooks
+                          .map(webhook => {
+                            TestWebhook(
+                              name = webhook.name,
+                              url = webhook.url,
+                              features = webhook.features.map {
+                                case (tenant, project, name) =>
+                                  featuresData(tenant)(project)(name)
+                              },
+                              projects =
+                                webhook.projects.map { case (tenant, project) =>
+                                  projectsData(tenant)(project)
+                                },
+                              headers = webhook.headers,
+                              description = webhook.description,
+                              user = webhook.user,
+                              enabled = webhook.enabled,
+                              context = webhook.context,
+                              bodyTemplate = webhook.bodyTemplate,
+                              global = webhook.global
+                            )
+                          })
+                          .map(webhook => {
+                            createWebhook(
+                              tenant = tenant.name,
+                              webhook = webhook,
+                              cookies = buildCookies
+                            )
+                              .map(res => {
+                                if (res.status >= 400) {
+                                  throw new RuntimeException(
+                                    "Failed to create tags"
+                                  )
+                                } else {
+                                  val id = (res.json \ "id").get.as[String]
+                                  webhooksData
+                                    .getOrElse(
+                                      tenant.name, {
+                                        val map = TrieMap[String, String]()
+                                        webhooksData.put(tenant.name, map)
+                                        map
+                                      }
+                                    )
+                                    .put(webhook.name, id)
+                                }
+                              })
                           })
                       )
+                    )
+                    .flatMap(_ => {
+                      Future
+                        .sequence(
+                          tenant.apiKeys
+                            .map(key => {
+                              createAPIKeyAsync(
+                                tenant = tenant.name,
+                                name = key.name,
+                                projects = key.projects,
+                                description = key.description,
+                                enabled = key.enabled,
+                                admin = key.admin,
+                                cookies = buildCookies
+                              )
+                            })
+                            .concat(tenant.allRightKeys.map(ak => {
+                              createAPIKeyAsync(
+                                tenant = tenant.name,
+                                name = ak,
+                                projects =
+                                  tenant.projects.map(p => p.name).toSeq,
+                                cookies = buildCookies
+                              )
+                            }))
+                        )
+                        .map(responses => {
+                          responses
+                            .map(result => {
+                              val json = result.json
+                              TestSituationKey(
+                                name = (json \ "name").as[String],
+                                clientId = (json \ "clientId").as[String],
+                                clientSecret =
+                                  (json \ "clientSecret").as[String],
+                                enabled = (json \ "enabled").as[Boolean]
+                              )
+                            })
+                            .foreach(key =>
+                              keyData = keyData + (key.name -> key)
+                            )
+                        })
+                    })
+                })
+            })
+          )
+          .flatMap(_ => {
+            Future.sequence(
+              personnalAccessTokens
+                .map(token => {
+                  createPersonnalAccessToken(
+                    token,
+                    user = loggedInUser.get,
+                    cookies = buildCookies
+                  ).map(resp => {
+                    val secret = (resp.json \ "token").as[String]
+                    val id = (resp.json \ "id").as[String]
+                    tokenIdAndSecretsByUser
+                      .getOrElse(
+                        loggedInUser.get, {
+                          val newMap =
+                            TrieMap[String, (String, String)]()
+                          tokenIdAndSecretsByUser
+                            .update(loggedInUser.get, newMap)
+                          newMap
+                        }
+                      )
+                      .update(token.name, (id, secret))
+                    resp
                   })
-              })
+                })
+            )
           })
-        )
       futures.addOne(tenantFuture)
 
       futures.addOne(

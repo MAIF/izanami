@@ -19,7 +19,7 @@ import { Loader } from "../components/Loader";
 import queryClient from "../queryClient";
 import { TokensTable } from "../components/TokensTable";
 import { TokenForm } from "../components/TokenForm";
-import { TokenTenantRight } from "../utils/types";
+import { TokenGlobalRightsArray, TokenTenantRight } from "../utils/types";
 import { tokenRightsToObject } from "../utils/rightUtils";
 
 export function Profile() {
@@ -440,6 +440,7 @@ function Tokens() {
       expirationTimezone: string;
       allRights: boolean;
       rights: { [key: string]: TokenTenantRight[] };
+      globalRights: TokenGlobalRightsArray;
     }) =>
       createPersonnalAccessToken(
         user!.username,
@@ -447,7 +448,8 @@ function Tokens() {
         data.expiresAt,
         data.expirationTimezone,
         data.allRights,
-        data.rights
+        data.rights,
+        data.globalRights
       ),
 
     onSuccess: () => {
@@ -488,6 +490,7 @@ function Tokens() {
                   rights: token.allRights
                     ? {}
                     : tokenRightsToObject(token.rights),
+                  globalRights: token.allRights ? [] : token.globalRights,
                 })
                 .then((t) =>
                   displayModal(({ close }) => (

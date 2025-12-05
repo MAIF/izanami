@@ -446,6 +446,7 @@ case object OPAResultMustBeBoolean
       message = "OPA feature must have boolean result type",
       status = BAD_REQUEST
     )
+case object MissingPersonalAccessToken extends IzanamiError(message = "Access token is missing in query", status = BAD_REQUEST)
 case class ErrorAggregator(errors: Seq[IzanamiError])
     extends IzanamiError(
       message = errors.map(err => err.message).mkString("\n"),

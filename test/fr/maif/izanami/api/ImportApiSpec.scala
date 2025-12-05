@@ -1,24 +1,7 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{
-  importWithToken,
-  TestFeature,
-  TestPersonnalAccessToken,
-  TestProject,
-  TestRights,
-  TestSituationBuilder,
-  TestTenant,
-  TestUser
-}
-import play.api.http.Status.{
-  ACCEPTED,
-  CREATED,
-  FORBIDDEN,
-  NOT_FOUND,
-  NO_CONTENT,
-  OK,
-  UNAUTHORIZED
-}
+import fr.maif.izanami.api.BaseAPISpec.{TestFeature, TestPersonnalAccessToken, TestProject, TestRights, TestSituationBuilder, TestTenant, TestTenantRight, TestUser, importWithToken}
+import play.api.http.Status.{ACCEPTED, CREATED, FORBIDDEN, NOT_FOUND, NO_CONTENT, OK, UNAUTHORIZED}
 import play.api.libs.json.{JsNull, JsObject}
 
 import java.util.UUID
@@ -189,6 +172,7 @@ class ImportApiSpec extends BaseAPISpec {
         )
       )
       resp.status mustBe CREATED
+
       val userUpdateResponse =
         situation.updateUserRights(user.username, false, user.rights)
       userUpdateResponse.status mustEqual NO_CONTENT
@@ -649,7 +633,7 @@ class ImportApiSpec extends BaseAPISpec {
           """{"id":"baz:lalala","enabled":false,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
         )
       )
-      response.status mustBe UNAUTHORIZED
+      response.status mustBe FORBIDDEN
     }
 
     "allow feature import tenant admin user" in {

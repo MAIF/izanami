@@ -1,5 +1,4 @@
 import { isArray } from "lodash";
-import { NotifyOnChangeProps } from "@tanstack/react-query";
 
 export interface Option {
   value: string;
@@ -36,19 +35,23 @@ export type LogSearchQuery = {
   pageSize: number;
   additionalFields: { [x: string]: any };
 };
-
 export const POSSIBLE_TOKEN_RIGHTS = [
   "EXPORT",
   "IMPORT",
   "DELETE FEATURE",
   "DELETE PROJECT",
   "DELETE KEY",
-  "CREATE TENANT",
 ] as const;
+
+export const POSSIBLE_GLOBAL_TOKEN_RIGHTS = ["CREATE TENANT"] as const;
+
 export type TokenTenantRight = typeof POSSIBLE_TOKEN_RIGHTS[number];
+export type TokenGlobalRight = typeof POSSIBLE_GLOBAL_TOKEN_RIGHTS[number];
 
 export type TokenTenantRightsArray = [string | null, TokenTenantRight[]][];
 export type TokenTenantRights = { [tenant: string]: TokenTenantRight[] };
+
+export type TokenGlobalRightsArray = TokenGlobalRight[];
 
 export type EventType = TTenantEventTypes;
 export type LogEntry =
@@ -132,6 +135,7 @@ export type PersonnalAccessToken =
       username: string;
       allRights: boolean;
       rights: TokenTenantRights;
+      globalRights: TokenGlobalRightsArray;
     }
   | {
       id: string;
@@ -140,6 +144,7 @@ export type PersonnalAccessToken =
       username: string;
       allRights: boolean;
       rights: TokenTenantRights;
+      globalRights: TokenGlobalRightsArray;
     };
 
 export interface TenantInCreationType {

@@ -52,6 +52,27 @@ class TenantAPISpec extends BaseAPISpec {
   }
 
   "Tenant POST endpoint" should {
+    "allow to create tenant using Personnal Access Token" in {
+      val situation = TestSituationBuilder()
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(
+            "foo",
+            allRights = false,
+            globalRights = Set("CREATE TENANT")
+          )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val secret = situation.findTokenSecret(situation.user, "foo")
+      var response = createTenantWithToken(
+        name = "foo",
+        username = situation.user,
+        token = secret
+      )
+      response.status mustBe CREATED
+    }
+
     "prevent tenant creation if name or description is too long" in {
       val testSituation = TestSituationBuilder()
         .loggedInWithAdminRights()

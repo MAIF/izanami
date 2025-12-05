@@ -5,7 +5,11 @@ import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{
   TokenCheckSuccess
 }
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.UserNotFound
+import fr.maif.izanami.errors.{
+  MissingPersonalAccessToken,
+  NotEnoughRights,
+  UserNotFound
+}
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.events.EventAuthentication.{
   BackOfficeAuthentication,
@@ -13,7 +17,12 @@ import fr.maif.izanami.events.EventAuthentication.{
 }
 import fr.maif.izanami.models.*
 import fr.maif.izanami.security.JwtService.decodeJWT
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterFuture,
+  BetterFutureEither,
+  BetterSyntax
+}
 import fr.maif.izanami.web.AuthAction.{
   extractAndCheckPersonnalAccessToken,
   extractClaims
@@ -391,7 +400,7 @@ class PersonnalAccessTokenProjectAuthAction(
         }
     }
 
-    def maybeCookieAuth: Future[Either[Result, String]] = {
+    def maybeCookieAuth: Future[Option[Either[Result, String]]] = {
       extractClaims(
         request,
         env.typedConfiguration.authentication.secret,
@@ -401,9 +410,7 @@ class PersonnalAccessTokenProjectAuthAction(
         .fold(
           Future
             .successful(
-              Left(
-                Unauthorized(Json.obj("message" -> "Invalid token"))
-              ): Either[Result, String]
+              None
             )
         )(subject => {
           env.datastores.users
@@ -414,12 +421,14 @@ class PersonnalAccessTokenProjectAuthAction(
               level = minimumLevel
             )
             .map {
-              case Right(Some((username, _))) => Right(username)
+              case Right(Some((username, _))) => Some(Right(username))
               case _                          =>
-                Left(
-                  Forbidden(
-                    Json.obj(
-                      "message" -> "User does not have enough rights for this operation"
+                Some(
+                  Left(
+                    Forbidden(
+                      Json.obj(
+                        "message" -> "User does not have enough rights for this operation"
+                      )
                     )
                   )
                 )
@@ -428,7 +437,8 @@ class PersonnalAccessTokenProjectAuthAction(
     }
 
     maybeCookieAuth.flatMap {
-      case Right(username) =>
+
+      case Some(Right(username)) =>
         block(
           UserNameRequest(
             request = request,
@@ -438,11 +448,135 @@ class PersonnalAccessTokenProjectAuthAction(
             )
           )
         )
-      case Left(result) =>
+      case Some(Left(result)) => Future.successful(result)
+      case None               =>
         maybeTokenAuth.flatMap {
           case Right(userInformation) =>
             block(UserNameRequest(request = request, userInformation))
           case Left(result) => Future.successful(result)
+        }
+    }
+  }
+
+  override protected def executionContext: ExecutionContext = ec
+}
+
+class PersonnalAccessTokenFeatureAuthAction(
+    bodyParser: BodyParser[AnyContent],
+    env: Env,
+    tenant: String,
+    featureId: String,
+    minimumLevel: ProjectRightLevel,
+    operation: TenantTokenRights
+)(implicit
+    ec: ExecutionContext
+) extends ActionBuilder[UserRequestWithCompleteRightForOneTenant, AnyContent] {
+  override def parser: BodyParser[AnyContent] = bodyParser
+
+  override def invokeBlock[A](
+      request: Request[A],
+      block: UserRequestWithCompleteRightForOneTenant[A] => Future[Result]
+  ): Future[Result] = {
+
+    def maybeTokenAuth: FutureEither[
+      (UserWithCompleteRightForOneTenant, EventAuthentication)
+    ] = {
+      extractAndCheckPersonnalAccessToken(
+        request,
+        env,
+        tenant,
+        operation
+      ).mapToFEither
+        .flatMap {
+          case Some((username, tokenId)) =>
+            for (
+              user <- env.datastores.users
+                .findUserWithRightForTenant(
+                  username = username,
+                  tenant = tenant
+                )
+                .toFEither;
+              projectByFeatures <- env.datastores.features.findFeaturesProjects(
+                tenant = tenant,
+                featureIds = Set(featureId)
+              );
+              project = projectByFeatures(featureId);
+              res <- if (
+                user.hasRightForProject(
+                  project = project,
+                  level = minimumLevel
+                )
+              ) {
+                FutureEither.success(
+                  (user, TokenAuthentication(tokenId = tokenId))
+                )
+              } else {
+                FutureEither.failure(
+                  NotEnoughRights(
+                    "User associated with this token does not have enough rights"
+                  )
+                )
+              }
+            ) yield {
+              res
+            }
+          case None =>
+            FutureEither.failure(
+              MissingPersonalAccessToken
+            )
+        }
+    }
+
+    def maybeCookieAuth
+        : FutureEither[Option[UserWithCompleteRightForOneTenant]] = {
+      extractClaims(
+        request,
+        env.typedConfiguration.authentication.secret,
+        env.encryptionKey
+      )
+        .flatMap(claims => claims.subject) match {
+        case Some(subject) => {
+          for (
+            projectByfeature <- env.datastores.features.findFeaturesProjects(
+              tenant = tenant,
+              featureIds = Set(featureId)
+            );
+            project = projectByfeature(featureId);
+            user <- env.datastores.users
+              .findSessionWithRightForTenant(
+                session = subject,
+                tenant = tenant
+              )
+              .toFEither
+          ) yield {
+            Some(user)
+          }
+        }
+        case None => FutureEither.success(None)
+      }
+    }
+
+    maybeCookieAuth.value.flatMap {
+      case Right(Some(user)) =>
+        block(
+          UserRequestWithCompleteRightForOneTenant(
+            request = request,
+            user = user,
+            authentication = BackOfficeAuthentication
+          )
+        )
+      case Left(result) => Future.successful(result.toHttpResponse)
+      case Right(None)  =>
+        maybeTokenAuth.value.flatMap {
+          case Right((user, authentication)) =>
+            block(
+              UserRequestWithCompleteRightForOneTenant(
+                request = request,
+                user = user,
+                authentication = authentication
+              )
+            )
+          case Left(result) => Future.successful(result.toHttpResponse)
         }
     }
   }
@@ -507,21 +641,14 @@ class PersonnalAccessTokenKeyAuthAction(
         }
     }
 
-    def maybeCookieAuth: Future[Either[Result, String]] = {
+    def maybeCookieAuth: Future[Option[Either[Result, String]]] = {
       extractClaims(
         request,
         env.typedConfiguration.authentication.secret,
         env.encryptionKey
       )
-        .flatMap(claims => claims.subject)
-        .fold(
-          Future
-            .successful(
-              Left(
-                Unauthorized(Json.obj("message" -> "Invalid token"))
-              ): Either[Result, String]
-            )
-        )(subject => {
+        .flatMap(claims => claims.subject) match {
+        case Some(subject) => {
           env.datastores.users
             .hasRightForKey(
               session = subject,
@@ -530,21 +657,25 @@ class PersonnalAccessTokenKeyAuthAction(
               level = minimumLevel
             )
             .map {
-              case Right(Some(username)) => Right(username)
+              case Right(Some(username)) => Some(Right(username))
               case _                     =>
-                Left(
-                  Forbidden(
-                    Json.obj(
-                      "message" -> "User does not have enough rights for this operation"
+                Some(
+                  Left(
+                    Forbidden(
+                      Json.obj(
+                        "message" -> "User does not have enough rights for this operation"
+                      )
                     )
                   )
                 )
             }
-        })
+        }
+        case None => Future.successful(None)
+      }
     }
 
     maybeCookieAuth.flatMap {
-      case Right(username) =>
+      case Some(Right(username)) =>
         block(
           UserNameRequest(
             request = request,
@@ -554,7 +685,8 @@ class PersonnalAccessTokenKeyAuthAction(
             )
           )
         )
-      case Left(result) =>
+      case Some(Left(result)) => Future.successful(result)
+      case None               =>
         maybeTokenAuth.flatMap {
           case Right(userInformation) =>
             block(UserNameRequest(request = request, userInformation))
@@ -621,7 +753,7 @@ class PersonnalAccessTokenTenantAuthAction(
         }
     }
 
-    def maybeCookieAuth: Future[Either[Result, String]] = {
+    def maybeCookieAuth: Future[Option[Either[Result, String]]] = {
       extractClaims(
         request,
         env.typedConfiguration.authentication.secret,
@@ -631,20 +763,20 @@ class PersonnalAccessTokenTenantAuthAction(
         .fold(
           Future
             .successful(
-              Left(
-                Unauthorized(Json.obj("message" -> "Invalid token"))
-              ): Either[Result, String]
+              None
             )
         )(subject => {
           env.datastores.users
             .hasRightForTenant(subject, tenant, minimumLevel)
             .map {
-              case Some(username) => Right(username)
+              case Some(username) => Some(Right(username))
               case None           =>
-                Left(
-                  Forbidden(
-                    Json.obj(
-                      "message" -> "User does not have enough rights for this operation"
+                Some(
+                  Left(
+                    Forbidden(
+                      Json.obj(
+                        "message" -> "User does not have enough rights for this operation"
+                      )
                     )
                   )
                 )
@@ -653,7 +785,7 @@ class PersonnalAccessTokenTenantAuthAction(
     }
 
     maybeCookieAuth.flatMap {
-      case Right(username) =>
+      case Some(Right(username)) =>
         block(
           UserNameRequest(
             request = request,
@@ -663,7 +795,109 @@ class PersonnalAccessTokenTenantAuthAction(
             )
           )
         )
-      case Left(result) =>
+      case Some(Left(result)) => Future.successful(result)
+      case None               =>
+        maybeTokenAuth.flatMap {
+          case Right(userInformation) =>
+            block(UserNameRequest(request = request, userInformation))
+          case Left(result) => Future.successful(result)
+        }
+    }
+  }
+
+  override protected def executionContext: ExecutionContext = ec
+}
+
+class PersonnalAccessTokenAdminAuthAction(
+    bodyParser: BodyParser[AnyContent],
+    env: Env,
+    operation: GlobalTokenRight
+)(implicit
+    ec: ExecutionContext
+) extends ActionBuilder[UserNameRequest, AnyContent] {
+  override def parser: BodyParser[AnyContent] = bodyParser
+
+  override def invokeBlock[A](
+      request: Request[A],
+      block: UserNameRequest[A] => Future[Result]
+  ): Future[Result] = {
+
+    def maybeTokenAuth: Future[Either[Result, UserInformation]] = {
+      extractAndCheckPersonnalAccessToken(request, env, operation)
+        .flatMap {
+          case Some((username, tokenId)) =>
+            env.datastores.users
+              .findUser(username)
+              .map {
+                case Some(user) if user.admin =>
+                  Right(
+                    UserInformation(
+                      username = username,
+                      TokenAuthentication(tokenId = tokenId)
+                    )
+                  )
+                case Some(user) =>
+                  Left(
+                    Forbidden(
+                      Json.obj(
+                        "message" -> "User does not have enough rights for this operation"
+                      )
+                    )
+                  )
+                case None =>
+                  Left(Unauthorized(Json.obj("message" -> "User not found")))
+              }
+          case None =>
+            Future.successful(
+              Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
+            )
+        }
+    }
+
+    def maybeCookieAuth: Future[Option[Either[Result, String]]] = {
+      extractClaims(
+        request,
+        env.typedConfiguration.authentication.secret,
+        env.encryptionKey
+      )
+        .flatMap(claims => claims.subject)
+        .fold(
+          Future
+            .successful(
+              None
+            )
+        )(subject => {
+          env.datastores.users
+            .findAdminSession(subject)
+            .map {
+              case Some(username) => Some(Right(username))
+              case None           =>
+                Some(
+                  Left(
+                    Forbidden(
+                      Json.obj(
+                        "message" -> "User does not have enough rights for this operation"
+                      )
+                    )
+                  )
+                )
+            }
+        })
+    }
+
+    maybeCookieAuth.flatMap {
+      case Some(Right(username)) =>
+        block(
+          UserNameRequest(
+            request = request,
+            UserInformation(
+              username = username,
+              authentication = BackOfficeAuthentication
+            )
+          )
+        )
+      case Some(Left(result)) => Future.successful(result)
+      case None               =>
         maybeTokenAuth.flatMap {
           case Right(userInformation) =>
             block(UserNameRequest(request = request, userInformation))
@@ -1029,6 +1263,22 @@ class TenantAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
     new TenantAuthAction(bodyParser, env, tenant, minimumLevel)
 }
 
+class PersonnalAccessTokenAdminAuthActionFactory(
+    bodyParser: BodyParser[AnyContent],
+    env: Env
+)(implicit
+    ec: ExecutionContext
+) {
+  def apply(
+      operation: GlobalTokenRight
+  ): PersonnalAccessTokenAdminAuthAction =
+    new PersonnalAccessTokenAdminAuthAction(
+      bodyParser,
+      env,
+      operation
+    )
+}
+
 class PersonnalAccessTokenTenantAuthActionFactory(
     bodyParser: BodyParser[AnyContent],
     env: Env
@@ -1044,6 +1294,28 @@ class PersonnalAccessTokenTenantAuthActionFactory(
       bodyParser,
       env,
       tenant,
+      minimumLevel,
+      operation
+    )
+}
+
+class PersonnalAccessTokenFeatureAuthActionFactory(
+    bodyParser: BodyParser[AnyContent],
+    env: Env
+)(implicit
+    ec: ExecutionContext
+) {
+  def apply(
+      tenant: String,
+      featureId: String,
+      minimumLevel: ProjectRightLevel,
+      operation: TenantTokenRights
+  ): PersonnalAccessTokenFeatureAuthAction =
+    new PersonnalAccessTokenFeatureAuthAction(
+      bodyParser,
+      env,
+      tenant,
+      featureId,
       minimumLevel,
       operation
     )
@@ -1141,6 +1413,35 @@ object AuthAction {
       case Some(Array(username, token, _*)) => {
         env.datastores.personnalAccessToken
           .checkAccessToken(username, token, tenant, operation)
+          .map {
+            case TokenCheckSuccess(tokenId) => Some(username, tokenId)
+            case TokenCheckFailure          => None
+          }(env.executionContext)
+
+      }
+      case _ => Future.successful(None)
+    }
+  }
+
+  def extractAndCheckPersonnalAccessToken[A](
+      request: Request[A],
+      env: Env,
+      operation: GlobalTokenRight
+  ): Future[Option[(String, UUID)]] = {
+    request.headers
+      .get("Authorization")
+      .map(header => header.split("Basic "))
+      .filter(splitted => splitted.length == 2)
+      .map(splitted => splitted(1))
+      .map(header => {
+        Base64.getDecoder.decode(header.getBytes)
+      })
+      .map(bytes => new String(bytes))
+      .map(header => header.split(":"))
+      .filter(arr => arr.length == 2) match {
+      case Some(Array(username, token, _*)) => {
+        env.datastores.personnalAccessToken
+          .checkAccessToken(username, token, operation)
           .map {
             case TokenCheckSuccess(tokenId) => Some(username, tokenId)
             case TokenCheckFailure          => None

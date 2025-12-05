@@ -10,7 +10,9 @@ import { Loader } from "./Loader";
 import Select from "react-select";
 
 import {
+  POSSIBLE_GLOBAL_TOKEN_RIGHTS,
   POSSIBLE_TOKEN_RIGHTS,
+  TokenGlobalRightsArray,
   TokenTenantRight,
   TokenTenantRightsArray,
 } from "../utils/types";
@@ -28,6 +30,7 @@ export type LimitedRightsPesonnalTokenFormType = {
   expiresAt: Date;
   expirationTimezone: string;
   rights: TokenTenantRightsArray;
+  globalRights: TokenGlobalRightsArray;
   allRights: false;
 };
 
@@ -124,20 +127,45 @@ export function TokenForm(props: {
           />
         </label>
         {!allRights && (
-          <div className="mt-3">
-            <Controller
-              name="rights"
-              control={control}
-              render={({ field: { onChange, value } }) => {
-                return (
-                  <TenantRightSelector
-                    value={value}
-                    onChange={(v) => onChange(v)}
-                  />
-                );
-              }}
-            />
-          </div>
+          <>
+            <div className="mt-3">
+              <Controller
+                name="rights"
+                control={control}
+                render={({ field: { onChange, value } }) => {
+                  return (
+                    <TenantRightSelector
+                      value={value}
+                      onChange={(v) => onChange(v)}
+                    />
+                  );
+                }}
+              />
+            </div>
+            <div className="mt-3 d-flex w-100">
+              <label className="w-100">
+                Global rights
+                <Controller
+                  name="globalRights"
+                  control={control}
+                  render={({ field: { onChange, value } }) => (
+                    <Select
+                      value={value?.map((v) => ({ label: v, value: v })) ?? []}
+                      options={POSSIBLE_GLOBAL_TOKEN_RIGHTS.map((r) => ({
+                        label: r,
+                        value: r,
+                      }))}
+                      styles={customStyles}
+                      isMulti
+                      onChange={(selected) =>
+                        onChange(selected?.map(({ value }) => value))
+                      }
+                    />
+                  )}
+                />
+              </label>
+            </div>
+          </>
         )}
         <label className="mt-3">
           Expiration

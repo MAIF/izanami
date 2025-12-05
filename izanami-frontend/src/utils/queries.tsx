@@ -32,6 +32,7 @@ import {
   TokenTenantRight,
   OIDCSettings,
   TProjectLevel,
+  TokenGlobalRight,
 } from "./types";
 import { isArray } from "lodash";
 import toast from "react-hot-toast";
@@ -150,7 +151,8 @@ export function createPersonnalAccessToken(
   expiration: Date,
   timezone: string,
   allRights: boolean,
-  rights: { [tenant: string]: TokenTenantRight[] }
+  rights: { [tenant: string]: TokenTenantRight[] },
+  globalRights: TokenGlobalRight[]
 ) {
   const hasExpiration = expiration && !isNaN(expiration?.getTime());
   return handleFetchJsonResponse(
@@ -164,6 +166,7 @@ export function createPersonnalAccessToken(
         expirationTimezone: hasExpiration ? timezone : undefined,
         allRights,
         rights,
+        globalRights,
       }),
       headers: {
         "content-type": "application/json",

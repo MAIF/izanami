@@ -25,7 +25,8 @@ class TenantController(
     val tenantAuthAction: TenantAuthActionFactory,
     val adminAuthAction: AdminAuthAction,
     val tenantRightsAuthAction: TenantRightsAction,
-    val wasmManagerClient: WasmManagerClient
+    val wasmManagerClient: WasmManagerClient,
+    val personnalAccessTokenAuthAction: PersonnalAccessTokenAdminAuthActionFactory
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
 
@@ -112,7 +113,7 @@ class TenantController(
       }
   }
 
-  def createTenant(): Action[JsValue] = adminAuthAction.async(parse.json) { implicit request =>
+  def createTenant(): Action[JsValue] = personnalAccessTokenAuthAction(CreateTenant).async(parse.json) { implicit request =>
     Tenant.tenantReads.reads(request.body) match {
       case JsError(e)           => BadRequest(Json.obj("message" -> "bad body format")).future
       case JsSuccess(tenant, _) => {

@@ -18,34 +18,48 @@ import java.util.UUID
 
 sealed trait TenantTokenRights {
   def name: String
+  def requiredCreationRight: Option[RequiredTenantRights]
 }
 
 case object Export extends TenantTokenRights {
   val name = "EXPORT"
+  override def requiredCreationRight: Option[RequiredTenantRights] = Some(RequiredTenantRights(level = RightLevel.Admin))
 }
 case object Import extends TenantTokenRights {
   val name = "IMPORT"
+  override def requiredCreationRight: Option[RequiredTenantRights] = Some(RequiredTenantRights(level = RightLevel.Admin))
 }
 
 case object DeleteFeature extends TenantTokenRights {
   val name = "DELETE FEATURE"
+  override def requiredCreationRight: Option[RequiredTenantRights] = None
 }
 
 case object DeleteProject extends TenantTokenRights {
   val name = "DELETE PROJECT"
+  override def requiredCreationRight: Option[RequiredTenantRights] = None
 }
 
 case object DeleteKey extends TenantTokenRights {
   val name = "DELETE KEY"
+  override def requiredCreationRight: Option[RequiredTenantRights] = None
 }
 
-case object CreateTenant extends TenantTokenRights {
+sealed trait GlobalTokenRight {
+  def name: String
+  def requiredCreationRight: Option[RequiredRights]
+}
+case object CreateTenant extends GlobalTokenRight {
   val name = "CREATE TENANT"
+  override def requiredCreationRight: Option[RequiredRights] = Some(RequiredRights(admin = true))
 }
 
 sealed trait PersonnalAccessTokenRights
 case object AllRights extends PersonnalAccessTokenRights
-case class LimitedRights(rights: TokenRights) extends PersonnalAccessTokenRights
+case class LimitedRights(
+    rights: TokenRights,
+    globalRights: Set[GlobalTokenRight]
+) extends PersonnalAccessTokenRights
 
 sealed trait PersonnalAccessTokenExpiration
 case object NoExpiration extends PersonnalAccessTokenExpiration
@@ -92,7 +106,6 @@ object PersonnalAccessToken {
       case "DELETE FEATURE" => DeleteFeature
       case "DELETE PROJECT" => DeleteProject
       case "DELETE KEY"     => DeleteKey
-      case "CREATE TENANT"  => CreateTenant
     }
   }
 
@@ -129,6 +142,13 @@ object PersonnalAccessToken {
       )
   }
 
+  def personnalAccessTokenGlobalRightRead: Reads[GlobalTokenRight] = json => {
+    json.asOpt[String].map(str => str.toUpperCase) match {
+      case Some("CREATE TENANT") => JsSuccess(CreateTenant)
+      case _                     => JsError("Bad body format")
+    }
+  }
+
   def personnalAccessTokenTenantRightsReads: Reads[TenantTokenRights] = json =>
     {
       val res = json.asOpt[String].map(_.toUpperCase) match {
@@ -137,7 +157,6 @@ object PersonnalAccessToken {
         case Some("DELETE FEATURE") => JsSuccess(DeleteFeature)
         case Some("DELETE PROJECT") => JsSuccess(DeleteProject)
         case Some("DELETE KEY")     => JsSuccess(DeleteKey)
-        case Some("CREATE TENANT")  => JsSuccess(CreateTenant)
         case _                      => JsError("Bad body format")
       }
 
@@ -150,7 +169,10 @@ object PersonnalAccessToken {
     case DeleteFeature => Json.toJson("DELETE FEATURE")
     case DeleteProject => Json.toJson("DELETE PROJECT")
     case DeleteKey     => Json.toJson("DELETE KEY")
-    case CreateTenant  => Json.toJson("CREATE TENANT")
+  }
+
+  def personnalAccessTokenGlobalRightsWrites: Writes[GlobalTokenRight] = {
+    case CreateTenant => Json.toJson("CREATE TENANT")
   }
 
   def personnalAccessTokenRightsReads: Reads[PersonnalAccessTokenRights] =
@@ -159,23 +181,34 @@ object PersonnalAccessToken {
         .asOpt[Boolean]
         .flatMap {
           case true  => Some(JsSuccess(AllRights))
-          case false =>
-            (json \ "rights")
+          case false => {
+            val rights = (json \ "rights")
               .asOpt[TokenRights](
                 Reads.map(Reads.set(personnalAccessTokenTenantRightsReads))
               )
-              .map(rights => JsSuccess(LimitedRights(rights)))
+              .getOrElse(Map())
+            val globalRights = (json \ "globalRights")
+              .asOpt[Set[GlobalTokenRight]](
+                Reads.set(personnalAccessTokenGlobalRightRead)
+              )
+              .getOrElse(Set())
+
+            Some(JsSuccess(LimitedRights(rights, globalRights)))
+          }
         }
         .getOrElse(JsError("Bad body format"))
     }
 
   def personnalAccessTokenRightWrites: Writes[PersonnalAccessTokenRights] = {
-    case AllRights        => Json.obj("allRights" -> JsTrue)
-    case LimitedRights(r) =>
+    case AllRights                           => Json.obj("allRights" -> JsTrue)
+    case LimitedRights(rights, globalRights) =>
       Json.obj(
         "allRights" -> JsFalse,
-        "rights" -> Json.toJson(r)(
+        "rights" -> Json.toJson(rights)(
           Writes.map(Writes.set(personnalAccessTokenTenantRightsWrites))
+        ),
+        "globalRights" -> Json.toJson(globalRights)(
+          Writes.set(personnalAccessTokenGlobalRightsWrites)
         )
       )
   }

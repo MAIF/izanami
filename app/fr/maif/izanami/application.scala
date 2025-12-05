@@ -101,6 +101,10 @@ class IzanamiComponentsInstances(
   lazy val tokenOrCookieAuthActionForKey
       : PersonnalAccessTokenKeyAuthActionFactory =
     wire[PersonnalAccessTokenKeyAuthActionFactory]
+  lazy val adminTokenAuthAction: PersonnalAccessTokenAdminAuthActionFactory =
+      wire[PersonnalAccessTokenAdminAuthActionFactory]
+  lazy val featureTokenAuthAction: PersonnalAccessTokenFeatureAuthActionFactory =
+    wire[PersonnalAccessTokenFeatureAuthActionFactory]
 
   lazy val featureService: FeatureService = wire[FeatureService]
   lazy val staleFeatureService: FeatureUsageService = wire[FeatureUsageService]

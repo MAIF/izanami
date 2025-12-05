@@ -151,7 +151,7 @@ test.describe("Global settings page should", () => {
     await page.getByRole("button", { name: "Create role" }).click();
     await page.getByRole("checkbox", { name: "Admin" }).last().check();
     await page2.context().clearCookies();
-    await page2.goto("/");
+    await page2.goto("/login");
     await page2.getByRole("button", { name: "OpenId connect" }).click();
     await page2.getByRole("textbox", { name: "Username" }).fill("User1");
     await page2.getByRole("textbox", { name: "Password" }).fill("pwd");

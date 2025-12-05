@@ -1,34 +1,7 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{
-  TestCondition,
-  TestDateTimePeriod,
-  TestDayPeriod,
-  TestFeature,
-  TestFeatureContext,
-  TestFeaturePatch,
-  TestProject,
-  TestSituationBuilder,
-  TestTenant,
-  TestUser,
-  TestUserListRule,
-  TestWasmConfig,
-  disabledFeatureBase64,
-  enabledFeatureBase64
-}
-import play.api.libs.json.{
-  JsArray,
-  JsBoolean,
-  JsDefined,
-  JsFalse,
-  JsNull,
-  JsNumber,
-  JsObject,
-  JsString,
-  JsTrue,
-  JsValue,
-  Json
-}
+import fr.maif.izanami.api.BaseAPISpec.{TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestFeaturePatch, TestPersonnalAccessToken, TestProject, TestSituationBuilder, TestTenant, TestUser, TestUserListRule, TestWasmConfig, deleteFeatureWithToken, disabledFeatureBase64, enabledFeatureBase64}
+import play.api.libs.json.{JsArray, JsBoolean, JsDefined, JsFalse, JsNull, JsNumber, JsObject, JsString, JsTrue, JsValue, Json}
 import play.api.test.Helpers.*
 
 import java.time.{LocalDateTime, OffsetDateTime}
@@ -2391,6 +2364,25 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature DELETE endpoint" should {
+    "allow deleting feature by id with an access token" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("testtenant").withProjects(TestProject("project").withFeatures(TestFeature("f1"))))
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(
+            "foo",
+            allRights = false,
+            rights = Map("testtenant" -> Set("DELETE FEATURE"))
+          )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val secret = situation.findTokenSecret(situation.user, "foo");
+
+      val res = deleteFeatureWithToken(tenant = "testtenant", featureId = situation.findFeatureId(tenant = "testtenant", project = "project", feature = "f1").get, username = situation.user, token = secret)
+      res.status mustBe NO_CONTENT
+    }
+    
     "prevent deleting a feature with protected overload if user is not admin on project" in {
       val tenantName = "my-tenant"
       val projectName = "my-project"
