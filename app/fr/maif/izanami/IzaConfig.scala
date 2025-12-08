@@ -2,10 +2,11 @@ package fr.maif.izanami
 
 import com.typesafe.config.Config
 import fr.maif.izanami.models.*
+import fr.maif.izanami.models.IzanamiMode.{Leader, Standalone, Worker}
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2RawMethodConvert
 import fr.maif.izanami.services.CompleteRights
 import play.api.libs.json.*
-import pureconfig.error.{CannotConvert, CannotParse, ConfigReaderFailures}
+import pureconfig.error.{CannotConvert, CannotParse, ConfigReaderFailures, UnknownKey}
 import pureconfig.generic.semiauto.{deriveEnumerationReader, deriveReader}
 import pureconfig.{ConfigReader, ConfigSource}
 
@@ -115,8 +116,20 @@ case class AppConf(
     passwordResetRequests: PasswordResetRequests,
     search: Search,
     feature: Feature,
-    housekeeping: Housekeeping
+    housekeeping: Housekeeping,
+    mode: IzanamiMode
 )
+
+object AppConf {
+
+  implicit val izanamiModeConvert: ConfigReader[IzanamiMode] = ConfigReader.fromString[IzanamiMode] { str =>
+    str.toLowerCase match
+      case "standalone" => Right(Standalone)
+      case "leader" => Right(Leader)
+      case "worker" => Right(Worker)
+      case s@_ => Left(UnknownKey(s))
+  }
+}
 
 case class Experimental(staleTracking: StaleTracking)
 case class StaleTracking(enabled: Boolean)

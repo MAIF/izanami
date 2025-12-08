@@ -1,7 +1,12 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{FeatureNotFound, IncorrectKey, IzanamiError, TagDoesNotExists}
+import fr.maif.izanami.errors.{
+  FeatureNotFound,
+  IncorrectKey,
+  IzanamiError,
+  TagDoesNotExists
+}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.Feature.*
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
@@ -29,7 +34,8 @@ class FeatureController(
     val detailledRightForTenanFactory: DetailledRightForTenantFactory,
     val personnalAccessTokenAuth: PersonnalAccessTokenFeatureAuthActionFactory,
     featureService: FeatureService,
-    featureUsageService: FeatureUsageService
+    featureUsageService: FeatureUsageService,
+    workerAction: WorkerActionBuilder
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
 
@@ -184,7 +190,7 @@ class FeatureController(
       id: String,
       user: String,
       context: fr.maif.izanami.web.FeatureContextPath
-  ): Action[AnyContent] = Action.async { implicit request =>
+  ): Action[AnyContent] = workerAction.async { implicit request =>
     {
       val maybeBody =
         request.body.asJson.flatMap(jsValue => jsValue.asOpt[JsObject])
@@ -385,7 +391,7 @@ class FeatureController(
       conditions: Boolean,
       date: Option[Instant],
       featureRequest: FeatureRequest
-  ): Action[AnyContent] = Action.async { implicit request =>
+  ): Action[AnyContent] = workerAction.async { implicit request =>
     {
       val maybeBody =
         request.body.asJson.flatMap(jsValue => jsValue.asOpt[JsObject])
@@ -664,7 +670,12 @@ class FeatureController(
     }
 
   def deleteFeature(tenant: String, id: String): Action[AnyContent] =
-    personnalAccessTokenAuth(tenant, featureId = id, minimumLevel = Write, operation = DeleteFeature).async { implicit request =>
+    personnalAccessTokenAuth(
+      tenant,
+      featureId = id,
+      minimumLevel = Write,
+      operation = DeleteFeature
+    ).async { implicit request =>
       featureService
         .deleteFeature(tenant, id, request.user, request.authentication)
         .toResult(_ => NoContent)

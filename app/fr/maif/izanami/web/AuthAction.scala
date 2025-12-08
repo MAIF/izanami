@@ -16,6 +16,7 @@ import fr.maif.izanami.events.EventAuthentication.{
   TokenAuthentication
 }
 import fr.maif.izanami.models.*
+import fr.maif.izanami.models.IzanamiMode.{Leader, Worker}
 import fr.maif.izanami.security.JwtService.decodeJWT
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.{
@@ -116,12 +117,15 @@ class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
   override protected def executionContext: ExecutionContext = ec
 }
 
-class TenantRightsAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
+class TenantRightsAction(
+    bodyParser: BodyParser[AnyContent],
+    override val env: Env
+)(implicit
     ec: ExecutionContext
-) extends ActionBuilder[UserRequestWithTenantRights, AnyContent] {
+) extends LeaderActionBuilder[UserRequestWithTenantRights] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: UserRequestWithTenantRights[A] => Future[Result]
   ): Future[Result] = {
@@ -154,12 +158,15 @@ class TenantRightsAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
   override protected def executionContext: ExecutionContext = ec
 }
 
-class DetailledAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
+class DetailledAuthAction(
+    bodyParser: BodyParser[AnyContent],
+    override val env: Env
+)(implicit
     ec: ExecutionContext
-) extends ActionBuilder[UserRequestWithCompleteRights, AnyContent] {
+) extends LeaderActionBuilder[UserRequestWithCompleteRights] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: UserRequestWithCompleteRights[A] => Future[Result]
   ): Future[Result] = {
@@ -191,13 +198,16 @@ class DetailledAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
   override protected def executionContext: ExecutionContext = ec
 }
 
-class AdminAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
+class AdminAuthAction(
+    bodyParser: BodyParser[AnyContent],
+    override val env: Env
+)(implicit
     ec: ExecutionContext
-) extends ActionBuilder[UserNameRequest, AnyContent] {
+) extends LeaderActionBuilder[UserNameRequest] {
 
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: UserNameRequest[A] => Future[Result]
   ): Future[Result] = {
@@ -234,13 +244,16 @@ class AdminAuthAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
   override protected def executionContext: ExecutionContext = ec
 }
 
-class AuthenticatedAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
+class AuthenticatedAction(
+    bodyParser: BodyParser[AnyContent],
+    override val env: Env
+)(implicit
     ec: ExecutionContext
-) extends ActionBuilder[UserNameRequest, AnyContent] {
+) extends LeaderActionBuilder[UserNameRequest] {
 
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: UserNameRequest[A] => Future[Result]
   ): Future[Result] = {
@@ -275,13 +288,16 @@ class AuthenticatedAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
   override protected def executionContext: ExecutionContext = ec
 }
 
-class AuthenticatedSessionAction(bodyParser: BodyParser[AnyContent], env: Env)(
-    implicit ec: ExecutionContext
-) extends ActionBuilder[SessionIdRequest, AnyContent] {
+class AuthenticatedSessionAction(
+    bodyParser: BodyParser[AnyContent],
+    override val env: Env
+)(implicit
+    ec: ExecutionContext
+) extends LeaderActionBuilder[SessionIdRequest] {
 
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: SessionIdRequest[A] => Future[Result]
   ): Future[Result] = {
@@ -303,15 +319,15 @@ class AuthenticatedSessionAction(bodyParser: BodyParser[AnyContent], env: Env)(
 
 class DetailledRightForTenantAction(
     bodyParser: BodyParser[AnyContent],
-    env: Env,
+    override val env: Env,
     tenant: String
 )(implicit
     ec: ExecutionContext
-) extends ActionBuilder[UserRequestWithCompleteRightForOneTenant, AnyContent] {
+) extends LeaderActionBuilder[UserRequestWithCompleteRightForOneTenant] {
 
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: UserRequestWithCompleteRightForOneTenant[A] => Future[Result]
   ): Future[Result] = {
@@ -345,17 +361,17 @@ class DetailledRightForTenantAction(
 
 class PersonnalAccessTokenProjectAuthAction(
     bodyParser: BodyParser[AnyContent],
-    env: Env,
+    override val env: Env,
     tenant: String,
     project: String,
     minimumLevel: ProjectRightLevel,
     operation: TenantTokenRights
 )(implicit
     ec: ExecutionContext
-) extends ActionBuilder[UserNameRequest, AnyContent] {
+) extends LeaderActionBuilder[UserNameRequest] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: UserNameRequest[A] => Future[Result]
   ): Future[Result] = {
@@ -461,19 +477,121 @@ class PersonnalAccessTokenProjectAuthAction(
   override protected def executionContext: ExecutionContext = ec
 }
 
-class PersonnalAccessTokenFeatureAuthAction(
+trait IzanamiActionBuilder[R[_] <: Request[_]]
+    extends ActionBuilder[R, AnyContent] {
+  def disabledOn: IzanamiMode
+  def env: Env
+  def invokeBlockImpl[A](
+      request: Request[A],
+      block: R[A] => Future[Result]
+  ): Future[Result]
+
+  private val actualMode = env.typedConfiguration.mode
+
+  override def invokeBlock[A](
+      request: Request[A],
+      block: R[A] => Future[Result]
+  ): Future[Result] = {
+
+    if (actualMode == disabledOn) {
+      Future.successful(Results.NotFound("Page not found"))
+    } else {
+      invokeBlockImpl(request, block)
+    }
+  }
+}
+
+trait LeaderActionBuilder[R[_] <: Request[_]] extends IzanamiActionBuilder[R] {
+  override def disabledOn: IzanamiMode = Worker
+}
+
+class LeaderActionBuilderImpl(
+                               override val parser: BodyParser[AnyContent],
+                               override val env: Env
+                             ) extends LeaderActionBuilder[Request] {
+  override def disabledOn: IzanamiMode = Worker
+
+  override def invokeBlockImpl[A](
+                                   request: Request[A],
+                                   block: Request[A] => Future[Result]
+                                 ): Future[Result] = block(request)
+
+  override protected def executionContext: ExecutionContext = env.executionContext
+}
+
+class WorkerActionBuilder(
+    override val parser: BodyParser[AnyContent],
+    override val env: Env
+) extends IzanamiActionBuilder[Request] {
+  override def disabledOn: IzanamiMode = Leader
+
+  override def invokeBlockImpl[A](
+      request: Request[A],
+      block: Request[A] => Future[Result]
+  ): Future[Result] = block(request)
+
+  override protected def executionContext: ExecutionContext = env.executionContext
+}
+
+/*class IzanamiActionBuilder[R[_] <: Request[_]](
     bodyParser: BodyParser[AnyContent],
     env: Env,
+    disabledOn: IzanamiMode
+)(implicit ec: ExecutionContext)
+    extends ActionBuilder[R, AnyContent] {
+
+  override def parser: BodyParser[AnyContent] = parser
+  override protected def executionContext: ExecutionContext = ec
+
+  private val blockedValue = "disabled"
+  private val mode = env.typedConfiguration.mode
+
+  override def invokeBlock[A](
+      request: R[A],
+      block: R[A] => Future[Result]
+  ): Future[Result] = if (mode == disabledOn) {
+    Future.successful(Results.NotFound("Page not found"))
+  } else {
+    block(request)
+  }
+
+  override def invokeBlock[A](request: Request[A], block: R[A] => Future[Result]): Future[Result] =
+
+}*/
+
+/*class LeaderActionBuilder(
+    bodyParser: BodyParser[AnyContent],
+    env: Env
+)(implicit ec: ExecutionContext)
+    extends IzanamiActionBuilder(
+      bodyParser = bodyParser,
+      env = env,
+      disabledOn = Worker
+    )
+
+class WorkerActionBuilder(
+    bodyParser: BodyParser[AnyContent],
+    env: Env
+)(implicit ec: ExecutionContext)
+    extends IzanamiActionBuilder(
+      bodyParser = bodyParser,
+      env = env,
+      disabledOn = Leader
+    )*/
+
+class PersonnalAccessTokenFeatureAuthAction(
+    bodyParser: BodyParser[AnyContent],
+    override val env: Env,
     tenant: String,
     featureId: String,
     minimumLevel: ProjectRightLevel,
     operation: TenantTokenRights
 )(implicit
     ec: ExecutionContext
-) extends ActionBuilder[UserRequestWithCompleteRightForOneTenant, AnyContent] {
+) extends LeaderActionBuilder[UserRequestWithCompleteRightForOneTenant] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: UserRequestWithCompleteRightForOneTenant[A] => Future[Result]
   ): Future[Result] = {
@@ -586,17 +704,17 @@ class PersonnalAccessTokenFeatureAuthAction(
 
 class PersonnalAccessTokenKeyAuthAction(
     bodyParser: BodyParser[AnyContent],
-    env: Env,
+    override val env: Env,
     tenant: String,
     key: String,
     minimumLevel: RightLevel,
     operation: TenantTokenRights
 )(implicit
     ec: ExecutionContext
-) extends ActionBuilder[UserNameRequest, AnyContent] {
+) extends LeaderActionBuilder[UserNameRequest] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: UserNameRequest[A] => Future[Result]
   ): Future[Result] = {
@@ -700,16 +818,16 @@ class PersonnalAccessTokenKeyAuthAction(
 
 class PersonnalAccessTokenTenantAuthAction(
     bodyParser: BodyParser[AnyContent],
-    env: Env,
+    override val env: Env,
     tenant: String,
     minimumLevel: RightLevel,
     operation: TenantTokenRights
 )(implicit
     ec: ExecutionContext
-) extends ActionBuilder[UserNameRequest, AnyContent] {
+) extends LeaderActionBuilder[UserNameRequest] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: UserNameRequest[A] => Future[Result]
   ): Future[Result] = {
@@ -810,14 +928,14 @@ class PersonnalAccessTokenTenantAuthAction(
 
 class PersonnalAccessTokenAdminAuthAction(
     bodyParser: BodyParser[AnyContent],
-    env: Env,
+    override val env: Env,
     operation: GlobalTokenRight
 )(implicit
     ec: ExecutionContext
-) extends ActionBuilder[UserNameRequest, AnyContent] {
+) extends LeaderActionBuilder[UserNameRequest] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: UserNameRequest[A] => Future[Result]
   ): Future[Result] = {
@@ -911,16 +1029,16 @@ class PersonnalAccessTokenAdminAuthAction(
 
 class TenantAuthAction(
     bodyParser: BodyParser[AnyContent],
-    env: Env,
+    override val env: Env,
     tenant: String,
     minimumLevel: RightLevel
 )(implicit
     ec: ExecutionContext
-) extends ActionBuilder[UserNameRequest, AnyContent] {
+) extends LeaderActionBuilder[UserNameRequest] {
 
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: UserNameRequest[A] => Future[Result]
   ): Future[Result] = {
@@ -961,12 +1079,15 @@ class TenantAuthAction(
   override protected def executionContext: ExecutionContext = ec
 }
 
-class ValidatePasswordAction(bodyParser: BodyParser[AnyContent], env: Env)(
-    implicit ec: ExecutionContext
-) extends ActionBuilder[UserNameRequest, AnyContent] {
+class ValidatePasswordAction(
+    bodyParser: BodyParser[AnyContent],
+    override val env: Env
+)(implicit
+    ec: ExecutionContext
+) extends LeaderActionBuilder[UserNameRequest] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: UserNameRequest[A] => Future[Result]
   ): Future[Result] = {
@@ -1026,16 +1147,16 @@ class ValidatePasswordAction(bodyParser: BodyParser[AnyContent], env: Env)(
 
 class ProjectAuthAction(
     bodyParser: BodyParser[AnyContent],
-    env: Env,
+    override val env: Env,
     tenant: String,
     projectIdOrName: Either[UUID, String],
     minimumLevel: ProjectRightLevel
 )(implicit ec: ExecutionContext)
-    extends ActionBuilder[ProjectIdUserNameRequest, AnyContent] {
+    extends LeaderActionBuilder[ProjectIdUserNameRequest] {
 
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: ProjectIdUserNameRequest[A] => Future[Result]
   ): Future[Result] = {
@@ -1086,16 +1207,16 @@ class ProjectAuthAction(
 
 class WebhookAuthAction(
     bodyParser: BodyParser[AnyContent],
-    env: Env,
+    override val env: Env,
     tenant: String,
     webhook: String,
     minimumLevel: RightLevel
 )(implicit ec: ExecutionContext)
-    extends ActionBuilder[HookAndUserNameRequest, AnyContent] {
+    extends LeaderActionBuilder[HookAndUserNameRequest] {
 
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: HookAndUserNameRequest[A] => Future[Result]
   ): Future[Result] = {
@@ -1146,16 +1267,16 @@ class WebhookAuthAction(
 
 class KeyAuthAction(
     bodyParser: BodyParser[AnyContent],
-    env: Env,
+    override val env: Env,
     tenant: String,
     key: String,
     minimumLevel: RightLevel
 )(implicit ec: ExecutionContext)
-    extends ActionBuilder[UserNameRequest, AnyContent] {
+    extends LeaderActionBuilder[UserNameRequest] {
 
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlock[A](
+  override def invokeBlockImpl[A](
       request: Request[A],
       block: UserNameRequest[A] => Future[Result]
   ): Future[Result] = {

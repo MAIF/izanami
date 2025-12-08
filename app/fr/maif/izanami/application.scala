@@ -105,6 +105,8 @@ class IzanamiComponentsInstances(
       wire[PersonnalAccessTokenAdminAuthActionFactory]
   lazy val featureTokenAuthAction: PersonnalAccessTokenFeatureAuthActionFactory =
     wire[PersonnalAccessTokenFeatureAuthActionFactory]
+  lazy val workerActionBuilder: WorkerActionBuilder = wire[WorkerActionBuilder]
+  lazy val leaderActionBuilder: LeaderActionBuilderImpl = wire[LeaderActionBuilderImpl]
 
   lazy val featureService: FeatureService = wire[FeatureService]
   lazy val staleFeatureService: FeatureUsageService = wire[FeatureUsageService]

@@ -4,7 +4,12 @@ import controllers.Assets
 import fr.maif.izanami.env.Env
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
-class FrontendController(val assets: Assets, val controllerComponents: ControllerComponents)(implicit val env: Env) extends BaseController {
+class FrontendController(
+    val assets: Assets,
+    val controllerComponents: ControllerComponents,
+    leaderAction: LeaderActionBuilderImpl
+)(implicit val env: Env)
+    extends BaseController {
 
   def headers: List[(String, String)] = List(
     "Access-Control-Allow-Origin" -> "*",
@@ -19,11 +24,18 @@ class FrontendController(val assets: Assets, val controllerComponents: Controlle
   def options(url: String): Action[AnyContent] = Action { request =>
     NoContent.withHeaders(headers: _*)
   }
-    def index: Action[AnyContent] = assets.at("index.html")
 
-    def assetOrDefault(resource: String): Action[AnyContent] = /*if (resource.startsWith("/api")){
-      Action.async(r => errorHandler.onClientError(r, NOT_FOUND, "Not found"))
-    } else {*/
-      if (resource.contains(".")) assets.at(resource) else index
-    //}
+  private def leaderAssets(action: Action[AnyContent]): Action[AnyContent] = {
+    leaderAction.async { request =>
+      action(request)
+    }
+  }
+
+  def index: Action[AnyContent] = leaderAssets(assets.at("index.html"))
+
+  def assetOrDefault(
+      resource: String
+  ): Action[AnyContent] = leaderAssets {
+    if (resource.contains(".")) assets.at(resource) else index
+  }
 }

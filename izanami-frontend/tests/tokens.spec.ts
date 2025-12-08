@@ -77,7 +77,7 @@ test.describe("Personnal access token", () => {
     await page.getByLabel("All rights").uncheck();
     await page.getByRole("combobox", { name: "Tenant" }).click();
     await page.getByRole("option", { name: tenantName }).click();
-    await page.getByRole("combobox", { name: "Rights" }).click();
+    await page.getByRole("combobox", { name: "Rights" }).first().click();
     await page.getByRole("option", { name: "IMPORT" }).click();
     await page.getByRole("button", { name: "Save" }).click();
 
@@ -94,7 +94,7 @@ test.describe("Personnal access token", () => {
     await page.getByRole("button", { name: "Add" }).click();
     await page.getByRole("combobox", { name: "Tenant" }).click();
     await page.getByRole("option", { name: tenantName }).click();
-    await page.getByRole("combobox", { name: "Rights" }).click();
+    await page.getByRole("combobox", { name: "Rights" }).first().click();
     await page.getByRole("option", { name: "EXPORT" }).click();
     await page.getByRole("button", { name: "Save" }).click();
 

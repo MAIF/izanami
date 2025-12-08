@@ -4099,8 +4099,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     }
 
     def restartServerWithConf(conf: Map[String, AnyRef]): TestSituation = {
+      shouldRestartInstance = true
       stopServer()
       val server = startServer(conf)
+      izanamiInstance = server
       copy(server = server)
     }
 

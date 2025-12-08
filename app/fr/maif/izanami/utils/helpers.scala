@@ -1,13 +1,21 @@
 package fr.maif.izanami.utils
 
+import pureconfig.ConfigFieldMapping
+import pureconfig.generic.derivation.*
+
 import scala.concurrent.{ExecutionContext, Future}
 
 object Helpers {
-  def sequence[A, B](seq: Seq[Either[A, B]]): Either[A, Seq[B]] = seq.foldRight(Right(Nil): Either[A, List[B]]) {
-    (e, acc) => for (xs <- acc; x <- e) yield x :: xs
-  }
+  def sequence[A, B](seq: Seq[Either[A, B]]): Either[A, Seq[B]] =
+    seq.foldRight(Right(Nil): Either[A, List[B]]) { (e, acc) =>
+      for (xs <- acc; x <- e) yield x :: xs
+    }
 
-  def sequence[A, B, C](seq: Seq[Either[A, B]], init: => C, acc: (C, A) => C): Either[C, Seq[B]] =
+  def sequence[A, B, C](
+      seq: Seq[Either[A, B]],
+      init: => C,
+      acc: (C, A) => C
+  ): Either[C, Seq[B]] =
     seq.foldRight(Right(Nil): Either[C, List[B]]) {
       case (Left(err), Left(errAcc)) => Left(acc(errAcc, err))
       case (Left(err), Right(_))     => Left(acc(init, err))
@@ -18,7 +26,10 @@ object Helpers {
   def chainFutures[E, R](
       futures: Seq[Future[Either[E, R]]]
   )(implicit ec: ExecutionContext): Future[Either[Seq[E], Seq[R]]] = {
-    def act(fs: Seq[Future[Either[E, R]]], res: Either[Seq[E], Seq[R]]): Future[Either[Seq[E], Seq[R]]] = {
+    def act(
+        fs: Seq[Future[Either[E, R]]],
+        res: Either[Seq[E], Seq[R]]
+    ): Future[Either[Seq[E], Seq[R]]] = {
       fs.headOption
         .map(f => {
           f.map(e =>
@@ -36,3 +47,10 @@ object Helpers {
     act(futures, Right(Seq()))
   }
 }
+
+object LowerCaseEnumReader
+    extends EnumConfigReaderDerivation(
+      ConfigFieldMapping(str => {
+        str.toLowerCase
+      })
+    )
