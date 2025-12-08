@@ -1,33 +1,16 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{
-  TokenCheckFailure,
-  TokenCheckSuccess
-}
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{TokenCheckFailure, TokenCheckSuccess}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{
-  MissingPersonalAccessToken,
-  NotEnoughRights,
-  UserNotFound
-}
+import fr.maif.izanami.errors.{MissingPersonalAccessToken, NotEnoughRights, UserNotFound}
 import fr.maif.izanami.events.EventAuthentication
-import fr.maif.izanami.events.EventAuthentication.{
-  BackOfficeAuthentication,
-  TokenAuthentication
-}
+import fr.maif.izanami.events.EventAuthentication.{BackOfficeAuthentication, TokenAuthentication}
 import fr.maif.izanami.models.*
-import fr.maif.izanami.models.IzanamiMode.{Leader, Worker}
+import fr.maif.izanami.models.IzanamiMode.{Leader, Standalone, Worker}
 import fr.maif.izanami.security.JwtService.decodeJWT
 import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.{
-  BetterFuture,
-  BetterFutureEither,
-  BetterSyntax
-}
-import fr.maif.izanami.web.AuthAction.{
-  extractAndCheckPersonnalAccessToken,
-  extractClaims
-}
+import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterFutureEither, BetterSyntax}
+import fr.maif.izanami.web.AuthAction.{extractAndCheckPersonnalAccessToken, extractClaims}
 import pdi.jwt.JwtClaim
 import play.api.libs.json.*
 import play.api.mvc.*
@@ -486,7 +469,7 @@ trait IzanamiActionBuilder[R[_] <: Request[_]]
       block: R[A] => Future[Result]
   ): Future[Result]
 
-  private val actualMode = env.typedConfiguration.mode
+  protected val actualMode = env.typedConfiguration.cluster.mode
 
   override def invokeBlock[A](
       request: Request[A],
@@ -506,17 +489,18 @@ trait LeaderActionBuilder[R[_] <: Request[_]] extends IzanamiActionBuilder[R] {
 }
 
 class LeaderActionBuilderImpl(
-                               override val parser: BodyParser[AnyContent],
-                               override val env: Env
-                             ) extends LeaderActionBuilder[Request] {
+    override val parser: BodyParser[AnyContent],
+    override val env: Env
+) extends LeaderActionBuilder[Request] {
   override def disabledOn: IzanamiMode = Worker
 
   override def invokeBlockImpl[A](
-                                   request: Request[A],
-                                   block: Request[A] => Future[Result]
-                                 ): Future[Result] = block(request)
+      request: Request[A],
+      block: Request[A] => Future[Result]
+  ): Future[Result] = block(request)
 
-  override protected def executionContext: ExecutionContext = env.executionContext
+  override protected def executionContext: ExecutionContext =
+    env.executionContext
 }
 
 class WorkerActionBuilder(
@@ -525,59 +509,64 @@ class WorkerActionBuilder(
 ) extends IzanamiActionBuilder[Request] {
   override def disabledOn: IzanamiMode = Leader
 
+  private val blacklist = env.typedConfiguration.cluster.contextBlacklist
+  private val maybeWhitelist = env.typedConfiguration.cluster.contextWhitelist
+
   override def invokeBlockImpl[A](
       request: Request[A],
       block: Request[A] => Future[Result]
-  ): Future[Result] = block(request)
+  ): Future[Result] = {
+    val containBlacklistedContext = request.queryString
+      .get("context")
+      .flatMap(s => s.headOption)
+      .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
+      .exists(requestContext => {
+        blacklist.exists(blacklistedContext =>
+          blacklistedContext.isAscendantOf(requestContext)
+        )
+      })
 
-  override protected def executionContext: ExecutionContext = env.executionContext
-}
+    val isContextAllowedByWhitelist = request.queryString
+      .get("context")
+      .flatMap(s => s.headOption)
+      .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
+      .forall(requestContext => {
+        maybeWhitelist.forall(ws => {
+          ws.exists(whitelistedContext =>
+            whitelistedContext.isAscendantOf(requestContext)
+          )
+        })
+      })
 
-/*class IzanamiActionBuilder[R[_] <: Request[_]](
-    bodyParser: BodyParser[AnyContent],
-    env: Env,
-    disabledOn: IzanamiMode
-)(implicit ec: ExecutionContext)
-    extends ActionBuilder[R, AnyContent] {
+    if(actualMode == Standalone) {
+      block(request)
+    }
+    else if (!isContextAllowedByWhitelist) {
+      Future.successful(
+        Results.BadRequest(
+          Json.obj(
+            "message" -> "Requested context isn't whitelisted for this worker instance"
+          )
+        )
+      )
+    } else if (containBlacklistedContext) {
+      Future.successful(
+        Results.BadRequest(
+          Json.obj(
+            "message" -> "Requested context is blacklisted for this worker instance"
+          )
+        )
+      )
+    } else {
+      block(request)
+    }
 
-  override def parser: BodyParser[AnyContent] = parser
-  override protected def executionContext: ExecutionContext = ec
-
-  private val blockedValue = "disabled"
-  private val mode = env.typedConfiguration.mode
-
-  override def invokeBlock[A](
-      request: R[A],
-      block: R[A] => Future[Result]
-  ): Future[Result] = if (mode == disabledOn) {
-    Future.successful(Results.NotFound("Page not found"))
-  } else {
-    block(request)
   }
 
-  override def invokeBlock[A](request: Request[A], block: R[A] => Future[Result]): Future[Result] =
+  override protected def executionContext: ExecutionContext =
+    env.executionContext
+}
 
-}*/
-
-/*class LeaderActionBuilder(
-    bodyParser: BodyParser[AnyContent],
-    env: Env
-)(implicit ec: ExecutionContext)
-    extends IzanamiActionBuilder(
-      bodyParser = bodyParser,
-      env = env,
-      disabledOn = Worker
-    )
-
-class WorkerActionBuilder(
-    bodyParser: BodyParser[AnyContent],
-    env: Env
-)(implicit ec: ExecutionContext)
-    extends IzanamiActionBuilder(
-      bodyParser = bodyParser,
-      env = env,
-      disabledOn = Leader
-    )*/
 
 class PersonnalAccessTokenFeatureAuthAction(
     bodyParser: BodyParser[AnyContent],

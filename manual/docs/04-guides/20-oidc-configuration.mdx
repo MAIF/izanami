@@ -11,20 +11,20 @@ Configuratioin of provider is [documented here](https://maif.github.io/izanami/d
 This page focuses on attributing rights to user coming from external auth provider.
 
 
-# Map provider roles to rights
+## Map provider roles to rights
 
 To attribute default rights to external users, you'll have to define `app.openid.right-by-roles`.
 
 This property is a map, whose keys are roles, and value are rights that should be given to external users with these roles.
 
 
-## Role
+### Role
 
 Role are provided by OAuth2 provider. You must specify claim that contains roles in token sent by OAuth2 provider in `app.openid.role-claim`.
 
 Role claim must contain either a string containing a single role, or a json array containing a list of roles
 
-## Right format
+### Right format
 
 Each role is associated with a set of rights.
 
@@ -56,7 +56,7 @@ Here is a complete set of rights:
 
 To know more about rights and what they allow, see [this page](/docs/usages/rights).
 
-## Default rights
+### Default rights
 
 To specify default rights for any oidc user, you'll need to define rights for a role `""`.
 
@@ -76,7 +76,7 @@ To specify default rights for any oidc user, you'll need to define rights for a 
 }
 ```
 
-## Role merge
+### Role merge
 
 When a user has multiple role, or when he has one role and default rights, Izanami merges rights from different roles and default rights to keep only higher rights.
 
@@ -114,7 +114,7 @@ For instance, with the following configuration, a user with roles `foo` and `bar
 }
 ```
 
-# Rights modes
+## Rights modes
 
 Role synchronisation between external authentication provider and Izanami can be done using two different strategies:
 

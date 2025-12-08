@@ -100,3 +100,9 @@ figure {
 figure figcaption {
   font-style: italic;
 }
+
+.checkmark-table {
+  td {
+    text-align: center;
+  }
+}

@@ -1,0 +1,75 @@
+---
+title: Cluster mode
+---
+
+import { Note } from "@site/src/components/Note";
+import ClusterMode from "@site/static/img/cluster-mode.png";
+
+
+<Note>Cluster mode is available from Izanami 2.15.0.</Note>
+
+Izanami can be started in different **cluster modes**.
+
+These modes impact behaviour of Izanami and which endpoints will respond.
+
+
+## What is cluster mode
+
+Cluster mode allows to separate two Izanami usages:
+
+* UI access to create / update / delete entities (feature, projects, tenants, ...)
+* Client access to evaluate feature state
+
+
+Leader / worker modes allow separating these concerns to prevent UI from being impacted by spikes of client queries.
+
+<Note>
+Scaling worker will help handling spikes of requests, however keep in mind that both leader and worker nodes use the same underlying database.
+At some point you may want to scale database as well.
+</Note>
+
+### Worker mode
+
+Instantiating Izanami in `worker` mode will:
+
+* Allow it to respond to feature evaluation requests
+* prevent it from serving UI and associated admin endpoints (including call using [Personnal Access Tokens](./personnal-access-tokens)).
+
+### Leader mode
+
+Instantiating Izanami in `leader` mode will:
+
+* Prevent it from responding to feature evaluation requests
+* Allow it to serve UI and associated admin endpoints (including call using [Personnal Access Tokens](./personnal-access-tokens)).
+
+### Standalone mode
+
+`standalone` mode is the default mode. When an instance is started in standalong mode, it will serve both the UI (and associated admin endpoints) and client endpoints.
+
+
+### Mode summary
+
+
+<div className="checkmark-table">
+|          |Expose UI|Expose admin endpoints<br/>(through Personnal Access Tokens)|Expose client (feature evaluation) endpoints|
+|----------|---------|--------------------------------------------------------|--------------------------------------------|
+|Worker    |❌      | ❌                                                      | ✅ |
+|Leader    |✅       | ✅                                                      | ❌ |
+|Standalone|✅       | ✅                                                      | ✅ |
+</div>
+
+
+### Instanciation example
+
+
+<figure>
+  <img src={ClusterMode} width={"100%"} />
+  <figcaption>Cluster mode instanciation example</figcaption>
+</figure>
+
+
+## Worker specialization
+
+In order to prevent accidental calls from one environnement to another, Izanami allows defining **blacklist** and **whitelist** on worker instances.
+
+Read [dedicated configuration section](./configuration#worker-instances-context-whitelist--blacklist) to learn more about these blacklists and whitelists.

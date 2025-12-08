@@ -210,6 +210,31 @@ By adjusting the threshold, you can control the sensitivity of your similarity s
 | Similartiy_threshold parameter          | IZANAMI_SIMILARITY_THRESHOLD_PARAMETER| app.search.similarity_threshold | 0.2         |
 
 
+### Worker instances context whitelist & blacklist
+
+When Izanami is started in worker mode, context whitelist and blacklist indicates which contexts can and cannot be requested.
+
+If neither blacklist nor whitelist are set, all contexts can be requested, which is the default behaviour.
+
+Note that when a context is blacklisted or whitelisted, its children are also considered blacklisted / whitelisted. This means that:
+
+* if `prod` is blaklisted, `prod/mobile` is considered blacklisted as well
+* likewise, if `prod` is whitelisted, `prod/mobile` will be considered whitelisted as well
+
+
+Izanami allows to define **both** whitelist and blacklist, in such cases your context must be whitelisted and not blacklisted
+to be accessible. For instance if `prod` is whitelisted and `prod/mobile` is blacklisted, `prod` context will be accessible, 
+but `prod/mobile` and all its children won't.
+
+
+|                            | Environnement variable                | Program argument                | Default     |
+| -------------------------- | ------------------------------------- | ------------------------------- | ----------- |
+| Context whitelist          | IZANAMI_CLUSTER_CONTEXT_WHITELIST     | app.mode.context-whitelist      | null        |
+| Context blacklist          | IZANAMI_CLUSTER_CONTEXT_BLACKLIST     | app.mode.context-blacklist      | []          |
+
+
+
+
 ### Audit
 
 Izanami offers an audit log for some actions, such as feature creation/update/delete.

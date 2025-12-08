@@ -22,7 +22,7 @@ object FeatureContextPath {
   }
 
   def fromUserString(userString: String): FeatureContextPath = {
-    FeatureContextPath(userString.split("/").toSeq)
+    FeatureContextPath(userString.split("/").toSeq.filter(str => str.nonEmpty))
   }
 
   implicit def pathBinder(implicit

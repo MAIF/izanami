@@ -5,8 +5,14 @@ import fr.maif.izanami.models.*
 import fr.maif.izanami.models.IzanamiMode.{Leader, Standalone, Worker}
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2RawMethodConvert
 import fr.maif.izanami.services.CompleteRights
+import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.*
-import pureconfig.error.{CannotConvert, CannotParse, ConfigReaderFailures, UnknownKey}
+import pureconfig.error.{
+  CannotConvert,
+  CannotParse,
+  ConfigReaderFailures,
+  UnknownKey
+}
 import pureconfig.generic.semiauto.{deriveEnumerationReader, deriveReader}
 import pureconfig.{ConfigReader, ConfigSource}
 
@@ -87,6 +93,10 @@ case object IzanamiTypedConfiguration {
     given ConfigReader[RoleRights] = deriveReader
     given ConfigReader[TenantRoleRights] = deriveReader
     given ConfigReader[OpenId] = deriveReader[OpenId]
+
+    given ConfigReader[FeatureContextPath] = f => {
+      f.asString.map(s => FeatureContextPath.fromUserString(s))
+    }
     given ConfigReader[IzanamiTypedConfiguration] =
       deriveReader[IzanamiTypedConfiguration]
 
@@ -117,19 +127,26 @@ case class AppConf(
     search: Search,
     feature: Feature,
     housekeeping: Housekeeping,
-    mode: IzanamiMode
+    cluster: Cluster
 )
 
 object AppConf {
 
-  implicit val izanamiModeConvert: ConfigReader[IzanamiMode] = ConfigReader.fromString[IzanamiMode] { str =>
-    str.toLowerCase match
-      case "standalone" => Right(Standalone)
-      case "leader" => Right(Leader)
-      case "worker" => Right(Worker)
-      case s@_ => Left(UnknownKey(s))
-  }
+  implicit val izanamiModeConvert: ConfigReader[IzanamiMode] =
+    ConfigReader.fromString[IzanamiMode] { str =>
+      str.toLowerCase match
+        case "standalone" => Right(Standalone)
+        case "leader"     => Right(Leader)
+        case "worker"     => Right(Worker)
+        case s @ _        => Left(UnknownKey(s))
+    }
 }
+
+case class Cluster(
+    mode: IzanamiMode,
+    contextBlacklist: List[FeatureContextPath],
+    contextWhitelist: Option[Seq[FeatureContextPath]]
+)
 
 case class Experimental(staleTracking: StaleTracking)
 case class StaleTracking(enabled: Boolean)
