@@ -167,7 +167,7 @@ services:
       - 1081:1025
       - 1080:1080
   wasm-manager:
-    image: maif/wasmo:1.2.1
+    image: maif/wasmo:1.4.1
     networks:
       - manager-network
     #entrypoint: ["/bin/sh", "-c", "npm config set strict-ssl false"]
