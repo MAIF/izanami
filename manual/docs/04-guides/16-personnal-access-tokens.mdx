@@ -48,10 +48,15 @@ You can have multiple access tokens.
 
 ## How to use access tokens
 
-Right now, access tokens can be used on two endpoints:
+Right now, access tokens can be used on following endpoints:
 
 - `/api/admin/tenants/<YOUR_TENANT>/_export`
 - `/api/admin/tenants/<YOUR_TENANT>/_import`
+- `/api/admin/tenants` (POST)
+- `/api/admin/tenants/<YOUR_TENANT>` (GET)
+- `/api/admin/tenants/<YOUR_TENANT>/projects/<YOUR_PROJECT>` (GET, DELETE)
+- `/api/admin/tenants/<YOUR_TENANT>/features/<YOUR_FEATURE_ID>` (DELETE)
+- `/api/admin/tenants/<YOUR_TENANT>/keys/<YOUR_KEY>` (DELETE)
 
 Tokens may be used on more endpoints in the future, please [open an issue](https://github.com/MAIF/izanami/issues) if you encounter such need.
 
