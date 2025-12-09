@@ -23,11 +23,15 @@ sealed trait TenantTokenRights {
 
 case object Export extends TenantTokenRights {
   val name = "EXPORT"
-  override def requiredCreationRight: Option[RequiredTenantRights] = Some(RequiredTenantRights(level = RightLevel.Admin))
+  override def requiredCreationRight: Option[RequiredTenantRights] = Some(
+    RequiredTenantRights(level = RightLevel.Admin)
+  )
 }
 case object Import extends TenantTokenRights {
   val name = "IMPORT"
-  override def requiredCreationRight: Option[RequiredTenantRights] = Some(RequiredTenantRights(level = RightLevel.Admin))
+  override def requiredCreationRight: Option[RequiredTenantRights] = Some(
+    RequiredTenantRights(level = RightLevel.Admin)
+  )
 }
 
 case object DeleteFeature extends TenantTokenRights {
@@ -37,6 +41,16 @@ case object DeleteFeature extends TenantTokenRights {
 
 case object DeleteProject extends TenantTokenRights {
   val name = "DELETE PROJECT"
+  override def requiredCreationRight: Option[RequiredTenantRights] = None
+}
+
+case object ReadProject extends TenantTokenRights {
+  val name = "READ PROJECT"
+  override def requiredCreationRight: Option[RequiredTenantRights] = None
+}
+
+case object ReadTenant extends TenantTokenRights {
+  val name = "READ TENANT"
   override def requiredCreationRight: Option[RequiredTenantRights] = None
 }
 
@@ -51,7 +65,9 @@ sealed trait GlobalTokenRight {
 }
 case object CreateTenant extends GlobalTokenRight {
   val name = "CREATE TENANT"
-  override def requiredCreationRight: Option[RequiredRights] = Some(RequiredRights(admin = true))
+  override def requiredCreationRight: Option[RequiredRights] = Some(
+    RequiredRights(admin = true)
+  )
 }
 
 sealed trait PersonnalAccessTokenRights
@@ -106,6 +122,8 @@ object PersonnalAccessToken {
       case "DELETE FEATURE" => DeleteFeature
       case "DELETE PROJECT" => DeleteProject
       case "DELETE KEY"     => DeleteKey
+      case "READ TENANT"    => ReadTenant
+      case "READ PROJECT"   => ReadProject
     }
   }
 
@@ -157,6 +175,8 @@ object PersonnalAccessToken {
         case Some("DELETE FEATURE") => JsSuccess(DeleteFeature)
         case Some("DELETE PROJECT") => JsSuccess(DeleteProject)
         case Some("DELETE KEY")     => JsSuccess(DeleteKey)
+        case Some("READ TENANT")    => JsSuccess(ReadTenant)
+        case Some("READ PROJECT")   => JsSuccess(ReadProject)
         case _                      => JsError("Bad body format")
       }
 
@@ -169,6 +189,8 @@ object PersonnalAccessToken {
     case DeleteFeature => Json.toJson("DELETE FEATURE")
     case DeleteProject => Json.toJson("DELETE PROJECT")
     case DeleteKey     => Json.toJson("DELETE KEY")
+    case ReadProject   => Json.toJson("READ PROJECT")
+    case ReadTenant    => Json.toJson("READ TENANT")
   }
 
   def personnalAccessTokenGlobalRightsWrites: Writes[GlobalTokenRight] = {

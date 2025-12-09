@@ -6,6 +6,26 @@ import play.api.libs.json.JsArray
 
 class ProjectAPISpec extends BaseAPISpec {
   "Project GET endpoint" should {
+    "Allow to retrieve project with personal access token" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("testtenant").withProjectNames("ppp"))
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(
+            "foo",
+            allRights = false,
+            rights = Map("testtenant" -> Set("READ PROJECT"))
+          )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val secret = situation.findTokenSecret(situation.user, "foo");
+
+      val res =
+        readProjectWithToken(tenant = "testtenant", project = "ppp", username = situation.user, token = secret)
+      res.status mustBe OK
+    }
+
     "allow to retrieve features for the given project" in {
       val tenantName = "my-tenant"
       val projectName = "my-project"
@@ -52,7 +72,7 @@ class ProjectAPISpec extends BaseAPISpec {
         .loggedAs("foo")
         .build()
 
-      situation.fetchProject("mytenant", "my-project").status mustBe NOT_FOUND
+      situation.fetchProject("mytenant", "my-project").status mustBe FORBIDDEN
     }
 
     "Allow feature read if user has not right on the project but is tenant admin" in {

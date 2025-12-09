@@ -242,6 +242,28 @@ class TenantAPISpec extends BaseAPISpec {
   }
 
   "Tenants get with name endpoint" should {
+    "allow to read tenant using Personnal Access Token" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("foo"))
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(
+            "foo",
+            allRights = false,
+            rights = Map("foo" -> Set("READ TENANT"))
+          )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val secret = situation.findTokenSecret(situation.user, "foo")
+      var response = readTenantWithToken(
+        name = "foo",
+        username = situation.user,
+        token = secret
+      )
+      response.status mustBe OK
+    }
+
     "return forbidden if user is not authorized to read tenant" in {
       val tenantName = "foo"
       val testSituation = TestSituationBuilder()

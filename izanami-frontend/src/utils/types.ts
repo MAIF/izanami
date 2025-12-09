@@ -39,8 +39,10 @@ export const POSSIBLE_TOKEN_RIGHTS = [
   "EXPORT",
   "IMPORT",
   "DELETE FEATURE",
+  "READ PROJECT",
   "DELETE PROJECT",
   "DELETE KEY",
+  "READ TENANT",
 ] as const;
 
 export const POSSIBLE_GLOBAL_TOKEN_RIGHTS = ["CREATE TENANT"] as const;

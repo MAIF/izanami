@@ -5,7 +5,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.ProjectDoesNotExists
 import fr.maif.izanami.events.{EventAuthentication, EventService, FeatureEvent, TenantCreated, TenantDeleted}
 import fr.maif.izanami.models.ProjectWithUsageInformation.projectWithUsageInformationWrites
-import fr.maif.izanami.models.{DeleteProject, Project, ProjectRightLevel, ProjectWithUsageInformation, RightLevel}
+import fr.maif.izanami.models.{DeleteProject, Project, ProjectRightLevel, ProjectWithUsageInformation, ReadProject, RightLevel}
 import fr.maif.izanami.services.FeatureUsageService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ProjectController.parseStringSet
@@ -143,7 +143,7 @@ class ProjectController(
   }
 
   def readProject(tenant: String, project: String): Action[AnyContent] =
-    projectAuthAction(tenant, project, ProjectRightLevel.Read).async { implicit request =>
+    personnalAccessTokenAuthAction(tenant, project, ProjectRightLevel.Read, ReadProject).async { implicit request =>
       env.datastores.projects
         .readProject(tenant, project)
         .flatMap(maybeProject => {
@@ -178,7 +178,7 @@ class ProjectController(
     }
 
   def deleteProject(tenant: String, project: String): Action[AnyContent] =
-    (personnalAccessTokenAuthAction(tenant, project, ProjectRightLevel.Admin, DeleteProject)).async { implicit request =>
+    personnalAccessTokenAuthAction(tenant, project, ProjectRightLevel.Admin, DeleteProject).async { implicit request =>
       env.datastores.projects
         .deleteProject(tenant, project, request.user)
         .map {

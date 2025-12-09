@@ -1755,6 +1755,30 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
   }
 
+  def readTenantWithToken(
+      name: String,
+      username: String,
+      token: String
+  ): RequestResult = {
+    val auth = Base64.getEncoder.encodeToString(
+      s"${username}:$token".getBytes(StandardCharsets.UTF_8)
+    )
+
+    val response = await(
+      ws
+        .url(s"${ADMIN_BASE_URL}/tenants/${name}")
+        .addHttpHeaders("Authorization" -> s"Basic $auth")
+        .get()
+    )
+
+    RequestResult(
+      json = Try {
+        response.json
+      },
+      status = response.status
+    )
+  }
+
   def createTenantWithToken(
       name: String,
       description: String = "",
@@ -1818,6 +1842,28 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}")
         .addHttpHeaders("Authorization" -> s"Basic $auth")
         .delete()
+    )
+    RequestResult(
+      json = Try {
+        response.json
+      },
+      status = response.status
+    )
+  }
+
+  def readProjectWithToken(
+                              tenant: String,
+                              project: String,
+                              username: String,
+                              token: String
+                            ): RequestResult = {
+    val auth = Base64.getEncoder.encodeToString(
+      s"${username}:$token".getBytes(StandardCharsets.UTF_8)
+    )
+    val response = await(
+      ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/projects/${project}")
+        .addHttpHeaders("Authorization" -> s"Basic $auth")
+        .get()
     )
     RequestResult(
       json = Try {
