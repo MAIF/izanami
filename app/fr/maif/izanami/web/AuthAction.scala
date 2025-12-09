@@ -509,31 +509,31 @@ class WorkerActionBuilder(
 ) extends IzanamiActionBuilder[Request] {
   override def disabledOn: IzanamiMode = Leader
 
-  private val blacklist = env.typedConfiguration.cluster.contextBlacklist
-  private val maybeWhitelist = env.typedConfiguration.cluster.contextWhitelist
+  private val blacklist = env.typedConfiguration.cluster.contextBlocklist
+  private val maybeWhitelist = env.typedConfiguration.cluster.contextAllowlist
 
   override def invokeBlockImpl[A](
       request: Request[A],
       block: Request[A] => Future[Result]
   ): Future[Result] = {
-    val containBlacklistedContext = request.queryString
+    val containBlocklistedContext = request.queryString
       .get("context")
       .flatMap(s => s.headOption)
       .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
       .exists(requestContext => {
-        blacklist.exists(blacklistedContext =>
-          blacklistedContext.isAscendantOf(requestContext)
+        blacklist.exists(blocklistedContext =>
+          blocklistedContext.isAscendantOf(requestContext)
         )
       })
 
-    val isContextAllowedByWhitelist = request.queryString
+    val isContextAllowedByAllowlist = request.queryString
       .get("context")
       .flatMap(s => s.headOption)
       .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
       .forall(requestContext => {
         maybeWhitelist.forall(ws => {
-          ws.exists(whitelistedContext =>
-            whitelistedContext.isAscendantOf(requestContext)
+          ws.exists(allowedContext =>
+            allowedContext.isAscendantOf(requestContext)
           )
         })
       })
@@ -541,19 +541,19 @@ class WorkerActionBuilder(
     if(actualMode == Standalone) {
       block(request)
     }
-    else if (!isContextAllowedByWhitelist) {
+    else if (!isContextAllowedByAllowlist) {
       Future.successful(
         Results.BadRequest(
           Json.obj(
-            "message" -> "Requested context isn't whitelisted for this worker instance"
+            "message" -> "Requested context isn't present in allowlist for this worker instance"
           )
         )
       )
-    } else if (containBlacklistedContext) {
+    } else if (containBlocklistedContext) {
       Future.successful(
         Results.BadRequest(
           Json.obj(
-            "message" -> "Requested context is blacklisted for this worker instance"
+            "message" -> "Requested context is blocklisted for this worker instance"
           )
         )
       )

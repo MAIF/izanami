@@ -144,8 +144,8 @@ object AppConf {
 
 case class Cluster(
     mode: IzanamiMode,
-    contextBlacklist: List[FeatureContextPath],
-    contextWhitelist: Option[Seq[FeatureContextPath]]
+    contextBlocklist: List[FeatureContextPath],
+    contextAllowlist: Option[Seq[FeatureContextPath]]
 )
 
 case class Experimental(staleTracking: StaleTracking)

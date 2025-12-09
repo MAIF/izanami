@@ -144,7 +144,7 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
       testSitutation = testSitutation.restartServerWithConf(
         Map(
           "app.cluster.mode" -> "worker",
-          "app.cluster.context-blacklist" -> ConfigValueFactory.fromIterable(
+          "app.cluster.context-blocklist" -> ConfigValueFactory.fromIterable(
             java.util.List.of("prod", "protected")
           )
         )
@@ -211,7 +211,7 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
       testSitutation = testSitutation.restartServerWithConf(
         Map(
           "app.cluster.mode" -> "worker",
-          "app.cluster.context-whitelist" -> ConfigValueFactory.fromIterable(
+          "app.cluster.context-allowlist" -> ConfigValueFactory.fromIterable(
             java.util.List.of("prod", "protected")
           )
         )
@@ -256,7 +256,6 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
         context = "dev/mobile"
       )
       checkResponse.status mustBe BAD_REQUEST
-
 
       checkResponse = testSitutation.checkFeature(
         featureId,
@@ -333,7 +332,7 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
       testSitutation = testSitutation.restartServerWithConf(
         Map(
           "app.cluster.mode" -> "standalone",
-          "app.cluster.context-blacklist" -> ConfigValueFactory.fromIterable(
+          "app.cluster.context-blocklist" -> ConfigValueFactory.fromIterable(
             java.util.List.of("prod", "protected")
           )
         )
@@ -367,7 +366,7 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
       testSitutation = testSitutation.restartServerWithConf(
         Map(
           "app.cluster.mode" -> "standalone",
-          "app.cluster.context-whitelist" -> ConfigValueFactory.fromIterable(
+          "app.cluster.context-allowlist" -> ConfigValueFactory.fromIterable(
             java.util.List.of("prod", "protected")
           )
         )
