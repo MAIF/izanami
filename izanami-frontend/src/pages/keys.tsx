@@ -30,6 +30,7 @@ import { InvitationForm } from "../components/InvitationForm";
 import { RightTable } from "../components/RightTable";
 import { Tooltip } from "../components/Tooltip";
 import { ProjectLink } from "../components/ProjectLink";
+import { CopyButton } from "../components/CopyButton";
 
 function editionSchema(tenant: string, key?: TKey) {
   return {
@@ -181,13 +182,29 @@ export default function Keys(props: { tenant: string }) {
         return (
           <div
             style={{
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              maxWidth: "110px",
+              position: "relative",
             }}
           >
-            {info.getValue()}
+            <div
+              style={{
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                maxWidth: "110px",
+              }}
+            >
+              {info.getValue()}
+            </div>
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                top: "50%",
+                transform: "translateY(-50%)",
+              }}
+            >
+              <CopyButton icon secondary value={info.getValue()} />
+            </div>
           </div>
         );
       },
@@ -202,14 +219,31 @@ export default function Keys(props: { tenant: string }) {
       cell: (info: any) => {
         return (
           <div
+            className="copiable-cell"
             style={{
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              maxWidth: "75px",
+              position: "relative",
             }}
           >
-            {info.row.original.clientSecret}
+            <div
+              style={{
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                maxWidth: "75px",
+              }}
+            >
+              {info.row.original.clientSecret}
+            </div>
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                top: "50%",
+                transform: "translateY(-50%)",
+              }}
+            >
+              <CopyButton icon secondary value={info.getValue()} />
+            </div>
           </div>
         );
       },
