@@ -28,6 +28,16 @@ Scaling worker will help handling spikes of requests, however keep in mind that 
 At some point you may want to scale database as well.
 </Note>
 
+### Setting cluster mode
+
+Cluster mode can be set using either:
+
+* `app.cluster.mode` JAVA commande line argument
+* `IZANAMI_CLUSTER_MODE` environnement variable
+
+Possible values are `standlone`, `worker` and `leader`, default value is `standalone`.
+
+
 ### Worker mode
 
 Instantiating Izanami in `worker` mode will:

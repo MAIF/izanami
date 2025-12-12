@@ -210,7 +210,14 @@ By adjusting the threshold, you can control the sensitivity of your similarity s
 | Similartiy_threshold parameter          | IZANAMI_SIMILARITY_THRESHOLD_PARAMETER| app.search.similarity_threshold | 0.2         |
 
 
-### Worker instances context allowlist & blocklist
+### Leader / Worker configuration
+
+|                            | Environnement variable                | Program argument                | Default     |
+| -------------------------- | ------------------------------------- | ------------------------------- | ----------- |
+| Cluster mode               | IZANAMI_CLUSTER_MODE                  | app.cluster.mode                | strandalone |
+
+
+#### Worker instances context allowlist & blocklist
 
 When Izanami is started in worker mode, context allowlist and blocklist indicates which contexts can and cannot be requested.
 
