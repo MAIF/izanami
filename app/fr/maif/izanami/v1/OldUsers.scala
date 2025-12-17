@@ -72,9 +72,9 @@ object OldUsers {
 
   def toNewUser(tenant: String, user: OldUser, projects: Set[String], filterProject: Boolean): Either[String, UserWithRights] = {
     user match {
-      case OldIzanamiUser(id, name, email, password, admin, authorizedPatterns) => UserWithRights(username=id, userType = INTERNAL,email=email, password=password.orNull, admin=admin, rights = Rights(tenants=(Map(tenant -> toNewRights(admin, authorizedPatterns, projects, filterProject)))), legacy=true).right
-      case OldOauthUser(id, name, email, admin, authorizedPatterns) => UserWithRights(username=id, userType = OIDC,email=email, password=null, admin=admin, rights = Rights(tenants=(Map(tenant -> toNewRights(admin, authorizedPatterns, projects, filterProject)))), legacy=true).right
-      case OldOtoroshiUser(id, name, email, admin, authorizedPatterns) => UserWithRights(username=id, userType = OTOROSHI,email=email, password=null, admin=admin, rights = Rights(tenants=(Map(tenant -> toNewRights(admin, authorizedPatterns, projects, filterProject)))), legacy=true).right
+      case OldIzanamiUser(id, name, email, password, admin, authorizedPatterns) => UserWithRights(username=id, userType = INTERNAL,email=email, password=password.orNull, admin=admin, rights = Rights(tenants=(Map(tenant -> toNewRights(admin, authorizedPatterns, projects, filterProject)))), legacy=true, roles = Set()).right
+      case OldOauthUser(id, name, email, admin, authorizedPatterns) => UserWithRights(username=id, userType = OIDC,email=email, password=null, admin=admin, rights = Rights(tenants=(Map(tenant -> toNewRights(admin, authorizedPatterns, projects, filterProject)))), legacy=true, roles = Set()).right
+      case OldOtoroshiUser(id, name, email, admin, authorizedPatterns) => UserWithRights(username=id, userType = OTOROSHI,email=email, password=null, admin=admin, rights = Rights(tenants=(Map(tenant -> toNewRights(admin, authorizedPatterns, projects, filterProject)))), legacy=true, roles = Set()).right
       case _ => Left(s"Incorrect user type for ${user}")
     }
   }

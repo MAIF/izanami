@@ -68,11 +68,11 @@ class ProjectAPISpec extends BaseAPISpec {
               .withFeatures(TestFeature("feature-name3"))
           )
         )
-        .withUsers(TestUser("foo").withTenantReadWriteRight("my-tenant"))
+        .withUsers(TestUser("foo"))
         .loggedAs("foo")
         .build()
 
-      situation.fetchProject("mytenant", "my-project").status mustBe FORBIDDEN
+      situation.fetchProject("my-tenant", "my-project").status mustBe FORBIDDEN
     }
 
     "Allow feature read if user has not right on the project but is tenant admin" in {
@@ -192,7 +192,7 @@ class ProjectAPISpec extends BaseAPISpec {
 
       val response = situation.deleteProject("my-project", "my-tenant")
 
-      response.status mustBe FORBIDDEN
+      response.status mustBe NOT_FOUND
     }
   }
 

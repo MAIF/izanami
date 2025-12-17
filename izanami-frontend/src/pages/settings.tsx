@@ -14,7 +14,7 @@ import {
   fetchOpenIdConnectConfiguration,
   queryTenants,
 } from "../utils/queries";
-import { Configuration, rightRoleModes, TRights } from "../utils/types";
+import { Configuration, rightRoleModes, TLevel, TRights } from "../utils/types";
 import { customStyles } from "../styles/reactSelect";
 import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
@@ -67,13 +67,12 @@ export function Settings() {
 
   const updateSettings = (
     current: Configuration,
-    newValue: FormConfiguration
+    newValue: FormConfiguration,
   ): Promise<void> => {
     const wasAnonymousReportingDisabled =
       !newValue.anonymousReporting && current.anonymousReporting;
 
     const rightByRoles = newValue.oidcConfiguration?.userRightsByRoles;
-
     return configurationMutationQuery
       .mutateAsync({
         invitationMode: newValue.invitationMode,
@@ -168,6 +167,7 @@ function ConfigurationForm(props: {
         style={{ maxWidth: "700px" }}
         className="container m-0 fieldset-form"
         onSubmit={handleSubmit((data) => {
+          console.log("data", data);
           let valid = true;
           const isEmailValid = yup
             .string()
@@ -183,7 +183,7 @@ function ConfigurationForm(props: {
 
           if ("port" in data.mailerConfiguration) {
             data.mailerConfiguration.port = Number(
-              data.mailerConfiguration.port
+              data.mailerConfiguration.port,
             );
           }
           if (valid) {
@@ -202,7 +202,7 @@ function ConfigurationForm(props: {
               render={({ field }) => (
                 <Select
                   value={MAILER_OPTIONS.find(
-                    ({ value }) => value === field.value
+                    ({ value }) => value === field.value,
                   )}
                   onChange={(e) => {
                     field.onChange(e?.value);
@@ -227,7 +227,7 @@ function ConfigurationForm(props: {
               render={({ field }) => (
                 <Select
                   value={INVITATION_MODE_OPTIONS.find(
-                    ({ value }) => value === field.value
+                    ({ value }) => value === field.value,
                   )}
                   onChange={(e) => {
                     field.onChange(e?.value);
@@ -271,7 +271,7 @@ function ConfigurationForm(props: {
                     setResultStats({
                       state: "SUCCESS",
                       results: r,
-                    })
+                    }),
                   )
                   .catch(() => {
                     setResultStats({
@@ -442,7 +442,7 @@ function MailGunFormV2() {
               render={({ field }) => (
                 <Select
                   value={MAILGUN_REGIONS_OPTIONS.find(
-                    ({ value }) => value === field.value
+                    ({ value }) => value === field.value,
                   )}
                   onChange={(e) => {
                     field.onChange(e?.value);
@@ -604,7 +604,7 @@ function OIDCForm() {
         setOIDCModal({
           visible: true,
           error: "Failed to retrieve configuration",
-        })
+        }),
       );
   };
 
@@ -647,7 +647,7 @@ function OIDCForm() {
               aria-expanded="true"
               aria-controls="oidc-accordion-collapse"
             >
-              Configuration{" "}
+              OIDC Configuration{" "}
               <span
                 className={`badge rounded-pill text-bg-${
                   isOIDCEnabled ? "success" : "danger"
@@ -709,7 +709,7 @@ function OIDCForm() {
                           render={({ field }) => (
                             <Select
                               value={OIDC_METHOD_OPTIONS.find(
-                                ({ value }) => value === field.value
+                                ({ value }) => value === field.value,
                               )}
                               onChange={(e) => {
                                 field.onChange(e?.value);
@@ -886,7 +886,7 @@ function OIDCForm() {
                             render={({ field }) => (
                               <Select
                                 value={PKCE_ALGORITHM_OPTIONS.find(
-                                  ({ value }) => value === field.value
+                                  ({ value }) => value === field.value,
                                 )}
                                 onChange={(e) => {
                                   field.onChange(e?.value);
@@ -947,7 +947,7 @@ function OIDCForm() {
         </div>
       </div>
 
-      <div className="accordion accordion-darker mt-3" id={`oidc-accordion`}>
+      <div className="accordion accordion-darker mt-3" id="default-accordion">
         <div className="accordion-item">
           <h3 className="accordion-header">
             <button
@@ -958,7 +958,7 @@ function OIDCForm() {
               aria-expanded="true"
               aria-controls="default-oidc-rights-accordion-collapse"
             >
-              Default rights &nbsp;
+              Rights configuration &nbsp;
               <ErrorMessage errors={errors} name="oidcConfiguration" />
             </button>
           </h3>
@@ -990,7 +990,7 @@ function OIDCForm() {
   );
 }
 
-type TCompleteRight = TRights & { admin: boolean };
+type TCompleteRight = TRights & { admin: boolean; adminAllowed: boolean };
 interface RightByRoles {
   [role: string]: TCompleteRight;
 }
@@ -1025,10 +1025,11 @@ function RightByRoleSelector(props: {
           {Object.entries(rights).map(([role, right], index, array) => {
             let effectiveRight = right;
             const missingTenants = Object.keys(right.tenants ?? {}).filter(
-              (t) => !existingTenants.includes(t)
+              (t) => !existingTenants.includes(t),
             );
             if (missingTenants.length > 0) {
               effectiveRight = {
+                adminAllowed: effectiveRight.adminAllowed,
                 admin: effectiveRight.admin,
                 tenants: Object.entries(right.tenants ?? {})
                   .filter((entry) => {
@@ -1060,22 +1061,51 @@ function RightByRoleSelector(props: {
                       Delete role
                     </button>
                   </h3>
-                  <label>
-                    Admin{" "}
-                    <input
-                      type="checkbox"
-                      className="izanami-checkbox"
-                      checked={right.admin}
-                      onChange={(e) => {
-                        const newAdmin = e.target.checked;
-                        const newRights = {
-                          ...rights,
-                          [role]: { ...right, admin: newAdmin },
-                        };
-                        onChange?.(newRights);
-                      }}
-                    />
-                  </label>
+                  <div className="d-flex flex-column">
+                    <label className="d-flex flex-row align-items-center">
+                      Admin&nbsp;
+                      <input
+                        style={{ marginTop: 0 }}
+                        type="checkbox"
+                        className="izanami-checkbox"
+                        checked={right.admin}
+                        onChange={(e) => {
+                          const newAdmin = e.target.checked;
+                          const newRights = {
+                            ...rights,
+                            [role]: { ...right, admin: newAdmin },
+                          };
+                          onChange?.(newRights);
+                        }}
+                      />
+                    </label>
+                    <label className="d-flex flex-row align-items-center">
+                      Can become admin
+                      <Tooltip id="max-right-admin-tooltip">
+                        Whether users with this role can become admin of this
+                        Izanami instance.
+                      </Tooltip>
+                      &nbsp;
+                      <input
+                        type="checkbox"
+                        className="izanami-checkbox"
+                        style={{ marginTop: 0 }}
+                        checked={right?.adminAllowed}
+                        onChange={(e) => {
+                          const newAdminAllowed = e.target.checked;
+                          const newRights = {
+                            ...rights,
+                            [role]: {
+                              ...right,
+                              adminAllowed: newAdminAllowed,
+                            },
+                          };
+                          onChange?.(newRights);
+                        }}
+                      ></input>
+                    </label>
+                  </div>
+
                   <RightSelector
                     defaultValue={effectiveRight}
                     tenantLevelFilter="Admin"
@@ -1084,11 +1114,16 @@ function RightByRoleSelector(props: {
                       if (!isEqual(effectiveRight.tenants, newR.tenants)) {
                         const newRights = {
                           ...rights,
-                          [role]: { ...newR, admin: right.admin },
+                          [role]: {
+                            ...newR,
+                            admin: right.admin,
+                            adminAllowed: right.adminAllowed,
+                          },
                         };
                         onChange?.(newRights);
                       }
                     }}
+                    maxRights={true}
                   />
                 </div>
                 {index < array.length - 1 && <hr />}
@@ -1109,7 +1144,7 @@ function RightByRoleSelector(props: {
                   onClick={() => {
                     const newRights = {
                       ...rights,
-                      [""]: { admin: false, tenants: {} },
+                      [""]: { admin: false, tenants: {}, adminAllowed: true },
                     };
                     onChange(newRights);
                   }}
@@ -1135,15 +1170,30 @@ function RightByRoleSelector(props: {
                   style={{ marginTop: "1rem", float: "right" }}
                   className="btn btn-primary"
                   onClick={() => {
-                    const newRights = {
-                      ...rights,
-                      [creatingRole.value]: { admin: false, tenants: {} },
-                    };
-                    onChange(newRights);
-                    setCreatingRole({ creating: false });
+                    if (creatingRole.value) {
+                      const newRights = {
+                        ...rights,
+                        [creatingRole.value]: {
+                          admin: false,
+                          tenants: {},
+                          adminAllowed: true,
+                        },
+                      };
+                      onChange(newRights);
+                      setCreatingRole({ creating: false });
+                    }
                   }}
                 >
                   Create role
+                </button>
+                <button
+                  style={{ marginTop: "1rem", float: "right" }}
+                  className="btn btn-danger"
+                  onClick={() => {
+                    setCreatingRole({ creating: false });
+                  }}
+                >
+                  Cancel
                 </button>
               </label>
             </>

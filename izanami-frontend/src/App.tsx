@@ -425,6 +425,7 @@ const router = createBrowserRouter([
   },
 ]);
 
+type MessageState = "noMessage" | "displayed" | "closed";
 function RedirectToFirstTenant(): JSX.Element {
   const context = useContext(IzanamiContext);
   const defaultTenant = context.user?.defaultTenant;
@@ -433,8 +434,33 @@ function RedirectToFirstTenant(): JSX.Element {
     queryKey: [MutationNames.TENANTS],
     queryFn: () => queryTenants(),
   });
+  const location = useLocation();
+  const message = location?.state?.message;
+  const [messageState, setMessageState] = useState<MessageState>(
+    message ? "displayed" : "noMessage",
+  );
 
-  if (tenant) {
+  useEffect(() => {
+    if (location?.state?.message && messageState != "closed") {
+      context.askConfirmation(
+        <>
+          <h3>Your rights have been updated</h3>
+          Some of your rights were updated due to the following reason(s):
+          <br />
+          <div style={{ whiteSpace: "pre-line" }}>{message}</div>
+        </>,
+        undefined,
+        () => Promise.resolve(setMessageState("closed")),
+      );
+    }
+  }, [location?.state?.message]);
+
+  console.log("message", message);
+  console.log("messageState", messageState);
+
+  if (messageState === "displayed") {
+    return <Loader message="Loading tenants..." />;
+  } else if (tenant) {
     return <Navigate to={`/tenants/${tenant}`} />;
   } else if (tenantQuery.data && tenantQuery.data.length > 0) {
     return <Navigate to={`/tenants/${tenantQuery.data[0].name}`} />;
@@ -459,9 +485,10 @@ export function Layout() {
   } = useContext(IzanamiContext);
   const [isOpenModal, setIsOpenModal] = useState(false);
   const [loadingState, setLoadingState] = React.useState<AppLoadingState>(
-    !user?.username || !expositionUrl ? "Loading" : "Success"
+    !user?.username || !expositionUrl ? "Loading" : "Success",
   );
   let { tenant } = useParams();
+
   const searchParamsTenant = useSearchParams()[0].get("tenant");
   tenant = searchParamsTenant || tenant;
 
@@ -474,7 +501,7 @@ export function Layout() {
             logout();
           } else if (response.status > 400) {
             throw new Error(
-              `Failed to fetch rights, something is wrong with Izanami backend (status code ${response.status})`
+              `Failed to fetch rights, something is wrong with Izanami backend (status code ${response.status})`,
             );
           } else {
             return response.json();
@@ -560,7 +587,7 @@ export function Layout() {
                 <li
                   onClick={() =>
                     updateLightMode(
-                      mode === Modes.dark ? Modes.light : Modes.dark
+                      mode === Modes.dark ? Modes.light : Modes.dark,
                     )
                   }
                   className="me-2 d-flex align-items-center justify-content-end my-2"
@@ -696,7 +723,7 @@ export class App extends Component {
               (!configuration.anonymousReportingLastAsked ||
                 differenceInMonths(
                   new Date(),
-                  configuration.anonymousReportingLastAsked
+                  configuration.anonymousReportingLastAsked,
                 ) > 3)
             ) {
               return queryStats().then((stats) => {
@@ -739,7 +766,7 @@ export class App extends Component {
                     });
                   },
                   "Keep reporting disabled",
-                  "Enable anonymous reporting"
+                  "Enable anonymous reporting",
                 );
               });
             }
@@ -767,7 +794,7 @@ export class App extends Component {
         callback?: () => Promise<any>,
         onCancel?: () => Promise<any>,
         closeButtonText?: string,
-        confirmButtonText?: string
+        confirmButtonText?: string,
       ) => {
         return new Promise((resolve) => {
           this.setState({
@@ -788,7 +815,7 @@ export class App extends Component {
       displayModal: (
         Content: React.FC<{
           close: () => void;
-        }>
+        }>,
       ) => {
         return new Promise((resolve) => {
           this.setState({
@@ -810,7 +837,7 @@ export class App extends Component {
         message: JSX.Element | JSX.Element[] | string,
         onConfirm: () => Promise<void>,
         expectedValue?: string,
-        title?: string
+        title?: string,
       ) => {
         return new Promise((resolve) => {
           this.setState({

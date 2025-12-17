@@ -5,15 +5,31 @@ import fr.maif.izanami.datastores.tenantImplicits.TenantRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{FailedToCreateTenantSchema, InternalServerError, IzanamiError, TenantAlreadyExists, TenantDoesNotExists}
+import fr.maif.izanami.errors.{
+  FailedToCreateTenantSchema,
+  InternalServerError,
+  IzanamiError,
+  TenantAlreadyExists,
+  TenantDoesNotExists
+}
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.EventService.IZANAMI_CHANNEL
 import fr.maif.izanami.events.{SourceTenantCreated, SourceTenantDeleted}
 import fr.maif.izanami.models.{RightLevel, Tenant, TenantCreationRequest}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
-import fr.maif.izanami.web.ImportState.{importFailureWrites, importResultReads, importSuccessWrites}
-import fr.maif.izanami.web.{ImportFailure, ImportPending, ImportState, ImportSuccess, UserInformation}
+import fr.maif.izanami.web.ImportState.{
+  importFailureWrites,
+  importResultReads,
+  importSuccessWrites
+}
+import fr.maif.izanami.web.{
+  ImportFailure,
+  ImportPending,
+  ImportState,
+  ImportSuccess,
+  UserInformation
+}
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
 import org.flywaydb.core.Flyway
@@ -25,12 +41,14 @@ import scala.util.{Failure, Success, Try}
 
 class TenantsDatastore(val env: Env) extends Datastore {
   def deleteImportStatus(id: UUID): Future[Unit] = {
-    env.postgresql.queryOne(
-      s"""
+    env.postgresql
+      .queryOne(
+        s"""
          |DELETE FROM izanami.pending_imports WHERE id=$$1
          |""".stripMargin,
-      List(id)
-    ){_ => Some(())}.map(_ => ())
+        List(id)
+      ) { _ => Some(()) }
+      .map(_ => ())
   }
 
   def readImportStatus(id: UUID): Future[Option[ImportState]] = {
@@ -39,48 +57,66 @@ class TenantsDatastore(val env: Env) extends Datastore {
          |SELECT status, result FROM izanami.pending_imports WHERE id=$$1
          |""".stripMargin,
       List(id)
-    ){r => {
-      val maybeStatus = r.optJsObject("result")
-        .flatMap(obj => obj.asOpt[ImportState](importResultReads))
+    ) { r =>
+      {
+        val maybeStatus = r
+          .optJsObject("result")
+          .flatMap(obj => obj.asOpt[ImportState](importResultReads))
 
-      maybeStatus.orElse(r.optString("status").filter(_ == "PENDING").map(_ => ImportPending(id)))
-    }}
+        maybeStatus.orElse(
+          r.optString("status")
+            .filter(_ == "PENDING")
+            .map(_ => ImportPending(id))
+        )
+      }
+    }
   }
 
-  def markImportAsSucceded(id: UUID, importSuccess: ImportSuccess): Future[Unit] = {
-    env.postgresql.queryOne(
-      s"""
+  def markImportAsSucceded(
+      id: UUID,
+      importSuccess: ImportSuccess
+  ): Future[Unit] = {
+    env.postgresql
+      .queryOne(
+        s"""
          |UPDATE izanami.pending_imports SET status='FINISHED', result=$$2 WHERE id=$$1
          |""".stripMargin,
-      List(id, Json.toJson(importSuccess)(importSuccessWrites).vertxJsValue)
-    ){r => Some(())}
+        List(id, Json.toJson(importSuccess)(importSuccessWrites).vertxJsValue)
+      ) { r => Some(()) }
       .map(_ => ())
   }
 
-  def markImportAsFailed(id: UUID, importFailure: ImportFailure): Future[Unit] = {
-    env.postgresql.queryOne(
-      s"""
+  def markImportAsFailed(
+      id: UUID,
+      importFailure: ImportFailure
+  ): Future[Unit] = {
+    env.postgresql
+      .queryOne(
+        s"""
          |UPDATE izanami.pending_imports SET status='FAILED', result=$$2 WHERE id=$$1
          |""".stripMargin,
-      List(id, Json.toJson(importFailure)(importFailureWrites).vertxJsValue)
-    ) { r => Some(()) }
+        List(id, Json.toJson(importFailure)(importFailureWrites).vertxJsValue)
+      ) { r => Some(()) }
       .map(_ => ())
   }
 
-
   def markImportAsStarted(): Future[Either[IzanamiError, UUID]] = {
-    env.postgresql.queryOne(
-      s"""INSERT INTO izanami.pending_imports DEFAULT VALUES RETURNING id""",
-      List()
-    ){r => r.optUUID("id")}
+    env.postgresql
+      .queryOne(
+        s"""INSERT INTO izanami.pending_imports DEFAULT VALUES RETURNING id""",
+        List()
+      ) { r => r.optUUID("id") }
       .map(_.toRight(InternalServerError()))
   }
 
-  def createTenant(tenantCreationRequest: TenantCreationRequest, user: UserInformation): Future[Either[IzanamiError, Tenant]] = {
+  def createTenant(
+      tenantCreationRequest: TenantCreationRequest,
+      user: UserInformation
+  ): Future[Either[IzanamiError, Tenant]] = {
 
     def createDBSchema(): Either[IzanamiError, Unit] = {
       val connectOptions = env.postgresql.connectOptions
-      val config         = new HikariConfig()
+      val config = new HikariConfig()
       config.setDriverClassName(classOf[org.postgresql.Driver].getName)
       config.setJdbcUrl(
         s"jdbc:postgresql://${connectOptions.getHost}:${connectOptions.getPort}/${connectOptions.getDatabase}"
@@ -88,15 +124,25 @@ class TenantsDatastore(val env: Env) extends Datastore {
       config.setUsername(connectOptions.getUser)
       config.setPassword(connectOptions.getPassword)
       config.setMaximumPoolSize(10)
-      val dataSource     = new HikariDataSource(config)
-      val flyway         =
+      val dataSource = new HikariDataSource(config)
+      val flyway =
         Flyway.configure
           .dataSource(dataSource)
-          .locations("filesystem:conf/sql/tenants", "filesystem:sql/tenants", "sql/tenants", "conf/sql/tenants")
+          .locations(
+            "filesystem:conf/sql/tenants",
+            "filesystem:sql/tenants",
+            "sql/tenants",
+            "conf/sql/tenants"
+          )
           .baselineOnMigrate(true)
           .schemas(tenantCreationRequest.name)
           .placeholders(
-            java.util.Map.of("extensions_schema", env.extensionsSchema, "schema", tenantCreationRequest.name)
+            java.util.Map.of(
+              "extensions_schema",
+              env.extensionsSchema,
+              "schema",
+              tenantCreationRequest.name
+            )
           )
           .load()
       val result = Try {
@@ -106,48 +152,84 @@ class TenantsDatastore(val env: Env) extends Datastore {
 
       result match {
         case Failure(e) => {
-          env.logger.error("Failed to create new tenant schema. This is either an issue with your database or Izanami SQL scripts. Cause is ", e)
+          env.logger.error(
+            "Failed to create new tenant schema. This is either an issue with your database or Izanami SQL scripts. Cause is ",
+            e
+          )
           Left(FailedToCreateTenantSchema())
         }
         case Success(_) => Right(())
       }
     }
 
-
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
         .queryOne(
           s"insert into izanami.tenants (name, description) values ($$1, $$2) returning *",
           List(tenantCreationRequest.name, tenantCreationRequest.description),
-          conn=Some(conn)
+          conn = Some(conn)
         ) { row => row.optTenant() }
         .map(maybeFeature => maybeFeature.toRight(InternalServerError()))
         .recover {
-          case f: PgException if f.getSqlState == UNIQUE_VIOLATION => Left(TenantAlreadyExists(tenantCreationRequest.name))
-        }.recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+          case f: PgException if f.getSqlState == UNIQUE_VIOLATION =>
+            Left(TenantAlreadyExists(tenantCreationRequest.name))
+        }
+        .recover(
+          env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+        )
         .flatMap {
-          case Left(value) => Left(value).future
-          case Right(value) => env.postgresql.queryOne(
-            s"""
+          case Left(value)  => Left(value).future
+          case Right(value) =>
+            env.postgresql
+              .queryOne(
+                s"""
                | INSERT INTO izanami.users_tenants_rights(username, tenant, level) VALUES ($$1, $$2, $$3)
                | RETURNING username
                |""".stripMargin,
-            List(user.username, value.name, RightLevel.Admin.toString.toUpperCase),
-            conn=Some(conn)
-          ){_ => Some(value)}
-          .map(maybeFeature => maybeFeature.toRight(InternalServerError()))
+                List(
+                  user.username,
+                  value.name,
+                  RightLevel.Admin.toString.toUpperCase
+                ),
+                conn = Some(conn)
+              ) { _ => Some(value) }
+              .map(maybeFeature => maybeFeature.toRight(InternalServerError()))
         }
-        .map(either => either.flatMap(t => {
-          createDBSchema().map(_ => t).left.map(err => {
-            Option(conn.transaction()).foreach(t => t.rollback())
-            env.postgresql.queryRaw(s"""DROP SCHEMA IF EXISTS ${tenantCreationRequest.name} CASCADE"""){_ => ()}
-            err
+        .map(either =>
+          either.flatMap(t => {
+            createDBSchema()
+              .map(_ => t)
+              .left
+              .flatMap(err => {
+                logger.error(
+                  "Tenant creation failed, retrying (tenant failure could be caused by concurrent tenant creation"
+                )
+                createDBSchema()
+              })
+              .map(_ => t)
+              .left
+              .map(err => {
+                Option(conn.transaction()).foreach(t => t.rollback())
+                env.postgresql.queryRaw(
+                  s"""DROP SCHEMA IF EXISTS ${tenantCreationRequest.name} CASCADE"""
+                ) { _ => () }
+                err
+              })
           })
-        }))
+        )
         .flatMap {
-          case Left(value) => Left(value).future
-          case r@Right(tenant) => {
-            env.eventService.emitEvent(channel = IZANAMI_CHANNEL, event = SourceTenantCreated(tenant.name, user = user.username, authentication = user.authentication, origin = NormalOrigin))(conn)
+          case Left(value)       => Left(value).future
+          case r @ Right(tenant) => {
+            env.eventService
+              .emitEvent(
+                channel = IZANAMI_CHANNEL,
+                event = SourceTenantCreated(
+                  tenant.name,
+                  user = user.username,
+                  authentication = user.authentication,
+                  origin = NormalOrigin
+                )
+              )(conn)
               .map(_ => r)
           }
         }
@@ -155,17 +237,23 @@ class TenantsDatastore(val env: Env) extends Datastore {
 
   }
 
-  def updateTenant(name: String, updateRequest: TenantCreationRequest): Future[Either[IzanamiError, Unit]] = {
+  def updateTenant(
+      name: String,
+      updateRequest: TenantCreationRequest
+  ): Future[Either[IzanamiError, Unit]] = {
     env.postgresql.executeInTransaction(conn => {
-      env.postgresql.queryOne(
-        s"""
+      env.postgresql
+        .queryOne(
+          s"""
            |UPDATE izanami.tenants SET description=$$1 WHERE name=$$2 RETURNING name
            |""".stripMargin,
-        List(updateRequest.description, name),
-        conn=Some(conn)
-      ){r => r.optString("name")}
+          List(updateRequest.description, name),
+          conn = Some(conn)
+        ) { r => r.optString("name") }
         .map(o => o.toRight(TenantDoesNotExists(name)).map(_ => ()))
-        .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+        .recover(
+          env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+        )
     })
   }
 
@@ -176,7 +264,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
   }
 
   def readTenantsFiltered(names: Set[String]): Future[List[Tenant]] = {
-    if(names.isEmpty) {
+    if (names.isEmpty) {
       Future.successful(List())
     } else {
       env.postgresql.queryAll(
@@ -202,26 +290,42 @@ class TenantsDatastore(val env: Env) extends Datastore {
       .map { _.toRight(TenantDoesNotExists(name)) }
   }
 
-  def deleteTenant(name: String, user: UserInformation): Future[Either[IzanamiError, Unit]] = {
+  def deleteTenant(
+      name: String,
+      user: UserInformation
+  ): Future[Either[IzanamiError, Unit]] = {
 
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
         .queryOne(
           s"""DELETE FROM izanami.tenants WHERE name=$$1 RETURNING name""".stripMargin,
           List(name),
-          conn=Some(conn)
+          conn = Some(conn)
         ) { r => r.optString("name") }
         .map {
           _.toRight(TenantDoesNotExists(name))
-        }.flatMap {
-        case l@Left(value) => Left(value).future
-        case r@Right(deletedName) => env.postgresql.queryRaw(
-          s"""DROP SCHEMA "${deletedName}" CASCADE""",
-          conn=Some(conn)
-        ){_ => Some(())}
-          .map(_ => Right(()))
-      }.flatMap(r => {
-          env.eventService.emitEvent(channel=IZANAMI_CHANNEL, event=SourceTenantDeleted(name, user = user.username, authentication = user.authentication, origin = NormalOrigin))(conn)
+        }
+        .flatMap {
+          case l @ Left(value)        => Left(value).future
+          case r @ Right(deletedName) =>
+            env.postgresql
+              .queryRaw(
+                s"""DROP SCHEMA "${deletedName}" CASCADE""",
+                conn = Some(conn)
+              ) { _ => Some(()) }
+              .map(_ => Right(()))
+        }
+        .flatMap(r => {
+          env.eventService
+            .emitEvent(
+              channel = IZANAMI_CHANNEL,
+              event = SourceTenantDeleted(
+                name,
+                user = user.username,
+                authentication = user.authentication,
+                origin = NormalOrigin
+              )
+            )(conn)
             .map(_ => r)
         })
     })
@@ -233,7 +337,7 @@ object tenantImplicits {
   implicit class TenantRow(val row: Row) extends AnyVal {
     def optTenant(): Option[Tenant] = {
       for (
-        name        <- row.optString("name");
+        name <- row.optString("name");
         description <- row.optString("description")
       ) yield Tenant(name = name, projects = List(), description = description)
     }

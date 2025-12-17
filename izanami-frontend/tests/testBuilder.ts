@@ -300,7 +300,7 @@ export class TestSituationBuilder {
     const cookie = (await page.context().cookies())[0];
     const url = backendUrl();
     return Promise.all(
-      this.tenants.map((t) =>
+      this.tenants.map((t, index) =>
         this.createTenant(t, cookie, url)
           .catch((err) => {
             console.error("Failed to create tenant", err);

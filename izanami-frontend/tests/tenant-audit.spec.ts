@@ -75,17 +75,19 @@ test.describe("Tenant audit screen should", () => {
     await page.getByRole("link", { name: "Next" }).click();
     await page.getByRole("link", { name: "Next" }).click();
 
-    await expect(page.getByRole("link", { name: "6" })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "6", exact: true }),
+    ).toBeVisible();
 
     await page.getByRole("combobox", { name: "Event type select" }).click();
     await page.getByRole("option", { name: "Feature deleted" }).click();
     await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.getByText("3 results")).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "1", exact: true })
+      page.getByRole("link", { name: "1", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "2", exact: true })
+      page.getByRole("link", { name: "2", exact: true }),
     ).toBeHidden();
     await page.getByRole("combobox", { name: "Event type" }).click();
     await page.getByRole("option", { name: "Feature updated" }).click();

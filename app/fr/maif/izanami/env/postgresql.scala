@@ -316,6 +316,21 @@ class Postgresql(env: Env) {
       .scala // Bubble up query error instead of TransactionRollbackException that does not carry much information
   }
 
+  def executeInTransactionF[T](callback: SqlConnection => FutureEither[T]): FutureEither[T] = {
+    var future: io.vertx.core.Future[Either[IzanamiError, T]] = io.vertx.core.Future.succeededFuture()
+    pool
+      .withTransaction(conn => {
+        future = callback(conn).value.vertx(env.executionContext)
+        future
+      })
+      .recover(err => {
+        logger.error("Failed to execute queries in transaction", err)
+        future
+      })
+      .scala // Bubble up query error instead of TransactionRollbackException that does not carry much information
+      .toFEither
+  }
+
   def queryAll[A](
       query: String,
       params: List[Any] = List.empty,

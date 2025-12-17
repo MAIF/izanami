@@ -1,36 +1,21 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.ConfigurationDatastore.{
-  parseDbMailer,
-  parseInvitationMode
-}
+import fr.maif.izanami.datastores.ConfigurationDatastore.{parseDbMailer, parseInvitationMode}
 import fr.maif.izanami.datastores.configurationImplicits.MailerConfigurationRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{
-  ConfigurationReadError,
-  InternalServerError,
-  IzanamiError
-}
+import fr.maif.izanami.errors.{ConfigurationReadError, InternalServerError, IzanamiError}
 import fr.maif.izanami.mail.*
 import fr.maif.izanami.mail.MailerTypes.MailerType
-import fr.maif.izanami.models.IzanamiConfiguration.{
-  SMTPConfigurationReads,
-  SMTPConfigurationWrites,
-  mailGunConfigurationReads,
-  mailJetConfigurationReads
-}
+import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTPConfigurationWrites, mailGunConfigurationReads, mailJetConfigurationReads}
 import fr.maif.izanami.models.*
-import fr.maif.izanami.services.CompleteRights
+import fr.maif.izanami.services.{CompleteRights, CompleteRightsWithMaxRights, OIDCRights}
 import fr.maif.izanami.services.RightService.RightsByRole
-import fr.maif.izanami.utils.syntax.implicits.{
-  BetterFutureEither,
-  BetterJsValue
-}
+import fr.maif.izanami.utils.syntax.implicits.{BetterFutureEither, BetterJsValue}
 import fr.maif.izanami.utils.{Datastore, FutureEither}
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import io.vertx.sqlclient.{Row, SqlConnection}
-import play.api.libs.json.{JsNull, Json, Writes}
+import play.api.libs.json.{JsNull, Json, Reads, Writes}
 
 import java.time.ZoneOffset
 import java.util.UUID
@@ -38,10 +23,10 @@ import scala.concurrent.Future
 
 class ConfigurationDatastore(val env: Env) extends Datastore {
 
-  def updateOIDCRightByRolesIfNeeded(rights: RightsByRole): Future[RightsByRole] = {
+  def updateOIDCRightByRolesIfNeeded(rights: Map[String, CompleteRightsWithMaxRights]): Future[Map[String, CompleteRightsWithMaxRights]] = {
     case class TenantItemsToDelete(projects: Set[String], keys: Set[String], webhooks: Set[String])
 
-    def deleteNeededItems(tenants: Set[String], tenantItems: Map[String, TenantItemsToDelete]): RightsByRole = {
+    def deleteNeededItems(tenants: Set[String], tenantItems: Map[String, TenantItemsToDelete]): Map[String, CompleteRightsWithMaxRights] = {
       val rightWithoutTenants = rights.view.mapValues(_.removeTenantsRights(tenants)).toMap
       tenantItems.foldLeft(rightWithoutTenants){
         case (r, (tenant, items)) => {
@@ -146,8 +131,19 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
 
     FutureEither(res)
   }
+    
+  def readOIDCRightConfiguration(): Future[Option[OIDCRights]] = {
+    env.postgresql.queryOne(
+      s"""
+         |SELECT oidc_configuration->'userRightsByRoles' AS config from izanami.configuration """.stripMargin
+    ){r => for(
+      configJson <- r.optJsObject("config");
+      rights <- configJson.asOpt[Map[String, CompleteRightsWithMaxRights]](Reads.map(CompleteRightsWithMaxRights.reads))
+    ) yield OIDCRights(rights)
+    }
+  }
 
-  def updateOAuthRightByRole(rights: RightsByRole): Future[Unit] = {
+  def updateOAuthRightByRole(rights: Map[String, CompleteRightsWithMaxRights]): Future[Unit] = {
     env.postgresql.queryRaw(
       s"""
          |UPDATE izanami.configuration
@@ -156,13 +152,13 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
          |RETURNING *
          |""".stripMargin,
       List(
-        Json.toJson(rights)(Writes.map(CompleteRights.writes)).vertxJsValue
+        Json.toJson(rights)(Writes.map(CompleteRightsWithMaxRights.writes)).vertxJsValue
       )
     ){_ => Some(())}
   }
 
-  def updateConfiguration(newConfig: FullIzanamiConfiguration): FutureEither[FullIzanamiConfiguration] = {
-    env.postgresql.executeInTransaction(conn => {
+  def updateConfiguration(newConfig: FullIzanamiConfiguration, conn: Option[SqlConnection] = None): FutureEither[FullIzanamiConfiguration] = {
+    env.postgresql.executeInOptionalTransaction(conn, conn => {
       updateMailerConfiguration(newConfig.mailConfiguration, Some(conn))
         .flatMap{
           case Left(err) => Future.successful(Left(err))
@@ -186,7 +182,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
                 java.lang.Boolean.valueOf(newConfig.anonymousReporting),
                 newConfig.anonymousReportingLastAsked.map(_.atOffset(ZoneOffset.UTC)).orNull,
                 newConfig.oidcConfiguration
-                  .map(r => Json.toJson(r)(OAuth2Configuration._fmt.writes(_)))
+                  .map(r => Json.toJson(r)(OAuth2Configuration._fmt))
                   .getOrElse(JsNull)
                   .vertxJsValue
               )

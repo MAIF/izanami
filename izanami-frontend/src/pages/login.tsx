@@ -18,6 +18,7 @@ export function Login(props: any) {
 function TokenWaitScreen({ code }: { code: string }) {
   const fetching = React.useRef<boolean>(false);
   const [error, setError] = React.useState("");
+  const navigate = useNavigate();
   React.useEffect(() => {
     if (!fetching.current) {
       fetching.current = true;
@@ -32,7 +33,17 @@ function TokenWaitScreen({ code }: { code: string }) {
         if (response.status >= 400) {
           setError("Failed to retrieve token from code");
         } else {
-          window.location.href = "/";
+          response
+            .json()
+            .then((payload) => {
+              console.log("payload", payload);
+              navigate("/", {
+                state: { message: payload.rightUpdates },
+              });
+            })
+            .catch(() => {
+              window.location.href = "/";
+            });
         }
       });
     }

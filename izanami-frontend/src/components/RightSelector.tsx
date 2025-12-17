@@ -6,9 +6,8 @@ import {
   findKeyRight,
   findProjectRight,
   findTenantRight,
-  rightsBelow,
   IzanamiContext,
-  projectRightsBelow,
+  isRightBelowOrEqual,
 } from "../securityContext";
 import { customStyles } from "../styles/reactSelect";
 import {
@@ -21,9 +20,19 @@ import {
   tenantQueryKey,
   webhookQueryKey,
 } from "../utils/queries";
-import { TLevel, TProjectLevel, TRights } from "../utils/types";
+import {
+  TLevel,
+  TLevelArray,
+  TLevelWithNone,
+  TLevelWithNoneArray,
+  TProjectLevel,
+  TProjectLevelArray,
+  TProjectLevelWithNone,
+  TRights,
+} from "../utils/types";
 import { Loader } from "./Loader";
 import { State } from "../utils/rightUtils";
+import { Tooltip } from "./Tooltip";
 
 const EventType = {
   SelectTenant: "SelectTenant",
@@ -42,6 +51,10 @@ const EventType = {
   SetDefaultProjectLevel: "SetDefaultProjectLevel",
   SetDefaultKeyLevel: "SetDefaultKeyLevel",
   SetDefaultWebhookLevel: "SetDefaultWebhookLevel",
+  SetMaxProjectLevel: "SetMaxProjectLevel",
+  SetMaxKeyLevel: "SetMaxKeyLevel",
+  SetMaxWebhookLevel: "SetMaxWebhookLevel",
+  SetMaxTenantLevel: "SetMaxTenantLevel",
 } as const;
 
 type EventType = typeof EventType[keyof typeof EventType];
@@ -74,7 +87,7 @@ interface TenantDeleteEvent extends Event {
 
 interface TenantLevelEvent extends Event {
   type: "SetTenantLevel";
-  level: TLevel;
+  level: TLevelWithNone;
   name: string;
 }
 
@@ -131,19 +144,43 @@ interface InitialSetup extends Event {
 interface SetDefaultProjectLevelEvent extends Event {
   type: "SetDefaultProjectLevel";
   tenant: string;
-  level?: TProjectLevel;
+  level: TProjectLevelWithNone;
+}
+
+interface SetMaxProjectLevelEvent extends Event {
+  type: "SetMaxProjectLevel";
+  tenant: string;
+  level: TProjectLevelWithNone;
 }
 
 interface SetDefaultKeyLevelEvent extends Event {
   type: "SetDefaultKeyLevel";
   tenant: string;
-  level?: TLevel;
+  level: TLevelWithNone;
+}
+
+interface SetMaxKeyLevelEvent extends Event {
+  type: "SetMaxKeyLevel";
+  tenant: string;
+  level: TLevelWithNone;
 }
 
 interface SetDefaultWebhookLevelEvent extends Event {
   type: "SetDefaultWebhookLevel";
   tenant: string;
-  level?: TLevel;
+  level: TLevelWithNone;
+}
+
+interface SetMaxWebhookLevelEvent extends Event {
+  type: "SetMaxWebhookLevel";
+  tenant: string;
+  level: TLevelWithNone;
+}
+
+interface SetMaxTenantLevelEvent extends Event {
+  type: "SetMaxTenantLevel";
+  tenant: string;
+  level: TLevelWithNone;
 }
 
 type EventTypes =
@@ -162,7 +199,11 @@ type EventTypes =
   | WebhookDeleteEvent
   | SetDefaultProjectLevelEvent
   | SetDefaultKeyLevelEvent
-  | SetDefaultWebhookLevelEvent;
+  | SetDefaultWebhookLevelEvent
+  | SetMaxProjectLevelEvent
+  | SetMaxKeyLevelEvent
+  | SetMaxWebhookLevelEvent
+  | SetMaxTenantLevelEvent;
 
 function rightToInternalState(rights: TRights): State {
   if (!rights?.tenants) {
@@ -171,23 +212,29 @@ function rightToInternalState(rights: TRights): State {
     return Object.entries(rights.tenants).map(([key, value]) => ({
       name: key,
       level: value.level,
-      projects: Object.entries(value.projects).map(
+      projects: Object.entries(value.projects ?? {}).map(
         ([projectName, projectValue]) => ({
           name: projectName,
           level: projectValue.level,
         })
       ),
-      keys: Object.entries(value.keys).map(([keyName, keyValue]) => ({
+      keys: Object.entries(value.keys ?? {}).map(([keyName, keyValue]) => ({
         name: keyName,
         level: keyValue.level,
       })),
-      webhooks: Object.entries(value.webhooks).map(([keyName, keyValue]) => ({
-        name: keyName,
-        level: keyValue.level,
-      })),
+      webhooks: Object.entries(value.webhooks ?? {}).map(
+        ([keyName, keyValue]) => ({
+          name: keyName,
+          level: keyValue.level,
+        })
+      ),
       defaultProjectRight: value.defaultProjectRight,
       defaultKeyRight: value.defaultKeyRight,
       defaultWebhookRight: value.defaultWebhookRight,
+      maxProjectRight: value.maxProjectRight,
+      maxKeyRight: value.maxKeyRight,
+      maxWebhookRight: value.maxWebhookRight,
+      maxTenantRight: value.maxTenantRight,
     }));
   }
 }
@@ -232,6 +279,13 @@ const reducer = function reducer(state: State, event: EventTypes): State {
           projects: [],
           keys: [],
           webhooks: [],
+          defaultProjectRight: TProjectLevelWithNone.None,
+          defaultKeyRight: TLevelWithNone.None,
+          defaultWebhookRight: TLevelWithNone.None,
+          maxKeyRight: TLevelWithNone.Admin,
+          maxProjectRight: TLevelWithNone.Admin,
+          maxTenantRight: TLevelWithNone.Admin,
+          maxWebhookRight: TLevelWithNone.Admin,
         },
       ];
     case EventType.SetTenantLevel:
@@ -344,12 +398,32 @@ const reducer = function reducer(state: State, event: EventTypes): State {
         }
         return el;
       });
+    case EventType.SetMaxProjectLevel:
+      return [...state].map((el) => {
+        if (el.name === event.tenant) {
+          return {
+            ...el,
+            maxProjectRight: event.level,
+          };
+        }
+        return el;
+      });
     case EventType.SetDefaultKeyLevel:
       return [...state].map((el) => {
         if (el.name === event.tenant) {
           return {
             ...el,
             defaultKeyRight: event.level,
+          };
+        }
+        return el;
+      });
+    case EventType.SetMaxKeyLevel:
+      return [...state].map((el) => {
+        if (el.name === event.tenant) {
+          return {
+            ...el,
+            maxKeyRight: event.level,
           };
         }
         return el;
@@ -364,16 +438,37 @@ const reducer = function reducer(state: State, event: EventTypes): State {
         }
         return el;
       });
+    case EventType.SetMaxWebhookLevel:
+      return [...state].map((el) => {
+        if (el.name === event.tenant) {
+          return {
+            ...el,
+            maxWebhookRight: event.level,
+          };
+        }
+        return el;
+      });
+    case EventType.SetMaxTenantLevel:
+      return [...state].map((el) => {
+        if (el.name === event.tenant) {
+          return {
+            ...el,
+            maxTenantRight: event.level,
+          };
+        }
+        return el;
+      });
   }
 };
 
 function isValid(state: State): boolean {
-  return state.every(({ name, level, projects, keys }) => {
+  // FIXME return error to display id
+  return state.every(({ name, projects, keys, webhooks }) => {
     return (
       name &&
-      level &&
       projects.every(({ name, level }) => name && level) &&
-      keys.every(({ name, level }) => name && level)
+      keys.every(({ name, level }) => name && level) &&
+      webhooks.every(({ name, level }) => name && level)
     );
   });
 }
@@ -383,8 +478,9 @@ export function RightSelector(props: {
   tenantLevelFilter?: TLevel;
   tenant?: string;
   onChange: (value: State) => void;
+  maxRights: boolean;
 }) {
-  const { defaultValue, tenantLevelFilter, onChange } = props;
+  const { defaultValue, tenantLevelFilter, onChange, maxRights } = props;
   const tenantQuery = useQuery({
     queryKey: [MutationNames.TENANTS],
 
@@ -436,6 +532,10 @@ export function RightSelector(props: {
               defaultProjectRight,
               defaultKeyRight,
               defaultWebhookRight,
+              maxProjectRight,
+              maxKeyRight,
+              maxWebhookRight,
+              maxTenantRight,
             }) => {
               return (
                 <>
@@ -469,13 +569,201 @@ export function RightSelector(props: {
                       onClear={() => {
                         dispatch({ type: EventType.DeleteTenant, name });
                       }}
+                      possibleRights={TLevelWithNoneArray}
                     />
-                    <div className="sub_container sub_container-bglighter project-selector">
-                      <label>
-                        <i className="fas fa-building" aria-hidden></i>
-                        &nbsp;Project rights for {name}
-                      </label>
-                      <div>
+                    {level != "None" && (
+                      <>
+                        <div className="sub_container sub_container-bglighter project-selector">
+                          <label>
+                            <i className="fas fa-building" aria-hidden></i>
+                            &nbsp;Project rights for {name}
+                          </label>
+                          <div>
+                            <div className="d-flex flex-row justify-content-between">
+                              <label
+                                className="d-flex flex-row align-items-center"
+                                style={{ marginTop: "1.5rem" }}
+                              >
+                                <span
+                                  style={{
+                                    marginRight: "1rem",
+                                  }}
+                                >
+                                  Default project right
+                                </span>
+                                <Select
+                                  value={
+                                    defaultProjectRight
+                                      ? {
+                                          label: defaultProjectRight,
+                                          value: defaultProjectRight,
+                                        }
+                                      : { label: "None", value: "None" }
+                                  }
+                                  options={[
+                                    { label: "None", value: "None" },
+                                  ].concat(
+                                    Object.entries(TProjectLevel).map(
+                                      ([key, value]) => ({
+                                        label: value,
+                                        value: key,
+                                      })
+                                    )
+                                  )}
+                                  styles={customStyles}
+                                  onChange={(selected) => {
+                                    dispatch({
+                                      type: EventType.SetDefaultProjectLevel,
+                                      tenant: name,
+                                      level: (selected?.value === "None"
+                                        ? undefined
+                                        : selected?.value) as TProjectLevel,
+                                    });
+                                  }}
+                                />
+                              </label>
+                            </div>
+                            <div className="my-2">
+                              <ProjectSelector
+                                tenant={name}
+                                dispatch={dispatch}
+                                projects={projects}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="sub_container sub_container-bglighter key-selector">
+                          <label>
+                            <i className="fas fa-key" aria-hidden></i>&nbsp;Keys
+                            rights for {name}
+                          </label>
+                          <div>
+                            <div className="d-flex flex-row justify-content-between">
+                              <label
+                                className="d-flex flex-row align-items-center"
+                                style={{ marginTop: "1.5rem" }}
+                              >
+                                <span
+                                  style={{
+                                    marginRight: "1rem",
+                                  }}
+                                >
+                                  Default key right
+                                </span>
+                                <Select
+                                  value={
+                                    defaultKeyRight
+                                      ? {
+                                          label: defaultKeyRight,
+                                          value: defaultKeyRight,
+                                        }
+                                      : { label: "None", value: "None" }
+                                  }
+                                  options={[
+                                    { label: "None", value: "None" },
+                                  ].concat(
+                                    Object.entries(TLevel).map(
+                                      ([key, value]) => ({
+                                        label: value,
+                                        value: key,
+                                      })
+                                    )
+                                  )}
+                                  styles={customStyles}
+                                  onChange={(selected) => {
+                                    dispatch({
+                                      type: EventType.SetDefaultKeyLevel,
+                                      tenant: name,
+                                      level: (selected?.value === "None"
+                                        ? undefined
+                                        : selected?.value) as TLevel,
+                                    });
+                                  }}
+                                />
+                              </label>
+                            </div>
+                            <div className="my-2">
+                              <KeySelector
+                                tenant={name}
+                                dispatch={dispatch}
+                                keys={keys}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="sub_container sub_container-bglighter key-selector">
+                          <label>
+                            <i className="fas fa-plug" aria-hidden></i>
+                            &nbsp;Webhooks rights for {name}
+                          </label>
+                          <div>
+                            <div className="d-flex flex-row justify-content-between">
+                              <label
+                                className="d-flex flex-row align-items-center"
+                                style={{ marginTop: "1.5rem" }}
+                              >
+                                <span
+                                  style={{
+                                    marginRight: "1rem",
+                                  }}
+                                >
+                                  Default webhook right
+                                </span>
+                                <Select
+                                  value={
+                                    defaultWebhookRight
+                                      ? {
+                                          label: defaultWebhookRight,
+                                          value: defaultWebhookRight,
+                                        }
+                                      : { label: "None", value: "None" }
+                                  }
+                                  options={[
+                                    { label: "None", value: "None" },
+                                  ].concat(
+                                    Object.entries(TLevel).map(
+                                      ([key, value]) => ({
+                                        label: value,
+                                        value: key,
+                                      })
+                                    )
+                                  )}
+                                  styles={customStyles}
+                                  onChange={(selected) => {
+                                    dispatch({
+                                      type: EventType.SetDefaultWebhookLevel,
+                                      tenant: name,
+                                      level: (selected?.value === "None"
+                                        ? undefined
+                                        : selected?.value) as TLevel,
+                                    });
+                                  }}
+                                />
+                              </label>
+                            </div>
+                            <div className="my-2">
+                              <WebhookSelector
+                                tenant={name}
+                                dispatch={dispatch}
+                                webhooks={webhooks}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {maxRights && (
+                      <div className="sub_container sub_container-bglighter project-selector">
+                        <div>
+                          <i className="fa-solid fa-lock" aria-hidden></i>
+                          &nbsp;Max rights for {name}
+                          <Tooltip id="max-right-tooltip">
+                            Users from external authentication provider won't be
+                            able to have rights above max rights.
+                            <br />
+                            Max rights are used only in "initial" right mode.
+                          </Tooltip>
+                        </div>
                         <label
                           className="d-flex flex-row align-items-center"
                           style={{ marginTop: "1.5rem" }}
@@ -485,52 +773,37 @@ export function RightSelector(props: {
                               marginRight: "1rem",
                             }}
                           >
-                            Default project right
+                            Max tenant right
                           </span>
                           <Select
                             value={
-                              defaultProjectRight
+                              maxTenantRight
                                 ? {
-                                    label: defaultProjectRight,
-                                    value: defaultProjectRight,
+                                    label: maxTenantRight,
+                                    value: maxTenantRight,
                                   }
-                                : { label: "None", value: "None" }
+                                : { label: "Admin", value: "Admin" }
                             }
-                            options={[{ label: "None", value: "None" }].concat(
-                              Object.entries(TProjectLevel).map(
-                                ([key, value]) => ({
-                                  label: value,
-                                  value: key,
-                                })
-                              )
-                            )}
+                            options={
+                              [{ label: "None", value: "None" }].concat(
+                                Object.keys(TLevel).map((l) => ({
+                                  value: l,
+                                  label: l,
+                                }))
+                              ) as any
+                            }
                             styles={customStyles}
                             onChange={(selected) => {
                               dispatch({
-                                type: EventType.SetDefaultProjectLevel,
+                                type: EventType.SetMaxTenantLevel,
                                 tenant: name,
-                                level: (selected?.value === "None"
-                                  ? undefined
-                                  : selected?.value) as TProjectLevel,
+                                level: (selected?.value
+                                  ? selected.value
+                                  : undefined) as TLevel,
                               });
                             }}
                           />
                         </label>
-                        <div className="my-2">
-                          <ProjectSelector
-                            tenant={name}
-                            dispatch={dispatch}
-                            projects={projects}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="sub_container sub_container-bglighter key-selector">
-                      <label>
-                        <i className="fas fa-key" aria-hidden></i>&nbsp;Keys
-                        rights for {name}
-                      </label>
-                      <div>
                         <label
                           className="d-flex flex-row align-items-center"
                           style={{ marginTop: "1.5rem" }}
@@ -540,50 +813,37 @@ export function RightSelector(props: {
                               marginRight: "1rem",
                             }}
                           >
-                            Default key right
+                            Max project right
                           </span>
                           <Select
                             value={
-                              defaultKeyRight
+                              maxProjectRight
                                 ? {
-                                    label: defaultKeyRight,
-                                    value: defaultKeyRight,
+                                    label: maxProjectRight,
+                                    value: maxProjectRight,
                                   }
-                                : { label: "None", value: "None" }
+                                : { label: "Admin", value: "Admin" }
                             }
-                            options={[{ label: "None", value: "None" }].concat(
-                              Object.entries(TLevel).map(([key, value]) => ({
-                                label: value,
-                                value: key,
-                              }))
-                            )}
+                            options={
+                              [{ label: "None", value: "None" }].concat(
+                                Object.keys(TProjectLevel).map((l) => ({
+                                  value: l,
+                                  label: l,
+                                }))
+                              ) as any
+                            }
                             styles={customStyles}
                             onChange={(selected) => {
                               dispatch({
-                                type: EventType.SetDefaultKeyLevel,
+                                type: EventType.SetMaxProjectLevel,
                                 tenant: name,
-                                level: (selected?.value === "None"
-                                  ? undefined
-                                  : selected?.value) as TLevel,
+                                level: (selected?.value
+                                  ? selected.value
+                                  : undefined) as TProjectLevel,
                               });
                             }}
                           />
                         </label>
-                        <div className="my-2">
-                          <KeySelector
-                            tenant={name}
-                            dispatch={dispatch}
-                            keys={keys}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="sub_container sub_container-bglighter key-selector">
-                      <label>
-                        <i className="fas fa-plug" aria-hidden></i>
-                        &nbsp;Webhooks rights for {name}
-                      </label>
-                      <div>
                         <label
                           className="d-flex flex-row align-items-center"
                           style={{ marginTop: "1.5rem" }}
@@ -593,44 +853,79 @@ export function RightSelector(props: {
                               marginRight: "1rem",
                             }}
                           >
-                            Default webhook right
+                            Max key right
                           </span>
                           <Select
                             value={
-                              defaultWebhookRight
+                              maxKeyRight
                                 ? {
-                                    label: defaultWebhookRight,
-                                    value: defaultWebhookRight,
+                                    label: maxKeyRight,
+                                    value: maxKeyRight,
                                   }
-                                : { label: "None", value: "None" }
+                                : { label: "Admin", value: "Admin" }
                             }
-                            options={[{ label: "None", value: "None" }].concat(
-                              Object.entries(TLevel).map(([key, value]) => ({
-                                label: value,
-                                value: key,
-                              }))
-                            )}
+                            options={
+                              [{ label: "None", value: "None" }].concat(
+                                Object.keys(TLevel).map((l) => ({
+                                  value: l,
+                                  label: l,
+                                }))
+                              ) as any
+                            }
                             styles={customStyles}
                             onChange={(selected) => {
                               dispatch({
-                                type: EventType.SetDefaultWebhookLevel,
+                                type: EventType.SetMaxKeyLevel,
                                 tenant: name,
-                                level: (selected?.value === "None"
-                                  ? undefined
-                                  : selected?.value) as TLevel,
+                                level: (selected?.value
+                                  ? selected.value
+                                  : undefined) as TLevel,
                               });
                             }}
                           />
                         </label>
-                        <div className="my-2">
-                          <WebhookSelector
-                            tenant={name}
-                            dispatch={dispatch}
-                            webhooks={webhooks}
+                        <label
+                          className="d-flex flex-row align-items-center"
+                          style={{ marginTop: "1.5rem" }}
+                        >
+                          <span
+                            style={{
+                              marginRight: "1rem",
+                            }}
+                          >
+                            Max webhook right
+                          </span>
+                          <Select
+                            value={
+                              maxWebhookRight
+                                ? {
+                                    label: maxWebhookRight,
+                                    value: maxWebhookRight,
+                                  }
+                                : { label: "Admin", value: "Admin" }
+                            }
+                            options={
+                              [{ label: "None", value: "None" }].concat(
+                                Object.keys(TLevel).map((l) => ({
+                                  value: l,
+                                  label: l,
+                                }))
+                              ) as any
+                            }
+                            styles={customStyles}
+                            onChange={(selected) => {
+                              dispatch({
+                                type: EventType.SetMaxWebhookLevel,
+                                tenant: name,
+                                level: (selected?.value
+                                  ? selected.value
+                                  : undefined) as TLevel,
+                              });
+                            }}
                           />
-                        </div>
+                        </label>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </>
               );
@@ -650,6 +945,7 @@ export function RightSelector(props: {
                 onClear={() => {
                   setCreating(false);
                 }}
+                possibleRights={TLevelWithNoneArray}
               />
             </>
           )}
@@ -724,7 +1020,6 @@ function ProjectSelector(props: {
         {projects.map(({ name, level }) => (
           <div className="my-2" key={`${name}-container`}>
             <ItemSelector
-              projectRight={true}
               label={`${tenant} project`}
               key={name}
               userRight={
@@ -750,6 +1045,7 @@ function ProjectSelector(props: {
               onClear={() => {
                 dispatch({ type: "DeleteProject", tenant, name });
               }}
+              possibleRights={TProjectLevelArray}
             />
           </div>
         ))}
@@ -764,6 +1060,7 @@ function ProjectSelector(props: {
                 dispatch({ type: "SelectProject", name: project, tenant });
               }}
               onClear={() => setCreating(false)}
+              possibleRights={TProjectLevelArray}
             />
           </div>
         )}
@@ -842,6 +1139,7 @@ function KeySelector(props: {
               onClear={() => {
                 dispatch({ type: "DeleteKey", tenant, name });
               }}
+              possibleRights={TLevelArray}
             />
           </div>
         ))}
@@ -856,6 +1154,7 @@ function KeySelector(props: {
               }}
               onClear={() => setCreating(false)}
               userRight={TLevel.Read}
+              possibleRights={TLevelArray}
             />
           </div>
         )}
@@ -933,6 +1232,7 @@ function WebhookSelector(props: {
               onClear={() => {
                 dispatch({ type: "DeleteWebhook", tenant, name });
               }}
+              possibleRights={TLevelArray}
             />
           </div>
         ))}
@@ -947,6 +1247,7 @@ function WebhookSelector(props: {
               }}
               onClear={() => setCreating(false)}
               userRight={TLevel.Read}
+              possibleRights={TLevelArray}
             />
           </div>
         )}
@@ -965,33 +1266,22 @@ function WebhookSelector(props: {
   }
 }
 
-type ItemSelectorProps =
-  | {
-      choices: string[];
-      userRight?: TLevel;
-      onItemChange: (name: string) => void;
-      onLevelChange?: (level: TLevel) => void;
-      onClear?: () => void;
-      level?: TLevel;
-      name?: string;
-      rightOnly?: boolean;
-      label: string;
-      projectRight?: false;
-    }
-  | {
-      choices: string[];
-      userRight?: TProjectLevel;
-      onItemChange: (name: string) => void;
-      onLevelChange?: (level: TProjectLevel) => void;
-      onClear?: () => void;
-      level?: TProjectLevel;
-      name?: string;
-      rightOnly?: boolean;
-      label: string;
-      projectRight: true;
-    };
+type ItemSelectorProps<T extends TProjectLevelWithNone> = {
+  choices: string[];
+  onItemChange: (name: string) => void;
+  onClear?: () => void;
+  name?: string;
+  rightOnly?: boolean;
+  label: string;
+  level?: T;
+  onLevelChange?: (level: T) => void;
+  userRight: T;
+  possibleRights: T[];
+};
 
-function ItemSelector(props: ItemSelectorProps) {
+function ItemSelector<T extends TProjectLevelWithNone>(
+  props: ItemSelectorProps<T>
+) {
   const {
     choices,
     onItemChange,
@@ -1001,7 +1291,7 @@ function ItemSelector(props: ItemSelectorProps) {
     level,
     userRight,
     label,
-    projectRight,
+    possibleRights,
   } = props;
 
   const baseAriaLabel = `${label}${name ? ` ${name}` : ""}`;
@@ -1022,15 +1312,14 @@ function ItemSelector(props: ItemSelectorProps) {
       <Select
         aria-label={`${baseAriaLabel} right level`}
         styles={customStyles}
-        value={level ? { value: level, label: level } : undefined}
+        value={level ? { label: level, value: level } : undefined}
         placeholder="Right level"
-        options={(projectRight
-          ? projectRightsBelow(userRight)
-          : rightsBelow(userRight)
-        ).map((level) => ({
-          label: level,
-          value: level,
-        }))}
+        options={possibleRights
+          .filter((t) => isRightBelowOrEqual(t, userRight))
+          .map((level) => ({
+            label: level,
+            value: level,
+          }))}
         onChange={(entry) => {
           onLevelChange?.(entry!.value! as any);
         }}

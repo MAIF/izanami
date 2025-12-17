@@ -1,20 +1,16 @@
 package fr.maif.izanami
 
 import com.typesafe.config.Config
-import fr.maif.izanami.models.*
+import fr.maif.izanami.models.{ProjectRightLevelIncludingNoRight, RightLevel, *}
 import fr.maif.izanami.models.IzanamiMode.{Leader, Standalone, Worker}
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2RawMethodConvert
-import fr.maif.izanami.services.CompleteRights
+import fr.maif.izanami.services.{CompleteRights, CompleteRightsWithMaxRights, MaxRights, MaxTenantRoleRights}
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.*
-import pureconfig.error.{
-  CannotConvert,
-  CannotParse,
-  ConfigReaderFailures,
-  UnknownKey
-}
+import pureconfig.error.{CannotConvert, CannotParse, ConfigReaderFailures, UnknownKey}
 import pureconfig.generic.semiauto.{deriveEnumerationReader, deriveReader}
 import pureconfig.{ConfigReader, ConfigSource}
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 
 case class IzanamiTypedConfiguration(app: AppConf, play: PlayRoot)
 case object IzanamiTypedConfiguration {
@@ -274,12 +270,13 @@ case class CallRecords(
 case class Housekeeping(startDelayInSeconds: Long, intervalInSeconds: Long)
 case class RoleRights(
     admin: Boolean = false,
-    tenants: Map[String, TenantRoleRights] = Map()
+    tenants: Map[String, TenantRoleRights] = Map(),
+    adminAllowed: Boolean = true
 ) {
-  def toRights: CompleteRights = {
+  def toRights: CompleteRightsWithMaxRights = {
     val tenantRights = tenants.view
       .mapValues(r =>
-        TenantRight(
+        TenantRightWithMaxRights(
           projects = r.projects.view
             .mapValues(v => ProjectAtomicRight(v.toProjectRightLevel))
             .toMap,
@@ -289,26 +286,37 @@ case class RoleRights(
           webhooks = r.webhooks.view
             .mapValues(v => GeneralAtomicRight(v.toRightLevel))
             .toMap,
-          defaultProjectRight = r.defaultProjectRight.toMaybeProjectRightLevel,
-          defaultKeyRight = r.defaultKeyRight.toMaybeRightLevel,
-          defaultWebhookRight = r.defaultWebhookRight.toMaybeRightLevel,
-          level = r.level.toRightLevel
+          defaultProjectRight = r.defaultProjectRight.toProjectRightLevelIncludingNoRight,
+          defaultKeyRight = r.defaultKeyRight.toRightLevelIncludingNoRight,
+          defaultWebhookRight = r.defaultWebhookRight.toRightLevelIncludingNoRight,
+          level = r.level.toRightLevelIncludingNoRight,
+          maxTenantRight =
+            r.maxTenantRight.toRightLevelIncludingNoRight,
+          maxKeyRight = r.maxKeyRight.toRightLevelIncludingNoRight,
+          maxWebhookRight =
+            r.maxWebhookRight.toRightLevelIncludingNoRight,
+          maxProjectRight = r.maxProjectRight.toProjectRightLevelIncludingNoRight
         )
       )
       .toMap
 
-    CompleteRights(admin = admin, tenants = tenantRights)
+    CompleteRightsWithMaxRights(admin = admin, tenants = tenantRights, adminAllowed = adminAllowed)
   }
 }
 case class TenantRoleRights(
-    level: ConfigNonNullableRightLevel,
+    level: BaseConfigRightLevel = None,
     defaultProjectRight: ConfigProjectRightLevel = None,
     defaultKeyRight: BaseConfigRightLevel = None,
     defaultWebhookRight: BaseConfigRightLevel = None,
     keys: Map[String, ConfigNonNullableRightLevel] = Map(),
     webhooks: Map[String, ConfigNonNullableRightLevel] = Map(),
-    projects: Map[String, ConfigNonNullableProjectRightLevel] = Map()
+    projects: Map[String, ConfigNonNullableProjectRightLevel] = Map(),
+    maxProjectRight: ConfigProjectRightLevel = Admin,
+    maxKeyRight: BaseConfigRightLevel = Admin,
+    maxWebhookRight: BaseConfigRightLevel = Admin,
+    maxTenantRight: BaseConfigRightLevel = Admin
 )
+
 
 case class PlayRoot(server: PlayServer)
 case class PlayServer(http: PlayHttpConf)
@@ -316,9 +324,11 @@ case class PlayHttpConf(port: Long)
 
 sealed trait ConfigProjectRightLevel {
   def toMaybeProjectRightLevel: Option[ProjectRightLevel]
+  def toProjectRightLevelIncludingNoRight: ProjectRightLevelIncludingNoRight
 }
 sealed trait BaseConfigRightLevel extends ConfigProjectRightLevel {
   def toMaybeRightLevel: Option[RightLevel]
+  def toRightLevelIncludingNoRight: RightLevelIncludingNoRight
 }
 
 sealed trait ConfigNonNullableRightLevel
@@ -337,6 +347,8 @@ case object Read extends BaseConfigRightLevel with ConfigNonNullableRightLevel {
   override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(
     toProjectRightLevel
   )
+  override def toRightLevelIncludingNoRight: RightLevelIncludingNoRight = toRightLevel
+  override def toProjectRightLevelIncludingNoRight: ProjectRightLevelIncludingNoRight = toProjectRightLevel
 }
 case object Write
     extends BaseConfigRightLevel
@@ -347,6 +359,8 @@ case object Write
   override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(
     toProjectRightLevel
   )
+  override def toRightLevelIncludingNoRight: RightLevelIncludingNoRight = toRightLevel
+  override def toProjectRightLevelIncludingNoRight: ProjectRightLevelIncludingNoRight = toProjectRightLevel
 }
 case object Admin
     extends BaseConfigRightLevel
@@ -357,11 +371,16 @@ case object Admin
   override def toMaybeProjectRightLevel: Option[ProjectRightLevel] = Some(
     toProjectRightLevel
   )
+  override def toRightLevelIncludingNoRight: RightLevelIncludingNoRight = toRightLevel
+  override def toProjectRightLevelIncludingNoRight: ProjectRightLevelIncludingNoRight = toProjectRightLevel
 }
 case object None extends BaseConfigRightLevel {
   override def toMaybeRightLevel: Option[RightLevel] = Option.empty
   override def toMaybeProjectRightLevel: Option[ProjectRightLevel] =
     Option.empty
+
+  override def toRightLevelIncludingNoRight: RightLevelIncludingNoRight = RightLevelIncludingNoRight.None
+  override def toProjectRightLevelIncludingNoRight: ProjectRightLevelIncludingNoRight = ProjectRightLevelIncludingNoRight.None
 }
 case object Update
     extends ConfigProjectRightLevel
@@ -370,6 +389,7 @@ case object Update
     toProjectRightLevel
   )
   override def toProjectRightLevel: ProjectRightLevel = ProjectRightLevel.Update
+  override def toProjectRightLevelIncludingNoRight: ProjectRightLevelIncludingNoRight = toProjectRightLevel
 }
 
 case object RoleRightMode {

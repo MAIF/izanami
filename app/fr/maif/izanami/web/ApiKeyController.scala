@@ -2,6 +2,8 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.models.*
+import fr.maif.izanami.datastores.UsernameIdentification
+import fr.maif.izanami.services.ProjectNameIdentification
 import play.api.libs.json.JsError.toJson
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.*
@@ -25,37 +27,34 @@ class ApiKeyController(
           env.datastores.users
             .hasRightFor(
               tenant,
-              username = request.user.username,
+              userIdentication = UsernameIdentification(request.user.username),
               rights = key.projects
-                .map(p => ProjectRightUnit(name = p, rightLevel = ProjectRightLevel.Write)),
+                .map(p => ProjectRightUnit(project = ProjectNameIdentification(p), rightLevel = ProjectRightLevel.Write)),
               tenantLevel = if (key.admin) Some(RightLevel.Admin) else None
             )
-            .flatMap(authorized => {
-              if (!authorized) {
-                Future.successful(
-                  Forbidden(
-                    Json.obj(
-                      "message" -> s"${request.user} does not have right on one or more of these projects : ${key.projects
-                        .mkString(",")} or is not tenant admin (if admin key was required)"
-                    )
+            .flatMap {
+              case Some(user) => env.datastores.apiKeys
+                .createApiKey(
+                  key
+                    .withNewSecret()
+                    .withNewClientId(),
+                  request.user
+                )
+                .map(eitherKey => {
+                  eitherKey.fold(
+                    err => Results.Status(err.status)(Json.toJson(err)),
+                    key => Created(Json.toJson(key))
+                  )
+                })
+              case None => Future.successful(
+                Forbidden(
+                  Json.obj(
+                    "message" -> s"${request.user} does not have right on one or more of these projects : ${key.projects
+                      .mkString(",")} or is not tenant admin (if admin key was required)"
                   )
                 )
-              } else {
-                env.datastores.apiKeys
-                  .createApiKey(
-                    key
-                      .withNewSecret()
-                      .withNewClientId(),
-                    request.user
-                  )
-                  .map(eitherKey => {
-                    eitherKey.fold(
-                      err => Results.Status(err.status)(Json.toJson(err)),
-                      key => Created(Json.toJson(key))
-                    )
-                  })
-              }
-            })
+              )
+            }
         })
         .recoverTotal(jsError => Future.successful(BadRequest(toJson(jsError))))
   }
@@ -79,12 +78,12 @@ class ApiKeyController(
                   env.datastores.users
                     .hasRightFor(
                       tenant,
-                      username = request.user.username,
+                      userIdentication = UsernameIdentification(request.user.username),
                       rights = newProjects.map(p =>
-                        ProjectRightUnit(name = p, rightLevel = ProjectRightLevel.Write)
+                        ProjectRightUnit(project = ProjectNameIdentification(p), rightLevel = ProjectRightLevel.Write)
                       ),
                       tenantLevel = if (adminChanged) Some(RightLevel.Admin) else None
-                    )
+                    ).map(_.isDefined)
                 }
               } match {
                 case Left(err)     => Future.successful(Left(err))

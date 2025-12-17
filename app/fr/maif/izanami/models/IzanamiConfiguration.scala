@@ -3,14 +3,14 @@ package fr.maif.izanami.models
 import fr.maif.izanami.RoleRightMode
 import fr.maif.izanami.mail.MailGunRegion.mailGunRegionReads
 import fr.maif.izanami.mail.MailerTypes.{MailJet, MailerType, SMTP}
-import fr.maif.izanami.mail.{MailProviderConfiguration, _}
+import fr.maif.izanami.mail.{MailProviderConfiguration, *}
 import fr.maif.izanami.models.InvitationMode.invitationModeReads
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2Method
-import fr.maif.izanami.services.CompleteRights
+import fr.maif.izanami.services.{CompleteRights, CompleteRightsWithMaxRights, MaxRights}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.Reads.instantReads
-import play.api.libs.json._
+import play.api.libs.json.*
 
 import java.time.Instant
 import java.time.format.DateTimeFormatter
@@ -38,21 +38,27 @@ object PKCEConfig {
 }
 
 case class OAuth2Configuration(
-    enabled: Boolean,
-    method: OAuth2Method,
-    clientId: String,
-    clientSecret: String,
-    tokenUrl: String,
-    authorizeUrl: String,
-    scopes: String = "openid profile email name",
-    pkce: Option[PKCEConfig] = None,
-    nameField: String = "name",
-    emailField: String = "email",
-    callbackUrl: String,
-    userRightsByRoles: Option[Map[String, CompleteRights]] = None,
-    roleClaim: Option[String],
-    roleRightMode: Option[RoleRightMode]
-)
+                                enabled: Boolean,
+                                method: OAuth2Method,
+                                clientId: String,
+                                clientSecret: String,
+                                tokenUrl: String,
+                                authorizeUrl: String,
+                                scopes: String = "openid profile email name",
+                                pkce: Option[PKCEConfig] = None,
+                                nameField: String = "name",
+                                emailField: String = "email",
+                                callbackUrl: String,
+                                userRightsByRoles: Option[Map[String, CompleteRightsWithMaxRights]] = None,
+                                roleClaim: Option[String],
+                                roleRightMode: Option[RoleRightMode]
+) {
+  def maxRightsByRoles: Option[Map[String, MaxRights]] = {
+    userRightsByRoles.map(rightByRoles => rightByRoles.map{
+      (name, rights) => (name, rights.maxRights)
+    })
+  }
+}
 
 object OAuth2Configuration {
 
@@ -99,7 +105,7 @@ object OAuth2Configuration {
         "callbackUrl"  -> o.callbackUrl
       )
       .applyOnWithOpt(o.userRightsByRoles)((json, rightByRoles) =>
-        json + ("userRightsByRoles" -> Json.toJson(rightByRoles)(Writes.map(CompleteRights.writes)))
+        json + ("userRightsByRoles" -> Json.toJson(rightByRoles)(Writes.map(CompleteRightsWithMaxRights.writes)))
       )
       .applyOnWithOpt(o.roleClaim)((json, roleClaim) => json + ("roleClaim" -> Json.toJson(roleClaim)))
       .applyOnWithOpt(o.roleRightMode)((json, mode) =>
@@ -122,7 +128,7 @@ object OAuth2Configuration {
         ) yield {
 
           val userRightsByRoles =
-            (json \ "userRightsByRoles").asOpt[Map[String, CompleteRights]](Reads.map(CompleteRights.reads))
+            (json \ "userRightsByRoles").asOpt[Map[String, CompleteRightsWithMaxRights]](Reads.map(CompleteRightsWithMaxRights.reads))
           OAuth2Configuration(
             method = method,
             enabled = enabled,
@@ -340,7 +346,7 @@ object IzanamiConfiguration {
     ) yield {
       val anonymousReportingLastAsked =
         (json \ "anonymousReportingLastAsked").asOpt[Instant](instantReads(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-      val oidcConfiguration           = (json \ "oidcConfiguration").asOpt[OAuth2Configuration](OAuth2Configuration._fmt.reads(_))
+      val oidcConfiguration           = (json \ "oidcConfiguration").asOpt[OAuth2Configuration](OAuth2Configuration._fmt)
       val originEmail                 = (json \ "originEmail").asOpt[String]
 
       (mailer, originEmail) match {
