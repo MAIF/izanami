@@ -509,7 +509,7 @@ export interface TWebhookRight {
 }
 
 export interface TTenantRight {
-  level: TLevel;
+  level: TLevelWithNone;
   projects: {
     [key: string]: TProjectRight;
   };
@@ -519,9 +519,13 @@ export interface TTenantRight {
   webhooks: {
     [key: string]: TWebhookRight;
   };
-  defaultProjectRight?: TProjectLevel;
-  defaultKeyRight?: TLevel;
-  defaultWebhookRight?: TLevel;
+  defaultProjectRight: TProjectLevelWithNone;
+  defaultKeyRight: TLevelWithNone;
+  defaultWebhookRight: TLevelWithNone;
+  maxTenantRight: TLevelWithNone;
+  maxProjectRight: TProjectLevelWithNone;
+  maxKeyRight: TLevelWithNone;
+  maxWebhookRight: TLevelWithNone;
 }
 
 export interface TTenantRights {
@@ -538,6 +542,14 @@ export const TLevel = {
   Admin: "Admin",
 } as const;
 
+export const TLevelArray = Object.keys(TLevel) as TLevel[];
+
+export const TLevelWithNone = { ...TLevel, None: "None" } as const;
+
+export const TLevelWithNoneArray = Object.keys(
+  TLevelWithNone,
+) as TLevelWithNone[];
+
 export const TProjectLevel = {
   Read: "Read",
   Update: "Update",
@@ -545,9 +557,23 @@ export const TProjectLevel = {
   Admin: "Admin",
 } as const;
 
+export const TProjectLevelArray = Object.keys(TProjectLevel) as TProjectLevel[];
+
+export const TProjectLevelWithNone = {
+  ...TProjectLevel,
+  None: "None",
+} as const;
+
+export const TProjectLevelWithNoneArray = Object.keys(
+  TProjectLevelWithNone,
+) as TProjectLevelWithNone[];
+
 export type TLevel = typeof TLevel[keyof typeof TLevel];
+export type TLevelWithNone = typeof TLevelWithNone[keyof typeof TLevelWithNone];
 
 export type TProjectLevel = typeof TProjectLevel[keyof typeof TProjectLevel];
+export type TProjectLevelWithNone =
+  typeof TProjectLevelWithNone[keyof typeof TProjectLevelWithNone];
 
 export interface TUser {
   username: string;
@@ -557,6 +583,7 @@ export interface TUser {
   userType: "INTERNAL" | "OIDC" | "OTOROSHI";
   defaultTenant?: string;
   external?: boolean;
+  previsionalRights?: boolean;
 }
 
 export interface TSingleRightForTenantUser {
@@ -585,7 +612,7 @@ export interface Configuration {
 
 export type TCompleteRight = TRights & { admin: boolean };
 export interface RightByRoles {
-  [role: string]: TCompleteRight;
+  [role: string]: TCompleteRight & { adminAllowed: boolean };
 }
 
 export type MailGunRegion = "EUROPE" | "US";

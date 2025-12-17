@@ -70,8 +70,8 @@ class IzanamiComponentsInstances(
     rawConfiguration = configuration
   )
 
+  lazy val rightService: RightService = env.rightService
   lazy val filters = new DefaultHttpFilters(httpFilters: _*)
-
   lazy val personnalAccessTokenTenantRightsActionFactory: PersonnalAccessTokenTenantRightsActionFactory = wire[PersonnalAccessTokenTenantRightsActionFactory]
   lazy val authAction: TenantAuthActionFactory = wire[TenantAuthActionFactory]
   lazy val tenantAuthAction: ProjectAuthActionFactory =
@@ -111,7 +111,6 @@ class IzanamiComponentsInstances(
 
   lazy val featureService: FeatureService = wire[FeatureService]
   lazy val staleFeatureService: FeatureUsageService = wire[FeatureUsageService]
-  lazy val rightService: RightService = wire[RightService]
 
   lazy val featureController: FeatureController = wire[FeatureController]
   lazy val tenantController: TenantController = wire[TenantController]

@@ -1143,7 +1143,7 @@ class FeatureAPISpec extends BaseAPISpec {
         tenant = "foo"
       )
 
-      response.status mustBe FORBIDDEN
+      response.status mustBe NOT_FOUND
     }
 
     "allow metadata in feature creation" in {

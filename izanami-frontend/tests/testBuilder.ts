@@ -38,7 +38,7 @@ export class TestSituationBuilder {
     project: TestProject,
     context: TestLocalContext,
     url: string,
-    parent = ""
+    parent = "",
   ): Promise<any> {
     const cookie = await this.cookie(page);
     await handleFetchJsonResponse(
@@ -56,8 +56,8 @@ export class TestSituationBuilder {
             "Content-Type": "application/json",
             cookie: cookie,
           },
-        }
-      )
+        },
+      ),
     ).catch((err) => console.error("Failed to create context", err));
 
     Promise.all(
@@ -68,9 +68,9 @@ export class TestSituationBuilder {
           project,
           c,
           url,
-          `${parent}/${context.name}`
-        )
-      )
+          `${parent}/${context.name}`,
+        ),
+      ),
     );
   }
 
@@ -94,7 +94,6 @@ export class TestSituationBuilder {
       })
       .then((userResponse) => userResponse.json())
       .then((json) => {
-        console.log("json", json);
         const url = json.invitationUrl;
         const token = url.split("token=")[1];
         return fetch(`${baseUrl}/api/admin/users`, {
@@ -116,7 +115,7 @@ export class TestSituationBuilder {
     tenant: TestTenant,
     context: TestGlobalContext,
     url: string,
-    parent = ""
+    parent = "",
   ): Promise<any> {
     const cookie = await this.cookie(page);
     await handleFetchJsonResponse(
@@ -134,8 +133,8 @@ export class TestSituationBuilder {
             "Content-Type": "application/json",
             cookie: cookie,
           },
-        }
-      )
+        },
+      ),
     ).catch((err) => console.error("Failed to create context", err));
 
     Promise.all(
@@ -145,9 +144,9 @@ export class TestSituationBuilder {
           tenant,
           c,
           url,
-          `${parent}/${context.name}`
-        )
-      )
+          `${parent}/${context.name}`,
+        ),
+      ),
     );
   }
 
@@ -159,7 +158,7 @@ export class TestSituationBuilder {
   async createTenant(
     tenant: TestTenant,
     cookie: Cookie,
-    url: string
+    url: string,
   ): Promise<any> {
     return handleFetchJsonResponse(
       fetch(`${url}/api/admin/tenants`, {
@@ -169,7 +168,7 @@ export class TestSituationBuilder {
           cookie: `${cookie.name}=${cookie.value}`,
         },
         body: JSON.stringify(tenant),
-      })
+      }),
     );
   }
 
@@ -177,7 +176,7 @@ export class TestSituationBuilder {
     tenant: TestTenant,
     tag: TestTag,
     cookie: Cookie,
-    url: string
+    url: string,
   ): Promise<any> {
     return handleFetchJsonResponse(
       fetch(`${url}/api/admin/tenants/${tenant.name}/tags`, {
@@ -187,7 +186,7 @@ export class TestSituationBuilder {
           "Content-Type": "application/json",
           cookie: `${cookie.name}=${cookie.value}`,
         },
-      })
+      }),
     );
   }
 
@@ -195,7 +194,7 @@ export class TestSituationBuilder {
     tenant: TestTenant,
     project: TestProject,
     cookie: Cookie,
-    url: string
+    url: string,
   ): Promise<any> {
     return handleFetchJsonResponse(
       fetch(`${url}/api/admin/tenants/${tenant.name}/projects`, {
@@ -205,7 +204,7 @@ export class TestSituationBuilder {
           cookie: `${cookie.name}=${cookie.value}`,
         },
         body: JSON.stringify(project),
-      })
+      }),
     );
   }
 
@@ -214,7 +213,7 @@ export class TestSituationBuilder {
     project: TestProject,
     feature: TestFeature,
     cookie: Cookie,
-    url: string
+    url: string,
   ): Promise<any> {
     return handleFetchJsonResponse(
       fetch(
@@ -226,8 +225,8 @@ export class TestSituationBuilder {
             "Content-Type": "application/json",
             cookie: `${cookie.name}=${cookie.value}`,
           },
-        }
-      )
+        },
+      ),
     );
   }
 
@@ -235,7 +234,7 @@ export class TestSituationBuilder {
     tenant: TestTenant,
     key: TestKey,
     cookie: Cookie,
-    url: string
+    url: string,
   ): Promise<any> {
     return handleFetchJsonResponse(
       fetch(`${url}/api/admin/tenants/${tenant.name}/keys`, {
@@ -245,7 +244,7 @@ export class TestSituationBuilder {
           "Content-Type": "application/json",
           cookie: `${cookie.name}=${cookie.value}`,
         },
-      })
+      }),
     );
   }
 
@@ -253,7 +252,7 @@ export class TestSituationBuilder {
     tenant: TestTenant,
     webhook: TestWebhook,
     cookie: Cookie,
-    url: string
+    url: string,
   ): Promise<any> {
     return handleFetchJsonResponse(
       fetch(`${url}/api/admin/tenants/${tenant.name}/webhooks`, {
@@ -263,7 +262,7 @@ export class TestSituationBuilder {
           "Content-Type": "application/json",
           cookie: `${cookie.name}=${cookie.value}`,
         },
-      })
+      }),
     );
   }
 
@@ -273,7 +272,7 @@ export class TestSituationBuilder {
     feature: TestFeature,
     overload: TestOverload,
     cookie: Cookie,
-    url: string
+    url: string,
   ): Promise<any> {
     const { contextPath, ...rest } = overload;
 
@@ -291,8 +290,8 @@ export class TestSituationBuilder {
             "Content-Type": "application/json",
             cookie: `${cookie.name}=${cookie.value}`,
           },
-        }
-      )
+        },
+      ),
     );
   }
 
@@ -300,7 +299,7 @@ export class TestSituationBuilder {
     const cookie = (await page.context().cookies())[0];
     const url = backendUrl();
     return Promise.all(
-      this.tenants.map((t) =>
+      this.tenants.map((t, index) =>
         this.createTenant(t, cookie, url)
           .catch((err) => {
             console.error("Failed to create tenant", err);
@@ -310,7 +309,7 @@ export class TestSituationBuilder {
             Promise.all(
               t.contexts.map((c) => {
                 return this.buildContextHierarchy(page, t, c, url);
-              })
+              }),
             ).catch((err) => {
               console.error("Failed to create context hierarchy", err);
               throw err;
@@ -319,8 +318,8 @@ export class TestSituationBuilder {
           .then(() => {
             return Promise.all(
               t.webhooks.map((webhook) =>
-                this.createWebhook(t, webhook, cookie, url)
-              )
+                this.createWebhook(t, webhook, cookie, url),
+              ),
             ).catch((err) => {
               console.error("Failed to create webhooks", err);
               throw err;
@@ -328,15 +327,15 @@ export class TestSituationBuilder {
           })
           .then(() =>
             Promise.all(
-              t.tags.map((tag) => this.createTag(t, tag, cookie, url))
+              t.tags.map((tag) => this.createTag(t, tag, cookie, url)),
             ).catch((err) => {
               console.error("Failed to create tags", err);
               throw err;
-            })
+            }),
           )
           .then(() => {
             return Promise.all(
-              t.keys.map((key) => this.createKey(t, key, cookie, url))
+              t.keys.map((key) => this.createKey(t, key, cookie, url)),
             ).catch((err) => {
               console.error("Failed to create keys", err);
               throw err;
@@ -353,15 +352,15 @@ export class TestSituationBuilder {
                   .then(() =>
                     Promise.all(
                       p.contexts.map((c) =>
-                        this.buildLocalContextHierarchy(page, t, p, c, url)
-                      )
+                        this.buildLocalContextHierarchy(page, t, p, c, url),
+                      ),
                     ).catch((err) => {
                       console.error(
                         "Failed to build local context hierarchy",
-                        err
+                        err,
                       );
                       throw err;
-                    })
+                    }),
                   )
                   .then(() =>
                     Promise.all(
@@ -372,34 +371,34 @@ export class TestSituationBuilder {
                             throw err;
                           })
                           .then(
-                            ({ id, name }) => [name, id!] as featureIdByName
+                            ({ id, name }) => [name, id!] as featureIdByName,
                           )
                           .then((featureIds) => {
                             return Promise.all(
                               f.overloads.map((o) =>
-                                this.createOverload(t, p, f, o, cookie, url)
-                              )
+                                this.createOverload(t, p, f, o, cookie, url),
+                              ),
                             )
                               .catch((err) => {
                                 console.error(
                                   "Failed to create overloads",
-                                  err
+                                  err,
                                 );
                                 throw err;
                               })
                               .then(() => featureIds);
-                          })
-                      )
-                    )
-                  )
-              )
-            )
-          )
-      )
+                          }),
+                      ),
+                    ),
+                  ),
+              ),
+            ),
+          ),
+      ),
     )
       .then((pairs) => {
         return Promise.all(
-          this.users.map((user) => this.createUser(page, user, url))
+          this.users.map((user) => this.createUser(page, user, url)),
         )
           .catch((err) => {
             console.error("Failed to create users", err);
@@ -481,7 +480,7 @@ export function testTenantRight(level: TLevel): TestTenantRight {
 
 export function testOverload(
   contextPath: string,
-  enabled = false
+  enabled = false,
 ): TestOverload {
   return new TestOverload(contextPath, enabled);
 }

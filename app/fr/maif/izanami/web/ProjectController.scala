@@ -3,6 +3,7 @@ package fr.maif.izanami.web
 import fr.maif.izanami.datastores.EventDatastore.{AscOrder, FeatureEventRequest, parseSortOrder}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.ProjectDoesNotExists
+import fr.maif.izanami.events.EventAuthentication.RootAuthentication
 import fr.maif.izanami.events.{EventAuthentication, EventService, FeatureEvent, TenantCreated, TenantDeleted}
 import fr.maif.izanami.models.ProjectWithUsageInformation.projectWithUsageInformationWrites
 import fr.maif.izanami.models.{DeleteProject, Project, ProjectRightLevel, ProjectWithUsageInformation, ReadProject, ReadTenant, RightLevel}
@@ -80,6 +81,7 @@ class ProjectController(
                         json ++ Json.obj("tokenName" -> tokenName)
                       }
                       case EventAuthentication.BackOfficeAuthentication     => json
+                      case RootAuthentication => json
                     }
                   }),
                   maybeCount

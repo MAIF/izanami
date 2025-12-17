@@ -1,8 +1,10 @@
 import {
   TLevel,
+  TLevelWithNone,
   TokenTenantRights,
   TokenTenantRightsArray,
   TProjectLevel,
+  TProjectLevelWithNone,
   TRights,
 } from "./types";
 
@@ -33,6 +35,10 @@ export function rightStateArrayToBackendMap(state?: State): TRights {
         defaultProjectRight,
         defaultKeyRight,
         defaultWebhookRight,
+        maxProjectRight,
+        maxKeyRight,
+        maxWebhookRight,
+        maxTenantRight,
       }
     ) => {
       acc[name] = {
@@ -43,6 +49,10 @@ export function rightStateArrayToBackendMap(state?: State): TRights {
         defaultProjectRight: defaultProjectRight,
         defaultKeyRight: defaultKeyRight,
         defaultWebhookRight: defaultWebhookRight,
+        maxProjectRight: maxProjectRight,
+        maxKeyRight: maxKeyRight,
+        maxWebhookRight: maxWebhookRight,
+        maxTenantRight: maxTenantRight,
       };
       return acc;
     },
@@ -63,7 +73,7 @@ function projectOrKeyArrayToObject(
 
 export type State = {
   name: string;
-  level?: TLevel;
+  level: TLevelWithNone;
   projects: {
     name: string;
     level?: TProjectLevel;
@@ -76,7 +86,11 @@ export type State = {
     name: string;
     level?: TLevel;
   }[];
-  defaultProjectRight?: TProjectLevel;
-  defaultKeyRight?: TLevel;
-  defaultWebhookRight?: TLevel;
+  defaultProjectRight: TProjectLevelWithNone;
+  defaultKeyRight: TLevelWithNone;
+  defaultWebhookRight: TLevelWithNone;
+  maxProjectRight: TProjectLevelWithNone;
+  maxKeyRight: TLevelWithNone;
+  maxWebhookRight: TLevelWithNone;
+  maxTenantRight: TLevelWithNone;
 }[];

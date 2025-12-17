@@ -425,6 +425,144 @@ const router = createBrowserRouter([
   },
 ]);
 
+type SingleRightUpdate = {
+  before: string;
+  after: string;
+};
+
+type RightUpdate = {
+  admin: boolean;
+  tenants: {
+    [x: string]: {
+      levelRight?: SingleRightUpdate;
+      defaultProject?: SingleRightUpdate;
+      defaultKey?: SingleRightUpdate;
+      defaultWebhook?: SingleRightUpdate;
+      projects: {
+        [x: string]: SingleRightUpdate;
+      };
+      keys: {
+        [x: string]: SingleRightUpdate;
+      };
+      webhooks: {
+        [x: string]: SingleRightUpdate;
+      };
+    };
+  };
+};
+
+function RightUpdateMessage({ rightUpdates }: { rightUpdates: RightUpdate }) {
+  return (
+    <ul>
+      {rightUpdates.admin && <li>You are no longer global admin</li>}
+      {Object.entries(rightUpdates.tenants).map(([tenant, changes]) => {
+        return (
+          <>
+            {changes?.levelRight && (
+              <li>
+                Your right for tenant{" "}
+                <span style={{ fontWeight: "bold" }}>{tenant}</span> has been
+                updated from{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {changes.levelRight.before}
+                </span>{" "}
+                to{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {changes.levelRight.after}
+                </span>
+              </li>
+            )}
+            {changes.defaultProject && (
+              <li>
+                Tenant {tenant}: your{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  default project right
+                </span>{" "}
+                has been updated from{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {changes.defaultProject.before}
+                </span>{" "}
+                to{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {changes.defaultProject.after}
+                </span>
+              </li>
+            )}
+            {changes.defaultKey && (
+              <li>
+                Tenant {tenant}: your{" "}
+                <span style={{ fontWeight: "bold" }}>default key right</span>{" "}
+                has been updated from{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {changes.defaultKey.before}
+                </span>{" "}
+                to{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {changes.defaultKey.after}
+                </span>
+              </li>
+            )}
+            {changes.defaultWebhook && (
+              <li>
+                Tenant {tenant}: your{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  default webhook right
+                </span>{" "}
+                has been updated from{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {changes.defaultWebhook.before}
+                </span>{" "}
+                to{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {changes.defaultWebhook.after}
+                </span>
+              </li>
+            )}
+            {Object.entries(changes.projects).map(([name, projectChange]) => (
+              <li key={`${tenant}-${name}`}>
+                Tenant {tenant}: your right on project{" "}
+                <span style={{ fontWeight: "bold" }}>{name}</span> has been
+                updated from{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {projectChange.before}
+                </span>{" "}
+                to{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {projectChange.after}
+                </span>
+              </li>
+            ))}
+            {Object.entries(changes.keys).map(([name, keyChange]) => (
+              <li key={`${tenant}-${name}`}>
+                Tenant {tenant}: your right on key{" "}
+                <span style={{ fontWeight: "bold" }}>{name}</span> has been
+                updated from{" "}
+                <span style={{ fontWeight: "bold" }}>{keyChange.before}</span>{" "}
+                to <span style={{ fontWeight: "bold" }}>{keyChange.after}</span>
+              </li>
+            ))}
+            {Object.entries(changes.webhooks).map(([name, webhookChange]) => (
+              <li key={`${tenant}-${name}`}>
+                Tenant {tenant}: your right on webhook{" "}
+                <span style={{ fontWeight: "bold" }}>{name}</span> has been
+                updated from{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {webhookChange.before}
+                </span>{" "}
+                to{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {webhookChange.after}
+                </span>
+              </li>
+            ))}
+          </>
+        );
+      })}
+    </ul>
+  );
+}
+
+type MessageState = "noMessage" | "displayed" | "closed";
 function RedirectToFirstTenant(): JSX.Element {
   const context = useContext(IzanamiContext);
   const defaultTenant = context.user?.defaultTenant;
@@ -433,8 +571,30 @@ function RedirectToFirstTenant(): JSX.Element {
     queryKey: [MutationNames.TENANTS],
     queryFn: () => queryTenants(),
   });
+  const location = useLocation();
+  const message = location?.state?.message;
+  const [messageState, setMessageState] = useState<MessageState>(
+    message ? "displayed" : "noMessage",
+  );
 
-  if (tenant) {
+  useEffect(() => {
+    if (location?.state?.message && messageState != "closed") {
+      context.askConfirmation(
+        <>
+          <h3>Your rights have been updated</h3>
+          Some of your rights were updated.
+          <br />
+          <RightUpdateMessage rightUpdates={location.state.message} />
+        </>,
+        undefined,
+        () => Promise.resolve(setMessageState("closed")),
+      );
+    }
+  }, [location?.state?.message]);
+
+  if (messageState === "displayed") {
+    return <Loader message="Loading tenants..." />;
+  } else if (tenant) {
     return <Navigate to={`/tenants/${tenant}`} />;
   } else if (tenantQuery.data && tenantQuery.data.length > 0) {
     return <Navigate to={`/tenants/${tenantQuery.data[0].name}`} />;
@@ -462,6 +622,7 @@ export function Layout() {
     !user?.username || !expositionUrl ? "Loading" : "Success",
   );
   let { tenant } = useParams();
+
   const searchParamsTenant = useSearchParams()[0].get("tenant");
   tenant = searchParamsTenant || tenant;
 

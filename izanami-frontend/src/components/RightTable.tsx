@@ -3,13 +3,14 @@ import { GenericTable } from "./GenericTable";
 import { TLevel, TSingleRightForTenantUser } from "../utils/types";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
-import { isRightAbove, IzanamiContext } from "../securityContext";
+import { isFirstRightAboveOrEqual, IzanamiContext } from "../securityContext";
+import { PrevisionalRightsPill } from "./PrevisionalRightsPill";
 
 export function RightTable(props: {
   data: TSingleRightForTenantUser[];
   onRightChange: (
     datum: TSingleRightForTenantUser,
-    level?: TLevel
+    level?: TLevel,
   ) => Promise<void>;
   canEdit: boolean;
 }) {
@@ -53,7 +54,7 @@ export function RightTable(props: {
             action: (d) =>
               askConfirmation(
                 `Are you sure you want to remove ${d.username} rights on this ?`,
-                () => onRightChange(d, undefined)
+                () => onRightChange(d, undefined),
               ),
           },
         }}
@@ -63,6 +64,19 @@ export function RightTable(props: {
             accessorKey: "username",
             header: () => "Username",
             size: 25,
+            cell: (col) => {
+              const user = col.row.original as any;
+              if (user.previsionalRights) {
+                return (
+                  <>
+                    {user.username}&nbsp;
+                    <PrevisionalRightsPill user={user.username} />
+                  </>
+                );
+              } else {
+                return user.username;
+              }
+            },
           },
           {
             accessorKey: "admin",
@@ -99,9 +113,9 @@ export function RightTable(props: {
               const maybeDefaultProjectRight = user.defaultRight;
 
               if (maybeDefaultProjectRight && user.right) {
-                const isDefaultRightAboveRight = isRightAbove(
+                const isDefaultRightAboveRight = !isFirstRightAboveOrEqual(
+                  user.right,
                   maybeDefaultProjectRight,
-                  user.right
                 );
                 return isDefaultRightAboveRight
                   ? `${maybeDefaultProjectRight} (default right)`

@@ -124,3 +124,58 @@ In this mode, external user rights can be updated directly from Izanami as for a
 This mode also "reset" rights at every login, allowing update of roles or right by role to be taken into account.
 In this mode, external use rights can't be updated from Izanami, to update one user rights you'll have to add / remove him roles
 in external authentication provider or to update `right-by-roles` configuration.
+
+
+## Max rights
+
+<Note>Max rights are available for Izanami 2.17.0 and above.</Note>
+
+You can associate **max rights** to any external role.
+
+Max rights act as an upper bound for user rights. This means that Izanami will prevent users to have rights above their defined max rights.
+
+
+### Defining max rights
+
+As for default rights, max rights are defined using `app.openid.right-by-roles` property.
+
+```json
+{
+  "": { // Max rights for user without roles
+    "admin-allowed": false, // User without roles can't become admin of this izanami instance
+    "tenants": {
+      "super-corp": {
+        "max-tenant-right": "read", // User without without roles can't have more than read right on tenant "super-corp"
+        "max-project-right": "read",  // User without roles can't have more than read rights on "super-corp" projects
+        "max-key-right": "none", // User without roles can't have any rights on "super-corp" keys
+        "max-webhook-right": "none" // User without roles can't have any rights on "super-corp" webhooks
+      },
+      "secret-corp": {
+        "max-tenant-right": "none" // User without without roles can't have any rights on "secret-corp" tenant, nor on its projects / keys / webhooks
+      }
+    }
+  },
+  "dev": { // Max rights for dev role
+    "admin-allowed": false, // Dev can't become admin of this izanami instance
+    "tenants": {
+      "super-corp": {
+        "max-tenant-right": "read", // Devs can't have more than read right on tenant "super-corp"
+        "max-project-right": "write",  // Devs can't have more than write rights on "super-corp" projects
+        "max-key-right": "read", // Devs can't have more than read rights on "super-corp" keys
+        "max-webhook-right": "read" // Devs can't have more than read rights on "super-corp" webhooks
+      },
+      "secret-corp": {
+        "max-tenant-right": "read", // User without without roles can't have any rights on "secret-corp" tenant, nor on its projects / keys / webhooks
+        "max-project-right": "read",  // Devs can't have more than write rights on "secret-corp" projects
+        "max-key-right": "none", // Devs can't have any rights on "secret-corp" keys
+        "max-webhook-right": "none" // Devs can't have any rights on "secret-corp" webhooks
+      }
+    }
+  },
+  "superuser": {
+    "admin-allowed": true // Dev can't become admin of this izanami instance
+    //  every non listed item has a default value of "admin", therefore superuser doesn't have any max right limitation
+  }
+}
+```
+

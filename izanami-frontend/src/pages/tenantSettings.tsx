@@ -46,6 +46,7 @@ import { customStyles } from "../styles/reactSelect";
 import { TimeZoneSelect } from "../components/TimeZoneSelect";
 import { Loader } from "../components/Loader";
 import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
+import { PrevisionalRightsPill } from "../components/PrevisionalRightsPill";
 
 export function TenantSettings(props: { tenant: string }) {
   const { tenant } = props;
@@ -162,7 +163,7 @@ export function TenantSettings(props: { tenant: string }) {
                   }
                 },
                 tenant,
-                `Delete Tenant / ${tenant}`
+                `Delete Tenant / ${tenant}`,
               )
             }
           >
@@ -187,7 +188,7 @@ export function TenantSettings(props: { tenant: string }) {
                         })
                         .then((txt: string) => {
                           throw new Error(
-                            `Failed to import data (${response.status}): ${txt}`
+                            `Failed to import data (${response.status}): ${txt}`,
                           );
                         });
                     } else {
@@ -217,7 +218,7 @@ export function TenantSettings(props: { tenant: string }) {
                           <br />
                           Associated features were imported as basic disabled
                           features.
-                        </div>
+                        </div>,
                       );
                     }
                   })
@@ -229,7 +230,7 @@ export function TenantSettings(props: { tenant: string }) {
                         {typeof err === "string"
                           ? err
                           : err?.message ?? JSON.stringify(err)}
-                      </span>
+                      </span>,
                     );
                   });
               }}
@@ -241,7 +242,7 @@ export function TenantSettings(props: { tenant: string }) {
               cancel={() => setExportDisplayed(false)}
               submit={(request: IzanamiTenantExportRequest) =>
                 requestExport(tenant, request).then(() =>
-                  setExportDisplayed(false)
+                  setExportDisplayed(false),
                 )
               }
             />
@@ -273,7 +274,7 @@ export function TenantSettings(props: { tenant: string }) {
                         () => {
                           setImportDisplayed(false);
                           return Promise.resolve();
-                        }
+                        },
                       );
                     } else {
                       setImportDisplayed(false);
@@ -448,7 +449,7 @@ function ImportForm(props: {
             render={({ field: { onChange, value } }) => (
               <Select
                 value={CONFLICT_STRATEGIES_OPTIONS.find(
-                  ({ value: aValue }) => value === aValue
+                  ({ value: aValue }) => value === aValue,
                 )}
                 onChange={(value) => {
                   onChange(value?.value);
@@ -560,7 +561,7 @@ function TenantUsers(props: { tenant: string; usersData: any }) {
                           queryKey: [tenantUserQueryKey(tenant)],
                         });
                       },
-                    }
+                    },
                   );
                 }}
                 cancel={cancel}
@@ -576,6 +577,19 @@ function TenantUsers(props: { tenant: string; usersData: any }) {
           accessorKey: "username",
           header: () => "Username",
           size: 15,
+          cell: (col) => {
+            const user = col.row.original as any;
+            if (user.previsionalRights) {
+              return (
+                <>
+                  {user.username}&nbsp;
+                  <PrevisionalRightsPill user={user.username} />
+                </>
+              );
+            } else {
+              return user.username;
+            }
+          },
         },
         {
           accessorKey: "admin",
@@ -634,7 +648,7 @@ function TenantModification(props: { tenant: TenantType; onDone: () => void }) {
             constraints: [
               constraints.matches(
                 TENANT_NAME_REGEXP,
-                `Password must match regex ${TENANT_NAME_REGEXP.toString()}`
+                `Password must match regex ${TENANT_NAME_REGEXP.toString()}`,
               ),
             ],
           },
@@ -996,7 +1010,7 @@ function IzanamiV1ImportForm(props: {
                 render={({ field: { onChange, value } }) => (
                   <Select
                     value={CONFLICT_STRATEGIES_OPTIONS.find(
-                      ({ value: aValue }) => value === aValue
+                      ({ value: aValue }) => value === aValue,
                     )}
                     onChange={(value) => {
                       onChange(value?.value);

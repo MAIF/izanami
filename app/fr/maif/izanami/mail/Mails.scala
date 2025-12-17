@@ -6,7 +6,7 @@ import com.sun.mail.smtp.SMTPTransport
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, MailSendingError, MissingMailProviderConfigurationError}
 import fr.maif.izanami.mail.MailGunRegion.Europe
-import fr.maif.izanami.mail.MailerTypes.MailerType
+import fr.maif.izanami.mail.MailerType.{MailGun, MailJet, SMTP}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import org.json.{JSONArray, JSONObject}
@@ -29,7 +29,7 @@ sealed trait MailProviderConfiguration {
 }
 
 object ConsoleMailProvider extends MailProviderConfiguration {
-  val mailerType: MailerType = MailerTypes.Console
+  val mailerType: MailerType = MailerType.Console
 }
 
 case class MailJetConfiguration(apiKey: String, secret: String, url: Option[String] = None)
@@ -45,11 +45,11 @@ case class SMTPConfiguration(
 )
 
 case class SMTPMailProvider(configuration: SMTPConfiguration) extends MailProviderConfiguration {
-  val mailerType: MailerType = MailerTypes.SMTP
+  val mailerType: MailerType = SMTP
 }
 
 case class MailJetMailProvider(configuration: MailJetConfiguration) extends MailProviderConfiguration {
-  val mailerType: MailerType = MailerTypes.MailJet
+  val mailerType: MailerType = MailJet
 }
 
 sealed trait MailGunRegion
@@ -76,7 +76,7 @@ case class MailGunConfiguration(
 )
 
 case class MailGunMailProvider(configuration: MailGunConfiguration) extends MailProviderConfiguration {
-  val mailerType: MailerType = MailerTypes.MailGun
+  val mailerType: MailerType = MailGun
 }
 
 class Mails(env: Env) {
@@ -110,10 +110,8 @@ class Mails(env: Env) {
     sendMail(mailFactory.passwordResetEmail(targetAdress, token))
 }
 
-object MailerTypes extends Enumeration {
-  type MailerType = Value
-  val MailJet, Console, MailGun, SMTP = Value
-}
+enum MailerType:
+  case MailJet, Console, MailGun, SMTP
 
 object MailGunService {
   val US_URL     = "https://api.mailgun.net/v3"

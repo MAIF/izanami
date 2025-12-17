@@ -11,42 +11,31 @@ object DemoDataLoader {
       .withTenants(
         TestTenant("demo")
           .withProjects(
-            TestProject("stock"),
             TestProject("shop")
-              .withContexts(
-                TestFeatureContext(
-                  "prod",
-                  isProtected = true,
-                  subContext =
-                    Set(TestFeatureContext("mobile", isProtected = true)),
-                  overloads = Seq(TestFeature("new ui", enabled = true))
-                ),
-                TestFeatureContext(
-                  "dev",
-                  subContext = Set(TestFeatureContext("mobile"))
-                )
-              )
               .withFeatures(TestFeature("new ui"), TestFeature("summer sales"))
           )
           .withGlobalContext(
             TestFeatureContext(
-              "globalprod",
-              isProtected = true,
-              subContext =
-                Set(TestFeatureContext("subglobal", isProtected = true))
+              "prod",
+              isProtected = true
             ),
             TestFeatureContext(
-              "publicglobal",
-              subContext = Set(
-                TestFeatureContext("subpublicprotected", isProtected = true)
-              )
+              "formation",
+              isProtected = true
+            ),
+            TestFeatureContext(
+              "dev",
+              isProtected = false
+            ),
+            TestFeatureContext(
+              "sandbox",
+              isProtected = false
             )
           )
       )
       .withUsers(
         TestUser("benjamin")
           .withTenantReadRight("demo")
-          .withProjectReadWriteRight(project = "stock", tenant = "demo")
           .withProjectReadWriteRight(project = "shop", tenant = "demo")
       )
       .loggedInWithAdminRights()
@@ -55,7 +44,7 @@ object DemoDataLoader {
     val res = situation.changeFeatureStrategyForContext(
       tenant = "demo",
       project = "shop",
-      contextPath = "publicglobal",
+      contextPath = "formation",
       enabled = false,
       feature = "new ui"
     )

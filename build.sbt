@@ -1,4 +1,4 @@
-import ReleaseTransformations.*
+import ReleaseTransformations._
 import xerial.sbt.Sonatype.{sonatype01, sonatypeCentralHost}
 
 name := """izanami"""
@@ -37,7 +37,8 @@ scalacOptions ++= {
       Seq(
         "-explain-cyclic",
         "-explain",
-        "-Xmax-inlines:64"
+        "-Xmax-inlines:64",
+        "-Ycheck-all-patmat"
       )
     }
     case _ => sys.error("Unsupported scala version")

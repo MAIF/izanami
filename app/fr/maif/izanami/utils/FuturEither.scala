@@ -43,6 +43,15 @@ case class FutureEither[+A](value: Future[Either[IzanamiError, A]]) {
     }
   }
 
+  def toFutureResult(
+                mapper: A => Future[play.api.mvc.Result]
+              )(implicit ec: ExecutionContext): Future[Result] = {
+    value.flatMap {
+      case Left(error) => Future.successful(error.toHttpResponse)
+      case Right(value) => mapper(value)
+    }
+  }
+
   def foreach(mapper: A => Unit)(implicit ec: ExecutionContext): Unit = {
     value.foreach {
       case Left(_)      => ()

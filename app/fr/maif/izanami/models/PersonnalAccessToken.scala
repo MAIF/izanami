@@ -135,6 +135,7 @@ object PersonnalAccessToken {
       case "READ TENANT"    => ReadTenant
       case "READ PROJECT"   => ReadProject
       case "READ KEYS" => ReadTenantKeys
+      case _ => throw new IllegalArgumentException(s"Unknown right ${rawRight}")
     }
   }
 

@@ -1,13 +1,15 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{TokenCheckFailure, TokenCheckSuccess}
+import fr.maif.izanami.datastores.{SessionIdentification, UsernameIdentification}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{MissingPersonalAccessToken, NotEnoughRights, UserNotFound}
 import fr.maif.izanami.events.EventAuthentication
-import fr.maif.izanami.events.EventAuthentication.{BackOfficeAuthentication, TokenAuthentication, authenticationName}
+import fr.maif.izanami.events.EventAuthentication.{BackOfficeAuthentication, RootAuthentication, TokenAuthentication, authenticationName}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.IzanamiMode.{Leader, Standalone, Worker}
 import fr.maif.izanami.security.JwtService.decodeJWT
+import fr.maif.izanami.services.{ProjectIdIdentification, ProjectIdentification, ProjectNameIdentification, RightService, WebhookIdIdentification}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterFutureEither, BetterSyntax}
 import fr.maif.izanami.web.AuthAction.{extractAndCheckPersonnalAccessToken, extractClaims}
@@ -21,11 +23,22 @@ import java.util.concurrent.{Executors, TimeUnit}
 import java.util.{Base64, UUID}
 import javax.crypto.spec.SecretKeySpec
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.Try
 
-case class UserInformation(
+sealed trait UserInformation {
+  def username: String
+  def authentication: EventAuthentication
+}
+
+case class StandardUserInformation(
     username: String,
     authentication: EventAuthentication
-)
+) extends UserInformation
+
+case object IzanamiApplicationUserInformation extends UserInformation {
+  override val username = "IZANAMI_APPLICATION"
+  override val authentication: EventAuthentication = RootAuthentication
+}
 
 case class ClientKeyRequest[A](
     request: Request[A],
@@ -47,14 +60,14 @@ case class UserRequestWithCompleteRightForOneTenant[A](
     authentication: EventAuthentication
 ) extends WrappedRequest[A](request) {
   def userInformation: UserInformation =
-    UserInformation(username = user.username, authentication = authentication)
+    StandardUserInformation(username = user.username, authentication = authentication)
 }
 case class UserNameRequest[A](request: Request[A], user: UserInformation)
     extends WrappedRequest[A](request)
 case class ProjectIdUserNameRequest[A](
-    request: Request[A],
-    user: UserInformation,
-    projectId: String
+                                        request: Request[A],
+                                        user: UserInformation,
+                                        project: ProjectIdentification
 ) extends WrappedRequest[A](request)
 
 case class HookAndUserNameRequest[A](
@@ -280,7 +293,7 @@ class AdminAuthAction(
               block(
                 UserNameRequest(
                   request = request,
-                  UserInformation(
+                  StandardUserInformation(
                     username = username,
                     authentication = BackOfficeAuthentication
                   )
@@ -324,7 +337,7 @@ class AuthenticatedAction(
             block(
               UserNameRequest(
                 request = request,
-                UserInformation(
+                StandardUserInformation(
                   username = username,
                   authentication = BackOfficeAuthentication
                 )
@@ -552,7 +565,7 @@ class PersonnalAccessTokenProjectAuthAction(
                       rightLevel = minimumLevel
                     ) =>
                   Right(
-                    UserInformation(
+                    StandardUserInformation(
                       username = username,
                       TokenAuthentication(tokenId = tokenId)
                     )
@@ -588,16 +601,17 @@ class PersonnalAccessTokenProjectAuthAction(
               None
             )
         )(subject => {
-          env.datastores.users
+          env.rightService
             .hasRightForProject(
-              session = subject,
+              user = SessionIdentification(subject),
               tenant = tenant,
-              projectIdOrName = Right(project),
+              project = ProjectNameIdentification(project),
               level = minimumLevel
             )
+            .value
             .map {
-              case Right(Some((username, _))) => Some(Right(username))
-              case _                          =>
+              case Right(Some(username)) => Some(Right(username))
+              case _                     =>
                 Some(
                   Left(
                     Forbidden(
@@ -617,7 +631,7 @@ class PersonnalAccessTokenProjectAuthAction(
         block(
           UserNameRequest(
             request = request,
-            UserInformation(
+            StandardUserInformation(
               username = username,
               authentication = BackOfficeAuthentication
             )
@@ -896,7 +910,7 @@ class PersonnalAccessTokenKeyAuthAction(
                       rightLevel = minimumLevel
                     ) =>
                   Right(
-                    UserInformation(
+                    StandardUserInformation(
                       username = username,
                       TokenAuthentication(tokenId = tokenId)
                     )
@@ -927,13 +941,14 @@ class PersonnalAccessTokenKeyAuthAction(
       )
         .flatMap(claims => claims.subject) match {
         case Some(subject) => {
-          env.datastores.users
+          env.rightService
             .hasRightForKey(
-              session = subject,
+              user = SessionIdentification(subject),
               tenant = tenant,
               key = key,
               level = minimumLevel
             )
+            .value
             .map {
               case Right(Some(username)) => Some(Right(username))
               case _                     =>
@@ -957,7 +972,7 @@ class PersonnalAccessTokenKeyAuthAction(
         block(
           UserNameRequest(
             request = request,
-            UserInformation(
+            StandardUserInformation(
               username = username,
               authentication = BackOfficeAuthentication
             )
@@ -1008,7 +1023,7 @@ class PersonnalAccessTokenTenantAuthAction(
                           .contains(r)
                       ) =>
                   Right(
-                    UserInformation(
+                    StandardUserInformation(
                       username = username,
                       TokenAuthentication(tokenId = tokenId)
                     )
@@ -1044,11 +1059,15 @@ class PersonnalAccessTokenTenantAuthAction(
               None
             )
         )(subject => {
-          env.datastores.users
-            .hasRightForTenant(subject, tenant, minimumLevel)
+          env.rightService
+            .hasRightFor(
+              userIdentification = SessionIdentification(subject),
+              tenant = tenant,
+              tenantLevel = minimumLevel
+            )
             .map {
-              case Some(username) => Some(Right(username))
-              case None           =>
+              case Some(res) => Some(Right(res.user.username))
+              case None      =>
                 Some(
                   Left(
                     Forbidden(
@@ -1067,7 +1086,7 @@ class PersonnalAccessTokenTenantAuthAction(
         block(
           UserNameRequest(
             request = request,
-            UserInformation(
+            StandardUserInformation(
               username = username,
               authentication = BackOfficeAuthentication
             )
@@ -1109,7 +1128,7 @@ class PersonnalAccessTokenAdminAuthAction(
               .map {
                 case Some(user) if user.admin =>
                   Right(
-                    UserInformation(
+                    StandardUserInformation(
                       username = username,
                       TokenAuthentication(tokenId = tokenId)
                     )
@@ -1168,7 +1187,7 @@ class PersonnalAccessTokenAdminAuthAction(
         block(
           UserNameRequest(
             request = request,
-            UserInformation(
+            StandardUserInformation(
               username = username,
               authentication = BackOfficeAuthentication
             )
@@ -1211,15 +1230,19 @@ class TenantAuthAction(
       .fold(
         Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
       )(subject => {
-        env.datastores.users
-          .hasRightForTenant(subject, tenant, minimumLevel)
+        env.rightService
+          .hasRightFor(
+            tenant = tenant,
+            userIdentification = SessionIdentification(subject),
+            tenantLevel = minimumLevel
+          )
           .flatMap {
-            case Some(username) =>
+            case Some(res) =>
               block(
                 UserNameRequest(
                   request = request,
-                  UserInformation(
-                    username = username,
+                  StandardUserInformation(
+                    username = res.user.username,
                     authentication = BackOfficeAuthentication
                   )
                 )
@@ -1274,7 +1297,7 @@ class ValidatePasswordAction(
                     block(
                       UserNameRequest(
                         request,
-                        user = UserInformation(
+                        user = StandardUserInformation(
                           username = user,
                           authentication = BackOfficeAuthentication
                         )
@@ -1311,7 +1334,7 @@ class ProjectAuthAction(
     bodyParser: BodyParser[AnyContent],
     override val env: Env,
     tenant: String,
-    projectIdOrName: Either[ProjectId, String],
+    project: ProjectIdentification,
     minimumLevel: ProjectRightLevel
 )(implicit ec: ExecutionContext)
     extends LeaderActionBuilder[ProjectIdUserNameRequest] {
@@ -1331,22 +1354,28 @@ class ProjectAuthAction(
       .fold(
         Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
       )(subject => {
-        env.datastores.users
-          .hasRightForProject(subject, tenant, projectIdOrName, minimumLevel)
+        env.rightService
+          .hasRightForProject(
+            user = SessionIdentification(subject),
+            tenant,
+            project,
+            minimumLevel
+          )
+          .value
           .flatMap(authorized =>
             authorized.fold(
               err =>
                 Future.successful(Results.Status(err.status)(Json.toJson(err))),
               {
-                case Some((username, projectId)) =>
+                case Some(username) =>
                   block(
                     ProjectIdUserNameRequest(
                       request = request,
-                      user = UserInformation(
+                      user = StandardUserInformation(
                         username = username,
                         authentication = BackOfficeAuthentication
                       ),
-                      projectId = projectId
+                      project = project
                     )
                   )
                 case None =>
@@ -1372,7 +1401,8 @@ class WebhookAuthAction(
     override val env: Env,
     tenant: String,
     webhook: String,
-    minimumLevel: RightLevel
+    minimumLevel: RightLevel,
+    rightService: RightService
 )(implicit ec: ExecutionContext)
     extends LeaderActionBuilder[HookAndUserNameRequest] {
 
@@ -1386,41 +1416,40 @@ class WebhookAuthAction(
       request,
       env.typedConfiguration.authentication.secret,
       env.encryptionKey
-    )
-      .flatMap(claims => claims.subject)
+    ).flatMap(claims => claims.subject)
       .fold(
         Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
       )(subject => {
-        env.datastores.users
-          .hasRightForWebhook(subject, tenant, webhook, minimumLevel)
-          .flatMap(authorized =>
-            authorized.fold(
-              err =>
-                Future.successful(Results.Status(err.status)(Json.toJson(err))),
-              {
-                case Some((username, hookName)) =>
-                  block(
-                    HookAndUserNameRequest(
-                      request = request,
-                      user = UserInformation(
-                        username = username,
-                        authentication = BackOfficeAuthentication
-                      ),
-                      hookName = hookName
-                    )
-                  )
-                case None =>
-                  Future
-                    .successful(
-                      Forbidden(
-                        Json.obj(
-                          "message" -> "User does not have enough rights for this operation"
-                        )
-                      )
-                    )
-              }
+        Try {
+          UUID.fromString(webhook)
+        }.fold(ex => {
+          Future
+            .successful(BadRequest(Json.obj("message" -> "Webhook id must be an UUID")))
+        }, webhookId =>
+          rightService
+            .hasRightForWebhook(
+              SessionIdentification(subject),
+              tenant,
+              WebhookIdIdentification(webhookId),
+              minimumLevel
             )
-          )
+            .flatMap {
+              case Some((username, webhookIdentifiers)) =>
+                block(
+                  HookAndUserNameRequest(
+                    request = request,
+                    user = StandardUserInformation(
+                      username = username,
+                      authentication = BackOfficeAuthentication
+                    ),
+                    hookName = webhookIdentifiers.name
+                  )
+                ).mapToFEither
+              case None =>
+                FutureEither.failure(NotEnoughRights())
+            }
+            .toResult(res => res)
+        )
       })
   }
 
@@ -1451,35 +1480,34 @@ class KeyAuthAction(
       .fold(
         Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
       )(subject => {
-        env.datastores.users
-          .hasRightForKey(subject, tenant, key, minimumLevel)
-          .flatMap(authorized =>
-            authorized.fold(
-              err =>
-                Future.successful(Results.Status(err.status)(Json.toJson(err))),
-              {
-                case Some(username) =>
-                  block(
-                    UserNameRequest(
-                      request = request,
-                      user = UserInformation(
-                        username = username,
-                        authentication = BackOfficeAuthentication
-                      )
+        env.rightService
+          .hasRightForKey(
+            user = SessionIdentification(subject),
+            tenant,
+            key,
+            minimumLevel
+          )
+          .toFutureResult {
+            case Some(username) =>
+              block(
+                UserNameRequest(
+                  request = request,
+                  user = StandardUserInformation(
+                    username = username,
+                    authentication = BackOfficeAuthentication
+                  )
+                )
+              )
+            case None =>
+              Future
+                .successful(
+                  Forbidden(
+                    Json.obj(
+                      "message" -> "User does not have enough rights for this operation"
                     )
                   )
-                case None =>
-                  Future
-                    .successful(
-                      Forbidden(
-                        Json.obj(
-                          "message" -> "User does not have enough rights for this operation"
-                        )
-                      )
-                    )
-              }
-            )
-          )
+                )
+          }
       })
   }
 
@@ -1530,15 +1558,26 @@ class KeyAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
     new KeyAuthAction(bodyParser, env, tenant, key, minimumLevel)
 }
 
-class WebhookAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
-    implicit ec: ExecutionContext
+class WebhookAuthActionFactory(
+    bodyParser: BodyParser[AnyContent],
+    rightService: RightService,
+    env: Env
+)(implicit
+    ec: ExecutionContext
 ) {
   def apply(
       tenant: String,
       webhook: String,
       minimumLevel: RightLevel
   ): WebhookAuthAction =
-    new WebhookAuthAction(bodyParser, env, tenant, webhook, minimumLevel)
+    new WebhookAuthAction(
+      bodyParser,
+      env,
+      tenant,
+      webhook,
+      minimumLevel,
+      rightService
+    )
 }
 
 class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
@@ -1549,7 +1588,13 @@ class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
       project: String,
       minimumLevel: ProjectRightLevel
   ): ProjectAuthAction =
-    new ProjectAuthAction(bodyParser, env, tenant, Right(project), minimumLevel)
+    new ProjectAuthAction(
+      bodyParser,
+      env,
+      tenant,
+      ProjectNameIdentification(project),
+      minimumLevel
+    )
 }
 
 class ProjectAuthActionByIdFactory(
@@ -1561,7 +1606,13 @@ class ProjectAuthActionByIdFactory(
       project: String,
       minimumLevel: ProjectRightLevel
   ): ProjectAuthAction =
-    new ProjectAuthAction(bodyParser, env, tenant, Left(project), minimumLevel)
+    new ProjectAuthAction(
+      bodyParser,
+      env,
+      tenant,
+      ProjectIdIdentification(project),
+      minimumLevel
+    )
 }
 
 class TenantAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(

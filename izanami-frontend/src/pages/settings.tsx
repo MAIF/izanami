@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import queryClient from "../queryClient";
 import { JsonViewer } from "@textea/json-viewer";
@@ -14,7 +14,7 @@ import {
   fetchOpenIdConnectConfiguration,
   queryTenants,
 } from "../utils/queries";
-import { Configuration, rightRoleModes, TRights } from "../utils/types";
+import { Configuration, rightRoleModes, TLevel, TRights } from "../utils/types";
 import { customStyles } from "../styles/reactSelect";
 import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
@@ -29,6 +29,7 @@ import { Tooltip } from "../components/Tooltip";
 import { ErrorMessage } from "../components/HookFormErrorMessage";
 import { rightStateArrayToBackendMap } from "../utils/rightUtils";
 import { isEqual } from "lodash";
+import { IzanamiContext } from "../securityContext";
 
 const MAILER_OPTIONS = [
   { label: "MailJet", value: "MailJet" },
@@ -56,6 +57,39 @@ type UpdateConfiguration = Omit<
   "version" | "preventOAuthModification"
 >;
 
+function hasMaxRightChange(
+  oldRightByRoles?: RightByRoles,
+  newRightByRoles?: RightByRoles,
+) {
+  return !!Object.keys(oldRightByRoles ?? {})
+    .concat(Object.keys(newRightByRoles ?? {}))
+    .find((role) => {
+      const oldRightsForRole = oldRightByRoles?.[role];
+      const newRightsForRole = newRightByRoles?.[role];
+
+      if (oldRightsForRole?.adminAllowed != newRightsForRole?.adminAllowed) {
+        return true;
+      }
+
+      return Object.keys(oldRightsForRole?.tenants ?? {})
+        .concat(Object.keys(newRightsForRole?.tenants ?? {}))
+        .find((tenant) => {
+          const oldRightForTenant = oldRightsForRole?.tenants?.[tenant];
+          const newRightForTenant = newRightsForRole?.tenants?.[tenant];
+
+          return (
+            oldRightForTenant?.maxTenantRight !==
+              newRightForTenant?.maxTenantRight ||
+            oldRightForTenant?.maxProjectRight !==
+              newRightForTenant?.maxProjectRight ||
+            oldRightForTenant?.maxKeyRight !== newRightForTenant?.maxKeyRight ||
+            oldRightForTenant?.maxWebhookRight !==
+              newRightForTenant?.maxWebhookRight
+          );
+        });
+    });
+}
+
 export function Settings() {
   const configurationQuery = useQuery({
     queryKey: [MutationNames.CONFIGURATION],
@@ -64,6 +98,7 @@ export function Settings() {
   const configurationMutationQuery = useMutation({
     mutationFn: (data: UpdateConfiguration) => updateConfiguration(data),
   });
+  const { askConfirmation } = useContext(IzanamiContext);
 
   const updateSettings = (
     current: Configuration,
@@ -73,7 +108,6 @@ export function Settings() {
       !newValue.anonymousReporting && current.anonymousReporting;
 
     const rightByRoles = newValue.oidcConfiguration?.userRightsByRoles;
-
     return configurationMutationQuery
       .mutateAsync({
         invitationMode: newValue.invitationMode,
@@ -106,6 +140,18 @@ export function Settings() {
         <ConfigurationForm
           configuration={configurationQuery.data}
           onSubmit={(newConfig) => {
+            const newRightMode = newConfig?.oidcConfiguration?.roleRightMode;
+            if (newRightMode != "Supervised") {
+              const oldRights =
+                configurationQuery.data?.oidcConfiguration?.userRightsByRoles;
+              const newRights = newConfig?.oidcConfiguration?.userRightsByRoles;
+              if (hasMaxRightChange(oldRights, newRights)) {
+                return askConfirmation(
+                  "Updating max rights will disconnect impacted users, are you sure ?",
+                  () => updateSettings(configurationQuery.data, newConfig),
+                );
+              }
+            }
             return updateSettings(configurationQuery.data, newConfig);
           }}
         />
@@ -570,6 +616,9 @@ const OIDC_METHOD_OPTIONS = [
   { value: "BASIC", label: "BASIC" },
 ] as const;
 
+const oAuthLoadedFromEnvMessage =
+  "The configuration is loaded from your environment variables and cannot be edited until you remove them.";
+
 function OIDCForm() {
   const [OIDCModlaState, setOIDCModal] = useState<
     { visible: true; error?: string } | { visible: false }
@@ -615,6 +664,16 @@ function OIDCForm() {
 
   const preventOAuthModification = getValues("preventOAuthModification");
 
+  const rightReadOnly: { readOnly: true; cause: string } | { readOnly: false } =
+    preventOAuthModification
+      ? {
+          readOnly: true,
+          cause: oAuthLoadedFromEnvMessage,
+        }
+      : isOIDCEnabled
+      ? { readOnly: false }
+      : { readOnly: true, cause: "OIDC configuration is disabled" };
+
   return (
     <>
       <Modal
@@ -658,7 +717,7 @@ function OIDCForm() {
               aria-expanded="true"
               aria-controls="oidc-accordion-collapse"
             >
-              Configuration{" "}
+              OIDC Configuration{" "}
               <span
                 className={`badge rounded-pill text-bg-${
                   isOIDCEnabled ? "success" : "danger"
@@ -958,7 +1017,7 @@ function OIDCForm() {
         </div>
       </div>
 
-      <div className="accordion accordion-darker mt-3" id={`oidc-accordion`}>
+      <div className="accordion accordion-darker mt-3" id="default-accordion">
         <div className="accordion-item">
           <h3 className="accordion-header">
             <button
@@ -969,7 +1028,7 @@ function OIDCForm() {
               aria-expanded="true"
               aria-controls="default-oidc-rights-accordion-collapse"
             >
-              Default rights &nbsp;
+              Rights configuration &nbsp;
               <ErrorMessage errors={errors} name="oidcConfiguration" />
             </button>
           </h3>
@@ -985,7 +1044,7 @@ function OIDCForm() {
               render={({ field }) => {
                 return (
                   <RightByRoleSelector
-                    readonly={preventOAuthModification}
+                    readOnly={rightReadOnly}
                     rights={field.value ?? {}}
                     onChange={(newRights) => {
                       field?.onChange(newRights);
@@ -1001,7 +1060,7 @@ function OIDCForm() {
   );
 }
 
-type TCompleteRight = TRights & { admin: boolean };
+type TCompleteRight = TRights & { admin: boolean; adminAllowed: boolean };
 interface RightByRoles {
   [role: string]: TCompleteRight;
 }
@@ -1009,13 +1068,13 @@ interface RightByRoles {
 function RightByRoleSelector(props: {
   rights: RightByRoles;
   onChange: (newRights: RightByRoles) => any;
-  readonly: boolean;
+  readOnly: { readOnly: false } | { readOnly: true; cause: string };
 }) {
   const tenantQuery = useQuery({
     queryKey: [MutationNames.TENANTS],
     queryFn: () => queryTenants(),
   });
-  const { rights, onChange, readonly } = props;
+  const { rights, onChange, readOnly } = props;
   const [creatingRole, setCreatingRole] = useState<
     { creating: false } | { creating: true; value: string }
   >({ creating: false });
@@ -1025,14 +1084,13 @@ function RightByRoleSelector(props: {
     const existingTenants = tenantQuery.data.map((t) => t.name);
     return (
       <>
-        {readonly && (
+        {readOnly.readOnly && (
           <p className="error-message d-flex align-items-center gap-2">
             <i className="fas fa-warning" />
-            The configuration is loaded from your environment variables and
-            cannot be edited until you remove them.
+            {readOnly.cause}
           </p>
         )}
-        <fieldset disabled={readonly}>
+        <fieldset disabled={readOnly.readOnly}>
           {Object.entries(rights).map(([role, right], index, array) => {
             let effectiveRight = right;
             const missingTenants = Object.keys(right.tenants ?? {}).filter(
@@ -1040,6 +1098,7 @@ function RightByRoleSelector(props: {
             );
             if (missingTenants.length > 0) {
               effectiveRight = {
+                adminAllowed: effectiveRight.adminAllowed,
                 admin: effectiveRight.admin,
                 tenants: Object.entries(right.tenants ?? {})
                   .filter((entry) => {
@@ -1071,22 +1130,51 @@ function RightByRoleSelector(props: {
                       Delete role
                     </button>
                   </h3>
-                  <label>
-                    Admin{" "}
-                    <input
-                      type="checkbox"
-                      className="izanami-checkbox"
-                      checked={right.admin}
-                      onChange={(e) => {
-                        const newAdmin = e.target.checked;
-                        const newRights = {
-                          ...rights,
-                          [role]: { ...right, admin: newAdmin },
-                        };
-                        onChange?.(newRights);
-                      }}
-                    />
-                  </label>
+                  <div className="d-flex flex-column">
+                    <label className="d-flex flex-row align-items-center">
+                      Admin&nbsp;
+                      <input
+                        style={{ marginTop: 0 }}
+                        type="checkbox"
+                        className="izanami-checkbox"
+                        checked={right.admin}
+                        onChange={(e) => {
+                          const newAdmin = e.target.checked;
+                          const newRights = {
+                            ...rights,
+                            [role]: { ...right, admin: newAdmin },
+                          };
+                          onChange?.(newRights);
+                        }}
+                      />
+                    </label>
+                    <label className="d-flex flex-row align-items-center">
+                      Can become admin
+                      <Tooltip id="max-right-admin-tooltip">
+                        Whether users with this role can become admin of this
+                        Izanami instance.
+                      </Tooltip>
+                      &nbsp;
+                      <input
+                        type="checkbox"
+                        className="izanami-checkbox"
+                        style={{ marginTop: 0 }}
+                        checked={right?.adminAllowed}
+                        onChange={(e) => {
+                          const newAdminAllowed = e.target.checked;
+                          const newRights = {
+                            ...rights,
+                            [role]: {
+                              ...right,
+                              adminAllowed: newAdminAllowed,
+                            },
+                          };
+                          onChange?.(newRights);
+                        }}
+                      ></input>
+                    </label>
+                  </div>
+
                   <RightSelector
                     defaultValue={effectiveRight}
                     tenantLevelFilter="Admin"
@@ -1095,11 +1183,16 @@ function RightByRoleSelector(props: {
                       if (!isEqual(effectiveRight.tenants, newR.tenants)) {
                         const newRights = {
                           ...rights,
-                          [role]: { ...newR, admin: right.admin },
+                          [role]: {
+                            ...newR,
+                            admin: right.admin,
+                            adminAllowed: right.adminAllowed,
+                          },
                         };
                         onChange?.(newRights);
                       }
                     }}
+                    maxRights={true}
                   />
                 </div>
                 {index < array.length - 1 && <hr />}
@@ -1120,7 +1213,7 @@ function RightByRoleSelector(props: {
                   onClick={() => {
                     const newRights = {
                       ...rights,
-                      [""]: { admin: false, tenants: {} },
+                      [""]: { admin: false, tenants: {}, adminAllowed: true },
                     };
                     onChange(newRights);
                   }}
@@ -1146,15 +1239,30 @@ function RightByRoleSelector(props: {
                   style={{ marginTop: "1rem", float: "right" }}
                   className="btn btn-primary"
                   onClick={() => {
-                    const newRights = {
-                      ...rights,
-                      [creatingRole.value]: { admin: false, tenants: {} },
-                    };
-                    onChange(newRights);
-                    setCreatingRole({ creating: false });
+                    if (creatingRole.value) {
+                      const newRights = {
+                        ...rights,
+                        [creatingRole.value]: {
+                          admin: false,
+                          tenants: {},
+                          adminAllowed: true,
+                        },
+                      };
+                      onChange(newRights);
+                      setCreatingRole({ creating: false });
+                    }
                   }}
                 >
                   Create role
+                </button>
+                <button
+                  style={{ marginTop: "1rem", float: "right" }}
+                  className="btn btn-danger"
+                  onClick={() => {
+                    setCreatingRole({ creating: false });
+                  }}
+                >
+                  Cancel
                 </button>
               </label>
             </>

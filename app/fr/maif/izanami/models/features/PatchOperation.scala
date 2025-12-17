@@ -66,12 +66,12 @@ object FeaturePatch {
       .asOpt[String]
       .map {
         case ENABLED_PATH_PATTERN(id) =>
-          PatchPath(id, Enabled)
-        case PROJECT_PATH_PATTERN(id) => PatchPath(id, ProjectFeature)
-        case TAGS_PATH_PATTERN(id)    => PatchPath(id, TagsFeature)
-        case FEATURE_PATH_PATTERN(id) => PatchPath(id, RootFeature)
+          JsSuccess(PatchPath(id, Enabled))
+        case PROJECT_PATH_PATTERN(id) => JsSuccess(PatchPath(id, ProjectFeature))
+        case TAGS_PATH_PATTERN(id)    => JsSuccess(PatchPath(id, TagsFeature))
+        case FEATURE_PATH_PATTERN(id) => JsSuccess(PatchPath(id, RootFeature))
+        case _ => JsError(s"Illegal path for patch: $json")
       }
-      .map(path => JsSuccess(path))
       .getOrElse(JsError("Bad patch path"))
   }
 
@@ -80,10 +80,10 @@ object FeaturePatch {
       json
         .asOpt[String]
         .map {
-          case "replace" => Replace
-          case "remove"  => Remove
+          case "replace" => JsSuccess(Replace)
+          case "remove"  => JsSuccess(Remove)
+          case _ => JsError(s"Unknown patch operation $json")
         }
-        .map(op => JsSuccess(op))
         .getOrElse(JsError("Bad patch operation"))
   }
 

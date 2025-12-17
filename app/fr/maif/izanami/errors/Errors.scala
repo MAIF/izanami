@@ -411,10 +411,10 @@ case class PartialImportFailure(
       message = s"Some element couldn't be imported",
       status = 400
     )
-case class DbConnectionFailure()
+case class DbConnectionFailure(query: String = "")
     extends IzanamiError(
       message =
-        s"Database result is null, this usually means that Izanami failed to connect to its database",
+        s"Database result is null, this usually means that Izanami failed to connect to its database${if(!query.isBlank) s". Query was $query" else ""}",
       status = 500
     )
 case class ImportError(table: String, json: String, errorMessage: String)
@@ -435,6 +435,9 @@ case class CantUpdateOIDCUser()
         "OIDC users can't be updated since role right mode is set to 'supervised'.",
       status = BAD_REQUEST
     )
+case class UserDoesNotExist(user: String) extends IzanamiError(message = s"User $user does not exist", status = 404)
+case class RightComplianceError(override val message: String) extends IzanamiError(message = message, status = 400)
+
 case object ModernFeaturesForbiddenByConfig
     extends IzanamiError(
       message = "This Izanami instance doesn't the use of modern feature",
@@ -446,6 +449,7 @@ case object CantUpdateOIDCCOnfiguration
         "OIDC configuration can't be updated while it is set in env variables.",
       status = BAD_REQUEST
     )
+case object FailedToReadTokenClaims extends IzanamiError(message = "Failed to read token claims", status = INTERNAL_SERVER_ERROR)
 case object OPAResultMustBeBoolean
     extends IzanamiError(
       message = "OPA feature must have boolean result type",

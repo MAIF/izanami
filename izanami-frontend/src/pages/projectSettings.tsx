@@ -12,8 +12,7 @@ import {
 } from "../utils/queries";
 import { useNavigate } from "react-router-dom";
 import {
-  isProjectRightAbove,
-  isRightAbove,
+  isFirstProjectRightAboveOrEqual,
   useProjectRight,
 } from "../securityContext";
 import queryClient from "../queryClient";
@@ -28,6 +27,7 @@ import { InvitationForm } from "../components/InvitationForm";
 import { PROJECT_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
 import { IzanamiContext } from "../securityContext";
+import { PrevisionalRightsPill } from "../components/PrevisionalRightsPill";
 
 export function ProjectSettings(props: { project: string; tenant: string }) {
   const { project, tenant } = props;
@@ -153,7 +153,7 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
                     }
                   },
                   project,
-                  `Delete project / ${project}`
+                  `Delete project / ${project}`,
                 )
               }
             >
@@ -214,7 +214,7 @@ function ProjectUsers(props: {
                           queryKey: [projectUserQueryKey(tenant, project)],
                         });
                       },
-                    }
+                    },
                   );
                 }}
                 cancel={cancel}
@@ -229,6 +229,19 @@ function ProjectUsers(props: {
           {
             accessorKey: "username",
             header: () => "Username",
+            cell: (col) => {
+              const user = col.row.original as any;
+              if (user.previsionalRights) {
+                return (
+                  <>
+                    {user.username}&nbsp;
+                    <PrevisionalRightsPill user={user.username} />
+                  </>
+                );
+              } else {
+                return user.username;
+              }
+            },
             size: 25,
           },
           {
@@ -271,10 +284,11 @@ function ProjectUsers(props: {
               const maybeDefaultProjectRight = user.defaultRight;
 
               if (maybeDefaultProjectRight && user.right) {
-                const isDefaultRightAboveRight = isProjectRightAbove(
-                  maybeDefaultProjectRight,
-                  user.right
-                );
+                const isDefaultRightAboveRight =
+                  !isFirstProjectRightAboveOrEqual(
+                    user.right,
+                    maybeDefaultProjectRight,
+                  );
                 return isDefaultRightAboveRight
                   ? `${maybeDefaultProjectRight} (default right)`
                   : user.right;
@@ -379,7 +393,7 @@ function ProjectModification(props: {
             constraints: [
               constraints.matches(
                 PROJECT_NAME_REGEXP,
-                `Project name must match regex ${PROJECT_NAME_REGEXP.toString()}`
+                `Project name must match regex ${PROJECT_NAME_REGEXP.toString()}`,
               ),
             ],
           },

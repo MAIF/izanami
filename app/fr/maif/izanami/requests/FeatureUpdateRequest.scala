@@ -2,7 +2,7 @@ package fr.maif.izanami.requests
 
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models.{CompleteContextualStrategy, CompleteFeature, UserWithCompleteRightForOneTenant}
-import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
+import fr.maif.izanami.web.{FeatureContextPath, StandardUserInformation, UserInformation}
 
 sealed trait FeatureUpdateRequest {
   def tenant: String
@@ -13,7 +13,7 @@ sealed trait FeatureUpdateRequest {
   def tags: Set[String]
   def strategy: CompleteContextualStrategy
   def featureName: String
-  def userInformation: UserInformation = UserInformation(
+  def userInformation: UserInformation = StandardUserInformation(
     username = user.username, authentication = authentication
   )
   def maybeContext: Option[FeatureContextPath]

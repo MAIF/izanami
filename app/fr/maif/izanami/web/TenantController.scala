@@ -98,6 +98,7 @@ class TenantController(
                         json ++ Json.obj("tokenName" -> tokenName)
                       }
                       case EventAuthentication.BackOfficeAuthentication => json
+                      case EventAuthentication.RootAuthentication => json
                     }
                   }),
                   maybeCount

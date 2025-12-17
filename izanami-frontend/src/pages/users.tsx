@@ -29,6 +29,7 @@ import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
 import { TokensTable } from "../components/TokensTable";
 import { rightStateArrayToBackendMap } from "../utils/rightUtils";
+import { PrevisionalRightsPill } from "../components/PrevisionalRightsPill";
 
 export function Users() {
   const [creationUrl, setCreationUrl] = useState<string | undefined>(undefined);
@@ -617,10 +618,18 @@ export function UserEdition(props: {
   if (userQuery.isLoading) {
     return <Loader message="Loading..." />;
   } else if (userQuery.data) {
-    let { rights, admin } = userQuery.data;
+    let { rights, admin, previsionalRights, username } = userQuery.data;
     return (
       <div className="sub_container">
-        <h4>User rights</h4>
+        <div style={{ display: "flex", flexDirection: "row" }}>
+          <h4>User rights</h4>
+          {previsionalRights && (
+            <>
+              &nbsp;
+              <PrevisionalRightsPill user={username} />
+            </>
+          )}
+        </div>
         <Form
           schema={{
             admin: {

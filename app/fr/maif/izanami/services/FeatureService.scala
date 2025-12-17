@@ -11,7 +11,7 @@ import fr.maif.izanami.services.FeatureService.{canCreateOrDeleteFeature, comput
 import fr.maif.izanami.utils.{Done, FutureEither, Helpers}
 import fr.maif.izanami.utils.syntax.implicits.{BetterEither, BetterFuture, BetterFutureEither, BetterSyntax}
 import fr.maif.izanami.v1.OldFeature
-import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
+import fr.maif.izanami.web.{FeatureContextPath, StandardUserInformation, UserInformation}
 import io.vertx.sqlclient.SqlConnection
 import play.api.libs.json.{JsObject, JsValue, Json, Writes}
 import play.api.libs.json.Json.JsValueWrapper
@@ -266,7 +266,7 @@ class FeatureService(env: Env) {
                       path = ctx,
                       feature = oldFeature.name,
                       strategy = oldStrategy,
-                      user = UserInformation(
+                      user = StandardUserInformation(
                         username = user.username,
                         authentication = userInformation.authentication
                       ),
@@ -374,7 +374,7 @@ class FeatureService(env: Env) {
             .delete(
               tenant,
               id,
-              UserInformation(
+              StandardUserInformation(
                 username = user.username,
                 authentication = authentification
               ),
@@ -559,7 +559,7 @@ class FeatureService(env: Env) {
                         path = ctx,
                         feature = oldFeature.name,
                         strategy = oldStrategy,
-                        user = UserInformation(
+                        user = StandardUserInformation(
                           username = request.user.username,
                           authentication = request.authentication
                         ),
@@ -590,7 +590,7 @@ class FeatureService(env: Env) {
                   r.context,
                   r.featureName,
                   request.strategy,
-                  UserInformation(
+                  StandardUserInformation(
                     username = request.user.username,
                     authentication = request.authentication
                   ),

@@ -42,7 +42,7 @@ test.describe("Project screen should", () => {
     await page.getByRole("button", { name: "Save" }).click();
 
     await expect(
-      page.getByRole("rowheader", { name: "feature", exact: true })
+      page.getByRole("rowheader", { name: "feature", exact: true }),
     ).toBeVisible();
     await expect(page.getByRole("cell", { name: "Disabled" })).toBeVisible();
   });
@@ -51,8 +51,8 @@ test.describe("Project screen should", () => {
     const situation = await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testProject("project").withFeature(testFeature("feature"))
-        )
+          testProject("project").withFeature(testFeature("feature")),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -103,7 +103,7 @@ test.describe("Project screen should", () => {
     await expect(
       page.getByRole("cell", {
         name: "Active : from January 1st, 2010 at 10:15 AM to December 25th, 2030 at 11:59 PM on MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY from 10:00:00 to 15:00:00 For all users",
-      })
+      }),
     ).toBeVisible();
   });
 
@@ -165,9 +165,9 @@ test.describe("Project screen should", () => {
       .withTenant(
         testTenant(tenantName).withProject(
           testProject("project").withFeature(
-            testFeature("myname").withDisableStatus()
-          )
-        )
+            testFeature("myname").withDisableStatus(),
+          ),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -227,8 +227,8 @@ test.describe("Project screen should", () => {
           testProject("project")
             .withFeature(testFeature("test"))
             .withFeature(testFeature("test2").withEnableStatus())
-            .withFeature(testFeature("test3"))
-        )
+            .withFeature(testFeature("test3")),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -259,8 +259,8 @@ test.describe("Project screen should", () => {
           testProject("project")
             .withFeature(testFeature("test"))
             .withFeature(testFeature("test2").withEnableStatus())
-            .withFeature(testFeature("test3"))
-        )
+            .withFeature(testFeature("test3")),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -280,8 +280,8 @@ test.describe("Project screen should", () => {
     const situation = await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testProject("project").withFeature(testFeature("test"))
-        )
+          testProject("project").withFeature(testFeature("test")),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -296,8 +296,8 @@ test.describe("Project screen should", () => {
     const situation = await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testProject("project").withFeature(testFeature("test"))
-        )
+          testProject("project").withFeature(testFeature("test")),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
