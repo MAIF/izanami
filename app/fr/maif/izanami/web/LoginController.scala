@@ -2,13 +2,14 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.RoleRightMode.{Initial, Supervised}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{IzanamiError, MissingOIDCConfigurationError}
+import fr.maif.izanami.errors.{FailedToReadTokenClaims, IzanamiError, MissingOIDCConfigurationError, RightComplianceError}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
 import fr.maif.izanami.models.User.userRightsWrites
 import fr.maif.izanami.services.RightService.RightsByRole
-import fr.maif.izanami.services.{CompleteRights, RightService}
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.services.{CompleteRights, MaxRightComplianceResult, MaxRights, RightService}
+import fr.maif.izanami.utils.{Done, FutureEither}
+import fr.maif.izanami.utils.syntax.implicits.{BetterFutureEither, BetterSyntax}
 import fr.maif.izanami.web.AuthAction.delayResponse
 import pdi.jwt.{JwtJson, JwtOptions}
 import play.api.Logger
@@ -53,6 +54,7 @@ class LoginController(
                 _emailField,
                 callbackUrl,
                 defaultOIDCUserRights,
+                maxUserRightsByRoles,
                 userRightsByRoles,
                 roleRightMode
               )
@@ -161,6 +163,7 @@ class LoginController(
               emailField,
               callbackUrl,
               userRightsByRoles,
+              maxUserRightsByRoles,
               roleClaim,
               roleRightMode
             ) = oauth2ConfigurationOpt.get
@@ -268,53 +271,121 @@ class LoginController(
                             .findUserWithCompleteRights(username)
                             .flatMap(maybeUser => {
                               def createOrUpdateUser(
-                                  rs: Option[RightsByRole]
-                              ) = {
+                                  rs: Option[RightsByRole],
+                                  maxRightsByRoles: Option[
+                                    Map[String, MaxRights]
+                                  ]
+                              ): FutureEither[Done] = {
+                                val maxRights = maxRightsByRoles.map(mr =>
+                                  CompleteRights.maxRightsToApply(roles, mr)
+                                )
+
                                 val rights = rs
                                   .map(r =>
                                     RightService.effectiveRights(r, roles)
                                   )
                                   .getOrElse(CompleteRights.EMPTY)
-                                env.postgresql.executeInTransaction(conn =>
-                                  maybeUser
-                                    .fold {
-                                      env.datastores.users
-                                        .createUser(
-                                          User(
-                                            username,
-                                            email = email,
-                                            userType = OIDC,
-                                            admin = rights.admin
-                                          )
-                                            .withRights(Rights(rights.tenants)),
-                                          conn = Some(conn)
-                                        )
-                                    }(user => {
-                                      if (
-                                        (user.admin != rights.admin || user.rights != rights.tenants) && roleRightMode
-                                          .contains(Supervised)
-                                      ) {
-                                        rightService.updateUserRights(
-                                          user.username,
-                                          UserRightsUpdateRequest
-                                            .fromRights(rights),
-                                          force = true,
-                                          conn = Some(conn)
-                                        )
 
-                                      } else {
-                                        Future.successful(Right(()))
-                                      }
-                                    })
-                                )
+                                val rightCompliance = maxRights
+                                  .map(r => rights.checkCompliance(r))
+                                  .getOrElse(MaxRightComplianceResult.empty)
+
+                                if (!rightCompliance.isEmpty) {
+                                  FutureEither.failure(
+                                    RightComplianceError(
+                                      rightCompliance.toError
+                                        .mkString("\n")
+                                    )
+                                  )
+                                } else {
+
+                                  env.postgresql
+                                    .executeInTransaction(conn =>
+                                      maybeUser
+                                        .fold {
+                                          env.datastores.users
+                                            .createUser(
+                                              User(
+                                                username,
+                                                email = email,
+                                                userType = OIDC,
+                                                admin = rights.admin
+                                              )
+                                                .withRights(
+                                                  Rights(rights.tenants)
+                                                ),
+                                              conn = Some(conn)
+                                            )
+                                        }(user => {
+                                          val rightForConfig = rs
+                                            .map(r =>
+                                              RightService
+                                                .effectiveRights(r, roles)
+                                            )
+                                            .getOrElse(CompleteRights.EMPTY)
+
+                                          val rightCompliance = maxRights
+                                            .map(r =>
+                                              CompleteRights(
+                                                user.rights.tenants,
+                                                user.admin
+                                              ).checkCompliance(r)
+                                            )
+                                            .getOrElse(
+                                              MaxRightComplianceResult.empty
+                                            )
+
+                                          if (
+                                            !rightCompliance.isEmpty && roleRightMode
+                                              .contains(Initial)
+                                          ) {
+                                            env.datastores.users
+                                              .updateUserRights(
+                                                user.username,
+                                                rightCompliance.rightDiff,
+                                                conn = Some(conn)
+                                              )
+                                          } else if (
+                                            (user.admin != rights.admin || user.rights != rights.tenants) && roleRightMode
+                                              .contains(Supervised)
+                                          ) {
+                                            rightService.updateUserRights(
+                                              user.username,
+                                              UserRightsUpdateRequest
+                                                .fromRights(rights),
+                                              force = true,
+                                              conn = Some(conn)
+                                            )
+
+                                          } else {
+                                            Future.successful(Right(()))
+                                          }
+                                        })
+                                    )
+                                    .toFEither
+                                    .map(_ => Done.done())
+                                }
                               }
                               val rightByRolesFromEnvIfAny =
                                 env.typedConfiguration.openid
                                   .flatMap(_.toIzanamiOAuth2Configuration)
                                   .flatMap(_.userRightsByRoles)
                                   .orElse(userRightsByRoles)
-                              createOrUpdateUser(rightByRolesFromEnvIfAny)
+
+                              val maxRightByRolesFromEnvIfAny =
+                                env.typedConfiguration.openid
+                                  .flatMap(_.toIzanamiOAuth2Configuration)
+                                  .flatMap(_.maxUserRightsByRoles)
+                                  .orElse(maxUserRightsByRoles)
+
+                              createOrUpdateUser(
+                                rightByRolesFromEnvIfAny,
+                                maxRightByRolesFromEnvIfAny
+                              ).value
                                 .flatMap {
+                                  case Left(err: RightComplianceError) => {
+                                    Future.successful(Left(err))
+                                  }
                                   case Left(err)
                                       if (rightByRolesFromEnvIfAny.isDefined) => {
                                     env.datastores.configuration
@@ -322,11 +393,15 @@ class LoginController(
                                         rightByRolesFromEnvIfAny.get
                                       )
                                       .flatMap(newRights =>
-                                        createOrUpdateUser(Some(newRights))
+                                        createOrUpdateUser(
+                                          Some(newRights),
+                                          maxRightByRolesFromEnvIfAny
+                                        ).value
                                       )
                                   }
-                                  case Left(err)    => Future(Left(err))
-                                  case Right(value) => Future(Right(value))
+                                  case Left(err) => Future.successful(Left(err))
+                                  case Right(value) =>
+                                    Future.successful(Right(value))
                                 }
                             })
                             .map(either => either.map(_ => username))
@@ -334,11 +409,7 @@ class LoginController(
                     })
                     .getOrElse(
                       Future(
-                        Left(
-                          InternalServerError(
-                            Json.obj("message" -> "Failed to read token claims")
-                          )
-                        )
+                        Left(FailedToReadTokenClaims)
                       )
                     )
                     .flatMap {
@@ -355,21 +426,21 @@ class LoginController(
                         .map(id => {
                           env.jwtService.generateToken(id)
                         })
-                        .map(token => {
-                          NoContent
-                            .withCookies(
-                              Cookie(
-                                name = "token",
-                                value = token,
-                                httpOnly = false,
-                                sameSite = Some(SameSite.Strict)
+                        .fold(
+                          err => {
+                            err.toHttpResponse
+                          },
+                          token => {
+                            NoContent
+                              .withCookies(
+                                Cookie(
+                                  name = "token",
+                                  value = token,
+                                  httpOnly = false,
+                                  sameSite = Some(SameSite.Strict)
+                                )
                               )
-                            )
-                        })
-                        .getOrElse(
-                          InternalServerError(
-                            Json.obj("message" -> "Failed to read token claims")
-                          )
+                          }
                         )
                     })
                 })

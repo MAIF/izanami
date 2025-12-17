@@ -3,14 +3,14 @@ package fr.maif.izanami.models
 import fr.maif.izanami.RoleRightMode
 import fr.maif.izanami.mail.MailGunRegion.mailGunRegionReads
 import fr.maif.izanami.mail.MailerTypes.{MailJet, MailerType, SMTP}
-import fr.maif.izanami.mail.{MailProviderConfiguration, _}
+import fr.maif.izanami.mail.{MailProviderConfiguration, *}
 import fr.maif.izanami.models.InvitationMode.invitationModeReads
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2Method
-import fr.maif.izanami.services.CompleteRights
+import fr.maif.izanami.services.{CompleteRights, MaxRights}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.Reads.instantReads
-import play.api.libs.json._
+import play.api.libs.json.*
 
 import java.time.Instant
 import java.time.format.DateTimeFormatter
@@ -50,6 +50,7 @@ case class OAuth2Configuration(
     emailField: String = "email",
     callbackUrl: String,
     userRightsByRoles: Option[Map[String, CompleteRights]] = None,
+    maxUserRightsByRoles: Option[Map[String, MaxRights]] = None,
     roleClaim: Option[String],
     roleRightMode: Option[RoleRightMode]
 )
@@ -105,6 +106,9 @@ object OAuth2Configuration {
       .applyOnWithOpt(o.roleRightMode)((json, mode) =>
         json + ("roleRightMode" -> Json.toJson(mode)(RoleRightMode.writes))
       )
+      .applyOnWithOpt(o.maxUserRightsByRoles)((json, mode) =>
+        json + ("roleRightMode" -> Json.toJson(mode)(Writes.map(MaxRights.writes)))
+      )
 
     override def reads(json: JsValue): JsResult[OAuth2Configuration] = {
       val maybeConfig =
@@ -123,6 +127,8 @@ object OAuth2Configuration {
 
           val userRightsByRoles =
             (json \ "userRightsByRoles").asOpt[Map[String, CompleteRights]](Reads.map(CompleteRights.reads))
+          val maxUserRightsByRoles =
+              (json \ "maxUserRightsByRoles").asOpt[Map[String, MaxRights]](Reads.map(MaxRights.reads))
           OAuth2Configuration(
             method = method,
             enabled = enabled,
@@ -136,6 +142,7 @@ object OAuth2Configuration {
             pkce = (json \ "pkce").asOpt[PKCEConfig](PKCEConfig._fmt.reads(_)),
             callbackUrl = callbackUrl,
             userRightsByRoles = userRightsByRoles,
+            maxUserRightsByRoles = maxUserRightsByRoles,
             roleClaim = (json \ "roleClaim").asOpt[String],
             roleRightMode = (json \ "roleRightMode").asOpt[RoleRightMode](RoleRightMode.reads)
           )

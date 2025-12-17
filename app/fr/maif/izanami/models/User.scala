@@ -28,7 +28,11 @@ case class ProjectRightUnit(name: String, rightLevel: ProjectRightLevel)
     extends RightUnit
 case class KeyRightUnit(name: String, rightLevel: RightLevel) extends RightUnit
 
-sealed trait RightLevel
+sealed trait RightLevel {
+  def isGreaterThan(other: RightLevel): Boolean = {
+    !RightLevel.superiorOrEqualLevels(this).contains(other)
+  }
+}
 
 object RightLevel {
   case object Read extends RightLevel
@@ -96,7 +100,11 @@ object RightLevel {
     }
 }
 
-sealed trait ProjectRightLevel
+sealed trait ProjectRightLevel {
+  def isGreaterThan(other: ProjectRightLevel): Boolean = {
+    !ProjectRightLevel.superiorOrEqualLevels(this).contains(other)
+  }
+}
 
 case object ProjectRightLevel {
   case object Read extends ProjectRightLevel
@@ -626,6 +634,7 @@ case class Rights(tenants: Map[String, TenantRight]) {
 
 object Rights {
   case class RightDiff(
+      admin: Option[Boolean] = None,
       diff: Map[String, TenantRightDiff] = Map()
   )
 
@@ -633,13 +642,19 @@ object Rights {
 
   case object DeleteTenantRights extends TenantRightDiff
   case class UpsertTenantRights(
-      addedTenantRight: Option[UnscopedFlattenTenantRight] = Option.empty,
+      addedTenantRight: Option[RightLevel] = Option.empty,
       addedProjectRights: Set[UnscopedFlattenProjectRight] = Set(),
       removedProjectRights: Set[String] = Set(),
       addedKeyRights: Set[UnscopedFlattenKeyRight] = Set(),
       removedKeyRights: Set[String] = Set(),
       addedWebhookRights: Set[UnscopedFlattenWebhookRight] = Set(),
-      removedWebhookRights: Set[String] = Set()
+      removedWebhookRights: Set[String] = Set(),
+      addedDefaultProjectRight: Option[ProjectRightLevel] = Option.empty,
+      removedDefaultProjectRight: Boolean = false,
+      addedDefaultKeyRight: Option[RightLevel] = Option.empty,
+      removedDefaultKeyRight: Boolean = false,
+      addedDefaultWebhookRight: Option[RightLevel] = Option.empty,
+      removedDefaultWebhookRight: Boolean = false
   ) extends TenantRightDiff {
     require(
       addedTenantRight.isDefined || Seq(
@@ -731,17 +746,16 @@ object Rights {
       case (None, Some(newRights)) =>
         Some(
           UpsertTenantRights(
-            addedTenantRight = Some(
-              UnscopedFlattenTenantRight(
-                level = newRights.level,
-                defaultProjectRight = newRights.defaultProjectRight,
-                defaultKeyRight = newRights.defaultKeyRight,
-                defaultWebhookRight = newRights.defaultWebhookRight
-              )
-            ),
+            addedTenantRight = Some(newRights.level),
+            addedDefaultProjectRight = newRights.defaultProjectRight,
+            addedDefaultKeyRight = newRights.defaultKeyRight,
+            addedDefaultWebhookRight = newRights.defaultWebhookRight,
             addedProjectRights = flattenProjects(newRights),
             addedKeyRights = flattenKeys(newRights),
-            addedWebhookRights = flattenWebhooks(newRights)
+            addedWebhookRights = flattenWebhooks(newRights),
+            removedDefaultProjectRight = newRights.defaultProjectRight.isEmpty,
+            removedDefaultKeyRight = newRights.defaultKeyRight.isEmpty,
+            removedDefaultWebhookRight = newRights.defaultWebhookRight.isEmpty
           )
         )
       case (
@@ -771,14 +785,7 @@ object Rights {
           if oldLevel != newLevel || oldDefaultProjectRight != newDefaultProjectRight || oldDefaultKeyRight != newDefaultKeyRight || oldDefaultWebhookRight != newDefaultWebhookRight => {
         Some(
           UpsertTenantRights(
-            addedTenantRight = Some(
-              UnscopedFlattenTenantRight(
-                level = newLevel,
-                defaultProjectRight = newR.defaultProjectRight,
-                defaultKeyRight = newR.defaultKeyRight,
-                defaultWebhookRight = newR.defaultWebhookRight
-              )
-            ),
+            addedTenantRight = Some(newLevel),
             addedProjectRights =
               flattenProjects(newR).diff(flattenProjects(oldR)),
             removedProjectRights =
@@ -789,7 +796,13 @@ object Rights {
             addedWebhookRights =
               flattenWebhooks(newR).diff(flattenWebhooks(oldR)),
             removedWebhookRights =
-              flattenWebhooks(oldR).diff(flattenWebhooks(newR)).map(_.name)
+              flattenWebhooks(oldR).diff(flattenWebhooks(newR)).map(_.name),
+            addedDefaultProjectRight = newDefaultProjectRight,
+            removedDefaultProjectRight = newDefaultProjectRight.isEmpty,
+            addedDefaultKeyRight = newDefaultKeyRight,
+            removedDefaultKeyRight = newDefaultKeyRight.isEmpty,
+            addedDefaultWebhookRight = newDefaultWebhookRight,
+            removedDefaultWebhookRight = newDefaultWebhookRight.isEmpty
           )
         )
       }
@@ -813,8 +826,7 @@ object Rights {
     }
   }
 
-  def compare(base: Rights, modified: Rights): RightDiff = {
-
+  def compare(base: Rights, modified: Rights, baseAdmin: Boolean, admin: Option[Boolean]): RightDiff = {
     val allTenants = base.tenants.keySet.concat(modified.tenants.keySet)
 
     val rightDiffByTenant = allTenants
@@ -827,7 +839,12 @@ object Rights {
           .map(r => (tenant, r))
       })
       .toMap
-    RightDiff(rightDiffByTenant)
+    
+    val adminChange = (baseAdmin, admin) match {
+      case (base, Some(a)) if base != a  => Some(a)
+      case _ => None
+    }
+    RightDiff(admin = adminChange,diff = rightDiffByTenant)
   }
 }
 

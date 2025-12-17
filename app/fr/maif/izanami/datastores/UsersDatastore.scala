@@ -1,12 +1,20 @@
 package fr.maif.izanami.datastores
 
 import org.apache.pekko.actor.Cancellable
-import fr.maif.izanami.datastores.userImplicits.{dbUserTypeToUserType, projectRightRead, rightRead, UserRow}
+import fr.maif.izanami.datastores.userImplicits.{
+  UserRow,
+  dbUserTypeToUserType,
+  projectRightRead,
+  rightRead
+}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
+import fr.maif.izanami.env.PostgresqlErrors.{
+  RELATION_DOES_NOT_EXISTS,
+  UNIQUE_VIOLATION
+}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors._
-import fr.maif.izanami.models.RightLevel.{superiorOrEqualLevels, Read}
+import fr.maif.izanami.errors.*
+import fr.maif.izanami.models.RightLevel.{Read, superiorOrEqualLevels}
 import fr.maif.izanami.models.Rights.{
   RightDiff,
   TenantRightDiff,
@@ -17,10 +25,10 @@ import fr.maif.izanami.models.Rights.{
   UpsertTenantRights
 }
 import fr.maif.izanami.models.User.tenantRightReads
-import fr.maif.izanami.models._
+import fr.maif.izanami.models.*
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.utils.{Datastore, FutureEither}
-import fr.maif.izanami.web.ImportController._
+import fr.maif.izanami.utils.{Datastore, Done, FutureEither}
+import fr.maif.izanami.web.ImportController.*
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
 import play.api.libs.json.{JsError, JsSuccess, Reads}
@@ -31,22 +39,31 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationLong
 
 class UsersDatastore(val env: Env) extends Datastore {
-  var sessionExpirationCancellation: Cancellable    = Cancellable.alreadyCancelled
-  var invitationExpirationCancellation: Cancellable = Cancellable.alreadyCancelled
-  var passwordResetRequestCancellation: Cancellable = Cancellable.alreadyCancelled
+  var sessionExpirationCancellation: Cancellable = Cancellable.alreadyCancelled
+  var invitationExpirationCancellation: Cancellable =
+    Cancellable.alreadyCancelled
+  var passwordResetRequestCancellation: Cancellable =
+    Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {
     sessionExpirationCancellation = env.actorSystem.scheduler
-      .scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
-        deleteExpiredSessions(env.typedConfiguration.sessions.ttl)
-      )
+      .scheduleAtFixedRate(
+        env.houseKeepingStartDelayInSeconds.seconds,
+        env.houseKeepingIntervalInSeconds.seconds
+      )(() => deleteExpiredSessions(env.typedConfiguration.sessions.ttl))
     invitationExpirationCancellation = env.actorSystem.scheduler
-      .scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
-        deleteExpiredInvitations(env.typedConfiguration.invitations.ttl)
-      )
+      .scheduleAtFixedRate(
+        env.houseKeepingStartDelayInSeconds.seconds,
+        env.houseKeepingIntervalInSeconds.seconds
+      )(() => deleteExpiredInvitations(env.typedConfiguration.invitations.ttl))
     passwordResetRequestCancellation = env.actorSystem.scheduler
-      .scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>
-        deleteExpiredPasswordResetRequests(env.typedConfiguration.passwordResetRequests.ttl)
+      .scheduleAtFixedRate(
+        env.houseKeepingStartDelayInSeconds.seconds,
+        env.houseKeepingIntervalInSeconds.seconds
+      )(() =>
+        deleteExpiredPasswordResetRequests(
+          env.typedConfiguration.passwordResetRequests.ttl
+        )
       )
     Future.successful(())
   }
@@ -60,15 +77,25 @@ class UsersDatastore(val env: Env) extends Datastore {
 
   def createSession(username: String): Future[String] = {
     env.postgresql
-      .queryOne(s"INSERT INTO izanami.sessions(username) VALUES ($$1) RETURNING id", List(username)) { row =>
+      .queryOne(
+        s"INSERT INTO izanami.sessions(username) VALUES ($$1) RETURNING id",
+        List(username)
+      ) { row =>
         row.optUUID("id")
       }
-      .map(maybeUUID => maybeUUID.getOrElse(throw new RuntimeException("Failed to create session")).toString)
+      .map(maybeUUID =>
+        maybeUUID
+          .getOrElse(throw new RuntimeException("Failed to create session"))
+          .toString
+      )
   }
 
   def deleteSession(sessionId: String): Future[Option[String]] = {
     env.postgresql
-      .queryOne(s"DELETE FROM izanami.sessions WHERE id=$$1 RETURNING id", List(sessionId)) { row =>
+      .queryOne(
+        s"DELETE FROM izanami.sessions WHERE id=$$1 RETURNING id",
+        List(sessionId)
+      ) { row =>
         row.optUUID("id")
       }
       .map(maybeUUID => maybeUUID.map(_.toString))
@@ -85,7 +112,9 @@ class UsersDatastore(val env: Env) extends Datastore {
       .map(_.size)
   }
 
-  def deleteExpiredInvitations(invitationsTtlInSeconds: Integer): Future[Integer] = {
+  def deleteExpiredInvitations(
+      invitationsTtlInSeconds: Integer
+  ): Future[Integer] = {
     env.postgresql
       .queryAll(
         s"DELETE FROM izanami.invitations WHERE EXTRACT(EPOCH FROM (NOW() - creation)) > $$1 returning id",
@@ -96,7 +125,9 @@ class UsersDatastore(val env: Env) extends Datastore {
       .map(_.size)
   }
 
-  def deleteExpiredPasswordResetRequests(ttlInSeconds: Integer): Future[Integer] = {
+  def deleteExpiredPasswordResetRequests(
+      ttlInSeconds: Integer
+  ): Future[Integer] = {
     env.postgresql
       .queryAll(
         s"DELETE FROM izanami.password_reset WHERE EXTRACT(EPOCH FROM (NOW() - creation)) > $$1 returning id",
@@ -128,7 +159,12 @@ class UsersDatastore(val env: Env) extends Datastore {
     env.postgresql
       .queryOne(
         s"""UPDATE izanami.users SET username=$$1, email=$$2, default_tenant=$$4 WHERE username=$$3 RETURNING username""",
-        List(updateRequest.name, updateRequest.email, name, updateRequest.defaultTenant.orNull)
+        List(
+          updateRequest.name,
+          updateRequest.email,
+          name,
+          updateRequest.defaultTenant.orNull
+        )
       ) { _ => Some(()) }
       .map(_.toRight(InternalServerError()))
       .recover {
@@ -169,7 +205,13 @@ class UsersDatastore(val env: Env) extends Datastore {
       conn: Option[SqlConnection] = None,
       importConflictStrategy: ImportConflictStrategy = Replace
   ): Future[Either[IzanamiError, Unit]] = {
-    updateUsersRightsForTenant(Set(username), tenant, diff, conn, importConflictStrategy)
+    updateUsersRightsForTenant(
+      Set(username),
+      tenant,
+      diff,
+      conn,
+      importConflictStrategy
+    )
   }
 
   private def deleteAllRightsForTenant(
@@ -179,63 +221,71 @@ class UsersDatastore(val env: Env) extends Datastore {
   ): FutureEither[Unit] = {
     require(Tenant.isTenantValid(tenant))
     for (
-      _   <- FutureEither(
-               env.postgresql
-                 .queryOne(
-                   s"""
+      _ <- FutureEither(
+        env.postgresql
+          .queryOne(
+            s"""
            |DELETE FROM izanami.users_tenants_rights
            |WHERE username=any($$1::TEXT[])
            |AND tenant=$$2
            |RETURNING username
            |""".stripMargin,
-                   List(usernames.toArray, tenant),
-                   conn = Some(conn)
-                 ) { _ => Some(()) }
-                 .map(_ => Right(()))
-                 .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
-             );
-      _   <- FutureEither(
-               env.postgresql
-                 .queryOne(
-                   s"""
+            List(usernames.toArray, tenant),
+            conn = Some(conn)
+          ) { _ => Some(()) }
+          .map(_ => Right(()))
+          .recover(
+            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          )
+      );
+      _ <- FutureEither(
+        env.postgresql
+          .queryOne(
+            s"""
              |DELETE FROM "${tenant}".users_projects_rights
              |WHERE username=any($$1::TEXT[])
              |RETURNING username
              |""".stripMargin,
-                   List(usernames.toArray),
-                   conn = Some(conn)
-                 ) { _ => Some(()) }
-                 .map(_ => Right(()))
-                 .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
-             );
-      _   <- FutureEither(
-               env.postgresql
-                 .queryOne(
-                   s"""
+            List(usernames.toArray),
+            conn = Some(conn)
+          ) { _ => Some(()) }
+          .map(_ => Right(()))
+          .recover(
+            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          )
+      );
+      _ <- FutureEither(
+        env.postgresql
+          .queryOne(
+            s"""
              |DELETE FROM "${tenant}".users_keys_rights
              |WHERE username=any($$1::TEXT[])
              |RETURNING username
              |""".stripMargin,
-                   List(usernames.toArray),
-                   conn = Some(conn)
-                 ) { _ => Some(()) }
-                 .map(_ => Right(()))
-                 .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
-             );
+            List(usernames.toArray),
+            conn = Some(conn)
+          ) { _ => Some(()) }
+          .map(_ => Right(()))
+          .recover(
+            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          )
+      );
       res <- FutureEither(
-               env.postgresql
-                 .queryOne(
-                   s"""
+        env.postgresql
+          .queryOne(
+            s"""
              |DELETE FROM "${tenant}".users_webhooks_rights
              |WHERE username=any($$1::TEXT[])
              |RETURNING username
              |""".stripMargin,
-                   List(usernames.toArray),
-                   conn = Some(conn)
-                 ) { _ => Some(()) }
-                 .map(_ => Right(()))
-                 .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
-             )
+            List(usernames.toArray),
+            conn = Some(conn)
+          ) { _ => Some(()) }
+          .map(_ => Right(()))
+          .recover(
+            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          )
+      )
     ) yield res
   }
 
@@ -261,7 +311,9 @@ class UsersDatastore(val env: Env) extends Datastore {
             conn = conn
           ) { _ => Some(()) }
           .map(_ => Right(()))
-          .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+          .recover(
+            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          )
       )
     }
   }
@@ -288,7 +340,9 @@ class UsersDatastore(val env: Env) extends Datastore {
             conn = conn
           ) { _ => Some(()) }
           .map(_ => Right(()))
-          .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+          .recover(
+            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          )
       )
     }
   }
@@ -315,7 +369,66 @@ class UsersDatastore(val env: Env) extends Datastore {
             conn = conn
           ) { _ => Some(()) }
           .map(_ => Right(()))
-          .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+          .recover(
+            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          )
+      )
+    }
+  }
+
+  private def updateTenantDefaultRights(
+      tenant: String,
+      usernames: Set[String],
+      addedDefaultProjectRight: Option[ProjectRightLevel],
+      addedDefaultKeyRight: Option[RightLevel],
+      addedDefaultWebhookRight: Option[RightLevel],
+      removeProjectRight: Boolean,
+      removeKeyRight: Boolean,
+      removeWebhookRight: Boolean,
+      conn: Option[SqlConnection]
+  ): FutureEither[Done] = {
+    var index = 2
+    val args = ArrayBuffer[AnyRef](usernames.toArray, tenant)
+    val parts = ArrayBuffer[String]()
+    addedDefaultProjectRight.map(_.toString.toUpperCase).orElse(if(removeProjectRight) Some(null) else Option.empty)
+      .foreach(v => {
+        index = index + 1
+        args.addOne(v)
+        parts.addOne(s"default_project_right=$$${index}")
+      })
+
+    addedDefaultKeyRight.map(_.toString.toUpperCase).orElse(if (removeKeyRight) Some(null) else Option.empty)
+      .foreach(v => {
+        index = index + 1
+        args.addOne(v)
+        parts.addOne(s"default_key_right=$$${index}")
+      })
+
+    addedDefaultWebhookRight.map(_.toString.toUpperCase).orElse(if (removeWebhookRight) Some(null) else Option.empty)
+      .foreach(v => {
+        index = index + 1
+        args.addOne(v)
+        parts.addOne(s"default_key_right=$$${index}")
+      })
+
+    if(parts.isEmpty) {
+      FutureEither.success(Done.done())
+    } else {
+      FutureEither(
+        env.postgresql
+          .queryOne(
+            s"""
+               |UPDATE izanami.users_tenants_rights SET ${parts.mkString(",")}
+               |WHERE username=ANY($$1::TEXT[]) AND tenant=$$2
+               |RETURNING username
+               |""".stripMargin,
+            args.toList,
+            conn = conn
+          ) { _ => Some(()) }
+          .map(_ => Right(Done.done()))
+          .recover(
+            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          )
       )
     }
   }
@@ -334,17 +447,17 @@ class UsersDatastore(val env: Env) extends Datastore {
              |INSERT INTO izanami.users_tenants_rights(username, tenant, level, default_project_right, default_webhook_right, default_key_right)
              |VALUES(unnest($$1::TEXT[]), $$2, $$3, $$4, $$5, $$6)
              |${importConflictStrategy match {
-            case Skip           => " ON CONFLICT(username, tenant) DO NOTHING"
-            case Fail           => ""
-            case Replace        =>
-              """ ON CONFLICT (username, tenant) DO UPDATE
+              case Skip    => " ON CONFLICT(username, tenant) DO NOTHING"
+              case Fail    => ""
+              case Replace =>
+                """ ON CONFLICT (username, tenant) DO UPDATE
              | SET level=EXCLUDED.level,
              | default_project_right=EXCLUDED.default_project_right,
              | default_webhook_right=EXCLUDED.default_webhook_right,
              | default_key_right=EXCLUDED.default_key_right
              |""".stripMargin
-            case MergeOverwrite =>
-              """
+              case MergeOverwrite =>
+                """
              | ON CONFLICT(username, tenant) DO UPDATE SET level = CASE
              |   WHEN users_tenants_rights.level = 'READ' THEN excluded.level
              |   WHEN (users_tenants_rights.level = 'WRITE' AND excluded.level = 'ADMIN') THEN 'ADMIN'
@@ -371,7 +484,7 @@ class UsersDatastore(val env: Env) extends Datastore {
              |   ELSE users_tenants_rights.default_webhook_right
              | END
              |""".stripMargin
-          }}
+            }}
              |RETURNING username
              |""".stripMargin,
           List(
@@ -385,7 +498,9 @@ class UsersDatastore(val env: Env) extends Datastore {
           conn = conn
         ) { _ => Some(()) }
         .map(_ => Right(()))
-        .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+        .recover(
+          env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+        )
     )
   }
 
@@ -400,7 +515,9 @@ class UsersDatastore(val env: Env) extends Datastore {
       FutureEither.success(())
     } else {
       val args =
-        rights.toSeq.flatMap(right => usernames.map(username => (username, right)))
+        rights.toSeq.flatMap(right =>
+          usernames.map(username => (username, right))
+        )
       FutureEither(
         env.postgresql
           .queryOne(
@@ -408,9 +525,9 @@ class UsersDatastore(val env: Env) extends Datastore {
                |INSERT INTO "${tenant}".users_projects_rights(username, project, level)
                |VALUES(unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::izanami.project_right_level[]))
                |${importConflictStrategy match {
-              case Fail           => ""
-              case MergeOverwrite =>
-                s"""
+                case Fail           => ""
+                case MergeOverwrite =>
+                  s"""
                    | ON CONFLICT (username, project) DO UPDATE SET level=
                    | CASE
                    |  WHEN users_projects_rights.level = 'READ' THEN excluded.level
@@ -420,9 +537,10 @@ class UsersDatastore(val env: Env) extends Datastore {
                    |  ELSE users_projects_rights.level
                    | END
                    |""".stripMargin
-              case Skip           => " ON CONFLICT(username, project) DO NOTHING"
-              case Replace        => " ON CONFLICT (username, project) DO UPDATE SET level=EXCLUDED.level"
-            }}
+                case Skip    => " ON CONFLICT(username, project) DO NOTHING"
+                case Replace =>
+                  " ON CONFLICT (username, project) DO UPDATE SET level=EXCLUDED.level"
+              }}
                |RETURNING username
                |""".stripMargin,
             List(
@@ -433,7 +551,9 @@ class UsersDatastore(val env: Env) extends Datastore {
             conn = conn
           ) { _ => Some(()) }
           .map(_ => Right(()))
-          .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+          .recover(
+            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          )
       )
     }
   }
@@ -449,7 +569,9 @@ class UsersDatastore(val env: Env) extends Datastore {
       FutureEither.success(())
     } else {
       val localArgument =
-        rights.toSeq.flatMap(right => usernames.map(username => (username, right)))
+        rights.toSeq.flatMap(right =>
+          usernames.map(username => (username, right))
+        )
       FutureEither(
         env.postgresql
           .queryOne(
@@ -457,9 +579,9 @@ class UsersDatastore(val env: Env) extends Datastore {
                |INSERT INTO "${tenant}".users_keys_rights(username,apikey, level)
                |VALUES(unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
                |${importConflictStrategy match {
-              case Fail           => ""
-              case MergeOverwrite =>
-                s"""
+                case Fail           => ""
+                case MergeOverwrite =>
+                  s"""
                    | ON CONFLICT (username, apikey) DO UPDATE SET level=
                    | CASE
                    |  WHEN users_keys_rights.level = 'READ' THEN excluded.level
@@ -468,9 +590,10 @@ class UsersDatastore(val env: Env) extends Datastore {
                    |  ELSE users_keys_rights.level
                    | END
                    |""".stripMargin
-              case Skip           => " ON CONFLICT(username, apikey) DO NOTHING"
-              case Replace        => " ON CONFLICT (username, apikey) DO UPDATE SET level=EXCLUDED.level"
-            }}
+                case Skip    => " ON CONFLICT(username, apikey) DO NOTHING"
+                case Replace =>
+                  " ON CONFLICT (username, apikey) DO UPDATE SET level=EXCLUDED.level"
+              }}
                |RETURNING username
                |""".stripMargin,
             List(
@@ -481,7 +604,9 @@ class UsersDatastore(val env: Env) extends Datastore {
             conn = conn
           ) { _ => Some(()) }
           .map(_ => Right(()))
-          .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+          .recover(
+            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          )
       )
     }
   }
@@ -497,7 +622,9 @@ class UsersDatastore(val env: Env) extends Datastore {
       FutureEither.success(())
     } else {
       val localArgument =
-        rights.toSeq.flatMap(right => usernames.map(username => (username, right)))
+        rights.toSeq.flatMap(right =>
+          usernames.map(username => (username, right))
+        )
       FutureEither(
         env.postgresql
           .queryOne(
@@ -505,9 +632,9 @@ class UsersDatastore(val env: Env) extends Datastore {
                |INSERT INTO "${tenant}".users_webhooks_rights(username, webhook, level)
                |VALUES(unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
                |${importConflictStrategy match {
-              case Fail           => ""
-              case MergeOverwrite =>
-                s"""
+                case Fail           => ""
+                case MergeOverwrite =>
+                  s"""
                    | ON CONFLICT (username, webhook) DO UPDATE SET level=
                    | CASE
                    |  WHEN users_webhooks_rights.level = 'READ' THEN excluded.level
@@ -516,9 +643,10 @@ class UsersDatastore(val env: Env) extends Datastore {
                    |  ELSE users_webhooks_rights.level
                    | END
                    |""".stripMargin
-              case Skip           => " ON CONFLICT(username, webhook) DO NOTHING"
-              case Replace        => " ON CONFLICT (username, webhook) DO UPDATE SET level=EXCLUDED.level"
-            }}
+                case Skip    => " ON CONFLICT(username, webhook) DO NOTHING"
+                case Replace =>
+                  " ON CONFLICT (username, webhook) DO UPDATE SET level=EXCLUDED.level"
+              }}
                |RETURNING username
                |""".stripMargin,
             List(
@@ -529,7 +657,9 @@ class UsersDatastore(val env: Env) extends Datastore {
             conn = conn
           ) { _ => Some(()) }
           .map(_ => Right(()))
-          .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+          .recover(
+            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          )
       )
     }
   }
@@ -543,52 +673,73 @@ class UsersDatastore(val env: Env) extends Datastore {
   ): FutureEither[Unit] = {
     require(Tenant.isTenantValid(tenant))
     for (
-      f   <- deleteProjectRights(
-               tenant = tenant,
-               usernames = usernames,
-               projects = rights.removedProjectRights,
-               conn = Some(conn)
-             );
-      _   <- deleteKeyRights(tenant = tenant, usernames = usernames, keys = rights.removedKeyRights, conn = Some(conn));
-      _   <- deleteWebhookRights(
-               tenant = tenant,
-               usernames = usernames,
-               webhooks = rights.removedWebhookRights,
-               conn = Some(conn)
-             );
-      _   <- {
-        val (default, r) = rights.addedTenantRight
-          .map(r => (false, r))
-          .getOrElse((true, UnscopedFlattenTenantRight(level = Read)))
-        createTenantRight(
-          tenant = tenant,
-          usernames = usernames,
-          right = r,
-          importConflictStrategy = if (default) Skip else importConflictStrategy,
-          conn = Some(conn)
-        )
+      f <- deleteProjectRights(
+        tenant = tenant,
+        usernames = usernames,
+        projects = rights.removedProjectRights,
+        conn = Some(conn)
+      );
+      _ <- deleteKeyRights(
+        tenant = tenant,
+        usernames = usernames,
+        keys = rights.removedKeyRights,
+        conn = Some(conn)
+      );
+      _ <- deleteWebhookRights(
+        tenant = tenant,
+        usernames = usernames,
+        webhooks = rights.removedWebhookRights,
+        conn = Some(conn)
+      );
+      _ <- {
+        rights.addedTenantRight.fold(
+          updateTenantDefaultRights(
+            tenant = tenant,
+            usernames = usernames,
+            addedDefaultProjectRight = rights.addedDefaultProjectRight,
+            addedDefaultKeyRight = rights.addedDefaultKeyRight,
+            addedDefaultWebhookRight = rights.addedDefaultWebhookRight,
+            removeProjectRight = rights.removedDefaultProjectRight,
+            removeKeyRight = rights.removedDefaultKeyRight,
+            removeWebhookRight = rights.removedDefaultWebhookRight,
+            conn = Some(conn)
+          )
+        )(level => {
+          createTenantRight(
+            tenant = tenant,
+            usernames = usernames,
+            right = UnscopedFlattenTenantRight(
+              level = level,
+              defaultProjectRight = rights.addedDefaultProjectRight,
+              defaultKeyRight = rights.addedDefaultKeyRight,
+              defaultWebhookRight = rights.addedDefaultWebhookRight
+            ),
+            importConflictStrategy = importConflictStrategy,
+            conn = Some(conn)
+          )
+        })
       };
-      _   <- createProjectRights(
-               tenant = tenant,
-               usernames = usernames,
-               rights = rights.addedProjectRights,
-               importConflictStrategy = importConflictStrategy,
-               conn = Some(conn)
-             );
-      _   <- createKeyRights(
-               tenant = tenant,
-               usernames = usernames,
-               rights = rights.addedKeyRights,
-               importConflictStrategy = importConflictStrategy,
-               conn = Some(conn)
-             );
+      _ <- createProjectRights(
+        tenant = tenant,
+        usernames = usernames,
+        rights = rights.addedProjectRights,
+        importConflictStrategy = importConflictStrategy,
+        conn = Some(conn)
+      );
+      _ <- createKeyRights(
+        tenant = tenant,
+        usernames = usernames,
+        rights = rights.addedKeyRights,
+        importConflictStrategy = importConflictStrategy,
+        conn = Some(conn)
+      );
       res <- createWebhookRights(
-               tenant = tenant,
-               usernames = usernames,
-               rights = rights.addedWebhookRights,
-               importConflictStrategy = importConflictStrategy,
-               conn = Some(conn)
-             )
+        tenant = tenant,
+        usernames = usernames,
+        rights = rights.addedWebhookRights,
+        importConflictStrategy = importConflictStrategy,
+        conn = Some(conn)
+      )
     ) yield res
   }
 
@@ -603,11 +754,17 @@ class UsersDatastore(val env: Env) extends Datastore {
       conn,
       conn =>
         diff match {
-          case Rights.DeleteTenantRights    => {
+          case Rights.DeleteTenantRights => {
             deleteAllRightsForTenant(usernames, tenant, conn).value
           }
           case r: Rights.UpsertTenantRights => {
-            applyRightUpdateForTenant(usernames, tenant, r, importConflictStrategy, conn).value
+            applyRightUpdateForTenant(
+              usernames,
+              tenant,
+              r,
+              importConflictStrategy,
+              conn
+            ).value
           }
         }
     )
@@ -616,24 +773,33 @@ class UsersDatastore(val env: Env) extends Datastore {
   def updateUserRights(
       name: String,
       rightDiff: RightDiff,
-      conn: Option[SqlConnection] = None
+      conn: Option[SqlConnection] = Option.empty
   ): Future[Either[IzanamiError, Unit]] = {
-    rightDiff.diff.foldLeft(Future.successful(Right(())): Future[Either[IzanamiError, Unit]])((future, t) => {
-      future.flatMap {
-        case Left(err) => Left(err).future
-        case Right(_)  => updateUserRightsForTenant(name, t._1, t._2, conn = conn)
+    env.postgresql.executeInOptionalTransaction(
+      conn,
+      conn => {
+        rightDiff.admin
+          .fold(Future.successful(Right(())))(admin => {
+            env.datastores.users.updateUsersAdminStatus(
+              Set(name),
+              admin,
+              conn = Some(conn)
+            )
+          })
+          .flatMap(_ =>
+            rightDiff.diff.foldLeft(
+              Future.successful(Right(())): Future[Either[IzanamiError, Unit]]
+            )((future, t) => {
+              future.flatMap {
+                case Left(err) => Left(err).future
+                case Right(_)  =>
+                  updateUserRightsForTenant(name, t._1, t._2, conn = Some(conn))
+              }
+            })
+          )
       }
-    })
-  }
+    )
 
-  def updateUsersRights(
-      usernames: Set[String],
-      rightDiff: RightDiff,
-      conn: Option[SqlConnection] = None
-  ): Future[Unit] = {
-    rightDiff.diff.foldLeft(Future.successful(()))((future, t) => {
-      future.map(_ => updateUsersRightsForTenant(usernames, t._1, t._2, conn = conn))
-    })
   }
 
   def createUserWithConn(
@@ -644,44 +810,75 @@ class UsersDatastore(val env: Env) extends Datastore {
     if (users.isEmpty) {
       Future.successful(Right(()))
     } else {
-      val eventualErrorOrUnit: Future[Either[IzanamiError, Unit]] = env.postgresql
-        .queryRaw(
-          s"""insert into izanami.users (username, password, admin, email, user_type, legacy)
+      val eventualErrorOrUnit: Future[Either[IzanamiError, Unit]] =
+        env.postgresql
+          .queryRaw(
+            s"""insert into izanami.users (username, password, admin, email, user_type, legacy)
              |values (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::BOOLEAN[]), unnest($$4::TEXT[]), unnest($$5::izanami.user_type[]), unnest($$6::BOOLEAN[])) ${importConflictStrategy match {
-            case Fail           => ""
-            case MergeOverwrite => s" ON CONFLICT(username) DO UPDATE SET admin=COALESCE(users.admin, excluded.admin)"
-            case Replace        => s" ON CONFLICT(username) DO UPDATE SET admin=excluded.admin"
-            case Skip           => " ON CONFLICT(username) DO NOTHING"
-          }} returning *""".stripMargin,
-          List(
-            users.map(_.username).toArray,
-            users.map(user => Option(user.password).map(pwd => HashUtils.bcryptHash(pwd)).orNull).toArray,
-            users.map(user => java.lang.Boolean.valueOf(user.admin)).toArray,
-            users.map(user => Option(user.email).orNull).toArray,
-            users.map(user => user.userType.toString).toArray,
-            users.map(user => java.lang.Boolean.valueOf(user.legacy)).toArray
-          ),
-          conn = Some(conn)
-        ) { _ => Right(()) }
-        .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
-        .flatMap {
-          case Left(err) => Future.successful(Left(err))
-          case Right(_)  => {
-            users
-              .foldLeft(Future.successful(Right(())): Future[Either[IzanamiError, Unit]])((future, ur) => {
-                val rightToCreate = Rights.compare(Rights.EMPTY, ur.rights)
-                future.flatMap(_ => updateUserRights(ur.username, rightToCreate, conn = Some(conn)))
-              })
+                case Fail           => ""
+                case MergeOverwrite =>
+                  s" ON CONFLICT(username) DO UPDATE SET admin=COALESCE(users.admin, excluded.admin)"
+                case Replace =>
+                  s" ON CONFLICT(username) DO UPDATE SET admin=excluded.admin"
+                case Skip => " ON CONFLICT(username) DO NOTHING"
+              }} returning *""".stripMargin,
+            List(
+              users.map(_.username).toArray,
+              users
+                .map(user =>
+                  Option(user.password)
+                    .map(pwd => HashUtils.bcryptHash(pwd))
+                    .orNull
+                )
+                .toArray,
+              users.map(user => java.lang.Boolean.valueOf(user.admin)).toArray,
+              users.map(user => Option(user.email).orNull).toArray,
+              users.map(user => user.userType.toString).toArray,
+              users.map(user => java.lang.Boolean.valueOf(user.legacy)).toArray
+            ),
+            conn = Some(conn)
+          ) { _ => Right(()) }
+          .recover(
+            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          )
+          .flatMap {
+            case Left(err) => Future.successful(Left(err))
+            case Right(_)  => {
+              users
+                .foldLeft(
+                  Future
+                    .successful(Right(())): Future[Either[IzanamiError, Unit]]
+                )((future, ur) => {
+                  val rightToCreate = Rights.compare(
+                    Rights.EMPTY,
+                    ur.rights,
+                    baseAdmin = ur.admin,
+                    admin = Option.empty
+                  )
+                  future.flatMap(_ =>
+                    updateUserRights(
+                      ur.username,
+                      rightToCreate,
+                      conn = Some(conn)
+                    )
+                  )
+                })
+            }
           }
-        }
       eventualErrorOrUnit
     }
   }
 
-  def createUser(user: UserWithRights, conn: Option[SqlConnection] = None): Future[Either[IzanamiError, Unit]] = {
-    env.postgresql.executeInOptionalTransaction(conn, conn => {
-      createUserWithConn(Seq(user), conn)
-    })
+  def createUser(
+      user: UserWithRights,
+      conn: Option[SqlConnection] = None
+  ): Future[Either[IzanamiError, Unit]] = {
+    env.postgresql.executeInOptionalTransaction(
+      conn,
+      conn => {
+        createUserWithConn(Seq(user), conn)
+      }
+    )
   }
 
   def deleteUser(username: String): Future[Unit] = {
@@ -724,7 +921,12 @@ class UsersDatastore(val env: Env) extends Datastore {
            |  OR utr.default_webhook_right=ANY($$4)
            |)
            |""".stripMargin,
-        List(session, tenant, webhook, superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray)
+        List(
+          session,
+          tenant,
+          webhook,
+          superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray
+        )
       ) { r =>
         {
           for (
@@ -735,8 +937,9 @@ class UsersDatastore(val env: Env) extends Datastore {
       }
       .map(Right(_))
       .recover {
-        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
-        case _                                                           => Left(InternalServerError())
+        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
+          Left(TenantDoesNotExists(tenant))
+        case _ => Left(InternalServerError())
       }
   }
 
@@ -763,12 +966,18 @@ class UsersDatastore(val env: Env) extends Datastore {
            |  OR utr.default_key_right=ANY($$4)
            |)
            |""".stripMargin,
-        List(session, tenant, key, superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray)
+        List(
+          session,
+          tenant,
+          key,
+          superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray
+        )
       ) { r => r.optString("username") }
       .map(Right(_))
       .recover {
-        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
-        case _                                                           => Left(InternalServerError())
+        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
+          Left(TenantDoesNotExists(tenant))
+        case _ => Left(InternalServerError())
       }
   }
 
@@ -801,25 +1010,33 @@ class UsersDatastore(val env: Env) extends Datastore {
           session,
           tenant,
           projectIdOrName.fold(identity, identity),
-          ProjectRightLevel.superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray
+          ProjectRightLevel
+            .superiorOrEqualLevels(level)
+            .map(l => l.toString.toUpperCase)
+            .toArray
         )
       ) { r =>
         {
           for (
-            username  <- r.optString("username");
+            username <- r.optString("username");
             projectId <- r.optUUID("id")
           ) yield (username, projectId)
         }
       }
       .map(maybeUser => Right(maybeUser))
       .recover {
-        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
-        case _                                                           => Left(InternalServerError())
+        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
+          Left(TenantDoesNotExists(tenant))
+        case _ => Left(InternalServerError())
       }
   }
 
   // TODO merge with hasRight
-  def hasRightForTenant(session: String, tenant: String, level: RightLevel): Future[Option[String]] = {
+  def hasRightForTenant(
+      session: String,
+      tenant: String,
+      level: RightLevel
+  ): Future[Option[String]] = {
     env.postgresql
       .queryOne(
         s"""
@@ -833,7 +1050,11 @@ class UsersDatastore(val env: Env) extends Datastore {
            |  OR utr.level=ANY($$3)
            |)
            |""".stripMargin,
-        List(session, tenant, superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray)
+        List(
+          session,
+          tenant,
+          superiorOrEqualLevels(level).map(l => l.toString.toUpperCase).toArray
+        )
       ) { r => r.optString("username") }
   }
 
@@ -849,9 +1070,9 @@ class UsersDatastore(val env: Env) extends Datastore {
       case r: ProjectRightUnit => Right(r.name)
     }
 
-    var index      = 2
+    var index = 2
     val subQueries = ArrayBuffer[String]()
-    val params     = ArrayBuffer[Object](username)
+    val params = ArrayBuffer[Object](username)
 
     if (projects.nonEmpty) {
       subQueries.addOne(s"""
@@ -897,12 +1118,13 @@ class UsersDatastore(val env: Env) extends Datastore {
         params.toList
       ) { r =>
         {
-          val admin               = r.getBoolean("admin")
-          val actualTenantRight   = r.optRightLevel("level")
-          val defaultProjectRight = r.optProjectRightLevel("default_project_right")
-          val defaultKeyRight     = r.optRightLevel("default_key_right")
-          val jsonRights          = r.optJsObject("rights")
-          val userProjectRights   = jsonRights
+          val admin = r.getBoolean("admin")
+          val actualTenantRight = r.optRightLevel("level")
+          val defaultProjectRight =
+            r.optProjectRightLevel("default_project_right")
+          val defaultKeyRight = r.optRightLevel("default_key_right")
+          val jsonRights = r.optJsObject("rights")
+          val userProjectRights = jsonRights
             .flatMap(obj => {
               (obj \ "projects")
                 .asOpt[Set[ProjectRightValue]](Reads.set(projectRightRead))
@@ -923,9 +1145,15 @@ class UsersDatastore(val env: Env) extends Datastore {
             .forall(requestedRight => {
               userProjectRights.exists(actualRight => {
                 actualRight.name == requestedRight.name &&
-                ProjectRightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(actualRight.level)
+                ProjectRightLevel
+                  .superiorOrEqualLevels(requestedRight.rightLevel)
+                  .contains(actualRight.level)
               }) || defaultProjectRight
-                .exists(dpr => ProjectRightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(dpr))
+                .exists(dpr =>
+                  ProjectRightLevel
+                    .superiorOrEqualLevels(requestedRight.rightLevel)
+                    .contains(dpr)
+                )
             })
 
           val hasRightForKeys = rights
@@ -935,21 +1163,27 @@ class UsersDatastore(val env: Env) extends Datastore {
             .forall(requestedRight => {
               userKeyRights.exists(actualRight => {
                 actualRight.name == requestedRight.name &&
-                RightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(actualRight.level)
+                RightLevel
+                  .superiorOrEqualLevels(requestedRight.rightLevel)
+                  .contains(actualRight.level)
               }) || defaultKeyRight
-                .exists(dpr => RightLevel.superiorOrEqualLevels(requestedRight.rightLevel).contains(dpr))
+                .exists(dpr =>
+                  RightLevel
+                    .superiorOrEqualLevels(requestedRight.rightLevel)
+                    .contains(dpr)
+                )
             })
 
           Some(
             admin ||
-            actualTenantRight.contains(RightLevel.Admin) ||
-            tenantLevel
-              .map(tLevel => {
-                actualTenantRight.exists(extractedLevel =>
-                  superiorOrEqualLevels(tLevel).contains(extractedLevel)
-                ) && hasRightForProjects && hasRightForKeys
-              })
-              .getOrElse(hasRightForProjects && hasRightForKeys)
+              actualTenantRight.contains(RightLevel.Admin) ||
+              tenantLevel
+                .map(tLevel => {
+                  actualTenantRight.exists(extractedLevel =>
+                    superiorOrEqualLevels(tLevel).contains(extractedLevel)
+                  ) && hasRightForProjects && hasRightForKeys
+                })
+                .getOrElse(hasRightForProjects && hasRightForKeys)
           )
         }
       }
@@ -1012,7 +1246,12 @@ class UsersDatastore(val env: Env) extends Datastore {
            |SET admin=EXCLUDED.admin, rights=EXCLUDED.rights, creation=EXCLUDED.creation, id=EXCLUDED.id, inviter=EXCLUDED.inviter
            |returning id
            |""".stripMargin,
-        List(email, java.lang.Boolean.valueOf(admin), User.rightWrite.writes(rights).toString(), inviter)
+        List(
+          email,
+          java.lang.Boolean.valueOf(admin),
+          User.rightWrite.writes(rights).toString(),
+          inviter
+        )
       ) { row =>
         Some(row.getUUID("id").toString)
       }
@@ -1040,11 +1279,17 @@ class UsersDatastore(val env: Env) extends Datastore {
     ) { row =>
       {
         for (
-          id         <- row.optUUID("id");
-          admin      <- row.optBoolean("admin");
+          id <- row.optUUID("id");
+          admin <- row.optBoolean("admin");
           jsonRights <- row.optJsObject("rights");
-          rights     <- User.rightsReads.reads(jsonRights).asOpt
-        ) yield UserInvitation(email = row.optString("email").orNull, admin = admin, rights = rights, id = id.toString)
+          rights <- User.rightsReads.reads(jsonRights).asOpt
+        )
+          yield UserInvitation(
+            email = row.optString("email").orNull,
+            admin = admin,
+            rights = rights,
+            id = id.toString
+          )
       }
     }
   }
@@ -1060,15 +1305,24 @@ class UsersDatastore(val env: Env) extends Datastore {
           .optString("password")
           .filter(hashed => {
             row.optBoolean("legacy").exists {
-              case true  => HashUtils.bcryptCheck(HashUtils.hexSha512(password), hashed)
+              case true =>
+                HashUtils.bcryptCheck(HashUtils.hexSha512(password), hashed)
               case false => HashUtils.bcryptCheck(password, hashed)
             }
           })
-          .flatMap(_ => row.optUser().map(u => u.copy(legacy = row.optBoolean("legacy").getOrElse(false))))
+          .flatMap(_ =>
+            row
+              .optUser()
+              .map(u =>
+                u.copy(legacy = row.optBoolean("legacy").getOrElse(false))
+              )
+          )
       }
   }
 
-  def findSessionWithTenantRights(session: String): Future[Option[UserWithTenantRights]] = {
+  def findSessionWithTenantRights(
+      session: String
+  ): Future[Option[UserWithTenantRights]] = {
     env.postgresql.queryOne(
       s"""
          |SELECT u.username, u.admin, u.email, u.default_tenant, u.user_type,
@@ -1085,12 +1339,16 @@ class UsersDatastore(val env: Env) extends Datastore {
       {
         for (
           username <- row.optString("username");
-          admin    <- row.optBoolean("admin");
-          rights   <- row.optJsObject("tenants");
+          admin <- row.optBoolean("admin");
+          rights <- row.optJsObject("tenants");
           userType <- row.optString("user_type").map(dbUserTypeToUserType)
         ) yield {
           val tenantRights =
-            rights.asOpt[Map[String, RightLevel]](Reads.map(RightLevel.rightLevelReads)).getOrElse(Map())
+            rights
+              .asOpt[Map[String, RightLevel]](
+                Reads.map(RightLevel.rightLevelReads)
+              )
+              .getOrElse(Map())
           UserWithTenantRights(
             username = username,
             email = row.optString("email").orNull,
@@ -1119,7 +1377,11 @@ class UsersDatastore(val env: Env) extends Datastore {
       ) { row =>
         row.optUUID("id").map(_.toString)
       }
-      .map(_.getOrElse(throw new RuntimeException("Failed to create password request")))
+      .map(
+        _.getOrElse(
+          throw new RuntimeException("Failed to create password request")
+        )
+      )
   }
 
   def findPasswordResetRequest(id: String): Future[Option[String]] = {
@@ -1171,12 +1433,16 @@ class UsersDatastore(val env: Env) extends Datastore {
       {
         for (
           username <- row.optString("username");
-          admin    <- row.optBoolean("admin");
-          rights   <- row.optJsObject("tenants");
+          admin <- row.optBoolean("admin");
+          rights <- row.optJsObject("tenants");
           userType <- row.optString("user_type").map(dbUserTypeToUserType)
         ) yield {
           val tenantRights =
-            rights.asOpt[Map[String, RightLevel]](Reads.map(RightLevel.rightLevelReads)).getOrElse(Map())
+            rights
+              .asOpt[Map[String, RightLevel]](
+                Reads.map(RightLevel.rightLevelReads)
+              )
+              .getOrElse(Map())
           UserWithTenantRights(
             username = username,
             email = row.optString("email").orNull,
@@ -1243,7 +1509,9 @@ class UsersDatastore(val env: Env) extends Datastore {
       .map(users => users.toSet)
   }
 
-  def findUsersForTenant(tenant: String): Future[List[UserWithSingleLevelRight]] = {
+  def findUsersForTenant(
+      tenant: String
+  ): Future[List[UserWithSingleLevelRight]] = {
     env.postgresql.queryAll(
       s"""
          |SELECT u.username, u.email, u.admin, u.user_type, u.default_tenant, r.level
@@ -1254,11 +1522,15 @@ class UsersDatastore(val env: Env) extends Datastore {
          |""".stripMargin,
       List(tenant)
     ) { r =>
-      r.optUser().map(u => u.withSingleLevelRight(r.optRightLevel("level").orNull))
+      r.optUser()
+        .map(u => u.withSingleLevelRight(r.optRightLevel("level").orNull))
     }
   }
 
-  def findUsersForWebhook(tenant: String, webhook: String): Future[List[SingleItemScopedUser]] = {
+  def findUsersForWebhook(
+      tenant: String,
+      webhook: String
+  ): Future[List[SingleItemScopedUser]] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql.queryAll(
       s"""
@@ -1296,7 +1568,10 @@ class UsersDatastore(val env: Env) extends Datastore {
     }
   }
 
-  def findUsersForProject(tenant: String, project: String): Future[List[ProjectScopedUser]] = {
+  def findUsersForProject(
+      tenant: String,
+      project: String
+  ): Future[List[ProjectScopedUser]] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql.queryAll(
       s"""
@@ -1313,8 +1588,9 @@ class UsersDatastore(val env: Env) extends Datastore {
     ) { r =>
       r.optUser()
         .map(u => {
-          val maybeTenantRight         = r.optRightLevel("tenant_right")
-          val maybeDefaultProjectRight = r.optProjectRightLevel("default_project_right")
+          val maybeTenantRight = r.optRightLevel("tenant_right")
+          val maybeDefaultProjectRight =
+            r.optProjectRightLevel("default_project_right")
           u.withProjectScopedRight(
             r.optProjectRightLevel("level").orNull,
             maybeDefaultProjectRight,
@@ -1324,7 +1600,10 @@ class UsersDatastore(val env: Env) extends Datastore {
     }
   }
 
-  def findUsersForKey(tenant: String, key: String): Future[List[SingleItemScopedUser]] = {
+  def findUsersForKey(
+      tenant: String,
+      key: String
+  ): Future[List[SingleItemScopedUser]] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql.queryAll(
       s"""
@@ -1362,14 +1641,16 @@ class UsersDatastore(val env: Env) extends Datastore {
     }
   }
 
-  def findSessionWithCompleteRights(session: String): Future[Option[UserWithRights]] = {
+  def findSessionWithCompleteRights(
+      session: String
+  ): Future[Option[UserWithRights]] = {
     findSessionWithTenantRights(session).flatMap {
       case Some(user) if user.tenantRights.nonEmpty => {
         val tenants = user.tenantRights.keys.toSet
         findCompleteRightsFromTenant(user.username, tenants)
       }
-      case Some(user)                               => Some(user.withRights(Rights.EMPTY)).future
-      case _                                        => Future.successful(None)
+      case Some(user) => Some(user.withRights(Rights.EMPTY)).future
+      case _          => Future.successful(None)
     }
   }
 
@@ -1382,7 +1663,10 @@ class UsersDatastore(val env: Env) extends Datastore {
       })
   }
 
-  def findCompleteRightsFromTenant(username: String, tenants: Set[String]): Future[Option[UserWithRights]] = {
+  def findCompleteRightsFromTenant(
+      username: String,
+      tenants: Set[String]
+  ): Future[Option[UserWithRights]] = {
     require(tenants.forall(Tenant.isTenantValid))
     Future
       .sequence(
@@ -1410,7 +1694,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       )
       .map(users => {
         val userParts = users.flatMap(o => o.toSeq)
-        val rightMap  = userParts
+        val rightMap = userParts
           .map { case (t, u) => (t, u.tenantRight) }
           .filter { case (_, maybeRight) => maybeRight.isDefined }
           .map { case (t, o) => (t, o.get) }
@@ -1431,18 +1715,23 @@ class UsersDatastore(val env: Env) extends Datastore {
       })
   }
 
-  def findUserWithCompleteRights(username: String): Future[Option[UserWithRights]] = {
+  def findUserWithCompleteRights(
+      username: String
+  ): Future[Option[UserWithRights]] = {
     findUser(username).flatMap {
       case Some(user) if user.tenantRights.nonEmpty => {
         val tenants = user.tenantRights.keys.toSet
         findCompleteRightsFromTenant(username, tenants)
       }
-      case Some(user)                               => Some(user.withRights(Rights.EMPTY)).future
-      case _                                        => Future.successful(None)
+      case Some(user) => Some(user.withRights(Rights.EMPTY)).future
+      case _          => Future.successful(None)
     }
   }
 
-  def addUserRightsToTenant(tenant: String, users: Seq[(String, RightLevel)]): Future[Unit] = {
+  def addUserRightsToTenant(
+      tenant: String,
+      users: Seq[(String, RightLevel)]
+  ): Future[Unit] = {
     env.postgresql
       .queryOne(
         s"""
@@ -1450,15 +1739,19 @@ class UsersDatastore(val env: Env) extends Datastore {
          |VALUES($$1, unnest($$2::TEXT[]), unnest($$3::izanami.right_level[]))
          |ON CONFLICT (username, tenant) DO NOTHING
          |""".stripMargin,
-        List(tenant, users.map(_._1).toArray, users.map(_._2.toString.toUpperCase).toArray)
+        List(
+          tenant,
+          users.map(_._1).toArray,
+          users.map(_._2.toString.toUpperCase).toArray
+        )
       ) { r => Some(()) }
       .map(_ => ())
   }
 
   def findUserWithRightForTenant(
-                                     username: String,
-                                     tenant: String
-                                   ): Future[Either[IzanamiError, UserWithCompleteRightForOneTenant]] = {
+      username: String,
+      tenant: String
+  ): Future[Either[IzanamiError, UserWithCompleteRightForOneTenant]] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryOne(
@@ -1478,28 +1771,30 @@ class UsersDatastore(val env: Env) extends Datastore {
            |WHERE u.username=$$1
            |""".stripMargin,
         List(username, tenant)
-      ) { row => {
-        for (
-          username <- row.optString("username");
-          userType <- row.optString("user_type").map(dbUserTypeToUserType);
-          admin <- row.optBoolean("admin");
-          right <- row.optJsObject("rights")
-        ) yield {
-          val parsedRights = right.asOpt[TenantRight]
-          UserWithCompleteRightForOneTenant(
-            username = username,
-            email = row.optString("email").orNull,
-            password = null,
-            admin = admin,
-            tenantRight = parsedRights,
-            userType = userType
-          )
+      ) { row =>
+        {
+          for (
+            username <- row.optString("username");
+            userType <- row.optString("user_type").map(dbUserTypeToUserType);
+            admin <- row.optBoolean("admin");
+            right <- row.optJsObject("rights")
+          ) yield {
+            val parsedRights = right.asOpt[TenantRight]
+            UserWithCompleteRightForOneTenant(
+              username = username,
+              email = row.optString("email").orNull,
+              password = null,
+              admin = admin,
+              tenantRight = parsedRights,
+              userType = userType
+            )
+          }
         }
-      }
       }
       .map(o => o.toRight(UserNotFound(username)))
       .recover {
-        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
+        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
+          Left(TenantDoesNotExists(tenant))
         case _ => Left(InternalServerError())
       }
   }
@@ -1532,8 +1827,8 @@ class UsersDatastore(val env: Env) extends Datastore {
           for (
             username <- row.optString("username");
             userType <- row.optString("user_type").map(dbUserTypeToUserType);
-            admin    <- row.optBoolean("admin");
-            right    <- row.optJsObject("rights")
+            admin <- row.optBoolean("admin");
+            right <- row.optJsObject("rights")
           ) yield {
             val parsedRights = right.asOpt[TenantRight]
             UserWithCompleteRightForOneTenant(
@@ -1549,8 +1844,9 @@ class UsersDatastore(val env: Env) extends Datastore {
       }
       .map(o => o.toRight(SessionNotFound(session)))
       .recover {
-        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
-        case _                                                           => Left(InternalServerError())
+        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
+          Left(TenantDoesNotExists(tenant))
+        case _ => Left(InternalServerError())
       }
   }
 }
@@ -1576,10 +1872,12 @@ object userImplicits {
       for (
         username <- row.optString("username");
         userType <- row.optString("user_type").map(dbUserTypeToUserType);
-        admin    <- row.optBoolean("admin");
-        rights   <- row.optJsObject("tenants")
+        admin <- row.optBoolean("admin");
+        rights <- row.optJsObject("tenants")
       ) yield {
-        val tenantRights = rights.asOpt[Map[String, RightLevel]](Reads.map(RightLevel.rightLevelReads)).getOrElse(Map())
+        val tenantRights = rights
+          .asOpt[Map[String, RightLevel]](Reads.map(RightLevel.rightLevelReads))
+          .getOrElse(Map())
         UserWithTenantRights(
           username = username,
           email = row.optString("email").orNull,
@@ -1596,7 +1894,7 @@ object userImplicits {
       for (
         username <- row.optString("username");
         userType <- row.optString("user_type").map(dbUserTypeToUserType);
-        admin    <- row.optBoolean("admin")
+        admin <- row.optBoolean("admin")
       )
         yield User(
           username = username,
@@ -1612,7 +1910,7 @@ object userImplicits {
       for (
         username <- row.optString("username");
         userType <- row.optString("user_type").map(dbUserTypeToUserType);
-        admin    <- row.optBoolean("admin")
+        admin <- row.optBoolean("admin")
       )
         yield UserWithCompleteRightForOneTenant(
           username = username,
@@ -1629,7 +1927,7 @@ object userImplicits {
   implicit val projectRightRead: Reads[ProjectRightValue] = { json =>
     {
       for (
-        name  <- (json \ "name").asOpt[String];
+        name <- (json \ "name").asOpt[String];
         level <- (json \ "level").asOpt[String]
       ) yield {
         val right = dbProjectRightToProjectRight(level)
@@ -1641,7 +1939,7 @@ object userImplicits {
   implicit val rightRead: Reads[KeyRightValue] = { json =>
     {
       for (
-        name  <- (json \ "name").asOpt[String];
+        name <- (json \ "name").asOpt[String];
         level <- (json \ "level").asOpt[String]
       ) yield {
         val right = dbRightToRight(level)

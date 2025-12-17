@@ -4,17 +4,13 @@ import com.typesafe.config.Config
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.IzanamiMode.{Leader, Standalone, Worker}
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2RawMethodConvert
-import fr.maif.izanami.services.CompleteRights
+import fr.maif.izanami.services.{CompleteRights, MaxRights, MaxTenantRoleRights}
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.*
-import pureconfig.error.{
-  CannotConvert,
-  CannotParse,
-  ConfigReaderFailures,
-  UnknownKey
-}
+import pureconfig.error.{CannotConvert, CannotParse, ConfigReaderFailures, UnknownKey}
 import pureconfig.generic.semiauto.{deriveEnumerationReader, deriveReader}
 import pureconfig.{ConfigReader, ConfigSource}
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 
 case class IzanamiTypedConfiguration(app: AppConf, play: PlayRoot)
 case object IzanamiTypedConfiguration {
@@ -92,6 +88,8 @@ case object IzanamiTypedConfiguration {
     }
     given ConfigReader[RoleRights] = deriveReader
     given ConfigReader[TenantRoleRights] = deriveReader
+    given ConfigReader[ConfigMaxTenantRoleRights] = deriveReader
+    given ConfigReader[ConfigMaxRights] = deriveReader
     given ConfigReader[OpenId] = deriveReader[OpenId]
 
     given ConfigReader[FeatureContextPath] = f => {
@@ -180,6 +178,7 @@ case class OpenId(
     usernameField: String,
     pkce: OpenIdPkce,
     rightByRoles: Option[Map[String, RoleRights]],
+    maxRightByRoles: Option[Map[String, ConfigMaxRights]],
     roleClaim: Option[String],
     roleRightMode: Option[RoleRightMode]
 ) {
@@ -214,6 +213,7 @@ case class OpenId(
         },
         userRightsByRoles =
           rightByRoles.map(r => r.view.mapValues(v => v.toRights).toMap),
+        maxUserRightsByRoles = maxRightByRoles.map(m => m.map{(role, rights) => (role, rights.toMaxRights)}),
         roleClaim = roleClaim,
         roleRightMode = roleRightMode
       )
@@ -309,6 +309,24 @@ case class TenantRoleRights(
     webhooks: Map[String, ConfigNonNullableRightLevel] = Map(),
     projects: Map[String, ConfigNonNullableProjectRightLevel] = Map()
 )
+
+case class ConfigMaxRights(
+                      admin: Boolean,
+                      tenants: Map[String, ConfigMaxTenantRoleRights] = Map()
+) {
+  def toMaxRights: MaxRights = MaxRights(admin = admin, tenants = tenants.map{(name, r) => (name, r.toMaxTenantRoleRights)})
+}
+
+case class ConfigMaxTenantRoleRights(
+    level: ConfigNonNullableRightLevel,
+    maxProjectRight: ConfigProjectRightLevel = None,
+    maxKeyRight: BaseConfigRightLevel = None,
+    maxWebhookRight: BaseConfigRightLevel = None
+) {
+  def toMaxTenantRoleRights: MaxTenantRoleRights = {
+    MaxTenantRoleRights(level = level.toRightLevel, maxProjectRight = maxProjectRight.toMaybeProjectRightLevel, maxKeyRight = maxKeyRight.toMaybeRightLevel, maxWebhookRight = maxWebhookRight.toMaybeRightLevel)
+  }
+}
 
 case class PlayRoot(server: PlayServer)
 case class PlayServer(http: PlayHttpConf)
