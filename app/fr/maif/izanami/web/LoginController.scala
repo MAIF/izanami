@@ -1,6 +1,6 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.RoleRightMode.Initial
+import fr.maif.izanami.RoleRightMode.{Initial, Supervised}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{IzanamiError, MissingOIDCConfigurationError}
 import fr.maif.izanami.models.*
@@ -234,16 +234,22 @@ class LoginController(
                 )(token => {
                   val maybeClaims = JwtJson
                     .decode(token, JwtOptions(signature = false, leeway = 1))
-                  if(maybeClaims.isFailure) {
+                  if (maybeClaims.isFailure) {
                     logger.error("Failed to decode id token")
-                    logger.debug(s"Failed to decode id token ${token}", maybeClaims.failed.get)
+                    logger.debug(
+                      s"Failed to decode id token ${token}",
+                      maybeClaims.failed.get
+                    )
                   }
                   maybeClaims.toOption
                     .flatMap(claims => {
-                      val maybeJsonClaims = Json.parse(claims.content).asOpt[JsObject]
-                      if(maybeJsonClaims.isEmpty) {
+                      val maybeJsonClaims =
+                        Json.parse(claims.content).asOpt[JsObject]
+                      if (maybeJsonClaims.isEmpty) {
                         logger.error(s"Failed to read json claims")
-                        logger.debug(s"Failed to read json claims from ${claims}")
+                        logger.debug(
+                          s"Failed to read json claims from ${claims}"
+                        )
                       }
                       maybeJsonClaims
                     })
@@ -259,7 +265,7 @@ class LoginController(
                       )
                         yield {
                           env.datastores.users
-                            .findUser(username)
+                            .findUserWithCompleteRights(username)
                             .flatMap(maybeUser => {
                               def createOrUpdateUser(
                                   rs: Option[RightsByRole]
@@ -285,11 +291,9 @@ class LoginController(
                                         )
                                     }(user => {
                                       if (
-                                        user.admin == rights.admin && user.tenantRights == rights.tenants && roleRightMode
-                                          .contains(Initial)
+                                        (user.admin != rights.admin || user.rights != rights.tenants) && roleRightMode
+                                          .contains(Supervised)
                                       ) {
-                                        Future.successful(Right(()))
-                                      } else {
                                         rightService.updateUserRights(
                                           user.username,
                                           UserRightsUpdateRequest
@@ -297,6 +301,9 @@ class LoginController(
                                           force = true,
                                           conn = Some(conn)
                                         )
+
+                                      } else {
+                                        Future.successful(Right(()))
                                       }
                                     })
                                 )
