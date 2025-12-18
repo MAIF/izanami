@@ -11,25 +11,24 @@ import play.api.http.Status.{BAD_REQUEST, NO_CONTENT, OK, UNAUTHORIZED}
 import play.api.libs.json.{JsBoolean, JsFalse, __}
 
 class OIDCRightSpec extends BaseAPISpec {
-  def baseOIDCConfiguration: Map[String, AnyRef] = Map(
-    "app.openid.client-id" -> "foo",
-    "app.openid.client-secret" -> "bar",
-    "app.openid.authorize-url" -> "http://localhost:9001/connect/authorize",
-    "app.openid.token-url" -> "http://localhost:9001/connect/token",
-    "app.openid.redirect-url" -> "http://localhost:9000/login",
-    "app.openid.scopes" -> "openid email profile roles",
-    "app.openid.username-field" -> "name",
-    "app.openid.email-field" -> "email",
-    "app.openid.role-right-mode" -> "supervised",
-    "app.openid.role-claim" -> "roles",
-    "app.openid.enabled" -> "true",
-    "app.openid.email-field" -> "email",
-    "app.openid.username-field" -> "name",
-    "app.openid.method" -> "BASIC",
-    "app.openid.pkce.enabled" -> "true"
-  )
-
   "right by roles" should {
+    def baseOIDCConfiguration: Map[String, AnyRef] = Map(
+      "app.openid.client-id" -> "foo",
+      "app.openid.client-secret" -> "bar",
+      "app.openid.authorize-url" -> "http://localhost:9001/connect/authorize",
+      "app.openid.token-url" -> "http://localhost:9001/connect/token",
+      "app.openid.redirect-url" -> "http://localhost:9000/login",
+      "app.openid.scopes" -> "openid email profile roles",
+      "app.openid.username-field" -> "name",
+      "app.openid.email-field" -> "email",
+      "app.openid.role-right-mode" -> "supervised",
+      "app.openid.role-claim" -> "roles",
+      "app.openid.enabled" -> "true",
+      "app.openid.email-field" -> "email",
+      "app.openid.username-field" -> "name",
+      "app.openid.method" -> "BASIC",
+      "app.openid.pkce.enabled" -> "true"
+    )
     "prevent oidc user right update if role-right-mode is supervised" in {
       var situation: TestSituation = TestSituationBuilder()
         .withTenantNames("foo")
@@ -339,6 +338,24 @@ class OIDCRightSpec extends BaseAPISpec {
   }
 
   "max rights by roles" should {
+    def baseOIDCConfiguration: Map[String, AnyRef] = Map(
+      "app.openid.client-id" -> "foo",
+      "app.openid.client-secret" -> "bar",
+      "app.openid.authorize-url" -> "http://localhost:9001/connect/authorize",
+      "app.openid.token-url" -> "http://localhost:9001/connect/token",
+      "app.openid.redirect-url" -> "http://localhost:9000/login",
+      "app.openid.scopes" -> "openid email profile roles",
+      "app.openid.username-field" -> "name",
+      "app.openid.email-field" -> "email",
+      "app.openid.role-right-mode" -> "initial",
+      "app.openid.role-claim" -> "roles",
+      "app.openid.enabled" -> "true",
+      "app.openid.email-field" -> "email",
+      "app.openid.username-field" -> "name",
+      "app.openid.method" -> "BASIC",
+      "app.openid.pkce.enabled" -> "true"
+    )
+
     "reduce rights at login if current rights are superior to max rights - max rights set up after restart" in {
       val initialConfig = baseOIDCConfiguration ++ Map(
         // DEFAULT INITIAL RIGHTS
@@ -359,10 +376,10 @@ class OIDCRightSpec extends BaseAPISpec {
         // ("app.openid.right-by-roles.admin.tenants.test.keys.apikey" -> "admin"),
         // MAX INITIAL RIGHTS
         // ("app.openid.max-right-by-roles.\"\".admin" -> "false"),
-        // ("app.openid.right-by-roles.\"\".tenants.test.level" -> "write"),
-        // ("app.openid.right-by-roles.\"\".tenants.test.max-project-right" -> "write"),
-        // ("app.openid.right-by-roles.\"\".tenants.test.max-key-right" -> "write"),
-        // ("app.openid.right-by-roles.\"\".tenants.test.max-webhook-right" -> "write"),
+        // ("app.openid.max-right-by-roles.\"\".tenants.test.level" -> "write"),
+        // ("app.openid.max-right-by-roles.\"\".tenants.test.max-project-right" -> "write"),
+        // ("app.openid.max-right-by-roles.\"\".tenants.test.max-key-right" -> "write"),
+        // ("app.openid.max-right-by-roles.\"\".tenants.test.max-webhook-right" -> "write"),
         // MAX ADMIN RIGHTS
         // ("app.openid.max-right-by-roles.admin.admin" -> "true"),
         // ("app.openid.max-right-by-roles.admin.tenants.test.level" -> "admin"),
@@ -384,10 +401,10 @@ class OIDCRightSpec extends BaseAPISpec {
         initialConfig ++ Map(
           // MAX INITIAL RIGHTS
           ("app.openid.max-right-by-roles.\"\".admin" -> "false"),
-          ("app.openid.right-by-roles.\"\".tenants.test.level" -> "read"),
-          ("app.openid.right-by-roles.\"\".tenants.test.max-project-right" -> "read"),
-          ("app.openid.right-by-roles.\"\".tenants.test.max-key-right" -> "read"),
-          ("app.openid.right-by-roles.\"\".tenants.test.max-webhook-right" -> "read")
+          ("app.openid.max-right-by-roles.\"\".tenants.test.level" -> "read"),
+          ("app.openid.max-right-by-roles.\"\".tenants.test.max-project-right" -> "read"),
+          ("app.openid.max-right-by-roles.\"\".tenants.test.max-key-right" -> "read"),
+          ("app.openid.max-right-by-roles.\"\".tenants.test.max-webhook-right" -> "read")
         )
       )
 
@@ -428,10 +445,10 @@ class OIDCRightSpec extends BaseAPISpec {
         ("app.openid.right-by-roles.\"\".tenants.test.keys.apikey" -> "write"),
         // MAX INITIAL RIGHTS
         ("app.openid.max-right-by-roles.\"\".admin" -> "false"),
-        ("app.openid.right-by-roles.\"\".tenants.test.level" -> "write"),
-        ("app.openid.right-by-roles.\"\".tenants.test.max-project-right" -> "write"),
-        ("app.openid.right-by-roles.\"\".tenants.test.max-key-right" -> "write"),
-        ("app.openid.right-by-roles.\"\".tenants.test.max-webhook-right" -> "write")
+        ("app.openid.max-right-by-roles.\"\".tenants.test.level" -> "write"),
+        ("app.openid.max-right-by-roles.\"\".tenants.test.max-project-right" -> "write"),
+        ("app.openid.max-right-by-roles.\"\".tenants.test.max-key-right" -> "write"),
+        ("app.openid.max-right-by-roles.\"\".tenants.test.max-webhook-right" -> "write")
       )
       var situation: TestSituation = TestSituationBuilder()
         .withTenants(
@@ -447,10 +464,10 @@ class OIDCRightSpec extends BaseAPISpec {
         initialConfig ++ Map(
           // MAX INITIAL RIGHTS
           ("app.openid.max-right-by-roles.\"\".admin" -> "false"),
-          ("app.openid.right-by-roles.\"\".tenants.test.level" -> "read"),
-          ("app.openid.right-by-roles.\"\".tenants.test.max-project-right" -> "read"),
-          ("app.openid.right-by-roles.\"\".tenants.test.max-key-right" -> "read"),
-          ("app.openid.right-by-roles.\"\".tenants.test.max-webhook-right" -> "read")
+          ("app.openid.max-right-by-roles.\"\".tenants.test.level" -> "read"),
+          ("app.openid.max-right-by-roles.\"\".tenants.test.max-project-right" -> "read"),
+          ("app.openid.max-right-by-roles.\"\".tenants.test.max-key-right" -> "read"),
+          ("app.openid.max-right-by-roles.\"\".tenants.test.max-webhook-right" -> "read")
         )
       )
 
@@ -491,10 +508,10 @@ class OIDCRightSpec extends BaseAPISpec {
         ("app.openid.right-by-roles.\"\".tenants.test.keys.apikey" -> "admin"),
         // MAX INITIAL RIGHTS
         ("app.openid.max-right-by-roles.\"\".admin" -> "false"),
-        ("app.openid.right-by-roles.\"\".tenants.test.level" -> "write"),
-        ("app.openid.right-by-roles.\"\".tenants.test.max-project-right" -> "write"),
-        ("app.openid.right-by-roles.\"\".tenants.test.max-key-right" -> "write"),
-        ("app.openid.right-by-roles.\"\".tenants.test.max-webhook-right" -> "write")
+        ("app.openid.max-right-by-roles.\"\".tenants.test.level" -> "write"),
+        ("app.openid.max-right-by-roles.\"\".tenants.test.max-project-right" -> "write"),
+        ("app.openid.max-right-by-roles.\"\".tenants.test.max-key-right" -> "write"),
+        ("app.openid.max-right-by-roles.\"\".tenants.test.max-webhook-right" -> "write")
       )
       var situation: TestSituation = TestSituationBuilder()
         .withTenants(
@@ -528,7 +545,39 @@ class OIDCRightSpec extends BaseAPISpec {
     }
 
     "prevent updating user right above max rights" in {
-      // TODO
+      val initialConfig = baseOIDCConfiguration ++ Map(
+        // DEFAULT INITIAL RIGHTS
+        ("app.openid.right-by-roles.\"\".admin" -> "false"),
+        ("app.openid.right-by-roles.\"\".tenants.test.level" -> "read"),
+        ("app.openid.right-by-roles.\"\".tenants.test.default-project-right" -> "read"),
+        ("app.openid.right-by-roles.\"\".tenants.test.default-key-right" -> "read"),
+        ("app.openid.right-by-roles.\"\".tenants.test.default-webhook-right" -> "read"),
+        ("app.openid.right-by-roles.\"\".tenants.test.projects.proj" -> "read"),
+        ("app.openid.right-by-roles.\"\".tenants.test.keys.apikey" -> "read"),
+        // MAX INITIAL RIGHTS
+        ("app.openid.max-right-by-roles.\"\".admin" -> "false"),
+        ("app.openid.max-right-by-roles.\"\".tenants.test.level" -> "write"),
+        ("app.openid.max-right-by-roles.\"\".tenants.test.max-project-right" -> "write"),
+        ("app.openid.max-right-by-roles.\"\".tenants.test.max-key-right" -> "write"),
+        ("app.openid.max-right-by-roles.\"\".tenants.test.max-webhook-right" -> "write")
+      )
+      var situation: TestSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("test").withProjectNames("proj").withApiKeyNames("apikey")
+        )
+        .withCustomConfiguration(initialConfig)
+        .build()
+
+      situation = situation.logAsOIDCUser("User2")
+      situation = situation.logout()
+      situation = situation.loggedAsAdmin()
+      val adminUpdateResponse = situation.updateUserRights("Sam Tailor2", admin = true, TestRights())
+
+      adminUpdateResponse.status mustBe BAD_REQUEST
+    }
+
+    "merge max rights correctly" in {
+
     }
   }
 }

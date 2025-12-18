@@ -2,12 +2,22 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.RoleRightMode.{Initial, Supervised}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{FailedToReadTokenClaims, IzanamiError, MissingOIDCConfigurationError, RightComplianceError}
+import fr.maif.izanami.errors.{
+  FailedToReadTokenClaims,
+  IzanamiError,
+  MissingOIDCConfigurationError,
+  RightComplianceError
+}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
 import fr.maif.izanami.models.User.userRightsWrites
 import fr.maif.izanami.services.RightService.RightsByRole
-import fr.maif.izanami.services.{CompleteRights, MaxRightComplianceResult, MaxRights, RightService}
+import fr.maif.izanami.services.{
+  CompleteRights,
+  MaxRightComplianceResult,
+  MaxRights,
+  RightService
+}
 import fr.maif.izanami.utils.{Done, FutureEither}
 import fr.maif.izanami.utils.syntax.implicits.{BetterFutureEither, BetterSyntax}
 import fr.maif.izanami.web.AuthAction.delayResponse
@@ -41,45 +51,29 @@ class LoginController(
       .map {
         case None => MissingOIDCConfigurationError().toHttpResponse
         case Some(
-              OAuth2Configuration(
-                enabled,
-                method,
-                clientId,
-                _clientSecret,
-                _tokenUrl,
-                authorizeUrl,
-                scopes,
-                pkce,
-                _nameField,
-                _emailField,
-                callbackUrl,
-                defaultOIDCUserRights,
-                maxUserRightsByRoles,
-                userRightsByRoles,
-                roleRightMode
-              )
+              oAuth2Configuration
             ) => {
 
-          if (!enabled) {
+          if (!oAuth2Configuration.enabled) {
             BadRequest(Json.obj("message" -> "Something wrong happened"))
           } else {
             val hasOpenIdInScope =
-              scopes.split(" ").toSet.exists(s => s.equalsIgnoreCase("openid"))
-            val actualScope = (if (!hasOpenIdInScope) scopes + " openid"
-                               else scopes).replace(" ", "%20")
+              oAuth2Configuration.scopes.split(" ").toSet.exists(s => s.equalsIgnoreCase("openid"))
+            val actualScope = (if (!hasOpenIdInScope) oAuth2Configuration.scopes + " openid"
+                               else oAuth2Configuration.scopes).replace(" ", "%20")
 
-            if (pkce.exists(_.enabled)) {
+            if (oAuth2Configuration.pkce.exists(_.enabled)) {
               val (codeVerifier, codeChallenge, codeChallengeMethod) =
-                generatePKCECodes(pkce.get.algorithm.some)
+                generatePKCECodes(oAuth2Configuration.pkce.get.algorithm.some)
 
               Redirect(
-                s"$authorizeUrl?scope=$actualScope&client_id=$clientId&response_type=code&redirect_uri=$callbackUrl&code_challenge=$codeChallenge&code_challenge_method=$codeChallengeMethod"
+                s"${oAuth2Configuration.authorizeUrl}?scope=$actualScope&client_id=${oAuth2Configuration.clientId}&response_type=code&redirect_uri=${oAuth2Configuration.callbackUrl}&code_challenge=$codeChallenge&code_challenge_method=$codeChallengeMethod"
               ).addingToSession(
                 "code_verifier" -> codeVerifier
               )
             } else {
               Redirect(
-                s"$authorizeUrl?scope=$actualScope&client_id=$clientId&response_type=code&redirect_uri=$callbackUrl"
+                s"${oAuth2Configuration.authorizeUrl}?scope=$actualScope&client_id=${oAuth2Configuration.clientId}&response_type=code&redirect_uri=${oAuth2Configuration.callbackUrl}"
               )
             }
           }
@@ -150,49 +144,33 @@ class LoginController(
               )
             ).asFuture
           } else {
-            val OAuth2Configuration(
-              _enabled,
-              method,
-              clientId,
-              clientSecret,
-              tokenUrl,
-              _authorizeUrl,
-              _scopes,
-              _pkce,
-              nameField,
-              emailField,
-              callbackUrl,
-              userRightsByRoles,
-              maxUserRightsByRoles,
-              roleClaim,
-              roleRightMode
-            ) = oauth2ConfigurationOpt.get
+            val oauth2Configuration = oauth2ConfigurationOpt.get
 
             var builder = env.Ws
-              .url(tokenUrl)
+              .url(oauth2Configuration.tokenUrl)
               .withHttpHeaders(
                 ("content-type", "application/x-www-form-urlencoded")
               )
             var body = Map(
               "grant_type" -> "authorization_code",
               "code" -> code.get,
-              "redirect_uri" -> callbackUrl
+              "redirect_uri" -> oauth2Configuration.callbackUrl
             )
 
-            if (method == OAuth2BASICMethod) {
+            if (oauth2Configuration.method == OAuth2BASICMethod) {
               builder = builder
-                .withAuth(clientId, clientSecret, WSAuthScheme.BASIC)
+                .withAuth(oauth2Configuration.clientId, oauth2Configuration.clientSecret, WSAuthScheme.BASIC)
             } else {
               body = Map(
                 "grant_type" -> "authorization_code",
                 "code" -> code.get,
-                "redirect_uri" -> callbackUrl,
-                "client_id" -> clientId,
-                "client_secret" -> clientSecret
+                "redirect_uri" -> oauth2Configuration.callbackUrl,
+                "client_id" -> oauth2Configuration.clientId,
+                "client_secret" -> oauth2Configuration.clientSecret
               )
             }
 
-            if (_pkce.exists(_.enabled)) {
+            if (oauth2Configuration.pkce.exists(_.enabled)) {
               val maybeCodeVerifier = request.session.get(s"code_verifier")
               if (maybeCodeVerifier.isEmpty) {
                 logger.error(
@@ -257,14 +235,14 @@ class LoginController(
                       maybeJsonClaims
                     })
                     .flatMap(json => {
-                      val roles = extractRoles(json, roleClaim).getOrElse(Set())
+                      val roles = extractRoles(json, oauth2Configuration.roleClaim).getOrElse(Set())
                       logger.debug(
                         s"Extracted roles [${roles.mkString(",")}] from id_token. "
                       )
 
                       for (
-                        username <- (json \ nameField).asOpt[String];
-                        email <- (json \ emailField).asOpt[String]
+                        username <- (json \ oauth2Configuration.nameField).asOpt[String];
+                        email <- (json \ oauth2Configuration.emailField).asOpt[String]
                       )
                         yield {
                           env.datastores.users
@@ -280,29 +258,39 @@ class LoginController(
                                   CompleteRights.maxRightsToApply(roles, mr)
                                 )
 
-                                val rights = rs
-                                  .map(r =>
-                                    RightService.effectiveRights(r, roles)
-                                  )
-                                  .getOrElse(CompleteRights.EMPTY)
+                                env.postgresql
+                                  .executeInTransaction(conn =>
+                                    maybeUser
+                                      .fold {
+                                        val rights = rs
+                                          .map(r =>
+                                            RightService.effectiveRights(r, roles)
+                                          )
+                                          .getOrElse(CompleteRights.EMPTY)
+                                        
+                                        val rightCompliance = maxRights
+                                          .map(r => rights.checkCompliance(r))
+                                          .getOrElse(
+                                            MaxRightComplianceResult.empty
+                                          )
 
-                                val rightCompliance = maxRights
-                                  .map(r => rights.checkCompliance(r))
-                                  .getOrElse(MaxRightComplianceResult.empty)
-
-                                if (!rightCompliance.isEmpty) {
-                                  FutureEither.failure(
-                                    RightComplianceError(
-                                      rightCompliance.toError
-                                        .mkString("\n")
-                                    )
-                                  )
-                                } else {
-
-                                  env.postgresql
-                                    .executeInTransaction(conn =>
-                                      maybeUser
-                                        .fold {
+                                        if (!rightCompliance.isEmpty && oauth2Configuration.roleRightMode.contains(Initial)) {
+                                          logger.error(s"Configured max rights are below configured default rights, therefore default rights are reduced to max rights for user ${username} (roles are ${roles.mkString(",")})")
+                                          val rightToApply = rights.updateToComplyWith(rightCompliance)
+                                          env.datastores.users
+                                            .createUser(
+                                              User(
+                                                username,
+                                                email = email,
+                                                userType = OIDC,
+                                                admin = rightToApply.admin
+                                              )
+                                                .withRights(
+                                                  Rights(rightToApply.tenants)
+                                                ),
+                                              conn = Some(conn)
+                                            )
+                                        } else {
                                           env.datastores.users
                                             .createUser(
                                               User(
@@ -316,71 +304,65 @@ class LoginController(
                                                 ),
                                               conn = Some(conn)
                                             )
-                                        }(user => {
-                                          val rightForConfig = rs
-                                            .map(r =>
-                                              RightService
-                                                .effectiveRights(r, roles)
-                                            )
-                                            .getOrElse(CompleteRights.EMPTY)
+                                        }
+                                      }(user => {
+                                        val defaultRights = rs
+                                          .map(r =>
+                                            RightService
+                                              .effectiveRights(r, roles)
+                                          )
+                                          .getOrElse(CompleteRights.EMPTY)
 
-                                          val rightCompliance = maxRights
-                                            .map(r =>
-                                              CompleteRights(
-                                                user.rights.tenants,
-                                                user.admin
-                                              ).checkCompliance(r)
-                                            )
-                                            .getOrElse(
-                                              MaxRightComplianceResult.empty
-                                            )
+                                        val rightCompliance = maxRights
+                                          .map(r =>
+                                            CompleteRights(
+                                              user.rights.tenants,
+                                              user.admin
+                                            ).checkCompliance(r)
+                                          )
+                                          .getOrElse(
+                                            MaxRightComplianceResult.empty
+                                          )
 
-                                          if (
-                                            !rightCompliance.isEmpty && roleRightMode
-                                              .contains(Initial)
-                                          ) {
-                                            env.datastores.users
-                                              .updateUserRights(
-                                                user.username,
-                                                rightCompliance.rightDiff,
-                                                conn = Some(conn)
-                                              )
-                                          } else if (
-                                            (user.admin != rights.admin || user.rights != rights.tenants) && roleRightMode
-                                              .contains(Supervised)
-                                          ) {
-                                            rightService.updateUserRights(
+                                        if (
+                                          !rightCompliance.isEmpty && oauth2Configuration.roleRightMode
+                                            .contains(Initial)
+                                        ) {
+                                          env.datastores.users
+                                            .updateUserRights(
                                               user.username,
-                                              UserRightsUpdateRequest
-                                                .fromRights(rights),
-                                              force = true,
+                                              rightCompliance.rightDiff,
                                               conn = Some(conn)
                                             )
+                                        } else if (
+                                          (user.admin != defaultRights.admin || user.rights != defaultRights.tenants) && oauth2Configuration.roleRightMode
+                                            .contains(Supervised)
+                                        ) {
+                                          rightService.updateUserRights(
+                                            user.username,
+                                            UserRightsUpdateRequest
+                                              .fromRights(defaultRights),
+                                            force = true,
+                                            conn = Some(conn)
+                                          )
 
-                                          } else {
-                                            Future.successful(Right(()))
-                                          }
-                                        })
-                                    )
-                                    .toFEither
-                                    .map(_ => Done.done())
-                                }
+                                        } else {
+                                          Future.successful(Right(()))
+                                        }
+                                      })
+                                  )
+                                  .toFEither
+                                  .map(_ => Done.done())
                               }
                               val rightByRolesFromEnvIfAny =
                                 env.typedConfiguration.openid
                                   .flatMap(_.toIzanamiOAuth2Configuration)
                                   .flatMap(_.userRightsByRoles)
-                                  .orElse(userRightsByRoles)
-
-                              val maxRightByRolesFromEnvIfAny =
-                                env.typedConfiguration.openid
-                                  .flatMap(_.toIzanamiOAuth2Configuration)
-                                  .flatMap(_.maxUserRightsByRoles)
-                                  .orElse(maxUserRightsByRoles)
+                                  .orElse(oauth2Configuration.userRightsByRoles)
 
                               createOrUpdateUser(
                                 rightByRolesFromEnvIfAny,
-                                maxRightByRolesFromEnvIfAny
+                                oauth2Configuration.maxUserRightsByRoles
                               ).value
                                 .flatMap {
                                   case Left(err: RightComplianceError) => {
@@ -395,7 +377,7 @@ class LoginController(
                                       .flatMap(newRights =>
                                         createOrUpdateUser(
                                           Some(newRights),
-                                          maxRightByRolesFromEnvIfAny
+                                          oauth2Configuration.maxUserRightsByRoles
                                         ).value
                                       )
                                   }

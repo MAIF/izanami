@@ -107,7 +107,7 @@ object OAuth2Configuration {
         json + ("roleRightMode" -> Json.toJson(mode)(RoleRightMode.writes))
       )
       .applyOnWithOpt(o.maxUserRightsByRoles)((json, mode) =>
-        json + ("roleRightMode" -> Json.toJson(mode)(Writes.map(MaxRights.writes)))
+        json + ("maxUserRightsByRoles" -> Json.toJson(mode)(Writes.map(MaxRights.writes)))
       )
 
     override def reads(json: JsValue): JsResult[OAuth2Configuration] = {

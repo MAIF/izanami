@@ -1,11 +1,7 @@
 package fr.maif.izanami.services
 
 import fr.maif.izanami.RoleRightMode.Supervised
-import fr.maif.izanami.{
-  RoleRightMode,
-  RoleRights,
-  TenantRoleRights
-}
+import fr.maif.izanami.{RoleRightMode, RoleRights, TenantRoleRights}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{CantUpdateOIDCUser, IzanamiError, UserNotFound}
 import fr.maif.izanami.models.ProjectRightLevel.ProjectRightOrdering
@@ -274,11 +270,13 @@ case class TenantRightComplianceResult(
           addedWebhookRights = addedWebhooks,
           removedWebhookRights = removedWebhooks,
           addedDefaultProjectRight = defaultProjectRight.flatMap(_.after),
-          removedDefaultProjectRight = defaultProjectRight.exists(_.after.isEmpty),
+          removedDefaultProjectRight =
+            defaultProjectRight.exists(_.after.isEmpty),
           addedDefaultKeyRight = defaultKeyRight.flatMap(_.after),
           removedDefaultKeyRight = defaultKeyRight.exists(_.after.isEmpty),
           addedDefaultWebhookRight = defaultWebhookRight.flatMap(_.after),
-          removedDefaultWebhookRight = defaultWebhookRight.exists(_.after.isEmpty)
+          removedDefaultWebhookRight =
+            defaultWebhookRight.exists(_.after.isEmpty)
         )
       )
     }
@@ -484,6 +482,135 @@ case class CompleteRights(tenants: Map[String, TenantRight], admin: Boolean) {
 
   def removeTenantsRights(tenant: Set[String]): CompleteRights = {
     copy(admin = admin, tenants = tenants.filter(t => !tenant.contains(t._1)))
+  }
+
+  def updateToComplyWith(maxRightComplianceResult: MaxRightComplianceResult): CompleteRights = {
+    val newAdmin = if (admin && maxRightComplianceResult.admin) false else admin
+
+    val newTenantRights = tenants
+      .map { (name, tenantRight) => {
+        val maybeComplianceResult = maxRightComplianceResult.tenants.get(name)
+
+        maybeComplianceResult
+          .map(complianceResult => {
+            if (complianceResult.levelRight.exists(_.after.isEmpty)) {
+              Option.empty
+            } else {
+              val newLevel = complianceResult.levelRight
+                .flatMap(_.after)
+                .getOrElse(tenantRight.level)
+              val newDefaultProjectRight =
+                complianceResult.defaultProjectRight
+                  .map(dpr => dpr.after)
+                  .getOrElse(tenantRight.defaultProjectRight)
+              val newDefaultKeyRight = complianceResult.defaultKeyRight
+                .map(dkr => dkr.after)
+                .getOrElse(tenantRight.defaultKeyRight)
+              val newDefaultWebhookRight =
+                complianceResult.defaultWebhookRight
+                  .map(dwr => dwr.after)
+                  .getOrElse(tenantRight.defaultWebhookRight)
+
+              val newProjectRights = tenantRight.projects
+                .map {
+                  case (name, right) => {
+                    val maybeProjectComplianceChange =
+                      complianceResult.projects.get(name)
+                    if (
+                      maybeProjectComplianceChange.exists(_.after.isEmpty)
+                    ) {
+                      Option.empty
+                    } else {
+                      Some(
+                        (
+                          name,
+                          maybeProjectComplianceChange
+                            .map(_.after.get)
+                            .map(r => ProjectAtomicRight(r))
+                            .getOrElse(right)
+                        )
+                      )
+                    }
+                  }
+                }
+                .collect { case Some(p) =>
+                  p
+                }
+                .toMap
+
+              val newWebhookRights = tenantRight.webhooks
+                .map {
+                  case (name, right) => {
+                    val maybeWebhookComplanceChange =
+                      complianceResult.webhooks.get(name)
+                    if (maybeWebhookComplanceChange.exists(_.after.isEmpty)) {
+                      Option.empty
+                    } else {
+                      Some(
+                        (
+                          name,
+                          maybeWebhookComplanceChange
+                            .map(_.after.get)
+                            .map(r => GeneralAtomicRight(r))
+                            .getOrElse(right)
+                        )
+                      )
+                    }
+                  }
+                }
+                .collect { case Some(p) =>
+                  p
+                }
+                .toMap
+
+              val newKeyRights = tenantRight.keys
+                .map {
+                  case (name, right) => {
+                    val maybeKeyComplianceChange =
+                      complianceResult.keys.get(name)
+                    if (maybeKeyComplianceChange.exists(_.after.isEmpty)) {
+                      Option.empty
+                    } else {
+                      Some(
+                        (
+                          name,
+                          maybeKeyComplianceChange
+                            .map(_.after.get)
+                            .map(r => GeneralAtomicRight(r))
+                            .getOrElse(right)
+                        )
+                      )
+                    }
+                  }
+                }
+                .collect { case Some(p) =>
+                  p
+                }
+                .toMap
+
+              Some(
+                name,
+                TenantRight(
+                  level = newLevel,
+                  projects = newProjectRights,
+                  keys = newKeyRights,
+                  webhooks = newWebhookRights,
+                  defaultProjectRight = newDefaultProjectRight,
+                  defaultKeyRight = newDefaultKeyRight,
+                  defaultWebhookRight = newDefaultWebhookRight
+                )
+              )
+            }
+          })
+          .getOrElse(Some(name, tenantRight))
+      }
+      }
+      .collect { case Some(t) =>
+        t
+      }
+      .toMap
+
+    CompleteRights(admin = newAdmin, tenants = newTenantRights)
   }
 
   def checkCompliance(maxRights: MaxRights): MaxRightComplianceResult = {
@@ -721,12 +848,11 @@ case object CompleteRights {
         case (_, Some(mp2))                                     => Some(mp2)
         case (o, _)                                             => o
       },
-      maxWebhookRight =
-        (r1.maxWebhookRight, r2.maxWebhookRight) match {
-          case (Some(mp1), Some(mp2)) if (mp1.isGreaterThan(mp2)) => Some(mp1)
-          case (_, Some(mp2))                                     => Some(mp2)
-          case (o, _)                                             => o
-        }
+      maxWebhookRight = (r1.maxWebhookRight, r2.maxWebhookRight) match {
+        case (Some(mp1), Some(mp2)) if (mp1.isGreaterThan(mp2)) => Some(mp1)
+        case (_, Some(mp2))                                     => Some(mp2)
+        case (o, _)                                             => o
+      }
     )
   }
 }
