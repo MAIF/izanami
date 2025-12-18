@@ -43,6 +43,30 @@ class LoginController(
   implicit val ec: ExecutionContext = env.executionContext
   private val logger = Logger("izanami.login")
 
+  /**
+   * Initiates browser-based OIDC authentication flow.
+   *
+   * == Why State Parameter is Required (CSRF Protection) ==
+   *
+   * The `state` parameter is essential for preventing Cross-Site Request Forgery (CSRF) attacks
+   * on the OAuth callback. Without it, an attacker could:
+   * 1. Initiate an OAuth flow with their own account
+   * 2. Trick a victim into completing the callback
+   * 3. Link the attacker's identity to the victim's session
+   *
+   * == Why PKCE Code Verifier is Not Sufficient ==
+   *
+   * While PKCE (code_verifier/code_challenge) provides some incidental CSRF protection
+   * because the verifier is stored in the session, it is NOT a replacement for state:
+   *
+   * 1. '''Timing''': State is validated before processing; PKCE fails during token exchange
+   * 2. '''Purpose''': PKCE protects against authorization code interception, not CSRF
+   * 3. '''Standards''': OAuth 2.0 Security BCP explicitly states PKCE doesn't replace state
+   *
+   * @see [[https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics#section-4.7 OAuth 2.0 Security Best Current Practice - CSRF Protection]]
+   * @see [[https://datatracker.ietf.org/doc/html/rfc6749#section-10.12 RFC 6749 - Cross-Site Request Forgery]]
+   * @see [[https://danielfett.de/2020/05/16/pkce-vs-nonce-equivalent-or-not/ PKCE vs State - Security Analysis]]
+   */
   def openIdConnect: Action[AnyContent] = Action.async { implicit request =>
     env.datastores.configuration
       .readFullConfiguration()
@@ -66,18 +90,25 @@ class LoginController(
               (if (!hasOpenIdInScope) oAuth2Configuration.scopes + " openid"
                else oAuth2Configuration.scopes).replace(" ", "%20")
 
+            // Generate state for CSRF protection - required even when PKCE is enabled.
+            // See method documentation for why code_verifier alone is insufficient.
+            val state = generateBrowserState()
+
             if (oAuth2Configuration.pkce.exists(_.enabled)) {
               val (codeVerifier, codeChallenge, codeChallengeMethod) =
                 generatePKCECodes(oAuth2Configuration.pkce.get.algorithm.some)
 
               Redirect(
-                s"${oAuth2Configuration.authorizeUrl}?scope=$actualScope&client_id=${oAuth2Configuration.clientId}&response_type=code&redirect_uri=${oAuth2Configuration.callbackUrl}&code_challenge=$codeChallenge&code_challenge_method=$codeChallengeMethod"
+                s"${oAuth2Configuration.authorizeUrl}?scope=$actualScope&client_id=${oAuth2Configuration.clientId}&response_type=code&redirect_uri=${oAuth2Configuration.callbackUrl}&state=$state&code_challenge=$codeChallenge&code_challenge_method=$codeChallengeMethod"
               ).addingToSession(
-                "code_verifier" -> codeVerifier
+                "code_verifier" -> codeVerifier,
+                "oauth_state" -> state
               )
             } else {
               Redirect(
-                s"${oAuth2Configuration.authorizeUrl}?scope=$actualScope&client_id=${oAuth2Configuration.clientId}&response_type=code&redirect_uri=${oAuth2Configuration.callbackUrl}"
+                s"${oAuth2Configuration.authorizeUrl}?scope=$actualScope&client_id=${oAuth2Configuration.clientId}&response_type=code&redirect_uri=${oAuth2Configuration.callbackUrl}&state=$state"
+              ).addingToSession(
+                "oauth_state" -> state
               )
             }
           }
@@ -113,7 +144,65 @@ class LoginController(
     }
   }
 
+  private def generateBrowserState(): String = {
+    val bytes = new Array[Byte](32)
+    val secureRandom = new SecureRandom()
+    secureRandom.nextBytes(bytes)
+    Base64.getUrlEncoder.withoutPadding().encodeToString(bytes)
+  }
+
+  /**
+   * Handles the OIDC authorization code callback.
+   *
+   * Supports two flows distinguished by the `state` parameter:
+   * - '''Browser flow''': State from callback must match the one stored in session.
+   * - '''CLI flow''': State is prefixed with "cli:" and validated via the pending auth store.
+   *
+   * The state is URL-decoded before processing since OIDC providers may encode special characters.
+   *
+   * @see [[CliAuthDatastore]] for the prefix design decision
+   */
   def openIdCodeReturn: Action[AnyContent] = Action.async { implicit request =>
+    val maybeRawState = request.body.asJson.flatMap(json => (json \ "state").asOpt[String])
+    val maybeState    = maybeRawState.map(s => java.net.URLDecoder.decode(s, "UTF-8"))
+    val isCliFlow     = maybeState.exists(_.startsWith("cli:"))
+    val actualState   = maybeState.map(s => if (s.startsWith("cli:")) s.drop(4) else s)
+
+    val sessionState      = request.session.get("oauth_state")
+    val browserStateValid = isCliFlow || (maybeState.isDefined && sessionState == maybeState)
+
+    if (!isCliFlow && !browserStateValid) {
+      logger.warn(
+        s"OIDC callback state mismatch - possible CSRF attempt. Session: ${sessionState
+            .getOrElse("none")}, callback: ${maybeState.getOrElse("none")}"
+      )
+      Future.successful(
+        BadRequest(Json.obj("message" -> "Invalid state parameter - possible CSRF attack"))
+      )
+    } else {
+      val cliPendingAuthFuture: Future[Option[fr.maif.izanami.models.PendingCliAuth]] =
+        if (isCliFlow && actualState.isDefined)
+          env.datastores.cliAuth.consumePendingAuth(actualState.get)
+        else Future.successful(None)
+
+      cliPendingAuthFuture.flatMap { maybeCliPendingAuth =>
+        if (isCliFlow && maybeCliPendingAuth.isEmpty) {
+          logger.error("CLI authentication state not found or expired")
+          Future.successful(
+            BadRequest(Json.obj("message" -> "CLI authentication state not found or expired"))
+          )
+        } else {
+          processOidcCallback(isCliFlow, actualState, maybeCliPendingAuth)
+        }
+      }
+    }
+  }
+
+  private def processOidcCallback(
+      isCliFlow: Boolean,
+      actualState: Option[String],
+      maybeCliPendingAuth: Option[fr.maif.izanami.models.PendingCliAuth]
+  )(implicit request: Request[AnyContent]): Future[Result] = {
     {
       for (
         code <- request.body.asJson
@@ -178,7 +267,9 @@ class LoginController(
             }
 
             if (oauth2Configuration.pkce.exists(_.enabled)) {
-              val maybeCodeVerifier = request.session.get(s"code_verifier")
+              val maybeCodeVerifier =
+                if (isCliFlow) maybeCliPendingAuth.flatMap(_.codeVerifier)
+                else request.session.get(s"code_verifier")
               if (maybeCodeVerifier.isEmpty) {
                 logger.error(
                   "PKCE flow is required but no code_verifier was found"
@@ -357,7 +448,7 @@ class LoginController(
                       }
                       case Left(err) => Future(Left(err))
                     }
-                    .map(maybeId => {
+                    .flatMap(maybeId => {
                       maybeId
                         .map((id, maybeRightCompliance) => {
                           (
@@ -366,36 +457,13 @@ class LoginController(
                           )
                         })
                         .fold(
-                          err => {
-                            err.toHttpResponse
-                          },
+                          err => Future.successful(err.toHttpResponse),
                           (token, maybeRightCompliance) => {
-                            if (maybeRightCompliance.exists(!_.isEmpty)) {
-                              Ok(
-                                Json.obj(
-                                  "rightUpdates" -> Json.toJson(maybeRightCompliance)(Writes.optionWithNull(MaxRightComplianceResult.writes))
-                                )
-                              )
-                                .withCookies(
-                                  Cookie(
-                                    name = "token",
-                                    value = token,
-                                    httpOnly = false,
-                                    sameSite = Some(SameSite.Strict)
-                                  )
-                                )
+                            if (isCliFlow && actualState.isDefined) {
+                              handleCliOidcCompletion(actualState.get, token)
                             } else {
-                              NoContent
-                                .withCookies(
-                                  Cookie(
-                                    name = "token",
-                                    value = token,
-                                    httpOnly = false,
-                                    sameSite = Some(SameSite.Strict)
-                                  )
-                                )
+                              handleBrowserOidcCompletion(token, maybeRightCompliance)
                             }
-
                           }
                         )
                     })
@@ -404,7 +472,134 @@ class LoginController(
           }
         }
     }.flatten
-    // .getOrElse(Future(InternalServerError(Json.obj("message" -> "Failed to read token claims"))))
+  }
+
+  private def handleCliOidcCompletion(state: String, token: String): Future[Result] = {
+    env.datastores.cliAuth.storeCompletedAuth(state, token).map {
+      case Right(_) =>
+        Ok(
+          Json.obj(
+            "cliAuth" -> true,
+            "message" -> "Authentication successful. You can close this window and return to your terminal."
+          )
+        )
+      case Left(err) =>
+        err.toHttpResponse
+    }
+  }
+
+  private def handleBrowserOidcCompletion(
+      token: String,
+      maybeRightCompliance: Option[MaxRightComplianceResult]
+  ): Future[Result] = {
+    val cookie = Cookie(
+      name = "token",
+      value = token,
+      httpOnly = false,
+      sameSite = Some(SameSite.Strict)
+    )
+    val response =
+      if (maybeRightCompliance.exists(!_.isEmpty)) {
+        Ok(
+          Json.obj(
+            "rightUpdates" -> Json.toJson(maybeRightCompliance)(
+              Writes.optionWithNull(MaxRightComplianceResult.writes)
+            )
+          )
+        )
+      } else {
+        NoContent
+      }
+    Future.successful(response.withCookies(cookie))
+  }
+
+  /**
+   * Initiates CLI OIDC authentication flow.
+   *
+   * The CLI generates a cryptographically secure state parameter and opens the browser
+   * to this endpoint. The backend stores the state and redirects to the OIDC provider
+   * with the state prefixed by `cli:` so [[openIdCodeReturn]] can distinguish CLI from
+   * browser flows.
+   */
+  def cliOpenIdConnect(state: String): Action[AnyContent] = Action.async { implicit request =>
+    if (!env.datastores.cliAuth.isValidState(state)) {
+      Future.successful(BadRequest(Json.obj("message" -> "Invalid state parameter format")))
+    } else {
+      env.datastores.configuration
+        .readFullConfiguration()
+        .value
+        .map(e => e.toOption.flatMap(_.oidcConfiguration))
+        .flatMap {
+          case None => Future.successful(MissingOIDCConfigurationError().toHttpResponse)
+          case Some(oauth2Config) if !oauth2Config.enabled =>
+            Future.successful(BadRequest(Json.obj("message" -> "OIDC is not enabled")))
+          case Some(oauth2Config) =>
+            val hasOpenIdInScope =
+              oauth2Config.scopes.split(" ").exists(_.equalsIgnoreCase("openid"))
+            val actualScope =
+              (if (!hasOpenIdInScope) oauth2Config.scopes + " openid"
+               else oauth2Config.scopes).replace(" ", "%20")
+
+            val (codeVerifier, pkceParams) =
+              if (oauth2Config.pkce.exists(_.enabled)) {
+                val (verifier, challenge, method) =
+                  generatePKCECodes(oauth2Config.pkce.get.algorithm.some)
+                (Some(verifier), s"&code_challenge=$challenge&code_challenge_method=$method")
+              } else {
+                (None, "")
+              }
+
+            env.datastores.cliAuth.createPendingAuth(state, codeVerifier).map {
+              case Right(_) =>
+                val cliState = s"cli:$state"
+                val redirectUrl = s"${oauth2Config.authorizeUrl}?scope=$actualScope" +
+                  s"&client_id=${oauth2Config.clientId}" +
+                  s"&response_type=code" +
+                  s"&redirect_uri=${oauth2Config.callbackUrl}" +
+                  s"&state=$cliState" +
+                  pkceParams
+                Redirect(redirectUrl)
+              case Left(err) =>
+                err.toHttpResponse
+            }
+        }
+    }
+  }
+
+  /**
+   * CLI polls this endpoint to retrieve the authentication token.
+   *
+   * Responses:
+   * - 200 OK with token: Authentication complete, token returned
+   * - 202 Accepted: Authentication in progress, continue polling
+   * - 400 Bad Request: Invalid state format
+   * - 429 Too Many Requests: Rate limited
+   */
+  def cliTokenPoll(state: String): Action[AnyContent] = Action.async { implicit request =>
+    if (!env.datastores.cliAuth.isValidState(state)) {
+      Future.successful(BadRequest(Json.obj("message" -> "Invalid state parameter format")))
+    } else {
+      env.datastores.cliAuth.claimToken(state).map {
+        case Right(Some(token)) =>
+          Ok(Json.obj("token" -> token))
+        case Right(None) =>
+          Accepted(
+            Json.obj(
+              "status" -> "pending",
+              "message" -> "Authentication in progress, please continue polling"
+            )
+          )
+        case Left(_: fr.maif.izanami.errors.CliAuthRateLimited) =>
+          TooManyRequests(
+            Json.obj(
+              "message" -> "Too many requests, please slow down",
+              "retryAfter" -> 5
+            )
+          ).withHeaders("Retry-After" -> "5")
+        case Left(err) =>
+          err.toHttpResponse
+      }
+    }
   }
 
   private def extractRoles(

@@ -88,6 +88,10 @@ POST          /api/admin/logout                                                 
 GET           /api/admin/openid-connect                                                            fr.maif.izanami.web.LoginController.openIdConnect()
 POST          /api/admin/openid-connect-callback                                                   fr.maif.izanami.web.LoginController.openIdCodeReturn()
 POST          /api/admin/openid-connect/configuration                                              fr.maif.izanami.web.LoginController.fetchOpenIdConnectConfiguration()
+# CLI OIDC authentication - allows CLI tools to authenticate via browser without local callback server
+# Flow: CLI opens browser to cli-login -> user authenticates -> CLI polls cli-token for JWT
+GET           /api/admin/cli-login                                                                 fr.maif.izanami.web.LoginController.cliOpenIdConnect(state: String)
+GET           /api/admin/cli-token                                                                 fr.maif.izanami.web.LoginController.cliTokenPoll(state: String)
 
 PUT           /api/admin/configuration                                                             fr.maif.izanami.web.ConfigurationController.updateConfiguration()
 GET           /api/admin/configuration                                                             fr.maif.izanami.web.ConfigurationController.readConfiguration()
