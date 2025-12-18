@@ -4144,6 +4144,95 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       url.split("code=")(1).split("&")(0)
     }
 
+    def extractStateFromUrl(url: String): String = {
+      url.split("state=")(1).split("&")(0)
+    }
+
+    def generateValidState(): String = {
+      val bytes = new Array[Byte](32)
+      new java.security.SecureRandom().nextBytes(bytes)
+      java.util.Base64.getUrlEncoder.withoutPadding().encodeToString(bytes)
+    }
+
+    def logAsOIDCUserViaCli(
+        username: String,
+        state: String,
+        password: String = "pwd"
+    ): TestSituation = {
+      // 1. Call CLI login endpoint to initiate flow (no cookies returned)
+      val location = await(
+        ws.url(s"${ADMIN_BASE_URL}/cli-login?state=$state")
+          .withFollowRedirects(false)
+          .get()
+          .map(response => {
+            if (response.status >= 400) {
+              throw new RuntimeException(
+                s"Failed to call cli-login endpoint: ${response.status}"
+              )
+            } else {
+              response.header("Location").get
+            }
+          })
+      )
+
+      // 2. Follow OIDC flow (same as logAsOIDCUser)
+      val (antiForgeryCookie, requestVerificationToken) = await(
+        ws.url(location)
+          .get()
+          .map(response => {
+            if (response.status >= 400) {
+              throw new RuntimeException(
+                s"Failed to call OIDC authorize endpoint: status=${response.status}, body=${response.body}"
+              )
+            } else {
+              val antiForgeryCookie =
+                response.cookies.find(c => c.name.contains("Antiforgery"))
+                  .getOrElse(throw new RuntimeException(
+                    s"No Antiforgery cookie found. Location=$location, cookies=${response.cookies.map(_.name)}, status=${response.status}"
+                  ))
+              val requestVerificationToken =
+                extractVerificationToken(response.body)
+              (antiForgeryCookie, requestVerificationToken)
+            }
+          })
+      )
+
+      // 3. Submit login to mock OIDC server
+      val body = Map(
+        "Input.ReturnUrl" -> location.replaceFirst("http://localhost:9001", ""),
+        "Input.Username" -> username,
+        "Input.Password" -> password,
+        "Input.Button" -> "login",
+        "__RequestVerificationToken" -> requestVerificationToken
+      )
+      val response = await(
+        ws.url("http://localhost:9001/Account/Login")
+          .withCookies(antiForgeryCookie)
+          .withFollowRedirects(false)
+          .post(body)
+      )
+
+      // 4. Follow redirects to get code and state
+      val secondResponse = await(
+        ws.url(s"http://localhost:9001${response.header("Location").get}")
+          .withCookies(response.cookies.appended(antiForgeryCookie).toSeq: _*)
+          .withFollowRedirects(false)
+          .get()
+      )
+
+      val urlWithCode = secondResponse.header("Location").get
+      val code = extractCodeFromUrl(urlWithCode)
+      val cliState = extractStateFromUrl(urlWithCode)
+
+      // 5. Call callback with code AND state (CLI flow - no session cookie needed)
+      await(
+        ws.url(s"${ADMIN_BASE_URL}/openid-connect-callback")
+          .post(Json.obj("code" -> code, "state" -> cliState))
+      )
+
+      this // Return same situation - token is now available via polling
+    }
+
     def restartServerWithConf(conf: Map[String, AnyRef]): TestSituation = {
       shouldRestartInstance = true
       stopServer()
