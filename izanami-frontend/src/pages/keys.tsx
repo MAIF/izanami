@@ -242,7 +242,11 @@ export default function Keys(props: { tenant: string }) {
                 transform: "translateY(-50%)",
               }}
             >
-              <CopyButton icon secondary value={info.getValue()} />
+              <CopyButton
+                icon
+                secondary
+                value={info.row.original.clientSecret}
+              />
             </div>
           </div>
         );
