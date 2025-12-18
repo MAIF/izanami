@@ -1,56 +1,20 @@
 package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{
-  FeatureContextDoesNotExist,
-  FeatureDoesNotExist,
-  FeatureNotFound,
-  IncorrectKey,
-  InternalServerError,
-  IzanamiError,
-  ModernFeaturesForbiddenByConfig,
-  NoProtectedContextAccess,
-  NotEnoughRights,
-  OPAResultMustBeBoolean
-}
+import fr.maif.izanami.errors.{FeatureContextDoesNotExist, FeatureDoesNotExist, FeatureNotFound, IncorrectKey, InternalServerError, IzanamiError, ModernFeaturesForbiddenByConfig, NoProtectedContextAccess, NotEnoughRights, OPAResultMustBeBoolean}
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models.*
-import fr.maif.izanami.models.ProjectRightLevel.{
-  Admin,
-  Read,
-  Update,
-  Write,
-  projectRightLevelReads
-}
-import fr.maif.izanami.models.features.{
-  BooleanResult,
-  EnabledFeaturePatch,
-  FeaturePatch,
-  ProjectFeaturePatch,
-  RemoveFeaturePatch,
-  TagsFeaturePatch
-}
-import fr.maif.izanami.requests.{
-  BaseFeatureUpdateRequest,
-  FeatureUpdateRequest,
-  OverloadFeatureUpdateRequest
-}
-import fr.maif.izanami.services.FeatureService.{
-  canCreateOrDeleteFeature,
-  computeRootContexts,
-  impactedProtectedContextsByUpdate,
-  validateFeature
-}
+import fr.maif.izanami.models.ProjectRightLevel.{Admin, Read, Update, Write, projectRightLevelReads}
+import fr.maif.izanami.models.features.{ActivationCondition, BooleanResult, EnabledFeaturePatch, FeaturePatch, ProjectFeaturePatch, RemoveFeaturePatch, ResultType, TagsFeaturePatch, ValuedResultDescriptor}
+import fr.maif.izanami.requests.{BaseFeatureUpdateRequest, FeatureUpdateRequest, OverloadFeatureUpdateRequest}
+import fr.maif.izanami.services.FeatureService.{canCreateOrDeleteFeature, computeRootContexts, impactedProtectedContextsByUpdate, validateFeature}
 import fr.maif.izanami.utils.{Done, FutureEither, Helpers}
-import fr.maif.izanami.utils.syntax.implicits.{
-  BetterEither,
-  BetterFuture,
-  BetterFutureEither,
-  BetterSyntax
-}
+import fr.maif.izanami.utils.syntax.implicits.{BetterEither, BetterFuture, BetterFutureEither, BetterSyntax}
 import fr.maif.izanami.v1.OldFeature
 import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
 import io.vertx.sqlclient.SqlConnection
+import play.api.libs.json.{JsObject, JsValue, Json, Writes}
+import play.api.libs.json.Json.JsValueWrapper
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -801,6 +765,75 @@ class FeatureService(env: Env) {
 }
 
 object FeatureService {
+  def formatFeatureResponse(
+                                     evaluatedCompleteFeatures: Seq[EvaluatedCompleteFeature],
+                                     conditions: Boolean
+                                   ): JsValue = {
+    val fields = evaluatedCompleteFeatures
+      .map(evaluated => {
+        val active: JsValueWrapper = evaluated.result
+        var baseJson = Json.obj(
+          "name" -> evaluated.baseFeature.name,
+          "active" -> active,
+          "project" -> evaluated.baseFeature.project
+        )
+
+        if (conditions) {
+          val jsonStrategies = Json
+            .toJson(evaluated.featureStrategies.strategies.map {
+              case (ctx, feature) => {
+                (
+                  ctx,
+                  FeatureService.writeConditions(feature)
+                )
+              }
+            })
+            .as[JsObject]
+          baseJson = baseJson + ("conditions" -> jsonStrategies)
+        }
+        (evaluated.baseFeature.id, baseJson)
+      })
+      .toMap
+    Json.toJson(fields)
+  }
+  
+  def writeConditions(f: CompleteFeature): JsObject = {
+    val resultType: JsValueWrapper =
+      Json.toJson(f.resultType)(ResultType.resultTypeWrites)
+    val baseJson = Json.obj(
+      "enabled" -> f.enabled,
+      "resultType" -> resultType
+    )
+    f match {
+      case w: CompleteWasmFeature =>
+        baseJson + ("wasmConfig" -> Json.obj("name" -> w.wasmConfig.name))
+      case f => {
+        val conditions = f match {
+          case s: SingleConditionFeature =>
+            s.toModernFeature.resultDescriptor.conditions
+          case f: Feature => f.resultDescriptor.conditions
+          case _ => throw new RuntimeException("This should never happen")
+        }
+
+        val maybeValue = f match {
+          case f: Feature =>
+            f.resultDescriptor match {
+              case descriptor: ValuedResultDescriptor =>
+                Option(descriptor.jsonValue)
+              case _ => None
+            }
+          case _ => None
+        }
+
+        baseJson.applyOnWithOpt(maybeValue)((json, v) =>
+          json + ("value" -> v)
+        ) + ("conditions" -> Json.toJson(
+          conditions
+        )(Writes.seq(ActivationCondition.activationConditionWrite)))
+      }
+    }
+  }
+
   def impactedProtectedContextsByUpdate(
       protectedContexts: Set[FeatureContextPath],
       currentOverloads: Set[FeatureContextPath],
