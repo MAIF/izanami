@@ -4097,9 +4097,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
       val urlWithCode = secondResponse.header("Location").get
       val code = extractCodeFromUrl(urlWithCode)
+      val state = extractStateFromUrl(urlWithCode)
 
       val newSituation = await(
-        callOpenIdCallback2(code, playCookie)
+        callOpenIdCallback2(code, state, playCookie)
           .map(response => {
             if (response.status >= 400) {
               throw new RuntimeException(
@@ -4129,6 +4130,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
     private def callOpenIdCallback2(
         code: String,
+        state: String,
         sessionCookie: WSCookie
     ): Future[WSResponse] = {
       ws.url(s"""${ADMIN_BASE_URL}/openid-connect-callback""")
@@ -4136,7 +4138,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           sessionCookie
         )
         .post(
-          Json.obj("code" -> code)
+          Json.obj("code" -> code, "state" -> state)
         )
     }
 
