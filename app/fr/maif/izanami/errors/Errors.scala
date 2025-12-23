@@ -430,6 +430,7 @@ case class CantUpdateOIDCUser()
         "OIDC users can't be updated since role right mode is set to 'supervised'.",
       status = BAD_REQUEST
     )
+case class UserDoesNotExist(user: String) extends IzanamiError(message = s"User $user does not exist", status = 404)
 case class RightComplianceError(override val message: String) extends IzanamiError(message = message, status = 400) 
 case object ModernFeaturesForbiddenByConfig
     extends IzanamiError(

@@ -283,7 +283,8 @@ class LoginController(
                                                 username,
                                                 email = email,
                                                 userType = OIDC,
-                                                admin = rightToApply.admin
+                                                admin = rightToApply.admin,
+                                                roles = roles
                                               )
                                                 .withRights(
                                                   Rights(rightToApply.tenants)
@@ -297,7 +298,8 @@ class LoginController(
                                                 username,
                                                 email = email,
                                                 userType = OIDC,
-                                                admin = rights.admin
+                                                admin = rights.admin,
+                                                roles = roles
                                               )
                                                 .withRights(
                                                   Rights(rights.tenants)

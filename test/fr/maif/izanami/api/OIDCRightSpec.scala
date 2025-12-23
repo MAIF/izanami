@@ -544,7 +544,7 @@ class OIDCRightSpec extends BaseAPISpec {
 
     }
 
-    "prevent updating user right above max rights" in {
+    "prevent updating user tenant right above max rights" in {
       val initialConfig = baseOIDCConfiguration ++ Map(
         // DEFAULT INITIAL RIGHTS
         ("app.openid.right-by-roles.\"\".admin" -> "false"),
@@ -571,7 +571,7 @@ class OIDCRightSpec extends BaseAPISpec {
       situation = situation.logAsOIDCUser("User2")
       situation = situation.logout()
       situation = situation.loggedAsAdmin()
-      val adminUpdateResponse = situation.updateUserRights("Sam Tailor2", admin = true, TestRights())
+      val adminUpdateResponse = situation.updateUserRightsForTenant("Sam Tailor2", TestTenantRight(name = "test").addProjectRight("proj", "admin"))
 
       adminUpdateResponse.status mustBe BAD_REQUEST
     }

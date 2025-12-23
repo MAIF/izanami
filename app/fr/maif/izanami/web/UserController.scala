@@ -180,8 +180,7 @@ class UserController(
                   UpsertTenantRights(removedWebhookRights =
                     Set(request.hookName)
                   )
-                )
-                .map(_ => NoContent)
+                ).toResult(_ => NoContent)
             case obj => {
               (obj \ "level").asOpt[RightLevel] match {
                 case None        => BadBodyFormat().toHttpResponse.future
@@ -210,7 +209,7 @@ class UserController(
                           tenant,
                           tenantRightDiff
                         )
-                        .map(_ => NoContent)
+                        .toResult(_ => NoContent)
                     }
                     case None =>
                       NotFound(Json.obj("message" -> "user not found")).future
@@ -239,7 +238,7 @@ class UserController(
                   tenant,
                   UpsertTenantRights(removedKeyRights = Set(name))
                 )
-                .map(_ => NoContent)
+                .toResult(_ => NoContent)
             case obj => {
               (obj \ "level").asOpt[RightLevel] match {
                 case None        => BadBodyFormat().toHttpResponse.future
@@ -264,7 +263,7 @@ class UserController(
                           tenant,
                           tenantRightDiff
                         )
-                        .map(_ => NoContent)
+                        .toResult(_ => NoContent)
                     }
                     case None =>
                       NotFound(Json.obj("message" -> "user not found")).future
@@ -294,7 +293,7 @@ class UserController(
                 tenant,
                 UpsertTenantRights(removedProjectRights = Set(project))
               )
-              .map(e => e.fold(err => err.toHttpResponse, _ => NoContent))
+              .toResult( _ => NoContent)
           } else {
             val newLevel = (obj \ "level").as[ProjectRightLevel]
 
@@ -330,7 +329,7 @@ class UserController(
                         )
                       )
                   }
-                }.map(e => e.fold(err => err.toHttpResponse, _ => NoContent))
+                }.toResult(_ => NoContent)
               case None =>
                 NotFound(Json.obj("message" -> "user not found")).future
             }
@@ -432,7 +431,7 @@ class UserController(
             if (authorized) {
               rightService
                 .updateUserRightsForTenant(user, tenant, diff)
-                .map(e => e.fold(err => err.toHttpResponse, _ => NoContent))
+                .toResult(_ => NoContent)
             } else {
               Forbidden(Json.obj("message" -> "Not enough rights")).future
             }
@@ -530,7 +529,8 @@ class UserController(
                 password = password,
                 rights = invitation.rights,
                 admin = invitation.admin,
-                userType = INTERNAL
+                userType = INTERNAL,
+                roles = Set()
               )
               env.datastores.users
                 .createUser(user)

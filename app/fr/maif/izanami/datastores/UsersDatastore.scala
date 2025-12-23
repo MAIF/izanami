@@ -1,37 +1,21 @@
 package fr.maif.izanami.datastores
 
 import org.apache.pekko.actor.Cancellable
-import fr.maif.izanami.datastores.userImplicits.{
-  UserRow,
-  dbUserTypeToUserType,
-  projectRightRead,
-  rightRead
-}
+import fr.maif.izanami.datastores.userImplicits.{UserRow, dbUserTypeToUserType, projectRightRead, rightRead}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{
-  RELATION_DOES_NOT_EXISTS,
-  UNIQUE_VIOLATION
-}
+import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.models.RightLevel.{Read, superiorOrEqualLevels}
-import fr.maif.izanami.models.Rights.{
-  RightDiff,
-  TenantRightDiff,
-  UnscopedFlattenKeyRight,
-  UnscopedFlattenProjectRight,
-  UnscopedFlattenTenantRight,
-  UnscopedFlattenWebhookRight,
-  UpsertTenantRights
-}
+import fr.maif.izanami.models.Rights.{RightDiff, TenantRightDiff, UnscopedFlattenKeyRight, UnscopedFlattenProjectRight, UnscopedFlattenTenantRight, UnscopedFlattenWebhookRight, UpsertTenantRights}
 import fr.maif.izanami.models.User.tenantRightReads
 import fr.maif.izanami.models.*
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.utils.{Datastore, Done, FutureEither}
 import fr.maif.izanami.web.ImportController.*
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
-import play.api.libs.json.{JsError, JsSuccess, Reads}
+import play.api.libs.json.{JsArray, JsError, JsString, JsSuccess, Reads}
 
 import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
@@ -813,8 +797,8 @@ class UsersDatastore(val env: Env) extends Datastore {
       val eventualErrorOrUnit: Future[Either[IzanamiError, Unit]] =
         env.postgresql
           .queryRaw(
-            s"""insert into izanami.users (username, password, admin, email, user_type, legacy)
-             |values (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::BOOLEAN[]), unnest($$4::TEXT[]), unnest($$5::izanami.user_type[]), unnest($$6::BOOLEAN[])) ${importConflictStrategy match {
+            s"""INSERT INTO izanami.users (username, password, admin, email, user_type, legacy, roles)
+             |values (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::BOOLEAN[]), unnest($$4::TEXT[]), unnest($$5::izanami.user_type[]), unnest($$6::BOOLEAN[]), unnest($$7::JSONB[])) ${importConflictStrategy match {
                 case Fail           => ""
                 case MergeOverwrite =>
                   s" ON CONFLICT(username) DO UPDATE SET admin=COALESCE(users.admin, excluded.admin)"
@@ -834,7 +818,10 @@ class UsersDatastore(val env: Env) extends Datastore {
               users.map(user => java.lang.Boolean.valueOf(user.admin)).toArray,
               users.map(user => Option(user.email).orNull).toArray,
               users.map(user => user.userType.toString).toArray,
-              users.map(user => java.lang.Boolean.valueOf(user.legacy)).toArray
+              users.map(user => java.lang.Boolean.valueOf(user.legacy)).toArray,
+              users.map(user => {
+                JsArray(user.roles.map(JsString(_)).toIndexedSeq).vertxJsValue
+              }).toArray
             ),
             conn = Some(conn)
           ) { _ => Right(()) }
@@ -1325,7 +1312,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   ): Future[Option[UserWithTenantRights]] = {
     env.postgresql.queryOne(
       s"""
-         |SELECT u.username, u.admin, u.email, u.default_tenant, u.user_type,
+         |SELECT u.username, u.admin, u.email, u.default_tenant, u.user_type, u.roles,
          |  coalesce((
          |    select json_object_agg(utr.tenant, utr.level)
          |    from izanami.users_tenants_rights utr
@@ -1355,7 +1342,8 @@ class UsersDatastore(val env: Env) extends Datastore {
             password = null,
             admin = admin,
             tenantRights = tenantRights,
-            userType = userType
+            userType = userType,
+            roles = row.optJsArray("roles").map(_.value.map(_.toString()).toSet).getOrElse(Set())
           )
         }
       }
@@ -1420,7 +1408,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   def findUsers(usernames: Set[String]): Future[Seq[UserWithTenantRights]] = {
     env.postgresql.queryAll(
       s"""
-         |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant,
+         |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant, u.roles,
          |  coalesce((
          |    select json_object_agg(utr.tenant, utr.level)
          |    from izanami.users_tenants_rights utr
@@ -1450,7 +1438,8 @@ class UsersDatastore(val env: Env) extends Datastore {
             admin = admin,
             tenantRights = tenantRights,
             defaultTenant = row.optString("default_tenant"),
-            userType = userType
+            userType = userType,
+            roles = row.optJsArray("roles").map(_.value.map(_.toString()).toSet).getOrElse(Set())
           )
         }
       }
@@ -1481,7 +1470,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |  LEFT JOIN izanami.users_tenants_rights utr ON utr.username=u.username
          |  WHERE u.username=$$1
          |)
-         |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant,
+         |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant, u.roles,
          |  CASE WHEN (SELECT admin FROM rights LIMIT 1) THEN (
          |    SELECT coalesce((
          |        select json_object_agg(utr2.tenant, utr2.level)
@@ -1514,7 +1503,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   ): Future[List[UserWithSingleLevelRight]] = {
     env.postgresql.queryAll(
       s"""
-         |SELECT u.username, u.email, u.admin, u.user_type, u.default_tenant, r.level
+         |SELECT u.username, u.email, u.admin, u.user_type, u.default_tenant, r.level, u.roles,
          |FROM izanami.users u
          |LEFT JOIN izanami.users_tenants_rights r ON r.username = u.username AND r.tenant=$$1
          |WHERE r.level IS NOT NULL
@@ -1542,6 +1531,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |    u.default_tenant,
          |    u.username,
          |    u.email,
+         |    u.roles,
          |    utr.default_webhook_right
          |FROM izanami.users u
          |LEFT JOIN "${tenant}".webhooks w ON w.id=$$2
@@ -1575,7 +1565,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     require(Tenant.isTenantValid(tenant))
     env.postgresql.queryAll(
       s"""
-         |SELECT u.username, u.email, u.admin, u.user_type, u.default_tenant, r.level, tr.level as tenant_right, tr.default_project_right
+         |SELECT u.username, u.email, u.admin, u.user_type, u.default_tenant, u.roles, r.level, tr.level as tenant_right, tr.default_project_right
          |FROM izanami.users u
          |LEFT JOIN "${tenant}".users_projects_rights r ON r.username = u.username AND r.project=$$1
          |LEFT JOIN izanami.users_tenants_rights tr ON tr.username = u.username AND tr.tenant=$$2
@@ -1615,6 +1605,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |    u.default_tenant,
          |    u.username,
          |    u.email,
+         |    u.roles,
          |    utr.default_key_right
          |FROM izanami.users u
          |LEFT JOIN "${tenant}".apikeys k ON k.name=$$2
@@ -1674,7 +1665,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           env.postgresql
             .queryOne(
               s"""
-             |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant, json_build_object(
+             |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant, u.roles, json_build_object(
              |    'level', utr.level,
              |    'defaultProjectRight', utr.default_project_right,
              |    'defaultKeyRight', utr.default_key_right,
@@ -1709,7 +1700,8 @@ class UsersDatastore(val env: Env) extends Datastore {
               admin = u.admin,
               userType = u.userType,
               rights = Rights(rightMap),
-              defaultTenant = u.defaultTenant
+              defaultTenant = u.defaultTenant,
+              roles = u.roles
             )
           )
       })
@@ -1756,7 +1748,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     env.postgresql
       .queryOne(
         s"""
-           |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant,
+           |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant, u.roles,
            |    COALESCE((
            |      select (json_build_object('level', utr.level, 'defaultProjectRight', utr.default_project_right, 'projects', (
            |        select json_object_agg(p.project, json_build_object('level', p.level))
@@ -1786,7 +1778,8 @@ class UsersDatastore(val env: Env) extends Datastore {
               password = null,
               admin = admin,
               tenantRight = parsedRights,
-              userType = userType
+              userType = userType,
+              roles = row.optJsArray("roles").map(_.value.map(_.toString()).toSet).getOrElse(Set())
             )
           }
         }
@@ -1807,7 +1800,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     env.postgresql
       .queryOne(
         s"""
-         |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant,
+         |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant, u.roles,
          |    COALESCE((
          |      select (json_build_object('level', utr.level, 'defaultProjectRight', utr.default_project_right, 'projects', (
          |        select json_object_agg(p.project, json_build_object('level', p.level))
@@ -1837,7 +1830,8 @@ class UsersDatastore(val env: Env) extends Datastore {
               password = null,
               admin = admin,
               tenantRight = parsedRights,
-              userType = userType
+              userType = userType,
+              roles = row.optJsArray("roles").map(_.value.map(_.toString()).toSet).getOrElse(Set())
             )
           }
         }
@@ -1885,7 +1879,8 @@ object userImplicits {
           admin = admin,
           tenantRights = tenantRights,
           userType = userType,
-          defaultTenant = row.optString("default_tenant")
+          defaultTenant = row.optString("default_tenant"),
+          roles = row.optJsArray("roles").map(_.value.map(_.toString()).toSet).getOrElse(Set())
         )
       }
     }
@@ -1902,7 +1897,8 @@ object userImplicits {
           password = null,
           admin = admin,
           userType = userType,
-          defaultTenant = row.optString("default_tenant")
+          defaultTenant = row.optString("default_tenant"),
+          roles = row.optJsArray("roles").map(_.value.map(_.toString()).toSet).getOrElse(Set())
         )
     }
 
@@ -1919,7 +1915,8 @@ object userImplicits {
           admin = admin,
           tenantRight = row.optRights(),
           userType = userType,
-          defaultTenant = row.optString("default_tenant")
+          defaultTenant = row.optString("default_tenant"),
+          roles = row.optJsArray("roles").map(_.value.map(_.toString()).toSet).getOrElse(Set())
         )
     }
   }

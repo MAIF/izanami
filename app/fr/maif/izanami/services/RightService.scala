@@ -3,40 +3,14 @@ package fr.maif.izanami.services
 import fr.maif.izanami.RoleRightMode.Supervised
 import fr.maif.izanami.{RoleRightMode, RoleRights, TenantRoleRights}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{CantUpdateOIDCUser, IzanamiError, UserNotFound}
-import fr.maif.izanami.models.ProjectRightLevel.ProjectRightOrdering
+import fr.maif.izanami.errors.{CantUpdateOIDCUser, IzanamiError, RightComplianceError, UserDoesNotExist, UserNotFound}
+import fr.maif.izanami.models.ProjectRightLevel.{ProjectRightOrdering, Read}
 import fr.maif.izanami.models.RightLevel.RightOrdering
-import fr.maif.izanami.models.Rights.{
-  DeleteTenantRights,
-  RightDiff,
-  TenantRightDiff,
-  UnscopedFlattenKeyRight,
-  UnscopedFlattenProjectRight,
-  UnscopedFlattenTenantRight,
-  UnscopedFlattenWebhookRight,
-  UpsertTenantRights
-}
-import fr.maif.izanami.models.{
-  GeneralAtomicRight,
-  OAuth2Configuration,
-  OIDC,
-  ProjectAtomicRight,
-  ProjectRightLevel,
-  RightLevel,
-  Rights,
-  TenantRight,
-  User,
-  UserRightsUpdateRequest,
-  UserWithRights
-}
-import fr.maif.izanami.services.RightService.{
-  DEFAULT_ROLE,
-  RightsByRole,
-  Role,
-  effectiveRights,
-  keepHigher
-}
-import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
+import fr.maif.izanami.models.Rights.{DeleteTenantRights, RightDiff, TenantRightDiff, UnscopedFlattenKeyRight, UnscopedFlattenProjectRight, UnscopedFlattenTenantRight, UnscopedFlattenWebhookRight, UpsertTenantRights}
+import fr.maif.izanami.models.{GeneralAtomicRight, OAuth2Configuration, OIDC, ProjectAtomicRight, ProjectRightLevel, RightLevel, Rights, TenantRight, User, UserRightsUpdateRequest, UserTrait, UserWithRights, UserWithTenantRights}
+import fr.maif.izanami.services.RightService.{DEFAULT_ROLE, RightsByRole, Role, effectiveRights, keepHigher}
+import fr.maif.izanami.utils.{Done, FutureEither}
+import fr.maif.izanami.utils.syntax.implicits.{BetterFutureEither, BetterJsValue, BetterSyntax}
 import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, Replace}
 import io.vertx.sqlclient.SqlConnection
 import play.api.libs.json.{JsError, JsSuccess, Json, Reads, Writes}
@@ -47,17 +21,19 @@ import scala.concurrent.{ExecutionContext, Future}
 class RightService(env: Env) {
   private implicit val executionContext: ExecutionContext = env.executionContext
 
-  def canUpdateRightsForUser(username: String): Future[Boolean] = {
-    canUpdateRightsForUsers(Set(username))
+  /*def doesRightComplyToMaxRoles(username: String, newRights: CompleteRights): FutureEither[Boolean] = {
+
+  }*/
+
+  def canUpdateRightsForUser(user: UserTrait): Boolean = {
+    canUpdateRightsForUsers(Set(user))
   }
 
-  def canUpdateRightsForUsers(usernames: Set[String]): Future[Boolean] = {
+  def canUpdateRightsForUsers(users: Set[UserTrait]): Boolean = {
     if (areOIDCUserRightsUpdatable) {
-      env.datastores.users
-        .findUsers(usernames)
-        .map(users => users.nonEmpty && users.forall(u => u.userType != OIDC))
+      users.nonEmpty && users.forall(u => u.userType != OIDC)
     } else {
-      Future.successful(true)
+      true
     }
   }
 
@@ -80,18 +56,22 @@ class RightService(env: Env) {
       conn: Option[SqlConnection] = None,
       conflictStrategy: ImportConflictStrategy = Replace
   ): Future[Either[IzanamiError, Unit]] = {
-    canUpdateRightsForUsers(targetUsers).flatMap {
-      case false => Future.successful(Left(CantUpdateOIDCUser()))
-      case true  => {
-        env.datastores.users.updateUsersRightsForTenant(
-          targetUsers,
-          tenant,
-          diff,
-          conn,
-          conflictStrategy
-        )
-      }
-    }
+    env.datastores.users
+      .findUsers(targetUsers)
+      .flatMap(users => {
+        val canUpdate = canUpdateRightsForUsers(users.toSet)
+        if (canUpdate) {
+          env.datastores.users.updateUsersRightsForTenant(
+            targetUsers,
+            tenant,
+            diff,
+            conn,
+            conflictStrategy
+          )
+        } else {
+          Future.successful(Left(CantUpdateOIDCUser()))
+        }
+      })
   }
 
   def updateUserRightsForTenant(
@@ -99,18 +79,48 @@ class RightService(env: Env) {
       tenant: String,
       diff: TenantRightDiff,
       conn: Option[SqlConnection] = None
-  ): Future[Either[IzanamiError, Unit]] = {
-    canUpdateRightsForUser(targetUser).flatMap {
-      case false => Future.successful(Left(CantUpdateOIDCUser()))
-      case true  => {
-        env.datastores.users.updateUserRightsForTenant(
-          targetUser,
-          tenant,
-          diff,
-          conn
-        )
-      }
-    }
+  ): FutureEither[Done] = {
+    def doUpdate(diff:TenantRightDiff = diff) = env.datastores.users.updateUserRightsForTenant(
+      targetUser,
+      tenant,
+      diff,
+      conn
+    )
+
+    env.datastores.users
+      .findUserWithRightForTenant(targetUser, tenant = tenant)
+      .toFEither
+      .flatMap(user =>
+        if(canUpdateRightsForUser(user) && user.userType == OIDC) {
+          env.datastores.configuration
+            .readFullConfiguration()
+            .map(_.oidcConfiguration.flatMap(_.maxUserRightsByRoles))
+            .flatMap {
+              case Some(maxRights) => {
+                val effectiveMaxRights = CompleteRights.maxRightsToApply(user.roles, maxRights)
+
+                val baseRight = user.tenantRight.getOrElse(TenantRight(level = RightLevel.Read))
+                val maybeNewRights = baseRight.applyDiff(diff)
+                (effectiveMaxRights.tenants.get(tenant), maybeNewRights) match {
+                  case (Some(maxTenantRights), Some(newRight)) => {
+                    val compliance = newRight.checkCompliance(maxTenantRights)
+                    if(!compliance.isEmpty) {
+                      FutureEither.failure(RightComplianceError(s"User role doesn't allow him to have following rights on tenant ${tenant}:\n".concat(compliance.toError(tenant).mkString("\n"))))
+                    } else {
+                      doUpdate().fEither
+                    }
+                  }
+                  case _ => doUpdate().fEither
+                }
+              }
+              case None => doUpdate().fEither
+            }.map(_ => Done.done())
+        } else if(canUpdateRightsForUser(user)) {
+          doUpdate().toFEither.map(_ => Done.done())
+        } else {
+          FutureEither.failure(CantUpdateOIDCUser())
+        }
+    )
   }
 
   def updateUserRights(
@@ -119,30 +129,26 @@ class RightService(env: Env) {
       conn: Option[SqlConnection] = None,
       force: Boolean = false
   ): Future[Either[IzanamiError, Unit]] = {
-    canUpdateRightsForUser(name).flatMap {
-      case false if !force => Future.successful(Left(CantUpdateOIDCUser()))
-      case _               => {
-        env.datastores.users
-          .findUserWithCompleteRights(name)
-          .flatMap {
-            case Some(UserWithRights(_, _, _, admin, _, rights, _, _)) => {
-              val diff = Rights.compare(
-                base = rights,
-                modified = updateRequest.rights,
-                baseAdmin = admin,
-                admin = updateRequest.admin
-              )
+    env.datastores.users
+      .findUserWithCompleteRights(name)
+      .flatMap {
+        case Some(user) if !canUpdateRightsForUser(user) && !force =>
+          Future.successful(Left(CantUpdateOIDCUser()))
+        case None       => Future.successful(Left(UserNotFound(name)))
+        case Some(user) => {
+          val diff = Rights.compare(
+            base = user.rights,
+            modified = updateRequest.rights,
+            baseAdmin = user.admin,
+            admin = updateRequest.admin
+          )
 
-              env.datastores.users.updateUserRights(
-                name = name,
-                rightDiff = diff
-              )
-            }
-            case None => Left(UserNotFound(name)).future
-          }
+          env.datastores.users.updateUserRights(
+            name = name,
+            rightDiff = diff
+          )
+        }
       }
-    }
-
   }
 }
 
@@ -484,126 +490,24 @@ case class CompleteRights(tenants: Map[String, TenantRight], admin: Boolean) {
     copy(admin = admin, tenants = tenants.filter(t => !tenant.contains(t._1)))
   }
 
-  def updateToComplyWith(maxRightComplianceResult: MaxRightComplianceResult): CompleteRights = {
+  def updateToComplyWith(
+      maxRightComplianceResult: MaxRightComplianceResult
+  ): CompleteRights = {
     val newAdmin = if (admin && maxRightComplianceResult.admin) false else admin
 
     val newTenantRights = tenants
-      .map { (name, tenantRight) => {
-        val maybeComplianceResult = maxRightComplianceResult.tenants.get(name)
+      .map { (name, tenantRight) =>
+        {
+          val maybeComplianceResult = maxRightComplianceResult.tenants.get(name)
 
-        maybeComplianceResult
-          .map(complianceResult => {
-            if (complianceResult.levelRight.exists(_.after.isEmpty)) {
-              Option.empty
-            } else {
-              val newLevel = complianceResult.levelRight
-                .flatMap(_.after)
-                .getOrElse(tenantRight.level)
-              val newDefaultProjectRight =
-                complianceResult.defaultProjectRight
-                  .map(dpr => dpr.after)
-                  .getOrElse(tenantRight.defaultProjectRight)
-              val newDefaultKeyRight = complianceResult.defaultKeyRight
-                .map(dkr => dkr.after)
-                .getOrElse(tenantRight.defaultKeyRight)
-              val newDefaultWebhookRight =
-                complianceResult.defaultWebhookRight
-                  .map(dwr => dwr.after)
-                  .getOrElse(tenantRight.defaultWebhookRight)
-
-              val newProjectRights = tenantRight.projects
-                .map {
-                  case (name, right) => {
-                    val maybeProjectComplianceChange =
-                      complianceResult.projects.get(name)
-                    if (
-                      maybeProjectComplianceChange.exists(_.after.isEmpty)
-                    ) {
-                      Option.empty
-                    } else {
-                      Some(
-                        (
-                          name,
-                          maybeProjectComplianceChange
-                            .map(_.after.get)
-                            .map(r => ProjectAtomicRight(r))
-                            .getOrElse(right)
-                        )
-                      )
-                    }
-                  }
-                }
-                .collect { case Some(p) =>
-                  p
-                }
-                .toMap
-
-              val newWebhookRights = tenantRight.webhooks
-                .map {
-                  case (name, right) => {
-                    val maybeWebhookComplanceChange =
-                      complianceResult.webhooks.get(name)
-                    if (maybeWebhookComplanceChange.exists(_.after.isEmpty)) {
-                      Option.empty
-                    } else {
-                      Some(
-                        (
-                          name,
-                          maybeWebhookComplanceChange
-                            .map(_.after.get)
-                            .map(r => GeneralAtomicRight(r))
-                            .getOrElse(right)
-                        )
-                      )
-                    }
-                  }
-                }
-                .collect { case Some(p) =>
-                  p
-                }
-                .toMap
-
-              val newKeyRights = tenantRight.keys
-                .map {
-                  case (name, right) => {
-                    val maybeKeyComplianceChange =
-                      complianceResult.keys.get(name)
-                    if (maybeKeyComplianceChange.exists(_.after.isEmpty)) {
-                      Option.empty
-                    } else {
-                      Some(
-                        (
-                          name,
-                          maybeKeyComplianceChange
-                            .map(_.after.get)
-                            .map(r => GeneralAtomicRight(r))
-                            .getOrElse(right)
-                        )
-                      )
-                    }
-                  }
-                }
-                .collect { case Some(p) =>
-                  p
-                }
-                .toMap
-
-              Some(
-                name,
-                TenantRight(
-                  level = newLevel,
-                  projects = newProjectRights,
-                  keys = newKeyRights,
-                  webhooks = newWebhookRights,
-                  defaultProjectRight = newDefaultProjectRight,
-                  defaultKeyRight = newDefaultKeyRight,
-                  defaultWebhookRight = newDefaultWebhookRight
-                )
-              )
-            }
-          })
-          .getOrElse(Some(name, tenantRight))
-      }
+          maybeComplianceResult
+            .map(complianceResult => {
+              tenantRight
+                .updateToComplyWith(complianceResult)
+                .map(tr => (name, tr))
+            })
+            .getOrElse(Some(name, tenantRight))
+        }
       }
       .collect { case Some(t) =>
         t
@@ -624,90 +528,9 @@ case class CompleteRights(tenants: Map[String, TenantRight], admin: Boolean) {
                 Some(
                   maxRights
                 ),
-                TenantRight(
-                  level,
-                  projects,
-                  keys,
-                  webhooks,
-                  defaultProjectRight,
-                  defaultKeyRight,
-                  defaultWebhookRight
-                )
+                tr: TenantRight
               ) => {
-            val maybeLevelNonCompliance =
-              if (level.isGreaterThan(maxRights.level))
-                Some(
-                  RightComplianceChange(
-                    before = level,
-                    after = Some(maxRights.level)
-                  )
-                )
-              else None
-
-            val maybeDefaultKeyNonCompliance =
-              CompleteRights.generateComplianceRightChange(
-                defaultKeyRight,
-                maxRights.maxKeyRight
-              )
-            val keyComplianceChange = keys
-              .map { (name, rightLevel) =>
-                CompleteRights
-                  .generateComplianceRightChange(
-                    Some(rightLevel.level),
-                    maxRights.maxKeyRight
-                  )
-                  .map(complianceChange => (name, complianceChange))
-              }
-              .collect { case Some(nonCompliance) =>
-                nonCompliance
-              }
-              .toMap
-            val maybeDefaultWebhookNonCompliance =
-              CompleteRights.generateComplianceRightChange(
-                defaultWebhookRight,
-                maxRights.maxWebhookRight
-              )
-            val webhookComplianceChange = webhooks
-              .map { (name, rightLevel) =>
-                CompleteRights
-                  .generateComplianceRightChange(
-                    Some(rightLevel.level),
-                    maxRights.maxWebhookRight
-                  )
-                  .map(complianceChange => (name, complianceChange))
-              }
-              .collect { case Some(nonCompliance) =>
-                nonCompliance
-              }
-              .toMap
-            val maybeDefaultProjectNonCompliance =
-              CompleteRights.generateComplianceRightChangeForProject(
-                defaultProjectRight,
-                maxRights.maxProjectRight
-              )
-            val projectComplianceChange = projects
-              .map { (name, rightLevel) =>
-                CompleteRights
-                  .generateComplianceRightChangeForProject(
-                    Some(rightLevel.level),
-                    maxRights.maxProjectRight
-                  )
-                  .map(complianceChange => (name, complianceChange))
-              }
-              .collect { case Some(nonCompliance) =>
-                nonCompliance
-              }
-              .toMap
-
-            TenantRightComplianceResult(
-              levelRight = maybeLevelNonCompliance,
-              defaultProjectRight = maybeDefaultProjectNonCompliance,
-              defaultKeyRight = maybeDefaultKeyNonCompliance,
-              defaultWebhookRight = maybeDefaultWebhookNonCompliance,
-              projects = projectComplianceChange,
-              keys = keyComplianceChange,
-              webhooks = webhookComplianceChange
-            )
+            tr.checkCompliance(maxRights)
           }
         }
         (name, complianceResult)
