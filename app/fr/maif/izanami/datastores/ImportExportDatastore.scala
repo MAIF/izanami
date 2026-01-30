@@ -693,8 +693,8 @@ class ImportExportDatastore(val env: Env) extends Datastore {
          |), tag_results AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'tag', 'row', row_to_json(t.*)::jsonb) as result
          |    FROM "${tenant}".tags t ${projectFilter
-          .map(_ => """
-         |, features_tags ft, feature_results
+          .map(_ => s"""
+         |, "${tenant}".features_tags ft, feature_results
          |    WHERE ft.feature=feature_results.fid
          |    AND t.name=ft.tag""".stripMargin)
           .getOrElse("")}
