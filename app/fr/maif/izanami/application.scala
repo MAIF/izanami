@@ -1,14 +1,11 @@
 package fr.maif.izanami
 
 import com.softwaremill.macwire.wire
+import com.typesafe.config.{ConfigValue, ConfigValueFactory}
 import controllers.{Assets, AssetsComponents}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiHttpErrorHandler
-import fr.maif.izanami.services.{
-  FeatureService,
-  FeatureUsageService,
-  RightService
-}
+import fr.maif.izanami.services.{FeatureService, FeatureUsageService, RightService}
 import fr.maif.izanami.v1.WasmManagerClient
 import fr.maif.izanami.web.*
 import play.api.ApplicationLoader.Context
@@ -27,6 +24,7 @@ import pureconfig.{ConfigReader, ConfigSource}
 import router.Routes
 import pureconfig.generic.semiauto.deriveReader
 
+import java.util.Collections
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 
@@ -62,7 +60,7 @@ class IzanamiComponentsInstances(
     wire[IzanamiHttpErrorHandler]
 
   implicit lazy val typedConfig: IzanamiTypedConfiguration =
-    IzanamiTypedConfiguration.from(configuration.underlying)
+    IzanamiTypedConfiguration.from(ConfigUtil.fixIzanamiConfigIfNeeded(configuration.underlying))
 
   implicit lazy val env: Env = new Env(
     environment = environment,
