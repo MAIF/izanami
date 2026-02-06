@@ -1,6 +1,6 @@
 package fr.maif.izanami.services
 
-import fr.maif.izanami.RoleRightMode.Supervised
+import fr.maif.izanami.RoleRightMode.{Initial, Supervised}
 import fr.maif.izanami.datastores.{SessionIdentification, UserIdentification}
 import fr.maif.izanami.{RoleRightMode, RoleRights, TenantRoleRights}
 import fr.maif.izanami.env.Env
@@ -121,7 +121,7 @@ class RightService(env: Env) {
     def checkRights(
         user: UserWithCompleteRightForOneTenant
     ): Either[IzanamiError, Done] = {
-      if (canUpdateRightsForUser(user) && user.userType == OIDC) {
+      if (canUpdateRightsForUser(user) && user.userType == OIDC && env.externalRightMode.exists(_ != Supervised)) {
         maybeMaxRightsByRoles match {
           case Some(maxRightsByRoles) => {
             val maxRights = {
@@ -317,7 +317,7 @@ class RightService(env: Env) {
         tenantLevel = tenantLevel
       )
       .flatMap {
-        case Some(res) if res.user.userType == OIDC =>
+        case Some(res) if res.user.userType == OIDC  && env.externalRightMode.exists(_ != Supervised)=>
           env.datastores.configuration.readOIDCRightConfiguration().map {
             case Some(oidcRights)
                 if oidcRights.allows(
@@ -394,7 +394,7 @@ class RightService(env: Env) {
         users.flatMap(user => {
           val maxPossibleRight = rights.maxRightForProject(tenant,  project, user.roles)
           maxPossibleRight.toMaybeProjectRightLevel.map(maxRight => {
-            if (user.userType == OIDC) {
+            if (user.userType == OIDC && env.externalRightMode.exists(_ != Supervised)) {
               user.copy(right = if(Option(user.right).exists(_.isGreaterThan(maxRight))) maxRight else user.right, defaultRight = user.defaultRight.map(dr => if(dr.isGreaterThan(maxRight)) maxRight else dr))
             } else {
               user
@@ -417,7 +417,7 @@ class RightService(env: Env) {
         users.flatMap(user => {
           val maxPossibleRight = rights.maxRightForKey(tenant, key, user.roles)
           maxPossibleRight.toMaybeRightLevel.map(maxRight => {
-            if (user.userType == OIDC) {
+            if (user.userType == OIDC && env.externalRightMode.exists(_ != Supervised)) {
               user.copy(right = if(user.right.isGreaterThan(maxRight)) maxRight else user.right, defaultRight = user.defaultRight.map(dr => if(dr.isGreaterThan(maxRight)) maxRight else dr))
             } else {
               user
@@ -440,7 +440,7 @@ class RightService(env: Env) {
         users.flatMap(user => {
           val maxPossibleRight = rights.maxRightForWebhook(tenant, webhook, user.roles)
           maxPossibleRight.toMaybeRightLevel.map(maxRight => {
-            if (user.userType == OIDC) {
+            if (user.userType == OIDC && env.externalRightMode.exists(_ != Supervised)) {
               user.copy(right = if(user.right.isGreaterThan(maxRight)) maxRight else user.right, defaultRight = user.defaultRight.map(dr => if(dr.isGreaterThan(maxRight)) maxRight else dr))
             } else {
               user
@@ -460,7 +460,7 @@ class RightService(env: Env) {
         users.flatMap(user => {
           val maxPossibleRight = rights.maxRightForTenant(tenant, user.roles)
           maxPossibleRight.toMaybeRightLevel.map(maxRight => {
-            if(user.right.isGreaterThan(maxRight) && user.userType == OIDC) {
+            if(user.right.isGreaterThan(maxRight) && user.userType == OIDC  && env.externalRightMode.exists(_ != Supervised)) {
               user.copy(right = maxRight)
             } else {
               user
@@ -481,7 +481,7 @@ class RightService(env: Env) {
           val newRights = user.tenantRights.map {(tenant, rightLevel) => {
             val maxPossibleRight = rights.maxRightForTenant(tenant, user.roles)
             maxPossibleRight match {
-              case level: RightLevel if rightLevel.isGreaterThan(level) && user.userType == OIDC => Some((tenant, level))
+              case level: RightLevel if rightLevel.isGreaterThan(level) && user.userType == OIDC  && env.externalRightMode.exists(_ != Supervised) => Some((tenant, level))
               case RightLevelIncludingNoRight.None => Option.empty
               case _ => Some((tenant, rightLevel))
             }

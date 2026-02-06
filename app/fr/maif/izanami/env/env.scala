@@ -10,7 +10,7 @@ import fr.maif.izanami.security.JwtService
 import fr.maif.izanami.services.RightService
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
-import fr.maif.izanami.{AppConf, PlayRoot}
+import fr.maif.izanami.{AppConf, PlayRoot, RoleRightMode}
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 import org.apache.pekko.actor.{ActorSystem, Scheduler}
 import org.apache.pekko.stream.Materializer
@@ -113,6 +113,13 @@ class Env(
       _          <- oidcConfig.tokenUrl
     ) yield false)
       .getOrElse(true)
+  }
+
+  def externalRightMode: Option[RoleRightMode] = {
+    for (
+      oidcConfig <- maybeOidcConfig;
+      roleRightMode <- oidcConfig.roleRightMode
+    ) yield roleRightMode
   }
 
   def onStart(): Future[Unit] = {
