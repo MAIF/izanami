@@ -516,27 +516,22 @@ class WorkerActionBuilder(
       request: Request[A],
       block: Request[A] => Future[Result]
   ): Future[Result] = {
-    val containBlocklistedContext = request.queryString
+    val context = request.queryString
       .get("context")
       .flatMap(s => s.headOption)
       .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
-      .exists(requestContext => {
-        maybeBlockList.exists(blocklistedContext =>
-          blocklistedContext.isAscendantOf(requestContext)
-        )
-      })
+      .getOrElse(FeatureContextPath())
 
-    val isContextAllowedByAllowlist = request.queryString
-      .get("context")
-      .flatMap(s => s.headOption)
-      .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
-      .forall(requestContext => {
-        maybeAllowlist.forall(ws => {
+    val containBlocklistedContext = maybeBlockList.exists(blocklistedContext =>
+          blocklistedContext.isAscendantOf(context)
+        )
+
+
+    val isContextAllowedByAllowlist = maybeAllowlist.forall(ws => {
           ws.exists(allowedContext =>
-            allowedContext.isAscendantOf(requestContext)
+            allowedContext.isAscendantOf(context)
           )
         })
-      })
 
     if(actualMode == Standalone) {
       block(request)

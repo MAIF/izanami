@@ -261,8 +261,9 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
         featureId,
         key = "my-key"
       )
-      checkResponse.status mustBe OK
+      checkResponse.status mustBe BAD_REQUEST
     }
+    
   }
 
   "Standalone mode" should {
