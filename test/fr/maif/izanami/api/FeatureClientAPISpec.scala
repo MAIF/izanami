@@ -1,6 +1,7 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec._
+import com.typesafe.config.ConfigValueFactory
+import fr.maif.izanami.api.BaseAPISpec.*
 import play.api.http.Status.{FORBIDDEN, NOT_FOUND, OK, UNAUTHORIZED}
 import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 
@@ -8,6 +9,52 @@ import java.time.{DayOfWeek, LocalDate, LocalDateTime, LocalTime}
 
 class FeatureClientAPISpec extends BaseAPISpec {
   "Feature check GET endpoint" should {
+    "return 403 if apikey is incorrect AND context does not exist to prevent discovering contexts by brutefore in worker mode" in {
+      var situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("proj").withFeatureNames("f1"))
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      situation = situation.restartServerWithConf(
+        Map(
+          "app.cluster.mode" -> "worker",
+          "app.cluster.context-allowlist" -> ConfigValueFactory.fromIterable(
+            java.util.List.of("prod")
+          )
+        )
+      )
+
+      var response = checkFeature(
+        id = situation.findFeatureId(tenant = "tenant", project = "proj", feature = "f1").get,
+        headers = Map("izanami-client-id" -> "tenant_foobarbaz", "izanami-client-secret" -> "notARealSecret"),
+        context="doesnotexist"
+      )
+      response.status mustBe FORBIDDEN
+
+      response = checkFeature(
+        id = situation.findFeatureId(tenant = "tenant", project = "proj", feature = "f1").get,
+        headers = Map("izanami-client-id" -> "tenant_foobarbaz", "izanami-client-secret" -> "notARealSecret"),
+        context = "prod"
+      )
+      response.status mustBe FORBIDDEN
+    }
+
+    "return 403 if provided api key has invalid tenant format" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("proj").withFeatureNames("f1"))
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val response = checkFeature(situation.findFeatureId(tenant = "tenant", project = "proj", feature = "f1").get, headers = Map("izanami-client-id" -> "ERROR_foobarbaz", "izanami-client-secret" -> "notARealSecret"))
+      response.status mustBe FORBIDDEN
+    }
+
     "return legacy features in modern format" in {
       val situation = TestSituationBuilder()
         .withTenants(

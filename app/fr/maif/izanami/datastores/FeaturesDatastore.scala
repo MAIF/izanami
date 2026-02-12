@@ -777,93 +777,98 @@ class FeaturesDatastore(val env: Env) extends Datastore {
   ): Future[Either[IzanamiError, Map[UUID, Map[String, Iterable[
     (Option[String], CompleteFeature)
   ]]]]] = {
-    require(Tenant.isTenantValid(tenant))
-    val needTags =
-      request.allTagsIn.nonEmpty || request.noTagIn.nonEmpty || request.oneTagIn.nonEmpty;
-    val needContexts = request.context.nonEmpty || conditions
-
-    val params = if (needContexts && !conditions) {
-      List(
-        clientId,
-        clientSecret,
-        request.projects.toArray,
-        request.features.toArray,
-        FeatureContextPath(request.context).toDBPath
-      )
+    if(!Tenant.isTenantValid(tenant)) {
+      Future.successful(Left(InvalidApiKey))
     } else {
-      List(
-        clientId,
-        clientSecret,
-        request.projects.toArray,
-        request.features.toArray
-      )
-    }
+      val needTags =
+        request.allTagsIn.nonEmpty || request.noTagIn.nonEmpty || request.oneTagIn.nonEmpty;
+      val needContexts = request.context.nonEmpty || conditions
 
-    env.postgresql
-      .queryAll(
-        s"""
-           |SELECT
-           |    f.id,
-           |    p.id as pid,
-           |    f.enabled,
-           |    f.name,
-           |    f.project,
-           |    f.conditions,
-           |    f.description,
-           |    f.script_config,
-           |    f.metadata,
-           |    f.result_type,
-           |    f.value,
-           |    w.config as wasm
-           |    ${
-            if (needContexts) """,
-           |    COALESCE(json_object_agg(fcs.context, json_build_object(
-           |      'id', f.id,
-           |      'name', f.name,
-           |      'project', f.project,
-           |      'description', f.description,
-           |      'value', fcs.value,
-           |      'resultType', fcs.result_type,
-           |      'enabled', fcs.enabled,
-           |      'conditions', fcs.conditions,
-           |      'context', fcs.context,
-           |      'wasmConfig', ow.config,
-           |      'context', fcs.context)) FILTER(WHERE fcs.enabled IS NOT NULL), '{}'::json) AS overloads
-           |    """
+      val params = if (needContexts && !conditions) {
+        List(
+          clientId,
+          clientSecret,
+          request.projects.toArray,
+          request.features.toArray,
+          FeatureContextPath(request.context).toDBPath
+        )
+      } else {
+        List(
+          clientId,
+          clientSecret,
+          request.projects.toArray,
+          request.features.toArray
+        )
+      }
+
+      env.postgresql
+        .queryAll(
+          s"""
+             |SELECT
+             |    f.id,
+             |    p.id as pid,
+             |    f.enabled,
+             |    f.name,
+             |    f.project,
+             |    f.conditions,
+             |    f.description,
+             |    f.script_config,
+             |    f.metadata,
+             |    f.result_type,
+             |    f.value,
+             |    w.config as wasm
+             |    ${
+            if (needContexts)
+              """,
+             |    COALESCE(json_object_agg(fcs.context, json_build_object(
+             |      'id', f.id,
+             |      'name', f.name,
+             |      'project', f.project,
+             |      'description', f.description,
+             |      'value', fcs.value,
+             |      'resultType', fcs.result_type,
+             |      'enabled', fcs.enabled,
+             |      'conditions', fcs.conditions,
+             |      'context', fcs.context,
+             |      'wasmConfig', ow.config,
+             |      'context', fcs.context)) FILTER(WHERE fcs.enabled IS NOT NULL), '{}'::json) AS overloads
+             |    """
             else ""
           }
-           |    ${
+             |    ${
             if (needTags)
               ",COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]') as tags"
             else ""
           }
-           |  FROM "${tenant}".projects p
-           |  LEFT JOIN "${tenant}".features f on f.project = p.name
-           |  ${if (needTags) s"""
-           |    LEFT JOIN "${tenant}".features_tags ft ON f.id=ft.feature
-           |    LEFT JOIN "${tenant}".tags t ON t.name=ft.tag""" else ""}
-           |   ${
+             |  FROM "${tenant}".projects p
+             |  LEFT JOIN "${tenant}".features f on f.project = p.name
+             |  ${
+            if (needTags)
+              s"""
+                 |    LEFT JOIN "${tenant}".features_tags ft ON f.id=ft.feature
+                 |    LEFT JOIN "${tenant}".tags t ON t.name=ft.tag""" else ""
+          }
+             |   ${
             if (needContexts)
               s"""
-           |    LEFT JOIN "${tenant}".feature_contexts_strategies fcs ON fcs.feature=f.name ${
-                  if (!conditions)
-                    s"""AND fcs.context OPERATOR("${extensionSchema}".@>) "${extensionSchema}".text2ltree($$5)"""
-                  else ""
-                }
-           |    LEFT JOIN "${tenant}".wasm_script_configurations ow ON fcs.script_config=ow.id""".stripMargin
+                 |    LEFT JOIN "${tenant}".feature_contexts_strategies fcs ON fcs.feature=f.name ${
+                if (!conditions)
+                  s"""AND fcs.context OPERATOR("${extensionSchema}".@>) "${extensionSchema}".text2ltree($$5)"""
+                else ""
+              }
+                 |    LEFT JOIN "${tenant}".wasm_script_configurations ow ON fcs.script_config=ow.id""".stripMargin
             else ""
           }
-           |  LEFT JOIN "${tenant}".wasm_script_configurations w ON w.id=f.script_config
-           |  INNER JOIN "${tenant}".apikeys k ON (k.clientid=$$1 AND k.clientsecret=$$2 AND k.enabled=true)
-           |  LEFT JOIN "${tenant}".apikeys_projects kp ON (kp.apikey=k.name AND kp.project=p.name)
-           |  WHERE (f.project = p.name OR f.name IS NULL)
-           |  AND (kp.apikey IS NOT NULL OR k.admin=TRUE)
-           |  AND (p.id=ANY($$3) OR f.id=ANY($$4))
-           |  GROUP BY f.id, pid, w.config
-           |""".stripMargin,
-        params
-      ) { r =>
-        {
+             |  LEFT JOIN "${tenant}".wasm_script_configurations w ON w.id=f.script_config
+             |  INNER JOIN "${tenant}".apikeys k ON (k.clientid=$$1 AND k.clientsecret=$$2 AND k.enabled=true)
+             |  LEFT JOIN "${tenant}".apikeys_projects kp ON (kp.apikey=k.name AND kp.project=p.name)
+             |  WHERE (f.project = p.name OR f.name IS NULL)
+             |  AND (kp.apikey IS NOT NULL OR k.admin=TRUE)
+             |  AND (p.id=ANY($$3) OR f.id=ANY($$4))
+             |  GROUP BY f.id, pid, w.config
+             |""".stripMargin,
+          params
+        ) { r => {
           r.optCompleteFeature()
             .filter(f => {
               if (needTags) {
@@ -893,7 +898,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                         }
                         .filter {
                           case (_, None) => false
-                          case _         => true
+                          case _ => true
                         }
                         .map { case (ctx, optionF) => (Some(ctx), optionF.get) }
 
@@ -904,18 +909,19 @@ class FeaturesDatastore(val env: Env) extends Datastore {
               }
             })
         }
-      }
-      .map(l => {
-        val featureByProjects = l.groupBy(t => t._1).map { case (k, v) =>
-          (k, v.map(t => t._2).toMap)
         }
-        Right(featureByProjects)
-      })
-      .recover {
-        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
-          Left(InvalidCredentials())
-        case _ => Left(InternalServerError())
-      }
+        .map(l => {
+          val featureByProjects = l.groupBy(t => t._1).map { case (k, v) =>
+            (k, v.map(t => t._2).toMap)
+          }
+          Right(featureByProjects)
+        })
+        .recover {
+          case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
+            Left(InvalidApiKey)
+          case _ => Left(InternalServerError())
+        }
+    }
   }
 
   def findByRequestForKey(

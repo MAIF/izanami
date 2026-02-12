@@ -516,46 +516,51 @@ class WorkerActionBuilder(
       request: Request[A],
       block: Request[A] => Future[Result]
   ): Future[Result] = {
-    val context = request.queryString
-      .get("context")
-      .flatMap(s => s.headOption)
-      .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
-      .getOrElse(FeatureContextPath())
 
-    val containBlocklistedContext = maybeBlockList.exists(blocklistedContext =>
-          blocklistedContext.isAscendantOf(context)
-        )
-
-
-    val isContextAllowedByAllowlist = maybeAllowlist.forall(ws => {
-          ws.exists(allowedContext =>
-            allowedContext.isAscendantOf(context)
-          )
-        })
 
     if(actualMode == Standalone) {
       block(request)
-    }
-    else if (!isContextAllowedByAllowlist) {
-      Future.successful(
-        Results.BadRequest(
-          Json.obj(
-            "message" -> "Requested context isn't present in allowlist for this worker instance"
-          )
-        )
-      )
-    } else if (containBlocklistedContext) {
-      Future.successful(
-        Results.BadRequest(
-          Json.obj(
-            "message" -> "Requested context is blocklisted for this worker instance"
-          )
-        )
-      )
     } else {
-      block(request)
-    }
+      val context = request.queryString
+        .get("context")
+        .flatMap(s => s.headOption)
+        .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
+        .getOrElse(FeatureContextPath())
 
+      val containBlocklistedContext = maybeBlockList.exists(blocklistedContext =>
+        blocklistedContext.isAscendantOf(context)
+      )
+
+
+      val isContextAllowedByAllowlist = maybeAllowlist.forall(ws => {
+        ws.exists(allowedContext =>
+          allowedContext.isAscendantOf(context)
+        )
+      })
+
+      block(request)
+        .map(r => {
+          if(r.header.status < 400) {
+            if (!isContextAllowedByAllowlist) {
+                Results.BadRequest(
+                  Json.obj(
+                    "message" -> "Requested context isn't present in allowlist for this worker instance"
+                  )
+                )
+            } else if (containBlocklistedContext) {
+                Results.BadRequest(
+                  Json.obj(
+                    "message" -> "Requested context is blocklisted for this worker instance"
+                  )
+                )
+            } else {
+              r
+            }
+          } else {
+            r
+          }
+        })(env.executionContext)
+    }
   }
 
   override protected def executionContext: ExecutionContext =

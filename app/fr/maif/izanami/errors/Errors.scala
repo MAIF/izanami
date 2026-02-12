@@ -290,6 +290,11 @@ case class InvalidCredentials()
       message = "Incorrect username / password",
       status = FORBIDDEN
     )
+case object InvalidApiKey
+  extends IzanamiError(
+    message = "Provided API key is invalid",
+    status = FORBIDDEN
+  )
 case class FeatureOverloadDoesNotExist(
     project: String,
     path: String,
