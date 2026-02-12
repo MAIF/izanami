@@ -509,8 +509,8 @@ class WorkerActionBuilder(
 ) extends IzanamiActionBuilder[Request] {
   override def disabledOn: IzanamiMode = Leader
 
-  private val blacklist = env.typedConfiguration.cluster.contextBlocklist
-  private val maybeWhitelist = env.typedConfiguration.cluster.contextAllowlist
+  private val maybeBlockList = env.typedConfiguration.cluster.contextBlocklist
+  private val maybeAllowlist = env.typedConfiguration.cluster.contextAllowlist
 
   override def invokeBlockImpl[A](
       request: Request[A],
@@ -521,7 +521,7 @@ class WorkerActionBuilder(
       .flatMap(s => s.headOption)
       .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
       .exists(requestContext => {
-        blacklist.exists(blocklistedContext =>
+        maybeBlockList.exists(blocklistedContext =>
           blocklistedContext.isAscendantOf(requestContext)
         )
       })
@@ -531,7 +531,7 @@ class WorkerActionBuilder(
       .flatMap(s => s.headOption)
       .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
       .forall(requestContext => {
-        maybeWhitelist.forall(ws => {
+        maybeAllowlist.forall(ws => {
           ws.exists(allowedContext =>
             allowedContext.isAscendantOf(requestContext)
           )
