@@ -221,8 +221,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
           case Left(value)       => Left(value).future
           case r @ Right(tenant) => {
             env.eventService
-              .emitEvent(
-                channel = IZANAMI_CHANNEL,
+              .emitGlobalEvent(
                 event = SourceTenantCreated(
                   tenant.name,
                   user = user.username,
@@ -317,8 +316,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
         }
         .flatMap(r => {
           env.eventService
-            .emitEvent(
-              channel = IZANAMI_CHANNEL,
+            .emitGlobalEvent(
               event = SourceTenantDeleted(
                 name,
                 user = user.username,

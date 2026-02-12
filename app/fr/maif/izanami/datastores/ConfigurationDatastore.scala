@@ -5,6 +5,7 @@ import fr.maif.izanami.datastores.configurationImplicits.MailerConfigurationRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{ConfigurationReadError, InternalServerError, IzanamiError}
+import fr.maif.izanami.events.SourceConfigurationUpdatedEvent
 import fr.maif.izanami.mail.*
 import fr.maif.izanami.mail.MailerTypes.MailerType
 import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTPConfigurationWrites, mailGunConfigurationReads, mailJetConfigurationReads}
@@ -157,13 +158,16 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
     ){_ => Some(())}
   }
 
-  def updateConfiguration(newConfig: FullIzanamiConfiguration, conn: Option[SqlConnection] = None): FutureEither[FullIzanamiConfiguration] = {
+  def updateConfiguration(
+                           newConfig: FullIzanamiConfiguration,
+                           conn: Option[SqlConnection] = None
+                         ): FutureEither[FullIzanamiConfiguration] = {
     env.postgresql.executeInOptionalTransaction(conn, conn => {
-      updateMailerConfiguration(newConfig.mailConfiguration, Some(conn))
-        .flatMap{
-          case Left(err) => Future.successful(Left(err))
-          case Right(mailConfig) => {
-            env.postgresql.queryOne(
+      for (
+        oldConfig <- readFullConfiguration();
+        udpatedMailer <- updateMailerConfiguration(newConfig.mailConfiguration, Some(conn)).toFEither;
+        res <- {
+          env.postgresql.queryOne(
               s"""
                  |UPDATE izanami.configuration
                  |SET
@@ -204,13 +208,16 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
               }
             }
             }.map(o => o.toRight(InternalServerError("Failed to read configuration update result")))
-              .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
-          }
-        }
-        }).toFEither
+            .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+        }.toFEither;
+        _ <- env.eventService.emitGlobalEvent(SourceConfigurationUpdatedEvent(
+          user = ???, origin = ???, authentication = ???, oldConfiguration = oldConfig, newConfiguration = newConfig
+        ))
+      ) yield res
+    })
   }
 
-  def updateMailerConfiguration(
+  private def updateMailerConfiguration(
                                  mailProviderConfiguration: MailProviderConfiguration,
                                  conn: Option[SqlConnection] = None
                                ): Future[Either[IzanamiError, MailProviderConfiguration]] = {
