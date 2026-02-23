@@ -464,7 +464,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                       env.postgresql
                         .queryOne(
                           s"""
-                           |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::${metadata.table}, $$1)
+                           |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::"${tenant}".${metadata.table}, $$1)
                            |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO UPDATE SET($cols)=((select $cols from json_populate_record(NULL::${metadata.table}, $$1)))
                            |RETURNING (xmax = 0) AS inserted ${maybeId
                               .map(idCol => s", ${idCol}::TEXT as id")
@@ -540,7 +540,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     env.postgresql
                       .queryOne(
                         s"""
-                       |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::${metadata.table}, $$1)
+                       |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::"${tenant}".${metadata.table}, $$1)
                        |""".stripMargin,
                         List(row.vertxJsValue),
                         conn = Some(conn)
@@ -623,7 +623,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     env.postgresql
                       .queryOne(
                         s"""
-                           |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::${metadata.table}, $$1)
+                           |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::"${tenant}".${metadata.table}, $$1)
                            |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO NOTHING
                            |RETURNING (xmax = 0) AS inserted ${maybeId
                             .map(idCol => s", ${idCol}::TEXT as id")
