@@ -41,7 +41,6 @@ const columns: ColumnDef<PersonnalAccessToken>[] = [
     size: 15,
     cell: (info: any) => {
       const token: PersonnalAccessToken = info.row.original;
-      console.log("token", token);
       if (
         "rights" in token &&
         Object.entries(token.rights).length === 0 &&
