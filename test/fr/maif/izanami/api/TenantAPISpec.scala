@@ -184,6 +184,36 @@ class TenantAPISpec extends BaseAPISpec {
   }
 
   "Tenants GET endpoint" should {
+    "return authorized tenants only with pac" in {
+      val testSituation = TestSituationBuilder()
+        .withTenantNames("foo", "bar", "baz")
+        .withUsers(
+          TestUser("tuser")
+            .withTenantReadRight("foo")
+            .withTenantReadRight("baz")
+        )
+        .loggedAs("tuser")
+        .build()
+
+      val tokenResponse = testSituation.createPersonnalAccessToken(
+        TestPersonnalAccessToken(
+          "foo",
+          allRights = false,
+          globalRights = Set("READ TENANTS")
+        )
+      )
+
+      val token = (tokenResponse.json.get \ "token").as[String]
+      val fetchResponse = fetchTenantsWithToken(username = "tuser", token = token)
+
+      fetchResponse.status mustBe OK
+      val json = fetchResponse.json
+      json mustBe a[Success[_]]
+      (json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("foo", "baz")
+    }
+
     "return all tenants if admin" in {
       val testSituation = TestSituationBuilder()
         .loggedInWithAdminRights()

@@ -3475,7 +3475,7 @@ class FeatureAPISpec extends BaseAPISpec {
 
       situation.createContext("tenant", "project", "local", "global")
 
-      val res = situation.changeFeatureStrategyForContext(
+      var res = situation.changeFeatureStrategyForContext(
         "tenant",
         "project",
         "global",
@@ -3490,16 +3490,18 @@ class FeatureAPISpec extends BaseAPISpec {
           )
         )
       )
+      res.status mustBe NO_CONTENT
 
-      situation.changeFeatureStrategyForContext(
+      res = situation.changeFeatureStrategyForContext(
         "tenant",
         "project",
         "global/local",
         "F1",
         enabled = true
       )
+      res.status mustBe NO_CONTENT
 
-      situation.changeFeatureStrategyForContext(
+      res = situation.changeFeatureStrategyForContext(
         "tenant",
         "project",
         "global",
@@ -3508,6 +3510,7 @@ class FeatureAPISpec extends BaseAPISpec {
         resultType = "string",
         value = "overload"
       )
+      res.status mustBe NO_CONTENT
 
       val result =
         situation.evaluateFeaturesAsLoggedInUser(

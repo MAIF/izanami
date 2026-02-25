@@ -41,27 +41,44 @@ const columns: ColumnDef<PersonnalAccessToken>[] = [
     size: 15,
     cell: (info: any) => {
       const token: PersonnalAccessToken = info.row.original;
-      if ("rights" in token && Object.entries(token.rights).length === 0) {
+      console.log("token", token);
+      if (
+        "rights" in token &&
+        Object.entries(token.rights).length === 0 &&
+        token.globalRights.length === 0
+      ) {
         return "No rights";
       } else if ("rights" in token) {
-        return Object.entries(token.rights).map(([tenant, rights]) => {
-          return (
-            <div key={`${token.id}/${tenant}`}>
-              <Link to={`/tenants/${tenant}`}>
-                <button className="btn btn-secondary btn-sm">
-                  <i className="fas fa-cloud me-2" aria-hidden="true"></i>
-                  {`${tenant}`}
-                </button>
-              </Link>{" "}
-              <br />
-              <ul style={{ marginBottom: 0 }}>
-                {rights.map((r, index) => (
-                  <li key={index}>{r}</li>
+        return (
+          <>
+            Global rights
+            {token.globalRights.length > 0 && (
+              <ul style={{ marginBottom: "0.5rem" }}>
+                {token.globalRights.map((globalRight, index) => (
+                  <li key={index}>{globalRight}</li>
                 ))}
               </ul>
-            </div>
-          );
-        });
+            )}
+            {Object.entries(token.rights).map(([tenant, rights]) => {
+              return (
+                <div key={`${token.id}/${tenant}`}>
+                  <Link to={`/tenants/${tenant}`}>
+                    <button className="btn btn-secondary btn-sm">
+                      <i className="fas fa-cloud me-2" aria-hidden="true"></i>
+                      {`${tenant}`}
+                    </button>
+                  </Link>{" "}
+                  <br />
+                  <ul style={{ marginBottom: 0 }}>
+                    {rights.map((r, index) => (
+                      <li key={index}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </>
+        );
       } else {
         return "All rights";
       }
@@ -205,7 +222,7 @@ export function TokensTable(props: { user: string }) {
                 `Are you sure you want to delete token ${token.name}?`,
                 () => {
                   return deletionQuery.mutateAsync({ id: token.id });
-                }
+                },
               );
             },
           },

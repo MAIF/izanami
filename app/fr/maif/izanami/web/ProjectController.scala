@@ -5,7 +5,7 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.ProjectDoesNotExists
 import fr.maif.izanami.events.{EventAuthentication, EventService, FeatureEvent, TenantCreated, TenantDeleted}
 import fr.maif.izanami.models.ProjectWithUsageInformation.projectWithUsageInformationWrites
-import fr.maif.izanami.models.{DeleteProject, Project, ProjectRightLevel, ProjectWithUsageInformation, ReadProject, RightLevel}
+import fr.maif.izanami.models.{DeleteProject, Project, ProjectRightLevel, ProjectWithUsageInformation, ReadProject, ReadTenant, RightLevel}
 import fr.maif.izanami.services.FeatureUsageService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ProjectController.parseStringSet
@@ -24,6 +24,7 @@ class ProjectController(
     val projectAuthAction: ProjectAuthActionFactory,
     val projectAuthActionById: ProjectAuthActionByIdFactory,
     val detailledRightForTenanFactory: DetailledRightForTenantFactory,
+    val personnalAccessTokenDetailledRightForTenantFactory: PersonnalAccessTokenDetailledRightForTenantFactory,
     val featureUsageService: FeatureUsageService,
     val personnalAccessTokenAuthAction: PersonnalAccessTokenProjectAuthActionFactory
 ) extends BaseController {
@@ -124,7 +125,7 @@ class ProjectController(
       }
     }
 
-  def readProjects(tenant: String): Action[AnyContent] = detailledRightForTenanFactory(tenant).async {
+  def readProjects(tenant: String): Action[AnyContent] = personnalAccessTokenDetailledRightForTenantFactory(tenant, ReadTenant).async {
     implicit request =>
       val isTenantAdmin = request.user.tenantRight.exists(right => right.level == RightLevel.Admin)
       if (request.user.admin || isTenantAdmin) {

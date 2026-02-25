@@ -122,7 +122,9 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
           case Some(t) if bcryptCheck(secret, t) => {
             TokenCheckSuccess(id)
           }
-          case _ => TokenCheckFailure
+          case _ => {
+            TokenCheckFailure
+          }
         }
     }
   }
@@ -255,6 +257,8 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
                       )
                     )
                   } else {
+                    val tenantAsArray = rightAsList.flatMap {(tenant, rights) => rights.toList.map(_ => tenant)}.toArray
+                    val rightAsArray = rightAsList.flatMap {(tenant, rights) => rights.map(r => r.name)}.toArray
                     env.postgresql
                       .queryRaw(
                         s"""
@@ -262,8 +266,8 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
                          |""".stripMargin,
                         List(
                           id,
-                          rightAsList.map(_._1).toArray,
-                          rightAsList.flatMap(_._2.map(_.name)).toArray
+                          tenantAsArray,
+                          rightAsArray
                         ),
                         conn = Some(conn)
                       ) { r => () }
@@ -456,8 +460,8 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
          |  t.expires_at,
          |  t.expiration_timezone,
          |  t.all_rights,
-         |  COALESCE(json_agg(json_build_object('tenant', tr.tenant, 'right', tr.value)) FILTER (WHERE tr.token IS NOT NULL), '[]') AS rights,
-         |  COALESCE(json_agg(tr.global_value) FILTER (WHERE tr.token IS NOT NULL), '[]') AS global_rights
+         |  COALESCE(json_agg(json_build_object('tenant', tr.tenant, 'right', tr.value)) FILTER (WHERE tr.token IS NOT NULL AND tr.value IS NOT NULL), '[]') AS rights,
+         |  COALESCE(json_agg(tr.global_value) FILTER (WHERE tr.token IS NOT NULL AND tr.global_value IS NOT NULL), '[]') AS global_rights
          |FROM izanami.personnal_access_tokens t
          |LEFT OUTER JOIN izanami.personnal_access_token_rights tr ON tr.token = t.id
          |WHERE username = $$1

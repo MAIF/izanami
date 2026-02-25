@@ -72,6 +72,7 @@ class IzanamiComponentsInstances(
 
   lazy val filters = new DefaultHttpFilters(httpFilters: _*)
 
+  lazy val personnalAccessTokenTenantRightsActionFactory: PersonnalAccessTokenTenantRightsActionFactory = wire[PersonnalAccessTokenTenantRightsActionFactory]
   lazy val authAction: TenantAuthActionFactory = wire[TenantAuthActionFactory]
   lazy val tenantAuthAction: ProjectAuthActionFactory =
     wire[ProjectAuthActionFactory]
@@ -83,6 +84,8 @@ class IzanamiComponentsInstances(
   lazy val detailledAuthAction: DetailledAuthAction = wire[DetailledAuthAction]
   lazy val detailledRightForTenantFactory: DetailledRightForTenantFactory =
     wire[DetailledRightForTenantFactory]
+  lazy val personnalAccessTokenDetailledRightForTenantFactory: PersonnalAccessTokenDetailledRightForTenantFactory =
+      wire[PersonnalAccessTokenDetailledRightForTenantFactory]
   lazy val tenantRightsAction: TenantRightsAction = wire[TenantRightsAction]
   lazy val sessionAuthAction: AuthenticatedSessionAction =
     wire[AuthenticatedSessionAction]

@@ -21,6 +21,11 @@ sealed trait TenantTokenRights {
   def requiredCreationRight: Option[RequiredTenantRights]
 }
 
+case object ReadTenantKeys extends TenantTokenRights {
+  val name = "READ KEYS"
+  override def requiredCreationRight: Option[RequiredTenantRights] = None
+}
+
 case object Export extends TenantTokenRights {
   val name = "EXPORT"
   override def requiredCreationRight: Option[RequiredTenantRights] = Some(
@@ -68,6 +73,11 @@ case object CreateTenant extends GlobalTokenRight {
   override def requiredCreationRight: Option[RequiredRights] = Some(
     RequiredRights(admin = true)
   )
+}
+
+case object ReadTenants extends GlobalTokenRight {
+  val name = "READ TENANTS"
+  override def requiredCreationRight: Option[RequiredRights] = None
 }
 
 sealed trait PersonnalAccessTokenRights
@@ -124,6 +134,7 @@ object PersonnalAccessToken {
       case "DELETE KEY"     => DeleteKey
       case "READ TENANT"    => ReadTenant
       case "READ PROJECT"   => ReadProject
+      case "READ KEYS" => ReadTenantKeys
     }
   }
 
@@ -163,6 +174,7 @@ object PersonnalAccessToken {
   def personnalAccessTokenGlobalRightRead: Reads[GlobalTokenRight] = json => {
     json.asOpt[String].map(str => str.toUpperCase) match {
       case Some("CREATE TENANT") => JsSuccess(CreateTenant)
+      case Some("READ TENANTS") => JsSuccess(ReadTenants)
       case _                     => JsError("Bad body format")
     }
   }
@@ -177,6 +189,7 @@ object PersonnalAccessToken {
         case Some("DELETE KEY")     => JsSuccess(DeleteKey)
         case Some("READ TENANT")    => JsSuccess(ReadTenant)
         case Some("READ PROJECT")   => JsSuccess(ReadProject)
+        case Some("READ KEYS")  => JsSuccess(ReadTenantKeys)
         case _                      => JsError("Bad body format")
       }
 
@@ -184,17 +197,19 @@ object PersonnalAccessToken {
     }
 
   def personnalAccessTokenTenantRightsWrites: Writes[TenantTokenRights] = {
-    case Import        => Json.toJson("IMPORT")
-    case Export        => Json.toJson("EXPORT")
-    case DeleteFeature => Json.toJson("DELETE FEATURE")
-    case DeleteProject => Json.toJson("DELETE PROJECT")
-    case DeleteKey     => Json.toJson("DELETE KEY")
-    case ReadProject   => Json.toJson("READ PROJECT")
-    case ReadTenant    => Json.toJson("READ TENANT")
+    case Import             => Json.toJson("IMPORT")
+    case Export             => Json.toJson("EXPORT")
+    case DeleteFeature      => Json.toJson("DELETE FEATURE")
+    case DeleteProject      => Json.toJson("DELETE PROJECT")
+    case DeleteKey          => Json.toJson("DELETE KEY")
+    case ReadProject        => Json.toJson("READ PROJECT")
+    case ReadTenant         => Json.toJson("READ TENANT")
+    case ReadTenantKeys         => Json.toJson("READ KEYS")
   }
 
   def personnalAccessTokenGlobalRightsWrites: Writes[GlobalTokenRight] = {
     case CreateTenant => Json.toJson("CREATE TENANT")
+    case ReadTenants => Json.toJson("READ TENANTS")
   }
 
   def personnalAccessTokenRightsReads: Reads[PersonnalAccessTokenRights] =

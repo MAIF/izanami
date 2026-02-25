@@ -12,7 +12,8 @@ class ApiKeyController(
     val controllerComponents: ControllerComponents,
     val tenantAuthAction: TenantAuthActionFactory,
     val keyAuthAction: KeyAuthActionFactory,
-    val tokenAuthAction: PersonnalAccessTokenKeyAuthActionFactory
+    val tokenAuthAction: PersonnalAccessTokenKeyAuthActionFactory,
+    val pacTenantAuthAction: PersonnalAccessTokenTenantAuthActionFactory
 )(implicit val env: Env)
     extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
@@ -113,7 +114,7 @@ class ApiKeyController(
         .recoverTotal(jsError => Future.successful(BadRequest(toJson(jsError))))
     }
 
-  def readApiKey(tenant: String): Action[AnyContent] = tenantAuthAction(tenant, RightLevel.Read).async {
+  def readApiKey(tenant: String): Action[AnyContent] = pacTenantAuthAction(tenant, RightLevel.Read, ReadTenantKeys).async {
     implicit request: UserNameRequest[AnyContent] =>
       env.datastores.apiKeys
         .readApiKeys(tenant, request.user.username)

@@ -43,9 +43,13 @@ export const POSSIBLE_TOKEN_RIGHTS = [
   "DELETE PROJECT",
   "DELETE KEY",
   "READ TENANT",
+  "READ KEYS",
 ] as const;
 
-export const POSSIBLE_GLOBAL_TOKEN_RIGHTS = ["CREATE TENANT"] as const;
+export const POSSIBLE_GLOBAL_TOKEN_RIGHTS = [
+  "CREATE TENANT",
+  "READ TENANTS",
+] as const;
 
 export type TokenTenantRight = typeof POSSIBLE_TOKEN_RIGHTS[number];
 export type TokenGlobalRight = typeof POSSIBLE_GLOBAL_TOKEN_RIGHTS[number];
@@ -222,7 +226,7 @@ export function isClassicalFeature(feature: TLightFeature | TCompleteFeature) {
 }
 
 export function isSingleConditionFeature(
-  feature: TLightFeature | TCompleteFeature
+  feature: TLightFeature | TCompleteFeature,
 ): feature is SingleConditionFeature {
   const f = feature as SingleConditionFeature;
   return f.conditions && !isArray(f.conditions);
@@ -266,7 +270,7 @@ export interface SinglePercentageConditionFeature
 }
 
 export function isSinglePercentageConditionFeature(
-  feature: TLightFeature | TCompleteFeature
+  feature: TLightFeature | TCompleteFeature,
 ): feature is SinglePercentageConditionFeature {
   return (
     (feature as SinglePercentageConditionFeature)?.conditions?.percentage !==
@@ -281,7 +285,7 @@ export interface SingleCustomerConditionFeature extends SingleConditionFeature {
 }
 
 export function isSingleCustomerConditionFeature(
-  feature: TLightFeature | TCompleteFeature
+  feature: TLightFeature | TCompleteFeature,
 ): feature is SingleCustomerConditionFeature {
   return (
     (feature as SingleCustomerConditionFeature)?.conditions?.users !== undefined
@@ -298,7 +302,7 @@ export interface SingleDateRangeConditionFeature
 }
 
 export function isSingleDateRangeConditionFeature(
-  feature: TLightFeature | TCompleteFeature
+  feature: TLightFeature | TCompleteFeature,
 ): feature is SingleDateRangeConditionFeature {
   return (
     (feature as SingleDateRangeConditionFeature)?.conditions?.begin !==
@@ -316,7 +320,7 @@ export interface SingleHourRangeConditionFeature
 }
 
 export function isSingleHourRangeConditionFeature(
-  feature: TLightFeature | TCompleteFeature
+  feature: TLightFeature | TCompleteFeature,
 ): feature is SingleHourRangeConditionFeature {
   const f = feature as SingleHourRangeConditionFeature;
   return (
@@ -331,7 +335,7 @@ export interface SingleNoStrategyConditionFeature
 }
 
 export function isSingleNoStrategyConditionFeature(
-  feature: TLightFeature | TCompleteFeature
+  feature: TLightFeature | TCompleteFeature,
 ): feature is SingleNoStrategyConditionFeature {
   return (
     isSingleConditionFeature(feature) &&
@@ -473,7 +477,7 @@ export function isUserListRule(rule: TFeatureRule): rule is TUserList {
 }
 
 export function isWasmFeature(
-  feature: TCompleteFeature
+  feature: TCompleteFeature,
 ): feature is WasmFeature {
   return (
     (feature as WasmFeature).wasmConfig !== undefined &&
@@ -482,7 +486,7 @@ export function isWasmFeature(
 }
 
 export function isLightWasmFeature(
-  feature: TLightFeature
+  feature: TLightFeature,
 ): feature is LightWasmFeature {
   return (
     (feature as LightWasmFeature).wasmConfig !== undefined &&

@@ -197,6 +197,35 @@ class ProjectAPISpec extends BaseAPISpec {
   }
 
   "project GET endpoint without name" should {
+    "return all projects for tenant if requested with personnal access token" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("testtenant").withProjectNames("project-1", "project-2", "project-3"))
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(
+            "foo",
+            allRights = false,
+            rights = Map("testtenant" -> Set("READ TENANT"))
+          )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val secret = situation.findTokenSecret(situation.user, "foo")
+
+      val result = fetchProjectsWithToken("testtenant", username = situation.user, token = secret)
+
+      result.status mustBe OK
+
+      (result.json.get
+        .as[JsArray])
+        .value
+        .map(v => (v \ "name").as[String]) must contain theSameElementsAs Seq(
+        "project-1",
+        "project-2",
+        "project-3"
+      )
+    }
+
     "return all projects for tenant" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()

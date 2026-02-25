@@ -852,6 +852,31 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         } }"""))
   }
 
+  def fetchTenantsWithToken(
+      right: String = null,
+      username: String,
+      token: String
+  ): RequestResult = {
+
+    val auth = Base64.getEncoder.encodeToString(
+      s"${username}:$token".getBytes(StandardCharsets.UTF_8)
+    )
+
+    val response = await(
+      ws.url(s"${ADMIN_BASE_URL}/tenants${
+          if (Objects.nonNull(right)) s"?right=${right}" else ""
+        }")
+        .addHttpHeaders("Authorization" -> s"Basic $auth")
+        .get()
+    )
+    RequestResult(
+      json = Try {
+        response.json
+      },
+      status = response.status
+    )
+  }
+
   def fetchTenants(
       right: String = null,
       cookies: Seq[WSCookie] = Seq()
@@ -1851,12 +1876,58 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     )
   }
 
+  def fetchAPIKeysWithToken(
+      tenant: String,
+      username: String,
+      token: String
+  ): RequestResult = {
+    val auth = Base64.getEncoder.encodeToString(
+      s"${username}:$token".getBytes(StandardCharsets.UTF_8)
+    )
+
+    val response = await(
+      ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/keys")
+        .addHttpHeaders("Authorization" -> s"Basic $auth")
+        .get()
+    )
+
+    RequestResult(
+      json = Try {
+        response.json
+      },
+      status = response.status
+    )
+  }
+
+  def fetchProjectsWithToken(
+      tenant: String,
+      username: String,
+      token: String
+  ): RequestResult = {
+    val auth = Base64.getEncoder.encodeToString(
+      s"${username}:$token".getBytes(StandardCharsets.UTF_8)
+    )
+
+    val response = await(
+      ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/projects")
+        .addHttpHeaders("Authorization" -> s"Basic $auth")
+        .get()
+    )
+
+    RequestResult(
+      json = Try {
+        response.json
+      },
+      status = response.status
+    )
+  }
+
   def readProjectWithToken(
-                              tenant: String,
-                              project: String,
-                              username: String,
-                              token: String
-                            ): RequestResult = {
+      tenant: String,
+      project: String,
+      username: String,
+      token: String
+  ): RequestResult = {
     val auth = Base64.getEncoder.encodeToString(
       s"${username}:$token".getBytes(StandardCharsets.UTF_8)
     )
@@ -4441,9 +4512,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       futures.addOne(wasmManagerFuture)
 
       val tenantFuture =
-        Future
-          .sequence(
-            tenants.map(tenant => {
+        tenants
+          .foldLeft(Future.successful(()): Future[Unit])((prev, tenant) => {
+            prev.flatMap(_ => {
               tagsData.put(tenant.name, TrieMap())
               featuresData.put(tenant.name, TrieMap())
               projectsData.put(tenant.name, TrieMap())
@@ -4677,7 +4748,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                     })
                 })
             })
-          )
+          })
           .flatMap(_ => {
             Future.sequence(
               personnalAccessTokens
@@ -4705,6 +4776,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                 })
             )
           })
+
       futures.addOne(tenantFuture)
 
       futures.addOne(

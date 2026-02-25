@@ -170,6 +170,49 @@ class ApplicationKeysAPISpec extends BaseAPISpec {
   }
 
   "API Key GET endpoint" should {
+    "return all API keys for given tenant with personnal access token" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("my-tenant")
+            .withProjectNames("project-1", "project-2")
+            .withApiKeys(
+              TestApiKey(
+                name = "my-key",
+                projects = Seq("project-1", "project-2")
+              ),
+              TestApiKey(
+                name = "my-key2",
+                projects = Seq("project-1", "project-2")
+              )
+            )
+        )
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(
+            "foo",
+            allRights = false,
+            rights = Map("my-tenant" -> Set("READ KEYS"))
+          )
+        )
+        .build()
+
+      val result = fetchAPIKeysWithToken(tenant = "my-tenant", username = situation.user, token = situation.findTokenSecret(situation.user, "foo"))
+
+      result.status mustBe OK
+      (result.json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq("my-key", "my-key2")
+      (result.json.get \\ "projects").flatMap(v =>
+        v.as[Seq[String]]
+      ) must contain theSameElementsAs Seq(
+        "project-1",
+        "project-2",
+        "project-1",
+        "project-2"
+      )
+    }
+
+
     "return all API keys for given tenant" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()

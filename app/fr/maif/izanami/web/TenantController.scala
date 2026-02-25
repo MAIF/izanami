@@ -31,7 +31,8 @@ class TenantController(
     val tenantRightsAuthAction: TenantRightsAction,
     val wasmManagerClient: WasmManagerClient,
     val personnalAccessTokenAuthAction: PersonnalAccessTokenAdminAuthActionFactory,
-    val personnalAccessTokenTenantAuthAction: PersonnalAccessTokenTenantAuthActionFactory
+    val personnalAccessTokenTenantAuthAction: PersonnalAccessTokenTenantAuthActionFactory,
+    val personnalAccessTokenTenantRightsAuthAction: PersonnalAccessTokenTenantRightsActionFactory
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext
 
@@ -154,7 +155,7 @@ class TenantController(
     }
 
   def readTenants(right: Option[RightLevel]): Action[AnyContent] =
-    tenantRightsAuthAction.async { implicit request =>
+    personnalAccessTokenTenantRightsAuthAction(ReadTenants).async { implicit request =>
       if (request.user.admin) {
         env.datastores.tenants
           .readTenants()
