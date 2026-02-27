@@ -2171,10 +2171,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
   def delete(
       tenant: String,
       id: String,
-      user: UserInformation
+      user: UserInformation,
+      conn: Option[SqlConnection] = None
   ): Future[Either[IzanamiError, String]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql.executeInTransaction(conn =>
+    env.postgresql.executeInOptionalTransaction(conn, conn =>
       env.postgresql
         .queryOne(
           s"""DELETE FROM "${tenant}".features WHERE id=$$1 returning id, project, name""",

@@ -1,4 +1,5 @@
 import React, { ReactElement } from "react";
+import { Loader } from "./Loader";
 
 export function Modal(props: {
   title?: string;
@@ -10,6 +11,7 @@ export function Modal(props: {
   children: ReactElement | ReactElement[] | string;
   position?: "top" | "center";
   style?: React.CSSProperties;
+  isLoading: boolean;
 }) {
   const {
     visible,
@@ -58,16 +60,19 @@ export function Modal(props: {
           >
             {closeButtonText ? closeButtonText : onConfirm ? "Cancel" : "Close"}
           </button>
-          {onConfirm && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={onConfirm}
-              aria-label="Confirm"
-            >
-              {confirmButtonText ? confirmButtonText : "Confirm"}
-            </button>
-          )}
+          {onConfirm &&
+            (props?.isLoading ? (
+              <Loader />
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={onConfirm}
+                aria-label="Confirm"
+              >
+                {confirmButtonText ? confirmButtonText : "Confirm"}
+              </button>
+            ))}
         </div>
       </>
     </RawModal>

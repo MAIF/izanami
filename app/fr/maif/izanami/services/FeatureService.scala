@@ -89,67 +89,74 @@ class FeatureService(env: Env) {
         patches.map(_.id).toSet
       )
       .flatMap(features => {
-        FutureEither
-          .sequence(patches.map {
-            case EnabledFeaturePatch(value, id, preserveProtectedContexts) => {
-              features
-                .get(id)
-                .map(feature => {
-                  val featureToUpdate = feature.withEnabled(value)
-                  updateFeature(
-                    BaseFeatureUpdateRequest(
-                      feature = featureToUpdate,
-                      tenant = tenant,
-                      id = id,
-                      authentication = authentication,
-                      user = user,
-                      preserveProtectedContexts = preserveProtectedContexts
-                    )
-                  ).map(_ => Done.done())
-                })
-                .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)))
-            }
-            case ProjectFeaturePatch(value, id) => {
-              features
-                .get(id)
-                .map(feature => {
-                  val featureToUpdate = feature.withProject(value)
-                  updateFeature(
-                    BaseFeatureUpdateRequest(
-                      feature = featureToUpdate,
-                      tenant = tenant,
-                      id = id,
-                      authentication = authentication,
-                      user = user,
-                      preserveProtectedContexts = false
-                    )
-                  ).map(_ => Done.done())
-                })
-                .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)))
-            }
-            case TagsFeaturePatch(value, id) => {
-              features
-                .get(id)
-                .map(feature => {
-                  val featureToUpdate = feature.appendedTags(value)
-                  updateFeature(
-                    BaseFeatureUpdateRequest(
-                      feature = featureToUpdate,
-                      tenant = tenant,
-                      id = id,
-                      authentication = authentication,
-                      user = user,
-                      preserveProtectedContexts = false
-                    )
-                  ).map(_ => Done.done())
-                })
-                .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)))
-            }
-            case RemoveFeaturePatch(id) =>
-              deleteFeature(tenant, id, user, authentication)
-                .map(_ => Done.done())
+        env.postgresql.executeInTransaction(conn => {
+          patches.foldLeft(FutureEither.success(Done.done()))((acc, next) => {
+            acc.flatMap(_ => {
+              next match {
+                case EnabledFeaturePatch(value, id, preserveProtectedContexts) => {
+                  features
+                    .get(id)
+                    .map(feature => {
+                      val featureToUpdate = feature.withEnabled(value)
+                      updateFeature(
+                        BaseFeatureUpdateRequest(
+                          feature = featureToUpdate,
+                          tenant = tenant,
+                          id = id,
+                          authentication = authentication,
+                          user = user,
+                          preserveProtectedContexts = preserveProtectedContexts
+                        ),
+                        conn = Some(conn)
+                      ).map(_ => Done.done())
+                    })
+                    .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)))
+                }
+                case ProjectFeaturePatch(value, id) => {
+                  features
+                    .get(id)
+                    .map(feature => {
+                      val featureToUpdate = feature.withProject(value)
+                      updateFeature(
+                        BaseFeatureUpdateRequest(
+                          feature = featureToUpdate,
+                          tenant = tenant,
+                          id = id,
+                          authentication = authentication,
+                          user = user,
+                          preserveProtectedContexts = false
+                        ),
+                        conn = Some(conn)
+                      ).map(_ => Done.done())
+                    })
+                    .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)))
+                }
+                case TagsFeaturePatch(value, id) => {
+                  features
+                    .get(id)
+                    .map(feature => {
+                      val featureToUpdate = feature.appendedTags(value)
+                      updateFeature(
+                        BaseFeatureUpdateRequest(
+                          feature = featureToUpdate,
+                          tenant = tenant,
+                          id = id,
+                          authentication = authentication,
+                          user = user,
+                          preserveProtectedContexts = false
+                        ),
+                        conn = Some(conn)
+                      ).map(_ => Done.done())
+                    })
+                    .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)))
+                }
+                case RemoveFeaturePatch(id) =>
+                  deleteFeature(tenant, id, user, authentication, conn = Some(conn))
+                    .map(_ => Done.done())
+              }
+            })
           })
-          .map(dones => Done.done())
+        })
       })
   }
 
@@ -332,52 +339,57 @@ class FeatureService(env: Env) {
       tenant: String,
       id: String,
       user: UserWithCompleteRightForOneTenant,
-      authentification: EventAuthentication
+      authentification: EventAuthentication,
+      conn: Option[SqlConnection] = None
   ): FutureEither[Unit] = {
-    for (
-      maybeFeature <- datastore
-        .findActivationStrategiesForFeature(tenant, id)
-        .mapToFEither;
-      feature <- maybeFeature
-        .map(f => FutureEither.success(f))
-        .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)));
-      hasProtectedOverload <- hasProtectedOverload(
-        tenant,
-        feature = feature
-      );
-      hasDeleteRightOnProject = canCreateOrDeleteFeature(feature.project, user);
-      res <- if (!hasDeleteRightOnProject) {
-        FutureEither.failure(
-          NotEnoughRights(
-            "You don't have right to delete feature for this project"
-          )
-        )
-      } else if (
-        hasProtectedOverload && !user.hasRightForProject(feature.project, Admin)
-      ) {
-        FutureEither.failure(
-          NotEnoughRights(
-            "You don't have right to delete a feature with protected overload for this project"
-          )
-        )
-      } else {
-        datastore
-          .delete(
-            tenant,
-            id,
-            UserInformation(
-              username = user.username,
-              authentication = authentification
+    env.postgresql.executeInOptionalTransaction(conn, conn => {
+      for (
+        maybeFeature <- datastore
+          .findActivationStrategiesForFeature(tenant, id)
+          .mapToFEither;
+        feature <- maybeFeature
+          .map(f => FutureEither.success(f))
+          .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)));
+        hasProtectedOverload <- hasProtectedOverload(
+          tenant,
+          feature = feature
+        );
+        hasDeleteRightOnProject = canCreateOrDeleteFeature(feature.project, user);
+        res <- if (!hasDeleteRightOnProject) {
+          FutureEither.failure(
+            NotEnoughRights(
+              "You don't have right to delete feature for this project"
             )
           )
-          .map(maybeFeature =>
-            maybeFeature
-              .map(_ => Right(()))
-              .getOrElse(Left(FeatureDoesNotExist(id)))
+        } else if (
+          hasProtectedOverload && !user.hasRightForProject(feature.project, Admin)
+        ) {
+          FutureEither.failure(
+            NotEnoughRights(
+              "You don't have right to delete a feature with protected overload for this project"
+            )
           )
-          .toFEither
-      }
-    ) yield res
+        } else {
+          datastore
+            .delete(
+              tenant,
+              id,
+              UserInformation(
+                username = user.username,
+                authentication = authentification
+              ),
+              conn=Some(conn)
+            )
+            .map(maybeFeature =>
+              maybeFeature
+                .map(_ => Right(()))
+                .getOrElse(Left(FeatureDoesNotExist(id)))
+            )
+            .toFEither
+        }
+      ) yield res
+    })
+
   }
 
   /** Data container providing information about an update impact on context

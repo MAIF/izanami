@@ -34,7 +34,7 @@ object HighVolumetryLoader {
 
     val featureNames = (for (i <- 0 to 500) yield generex.random(3)).toSet
     val projectNames =
-      (for (i <- 0 to 100) yield projectGenerex.random(3)).toSet
+      (for (i <- 0 to 10) yield projectGenerex.random(3)).toSet
 
     val situation = TestSituationBuilder()
       .loggedInWithAdminRights()
@@ -63,7 +63,7 @@ object HighVolumetryLoader {
         .run()(mat)
     )(Timeout.durationToTimeout(60.seconds))
 
-    println("DONE creatine projects")
+    println("DONE creating projects")
 
     await(
       Source

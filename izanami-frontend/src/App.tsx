@@ -459,7 +459,7 @@ export function Layout() {
   } = useContext(IzanamiContext);
   const [isOpenModal, setIsOpenModal] = useState(false);
   const [loadingState, setLoadingState] = React.useState<AppLoadingState>(
-    !user?.username || !expositionUrl ? "Loading" : "Success"
+    !user?.username || !expositionUrl ? "Loading" : "Success",
   );
   let { tenant } = useParams();
   const searchParamsTenant = useSearchParams()[0].get("tenant");
@@ -474,7 +474,7 @@ export function Layout() {
             logout();
           } else if (response.status > 400) {
             throw new Error(
-              `Failed to fetch rights, something is wrong with Izanami backend (status code ${response.status})`
+              `Failed to fetch rights, something is wrong with Izanami backend (status code ${response.status})`,
             );
           } else {
             return response.json();
@@ -560,7 +560,7 @@ export function Layout() {
                 <li
                   onClick={() =>
                     updateLightMode(
-                      mode === Modes.dark ? Modes.light : Modes.dark
+                      mode === Modes.dark ? Modes.light : Modes.dark,
                     )
                   }
                   className="me-2 d-flex align-items-center justify-content-end my-2"
@@ -644,23 +644,26 @@ function parseMode(modeStr: string) {
   return modeStr === Modes.light ? Modes.light : Modes.dark;
 }
 
-export class App extends Component {
-  state: TIzanamiContext & {
-    confirmation?: {
-      message: JSX.Element | JSX.Element[] | React.FC;
-      callback?: () => Promise<any>;
-      onCancel?: () => Promise<any>;
-      closeButtonText?: string;
-      confirmButtonText?: string;
-      noFooter?: boolean;
-    };
-    inputConfirmation?: {
-      message: JSX.Element | JSX.Element[] | string;
-      callback: () => Promise<void>;
-      expectedValue?: string;
-      title?: string;
-    };
+type AppState = TIzanamiContext & {
+  confirmation?: {
+    message: string | JSX.Element | JSX.Element[] | React.FC;
+    callback?: () => Promise<any>;
+    onCancel?: () => Promise<any>;
+    closeButtonText?: string;
+    confirmButtonText?: string;
+    noFooter?: boolean;
+    loading: boolean;
   };
+  inputConfirmation?: {
+    message: JSX.Element | JSX.Element[] | string;
+    callback: () => Promise<void>;
+    expectedValue?: string;
+    title?: string;
+  };
+};
+
+export class App extends Component<any, AppState> {
+  state: AppState;
   setupLightMode() {
     const mode = parseMode(window.localStorage.getItem(MODE_KEY) ?? "");
     this.updateLightMode(mode);
@@ -696,7 +699,7 @@ export class App extends Component {
               (!configuration.anonymousReportingLastAsked ||
                 differenceInMonths(
                   new Date(),
-                  configuration.anonymousReportingLastAsked
+                  configuration.anonymousReportingLastAsked,
                 ) > 3)
             ) {
               return queryStats().then((stats) => {
@@ -739,7 +742,7 @@ export class App extends Component {
                     });
                   },
                   "Keep reporting disabled",
-                  "Enable anonymous reporting"
+                  "Enable anonymous reporting",
                 );
               });
             }
@@ -767,7 +770,7 @@ export class App extends Component {
         callback?: () => Promise<any>,
         onCancel?: () => Promise<any>,
         closeButtonText?: string,
-        confirmButtonText?: string
+        confirmButtonText?: string,
       ) => {
         return new Promise((resolve) => {
           this.setState({
@@ -777,8 +780,13 @@ export class App extends Component {
                 ? () => callback().finally(() => resolve())
                 : undefined,
               onCancel: () => {
-                return onCancel?.().finally(() => resolve());
+                if (onCancel) {
+                  return onCancel().finally(() => resolve());
+                } else {
+                  return Promise.resolve().finally(() => resolve());
+                }
               },
+              loading: false,
               closeButtonText,
               confirmButtonText,
             },
@@ -788,11 +796,12 @@ export class App extends Component {
       displayModal: (
         Content: React.FC<{
           close: () => void;
-        }>
+        }>,
       ) => {
         return new Promise((resolve) => {
           this.setState({
             confirmation: {
+              loading: false,
               noFooter: true,
               message: () => (
                 <Content
@@ -810,7 +819,7 @@ export class App extends Component {
         message: JSX.Element | JSX.Element[] | string,
         onConfirm: () => Promise<void>,
         expectedValue?: string,
-        title?: string
+        title?: string,
       ) => {
         return new Promise((resolve) => {
           this.setState({
@@ -871,6 +880,12 @@ export class App extends Component {
       ...(callback
         ? {
             onConfirm: () => {
+              // TODO hide confirmation button & display spinner
+              this.setState((previous, other) => {
+                return {
+                  confirmation: { ...previous.confirmation, loading: true },
+                };
+              });
               callback().then(() => this.setState({ confirmation: undefined }));
             },
           }
@@ -905,7 +920,9 @@ export class App extends Component {
         );
       } else {
         modalPart = (
-          <Modal {...modalProps}>{this.state?.confirmation!.message}</Modal>
+          <Modal {...modalProps} isLoading={this.state.confirmation.loading}>
+            {this.state?.confirmation!.message}
+          </Modal>
         );
       }
     }
