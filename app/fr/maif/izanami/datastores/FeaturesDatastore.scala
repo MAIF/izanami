@@ -2,46 +2,19 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.featureImplicits.FeatureRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{
-  FOREIGN_KEY_VIOLATION,
-  NOT_NULL_VIOLATION,
-  RELATION_DOES_NOT_EXISTS
-}
+import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, NOT_NULL_VIOLATION, RELATION_DOES_NOT_EXISTS}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.events.EventAuthentication.BackOfficeAuthentication
 import fr.maif.izanami.events.EventOrigin.{ImportOrigin, NormalOrigin}
-import fr.maif.izanami.events.{
-  SourceFeatureCreated,
-  SourceFeatureDeleted,
-  SourceFeatureUpdated
-}
+import fr.maif.izanami.events.{SourceFeatureCreated, SourceFeatureDeleted, SourceFeatureUpdated}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.features.*
 import fr.maif.izanami.utils.{Datastore, FutureEither}
-import fr.maif.izanami.utils.syntax.implicits.{
-  BetterFuture,
-  BetterFutureEither,
-  BetterJsValue,
-  BetterListEither,
-  BetterSyntax
-}
-import fr.maif.izanami.wasm.{
-  WasmConfig,
-  WasmConfigWithFeatures,
-  WasmScriptAssociatedFeatures
-}
-import fr.maif.izanami.web.ImportController.{
-  Fail,
-  ImportConflictStrategy,
-  MergeOverwrite,
-  Skip
-}
-import fr.maif.izanami.web.{
-  FeatureContextPath,
-  ImportController,
-  UserInformation
-}
+import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterFutureEither, BetterJsValue, BetterListEither, BetterSyntax}
+import fr.maif.izanami.wasm.{WasmConfig, WasmConfigWithFeatures, WasmScriptAssociatedFeatures}
+import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Skip}
+import fr.maif.izanami.web.{FeatureContextPath, ImportController, ProjectId, UserInformation}
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import io.vertx.core.json.{JsonArray, JsonObject}
 import io.vertx.core.shareddata.ClusterSerializable
@@ -977,7 +950,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       request: FeatureRequest,
       contexts: FeatureContextPath,
       user: String
-  ): Future[Map[UUID, Seq[CompleteFeature]]] = {
+  ): Future[Map[ProjectId, Seq[CompleteFeature]]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryAll(
@@ -1061,9 +1034,9 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         )
       ) { r =>
         {
-          r.optUUID("project_id")
+          r.optString("project_id")
             .map(p => {
-              val tuple: (UUID, Seq[CompleteFeature]) = (
+              val tuple: (String, Seq[CompleteFeature]) = (
                 p,
                 r.optJsArray("features")
                   .toSeq

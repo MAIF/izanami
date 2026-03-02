@@ -1,55 +1,18 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.ImportExportDatastore.{
-  DBImportResult,
-  TableMetadata,
-  UnitDBImportResult
-}
+import fr.maif.izanami.datastores.ImportExportDatastore.{DBImportResult, TableMetadata, UnitDBImportResult}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{
-  InternalServerError,
-  IzanamiError,
-  PartialImportFailure
-}
+import fr.maif.izanami.errors.{InternalServerError, IzanamiError, PartialImportFailure}
 import fr.maif.izanami.events.EventOrigin.ImportOrigin
-import fr.maif.izanami.events.{
-  PreviousProject,
-  SourceFeatureCreated,
-  SourceFeatureUpdated,
-  SourceProjectCreated,
-  SourceProjectUpdated
-}
-import fr.maif.izanami.models.{
-  ExportedType,
-  FeatureType,
-  FeatureWithOverloads,
-  KeyRightType,
-  Project,
-  ProjectRightType,
-  ProjectType,
-  Tenant,
-  WebhookRightType
-}
+import fr.maif.izanami.events.{PreviousProject, SourceFeatureCreated, SourceFeatureUpdated, SourceProjectCreated, SourceProjectUpdated}
+import fr.maif.izanami.models.{ExportedType, FeatureType, FeatureWithOverloads, KeyRightType, Project, ProjectRightType, ProjectType, Tenant, WebhookRightType}
 import fr.maif.izanami.models.ExportedType.exportedTypeToString
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.web.ExportController.{
-  projectExportResultWrites,
-  ExportResult,
-  TenantExportRequest
-}
-import fr.maif.izanami.web.ImportController.{
-  ImportConflictStrategy,
-  MergeOverwrite,
-  Replace
-}
-import fr.maif.izanami.web.{
-  ExportController,
-  ImportController,
-  ImportResult,
-  UserInformation
-}
+import fr.maif.izanami.web.ExportController.{ExportResult, TenantExportRequest, projectExportResultWrites}
+import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, MergeOverwrite, Replace}
+import fr.maif.izanami.web.{ExportController, ImportController, ImportResult, ProjectId, UserInformation}
 import io.vertx.core.json.JsonArray
 import io.vertx.sqlclient.SqlConnection
 import play.api.libs.json.{JsObject, Json}
@@ -216,7 +179,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     .flatten
                     .map(json => {
                       for (
-                        id <- (json \ "id").asOpt[UUID];
+                        id <- (json \ "id").asOpt[String];
                         name <- (json \ "name").asOpt[String]
                       ) yield (id, name)
                     })
@@ -232,7 +195,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                         SourceProjectCreated(
                           tenant = tenant,
                           id = projectId,
-                          name = projectNamesBydId(UUID.fromString(projectId)),
+                          name = projectNamesBydId(projectId),
                           user = user.username,
                           origin = ImportOrigin,
                           authentication = user.authentication
@@ -241,7 +204,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     }))
                     .flatMap(_ => {
                       if (result.updatedProjects.nonEmpty) {
-                        val previousProjectNames: Future[Map[UUID, String]] =
+                        val previousProjectNames: Future[Map[ProjectId, String]] =
                           if (
                             conflictStrategy == MergeOverwrite && entries
                               .get(FeatureType)
@@ -254,13 +217,12 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                                    |""".stripMargin,
                                 List(
                                   result.updatedProjects
-                                    .map(s => UUID.fromString(s))
                                     .toArray
                                 )
                               ) { r =>
                                 {
                                   for (
-                                    id <- r.optUUID("id");
+                                    id <- r.optString("id");
                                     name <- r.optString("name")
                                   ) yield (id, name)
                                 }
@@ -279,10 +241,10 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                                   tenant = tenant,
                                   id = projectId,
                                   name = projectNamesBydId(
-                                    UUID.fromString(projectId)
+                                    projectId
                                   ),
                                   previous = PreviousProject(
-                                    ids.get(UUID.fromString(projectId)).orNull
+                                    ids.get(projectId).orNull
                                   ),
                                   user = user.username,
                                   origin = ImportOrigin,

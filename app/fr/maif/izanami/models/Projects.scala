@@ -4,12 +4,11 @@ import fr.maif.izanami.models.LightWeightFeatureWithUsageInformation.writeLightW
 import play.api.libs.json.Format.GenericFormat
 import play.api.libs.json._
 
-import java.util.UUID
 import scala.util.matching.Regex
 
 
-case class Project(id: UUID, name: String, features: List[LightWeightFeature] = List(), description: String)
-case class ProjectWithUsageInformation(id: UUID, name: String, features: List[LightWeightFeatureWithUsageInformation] = List(), description: String)
+case class Project(id: String, name: String, features: List[LightWeightFeature] = List(), description: String)
+case class ProjectWithUsageInformation(id: String, name: String, features: List[LightWeightFeatureWithUsageInformation] = List(), description: String)
 object ProjectWithUsageInformation {
   def fromProject(project: Project, features: List[LightWeightFeatureWithUsageInformation]): ProjectWithUsageInformation = {
     ProjectWithUsageInformation(id = project.id, name = project.name, features = features, description = project.description)
@@ -41,7 +40,7 @@ object Project {
     {
       for (
         name <- (json \ "name").asOpt[String];
-        id <- (json \ "id").asOpt[UUID];
+        id <- (json \ "id").asOpt[String];
         description   <- (json \ "description").asOpt[String]
       ) yield JsSuccess(Project(name = name, description=description, id=id))
     }.getOrElse(JsError("Error reading project"))

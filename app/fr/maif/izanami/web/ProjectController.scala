@@ -13,7 +13,6 @@ import play.api.libs.json.{JsError, JsNull, JsNumber, JsObject, JsSuccess, JsVal
 import play.api.mvc.*
 
 import java.time.Instant
-import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
@@ -165,8 +164,8 @@ class ProjectController(
     }
 
   def readProjectById(tenant: String, id: String): Action[AnyContent] =
-    projectAuthActionById(tenant, UUID.fromString(id), ProjectRightLevel.Read).async { implicit request =>
-      val projectId = UUID.fromString(id)
+    projectAuthActionById(tenant, id, ProjectRightLevel.Read).async { implicit request =>
+      val projectId = id
       env.datastores.projects
         .readProjectsById(tenant, Set(projectId))
         .map(projectMap => {

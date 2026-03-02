@@ -54,7 +54,7 @@ case class UserNameRequest[A](request: Request[A], user: UserInformation)
 case class ProjectIdUserNameRequest[A](
     request: Request[A],
     user: UserInformation,
-    projectId: UUID
+    projectId: String
 ) extends WrappedRequest[A](request)
 
 case class HookAndUserNameRequest[A](
@@ -1305,11 +1305,13 @@ class ValidatePasswordAction(
   override protected def executionContext: ExecutionContext = ec
 }
 
+type ProjectId = String
+
 class ProjectAuthAction(
     bodyParser: BodyParser[AnyContent],
     override val env: Env,
     tenant: String,
-    projectIdOrName: Either[UUID, String],
+    projectIdOrName: Either[ProjectId, String],
     minimumLevel: ProjectRightLevel
 )(implicit ec: ExecutionContext)
     extends LeaderActionBuilder[ProjectIdUserNameRequest] {
@@ -1556,7 +1558,7 @@ class ProjectAuthActionByIdFactory(
 )(implicit ec: ExecutionContext) {
   def apply(
       tenant: String,
-      project: UUID,
+      project: String,
       minimumLevel: ProjectRightLevel
   ): ProjectAuthAction =
     new ProjectAuthAction(bodyParser, env, tenant, Left(project), minimumLevel)

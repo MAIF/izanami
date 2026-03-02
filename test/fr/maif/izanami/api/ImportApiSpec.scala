@@ -1,13 +1,48 @@
 package fr.maif.izanami.api
 
 import fr.maif.izanami.api.BaseAPISpec.{TestFeature, TestPersonnalAccessToken, TestProject, TestRights, TestSituationBuilder, TestTenant, TestTenantRight, TestUser, importWithToken}
-import play.api.http.Status.{ACCEPTED, CREATED, FORBIDDEN, NOT_FOUND, NO_CONTENT, OK, UNAUTHORIZED}
+import play.api.http.Status.{ACCEPTED, BAD_REQUEST, CREATED, FORBIDDEN, NOT_FOUND, NO_CONTENT, OK, UNAUTHORIZED}
 import play.api.libs.json.{JsNull, JsObject}
 
 import java.util.UUID
 
 class ImportApiSpec extends BaseAPISpec {
   "V2 feature import" should {
+    "allow importing tags with non uuid ids" in {
+      val data = Seq(
+        """{"row":{"id":"fifou","name":"ttt","description":""},"_type":"tag"}
+          |""".stripMargin
+      )
+
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val res = situation.importV2("foo", data = data, conflictStrategy = "FAIL")
+
+      res.status mustBe OK
+    }
+
+    "allow importing project with non uuid ids" in {
+      val data = Seq(
+        """{"row":{"id":"fifou","name":"proj","description":""},"_type":"project"}
+          |""".stripMargin
+      )
+
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val res = situation.importV2("foo", data = data, conflictStrategy = "FAIL")
+
+      res.status mustBe OK
+    }
 
     "Update context id when importing it from a tenant with different name" in {
       val data = Seq(

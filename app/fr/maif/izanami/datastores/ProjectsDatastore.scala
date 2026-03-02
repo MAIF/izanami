@@ -4,13 +4,13 @@ import fr.maif.izanami.datastores.projectImplicits.ProjectRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors._
+import fr.maif.izanami.errors.*
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.{PreviousProject, SourceFeatureDeleted, SourceProjectCreated, SourceProjectDeleted, SourceProjectUpdated}
 import fr.maif.izanami.models.{Feature, Project, ProjectCreationRequest, RightLevel, Tenant}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.{ImportController, UserInformation}
+import fr.maif.izanami.web.{ImportController, ProjectId, UserInformation}
 import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Replace, Skip}
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
@@ -332,7 +332,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
       ) { row => row.optProjectWithFeatures() }
   }
 
-  def readProjectsById(tenant: String, ids: Set[UUID]): Future[Map[UUID, Project]] = {
+  def readProjectsById(tenant: String, ids: Set[String]): Future[Map[ProjectId, Project]] = {
     Tenant.isTenantValid(tenant)
     if (ids.isEmpty) {
       Future.successful(Map())
@@ -357,7 +357,7 @@ object projectImplicits {
   implicit class ProjectRow(val row: Row) extends AnyVal {
     def optProject(): Option[Project] = {
       for (
-        id <- row.optUUID("id");
+        id <- row.optString("id");
         name <- row.optString("name");
         description <- row.optString("description")
       )
@@ -366,7 +366,7 @@ object projectImplicits {
 
     def optProjectWithFeatures(): Option[Project] = {
       for (
-        id <- row.optUUID("id");
+        id <- row.optString("id");
         name <- row.optString("name");
         description <- row.optString("description")
       )

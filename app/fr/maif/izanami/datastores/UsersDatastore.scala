@@ -1,26 +1,19 @@
 package fr.maif.izanami.datastores
 
 import org.apache.pekko.actor.Cancellable
-import fr.maif.izanami.datastores.userImplicits.{dbUserTypeToUserType, projectRightRead, rightRead, UserRow}
+import fr.maif.izanami.datastores.userImplicits.{UserRow, dbUserTypeToUserType, projectRightRead, rightRead}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors._
-import fr.maif.izanami.models.RightLevel.{superiorOrEqualLevels, Read}
-import fr.maif.izanami.models.Rights.{
-  RightDiff,
-  TenantRightDiff,
-  UnscopedFlattenKeyRight,
-  UnscopedFlattenProjectRight,
-  UnscopedFlattenTenantRight,
-  UnscopedFlattenWebhookRight,
-  UpsertTenantRights
-}
+import fr.maif.izanami.errors.*
+import fr.maif.izanami.models.RightLevel.{Read, superiorOrEqualLevels}
+import fr.maif.izanami.models.Rights.{RightDiff, TenantRightDiff, UnscopedFlattenKeyRight, UnscopedFlattenProjectRight, UnscopedFlattenTenantRight, UnscopedFlattenWebhookRight, UpsertTenantRights}
 import fr.maif.izanami.models.User.tenantRightReads
-import fr.maif.izanami.models._
+import fr.maif.izanami.models.*
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.utils.{Datastore, FutureEither}
-import fr.maif.izanami.web.ImportController._
+import fr.maif.izanami.web.ImportController.*
+import fr.maif.izanami.web.ProjectId
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
 import play.api.libs.json.{JsError, JsSuccess, Reads}
@@ -776,9 +769,9 @@ class UsersDatastore(val env: Env) extends Datastore {
   def hasRightForProject(
       session: String,
       tenant: String,
-      projectIdOrName: Either[UUID, String],
+      projectIdOrName: Either[ProjectId, String],
       level: ProjectRightLevel
-  ): Future[Either[IzanamiError, Option[(String, UUID)]]] = {
+  ): Future[Either[IzanamiError, Option[(String, ProjectId)]]] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryOne(
@@ -807,7 +800,7 @@ class UsersDatastore(val env: Env) extends Datastore {
         {
           for (
             username  <- r.optString("username");
-            projectId <- r.optUUID("id")
+            projectId <- r.optString("id")
           ) yield (username, projectId)
         }
       }

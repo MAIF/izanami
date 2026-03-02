@@ -108,7 +108,7 @@ object tagImplicits {
     def optTag(): Option[Tag] = {
       for (
         name <- row.optString("name");
-        id   <- row.optUUID("id")
+        id   <- row.optString("id")
       ) yield Tag(id = id, name = name, description = row.optString("description").orNull)
     }
   }

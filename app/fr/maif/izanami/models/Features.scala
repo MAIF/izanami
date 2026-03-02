@@ -703,7 +703,7 @@ object FeatureTagRequest {
 }
 
 case class FeatureRequest(
-    projects: Set[UUID] = Set(),
+    projects: Set[String] = Set(),
     features: Set[String] = Set(),
     oneTagIn: Set[UUID] = Set(),
     allTagsIn: Set[UUID] = Set(),
@@ -748,7 +748,7 @@ object FeatureRequest {
           Right(
             FeatureRequest(
               features = processInputSeqString(eitherFeatures.getOrElse(Seq())),
-              projects = processInputSeqUUID(eitherProjects.getOrElse(Seq())),
+              projects = processInputSeqString(eitherProjects.getOrElse(Seq())),
               allTagsIn = processInputSeqUUID(eitherAllTagsIn.getOrElse(Seq())),
               oneTagIn = processInputSeqUUID(eitherOneTagIn.getOrElse(Seq())),
               noTagIn = processInputSeqUUID(eitherNoTagIn.getOrElse(Seq())),
