@@ -6,7 +6,7 @@ import play.api.libs.json._
 
 import scala.util.matching.Regex
 
-
+case class SimpleProject(id: String, name: String, description: String)
 case class Project(id: String, name: String, features: List[LightWeightFeature] = List(), description: String)
 case class ProjectWithUsageInformation(id: String, name: String, features: List[LightWeightFeatureWithUsageInformation] = List(), description: String)
 object ProjectWithUsageInformation {
@@ -51,6 +51,16 @@ object Project {
       "name"     -> project.name,
       "id"     -> project.id,
       "features" -> {project.features.map(f => Feature.featureWrite.writes(f))},
+      "description" -> project.description
+    )
+  }
+}
+
+object SimpleProject {
+  val simpleProjectWrites: Writes[SimpleProject] = { project => 
+    Json.obj(
+      "name" -> project.name,
+      "id" -> project.id,
       "description" -> project.description
     )
   }

@@ -159,7 +159,7 @@ class TenantController(
       if (request.user.admin) {
         env.datastores.tenants
           .readTenants()
-          .map(tenants => Ok(Json.toJson(tenants)))
+          .map(tenants => Ok(Json.toJson(tenants)(Writes.seq(Tenant.simpleTenantWrite))))
       } else {
         val minimumRightLevel = right.getOrElse(RightLevel.Read)
         val allowedTenants = Option(request.user.tenantRights)
@@ -209,13 +209,12 @@ class TenantController(
                 yield {
                   Ok(
                     Json.toJson(
-                      Tenant(
+                      SimpleTenantWithProject(
                         name = tenant.name,
                         projects = projects,
-                        tags = tags,
                         description = tenant.description
                       )
-                    )
+                    )(Tenant.simpleTenantWithProjectWrites)
                   )
                 }
             }

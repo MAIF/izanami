@@ -7,7 +7,7 @@ import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.{PreviousProject, SourceFeatureDeleted, SourceProjectCreated, SourceProjectDeleted, SourceProjectUpdated}
-import fr.maif.izanami.models.{Feature, Project, ProjectCreationRequest, RightLevel, Tenant}
+import fr.maif.izanami.models.{Feature, Project, ProjectCreationRequest, RightLevel, SimpleProject, Tenant}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.{ImportController, ProjectId, UserInformation}
@@ -178,7 +178,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
 
   }
 
-  def readTenantProjectForUser(tenant: String, user: String): Future[List[Project]] = {
+  def readTenantProjectForUser(tenant: String, user: String): Future[List[SimpleProject]] = {
     Tenant.isTenantValid(tenant)
     // TODO ensure performance of this query
     env.postgresql.queryAll(
@@ -190,7 +190,13 @@ class ProjectsDatastore(val env: Env) extends Datastore {
       OR p.name=ANY(SELECT upr.project FROM "${tenant}".users_projects_rights upr WHERE upr.username=$$1)
       """,
       List(user),
-    ) { row => row.optProject() }
+    ) { row => {
+      for(
+        name <- row.optString("name");
+        id <- row.optString("id");
+        description <- row.optString("description")
+      ) yield SimpleProject(name = name, id = id, description = description)
+    } }
   }
 
   def deleteProject(tenant: String, project: String, user: UserInformation): Future[Either[IzanamiError, List[String]]] = {

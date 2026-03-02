@@ -9,7 +9,7 @@ import fr.maif.izanami.errors.{FailedToCreateTenantSchema, InternalServerError, 
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.events.EventService.IZANAMI_CHANNEL
 import fr.maif.izanami.events.{SourceTenantCreated, SourceTenantDeleted}
-import fr.maif.izanami.models.{RightLevel, Tenant, TenantCreationRequest}
+import fr.maif.izanami.models.{RightLevel, SimpleTenant, Tenant, TenantCreationRequest}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.web.ImportState.{importFailureWrites, importResultReads, importSuccessWrites}
@@ -169,10 +169,10 @@ class TenantsDatastore(val env: Env) extends Datastore {
     })
   }
 
-  def readTenants(): Future[List[Tenant]] = {
+  def readTenants(): Future[List[SimpleTenant]] = {
     env.postgresql.queryAll(
       "SELECT name, description FROM izanami.tenants"
-    ) { row => row.optTenant() }
+    ) { row => row.optSimpleTenant() }
   }
 
   def readTenantsFiltered(names: Set[String]): Future[List[Tenant]] = {
@@ -236,6 +236,13 @@ object tenantImplicits {
         name        <- row.optString("name");
         description <- row.optString("description")
       ) yield Tenant(name = name, projects = List(), description = description)
+    }
+
+    def optSimpleTenant(): Option[SimpleTenant] = {
+      for (
+        name <- row.optString("name");
+        description <- row.optString("description")
+      ) yield SimpleTenant(name = name, description = description)
     }
   }
 }
