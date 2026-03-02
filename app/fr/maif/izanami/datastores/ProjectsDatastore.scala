@@ -188,6 +188,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
       WHERE EXISTS (SELECT u.username FROM izanami.users u WHERE u.username=$$1 AND u.admin=TRUE)
       OR EXISTS(SELECT * FROM izanami.users_tenants_rights utr WHERE utr.username=$$1 AND (utr.level='ADMIN' OR utr.default_project_right IS NOT NULL))
       OR p.name=ANY(SELECT upr.project FROM "${tenant}".users_projects_rights upr WHERE upr.username=$$1)
+      ORDER BY p.name
       """,
       List(user),
     ) { row => {
