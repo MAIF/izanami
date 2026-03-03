@@ -38,7 +38,7 @@ export function Tag(prop: { tag: string; tenant: string }) {
   const creationRight =
     admin ||
     Object.values(user?.rights?.tenants?.[tenant]?.projects || {}).some(
-      (right) => right.level === TLevel.Write || right.level === TLevel.Admin
+      (right) => right.level === TLevel.Write || right.level === TLevel.Admin,
     );
 
   const featureCreateMutation = useMutation({

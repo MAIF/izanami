@@ -1922,6 +1922,25 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     )
   }
 
+  def fetchTagsWithToken(
+                              tenant: String,
+                              username: String,
+                              token: String
+                            ): RequestResult = {
+    val auth = Base64.getEncoder.encodeToString(
+      s"${username}:$token".getBytes(StandardCharsets.UTF_8)
+    )
+
+    val response = await(
+      ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/tags")
+        .addHttpHeaders("Authorization" -> s"Basic $auth")
+        .get()
+    )
+    RequestResult(json = Try {
+      response.json
+    }, status = response.status)
+  }
+
   def readProjectWithToken(
       tenant: String,
       project: String,

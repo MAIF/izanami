@@ -139,6 +139,34 @@ class TagAPISpec extends BaseAPISpec {
         "my-tag3"
       )
     }
+
+    "retrieve existing tags with personal access token" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("testtenant").withTagNames("foo", "bar", "baz"))
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(
+            "foo",
+            allRights = false,
+            rights = Map("testtenant" -> Set("READ TENANT"))
+          )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val secret = situation.findTokenSecret(situation.user, "foo")
+
+      val result = fetchTagsWithToken("testtenant", username = situation.user, token = secret)
+
+      result.status mustBe OK
+
+      (result.json.get \\ "name").map(v =>
+        v.as[String]
+      ) must contain theSameElementsAs Seq(
+        "foo",
+        "bar",
+        "baz"
+      )
+    }
   }
 
   "Tag PUT endpoint" should {

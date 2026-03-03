@@ -3,7 +3,11 @@ package fr.maif.izanami.datastores
 import fr.maif.izanami.datastores.tagImplicits.TagRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{InternalServerError, IzanamiError, TagDoesNotExists}
+import fr.maif.izanami.errors.{
+  InternalServerError,
+  IzanamiError,
+  TagDoesNotExists
+}
 import fr.maif.izanami.models.{Rights, Tag, TagCreationRequest, Tenant}
 import fr.maif.izanami.utils.Datastore
 import io.vertx.sqlclient.{Row, SqlConnection}
@@ -11,7 +15,10 @@ import io.vertx.sqlclient.{Row, SqlConnection}
 import scala.concurrent.Future
 
 class TagsDatastore(val env: Env) extends Datastore {
-  def createTag(tagCreationRequest: TagCreationRequest, tenant: String): Future[Either[IzanamiError, Tag]] = {
+  def createTag(
+      tagCreationRequest: TagCreationRequest,
+      tenant: String
+  ): Future[Either[IzanamiError, Tag]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryOne(
@@ -34,7 +41,7 @@ class TagsDatastore(val env: Env) extends Datastore {
       conn: Option[SqlConnection] = None
   ): Future[Either[IzanamiError, List[Tag]]] = {
     Tenant.isTenantValid(tenant)
-    if(tags.isEmpty) {
+    if (tags.isEmpty) {
       Future.successful(Right(List()))
     } else {
       env.postgresql
@@ -44,11 +51,16 @@ class TagsDatastore(val env: Env) extends Datastore {
           conn = conn
         ) { row => row.optTag() }
         .map(ts => Right(ts))
-        .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))  
+        .recover(
+          env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+        )
     }
   }
 
-  def readTag(tenant: String, name: String): Future[Either[IzanamiError, Tag]] = {
+  def readTag(
+      tenant: String,
+      name: String
+  ): Future[Either[IzanamiError, Tag]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryOne(
@@ -58,7 +70,10 @@ class TagsDatastore(val env: Env) extends Datastore {
       .map { _.toRight(TagDoesNotExists(name)) }
   }
 
-  def deleteTag(tenant: String, name: String): Future[Either[IzanamiError, Unit]] = {
+  def deleteTag(
+      tenant: String,
+      name: String
+  ): Future[Either[IzanamiError, Unit]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryOne(
@@ -68,7 +83,10 @@ class TagsDatastore(val env: Env) extends Datastore {
       .map { _.toRight(TagDoesNotExists(name)).map(_ => ()) }
   }
 
-  def readTags(tenant: String, names: Set[String]): Future[Either[IzanamiError, List[Tag]]] = {
+  def readTags(
+      tenant: String,
+      names: Set[String]
+  ): Future[Either[IzanamiError, List[Tag]]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryAll(
@@ -85,7 +103,11 @@ class TagsDatastore(val env: Env) extends Datastore {
       s"""SELECT * FROM "${tenant}".tags"""
     ) { row => row.optTag() }
   }
-  def updateTag(tag: Tag, tenant: String, currentName: String): Future[Either[IzanamiError, Tag]] = {
+  def updateTag(
+      tag: Tag,
+      tenant: String,
+      currentName: String
+  ): Future[Either[IzanamiError, Tag]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryOne(
@@ -108,8 +130,13 @@ object tagImplicits {
     def optTag(): Option[Tag] = {
       for (
         name <- row.optString("name");
-        id   <- row.optString("id")
-      ) yield Tag(id = id, name = name, description = row.optString("description").orNull)
+        id <- row.optString("id")
+      )
+        yield Tag(
+          id = id,
+          name = name,
+          description = row.optString("description").orNull
+        )
     }
   }
 }

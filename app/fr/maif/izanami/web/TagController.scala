@@ -1,7 +1,8 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.models.{RightLevel, Tag}
+import fr.maif.izanami.models.RightLevel.Read
+import fr.maif.izanami.models.{ReadTenant, ReadTenants, RightLevel, Tag}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc.*
@@ -11,7 +12,8 @@ import scala.concurrent.{ExecutionContext, Future}
 class TagController(
     val env: Env,
     val controllerComponents: ControllerComponents,
-    val authAction: TenantAuthActionFactory
+    val authAction: TenantAuthActionFactory,
+    val personnalAccessTokenTenantAuthAction: PersonnalAccessTokenTenantAuthActionFactory
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
 
@@ -40,7 +42,11 @@ class TagController(
     }
   }
 
-  def readTag(tenant: String, name: String): Action[AnyContent] = authAction(tenant, RightLevel.Read).async {
+  def readTag(tenant: String, name: String): Action[AnyContent] = personnalAccessTokenTenantAuthAction(
+    tenant = tenant,
+    minimumLevel = Read,
+    operation = ReadTenant
+  ).async {
     implicit request: Request[AnyContent] =>
       env.datastores.tags
         .readTag(tenant, name)
@@ -52,7 +58,11 @@ class TagController(
         )
   }
 
-  def readTags(tenant: String): Action[AnyContent] = authAction(tenant, RightLevel.Read).async { implicit request: Request[AnyContent] =>
+  def readTags(tenant: String): Action[AnyContent] =personnalAccessTokenTenantAuthAction(
+    tenant = tenant,
+    minimumLevel = Read,
+    operation = ReadTenant
+  ).async { implicit request: Request[AnyContent] =>
     env.datastores.tags.readTags(tenant).map(tags => Ok(Json.toJson(tags)))
   }
 
