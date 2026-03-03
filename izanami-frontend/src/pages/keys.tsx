@@ -45,7 +45,7 @@ function editionSchema(tenant: string, key?: TKey) {
       constraints: [
         constraints.matches(
           KEY_NAME_REGEXP,
-          `Key name must match regex ${KEY_NAME_REGEXP.toString()}`
+          `Key name must match regex ${KEY_NAME_REGEXP.toString()}`,
         ),
       ],
     },
@@ -268,7 +268,7 @@ export default function Keys(props: { tenant: string }) {
         const isTenantWide = row.original.admin;
 
         return filterValue.some(
-          (v: string) => value.includes(v) || isTenantWide
+          (v: string) => value.includes(v) || isTenantWide,
         );
       },
       cell: (info: any) => {
@@ -451,7 +451,7 @@ export default function Keys(props: { tenant: string }) {
                         throw error;
                       }
                     },
-                    key.name
+                    key.name,
                   );
                 },
               },
@@ -482,7 +482,12 @@ function KeyModal(props: {
 }) {
   const { visible, secret, onClose, id } = props;
   return (
-    <Modal title="Key created !" visible={visible} onClose={() => onClose()}>
+    <Modal
+      title="Key created !"
+      visible={visible}
+      onClose={() => onClose()}
+      isLoading={false}
+    >
       <>
         <label htmlFor="clientid">
           Key client id (izanami-client-id header)
@@ -586,7 +591,7 @@ function KeyRightTable(props: { tenant: string; apikey: TKey }) {
                     user,
                     right: level,
                   });
-                })
+                }),
               ).then(() => setCreating(false));
             }}
             invitedUsers={keyRightQuery.data.map((key) => key.username)}

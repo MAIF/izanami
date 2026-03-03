@@ -8,6 +8,7 @@ export function InputConfirmationModal(props: {
   onConfirm: () => void;
   children: ReactElement | ReactElement[] | string;
   expectedValue?: string;
+  isLoading?: boolean;
 }) {
   const { isOpenModal, title, onClose, onConfirm, children, expectedValue } =
     props;
@@ -17,6 +18,7 @@ export function InputConfirmationModal(props: {
 
   return (
     <Modal
+      isLoading={props.isLoading ?? false}
       title={title}
       visible={isOpenModal}
       onConfirm={() => {

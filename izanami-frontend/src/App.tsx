@@ -881,9 +881,12 @@ export class App extends Component<any, AppState> {
         ? {
             onConfirm: () => {
               // TODO hide confirmation button & display spinner
-              this.setState((previous, other) => {
+              this.setState((previous) => {
                 return {
-                  confirmation: { ...previous.confirmation, loading: true },
+                  confirmation: {
+                    ...(previous as any).confirmation,
+                    loading: true,
+                  },
                 };
               });
               callback().then(() => this.setState({ confirmation: undefined }));

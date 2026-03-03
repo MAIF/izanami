@@ -36,15 +36,15 @@ export function Users() {
   const [selectedRows, setSelectedRows] = useState<UserType[]>([]);
   const hasSelectedRows = selectedRows.length > 0;
   const [bulkOperation, setBulkOperation] = useState<string | undefined>(
-    undefined
+    undefined,
   );
   const BULK_OPERATIONS = ["Delete", "Toggle Admin Role"] as const;
   const isAdmin = useAdmin();
   const context = useContext(IzanamiContext);
   const isTenantAdmin = Boolean(
     Object.values(context.user?.rights.tenants || {}).find(
-      (tenantRight) => tenantRight.level == TLevel.Admin
-    )
+      (tenantRight) => tenantRight.level == TLevel.Admin,
+    ),
   );
   const [creating, setCreating] = useState(false);
   const userQuery = useQuery({
@@ -160,9 +160,9 @@ export function Users() {
                               rights: data.rights,
                             });
                           });
-                      })
+                      }),
                     ).then(cancel);
-                  }
+                  },
                 );
               }}
               footer={({ valid }: { valid: () => void }) => {
@@ -202,10 +202,10 @@ export function Users() {
                     selectedRows.map((row) =>
                       userDeleteMutation
                         .mutateAsync(row.username)
-                        .then(() => setBulkOperation(undefined))
-                    )
+                        .then(() => setBulkOperation(undefined)),
+                    ),
                   );
-                }
+                },
               )
             }
           >
@@ -254,7 +254,7 @@ export function Users() {
                   {`${tenantName}`}
                 </button>
               </Link>
-            )
+            ),
           );
         },
         filterFn: (row: Row<any>, columnId: string, filterValue: any) => {
@@ -448,7 +448,7 @@ export function Users() {
                             .filter(([tenantName, tenantRight]) => {
                               return !isEqual(
                                 tenantRight,
-                                old.rights.tenants?.[tenantName]
+                                old.rights.tenants?.[tenantName],
                               );
                             })
                             .map(([tenantName, tenantRight]) => {
@@ -457,7 +457,7 @@ export function Users() {
                                 tenant: tenantName,
                                 rights: tenantRight as TTenantRight,
                               });
-                            })
+                            }),
                         ).then(() => cancel());
                       }
                     }}
@@ -503,7 +503,7 @@ export function Users() {
               action: (user: UserType) => {
                 return askConfirmation(
                   `Are you sure you want to delete user ${user.username} ?`,
-                  () => userDeleteMutation.mutateAsync(user.username)
+                  () => userDeleteMutation.mutateAsync(user.username),
                 );
               },
             },
@@ -541,6 +541,7 @@ function UrlModal(props: {
           setWarningVisible(true);
         }
       }}
+      isLoading={false}
     >
       <>
         <label htmlFor="secret">Send this url to the new user</label>
@@ -589,7 +590,7 @@ export function UserEdition(props: {
   const context = useContext(IzanamiContext);
   const isAdmin = useAdmin();
   const adminTenants: string[] = Object.entries(
-    context.user?.rights.tenants || {}
+    context.user?.rights.tenants || {},
   )
     .filter(([, tenantRight]) => tenantRight.level == TLevel.Admin)
     .map(([name]) => name);
@@ -607,7 +608,7 @@ export function UserEdition(props: {
       } else {
         return queryUserForTenants(
           username,
-          props.tenant ? [props.tenant] : adminTenants
+          props.tenant ? [props.tenant] : adminTenants,
         );
       }
     },

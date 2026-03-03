@@ -47,9 +47,7 @@
         "summary": "Suscribe to events",
         "description": "⚠️⚠️⚠️ Below model is represented with JSON for OpenAPI convenience, however this endpoinst serves Server Sent Event format (see <a href=\"https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format\">MDN SSE documentation</a> for details).",
         "operationId": "modernEventGet",
-        "tags": [
-          "V2 feature endpoints"
-        ],
+        "tags": ["V2 feature endpoints"],
         "responses": {
           "200": {
             "description": "success",
@@ -67,9 +65,7 @@
         "summary": "Suscribe to events and pass a JSON payload (script feature)",
         "description": "⚠️⚠️⚠️ Below model is represented with JSON for OpenAPI convenience, however this endpoinst serves Server Sent Event format (see <a href=\"https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format\">MDN SSE documentation</a> for details).",
         "operationId": "modernEventGet",
-        "tags": [
-          "V2 feature endpoints"
-        ],
+        "tags": ["V2 feature endpoints"],
         "responses": {
           "200": {
             "description": "success",
@@ -106,9 +102,7 @@
       "get": {
         "summary": "Check feature activation",
         "operationId": "checkModernFeatureGet",
-        "tags": [
-          "V2 feature endpoints"
-        ],
+        "tags": ["V2 feature endpoints"],
         "responses": {
           "200": {
             "description": "success",
@@ -125,9 +119,7 @@
       "post": {
         "summary": "Check feature activation with payload",
         "operationId": "checkModernFeaturePost",
-        "tags": [
-          "V2 feature endpoints"
-        ],
+        "tags": ["V2 feature endpoints"],
         "responses": {
           "200": {
             "description": "success",
@@ -182,9 +174,7 @@
       "get": {
         "summary": "Check features activation",
         "operationId": "checkModernFeaturesGet",
-        "tags": [
-          "V2 feature endpoints"
-        ],
+        "tags": ["V2 feature endpoints"],
         "responses": {
           "200": {
             "description": "success",
@@ -201,9 +191,7 @@
       "post": {
         "summary": "Check features activation with payload",
         "operationId": "checkModernFeaturesPost",
-        "tags": [
-          "V2 feature endpoints"
-        ],
+        "tags": ["V2 feature endpoints"],
         "responses": {
           "200": {
             "description": "success",
@@ -221,9 +209,7 @@
     "/api/_health": {
       "get": {
         "summary": "Indicate wether application is healthy",
-        "tags": [
-          "Health"
-        ],
+        "tags": ["Health"],
         "operationId": "healthcheck",
         "description": "This endpoint returns both  a body and status code that indicate application health. If status code if 200, Izanami is healthy, if status code is 500 there is something wrong (unreachable database, ...).",
         "responses": {
@@ -253,9 +239,7 @@
     "/api/events": {
       "get": {
         "summary": "Allow listening feature changes",
-        "tags": [
-          "Legacy feature endpoints"
-        ],
+        "tags": ["Legacy feature endpoints"],
         "operationId": "SSE consumption endpoint",
         "description": "This endpoint emits legacy (v1) format event whenever a feature is created / updated / deleted. It also periodically emit keep alive events when nothing happens.",
         "parameters": [
@@ -304,9 +288,7 @@
       "post": {
         "summary": "Check multiple legacy feature activation with context",
         "operationId": "check multiple features by pattern with context",
-        "tags": [
-          "Legacy feature endpoints"
-        ],
+        "tags": ["Legacy feature endpoints"],
         "responses": {
           "200": {
             "description": "success",
@@ -344,9 +326,7 @@
       "get": {
         "summary": "Check multiple legacy features activation",
         "operationId": "check multiple features by pattern",
-        "tags": [
-          "Legacy feature endpoints"
-        ],
+        "tags": ["Legacy feature endpoints"],
         "responses": {
           "200": {
             "description": "success",
@@ -382,9 +362,7 @@
       ],
       "post": {
         "operationId": "checkWithContext",
-        "tags": [
-          "Legacy feature endpoints"
-        ],
+        "tags": ["Legacy feature endpoints"],
         "summary": "Check legacy feature activation by id with context",
         "requestBody": {
           "required": true,
@@ -411,9 +389,7 @@
       },
       "get": {
         "operationId": "check",
-        "tags": [
-          "Legacy feature endpoints"
-        ],
+        "tags": ["Legacy feature endpoints"],
         "summary": "Check lecgacy feature activation by id",
         "responses": {
           "200": {
@@ -428,10 +404,769 @@
           }
         }
       }
+    },
+    "/api/admin/tenants/{name}": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "name",
+          "schema": {
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "$ref": "#/components/parameters/personalAccessToken"
+        }
+      ],
+      "post": {
+        "operationId": "createTenant",
+        "tags": ["Personal access token endpoints"],
+        "summary": "Create a new tenant",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {},
+                      "maxItems": 0,
+                      "example": []
+                    },
+                    "projects": {
+                      "type": "array",
+                      "items": {},
+                      "maxItems": 0,
+                      "example": []
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "readTenant",
+        "tags": ["Personal access token endpoints"],
+        "summary": "Read one tenant information",
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tenant"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/tenants/{tenant}/projects/{project}": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "tenant",
+          "schema": {
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "in": "path",
+          "name": "project",
+          "schema": {
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "$ref": "#/components/parameters/personalAccessToken"
+        }
+      ],
+      "get": {
+        "operationId": "readProject",
+        "tags": ["Personal access token endpoints"],
+        "summary": "Read given project information",
+        "responses": {
+          "200": {
+            "description": "success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "features": {
+                      "$ref": "#/components/schemas/Feature"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteProject",
+        "tags": ["Personal access token endpoints"],
+        "summary": "Delete given project",
+        "responses": {
+          "204": {
+            "description": "success"
+          }
+        }
+      }
+    },
+    "/api/admin/tenants/{tenant}/features/{id}": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "tenant",
+          "description": "Tenant name",
+          "schema": {
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "in": "path",
+          "name": "id",
+          "description": "Feature id",
+          "schema": {
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "$ref": "#/components/parameters/personalAccessToken"
+        }
+      ],
+      "delete": {
+        "operationId": "deleteFeature",
+        "tags": ["Personal access token endpoints"],
+        "summary": "Delete given feature",
+        "responses": {
+          "204": {
+            "description": "success"
+          }
+        }
+      }
+    },
+    "/api/admin/tenants/{tenant}/keys/{key}": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "tenant",
+          "description": "Tenant name",
+          "schema": {
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "in": "path",
+          "name": "key",
+          "description": "Key name",
+          "schema": {
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "$ref": "#/components/parameters/personalAccessToken"
+        }
+      ],
+      "delete": {
+        "operationId": "deleteKey",
+        "tags": ["Personal access token endpoints"],
+        "summary": "Delete given key",
+        "responses": {
+          "204": {
+            "description": "success"
+          }
+        }
+      }
+    },
+    "/api/admin/tenants/{tenant}/_export": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "tenant",
+          "description": "Tenant name",
+          "schema": {
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "$ref": "#/components/parameters/personalAccessToken"
+        }
+      ],
+      "post": {
+        "summary": "Export required data for one tenant",
+        "tags": ["Personal access token endpoints"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ndjson file containing exported data",
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "headers": {
+              "content-disposition": {
+                "schema": {
+                  "type": "string",
+                  "enum": ["attachement"]
+                }
+              },
+              "filename": {
+                "schema": {
+                  "type": "string",
+                  "enum": ["export.ndjson"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/tenants/{tenant}/_import": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "tenant",
+          "description": "Tenant name",
+          "schema": {
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "in": "query",
+          "name": "version",
+          "description": "Version of Izanami instance that exported data",
+          "schema": {
+            "type": "number",
+            "enum": [1, 2]
+          },
+          "required": true
+        },
+        {
+          "in": "query",
+          "name": "conflict",
+          "description": "Conflict handling startegy",
+          "schema": {
+            "type": "string",
+            "enum": ["skip", "overwrite", "fail"]
+          },
+          "required": true
+        },
+        {
+          "in": "query",
+          "name": "timezone",
+          "description": "Timezone to use for exported dates (only used when importing data from v1)",
+          "schema": {
+            "type": "string"
+          },
+          "required": false
+        },
+        {
+          "in": "query",
+          "name": "deduceProject",
+          "description": "Only used when importing data from Izanami v1 instance. Indicate whether Izanami should deduce project name from feature name. If set to true, projectPartSize will be used to decide how many feature name part should be used to deduce project. If set to false, imported features will be placed in project indicated by project parameter.",
+          "schema": {
+            "type": "boolean",
+            "default": "false"
+          },
+          "required": false
+        },
+        {
+          "in": "query",
+          "name": "projectPartSize",
+          "description": "Only used when importing data from Izanami v1 if deduceProject is set to true.",
+          "schema": {
+            "type": "number",
+            "default": 1
+          },
+          "required": false
+        },
+        {
+          "in": "query",
+          "name": "project",
+          "description": "Only used when importing data from Izanami v1 if deduceProject is set to false.",
+          "schema": {
+            "type": "string",
+            "default": null
+          },
+          "required": false
+        },
+        {
+          "in": "query",
+          "name": "inlineScript",
+          "description": "Whether imported script should be inlined in their feature (as base64) or register to external WASMO instance. If set to false, an external wasmo instance must be configured.",
+          "schema": {
+            "type": "string",
+            "default": true
+          },
+          "required": false
+        },
+        {
+          "$ref": "#/components/parameters/personalAccessToken"
+        }
+      ],
+      "post": {
+        "summary": "Import provided data in provided tenant",
+        "tags": ["Personal access token endpoints"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "ndjson",
+                    "description": "File to import"
+                  }
+                },
+                "required": ["export"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result of imported file coming from V2 instannce",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Result of imported file coming from V1 instannce. Import from V1 instance can take time, especially if scripts are involved. To know when import is finished, you'll have to poll /api/admin/tenants/{tenant}/_import/id endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "id of pending import",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/tenants/{tenant}/_import/{id}": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "tenant",
+          "description": "Tenant name",
+          "schema": {
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "in": "path",
+          "name": "id",
+          "description": "Id of pending/finished import",
+          "schema": {
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "$ref": "#/components/parameters/personalAccessToken"
+        }
+      ],
+      "get": {
+        "summary": "Provide information about status of an import",
+        "tags": ["Personal access token endpoints"],
+        "responses": {
+          "200": {
+            "description": "Import status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "description": "current status of requested import",
+                              "type": "string",
+                              "enum": ["Success"]
+                            },
+                            "features": {
+                              "type": "number",
+                              "description": "Imported feature count"
+                            },
+                            "keys": {
+                              "type": "number",
+                              "description": "Imported keys count"
+                            },
+                            "scripts": {
+                              "type": "number",
+                              "description": "Imported scripts count"
+                            },
+                            "users": {
+                              "type": "number",
+                              "description": "Imported uesrs count"
+                            },
+                            "incompatibleScripts": {
+                              "type": "array",
+                              "description": "List of incompatible scripts",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "description": "current status of requested import",
+                              "type": "string",
+                              "enum": ["Failure"]
+                            },
+                            "errors": {
+                              "type": "array",
+                              "description": "import errors",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "description": "current status of requested import",
+                              "type": "string",
+                              "enum": ["Pending"]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete information about an import",
+        "tags": ["Personal access token endpoints"],
+        "responses": {
+          "204": {
+            "description": "import deleted"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ExportRequest": {
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "allProjects": {
+                    "type": "boolean",
+                    "enum": [true]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "allProjects": {
+                    "type": "boolean",
+                    "enum": [false]
+                  },
+                  "projects": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "allWebhooks": {
+                    "type": "boolean",
+                    "enum": [true]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "allWebhooks": {
+                    "type": "boolean",
+                    "enum": [false]
+                  },
+                  "webhooks": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "allKeys": {
+                    "type": "boolean",
+                    "enum": [true]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "allKeys": {
+                    "type": "boolean",
+                    "enum": [false]
+                  },
+                  "keys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "userRights": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
+      "FeatureResult": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "resultType": {
+                "type": "string",
+                "enum": ["string"]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "resultType": {
+                "type": "string",
+                "enum": ["number"]
+              },
+              "value": {
+                "type": "number"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "resultType": {
+                "type": "string",
+                "enum": ["boolean"]
+              }
+            }
+          }
+        ]
+      },
+      "Feature": {
+        "allOf": [
+          { "$ref": "#/components/schemas/FeatureResult" },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "tags": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "conditions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ActivationCondition"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Tag": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "Tenant": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tag"
+            }
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
       "Event": {
         "type": "object",
         "properties": {
@@ -493,9 +1228,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "FEATURE_STATES"
-            ]
+            "enum": ["FEATURE_STATES"]
           }
         }
       },
@@ -505,9 +1238,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "FEATURE_STATES"
-            ]
+            "enum": ["FEATURE_STATES"]
           },
           "payload": {
             "title": "Features activation/conditions",
@@ -524,9 +1255,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "FEATURE_UPDATED"
-            ]
+            "enum": ["FEATURE_UPDATED"]
           },
           "payload": {
             "$ref": "#/components/schemas/ActivationWithConditions"
@@ -539,9 +1268,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "FEATURE_CREATED"
-            ]
+            "enum": ["FEATURE_CREATED"]
           },
           "payload": {
             "$ref": "#/components/schemas/ActivationWithConditions"
@@ -554,9 +1281,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "FEATURE_DELETED"
-            ]
+            "enum": ["FEATURE_DELETED"]
           },
           "payload": {
             "type": "string",
@@ -576,7 +1301,17 @@
         "type": "object",
         "properties": {
           "active": {
-            "type": "boolean"
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
           },
           "name": {
             "type": "string"
@@ -678,10 +1413,7 @@
                   {
                     "period": null,
                     "rule": {
-                      "users": [
-                        "qa-user-1",
-                        "qa-user-2"
-                      ]
+                      "users": ["qa-user-1", "qa-user-2"]
                     }
                   }
                 ]
@@ -826,9 +1558,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "message"
-            ]
+            "enum": ["message"]
           },
           "id": {
             "type": "number"
@@ -862,9 +1592,7 @@
           },
           "domain": {
             "type": "string",
-            "enum": [
-              "Feature"
-            ]
+            "enum": ["Feature"]
           },
           "payload": {
             "$ref": "#/components/schemas/LegacyFeature"
@@ -918,18 +1646,14 @@
             "properties": {
               "activationStrategy": {
                 "type": "string",
-                "enum": [
-                  "SCRIPT"
-                ]
+                "enum": ["SCRIPT"]
               },
               "parameters": {
                 "type": "object",
                 "properties": {
                   "type": {
                     "type": "string",
-                    "enum": [
-                      "javascript"
-                    ]
+                    "enum": ["javascript"]
                   },
                   "script": {
                     "type": "string"
@@ -950,9 +1674,7 @@
             "properties": {
               "activationStrategy": {
                 "type": "string",
-                "enum": [
-                  "RELEASE_DATE"
-                ]
+                "enum": ["RELEASE_DATE"]
               },
               "parameters": {
                 "type": "object",
@@ -977,9 +1699,7 @@
             "properties": {
               "activationStrategy": {
                 "type": "string",
-                "enum": [
-                  "DATE_RANGE"
-                ]
+                "enum": ["DATE_RANGE"]
               },
               "parameters": {
                 "type": "object",
@@ -1008,9 +1728,7 @@
             "properties": {
               "activationStrategy": {
                 "type": "string",
-                "enum": [
-                  "HOUR_RANGE"
-                ]
+                "enum": ["HOUR_RANGE"]
               },
               "parameters": {
                 "type": "object",
@@ -1039,9 +1757,7 @@
             "properties": {
               "activationStrategy": {
                 "type": "string",
-                "enum": [
-                  "PERCENTAGE"
-                ]
+                "enum": ["PERCENTAGE"]
               },
               "parameters": {
                 "type": "object",
@@ -1065,9 +1781,7 @@
             "properties": {
               "activationStrategy": {
                 "type": "string",
-                "enum": [
-                  "CUSTOMERS_LIST"
-                ]
+                "enum": ["CUSTOMERS_LIST"]
               },
               "parameters": {
                 "type": "object",
@@ -1268,6 +1982,15 @@
           }
         },
         "description": "When querying projects using 'projects' parameters, feature of these projects are filtered to keep only features none of the given tags. Format is 'tag1,tag2,tag3'."
+      },
+      "personalAccessToken": {
+        "in": "header",
+        "name": "Authorization",
+        "schema": {
+          "type": "string"
+        },
+        "required": true,
+        "description": "Personal access token in basic auth format, header value must be \"Basic <encodedCredentials>\" where encodedCredentials is \"<USERNAME>:<TOKEN SECRET>\" encoded in Base64"
       }
     }
   }

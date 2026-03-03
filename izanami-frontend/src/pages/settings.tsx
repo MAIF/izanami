@@ -67,7 +67,7 @@ export function Settings() {
 
   const updateSettings = (
     current: Configuration,
-    newValue: FormConfiguration
+    newValue: FormConfiguration,
   ): Promise<void> => {
     const wasAnonymousReportingDisabled =
       !newValue.anonymousReporting && current.anonymousReporting;
@@ -183,7 +183,7 @@ function ConfigurationForm(props: {
 
           if ("port" in data.mailerConfiguration) {
             data.mailerConfiguration.port = Number(
-              data.mailerConfiguration.port
+              data.mailerConfiguration.port,
             );
           }
           if (valid) {
@@ -202,7 +202,7 @@ function ConfigurationForm(props: {
               render={({ field }) => (
                 <Select
                   value={MAILER_OPTIONS.find(
-                    ({ value }) => value === field.value
+                    ({ value }) => value === field.value,
                   )}
                   onChange={(e) => {
                     field.onChange(e?.value);
@@ -227,7 +227,7 @@ function ConfigurationForm(props: {
               render={({ field }) => (
                 <Select
                   value={INVITATION_MODE_OPTIONS.find(
-                    ({ value }) => value === field.value
+                    ({ value }) => value === field.value,
                   )}
                   onChange={(e) => {
                     field.onChange(e?.value);
@@ -271,7 +271,7 @@ function ConfigurationForm(props: {
                     setResultStats({
                       state: "SUCCESS",
                       results: r,
-                    })
+                    }),
                   )
                   .catch(() => {
                     setResultStats({
@@ -307,6 +307,7 @@ function ConfigurationForm(props: {
           visible={true}
           onClose={() => setResultStats({ state: "INITIAL" })}
           style={{ maxHeight: "50vh", overflowY: "auto" }}
+          isLoading={false}
         >
           {resultStats.state === "PENDING" ? (
             <Loader message="Loading Statistics" />
@@ -442,7 +443,7 @@ function MailGunFormV2() {
               render={({ field }) => (
                 <Select
                   value={MAILGUN_REGIONS_OPTIONS.find(
-                    ({ value }) => value === field.value
+                    ({ value }) => value === field.value,
                   )}
                   onChange={(e) => {
                     field.onChange(e?.value);
@@ -573,6 +574,7 @@ function OIDCForm() {
   const [OIDCModlaState, setOIDCModal] = useState<
     { visible: true; error?: string } | { visible: false }
   >({ visible: false });
+  const [isOIDCConfigLoading, setOIDCCOnfigLoading] = useState(false);
   const isOIDCModalOpened = OIDCModlaState.visible;
 
   const {
@@ -604,7 +606,7 @@ function OIDCForm() {
         setOIDCModal({
           visible: true,
           error: "Failed to retrieve configuration",
-        })
+        }),
       );
   };
 
@@ -618,7 +620,11 @@ function OIDCForm() {
       <Modal
         title="Get from OIDC config"
         visible={isOIDCModalOpened}
-        onClose={() => setOIDCModal({ visible: false })}
+        onClose={() => {
+          setOIDCModal({ visible: false });
+          setOIDCCOnfigLoading(false);
+        }}
+        isLoading={isOIDCConfigLoading}
       >
         <Form
           submitText="Fetch configuration"
@@ -630,7 +636,12 @@ function OIDCForm() {
                 "https://identity-provider-tenant.eu.auth0.com/.well-known/openid-configuration",
             },
           }}
-          onSubmit={fetchConfig}
+          onSubmit={(base) => {
+            setOIDCCOnfigLoading(true);
+            return fetchConfig(base as any).finally(() =>
+              setOIDCCOnfigLoading(false),
+            );
+          }}
         />
       </Modal>
 
@@ -709,7 +720,7 @@ function OIDCForm() {
                           render={({ field }) => (
                             <Select
                               value={OIDC_METHOD_OPTIONS.find(
-                                ({ value }) => value === field.value
+                                ({ value }) => value === field.value,
                               )}
                               onChange={(e) => {
                                 field.onChange(e?.value);
@@ -886,7 +897,7 @@ function OIDCForm() {
                             render={({ field }) => (
                               <Select
                                 value={PKCE_ALGORITHM_OPTIONS.find(
-                                  ({ value }) => value === field.value
+                                  ({ value }) => value === field.value,
                                 )}
                                 onChange={(e) => {
                                   field.onChange(e?.value);
@@ -1025,7 +1036,7 @@ function RightByRoleSelector(props: {
           {Object.entries(rights).map(([role, right], index, array) => {
             let effectiveRight = right;
             const missingTenants = Object.keys(right.tenants ?? {}).filter(
-              (t) => !existingTenants.includes(t)
+              (t) => !existingTenants.includes(t),
             );
             if (missingTenants.length > 0) {
               effectiveRight = {
