@@ -100,7 +100,7 @@ class TagsDatastore(val env: Env) extends Datastore {
   def readTags(tenant: String): Future[List[Tag]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql.queryAll(
-      s"""SELECT * FROM "${tenant}".tags"""
+      s"""SELECT * FROM "${tenant}".tags ORDER BY name"""
     ) { row => row.optTag() }
   }
   def updateTag(

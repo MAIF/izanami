@@ -8,7 +8,7 @@ import fr.maif.izanami.models.RightLevel
 import scala.util.matching.Regex
 
 case class SimpleTenant(name: String, description: String = "")
-case class SimpleTenantWithProject(name: String, projects: List[SimpleProject] = List(), description: String = "")
+case class SimpleTenantWithProjectAndTags(name: String, projects: List[SimpleProject] = List(), tags: List[Tag] = List(), description: String = "")
 case class Tenant(name: String, projects: List[Project] = List(), tags: List[Tag] = List(), description: String = "") {
   def addProject(project: Project): Tenant = Tenant(name, projects :+ project)
 }
@@ -43,12 +43,13 @@ object Tenant {
       "description" -> tenant.description
     )
   }
-  
-  val simpleTenantWithProjectWrites: Writes[SimpleTenantWithProject] = { tenant =>
+
+  val simpleTenantWithProjectWrites: Writes[SimpleTenantWithProjectAndTags] = { tenant =>
     Json.obj(
       "name" -> tenant.name,
       "description" -> tenant.description,
-      "projects" -> Json.toJson(tenant.projects)(Writes.seq(SimpleProject.simpleProjectWrites))
+      "projects" -> Json.toJson(tenant.projects)(Writes.seq(SimpleProject.simpleProjectWrites)),
+      "tags" -> Json.toJson(tenant.tags)
     )
   }
 }

@@ -209,10 +209,11 @@ class TenantController(
                 yield {
                   Ok(
                     Json.toJson(
-                      SimpleTenantWithProject(
+                      SimpleTenantWithProjectAndTags(
                         name = tenant.name,
                         projects = projects,
-                        description = tenant.description
+                        description = tenant.description,
+                        tags = tags
                       )
                     )(Tenant.simpleTenantWithProjectWrites)
                   )
