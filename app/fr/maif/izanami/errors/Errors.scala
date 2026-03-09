@@ -458,6 +458,36 @@ case class ErrorAggregator(errors: Seq[IzanamiError])
       status = errors.map(_.status).minOption.getOrElse(INTERNAL_SERVER_ERROR)
     ) {}
 
+/**
+ * CLI Authentication Errors
+ *
+ * These errors are used by the CLI OIDC authentication flow, which allows CLI tools
+ * to authenticate users via browser-based OIDC without requiring a local callback server.
+ *
+ * The flow uses a state-based token exchange:
+ * 1. CLI generates a secure state and opens browser to /api/admin/cli-login?state=xxx
+ * 2. Backend stores pending auth and redirects to OIDC provider with state=cli:xxx
+ * 3. User authenticates in browser
+ * 4. OIDC callback detects CLI flow, stores token for pickup
+ * 5. CLI polls /api/admin/cli-token?state=xxx to retrieve token
+ */
+
+/** Returned when polling with a state that was never registered or has already expired */
+case class CliAuthStateNotFound(state: String)
+    extends IzanamiError(message = s"CLI authentication state not found or expired", status = NOT_FOUND)
+
+/** Returned when the token was generated but expired before being claimed (2 min TTL) */
+case class CliAuthStateExpired(state: String)
+    extends IzanamiError(message = s"CLI authentication state has expired", status = 410) // GONE
+
+/** Returned when polling too frequently (more than 60 requests per minute per state) */
+case class CliAuthRateLimited()
+    extends IzanamiError(message = "Too many requests, please slow down", status = 429) // TOO_MANY_REQUESTS
+
+/** Returned when the state parameter doesn't match the expected format (base64url, 40-50 chars) */
+case class CliAuthInvalidState()
+    extends IzanamiError(message = "Invalid state parameter format", status = BAD_REQUEST)
+
 object ErrorAggregator {
   def fromEitherSeq(
       eithers: Seq[Either[IzanamiError, Any]]

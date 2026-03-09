@@ -446,4 +446,106 @@ class LoginAPISpec extends BaseAPISpec {
     "app.openid.pkce.enabled" -> "true"
   )
 
+  "CLI OIDC authentication" should {
+    "reject invalid state format" in {
+      TestSituationBuilder()
+        .withCustomConfiguration(baseOIDCConfiguration)
+        .build()
+
+      val response = await(
+        ws.url(s"${ADMIN_BASE_URL}/cli-login?state=invalid")
+          .withFollowRedirects(false)
+          .get()
+      )
+      response.status mustBe BAD_REQUEST
+    }
+
+    "redirect to OIDC provider with valid state" in {
+      val situation = TestSituationBuilder()
+        .withCustomConfiguration(baseOIDCConfiguration)
+        .build()
+
+      val state = situation.generateValidState()
+      val response = await(
+        ws.url(s"${ADMIN_BASE_URL}/cli-login?state=$state")
+          .withFollowRedirects(false)
+          .get()
+      )
+      response.status mustBe SEE_OTHER
+      response.header("Location").get must include("authorize")
+      response.header("Location").get must include(s"state=cli:$state")
+    }
+
+    "return 202 when polling before auth completes" in {
+      val situation = TestSituationBuilder()
+        .withCustomConfiguration(baseOIDCConfiguration)
+        .build()
+
+      val state = situation.generateValidState()
+      // Initiate CLI login (stores pending auth)
+      await(
+        ws.url(s"${ADMIN_BASE_URL}/cli-login?state=$state")
+          .withFollowRedirects(false)
+          .get()
+      )
+
+      // Poll before completing auth
+      val pollResponse = await(
+        ws.url(s"${ADMIN_BASE_URL}/cli-token?state=$state").get()
+      )
+      pollResponse.status mustBe ACCEPTED
+      (pollResponse.json \ "status").as[String] mustBe "pending"
+    }
+
+    "return 404 for unknown state" in {
+      TestSituationBuilder()
+        .withCustomConfiguration(baseOIDCConfiguration)
+        .build()
+
+      val state = java.util.Base64.getUrlEncoder.withoutPadding()
+        .encodeToString(new Array[Byte](32).map(_ => 'a'.toByte))
+      val response = await(
+        ws.url(s"${ADMIN_BASE_URL}/cli-token?state=$state").get()
+      )
+      response.status mustBe NOT_FOUND
+    }
+
+    "complete full CLI auth flow and return token" in {
+      val situation = TestSituationBuilder()
+        .withCustomConfiguration(baseOIDCConfiguration)
+        .build()
+
+      val state = situation.generateValidState()
+      situation.logAsOIDCUserViaCli("User1", state)
+
+      // Poll for token
+      val pollResponse = await(
+        ws.url(s"${ADMIN_BASE_URL}/cli-token?state=$state").get()
+      )
+      pollResponse.status mustBe OK
+      (pollResponse.json \ "token").asOpt[String] mustBe defined
+    }
+
+    "return token only once (single-use)" in {
+      val situation = TestSituationBuilder()
+        .withCustomConfiguration(baseOIDCConfiguration)
+        .build()
+
+      val state = situation.generateValidState()
+      situation.logAsOIDCUserViaCli("User1", state)
+
+      // First poll should succeed
+      val firstPoll = await(
+        ws.url(s"${ADMIN_BASE_URL}/cli-token?state=$state").get()
+      )
+      firstPoll.status mustBe OK
+
+      // Second poll should fail (token already claimed)
+      val secondPoll = await(
+        ws.url(s"${ADMIN_BASE_URL}/cli-token?state=$state").get()
+      )
+      secondPoll.status mustBe NOT_FOUND
+    }
+  }
+
 }
