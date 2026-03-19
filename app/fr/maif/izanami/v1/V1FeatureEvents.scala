@@ -81,7 +81,8 @@ object V1FeatureEvents {
       "_id"       -> gen.nextId(),
       "domain"    -> "Feature",
       "timestamp" -> LocalDateTime.now(),
-      "payload"   -> feature
+      "payload"   -> feature,
+      "key" -> id
     )
   }
 
