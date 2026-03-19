@@ -1,35 +1,41 @@
 package fr.maif.izanami.api
 
+import akka.actor.ActorSystem
 import fr.maif.izanami.api.BaseAPISpec.{
-  system,
   BASE_URL,
-  DATE_TIME_FORMATTER,
   TestCondition,
   TestFeature,
   TestFeaturePatch,
   TestProject,
   TestSituationBuilder,
   TestTenant,
-  TestUserListRule
+  TestUserListRule,
+  system
 }
-import play.api.http.Status.{BAD_REQUEST, NOT_FOUND, OK}
-import play.api.libs.json.{JsArray, JsBoolean, JsObject, JsTrue, JsValue}
+import izanami.commons.IzanamiException
+import izanami.javadsl.IzanamiClient
+import izanami.{ClientConfig, Crash, Strategy}
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.model.Uri
+import org.apache.pekko.http.scaladsl.model.headers.RawHeader
+import org.apache.pekko.stream.connectors.sse.scaladsl.EventSource
+import org.awaitility.Awaitility.await
+import org.reactivecouchbase.json.{Json, Syntax}
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+import play.api.http.Status.OK
+import play.api.libs.json.*
 
-import java.net.URI
-import java.time.{Duration, LocalDateTime, ZoneId}
 import java.time.format.DateTimeFormatter
+import java.time.{Duration, LocalDateTime, ZoneId}
 import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.Future
-import izanami.javadsl.IzanamiClient
-import izanami.commons.IzanamiException
-import izanami.{ClientConfig, Strategy, Crash}
-import akka.actor.ActorSystem
-import org.reactivecouchbase.json.{Json, Syntax}
-import org.awaitility.Awaitility.await
-import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
-class V1CompatibilityTest extends BaseAPISpec {
+
+/**
+ * This test name starts with a "Z" to ensure that it runs last, since legacy Izanami Client
+ * can't be stopped easily and trigger memory & http connection leaks
+ */
+class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
   "Legacy check endpoint" should {
     "convert no strategy legacy feature to V1 format" in {
       val situation = TestSituationBuilder()
@@ -931,7 +937,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       }
     }
 
-    /*"allow to get feature change state via SSE (feature update)" in {
+    "allow to get feature change state via SSE (feature update)" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant"))
         .loggedInWithAdminRights()
@@ -950,7 +956,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val client = IzanamiClient.client(
-        system,
+        ActorSystem.create(),
         ClientConfig.create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
@@ -992,7 +998,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val client = IzanamiClient.client(
-        system,
+        ActorSystem.create(),
         ClientConfig.create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
@@ -1048,7 +1054,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val client = IzanamiClient.client(
-        system,
+        ActorSystem.create(),
         ClientConfig.create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
@@ -1089,7 +1095,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val client = IzanamiClient.client(
-        system,
+        ActorSystem.create(),
         ClientConfig.create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
@@ -1131,7 +1137,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val client = IzanamiClient.client(
-        system,
+        ActorSystem.create(),
         ClientConfig.create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
@@ -1180,7 +1186,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val client = IzanamiClient.client(
-        system,
+        ActorSystem.create(),
         ClientConfig.create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
@@ -1228,7 +1234,7 @@ class V1CompatibilityTest extends BaseAPISpec {
       )
 
       val client = IzanamiClient.client(
-        system,
+        ActorSystem.create(),
         ClientConfig.create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
@@ -1251,11 +1257,11 @@ class V1CompatibilityTest extends BaseAPISpec {
       situation.updateFeature("tenant", "project:release-date", updatedFeature)
 
       await until { () => featureClient.checkFeature("project:release-date").get() == true }
-    }*/
+    }
   }
 
   "event endpoint" should {
-    /*"filter events to keep only those authorized by provided key" in {
+    "filter events to keep only those authorized by provided key" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant"))
         .loggedInWithAdminRights()
@@ -1464,6 +1470,6 @@ class V1CompatibilityTest extends BaseAPISpec {
       await.pollDelay(Duration.ofSeconds(1)) until {() => {
         msgs.size == 3
       }}
-    }*/
+    }
   }
 }
