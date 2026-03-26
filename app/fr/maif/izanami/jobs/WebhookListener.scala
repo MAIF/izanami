@@ -48,7 +48,7 @@ class WebhookListener(env: Env, eventService: EventService) {
     Future.successful(())
   }
 
-  def handleGlobalEvent(event: IzanamiEvent): Unit = {
+  private def handleGlobalEvent(event: IzanamiEvent): Unit = {
     event match {
       case TenantCreated(eventId, tenant, _, _, _, _) => startListening(tenant)
       case TenantDeleted(_, tenant, _, _, _, _)       => cancelSwitch.get(tenant).map(c => c.cancel())
@@ -56,7 +56,7 @@ class WebhookListener(env: Env, eventService: EventService) {
     }
   }
 
-  def startListening(tenant: String): Unit = {
+  private def startListening(tenant: String): Unit = {
     logger.info(s"Initializing webhook event listener for tenant $tenant")
     val cancelRef   = new AtomicReference[Cancellable]()
     val cancellable =
@@ -134,7 +134,7 @@ class WebhookListener(env: Env, eventService: EventService) {
       }
   }
 
-  def handleEventForHook(tenant: String, event: FeatureEvent, hook: LightWebhook): Future[Unit] = {
+  private def handleEventForHook(tenant: String, event: FeatureEvent, hook: LightWebhook): Future[Unit] = {
     datastore
       .createWebhookCall(tenant, hook.id.get, event.eventId)
       .filter(wasCreated => wasCreated)
@@ -173,11 +173,11 @@ class WebhookListener(env: Env, eventService: EventService) {
     datastore.deleteWebhookCall(tenant, hook.id.get, event.eventId)
   }
 
-  def handleEvent(tenant: String, event: IzanamiEvent): Future[Unit] = {
+  private def handleEvent(tenant: String, event: IzanamiEvent): Future[Unit] = {
     (event match {
       case event: FeatureEvent => {
         datastore
-          .findWebhooksForScope(tenant, featureIds = Set(event.id), projectNames = Set(event.project))
+          .findEnabledWebhooksForScope(tenant, featureIds = Set(event.id), projectNames = Set(event.project))
           .flatMap(hooks => {
             Future.sequence(
               hooks.map(hook => handleEventForHook(tenant, event, hook))
@@ -187,33 +187,7 @@ class WebhookListener(env: Env, eventService: EventService) {
       case _                   => Future.successful(Seq()) // TODO
     }).map(_ => ())
   }
-
-  /*private def futureWithRetry[T](
-      expression: () => Future[T],
-      onFailure: () => Future[Any],
-      cur: Int = 0
-  )(implicit as: ActorSystem): Future[T] = {
-    expression().recoverWith { case e =>
-      onFailure().flatMap(_ => {
-        logger.error(s"Call failed", e)
-        var next: FiniteDuration = Math.round(retryInitialDelay * 1000 * (Math.pow(retryMultiplier, cur))).milliseconds
-        if (next > retryMaxDelay.seconds) {
-          next = retryMaxDelay.seconds
-        }
-
-        if (cur >= retryCount) {
-          logger.error(s"Exceeded max retry ($retryCount), stopping...")
-          Future.failed(WebhookRetryCountExceeded())
-        } else {
-          logger.error(s"Will retry after ${next.toSeconds} seconds (${cur + 1} / $retryCount)")
-          after(next, as.scheduler, global, () => Future.successful(1)).flatMap { _ =>
-            futureWithRetry(expression, onFailure, cur + 1)(actorSystem)
-          }
-        }
-      })
-    }
-  }*/
-
+  
   private def createFeatureWebhookEvent(
       tenant: String,
       webhook: LightWebhook,

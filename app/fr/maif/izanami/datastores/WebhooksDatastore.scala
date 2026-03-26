@@ -206,7 +206,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
       .map(_.toRight(WebhookDoesNotExists(webhook)))
   }
 
-  def findWebhooksForScope(
+  def findEnabledWebhooksForScope(
       tenant: String,
       featureIds: Set[String],
       projectNames: Set[String]
@@ -231,7 +231,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
          |LEFT JOIN "${tenant}".projects p ON p.name=ANY($$2)
          |LEFT JOIN "${tenant}".webhooks_features wf ON (wf.feature=ANY($$1) AND wf.webhook=w.id)
          |LEFT JOIN "${tenant}".webhooks_projects wp ON (wp.project=p.id AND wp.webhook=w.id)
-         |WHERE wf.feature is not null or wp.project is not null or w.global = true
+         |WHERE (wf.feature is not null OR wp.project is not null OR w.global = true) AND w.enabled = true
          |GROUP BY w.id
          |""".stripMargin,
       params = List(featureIds.toArray, projectNames.toArray)

@@ -482,6 +482,45 @@ class WebhookAPISpec extends BaseAPISpec {
       requests
     }
 
+    "not trigger when webhook is disabled" in {
+      val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant(tenant)
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false)
+              )
+            )
+            .withWebhooks(
+              TestWebhookByName(
+                name = "test-hook",
+                url = "http://localhost:8087/",
+                features = Set((tenant, "project", "f1")),
+                enabled = false
+              )
+            )
+        )
+        .withWebhookServer(port = 8087, responseCode = OK)
+        .build()
+
+      situation.updateFeatureByName(
+        tenant,
+        "project",
+        "f1",
+        f => f ++ Json.obj("enabled" -> true)
+      )
+
+      Thread.sleep(5_000)
+
+      val calls = getWebhookServerRequests(port = 8087)
+
+      calls mustBe empty
+
+      Thread.sleep(1000)
+    }
+
     "trigger when a targeted feature is updated" in {
       val tenant = s"tenant${UUID.randomUUID().toString.replace("-", "")}"
       val situation = TestSituationBuilder()
