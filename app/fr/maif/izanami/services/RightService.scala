@@ -1546,16 +1546,21 @@ case object CompleteRights {
       }
     }.values
 
-    rs.foldLeft(MaxRights(admin = false))((acc, next) => {
-      max(acc, next)
-    })
+    rs.toList match {
+      case Nil => MaxRights(admin = true, tenants = Map())
+      case head::Nil => head
+      case head::tail => tail.foldLeft(head)((acc, next) => {
+        max(acc, next)
+      })
+    }
   }
 
   def max(r1: MaxRights, r2: MaxRights): MaxRights = {
     val admin = r1.admin || r2.admin
-    val rightByTenants = r1.tenants.toSeq
-      .concat(r2.tenants)
-      .groupMapReduce(_._1)(_._2)((r1, r2) => max(r1, r2))
+
+    val rightByTenants = r1.tenants.flatMap { case (k, v1) =>
+      r2.tenants.get(k).map(v2 => k -> max(v1, v2))
+    }
 
     MaxRights(admin = admin, tenants = rightByTenants)
   }

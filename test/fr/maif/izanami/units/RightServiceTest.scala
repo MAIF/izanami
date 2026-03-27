@@ -1,17 +1,16 @@
 package fr.maif.izanami.units
 
-import fr.maif.izanami.models.{
-  ProjectAtomicRight,
-  ProjectRightLevel,
-  RightLevel,
-  Rights,
-  TenantRight
-}
 import fr.maif.izanami.models.RightLevel.{Admin, Read, Write}
-import fr.maif.izanami.services.{CompleteRights, RightService}
-import org.scalatest.wordspec.AnyWordSpec
+import fr.maif.izanami.models.*
+import fr.maif.izanami.services.{
+  CompleteRights,
+  MaxRights,
+  MaxTenantRoleRights,
+  RightService
+}
+import org.scalatest.matchers.must.Matchers.{mustBe, mustEqual}
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.matchers.must.Matchers.mustBe
+import org.scalatest.wordspec.AnyWordSpec
 
 class RightServiceTest extends AnyWordSpec with Matchers {
   "effectiveRights" should {
@@ -63,6 +62,230 @@ class RightServiceTest extends AnyWordSpec with Matchers {
         .tenants("tenant")
         .projects("p1")
         .level mustBe ProjectRightLevel.Admin
+    }
+  }
+
+  "maxRightsToApply" should {
+    "take default rights into account" in {
+      val maxRights = Map(
+        "" -> MaxRights(
+          admin = false,
+          tenants = Map(
+            "secret" -> MaxTenantRoleRights(
+              level = Read,
+              maxProjectRight = ProjectRightLevel.Update,
+              maxKeyRight = Read,
+              maxWebhookRight = Read
+            )
+          )
+        ),
+        "user" -> MaxRights(
+          admin = false,
+          tenants = Map(
+            "secret" -> MaxTenantRoleRights(
+              level = Read,
+              maxProjectRight = ProjectRightLevel.Read,
+              maxKeyRight = Read,
+              maxWebhookRight = Read
+            )
+          )
+        )
+      )
+
+      val res = CompleteRights.maxRightsToApply(Set("user"), maxRights)
+      val tenantRight = res.tenants("secret")
+
+      tenantRight.maxProjectRight shouldBe ProjectRightLevel.Update
+    }
+  }
+
+  "max maxRights" should {
+    "remove tenant data if present on one side and absent on the other" in {
+      val res = CompleteRights.max(
+        MaxRights(
+          admin = false,
+          tenants = Map(
+            "secret" -> MaxTenantRoleRights(
+              level = Read,
+              maxProjectRight = ProjectRightLevel.Read,
+              maxKeyRight = Read,
+              maxWebhookRight = Read
+            )
+          )
+        ),
+        MaxRights(admin = false, tenants = Map())
+      )
+      res.tenants.get("secret") mustBe None
+
+    }
+
+    "keep higher level if max right is present on both sides" in {
+      val res = CompleteRights.max(
+        MaxRights(
+          admin = false,
+          tenants = Map(
+            "secret" -> MaxTenantRoleRights(
+              level = Write,
+              maxProjectRight = ProjectRightLevel.Read,
+              maxKeyRight = Read,
+              maxWebhookRight = Write
+            )
+          )
+        ),
+        MaxRights(
+          admin = true,
+          tenants = Map(
+            "secret" -> MaxTenantRoleRights(
+              level = Read,
+              maxProjectRight = ProjectRightLevel.Update,
+              maxKeyRight = Admin,
+              maxWebhookRight = Read
+            )
+          )
+        )
+      )
+
+      res.admin mustBe true
+      val secretRights = res.tenants("secret")
+      secretRights.maxKeyRight mustBe Admin
+      secretRights.level mustBe Write
+      secretRights.maxProjectRight mustBe ProjectRightLevel.Update
+      secretRights.maxWebhookRight mustBe Write
+
+    }
+  }
+
+  "checkCompliance" should {
+    "pass if tenant is absent from provided max rights" in {
+      val rights = CompleteRights(
+        admin = false,
+        tenants = Map(
+          "secret" -> TenantRight(
+            level = Read,
+            projects =
+              Map("proj" -> ProjectAtomicRight(ProjectRightLevel.Admin)),
+            keys = Map("key" -> GeneralAtomicRight(Admin)),
+            webhooks = Map("wh" -> GeneralAtomicRight(Admin)),
+            defaultProjectRight = Some(ProjectRightLevel.Admin),
+            defaultKeyRight = Some(Admin),
+            defaultWebhookRight = Some(Admin)
+          )
+        )
+      )
+
+      val compliance = rights.checkCompliance(MaxRights(admin = false, tenants = Map()))
+
+      compliance.isEmpty mustBe true
+    }
+
+    "raise compliance issues if any" in {
+      val rights = CompleteRights(
+        admin = true,
+        tenants = Map(
+          "secret" -> TenantRight(
+            level = Write,
+            projects =
+              Map("proj" -> ProjectAtomicRight(ProjectRightLevel.Write)),
+            keys = Map("key" -> GeneralAtomicRight(Admin)),
+            webhooks = Map("wh" -> GeneralAtomicRight(Admin)),
+            defaultProjectRight = Some(ProjectRightLevel.Update),
+            defaultKeyRight = Some(Write),
+            defaultWebhookRight = Some(Write)
+          )
+        )
+      )
+
+      val compliance = rights.checkCompliance(MaxRights(admin = false, tenants = Map(
+        "secret" -> MaxTenantRoleRights(level = Read, maxProjectRight = ProjectRightLevel.Read, maxKeyRight = Read, maxWebhookRight = Read)
+      )))
+
+      compliance.isEmpty mustBe false
+      compliance.admin mustBe true
+      val secretComplianceResult = compliance.tenants("secret")
+
+      secretComplianceResult.levelRight.get.before mustBe Write
+      secretComplianceResult.levelRight.get.after mustBe Read
+
+      secretComplianceResult.projects("proj").before mustBe ProjectRightLevel.Write
+      secretComplianceResult.projects("proj").after mustBe ProjectRightLevel.Read
+
+      secretComplianceResult.keys("key").before mustBe Admin
+      secretComplianceResult.keys("key").after mustBe Read
+
+      secretComplianceResult.webhooks("wh").before mustBe Admin
+      secretComplianceResult.webhooks("wh").after mustBe Read
+
+      secretComplianceResult.defaultProjectRight.get.before mustBe ProjectRightLevel.Update
+      secretComplianceResult.defaultProjectRight.get.after mustBe ProjectRightLevel.Read
+
+      secretComplianceResult.defaultKeyRight.get.before mustBe Write
+      secretComplianceResult.defaultKeyRight.get.after mustBe Read
+
+      secretComplianceResult.defaultWebhookRight.get.before mustBe Write
+      secretComplianceResult.defaultWebhookRight.get.after mustBe Read
+    }
+  }
+
+  "updateToComplyWith" should {
+
+    "update rights according to compliance result" in {
+      val rights = CompleteRights(
+        admin = true,
+        tenants = Map(
+          "secret" -> TenantRight(
+            level = Write,
+            projects =
+              Map("proj" -> ProjectAtomicRight(ProjectRightLevel.Write)),
+            keys = Map("key" -> GeneralAtomicRight(Admin)),
+            webhooks = Map("wh" -> GeneralAtomicRight(Admin)),
+            defaultProjectRight = Some(ProjectRightLevel.Update),
+            defaultKeyRight = Some(Write),
+            defaultWebhookRight = Some(Write)
+          )
+        )
+      )
+
+      val compliance = rights.checkCompliance(MaxRights(admin = false, tenants = Map(
+        "secret" -> MaxTenantRoleRights(level = Read, maxProjectRight = ProjectRightLevel.Read, maxKeyRight = Read, maxWebhookRight = Read)
+      )))
+
+      val res = rights.updateToComplyWith(compliance)
+
+      res.admin mustBe false
+      val secretRights = res.tenants("secret")
+      secretRights.level mustBe Read
+      secretRights.defaultProjectRight.get mustBe ProjectRightLevel.Read
+      secretRights.defaultKeyRight.get mustBe Read
+      secretRights.defaultWebhookRight.get mustBe Read
+      secretRights.projects("proj").level mustBe ProjectRightLevel.Read
+      secretRights.keys("key").level mustBe Read
+      secretRights.webhooks("wh").level mustBe Read
+    }
+
+    "do nothing if compliance result is empty" in {
+      val rights = CompleteRights(
+        admin = true,
+        tenants = Map(
+          "secret" -> TenantRight(
+            level = Write,
+            projects =
+              Map("proj" -> ProjectAtomicRight(ProjectRightLevel.Write)),
+            keys = Map("key" -> GeneralAtomicRight(Admin)),
+            webhooks = Map("wh" -> GeneralAtomicRight(Admin)),
+            defaultProjectRight = Some(ProjectRightLevel.Update),
+            defaultKeyRight = Some(Write),
+            defaultWebhookRight = Some(Write)
+          )
+        )
+      )
+
+      val compliance = rights.checkCompliance(MaxRights(admin = true, tenants = Map(
+        "secret" -> MaxTenantRoleRights(level = Write, maxProjectRight = ProjectRightLevel.Write, maxKeyRight = Admin, maxWebhookRight = Admin)
+      )))
+
+      val res = rights.updateToComplyWith(compliance)
+
+      res mustEqual rights
     }
   }
 }
