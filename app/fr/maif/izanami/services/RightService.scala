@@ -932,7 +932,7 @@ case class TenantRightComplianceResult(
     }
     if (defaultWebhookRight.isDefined) {
       msgs.addOne(
-        s"Default key right ${defaultWebhookRight.get.before} (max allowed is ${defaultWebhookRight.get.after.toString})"
+        s"Default webhook right ${defaultWebhookRight.get.before} (max allowed is ${defaultWebhookRight.get.after.toString})"
       )
     }
     projects.foreach { (name, complianceIssue) =>

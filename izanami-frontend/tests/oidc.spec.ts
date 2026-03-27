@@ -319,52 +319,52 @@ test.describe("Global settings page should", () => {
 
     await page
       .getByRole("combobox", { name: "Default project right" })
-      .first()
+      .nth(1)
       .click();
     await page.getByRole("option", { name: "Admin" }).click();
     await page.getByRole("button", { name: "Update rights" }).click();
     await expect(
       page.getByText(
-        "User role doesn't allow him to have following rights on tenant test: default project right Admin (max allowed is Write)",
+        "User role doesn't allow him to have following rights on tenant secret: default project right Admin (max allowed is Write)",
       ),
     ).toBeVisible();
 
     await page
       .getByRole("combobox", { name: "Default project right" })
-      .first()
+      .nth(1)
       .click();
     await page.getByRole("option", { name: "Read" }).click();
     await page
       .getByRole("combobox", { name: "Default key right" })
-      .first()
+      .nth(1)
       .click();
     await page.getByRole("option", { name: "Admin" }).click();
     await page
       .getByRole("combobox", { name: "Default webhook right" })
-      .first()
+      .nth(1)
       .click();
     await page.getByRole("option", { name: "Admin" }).click();
     await page.getByRole("button", { name: "Update rights" }).click();
 
     await expect(
       page.getByText(
-        "User role doesn't allow him to have following rights on tenant test: default key right Admin (max allowed is Write) default key right Admin (max allowed is Write)",
+        "User role doesn't allow him to have following rights on tenant secret: default webhook right Admin (max allowed is Write)",
       ),
     ).toBeVisible();
 
     await page
       .getByRole("combobox", { name: "Default project right" })
-      .first()
+      .nth(1)
       .click();
     await page.getByRole("option", { name: "Write" }).click();
     await page
       .getByRole("combobox", { name: "Default key right" })
-      .first()
+      .nth(1)
       .click();
     await page.getByRole("option", { name: "Write" }).click();
     await page
       .getByRole("combobox", { name: "Default webhook right" })
-      .first()
+      .nth(1)
       .click();
     await page.getByRole("option", { name: "Write" }).click();
     await page.getByRole("button", { name: "Update rights" }).click();
