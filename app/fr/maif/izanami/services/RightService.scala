@@ -200,9 +200,7 @@ class RightService(private val env: Env, private val eventService: EventService)
         .mapToFEither;
       users = rightsByUsers.values.toSet
         .map(u => u.toUserWithCompleteRightForOneTenant(tenant));
-      maybeMaxRightsByRoles <- env.datastores.configuration
-        .readFullConfiguration()
-        .map(_.oidcConfiguration.flatMap(_.maxRightsByRoles));
+      maybeMaxRightsByRoles = maxRightsByRoles;
       res <- doUpdateUserRightsForTenant(
         users = users,
         tenant = tenant,
@@ -296,9 +294,7 @@ class RightService(private val env: Env, private val eventService: EventService)
       user <- usersDatastore
         .findUserWithRightForTenant(targetUser, tenant = tenant)
         .toFEither;
-      maxRightsByRoles <- env.datastores.configuration
-        .readFullConfiguration()
-        .map(_.oidcConfiguration.flatMap(_.maxRightsByRoles));
+      maxRightsByRoles  = this.maxRightsByRoles;
       res <- doUpdateUserRightsForTenant(
         Set(user),
         tenant,
@@ -364,72 +360,68 @@ class RightService(private val env: Env, private val eventService: EventService)
             admin = updateRequest.admin
           )
 
-          val res = env.datastores.configuration
-            .readFullConfiguration()
-            .map(_.oidcConfiguration.flatMap(_.maxRightsByRoles))
-            .map(maybeMaxRights => {
-              maybeMaxRights
-                .map(maxRightsByRoles => {
-                  val maxRights = CompleteRights
-                    .maxRightsToApply(user.roles, maxRightsByRoles)
-                  (
-                    maxRightsByRoles,
-                    CompleteRights(
-                      tenants = user.rights.tenants,
-                      admin = user.admin
-                    ).applyOnWithOpt(updateRequest.admin)((rights, admin) =>
-                      rights.copy(admin = admin)
-                    ).checkCompliance(maxRights)
-                  )
-                })
+
+          val maxRightsAndComplianceResult = maxRightsByRoles
+            .map(maxRightsByRoles => {
+              val maxRights = CompleteRights
+                .maxRightsToApply(user.roles, maxRightsByRoles)
+              (
+                maxRightsByRoles,
+                CompleteRights(
+                  tenants = user.rights.tenants,
+                  admin = user.admin
+                ).applyOnWithOpt(updateRequest.admin)((rights, admin) =>
+                  rights.copy(admin = admin)
+                ).checkCompliance(maxRights)
+              )
             })
-            .flatMap {
-              case Some((_, compliance)) if !compliance.isEmpty => {
-                FutureEither.failure(
-                  RightComplianceError(
-                    s"User role doesn't allow him to have following rights:\n"
-                      .concat(compliance.toError.mkString("\n"))
-                  )
+
+          maxRightsAndComplianceResult match {
+            case Some((_, compliance)) if !compliance.isEmpty => {
+              FutureEither.failure(
+                RightComplianceError(
+                  s"User role doesn't allow him to have following rights:\n"
+                    .concat(compliance.toError.mkString("\n"))
                 )
-              }
-              case o =>
-                env.postgresql.executeInOptionalTransaction(
-                  conn,
-                  conn => {
-                    for (
-                      _ <- diff.admin
-                        .fold(FutureEither.success(Done.done()))(admin => {
-                          usersDatastore
-                            .updateUsersAdminStatus(
-                              Set(name),
-                              admin,
-                              conn = Some(conn)
-                            )
-                            .fEither
-                            .map(_ => Done.done())
-                        });
-                      r <- diff.diff.foldLeft(
-                        FutureEither.success(Done.done())
-                      )((prev, next) => {
-                        prev.flatMap(_ => {
-                          val tenant = next._1
-                          doUpdateUserRightsForTenant(
-                            users = Set(
-                              user.toUserWithCompleteRightForOneTenant(tenant)
-                            ),
-                            tenant = next._1,
-                            diff = next._2,
-                            maybeMaxRightsByRoles = o.map(_._1),
-                            conn = Some(conn),
-                            force = force
-                          )
-                        })
-                      })
-                    ) yield r
-                  }
-                )
+              )
             }
-          res
+            case o =>
+              env.postgresql.executeInOptionalTransaction(
+                conn,
+                conn => {
+                  for (
+                    _ <- diff.admin
+                      .fold(FutureEither.success(Done.done()))(admin => {
+                        usersDatastore
+                          .updateUsersAdminStatus(
+                            Set(name),
+                            admin,
+                            conn = Some(conn)
+                          )
+                          .fEither
+                          .map(_ => Done.done())
+                      });
+                    r <- diff.diff.foldLeft(
+                      FutureEither.success(Done.done())
+                    )((prev, next) => {
+                      prev.flatMap(_ => {
+                        val tenant = next._1
+                        doUpdateUserRightsForTenant(
+                          users = Set(
+                            user.toUserWithCompleteRightForOneTenant(tenant)
+                          ),
+                          tenant = next._1,
+                          diff = next._2,
+                          maybeMaxRightsByRoles = o.map(_._1),
+                          conn = Some(conn),
+                          force = force
+                        )
+                      })
+                    })
+                  ) yield r
+                }
+              )
+          }
         }
       }
   }
