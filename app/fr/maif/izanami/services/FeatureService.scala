@@ -1,7 +1,7 @@
 package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{FeatureContextDoesNotExist, FeatureDoesNotExist, FeatureNotFound, IncorrectKey, InternalServerError, IzanamiError, ModernFeaturesForbiddenByConfig, NoProtectedContextAccess, NotEnoughRights, OPAResultMustBeBoolean}
+import fr.maif.izanami.errors.{BadOPAReturnType, FeatureContextDoesNotExist, FeatureDoesNotExist, FeatureNotFound, IncorrectKey, InternalServerError, IzanamiError, ModernFeatureNotAllowed, ModernFeaturesForbiddenByConfig, NoProtectedContextAccess, NotEnoughRights, OPAResultMustBeBoolean, TagDoesNotExists}
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.ProjectRightLevel.{Admin, Read, Update, Write, projectRightLevelReads}
@@ -76,8 +76,48 @@ class FeatureService(env: Env) {
       })
       .mapToFEither
   }
+  
+  def createFeature(tenant: String, project: String, feature: CompleteFeature, user: UserInformation): FutureEither[CompleteFeature] = {
+    feature match {
+      case f: AbstractFeature if env.typedConfiguration.feature.forceLegacy && !f
+          .isInstanceOf[SingleConditionFeature] =>
+        FutureEither.failure(ModernFeatureNotAllowed)
+      case f: CompleteWasmFeature if f.resultType != BooleanResult && f.wasmConfig.opa =>
+        FutureEither.failure(BadOPAReturnType)
+      case feature => {
+        env.datastores.tags
+          .readTags(tenant, feature.tags).toFEither
+          .flatMap(tags =>
+            if (tags.size < feature.tags.size) {
+              val tagsToCreate =
+                feature.tags.diff(tags.map(t => t.name).toSet)
+              env.datastores.tags.createTags(
+                tagsToCreate
+                  .map(name => TagCreationRequest(name = name))
+                  .toList,
+                tenant
+              ).toFEither
+            } else {
+              FutureEither.success(tags)
+            }
+          )
+          .flatMap(_ =>
+            env.datastores.features
+              .create(tenant, project, feature, user).toFEither
+              .flatMap(id => {
+                env.datastores.features
+                  .findById(tenant, id).toFEither
+                  .flatMap(maybeFeature =>
+                    FutureEither.from(maybeFeature.toRight(FeatureNotFound(id)))
+                  )
+              })
+          )
+      }
+    }
+  }
+  
 
-  def patchFeatureV2(
+  def patchFeature(
       tenant: String,
       patches: Seq[FeaturePatch],
       user: UserWithCompleteRightForOneTenant,

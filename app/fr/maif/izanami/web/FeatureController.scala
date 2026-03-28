@@ -468,7 +468,7 @@ class FeatureController(
         .asOpt[Seq[FeaturePatch]]
         .map(fs => {
           featureService
-            .patchFeatureV2(tenant, fs, request.user, request.authentication)
+            .patchFeature(tenant, fs, request.user, request.authentication)
             .toResult(r => {
               NoContent
             })
@@ -496,55 +496,9 @@ class FeatureController(
           BadRequest(
             Json.obj("message" -> "OPA feature must have boolean result type")
           ).future
-        case JsSuccess(feature, _) => {
-          env.datastores.tags
-            .readTags(tenant, feature.tags)
-            .flatMap {
-              case Right(tags) if tags.size < feature.tags.size => {
-                val tagsToCreate =
-                  feature.tags.diff(tags.map(t => t.name).toSet)
-                env.datastores.tags.createTags(
-                  tagsToCreate
-                    .map(name => TagCreationRequest(name = name))
-                    .toList,
-                  tenant
-                )
-              }
-              case either => either.toFuture
-            }
-            .flatMap(_ =>
-              env.datastores.features
-                .create(tenant, project, feature, request.user)
-                .flatMap { either =>
-                  {
-                    either match {
-                      case Right(id) =>
-                        env.datastores.features
-                          .findById(tenant, id)
-                          .map(either =>
-                            either.flatMap(o =>
-                              o.toRight(FeatureNotFound(id.toString))
-                            )
-                          )
-                      case Left(err) => Future.successful(Left(err))
-                    }
-                  }
-                }
-                .map(maybeFeature =>
-                  maybeFeature
-                    .fold(
-                      err =>
-                        err match {
-                          case e: TagDoesNotExists =>
-                            Results.Status(BAD_REQUEST)(Json.toJson(err))
-                          case e => Results.Status(e.status)(Json.toJson(e))
-                        },
-                      (feat: AbstractFeature) =>
-                        Created(Json.toJson(feat)(featureWrite))
-                    )
-                )
-            )
-        }
+        case JsSuccess(feature, _) =>
+          featureService.createFeature(tenant = tenant, project = project, feature = feature, user = request.user)
+            .toResult(feat => Created(Json.toJson(feat)(featureWrite)))
       }
     }
 
