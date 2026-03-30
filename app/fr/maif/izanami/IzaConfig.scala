@@ -261,7 +261,8 @@ case class Search(similarityThreshold: Double)
 case class Feature(
     callRecords: CallRecords,
     staleHoursDelay: Long,
-    forceLegacy: Boolean
+    forceLegacy: Boolean,
+    allowWasm: Boolean
 )
 case class CallRecords(
     callRegisterIntervalInSeconds: Long,

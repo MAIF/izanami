@@ -452,6 +452,7 @@ case object CantUpdateOIDCCOnfiguration
 case object FailedToReadTokenClaims extends IzanamiError(message = "Failed to read token claims", status = INTERNAL_SERVER_ERROR)
 case object ModernFeatureNotAllowed extends IzanamiError(message = "Modern feature creation is disabled on this instance, only legacy features are permitted", status = BAD_REQUEST)
 case object BadOPAReturnType extends IzanamiError(message = "OPA feature must have boolean result type", status = BAD_REQUEST)
+case object WasmFeatureNotAllowed extends IzanamiError(message = "This Izanami instances doesn't allow use of wasm scripts", status = BAD_REQUEST)
 case object OPAResultMustBeBoolean
     extends IzanamiError(
       message = "OPA feature must have boolean result type",

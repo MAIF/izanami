@@ -4,13 +4,9 @@ import buildinfo.BuildInfo
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{BadBodyFormat, CantUpdateOIDCCOnfiguration}
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
-import fr.maif.izanami.mail.{
-  MailGunMailProvider,
-  MailJetMailProvider,
-  SMTPMailProvider
-}
+import fr.maif.izanami.mail.{MailGunMailProvider, MailJetMailProvider, SMTPMailProvider}
 import fr.maif.izanami.models.{FullIzanamiConfiguration, IzanamiConfiguration}
-import fr.maif.izanami.services.MaxRights
+import fr.maif.izanami.services.{FeatureService, MaxRights}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.utils.{Done, FutureEither}
 import fr.maif.izanami.web.ConfigurationController.extractRoleWithLoweredRights
@@ -22,7 +18,8 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class ConfigurationController(
     val controllerComponents: ControllerComponents,
-    val adminAuthAction: AdminAuthAction
+    val adminAuthAction: AdminAuthAction,
+    val featureService: FeatureService
 )(implicit val env: Env)
     extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
@@ -158,7 +155,8 @@ class ConfigurationController(
             Json.obj(
               "wasmo" -> isWasmPresent,
               "oidc" -> c.oidcConfiguration.exists(_.enabled),
-              "forceLegacy" -> env.typedConfiguration.feature.forceLegacy
+              "forceLegacy" -> env.typedConfiguration.feature.forceLegacy,
+              "wasmAllowed" -> featureService.isWasmAllowed
             )
           )
         })

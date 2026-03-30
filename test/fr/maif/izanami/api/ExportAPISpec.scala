@@ -1,16 +1,6 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{
-  ADMIN_BASE_URL,
-  RequestResult,
-  TestFeature,
-  TestPersonnalAccessToken,
-  TestProject,
-  TestSituationBuilder,
-  TestTenant,
-  TestUser,
-  ws
-}
+import fr.maif.izanami.api.BaseAPISpec.{ADMIN_BASE_URL, RequestResult, TestFeature, TestPersonnalAccessToken, TestProject, TestSituationBuilder, TestTenant, TestUser, deleteAPIKey, exportWithTokenSecret, ws}
 import play.api.http.Status.{FORBIDDEN, OK, UNAUTHORIZED}
 import play.api.libs.json.Json
 import play.api.test.Helpers.await
@@ -18,36 +8,9 @@ import play.api.test.Helpers.await
 import java.time.{LocalDateTime, ZoneId}
 import java.util.Base64
 import scala.util.Try
-
 import play.api.libs.ws.writeableOf_JsValue
 
 class ExportAPISpec extends BaseAPISpec {
-  def exportWithToken(
-      tenant: String,
-      user: String,
-      secret: String
-  ): RequestResult = {
-    val response = await(
-      ws.url(s"${ADMIN_BASE_URL}/tenants/$tenant/_export")
-        .addHttpHeaders(
-          "Authorization" -> s"Basic ${Base64.getEncoder.encodeToString(s"${user}:$secret".getBytes)}"
-        )
-        .post(
-          Json.obj(
-            "allProjects" -> true,
-            "allKeys" -> true,
-            "allWebhooks" -> true,
-            "userRights" -> false,
-            "webhooks" -> Seq[String](),
-            "projects" -> Seq[String](),
-            "keys" -> Seq[String]()
-          )
-        )
-    )
-
-    RequestResult(json = Try { response.json }, status = response.status)
-  }
-
   "Export endpoint" should {
     "Allow to export with personnal access tokens with all rights if is global admin" in {
       val situation = TestSituationBuilder()
@@ -64,8 +27,7 @@ class ExportAPISpec extends BaseAPISpec {
         )
         .build()
 
-      val secret = situation.findTokenSecret(situation.user, "foo")
-      exportWithToken("tenant", situation.user, secret).status mustBe OK
+      situation.exportWithTokenName("tenant", situation.user, "foo").status mustBe OK
     }
 
     "Allow export with personnal access tokens with all rights if user is tenant admin" in {
@@ -87,7 +49,7 @@ class ExportAPISpec extends BaseAPISpec {
       )
 
       val secret = (resp.json.get \ "token").as[String]
-      exportWithToken("tenant", situation.user, secret).status mustBe OK
+      exportWithTokenSecret("tenant", situation.user, secret).status mustBe OK
     }
 
     "Prevent export with personnal access tokens with all rights isn't tenant admin" in {
@@ -109,7 +71,7 @@ class ExportAPISpec extends BaseAPISpec {
       )
 
       val secret = (resp.json.get \ "token").as[String]
-      exportWithToken("tenant", situation.user, secret).status mustBe FORBIDDEN
+      exportWithTokenSecret("tenant", situation.user, secret).status mustBe FORBIDDEN
     }
 
     "Prevent export with personnal access tokens with all rights if token is expired" in {
@@ -134,7 +96,7 @@ class ExportAPISpec extends BaseAPISpec {
       )
 
       val secret = (resp.json.get \ "token").as[String]
-      exportWithToken(
+      exportWithTokenSecret(
         "tenant",
         situation.user,
         secret
@@ -163,7 +125,7 @@ class ExportAPISpec extends BaseAPISpec {
       )
 
       val secret = (resp.json.get \ "token").as[String]
-      exportWithToken("tenant", situation.user, secret).status mustBe OK
+      exportWithTokenSecret("tenant", situation.user, secret).status mustBe OK
     }
 
     "Allow export with personnal access tokens with only export right" in {
@@ -187,7 +149,7 @@ class ExportAPISpec extends BaseAPISpec {
       )
 
       val secret = (resp.json.get \ "token").as[String]
-      exportWithToken("tenant", situation.user, secret).status mustBe OK
+      exportWithTokenSecret("tenant", situation.user, secret).status mustBe OK
     }
 
     "Prevent export with personnal access tokens with only import right" in {
@@ -211,7 +173,7 @@ class ExportAPISpec extends BaseAPISpec {
       )
 
       val secret = (resp.json.get \ "token").as[String]
-      exportWithToken(
+      exportWithTokenSecret(
         "tenant",
         situation.user,
         secret

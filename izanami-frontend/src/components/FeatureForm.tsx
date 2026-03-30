@@ -7,6 +7,7 @@ import {
   TCompleteFeature,
   TLightFeature,
   ValuedFeature,
+  isLightWasmFeature,
   isPercentageRule,
   isSingleConditionFeature,
   isWasmFeature,
@@ -119,7 +120,7 @@ const LegacyStrategies = [
 type TLegacyStrategy = typeof LegacyStrategies[number];
 
 function toSingleConditionFeatureFormat(
-  feature: LegacyFeature
+  feature: LegacyFeature,
 ): Omit<SingleConditionFeature, "stale" | "creationDate"> {
   const { id, name, description, enabled, tags, project } = feature;
   const base = {
@@ -269,10 +270,10 @@ function LegacyFeatureForm(props: {
                 }
               } else if (data.activationStrategy === "HOUR_RANGE") {
                 const startNumber = Number(
-                  data.parameters.startAt.replaceAll(":", "")
+                  data.parameters.startAt.replaceAll(":", ""),
                 );
                 const endNumber = Number(
-                  data.parameters.endAt.replaceAll(":", "")
+                  data.parameters.endAt.replaceAll(":", ""),
                 );
                 if (endNumber < startNumber) {
                   setError("parameters.endAt", {
@@ -468,8 +469,8 @@ function LegacyFeatureForm(props: {
                               parse(
                                 e.target.value,
                                 "yyyy-MM-dd'T'HH:mm",
-                                new Date()
-                              )
+                                new Date(),
+                              ),
                             );
                           }}
                           className="form-control"
@@ -517,8 +518,8 @@ function LegacyFeatureForm(props: {
                                 parse(
                                   e.target.value,
                                   "yyyy-MM-dd'T'HH:mm",
-                                  new Date()
-                                )
+                                  new Date(),
+                                ),
                               );
                             }}
                             className="form-control"
@@ -549,8 +550,8 @@ function LegacyFeatureForm(props: {
                                 parse(
                                   e.target.value,
                                   "yyyy-MM-dd'T'HH:mm",
-                                  new Date()
-                                )
+                                  new Date(),
+                                ),
                               );
                             }}
                             className="form-control"
@@ -596,7 +597,7 @@ function LegacyFeatureForm(props: {
                               value
                                 ? format(
                                     parse(value, "HH:mm:ss", new Date()),
-                                    "HH:mm"
+                                    "HH:mm",
                                   )
                                 : ""
                             }
@@ -604,8 +605,8 @@ function LegacyFeatureForm(props: {
                               onChange(
                                 format(
                                   parse(e.target.value, "HH:mm", new Date()),
-                                  "HH:mm:ss"
-                                )
+                                  "HH:mm:ss",
+                                ),
                               );
                             }}
                           />
@@ -630,7 +631,7 @@ function LegacyFeatureForm(props: {
                               value
                                 ? format(
                                     parse(value, "HH:mm:ss", new Date()),
-                                    "HH:mm"
+                                    "HH:mm",
                                   )
                                 : ""
                             }
@@ -638,8 +639,8 @@ function LegacyFeatureForm(props: {
                               onChange(
                                 format(
                                   parse(e.target.value, "HH:mm", new Date()),
-                                  "HH:mm:ss"
-                                )
+                                  "HH:mm:ss",
+                                ),
                               );
                             }}
                           />
@@ -706,6 +707,8 @@ export function FeatureForm(props: {
   const { defaultValue, submit, ...rest } = props;
   const ctx = React.useContext(IzanamiContext);
   const forceLegacy = ctx.integrations?.forceLegacy ?? false;
+  const wasmEnabledByConfig = ctx.integrations?.wasmAllowed ?? true;
+  const isFeatureWasm = defaultValue ? isLightWasmFeature(defaultValue) : false;
 
   const completeFeatureQuery = useQuery({
     queryKey: [defaultValue ? JSON.stringify(defaultValue) : ""],
@@ -715,7 +718,7 @@ export function FeatureForm(props: {
 
   const [legacy, setLegacy] = useState<boolean>(
     (defaultValue !== undefined && isSingleConditionFeature(defaultValue)) ||
-      (!defaultValue && forceLegacy)
+      (!defaultValue && forceLegacy),
   );
 
   const [convertedValue, setConvertedValue] = useState<
@@ -732,7 +735,7 @@ export function FeatureForm(props: {
       form = (
         <LegacyFeatureForm
           defaultValue={toLegacyFeatureFormat(
-            defaultValue as SingleConditionFeature
+            defaultValue as SingleConditionFeature,
           )}
           submit={(f) => {
             submit(toSingleConditionFeatureFormat(f));
@@ -744,6 +747,7 @@ export function FeatureForm(props: {
       form = (
         <V2FeatureForm
           {...props}
+          wasmEnabled={wasmEnabledByConfig || isFeatureWasm}
           defaultValue={convertedValue ? convertedValue : defaultValue}
         />
       );
@@ -758,8 +762,8 @@ export function FeatureForm(props: {
               onClick={() => {
                 setConvertedValue(
                   toModernFeature(
-                    defaultValue as SingleConditionFeature
-                  ) as ClassicalFeature
+                    defaultValue as SingleConditionFeature,
+                  ) as ClassicalFeature,
                 );
                 setLegacy(false);
               }}
@@ -851,8 +855,9 @@ export function V2FeatureForm(props: {
   defaultValue?: TCompleteFeature;
   additionalFields?: () => JSX.Element;
   displayId?: boolean;
+  wasmEnabled: boolean;
 }) {
-  const { cancel, submit, defaultValue, additionalFields } = props;
+  const { cancel, submit, defaultValue, additionalFields, wasmEnabled } = props;
   const methods = useForm<TCompleteFeature>({
     defaultValues: { resultType: "boolean", ...defaultValue },
   });
@@ -963,10 +968,10 @@ export function V2FeatureForm(props: {
                       (hourPeriod, hourPeriodIndex) => {
                         if (hourPeriod?.endTime && hourPeriod?.startTime) {
                           const startNumber = Number(
-                            hourPeriod.startTime.replaceAll(":", "")
+                            hourPeriod.startTime.replaceAll(":", ""),
                           );
                           const endNumber = Number(
-                            hourPeriod.endTime.replaceAll(":", "")
+                            hourPeriod.endTime.replaceAll(":", ""),
                           );
 
                           if (endNumber < startNumber) {
@@ -975,14 +980,14 @@ export function V2FeatureForm(props: {
                               {
                                 type: "custom",
                                 message: "End hour can't be before start hour",
-                              }
+                              },
                             );
                             error = error || true;
                           }
                         }
-                      }
+                      },
                     );
-                  }
+                  },
                 );
               }
 
@@ -1189,18 +1194,34 @@ export function V2FeatureForm(props: {
                 <br />
                 Existing WASM script will create a feature using an existing
                 script (a script that is used by another feature).
+                {!wasmEnabled && (
+                  <>
+                    <br />
+                    Wasm scripts are disabled on this Izanami instance,
+                    therefore you can only use "classic" features.
+                  </>
+                )}
               </Tooltip>
               <Select
+                isDisabled={!wasmEnabled}
                 styles={customStyles}
-                options={[
-                  { label: "Classic", value: "Classic" },
-                  { label: "New WASM script", value: "New WASM script" },
-                  {
-                    label: "Existing WASM script",
-                    value: "Existing WASM script",
-                  },
-                ]}
-                value={{ label: type, value: type }}
+                options={
+                  wasmEnabled
+                    ? [
+                        { label: "Classic", value: "Classic" },
+                        { label: "New WASM script", value: "New WASM script" },
+                        {
+                          label: "Existing WASM script",
+                          value: "Existing WASM script",
+                        },
+                      ]
+                    : [{ label: "Classic", value: "Classic" }]
+                }
+                value={
+                  wasmEnabled
+                    ? { label: type, value: type }
+                    : { label: "Classic", value: "Classic" }
+                }
                 onChange={(e) => {
                   setValue("conditions", []);
                   setValue("wasmConfig", undefined as any);

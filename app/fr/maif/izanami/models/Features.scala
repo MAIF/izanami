@@ -2,21 +2,19 @@ package fr.maif.izanami.models
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
-import fr.maif.izanami.models.Feature.{
-  lightweightFeatureRead,
-  lightweightFeatureWrite
-}
+import fr.maif.izanami.models.Feature.{lightweightFeatureRead, lightweightFeatureWrite}
 import fr.maif.izanami.models.StaleStatus.staleStatusWrites
-import fr.maif.izanami.models.features._
+import fr.maif.izanami.models.features.*
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.v1.OldFeature.oldFeatureReads
 import fr.maif.izanami.v1.{OldFeature, OldGlobalScriptFeature}
 import fr.maif.izanami.wasm.{WasmConfig, WasmUtils}
 import fr.maif.izanami.web.FeatureContextPath
-import play.api.libs.json._
+import play.api.Logger
+import play.api.libs.json.*
 import play.api.mvc.QueryStringBindable
 
-import java.time._
+import java.time.*
 import java.time.format.DateTimeFormatter
 import java.util.{Objects, UUID}
 import scala.concurrent.{ExecutionContext, Future}
@@ -556,6 +554,7 @@ case class CompleteWasmFeature(
     override val description: String,
     override val resultType: ResultType
 ) extends CompleteFeature {
+  private val logger = Logger("feature-evaluation")
   override def withEnabled(enabled: Boolean): CompleteWasmFeature =
     copy(enabled = enabled)
 
@@ -564,12 +563,20 @@ case class CompleteWasmFeature(
       env: Env
   ): Future[Either[IzanamiError, JsValue]] = {
     implicit val ec: ExecutionContext = env.executionContext
-    if (!enabled) {
-      Future {
-        Right(JsNull)
+    val isWasmAllowed = env.typedConfiguration.feature.allowWasm
+
+    (isWasmAllowed, enabled, resultType) match {
+      case (false, true, BooleanResult) => {
+        logger.warn(s"Evaluation result of wasm feature ${name} (id ${id}, context ${requestContext.context.toUserPath}) was changed to false, since this izanami instance doesn't allow wasm features")
+        Future.successful(Right(JsFalse))
       }
-    } else {
-      WasmUtils.handle(wasmConfig, requestContext, resultType)(ec, env)
+      case (false, true, _) => {
+        logger.warn(s"Evaluation result of wasm feature ${name} (id ${id}, context ${requestContext.context.toUserPath}) was changed to null, since this izanami instance doesn't allow wasm features")
+        Future.successful(Right(JsNull))
+      }
+      case (_, false, BooleanResult) => Future.successful(Right(JsFalse))
+      case (_, false, _) => Future.successful(Right(JsNull))
+      case (_, true, _) => WasmUtils.handle(wasmConfig, requestContext, resultType)(ec, env)
     }
   }
 

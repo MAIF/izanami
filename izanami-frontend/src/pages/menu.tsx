@@ -39,7 +39,8 @@ export function Menu(props: {
   const isAdmin = useAdmin();
   let isTenantAdmin = useTenantRight(tenant, TLevel.Admin);
   const isProjectAdmin = useProjectRight(tenant, project, TLevel.Admin);
-  const { user } = React.useContext(IzanamiContext);
+  const { user, integrations } = React.useContext(IzanamiContext);
+
   React.useEffect(() => {
     if (
       matchPath({ path: "/home" }, props?.location?.pathname || "") &&
@@ -104,7 +105,7 @@ export function Menu(props: {
                   className={
                     matchPath(
                       { path: "/tenants/:tenant/" },
-                      props?.location?.pathname || ""
+                      props?.location?.pathname || "",
                     )
                       ? "active mt-2 w-100"
                       : "inactive mt-2 w-100"
@@ -117,11 +118,11 @@ export function Menu(props: {
                     </NavLink>
                     {(matchPath(
                       { path: "/tenants/:tenant/" },
-                      props?.location?.pathname || ""
+                      props?.location?.pathname || "",
                     ) ||
                       matchPath(
                         { path: "/tenants/:tenant/projects/*" },
-                        props?.location?.pathname || ""
+                        props?.location?.pathname || "",
                       )) &&
                       projects.length > 0 && (
                         <div
@@ -145,7 +146,7 @@ export function Menu(props: {
                             onChange={(v) => {
                               selectProject(v!.value);
                               navigate(
-                                `/tenants/${tenant}/projects/${v!.value}`
+                                `/tenants/${tenant}/projects/${v!.value}`,
                               );
                             }}
                           />
@@ -157,7 +158,7 @@ export function Menu(props: {
               <li className="">
                 {matchPath(
                   { path: "/tenants/:tenant/projects/:project/*" },
-                  props?.location?.pathname || ""
+                  props?.location?.pathname || "",
                 ) ? (
                   <ul
                     className="nav flex-column"
@@ -167,7 +168,7 @@ export function Menu(props: {
                       className={
                         matchPath(
                           { path: "/tenants/:tenant/projects/:project" },
-                          props?.location?.pathname || ""
+                          props?.location?.pathname || "",
                         )
                           ? "active"
                           : "inactive"
@@ -187,7 +188,7 @@ export function Menu(props: {
                           {
                             path: "/tenants/:tenant/projects/:project/contexts",
                           },
-                          props?.location?.pathname || ""
+                          props?.location?.pathname || "",
                         )
                           ? "active"
                           : "inactive"
@@ -207,7 +208,7 @@ export function Menu(props: {
                           {
                             path: "/tenants/:tenant/projects/:project/logs",
                           },
-                          props?.location?.pathname || ""
+                          props?.location?.pathname || "",
                         )
                           ? "active"
                           : "inactive"
@@ -229,7 +230,7 @@ export function Menu(props: {
                             {
                               path: "/tenants/:tenant/projects/:project/settings",
                             },
-                            props?.location?.pathname || ""
+                            props?.location?.pathname || "",
                           )
                             ? "active"
                             : "inactive"
@@ -254,7 +255,7 @@ export function Menu(props: {
                 className={
                   matchPath(
                     { path: "/tenants/:tenant/keys" },
-                    props?.location?.pathname || ""
+                    props?.location?.pathname || "",
                   )
                     ? "active"
                     : "inactive"
@@ -272,7 +273,7 @@ export function Menu(props: {
                 className={
                   matchPath(
                     { path: "/tenants/:tenant/contexts" },
-                    props?.location?.pathname || ""
+                    props?.location?.pathname || "",
                   )
                     ? "active"
                     : "inactive"
@@ -291,7 +292,7 @@ export function Menu(props: {
                 className={
                   matchPath(
                     { path: "/tenants/:tenant/tags" },
-                    props?.location?.pathname || ""
+                    props?.location?.pathname || "",
                   )
                     ? "active"
                     : "inactive"
@@ -310,7 +311,7 @@ export function Menu(props: {
                 className={
                   matchPath(
                     { path: "/tenants/:tenant/logs" },
-                    props?.location?.pathname || ""
+                    props?.location?.pathname || "",
                   )
                     ? "active"
                     : "inactive"
@@ -329,7 +330,7 @@ export function Menu(props: {
                 className={
                   matchPath(
                     { path: "/tenants/:tenant/webhooks" },
-                    props?.location?.pathname || ""
+                    props?.location?.pathname || "",
                   )
                     ? "active"
                     : "inactive"
@@ -344,31 +345,32 @@ export function Menu(props: {
                   Webhooks
                 </NavLink>
               </li>
-              <li
-                className={
-                  matchPath(
-                    { path: "/tenants/:tenant/scripts" },
-                    props?.location?.pathname || ""
-                  )
-                    ? "active"
-                    : "inactive"
-                }
-              >
-                <NavLink
-                  to={`/tenants/${tenant}/scripts`}
-                  className={() => ""}
-                  onClick={() => hideSidebar()}
+              {(integrations?.wasmAllowed ?? true) && (
+                <li
+                  className={
+                    matchPath(
+                      { path: "/tenants/:tenant/scripts" },
+                      props?.location?.pathname || "",
+                    )
+                      ? "active"
+                      : "inactive"
+                  }
                 >
-                  <i className="ms-2 fa-solid fa-code" aria-hidden />
-                  WASM scripts
-                </NavLink>
-              </li>
-
+                  <NavLink
+                    to={`/tenants/${tenant}/scripts`}
+                    className={() => ""}
+                    onClick={() => hideSidebar()}
+                  >
+                    <i className="ms-2 fa-solid fa-code" aria-hidden />
+                    WASM scripts
+                  </NavLink>
+                </li>
+              )}
               <li
                 className={
                   matchPath(
                     { path: "/tenants/:tenant/query-builder" },
-                    props?.location?.pathname || ""
+                    props?.location?.pathname || "",
                   )
                     ? "active"
                     : "inactive"
@@ -388,7 +390,7 @@ export function Menu(props: {
                   className={
                     matchPath(
                       { path: "/tenants/:tenant/settings" },
-                      props?.location?.pathname || ""
+                      props?.location?.pathname || "",
                     )
                       ? "active"
                       : "inactive"
@@ -440,7 +442,7 @@ export function Menu(props: {
               className={
                 matchPath(
                   { path: "/settings" },
-                  props?.location?.pathname || ""
+                  props?.location?.pathname || "",
                 )
                   ? "active"
                   : "inactive"

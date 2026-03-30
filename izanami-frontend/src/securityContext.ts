@@ -41,6 +41,7 @@ export interface TIzanamiContext {
     wasmo: boolean;
     oidc: boolean;
     forceLegacy: boolean;
+    wasmAllowed: boolean;
   };
 }
 

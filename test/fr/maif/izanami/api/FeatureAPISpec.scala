@@ -521,6 +521,32 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature POST endpoint" should {
+    "prevent creating wasm feature if wasm feature is not allowed" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+            .withProjectNames("bar")
+        )
+        .withCustomConfiguration(Map("app.feature.allow-wasm" -> "false"))
+        .loggedInWithAdminRights()
+        .build()
+
+      val response = situation.createFeature(
+        "feature",
+        enabled = true,
+        project = "bar",
+        tenant = "foo",
+        wasmConfig = TestWasmConfig(
+          name = "wasmScript",
+          source = Json.obj(
+            "kind" -> "Base64",
+            "path" -> disabledFeatureBase64,
+            "opts" -> Json.obj()
+          )
+        )
+      )
+      response.status mustBe BAD_REQUEST
+    }
 
     "prevent creating number feature with too high or low values for JavaScript" in {
 
@@ -1249,6 +1275,32 @@ class FeatureAPISpec extends BaseAPISpec {
   }
 
   "Feature PUT endpoint" should {
+    "prevent updating feature to wasm feature when wasm feature are disabled" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+            .withProjects(TestProject("proj").withFeatureNames("f1"))
+        )
+        .withCustomConfiguration(Map("app.feature.allow-wasm" -> "false"))
+        .loggedInWithAdminRights()
+        .build()
+
+      val response = situation.updateFeatureByName(tenant = "foo", project = "proj", name = "f1", transformer = old => {
+        old ++ Json.obj("wasmConfig" -> Json.obj(
+          "name" -> "bar",
+          "functionName" -> "execute",
+          "opa" -> JsFalse,
+          "source"-> Json.obj(
+            "kind"-> "Base64",
+            "opts" -> Json.obj(),
+            "path" -> enabledFeatureBase64
+        )
+        ))
+      })
+
+      response.status mustBe BAD_REQUEST
+    }
+
     "allow users with update right to update feature with overload-less protected context if update changes tags and / or description" in {
       val situation = TestSituationBuilder()
         .withTenants(

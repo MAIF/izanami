@@ -194,7 +194,7 @@ class FeatureContextController(
           .map(keys => Ok(Json.toJson(keys)(Writes.seq(ContextNode.writes))))
     }
 
-  def createFeatureContextHierarchy(
+  private def createFeatureContextHierarchy(
       contexts: Seq[ContextHolder]
   ): Seq[ContextNode] = {
     val byParent = contexts.groupBy(g => g.context.path)

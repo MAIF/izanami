@@ -483,19 +483,6 @@ class FeatureController(
       Feature.readCompleteFeature(request.body, project) match {
         case JsError(e) =>
           BadRequest(Json.obj("message" -> "bad body format")).future
-        case JsSuccess(f: AbstractFeature, _)
-            if env.typedConfiguration.feature.forceLegacy && !f
-              .isInstanceOf[SingleConditionFeature] =>
-          BadRequest(
-            Json.obj(
-              "message" -> "Modern feature creation is disabled on this instance, only legacy features are permitted"
-            )
-          ).future
-        case JsSuccess(f: CompleteWasmFeature, _)
-            if f.resultType != BooleanResult && f.wasmConfig.opa =>
-          BadRequest(
-            Json.obj("message" -> "OPA feature must have boolean result type")
-          ).future
         case JsSuccess(feature, _) =>
           featureService.createFeature(tenant = tenant, project = project, feature = feature, user = request.user)
             .toResult(feat => Created(Json.toJson(feat)(featureWrite)))

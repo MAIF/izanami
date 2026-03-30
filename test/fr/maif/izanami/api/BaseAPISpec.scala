@@ -678,10 +678,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
     )
 
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def createFeatureAsync(
@@ -768,10 +765,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
     val response = await(createTagAsync(name, tenant, description, cookies))
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status, idField = "name")
+    RequestResult(response = response, status = response.status, idField = "name")
   }
 
   def createTagAsync(
@@ -804,11 +798,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
     val response = await(createTenantAsync(name, description, cookies))
-
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status)
+    
+    RequestResult(response, status = response.status)
   }
 
   def createTenantAsync(
@@ -831,10 +822,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
     val response = await(createProjectAsync(name, tenant, description, cookies))
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status, idField = "name")
+   
+    RequestResult(response, status = response.status, idField = "name")
   }
 
   def createProjectAsync(
@@ -870,9 +859,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .get()
     )
     RequestResult(
-      json = Try {
-        response.json
-      },
+      response = response,
       status = response.status
     )
   }
@@ -888,14 +875,14 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .withCookies(cookies: _*)
         .get()
     )
-    RequestResult(json = Try { response.json }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def fetchTenant(id: String, cookies: Seq[WSCookie] = Seq()): RequestResult = {
     val response = await(
       ws.url(s"${ADMIN_BASE_URL}/tenants/${id}").withCookies(cookies: _*).get()
     )
-    RequestResult(json = Try { response.json }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def fetchTag(
@@ -908,7 +895,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .withCookies(cookie: _*)
         .get()
     )
-    RequestResult(json = Try { response.json }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def fetchTags(
@@ -920,7 +907,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .withCookies(cookie: _*)
         .get()
     )
-    RequestResult(json = Try { response.json }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def fetchProject(
@@ -933,7 +920,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .withCookies(cookies: _*)
         .get()
     )
-    RequestResult(json = Try { response.json }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def fetchProjects(
@@ -945,7 +932,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .withCookies(cookies: _*)
         .get()
     )
-    RequestResult(json = Try { response.json }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def fetchSearchEntities(
@@ -957,7 +944,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .withCookies(cookies: _*)
         .get()
     )
-    RequestResult(json = Try { response.json }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def updateFeature(
@@ -975,7 +962,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       ).withCookies(cookies: _*)
         .put(json)
     )
-    RequestResult(json = Try { response.json }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def checkFeature(
@@ -997,7 +984,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       ).withHttpHeaders(headers.toList: _*)
         .get()
     )
-    RequestResult(json = Try { response.json }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def deleteFeature(
@@ -1010,7 +997,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .withCookies(cookies: _*)
         .delete()
     )
-    RequestResult(json = Try { response.json }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def checkFeatures(
@@ -1042,7 +1029,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       ).withHttpHeaders(headers.toList: _*)
         .get()
     )
-    RequestResult(json = Try { response.json }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def createAPIKey(
@@ -1065,10 +1052,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         cookies
       )
     )
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status)
+    
+    RequestResult(response = response, status = response.status)
   }
 
   def createAPIKeyAsync(
@@ -1105,10 +1090,33 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .withCookies(cookies: _*)
         .get()
     )
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status)
+    RequestResult(response = response, status = response.status)
+  }
+
+  def exportWithTokenSecret(
+                       tenant: String,
+                       user: String,
+                       secret: String
+                     ): RequestResult = {
+    val response = await(
+      ws.url(s"${ADMIN_BASE_URL}/tenants/$tenant/_export")
+        .addHttpHeaders(
+          "Authorization" -> s"Basic ${Base64.getEncoder.encodeToString(s"${user}:$secret".getBytes)}"
+        )
+        .post(
+          Json.obj(
+            "allProjects" -> true,
+            "allKeys" -> true,
+            "allWebhooks" -> true,
+            "userRights" -> false,
+            "webhooks" -> Seq[String](),
+            "projects" -> Seq[String](),
+            "keys" -> Seq[String]()
+          )
+        )
+    )
+
+    RequestResult(response = response, status = response.status)
   }
 
   def deleteAPIKey(
@@ -1122,10 +1130,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .delete()
     )
 
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def updateAPIKey(
@@ -1152,10 +1157,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           |""".stripMargin))
     )
 
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def fetchConfigurationAsync(
@@ -1182,7 +1184,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         cookies
       )
     )
-    RequestResult(json = Try { response.json }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def updateConfigurationAsync(
@@ -1360,10 +1362,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
     )
 
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status, idField = "name")
+    
+    RequestResult(response = response, status = response.status, idField = "name")
   }
 
   def createContextAsync(
@@ -1414,10 +1414,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         )
     )
 
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status)
+    
+    RequestResult(response = response, status = response.status)
   }
 
   def updateGlobalContext(
@@ -1441,10 +1439,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                       |""".stripMargin)
         )
     )
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status)
+    
+    RequestResult(response = response, status = response.status)
   }
 
   def createGlobalContext(
@@ -1458,10 +1454,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       createGlobalContextAsync(tenant, name, parents, isProtected, cookies)
     )
 
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status, idField = "name")
+    
+    RequestResult(response = response, status = response.status, idField = "name")
   }
 
   def createGlobalContextAsync(
@@ -1498,10 +1492,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .get()
     )
 
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status, idField = "name")
+    
+    RequestResult(response = response, status = response.status, idField = "name")
   }
 
   def testFeature(
@@ -1551,10 +1543,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .post(Json.obj("feature" -> jsonFeature))
     )
 
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status)
+    
+    RequestResult(response = response, status = response.status)
   }
 
   def login(
@@ -1567,11 +1557,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .withAuth(user, password, WSAuthScheme.BASIC)
         .post("")
     )
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(
-      json = jsonTry,
+    
+    RequestResult(response = response,
       status = response.status,
       cookies = response.cookies.toSeq
     )
@@ -1602,10 +1589,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       val url = (result.json \ "invitationUrl").as[String]
       val token = url.split("token=")(1)
       createUserWithTokenAsync(user, password, token).map(response => {
-        val jsonTry = Try {
-          response.json
-        }
-        RequestResult(json = jsonTry, status = response.status)
+        RequestResult(response, status = response.status)
       })
     })
   }
@@ -1665,10 +1649,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   ): RequestResult = {
     val response = await(createUserWithTokenAsync(user, password, token))
 
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status)
+    
+    RequestResult(response = response, status = response.status)
   }
 
   def sendInvitation(
@@ -1679,10 +1661,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   ): RequestResult = {
     val response = await(sendInvitationAsync(email, admin, rights, cookies))
 
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status)
+    
+    RequestResult(response = response, status = response.status)
   }
 
   def sendInvitationAsync(
@@ -1732,10 +1712,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
     )
 
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status, idField = "name")
+    
+    RequestResult(response = response, status = response.status, idField = "name")
   }
 
   def changeFeatureStrategyForContextAsync(
@@ -1797,9 +1775,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     )
 
     RequestResult(
-      json = Try {
-        response.json
-      },
+      response = response,
       status = response.status
     )
   }
@@ -1825,9 +1801,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     )
 
     RequestResult(
-      json = Try {
-        response.json
-      },
+      response = response,
       status = response.status
     )
   }
@@ -1847,9 +1821,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .delete()
     )
     RequestResult(
-      json = Try {
-        response.json
-      },
+      response = response,
       status = response.status
     )
   }
@@ -1869,9 +1841,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .delete()
     )
     RequestResult(
-      json = Try {
-        response.json
-      },
+      response = response,
       status = response.status
     )
   }
@@ -1892,9 +1862,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     )
 
     RequestResult(
-      json = Try {
-        response.json
-      },
+      response = response,
       status = response.status
     )
   }
@@ -1915,9 +1883,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     )
 
     RequestResult(
-      json = Try {
-        response.json
-      },
+      response = response,
       status = response.status
     )
   }
@@ -1936,9 +1902,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .addHttpHeaders("Authorization" -> s"Basic $auth")
         .get()
     )
-    RequestResult(json = Try {
-      response.json
-    }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   def readProjectWithToken(
@@ -1956,9 +1920,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .get()
     )
     RequestResult(
-      json = Try {
-        response.json
-      },
+      response = response,
       status = response.status
     )
   }
@@ -1979,10 +1941,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .delete()
     )
 
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status)
+    
+    RequestResult(response = response, status = response.status)
   }
 
   def importWithToken(
@@ -2013,7 +1973,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           )
         )
     )
-    RequestResult(json = Try { response.json }, status = response.status)
+    RequestResult(response = response, status = response.status)
   }
 
   private def writeTemporaryFile(
@@ -2038,10 +1998,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       updateMailerConfigurationAsync(mailer, configuration, cookies)
     )
 
-    val jsonTry = Try {
-      response.json
-    }
-    RequestResult(json = jsonTry, status = response.status)
+    
+    RequestResult(response = response, status = response.status)
   }
 
   def updateMailerConfigurationAsync(
@@ -2063,12 +2021,16 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
 
   case class RequestResult(
-      json: Try[JsValue],
+      response: WSResponse,
       status: Integer,
       idField: String = "id",
       cookies: Seq[WSCookie] = Seq()
   ) {
     def id: Try[String] = json.map(json => (json \ idField).as[String])
+    def json: Try[JsValue] = Try {
+      response.json
+    }
+    def text: String = response.body
   }
 
   case class TestProjectRight(name: String, level: String = "Read") {
@@ -2537,9 +2499,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2630,9 +2590,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2645,9 +2603,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2660,9 +2616,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2681,9 +2635,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2696,9 +2648,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2709,9 +2659,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2729,9 +2677,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2755,9 +2701,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2774,9 +2718,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2793,9 +2735,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2811,9 +2751,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2847,9 +2785,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2867,9 +2803,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2891,6 +2825,15 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
     def findTokenSecret(user: String, token: String): String = {
       tokenData(user)(token)._2
+    }
+
+    def exportWithTokenName(
+                               tenant: String,
+                               user: String,
+                               name: String
+                             ): RequestResult = {
+      val secret = findTokenSecret(user, name)
+      exportWithTokenSecret("tenant", user, secret)
     }
 
     def createTenant(
@@ -2918,9 +2861,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -2950,7 +2891,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
             )
           )
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def createTag(
@@ -2986,7 +2927,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
              |}""".stripMargin))
       )
 
-      RequestResult(Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def readFeatureAsLegacy(
@@ -3015,7 +2956,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           )
       )
 
-      RequestResult(Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def checkFeaturesLegacy(
@@ -3040,9 +2981,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -3068,9 +3007,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -3190,10 +3127,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     def fetchWasmManagerScripts(): RequestResult = {
       val response = await(ws.url("http://localhost:5001/api/plugins").get())
 
-      val jsonTry = Try {
-        response.json
-      }
-      RequestResult(json = jsonTry, status = response.status)
+      
+      RequestResult(response = response, status = response.status)
     }
 
     def deleteScript(tenant: String, script: String): RequestResult = {
@@ -3203,10 +3138,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .delete()
       )
 
-      val jsonTry = Try {
-        response.json
-      }
-      RequestResult(json = jsonTry, status = response.status)
+      
+      RequestResult(response = response, status = response.status)
     }
 
     def updateScript(
@@ -3220,10 +3153,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .put(newConfig.json)
       )
 
-      val jsonTry = Try {
-        response.json
-      }
-      RequestResult(json = jsonTry, status = response.status)
+      
+      RequestResult(response = response, status = response.status)
     }
 
     def fetchTenantScripts(tenant: String): RequestResult = {
@@ -3233,10 +3164,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .get()
       )
 
-      val jsonTry = Try {
-        response.json
-      }
-      RequestResult(json = jsonTry, status = response.status)
+      
+      RequestResult(response = response, status = response.status)
     }
 
     def fetchTenantScript(tenant: String, script: String): RequestResult = {
@@ -3246,10 +3175,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .get()
       )
 
-      val jsonTry = Try {
-        response.json
-      }
-      RequestResult(json = jsonTry, status = response.status)
+      
+      RequestResult(response = response, status = response.status)
     }
 
     def createFeatureWithRawConditions(
@@ -3332,7 +3259,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         ).withCookies(cookies: _*)
           .delete()
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def deleteContext(
@@ -3346,7 +3273,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         ).withCookies(cookies: _*)
           .delete()
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def deleteGlobalContext(tenant: String, path: String): RequestResult = {
@@ -3356,9 +3283,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .delete()
       )
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -3475,9 +3400,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
       val response = await(ws.url(url).withCookies(cookies: _*).get())
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -3527,10 +3450,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .post(Json.obj())
       )
 
-      val jsonTry = Try {
-        response.json
-      }
-      RequestResult(json = jsonTry, status = response.status)
+      
+      RequestResult(response = response, status = response.status)
     }
 
     def fetchContexts(tenant: String, project: String): RequestResult = {
@@ -3547,10 +3468,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .get()
       )
 
-      val jsonTry = Try {
-        response.json
-      }
-      RequestResult(json = jsonTry, status = response.status, idField = "name")
+      
+      RequestResult(response = response, status = response.status, idField = "name")
     }
 
     def fetchTenants(right: String = null): RequestResult = {
@@ -3670,7 +3589,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
             )
           )
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def updateUserRightsForTenant(
@@ -3683,7 +3602,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .withCookies(cookies: _*)
           .put(jsonRight)
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def updateUserRightsForProject(
@@ -3701,9 +3620,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .put(payload)
       )
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -3725,7 +3642,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           )
       )
 
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
     def updateUserPassword(
         user: String,
@@ -3743,7 +3660,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           )
       )
 
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def sendInvitation(
@@ -3765,7 +3682,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .withCookies(cookies: _*)
           .get()
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def fetchUser(user: String): RequestResult = {
@@ -3774,7 +3691,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .withCookies(cookies: _*)
           .get()
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def searchUsers(search: String, count: Integer): RequestResult = {
@@ -3784,9 +3701,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .get()
       )
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -3797,7 +3712,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .withCookies(cookies: _*)
           .get()
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def fetchUsersForTenant(tenant: String): RequestResult = {
@@ -3806,7 +3721,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .withCookies(cookies: _*)
           .get()
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def inviteUsersToTenants(
@@ -3822,9 +3737,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .post(payload)
       )
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -3843,9 +3756,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .post(payload)
       )
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -3857,9 +3768,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .get()
       )
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -3874,7 +3783,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .withCookies(cookies: _*)
           .get()
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def deleteUser(username: String): RequestResult = {
@@ -3883,7 +3792,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .withCookies(cookies: _*)
           .delete()
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def deleteTenant(tenant: String): RequestResult = {
@@ -3892,7 +3801,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .withCookies(cookies: _*)
           .delete()
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def deleteProject(project: String, tenant: String): RequestResult = {
@@ -3901,7 +3810,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .withCookies(cookies: _*)
           .delete()
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def deleteTag(tenant: String, name: String): RequestResult = {
@@ -3910,7 +3819,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .withCookies(cookies: _*)
           .delete()
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def updateTag(
@@ -3928,7 +3837,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
             )
           )
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def updateConfiguration(
@@ -3956,14 +3865,14 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         BaseAPISpec.this.updateConfigurationRaw(newConfig, cookies)
       )
 
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def fetchConfiguration(): RequestResult = {
       val response = await(
         BaseAPISpec.this.fetchConfigurationAsync(cookies)
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def deleteImportResult(tenant: String, id: String): RequestResult = {
@@ -3974,9 +3883,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
 
       RequestResult(
-        json = Try {
-          response.json
-        },
+        response = response,
         status = response.status
       )
     }
@@ -4005,7 +3912,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
             )
           )
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def importAndWaitTermination(
@@ -4063,7 +3970,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .get()
       )
 
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def importV1Data(
@@ -4122,7 +4029,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
             )
           )
       )
-      RequestResult(json = Try { response.json }, status = response.status)
+      RequestResult(response = response, status = response.status)
     }
 
     def logAsOIDCUser(

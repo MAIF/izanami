@@ -9,6 +9,37 @@ import java.time.{DayOfWeek, LocalDate, LocalDateTime, LocalTime}
 
 class FeatureClientAPISpec extends BaseAPISpec {
   "Feature check GET endpoint" should {
+    "prevent evaluating wasm feature if wasm feature is disabled" in {
+      var situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(TestProject("proj").withFeatures(TestFeature(
+              name = "f1",
+              enabled = true,
+              wasmConfig = TestWasmConfig(
+                name = "wasmScript",
+                source = Json.obj(
+                  "kind" -> "Base64",
+                  "path" -> enabledFeatureBase64
+                )
+              )
+            )))
+            .withAllRightsKey("foo")
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      situation = situation.restartServerWithConf(Map("app.feature.allow-wasm" -> "false"))
+
+      val response = situation.checkFeature(
+        id = situation.findFeatureId(tenant = "tenant", project = "proj", feature = "f1").get,
+        key = "foo"
+      )
+      response.status mustEqual OK
+      val json = response.json.get
+      (json \ "active").as[Boolean] mustBe false
+    }
+
     "return 403 if apikey is incorrect AND context does not exist to prevent discovering contexts by brutefore in worker mode" in {
       var situation = TestSituationBuilder()
         .withTenants(

@@ -1,7 +1,7 @@
 package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{BadOPAReturnType, FeatureContextDoesNotExist, FeatureDoesNotExist, FeatureNotFound, IncorrectKey, InternalServerError, IzanamiError, ModernFeatureNotAllowed, ModernFeaturesForbiddenByConfig, NoProtectedContextAccess, NotEnoughRights, OPAResultMustBeBoolean, TagDoesNotExists}
+import fr.maif.izanami.errors.{BadOPAReturnType, FeatureContextDoesNotExist, FeatureDoesNotExist, FeatureNotFound, IncorrectKey, InternalServerError, IzanamiError, ModernFeatureNotAllowed, ModernFeaturesForbiddenByConfig, NoProtectedContextAccess, NotEnoughRights, OPAResultMustBeBoolean, TagDoesNotExists, WasmFeatureNotAllowed}
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.ProjectRightLevel.{Admin, Read, Update, Write, projectRightLevelReads}
@@ -21,6 +21,8 @@ import scala.concurrent.{ExecutionContext, Future}
 class FeatureService(env: Env) {
   private val datastore = env.datastores.features
   implicit val ec: ExecutionContext = env.executionContext
+
+  def isWasmAllowed: Boolean = env.typedConfiguration.feature.allowWasm
 
   private def hasProtectedOverload(
       tenant: String,
@@ -79,6 +81,8 @@ class FeatureService(env: Env) {
   
   def createFeature(tenant: String, project: String, feature: CompleteFeature, user: UserInformation): FutureEither[CompleteFeature] = {
     feature match {
+      case f: CompleteWasmFeature if !isWasmAllowed =>
+        FutureEither.failure(WasmFeatureNotAllowed)
       case f: AbstractFeature if env.typedConfiguration.feature.forceLegacy && !f
           .isInstanceOf[SingleConditionFeature] =>
         FutureEither.failure(ModernFeatureNotAllowed)
@@ -541,6 +545,10 @@ class FeatureService(env: Env) {
       maybeConn,
       conn => {
         for (
+          _ <- request.strategy match {
+            case _:CompleteWasmFeatureStrategy if !isWasmAllowed => FutureEither.failure(WasmFeatureNotAllowed)
+            case _ => FutureEither.success(Done.done())
+          };
           _ <- validateFeature(
             request.strategy
           ).toFEither; // TODO replace by validation on Reads[AbstractFeature]

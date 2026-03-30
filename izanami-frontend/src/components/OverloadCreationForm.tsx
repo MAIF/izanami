@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
   FeatureTypeName,
+  iWasmOverload,
   TContextOverload,
   TStringContextOverload,
 } from "../utils/types";
@@ -22,6 +23,7 @@ import { Loader } from "./Loader";
 import { ErrorDisplay } from "./FeatureForm";
 import { Tooltip } from "./Tooltip";
 import { ResultTypeIcon } from "./ResultTypeIcon";
+import { IzanamiContext } from "../securityContext";
 
 export function OverloadCreationForm(props: {
   project: string;
@@ -42,6 +44,15 @@ export function OverloadCreationForm(props: {
     noName,
     additionalFields,
   } = props;
+
+  const izanamiContext = React.useContext(IzanamiContext);
+  const wasmEnabledByConfig = izanamiContext?.integrations?.wasmAllowed ?? true;
+  const wasmEnabled = wasmEnabledByConfig
+    ? true
+    : defaultValue
+    ? iWasmOverload(defaultValue)
+    : false;
+
   const methods = useForm<TContextOverload>({ defaultValues: defaultValue });
   const { tenant } = useParams();
   const isWasm = defaultValue && "wasmConfig" in defaultValue;
@@ -78,7 +89,7 @@ export function OverloadCreationForm(props: {
             submit({
               ...data,
               resultType: featureResultType,
-            } as TContextOverload)
+            } as TContextOverload),
           )}
           className="d-flex flex-column anim__rightToLeft p-3 sub_container"
         >
@@ -93,7 +104,7 @@ export function OverloadCreationForm(props: {
                   value={{ value, label: value }}
                   onChange={(e) => {
                     const selectedFeature = projectQuery.data.features.find(
-                      (f) => f.name === e?.value
+                      (f) => f.name === e?.value,
                     );
                     // FIXME can we use hook form value without local state ?
                     setFeatureResultType(selectedFeature?.resultType);
@@ -183,16 +194,25 @@ export function OverloadCreationForm(props: {
           <label className="mt-3">
             Feature type
             <Select
+              isDisabled={!wasmEnabled}
               styles={customStyles}
-              options={[
-                { label: "Classic", value: "Classic" },
-                { label: "New WASM script", value: "New WASM script" },
-                {
-                  label: "Existing WASM script",
-                  value: "Existing WASM script",
-                },
-              ]}
-              value={{ label: type, value: type }}
+              options={
+                wasmEnabled
+                  ? [
+                      { label: "Classic", value: "Classic" },
+                      { label: "New WASM script", value: "New WASM script" },
+                      {
+                        label: "Existing WASM script",
+                        value: "Existing WASM script",
+                      },
+                    ]
+                  : [{ label: "Classic", value: "Classic" }]
+              }
+              value={
+                wasmEnabled
+                  ? { label: type, value: type }
+                  : { label: "Classic", value: "Classic" }
+              }
               onChange={(e) => {
                 setValue("conditions", []);
                 setValue("wasmConfig", undefined as any);

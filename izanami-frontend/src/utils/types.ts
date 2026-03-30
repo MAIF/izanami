@@ -494,6 +494,16 @@ export function isLightWasmFeature(
   );
 }
 
+export function iWasmOverload(
+  overload: TContextOverload,
+): overload is TWasmContextOverload {
+  return (
+    (overload as TWasmContextOverload).wasmConfig !== undefined &&
+    (typeof (overload as TWasmContextOverload).wasmConfig === "object" ||
+      typeof (overload as TWasmContextOverload).wasmConfig === "string")
+  );
+}
+
 export type TFeatureRule = TPercentageRule | TUserList;
 
 export interface TProjectRight {

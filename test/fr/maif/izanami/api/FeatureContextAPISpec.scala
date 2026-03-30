@@ -1365,6 +1365,39 @@ class FeatureContextAPISpec extends BaseAPISpec {
   }
 
   "Context feature PUT endpoint" should {
+    "not allow to create wasm based overload if izanami instance is configured to forbid it" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("prod"))
+            .withProjects(
+              TestProject("project")
+                .withFeatureNames("F1")
+            )
+        )
+        .withCustomConfiguration(Map("app.feature.allow-wasm" -> "false"))
+        .build()
+
+      val overloadCreationResponse = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        contextPath = "prod",
+        feature = "F1",
+        enabled = false,
+        wasmConfig = TestWasmConfig(
+          name = "wasmScript",
+          source = Json.obj(
+            "kind" -> "Base64",
+            "path" -> enabledFeatureBase64,
+            "opts" -> Json.obj()
+          )
+        )
+      )
+      
+      overloadCreationResponse.status mustBe BAD_REQUEST
+    }
+
     "not preserve old strategy on protected context that are children of context that already define an overload" in {
       val situation = TestSituationBuilder()
         .withTenants(

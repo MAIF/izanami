@@ -1,13 +1,170 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{TestFeature, TestPersonnalAccessToken, TestProject, TestRights, TestSituationBuilder, TestTenant, TestTenantRight, TestUser, importWithToken}
-import play.api.http.Status.{ACCEPTED, BAD_REQUEST, CREATED, FORBIDDEN, NOT_FOUND, NO_CONTENT, OK, UNAUTHORIZED}
-import play.api.libs.json.{JsNull, JsObject}
+import fr.maif.izanami.api.BaseAPISpec.{
+  TestFeature,
+  TestFeatureContext,
+  TestPersonnalAccessToken,
+  TestProject,
+  TestRights,
+  TestSituationBuilder,
+  TestTenant,
+  TestTenantRight,
+  TestUser,
+  TestWasmConfig,
+  enabledFeatureBase64,
+  importWithToken
+}
+import org.scalatest.matchers.should.Matchers.should
+import play.api.http.Status.{
+  ACCEPTED,
+  BAD_REQUEST,
+  CREATED,
+  FORBIDDEN,
+  NOT_FOUND,
+  NO_CONTENT,
+  OK,
+  UNAUTHORIZED
+}
+import play.api.libs.json.{JsNull, JsObject, Json}
 
 import java.util.UUID
 
 class ImportApiSpec extends BaseAPISpec {
   "V2 feature import" should {
+    "return warning when importing wasm based features in an instance that doesn't allow wasm" in {
+      var situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature(
+                    name = "foo",
+                    enabled = true,
+                    wasmConfig = TestWasmConfig(
+                      name = "wasmScript",
+                      source = Json.obj(
+                        "kind" -> "Base64",
+                        "path" -> enabledFeatureBase64
+                      )
+                    )
+                  ),
+                  TestFeature(
+                    name = "bar",
+                    enabled = true
+                  )
+                ),
+
+            )
+        )
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(name = "foo", allRights = true)
+        )
+        .build()
+
+      val id = situation
+        .findFeatureId(tenant = "tenant", project = "project", feature = "foo")
+        .get
+
+      val exportResponse =
+        situation.exportWithTokenName("tenant", situation.user, "foo")
+      exportResponse.status mustBe OK
+
+      situation = situation.restartServerWithConf(
+        Map("app.feature.allow-wasm" -> "false")
+      )
+
+      val payload = exportResponse.text
+
+      val res =
+        situation.importV2(
+          "tenant",
+          data = payload.split("\n"),
+          conflictStrategy = "SKIP"
+        )
+
+      res.status mustBe OK
+      val json = res.json.get
+
+      val msgs = (json \ "messages").as[Seq[String]]
+
+      msgs.size mustEqual 1
+      msgs.head must include(id)
+    }
+
+    "return warning when importing wasm based overloads in an instance that doesn't allow wasm" in {
+      var situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(TestFeature("F1"), TestFeature("F2"))
+                .withContexts(
+                  TestFeatureContext(
+                    "prod",
+                    overloads = Seq(
+                      TestFeature(
+                        name = "F1",
+                        enabled = true,
+                        wasmConfig = TestWasmConfig(
+                          name = "wasmScript",
+                          source = Json.obj(
+                            "kind" -> "Base64",
+                            "path" -> enabledFeatureBase64
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  TestFeatureContext(
+                    "dev",
+                    overloads = Seq(
+                      TestFeature(
+                        name = "F1",
+                        enabled = true
+                      )
+                    )
+                  )
+                )
+            )
+        )
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(name = "foo", allRights = true)
+        )
+        .build()
+
+      val id = situation
+        .findFeatureId(tenant = "tenant", project = "project", feature = "F1")
+        .get
+
+      val exportResponse =
+        situation.exportWithTokenName("tenant", situation.user, "foo")
+      exportResponse.status mustBe OK
+
+      situation = situation.restartServerWithConf(
+        Map("app.feature.allow-wasm" -> "false")
+      )
+
+      val payload = exportResponse.text
+
+      val res =
+        situation.importV2(
+          "tenant",
+          data = payload.split("\n"),
+          conflictStrategy = "SKIP"
+        )
+
+      res.status mustBe OK
+      val json = res.json.get
+
+      val msgs = (json \ "messages").as[Seq[String]]
+
+      msgs.size mustEqual 1
+      msgs.head must include(s"F1 (project project, context prod)")
+    }
+
     "allow importing tags with non uuid ids" in {
       val data = Seq(
         """{"row":{"id":"fifou","name":"ttt","description":""},"_type":"tag"}
@@ -21,7 +178,8 @@ class ImportApiSpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val res = situation.importV2("foo", data = data, conflictStrategy = "FAIL")
+      val res =
+        situation.importV2("foo", data = data, conflictStrategy = "FAIL")
 
       res.status mustBe OK
     }
@@ -39,7 +197,8 @@ class ImportApiSpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val res = situation.importV2("foo", data = data, conflictStrategy = "FAIL")
+      val res =
+        situation.importV2("foo", data = data, conflictStrategy = "FAIL")
 
       res.status mustBe OK
     }
