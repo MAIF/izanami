@@ -1,13 +1,8 @@
 package fr.maif.izanami.units
 
 import fr.maif.izanami.models.RightLevel.{Admin, Read, Write}
-import fr.maif.izanami.models.*
-import fr.maif.izanami.services.{
-  CompleteRights,
-  MaxRights,
-  MaxTenantRoleRights,
-  RightService
-}
+import fr.maif.izanami.models.{ProjectRightLevel, *}
+import fr.maif.izanami.services.{CompleteRights, MaxRights, MaxTenantRoleRights, RightService}
 import org.scalatest.matchers.must.Matchers.{mustBe, mustEqual}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -286,6 +281,24 @@ class RightServiceTest extends AnyWordSpec with Matchers {
       val res = rights.updateToComplyWith(compliance)
 
       res mustEqual rights
+    }
+  }
+
+  "MaxTenantRoleRights allowRightForXXX" should {
+    "allow rights if equal to max rights" in {
+      val maxRights = MaxTenantRoleRights(level = Read, maxProjectRight = ProjectRightLevel.Read, maxKeyRight = Read, maxWebhookRight = Read)
+
+      maxRights.allowRightForProject(ProjectRightLevel.Read) mustBe true
+      maxRights.allowRightForKey(Read) mustBe true
+      maxRights.allowRightForWebhook(Read) mustBe true
+    }
+
+    "not allow rights if superior to max rights" in {
+      val maxRights = MaxTenantRoleRights(level = Read, maxProjectRight = ProjectRightLevel.Read, maxKeyRight = Read, maxWebhookRight = Read)
+
+      maxRights.allowRightForProject(ProjectRightLevel.Update) mustBe false
+      maxRights.allowRightForKey(Write) mustBe false
+      maxRights.allowRightForWebhook(Admin) mustBe false
     }
   }
 }

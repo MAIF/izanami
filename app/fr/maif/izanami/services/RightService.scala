@@ -119,11 +119,14 @@ class RightService(private val env: Env, private val eventService: EventService)
           .getOrElse(
             MaxRightComplianceResult.empty
           )
-        logger.error(
-          s"Configured max rights are below configured default rights, therefore default rights are reduced to max rights (roles are ${roles.mkString(",")})"
-        )
-        
-        defaultRightsToApply.updateToComplyWith(rightCompliance)
+        if(!rightCompliance.isEmpty) {
+          logger.error(
+            s"Configured max rights are below configured default rights, therefore default rights are reduced to max rights (roles are ${roles.mkString(",")})"
+          )
+          defaultRightsToApply.updateToComplyWith(rightCompliance)
+        } else {
+          defaultRightsToApply
+        }
       }
       case Some(Supervised) => defaultRightsToApply
       case None => CompleteRights.EMPTY
@@ -1182,11 +1185,11 @@ case class MaxTenantRoleRights(
     other.maxProjectRight.isGreaterThan(maxProjectRight)
   }
   def allowRightForWebhook(requestLevel: RightLevel): Boolean =
-    level == RightLevel.Admin || maxWebhookRight.isGreaterThan(requestLevel)
+    level == RightLevel.Admin || !requestLevel.isGreaterThan(maxWebhookRight)
   def allowRightForProject(requestLevel: ProjectRightLevel): Boolean =
-    level == RightLevel.Admin || maxProjectRight.isGreaterThan(requestLevel)
+    level == RightLevel.Admin || !requestLevel.isGreaterThan(maxProjectRight)
   def allowRightForKey(requestLevel: RightLevel): Boolean =
-    level == RightLevel.Admin || maxKeyRight.isGreaterThan(requestLevel)
+    level == RightLevel.Admin || !requestLevel.isGreaterThan(maxKeyRight)
 }
 
 case object MaxRights {

@@ -32,20 +32,24 @@ object OIDCSecurityDemoLoader {
         "app.openid.username-field" -> "name",
         "app.openid.method" -> "BASIC",
         "app.openid.pkce.enabled" -> "true",
+        // Openbar default rights
         "app.openid.right-by-roles.\"\".admin" -> "false",
         "app.openid.right-by-roles.\"\".tenants.openbar.level" -> "write",
         "app.openid.right-by-roles.\"\".tenants.openbar.default-project-right" -> "write",
         "app.openid.right-by-roles.\"\".tenants.openbar.default-key-right" -> "write",
         "app.openid.right-by-roles.\"\".tenants.openbar.default-webhook-right" -> "write",
+        // Openbar admin rights
         "app.openid.right-by-roles.admin.admin" -> "false",
         "app.openid.right-by-roles.admin.tenants.openbar.level" -> "admin",
         "app.openid.right-by-roles.admin.tenants.openbar.default-project-right" -> "admin",
-        "app.openid.right-by-roles.test/fr/maif/izanami/helpers/OIDCSecurityDemoLoader.scala.tenants.openbar.default-key-right" -> "admin",
+        "app.openid.right-by-roles.admin.tenants.openbar.default-key-right" -> "admin",
         "app.openid.right-by-roles.admin.tenants.openbar.default-webhook-right" -> "admin",
+        // Secret admin rights
         "app.openid.right-by-roles.admin.tenants.secret.level" -> "read",
         "app.openid.right-by-roles.admin.tenants.secret.default-project-right" -> "write",
         "app.openid.right-by-roles.admin.tenants.secret.default-key-right" -> "read",
         "app.openid.right-by-roles.admin.tenants.secret.default-webhook-right" -> "read",
+        // Secret max rights
         "app.openid.right-by-roles.\"\".admin-allowed" -> "false",
         "app.openid.right-by-roles.\"\".tenants.secret.max-tenant-right" -> "read",
         "app.openid.right-by-roles.\"\".tenants.secret.max-project-right" -> "read",
