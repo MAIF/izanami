@@ -1,29 +1,16 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.userImplicits.{
-  UserRow,
-  dbUserTypeToUserType,
-  projectRightRead,
-  rightRead,
-  webhookRightRead
-}
+import fr.maif.izanami.datastores.userImplicits.{UserRow, dbUserTypeToUserType, projectRightRead, rightRead, webhookRightRead}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{
-  RELATION_DOES_NOT_EXISTS,
-  UNIQUE_VIOLATION
-}
+import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.*
-import fr.maif.izanami.models.*
+import fr.maif.izanami.models.{ProjectRightLevelIncludingNoRight, *}
 import fr.maif.izanami.models.RightLevel.superiorOrEqualLevels
 import fr.maif.izanami.models.Rights.*
 import fr.maif.izanami.models.User.tenantRightReads
 import fr.maif.izanami.services.*
-import fr.maif.izanami.utils.syntax.implicits.{
-  BetterFuture,
-  BetterJsValue,
-  BetterSyntax
-}
+import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterJsValue, BetterSyntax}
 import fr.maif.izanami.utils.{Datastore, Done, FutureEither}
 import fr.maif.izanami.web.ImportController.*
 import io.vertx.pgclient.PgException
@@ -374,73 +361,10 @@ class UsersDatastore(val env: Env) extends Datastore {
     }
   }
 
-  private def updateTenantDefaultRights(
-                                         tenant: String,
-                                         usernames: Set[String],
-                                         addedDefaultProjectRight: Option[ProjectRightLevel],
-                                         addedDefaultKeyRight: Option[RightLevel],
-                                         addedDefaultWebhookRight: Option[RightLevel],
-                                         removeProjectRight: Boolean,
-                                         removeKeyRight: Boolean,
-                                         removeWebhookRight: Boolean,
-                                         conn: Option[SqlConnection]
-                                       ): FutureEither[Done] = {
-    var index = 2
-    val args = ArrayBuffer[AnyRef](usernames.toArray, tenant)
-    val parts = ArrayBuffer[String]()
-    addedDefaultProjectRight
-      .map(_.toString.toUpperCase)
-      .orElse(if (removeProjectRight) Some(null) else Option.empty)
-      .foreach(v => {
-        index = index + 1
-        args.addOne(v)
-        parts.addOne(s"default_project_right=$$${index}")
-      })
-
-    addedDefaultKeyRight
-      .map(_.toString.toUpperCase)
-      .orElse(if (removeKeyRight) Some(null) else Option.empty)
-      .foreach(v => {
-        index = index + 1
-        args.addOne(v)
-        parts.addOne(s"default_key_right=$$${index}")
-      })
-
-    addedDefaultWebhookRight
-      .map(_.toString.toUpperCase)
-      .orElse(if (removeWebhookRight) Some(null) else Option.empty)
-      .foreach(v => {
-        index = index + 1
-        args.addOne(v)
-        parts.addOne(s"default_webhook_right=$$${index}")
-      })
-
-    if (parts.isEmpty) {
-      FutureEither.success(Done.done())
-    } else {
-      FutureEither(
-        env.postgresql
-          .queryOne(
-            s"""
-               |UPDATE izanami.users_tenants_rights SET ${parts.mkString(",")}
-               |WHERE username=ANY($$1::TEXT[]) AND tenant=$$2
-               |RETURNING username
-               |""".stripMargin,
-            args.toList,
-            conn = conn
-          ) { _ => Some(()) }
-          .map(_ => Right(Done.done()))
-          .recover(
-            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
-          )
-      )
-    }
-  }
-
   private def upsertTenantRights(
                                   tenant: String,
                                   usernames: Set[String],
-                                  right: UnscopedFlattenTenantRight,
+                                  right: TenantWideRightUpdate,
                                   importConflictStrategy: ImportConflictStrategy,
                                   conn: Option[SqlConnection]
                                 ): FutureEither[Unit] = {
@@ -453,48 +377,47 @@ class UsersDatastore(val env: Env) extends Datastore {
     val conflictParts = ArrayBuffer[String]()
     val replaceParts = ArrayBuffer[String]()
     val mergeParts = ArrayBuffer[String]()
-    right.defaultProjectRight.foreach(dr => {
+
       fields.addOne("default_project_right")
-      args.addOne(dr.toString.toUpperCase())
+      args.addOne(if(right.defaultProjectRight != ProjectRightLevelIncludingNoRight.None) right.defaultProjectRight.toString.toUpperCase() else null)
       replaceParts.addOne(
         "default_project_right=EXCLUDED.default_project_right"
       )
       conflictParts.addOne(
         """default_project_right=CASE
-          |    WHEN users_tenants_rights.default_project_right = 'READ' THEN excluded.default_project_right
+          |    WHEN users_tenants_rights.default_project_right = NULL THEN excluded.default_project_right
+          |    WHEN users_tenants_rights.default_project_right = 'READ' AND excluded.default_project_right != NULL THEN excluded.default_project_right
           |    WHEN (users_projects_rights.default_project_right = 'UPDATE' AND (excluded.default_project_right = 'ADMIN' OR excluded.default_project_right = 'WRITE')) THEN excluded.default_project_right
           |    WHEN (users_tenants_rights.default_project_right = 'WRITE' AND excluded.default_project_right = 'ADMIN') THEN 'ADMIN'
           |    WHEN users_tenants_rights.default_project_right = 'ADMIN' THEN 'ADMIN'
           |    ELSE users_tenants_rights.default_project_right
           |  END""".stripMargin)
-    })
 
-    right.defaultKeyRight.foreach(dr => {
       replaceParts.addOne("default_key_right=EXCLUDED.default_key_right")
       fields.addOne("default_key_right")
-      args.addOne(dr.toString.toUpperCase())
+      args.addOne(if(right.defaultKeyRight != RightLevelIncludingNoRight.None) right.defaultKeyRight.toString.toUpperCase() else null)
       conflictParts.addOne(
         """default_key_right=CASE
-          |    WHEN users_tenants_rights.default_key_right = 'READ' THEN excluded.default_key_right
+          |    WHEN users_tenants_rights.default_key_right = NULL THEN excluded.default_key_right
+          |    WHEN users_tenants_rights.default_key_right = 'READ' AND excluded.default_key_right != NULL THEN excluded.default_key_right
           |    WHEN (users_tenants_rights.default_key_right = 'WRITE' AND excluded.default_key_right = 'ADMIN') THEN 'ADMIN'
           |    WHEN users_tenants_rights.default_key_right = 'ADMIN' THEN 'ADMIN'
           |    ELSE users_tenants_rights.default_key_right
           |  END""".stripMargin)
-    })
-    right.defaultWebhookRight.foreach(dr => {
+
       replaceParts.addOne(
         "default_webhook_right=EXCLUDED.default_webhook_right"
       )
       fields.addOne("default_webhook_right")
-      args.addOne(dr.toString.toUpperCase())
+      args.addOne(if(right.defaultWebhookRight != RightLevelIncludingNoRight.None) right.defaultWebhookRight.toString.toUpperCase() else null)
       conflictParts.addOne(
         """default_webhook_right=CASE
-          |   WHEN users_tenants_rights.default_webhook_right = 'READ' THEN excluded.default_webhook_right
+          |   WHEN users_tenants_rights.default_webhook_right = NULL THEN excluded.default_webhook_right
+          |   WHEN users_tenants_rights.default_webhook_right = 'READ' AND excluded.default_webhook_right != NULL THEN excluded.default_webhook_right
           |   WHEN (users_tenants_rights.default_webhook_right = 'WRITE' AND excluded.default_webhook_right = 'ADMIN') THEN 'ADMIN'
           |   WHEN users_tenants_rights.default_webhook_right = 'ADMIN' THEN 'ADMIN'
           |   ELSE users_tenants_rights.default_webhook_right
           | END""".stripMargin)
-    })
 
     val fieldPart = if (fields.isEmpty) {
       ""
@@ -752,34 +675,15 @@ class UsersDatastore(val env: Env) extends Datastore {
         webhooks = rights.removedWebhookRights,
         conn = Some(conn)
       );
-      _ <- {
-        rights.addedTenantRight.fold(
-          updateTenantDefaultRights(
-            tenant = tenant,
-            usernames = usernames,
-            addedDefaultProjectRight = rights.addedDefaultProjectRight,
-            addedDefaultKeyRight = rights.addedDefaultKeyRight,
-            addedDefaultWebhookRight = rights.addedDefaultWebhookRight,
-            removeProjectRight = rights.removedDefaultProjectRight,
-            removeKeyRight = rights.removedDefaultKeyRight,
-            removeWebhookRight = rights.removedDefaultWebhookRight,
-            conn = Some(conn)
-          )
-        )(level => {
+      _ <- rights.tenantWideUpdate.map(tenantRight => {
           upsertTenantRights(
             tenant = tenant,
             usernames = usernames,
-            right = UnscopedFlattenTenantRight(
-              level = level,
-              defaultProjectRight = rights.addedDefaultProjectRight,
-              defaultKeyRight = rights.addedDefaultKeyRight,
-              defaultWebhookRight = rights.addedDefaultWebhookRight
-            ),
+            right = tenantRight,
             importConflictStrategy = importConflictStrategy,
             conn = Some(conn)
           )
-        })
-      };
+        }).getOrElse(FutureEither.success(()));
       _ <- createProjectRights(
         tenant = tenant,
         usernames = usernames,

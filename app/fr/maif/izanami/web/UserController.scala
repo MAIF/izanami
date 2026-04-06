@@ -2,7 +2,12 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{BadBodyFormat, EmailAlreadyUsed, IzanamiError}
-import fr.maif.izanami.models.*
+import fr.maif.izanami.models.{
+  ProjectRightLevelIncludingNoRight,
+  RightLevelIncludingNoRight,
+  *
+}
+import fr.maif.izanami.models.RightLevel.Read
 import fr.maif.izanami.models.Rights.*
 import fr.maif.izanami.models.User.*
 import fr.maif.izanami.services.RightService
@@ -181,7 +186,8 @@ class UserController(
                   UpsertTenantRights(removedWebhookRights =
                     Set(request.hookName)
                   )
-                ).toResult(_ => NoContent)
+                )
+                .toResult(_ => NoContent)
             }
             case obj => {
               (obj \ "level").asOpt[RightLevel] match {
@@ -203,7 +209,19 @@ class UserController(
                         .get(tenant)
                         .fold(
                           baseDiff
-                            .copy(addedTenantRight = Some(RightLevel.Read))
+                            .copy(tenantWideUpdate =
+                              Some(
+                                TenantWideRightUpdate(
+                                  level = Read,
+                                  defaultProjectRight =
+                                    ProjectRightLevelIncludingNoRight.None,
+                                  defaultKeyRight =
+                                    RightLevelIncludingNoRight.None,
+                                  defaultWebhookRight =
+                                    RightLevelIncludingNoRight.None
+                                )
+                              )
+                            )
                         )(_ => baseDiff)
                       rightService
                         .updateUserRightsForTenant(
@@ -257,7 +275,19 @@ class UserController(
                         .get(tenant)
                         .fold(
                           baseDiff
-                            .copy(addedTenantRight = Some(RightLevel.Read))
+                            .copy(tenantWideUpdate =
+                              Some(
+                                TenantWideRightUpdate(
+                                  level = Read,
+                                  defaultProjectRight =
+                                    ProjectRightLevelIncludingNoRight.None,
+                                  defaultKeyRight =
+                                    RightLevelIncludingNoRight.None,
+                                  defaultWebhookRight =
+                                    RightLevelIncludingNoRight.None
+                                )
+                              )
+                            )
                         )(_ => baseDiff)
                       rightService
                         .updateUserRightsForTenant(
@@ -295,7 +325,7 @@ class UserController(
                 tenant,
                 UpsertTenantRights(removedProjectRights = Set(project))
               )
-              .toResult( _ => NoContent)
+              .toResult(_ => NoContent)
           } else {
             val newLevel = (obj \ "level").as[ProjectRightLevel]
 
@@ -321,7 +351,16 @@ class UserController(
                         user,
                         tenant,
                         UpsertTenantRights(
-                          addedTenantRight = Some(RightLevel.Read),
+                          tenantWideUpdate = Some(
+                            TenantWideRightUpdate(
+                              level = Read,
+                              defaultProjectRight =
+                                ProjectRightLevelIncludingNoRight.None,
+                              defaultKeyRight = RightLevelIncludingNoRight.None,
+                              defaultWebhookRight =
+                                RightLevelIncludingNoRight.None
+                            )
+                          ),
                           addedProjectRights = Set(
                             Rights.UnscopedFlattenProjectRight(
                               project,
@@ -343,7 +382,9 @@ class UserController(
     adminAction.async(parse.json) { implicit request =>
       User.userRightsUpdateReads.reads(request.body) match {
         case JsSuccess(modificationRequest, _) =>
-          rightService.updateUserRights(user, modificationRequest).toResult(_ => NoContent)
+          rightService
+            .updateUserRights(user, modificationRequest)
+            .toResult(_ => NoContent)
         case JsError(_) => BadBodyFormat().toHttpResponse.future
       }
     }
@@ -392,19 +433,13 @@ class UserController(
               case Rights.DeleteTenantRights =>
                 request.user.hasAdminRightForTenant(tenant)
               case UpsertTenantRights(
-                    addedTenantRight,
+                    maybeTenantRightUpdate,
                     addedProjectRights,
                     removedProjectRights,
                     addedKeyRights,
                     removedKeyRights,
                     addedWebhookRights,
-                    removedWebhookRights,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _
+                    removedWebhookRights
                   ) => {
                 removedProjectRights
                   .concat(addedProjectRights.map(_.name))
@@ -416,7 +451,7 @@ class UserController(
                   .forall(key =>
                     request.user.hasAdminRightForKey(key, tenant)
                   ) &&
-                addedTenantRight
+                maybeTenantRightUpdate
                   .forall(_ => request.user.hasAdminRightForTenant(tenant)) &&
                 removedWebhookRights
                   .concat(addedWebhookRights.map(_.name))
@@ -596,25 +631,25 @@ class UserController(
               .foldLeft(
                 FutureEither.success(Done.done())
               )((future, t) => {
-                future.flatMap (_ => {
-                    val rightDiff = UpsertTenantRights(addedProjectRights =
-                      Set(
-                        UnscopedFlattenProjectRight(
-                          name = project,
-                          level = t._1
-                        )
+                future.flatMap(_ => {
+                  val rightDiff = UpsertTenantRights(addedProjectRights =
+                    Set(
+                      UnscopedFlattenProjectRight(
+                        name = project,
+                        level = t._1
                       )
                     )
-                    rightService.updateUsersRightsForTenant(
-                      targetUsers = t._2.toSet,
-                      tenant = tenant,
-                      diff = rightDiff,
-                      conn = Some(conn),
-                      conflictStrategy = Skip
-                    )
-                  }
-                )
-              }).toResult(_ => NoContent)
+                  )
+                  rightService.updateUsersRightsForTenant(
+                    targetUsers = t._2.toSet,
+                    tenant = tenant,
+                    diff = rightDiff,
+                    conn = Some(conn),
+                    conflictStrategy = Skip
+                  )
+                })
+              })
+              .toResult(_ => NoContent)
           })
 
         }
@@ -646,22 +681,31 @@ class UserController(
                 .foldLeft(
                   FutureEither.success(Done.done())
                 )((future, t) => {
-                  future.flatMap (_ => {
-                      val rightDiff =
-                        UpsertTenantRights(addedTenantRight =
-                          Some(t._1)
+                  future.flatMap(_ => {
+                    val rightDiff =
+                      UpsertTenantRights(tenantWideUpdate =
+                        Some(
+                          TenantWideRightUpdate(
+                            level = t._1,
+                            defaultProjectRight =
+                              ProjectRightLevelIncludingNoRight.None,
+                            defaultKeyRight = RightLevelIncludingNoRight.None,
+                            defaultWebhookRight =
+                              RightLevelIncludingNoRight.None
+                          )
                         )
-                      rightService.updateUsersRightsForTenant(
-                        targetUsers = t._2.toSet,
-                        tenant = tenant,
-                        diff = rightDiff,
-                        conn = Some(conn),
-                        conflictStrategy = Skip
                       )
-                    }
-                  )
+                    rightService.updateUsersRightsForTenant(
+                      targetUsers = t._2.toSet,
+                      tenant = tenant,
+                      diff = rightDiff,
+                      conn = Some(conn),
+                      conflictStrategy = Skip
+                    )
+                  })
 
-                }).toResult(_ => NoContent)
+                })
+                .toResult(_ => NoContent)
             })
           }
           case None => BadBodyFormat().toHttpResponse.future
@@ -670,14 +714,16 @@ class UserController(
 
   def readUser(user: String): Action[AnyContent] = adminAction.async {
     implicit request =>
-      rightService.findUserWithCompleteRights(user)
+      rightService
+        .findUserWithCompleteRights(user)
         .toResult(user => Ok(Json.toJson(user)))
   }
 
   def readUserForTenant(tenant: String, user: String): Action[AnyContent] =
     tenantRightFilterAction(tenant, RightLevel.Admin).async {
       implicit request =>
-        rightService.findUserRightsForTenant(user, tenant)
+        rightService
+          .findUserRightsForTenant(user, tenant)
           .toResult(user => Ok(Json.toJson(user)))
     }
 

@@ -161,9 +161,9 @@ class RightServiceTest extends AnyWordSpec with Matchers {
               Map("proj" -> ProjectAtomicRight(ProjectRightLevel.Admin)),
             keys = Map("key" -> GeneralAtomicRight(Admin)),
             webhooks = Map("wh" -> GeneralAtomicRight(Admin)),
-            defaultProjectRight = Some(ProjectRightLevel.Admin),
-            defaultKeyRight = Some(Admin),
-            defaultWebhookRight = Some(Admin)
+            defaultProjectRight = ProjectRightLevel.Admin,
+            defaultKeyRight = Admin,
+            defaultWebhookRight = Admin
           )
         )
       )
@@ -183,9 +183,9 @@ class RightServiceTest extends AnyWordSpec with Matchers {
               Map("proj" -> ProjectAtomicRight(ProjectRightLevel.Write)),
             keys = Map("key" -> GeneralAtomicRight(Admin)),
             webhooks = Map("wh" -> GeneralAtomicRight(Admin)),
-            defaultProjectRight = Some(ProjectRightLevel.Update),
-            defaultKeyRight = Some(Write),
-            defaultWebhookRight = Some(Write)
+            defaultProjectRight = ProjectRightLevel.Update,
+            defaultKeyRight = Write,
+            defaultWebhookRight = Write
           )
         )
       )
@@ -233,9 +233,9 @@ class RightServiceTest extends AnyWordSpec with Matchers {
               Map("proj" -> ProjectAtomicRight(ProjectRightLevel.Write)),
             keys = Map("key" -> GeneralAtomicRight(Admin)),
             webhooks = Map("wh" -> GeneralAtomicRight(Admin)),
-            defaultProjectRight = Some(ProjectRightLevel.Update),
-            defaultKeyRight = Some(Write),
-            defaultWebhookRight = Some(Write)
+            defaultProjectRight = ProjectRightLevel.Update,
+            defaultKeyRight = Write,
+            defaultWebhookRight = Write
           )
         )
       )
@@ -249,9 +249,9 @@ class RightServiceTest extends AnyWordSpec with Matchers {
       res.admin mustBe false
       val secretRights = res.tenants("secret")
       secretRights.level mustBe Read
-      secretRights.defaultProjectRight.get mustBe ProjectRightLevel.Read
-      secretRights.defaultKeyRight.get mustBe Read
-      secretRights.defaultWebhookRight.get mustBe Read
+      secretRights.defaultProjectRight mustBe ProjectRightLevel.Read
+      secretRights.defaultKeyRight mustBe Read
+      secretRights.defaultWebhookRight mustBe Read
       secretRights.projects("proj").level mustBe ProjectRightLevel.Read
       secretRights.keys("key").level mustBe Read
       secretRights.webhooks("wh").level mustBe Read
@@ -267,9 +267,9 @@ class RightServiceTest extends AnyWordSpec with Matchers {
               Map("proj" -> ProjectAtomicRight(ProjectRightLevel.Write)),
             keys = Map("key" -> GeneralAtomicRight(Admin)),
             webhooks = Map("wh" -> GeneralAtomicRight(Admin)),
-            defaultProjectRight = Some(ProjectRightLevel.Update),
-            defaultKeyRight = Some(Write),
-            defaultWebhookRight = Some(Write)
+            defaultProjectRight = ProjectRightLevel.Update,
+            defaultKeyRight = Write,
+            defaultWebhookRight = Write
           )
         )
       )

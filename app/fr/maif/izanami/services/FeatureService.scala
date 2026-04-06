@@ -930,11 +930,11 @@ object FeatureService {
       true
     } else {
       val projectRight =
-        user.tenantRight.flatMap(tr =>
-          tr.projects.get(project).map(_.level).orElse(tr.defaultProjectRight)
+        user.tenantRight.map(tr =>
+          tr.projects.get(project).map(_.level).getOrElse(tr.defaultProjectRight)
         )
       projectRight.exists(currentRight =>
-        ProjectRightLevel
+        ProjectRightLevelIncludingNoRight
           .superiorOrEqualLevels(ProjectRightLevel.Update)
           .contains(currentRight)
       )
@@ -960,14 +960,14 @@ object FeatureService {
       true
     } else {
       val projectRight =
-        user.tenantRight.flatMap(tr =>
+        user.tenantRight.map(tr =>
           tr.projects
             .get(project)
             .map(_.level)
-            .orElse(tr.defaultProjectRight)
+            .getOrElse(tr.defaultProjectRight)
         )
       projectRight.exists(currentRight =>
-        ProjectRightLevel
+        ProjectRightLevelIncludingNoRight
           .superiorOrEqualLevels(ProjectRightLevel.Write)
           .contains(currentRight)
       )

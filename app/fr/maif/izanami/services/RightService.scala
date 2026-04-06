@@ -8,8 +8,10 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{CantUpdateOIDCUser, IzanamiError, RightComplianceError, UserDoesNotExist, UserNotFound}
 import fr.maif.izanami.events.{ConfigurationUpdated, EventService}
 import fr.maif.izanami.models.ProjectRightLevel.{ProjectRightOrdering, Read}
+import fr.maif.izanami.models.ProjectRightLevelIncludingNoRight.ProjectRightLevelIncludingNoRightOrdering
 import fr.maif.izanami.models.RightLevel.{Admin, RightOrdering}
-import fr.maif.izanami.models.Rights.{DeleteTenantRights, RightDiff, TenantRightDiff, UnscopedFlattenKeyRight, UnscopedFlattenProjectRight, UnscopedFlattenTenantRight, UnscopedFlattenWebhookRight, UpsertTenantRights}
+import fr.maif.izanami.models.RightLevelIncludingNoRight.RightLevelIncludingNoRightOrdering
+import fr.maif.izanami.models.Rights.{DeleteTenantRights, RightDiff, TenantRightDiff, TenantWideRightUpdate, UnscopedFlattenKeyRight, UnscopedFlattenProjectRight, UnscopedFlattenWebhookRight, UpsertTenantRights}
 import fr.maif.izanami.models.{GeneralAtomicRight, KeyRightUnit, OAuth2Configuration, OIDC, ProjectAtomicRight, ProjectRightLevel, ProjectRightLevelIncludingNoRight, ProjectRightUnit, ProjectScopedUser, RightLevel, RightLevelIncludingNoRight, RightUnit, Rights, SingleItemScopedUser, TenantRight, TenantRightWithMaxRights, User, UserRightsUpdateRequest, UserTrait, UserWithCompleteRightForOneTenant, UserWithRights, UserWithSingleLevelRight, UserWithTenantRights, WebhookRightUnit}
 import fr.maif.izanami.services.RightService.{DEFAULT_ROLE, RightsByRole, Role, effectiveRights, keepHigher}
 import fr.maif.izanami.utils.{Done, FutureEither}
@@ -152,9 +154,9 @@ class RightService(private val env: Env, private val eventService: EventService)
 
         if(!maxRightComplanceResult.isEmpty) {
           env.datastores.users
-            .updateUserRights( // FIXME use right service
+            .updateUserRights(
               user.username,
-              maxRightComplanceResult.rightDiff,
+              maxRightComplanceResult.rightDiff(CompleteRights(admin = user.admin, tenants = user.rights.tenants)),
               conn = conn
             )
             .toFEither
@@ -725,13 +727,13 @@ object RightService {
       keys = tr.map(_.keys).getOrElse(Map()),
       webhooks = tr.map(_.webhooks).getOrElse(Map()),
       defaultProjectRight = tr
-        .flatMap(_.defaultProjectRight)
+        .map(_.defaultProjectRight)
         .getOrElse(ProjectRightLevelIncludingNoRight.None),
       defaultKeyRight = tr
-        .flatMap(_.defaultKeyRight)
+        .map(_.defaultKeyRight)
         .getOrElse(RightLevelIncludingNoRight.None),
       defaultWebhookRight = tr
-        .flatMap(_.defaultWebhookRight)
+        .map(_.defaultWebhookRight)
         .getOrElse(RightLevelIncludingNoRight.None),
       maxProjectRight = maxRights.maxProjectRight,
       maxKeyRight = maxRights.maxKeyRight,
@@ -763,14 +765,11 @@ object RightService {
       projects = projectRights,
       keys = keyRights,
       webhooks = webhookRights,
-      defaultProjectRight = Ordering
-        .Option(ProjectRightOrdering)
+      defaultProjectRight = Ordering(ProjectRightLevelIncludingNoRightOrdering)
         .max(r1.defaultProjectRight, r2.defaultProjectRight),
-      defaultKeyRight = Ordering
-        .Option(RightOrdering)
+      defaultKeyRight = Ordering(RightLevelIncludingNoRightOrdering)
         .max(r1.defaultKeyRight, r2.defaultKeyRight),
-      defaultWebhookRight = Ordering
-        .Option(RightOrdering)
+      defaultWebhookRight = Ordering(RightLevelIncludingNoRightOrdering)
         .max(r1.defaultWebhookRight, r2.defaultWebhookRight)
     )
   }
@@ -809,7 +808,7 @@ case class TenantRightComplianceResult(
     keys: Map[String, RightComplianceChange],
     webhooks: Map[String, RightComplianceChange]
 ) {
-  def rightDiff: Option[TenantRightDiff] = {
+  def rightDiff(maybeExistingRights: Option[TenantRight]): Option[TenantRightDiff] = {
     if (isEmpty) {
       Option.empty
     } else if (
@@ -873,27 +872,19 @@ case class TenantRightComplianceResult(
       }.toSet
       Some(
         UpsertTenantRights(
-          addedTenantRight = levelDiff.flatMap(_.toMaybeRightLevel),
+          tenantWideUpdate = levelRight.map(tenantLevelChange => {
+            TenantWideRightUpdate(
+              level = tenantLevelChange.after.toMaybeRightLevel.get,
+              defaultProjectRight = defaultProjectRight.map(c => c.after).orElse(maybeExistingRights.map(_.defaultProjectRight)).getOrElse(ProjectRightLevelIncludingNoRight.None),
+              defaultKeyRight = defaultKeyRight.map(c => c.after).orElse(maybeExistingRights.map(_.defaultKeyRight)).getOrElse(RightLevelIncludingNoRight.None),
+              defaultWebhookRight = defaultWebhookRight.map(c => c.after).orElse(maybeExistingRights.map(_.defaultWebhookRight)).getOrElse(RightLevelIncludingNoRight.None))
+          }),
           addedProjectRights = addedProjects,
           removedProjectRights = removedProjects,
           addedKeyRights = addedKeys,
           removedKeyRights = removedKeys,
           addedWebhookRights = addedWebhooks,
-          removedWebhookRights = removedWebhooks,
-          addedDefaultProjectRight =
-            defaultProjectRight.flatMap(_.after.toMaybeProjectRightLevel),
-          removedDefaultProjectRight = defaultProjectRight.exists(
-            _.after == ProjectRightLevelIncludingNoRight.None
-          ),
-          addedDefaultKeyRight =
-            defaultKeyRight.flatMap(_.after.toMaybeRightLevel),
-          removedDefaultKeyRight =
-            defaultKeyRight.exists(_.after == RightLevelIncludingNoRight.None),
-          addedDefaultWebhookRight =
-            defaultWebhookRight.flatMap(_.after.toMaybeRightLevel),
-          removedDefaultWebhookRight = defaultWebhookRight.exists(
-            _.after == RightLevelIncludingNoRight.None
-          )
+          removedWebhookRights = removedWebhooks
         )
       )
     }
@@ -979,13 +970,13 @@ case class MaxRightComplianceResult(
     admin: Boolean,
     tenants: Map[String, TenantRightComplianceResult]
 ) {
-  def rightDiff: RightDiff = {
+  def rightDiff(completeRights: CompleteRights): RightDiff = {
     RightDiff(
       admin = if (admin) Some(false) else None,
       diff = tenants
         .map { (name, r) =>
           {
-            r.rightDiff.map(d => (name, d))
+            r.rightDiff(completeRights.tenants.get(name)).map(d => (name, d))
           }
         }
         .collect { case Some(diff) =>
@@ -1510,22 +1501,22 @@ case object CompleteRights {
   }
 
   def generateComplianceRightChange(
-      current: Option[RightLevel],
+      current: RightLevelIncludingNoRight,
       max: RightLevelIncludingNoRight
   ): Option[RightComplianceChange] = {
     (current, max) match {
-      case (Some(curr), m) if (curr.isGreaterThan(m)) =>
+      case (curr, m) if (curr.isGreaterThan(m)) =>
         Some(RightComplianceChange(before = curr, after = m))
       case _ => None
     }
   }
 
   def generateComplianceRightChangeForProject(
-      current: Option[ProjectRightLevel],
+      current: ProjectRightLevelIncludingNoRight,
       max: ProjectRightLevelIncludingNoRight
   ): Option[ProjectRightComplianceChange] = {
     (current, max) match {
-      case (Some(curr), m) if (curr.isGreaterThan(m)) =>
+      case (curr, m) if (curr.isGreaterThan(m)) =>
         Some(ProjectRightComplianceChange(before = curr, after = m))
       case _ => None
     }

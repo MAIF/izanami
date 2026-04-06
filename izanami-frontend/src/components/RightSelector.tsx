@@ -674,9 +674,7 @@ export function RightSelector(props: {
                                     dispatch({
                                       type: EventType.SetDefaultKeyLevel,
                                       tenant: name,
-                                      level: (selected?.value === "None"
-                                        ? undefined
-                                        : selected?.value) as TLevel,
+                                      level: selected?.value as TLevel,
                                     });
                                   }}
                                 />
