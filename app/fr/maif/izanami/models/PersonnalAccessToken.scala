@@ -21,6 +21,11 @@ sealed trait TenantTokenRights {
   def requiredCreationRight: Option[RequiredTenantRights]
 }
 
+case object UpdateFeature extends TenantTokenRights {
+  val name = "UPDATE FEATURE"
+  override def requiredCreationRight: Option[RequiredTenantRights] = None
+}
+
 case object ReadTenantKeys extends TenantTokenRights {
   val name = "READ KEYS"
   override def requiredCreationRight: Option[RequiredTenantRights] = None
@@ -135,6 +140,7 @@ object PersonnalAccessToken {
       case "READ TENANT"    => ReadTenant
       case "READ PROJECT"   => ReadProject
       case "READ KEYS" => ReadTenantKeys
+      case "UPDATE FEATURE" => UpdateFeature
       case _ => throw new IllegalArgumentException(s"Unknown right ${rawRight}")
     }
   }
@@ -191,6 +197,7 @@ object PersonnalAccessToken {
         case Some("READ TENANT")    => JsSuccess(ReadTenant)
         case Some("READ PROJECT")   => JsSuccess(ReadProject)
         case Some("READ KEYS")  => JsSuccess(ReadTenantKeys)
+        case Some("UPDATE FEATURE")  => JsSuccess(UpdateFeature)
         case _                      => JsError("Bad body format")
       }
 
@@ -206,6 +213,7 @@ object PersonnalAccessToken {
     case ReadProject        => Json.toJson("READ PROJECT")
     case ReadTenant         => Json.toJson("READ TENANT")
     case ReadTenantKeys         => Json.toJson("READ KEYS")
+    case UpdateFeature         => Json.toJson("UPDATE FEATURE")
   }
 
   def personnalAccessTokenGlobalRightsWrites: Writes[GlobalTokenRight] = {

@@ -765,7 +765,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
     val response = await(createTagAsync(name, tenant, description, cookies))
-    RequestResult(response = response, status = response.status, idField = "name")
+    RequestResult(
+      response = response,
+      status = response.status,
+      idField = "name"
+    )
   }
 
   def createTagAsync(
@@ -798,7 +802,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
     val response = await(createTenantAsync(name, description, cookies))
-    
+
     RequestResult(response, status = response.status)
   }
 
@@ -822,7 +826,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       cookies: Seq[WSCookie] = Seq()
   ): RequestResult = {
     val response = await(createProjectAsync(name, tenant, description, cookies))
-   
+
     RequestResult(response, status = response.status, idField = "name")
   }
 
@@ -947,6 +951,28 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     RequestResult(response = response, status = response.status)
   }
 
+  def updateFeatureWithToken(
+      tenant: String,
+      id: String,
+      json: JsValue,
+      username: String,
+      token: String,
+      preserveProtectedContexts: Boolean = true
+  ): RequestResult = {
+    val auth = Base64.getEncoder.encodeToString(
+      s"${username}:$token".getBytes(StandardCharsets.UTF_8)
+    )
+    val response = await(
+      ws.url(
+        s"${ADMIN_BASE_URL}/tenants/${tenant}/features/${id}?preserveProtectedContexts=${
+            if (preserveProtectedContexts) "true" else "false"
+          }"
+      ).addHttpHeaders("Authorization" -> s"Basic $auth")
+        .put(json)
+    )
+    RequestResult(response = response, status = response.status)
+  }
+
   def updateFeature(
       tenant: String,
       id: String,
@@ -1052,7 +1078,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         cookies
       )
     )
-    
+
     RequestResult(response = response, status = response.status)
   }
 
@@ -1094,10 +1120,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
 
   def exportWithTokenSecret(
-                       tenant: String,
-                       user: String,
-                       secret: String
-                     ): RequestResult = {
+      tenant: String,
+      user: String,
+      secret: String
+  ): RequestResult = {
     val response = await(
       ws.url(s"${ADMIN_BASE_URL}/tenants/$tenant/_export")
         .addHttpHeaders(
@@ -1362,8 +1388,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
     )
 
-    
-    RequestResult(response = response, status = response.status, idField = "name")
+    RequestResult(
+      response = response,
+      status = response.status,
+      idField = "name"
+    )
   }
 
   def createContextAsync(
@@ -1414,7 +1443,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         )
     )
 
-    
     RequestResult(response = response, status = response.status)
   }
 
@@ -1439,7 +1467,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                       |""".stripMargin)
         )
     )
-    
+
     RequestResult(response = response, status = response.status)
   }
 
@@ -1454,8 +1482,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       createGlobalContextAsync(tenant, name, parents, isProtected, cookies)
     )
 
-    
-    RequestResult(response = response, status = response.status, idField = "name")
+    RequestResult(
+      response = response,
+      status = response.status,
+      idField = "name"
+    )
   }
 
   def createGlobalContextAsync(
@@ -1492,8 +1523,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .get()
     )
 
-    
-    RequestResult(response = response, status = response.status, idField = "name")
+    RequestResult(
+      response = response,
+      status = response.status,
+      idField = "name"
+    )
   }
 
   def testFeature(
@@ -1543,7 +1577,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .post(Json.obj("feature" -> jsonFeature))
     )
 
-    
     RequestResult(response = response, status = response.status)
   }
 
@@ -1557,8 +1590,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .withAuth(user, password, WSAuthScheme.BASIC)
         .post("")
     )
-    
-    RequestResult(response = response,
+
+    RequestResult(
+      response = response,
       status = response.status,
       cookies = response.cookies.toSeq
     )
@@ -1649,7 +1683,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   ): RequestResult = {
     val response = await(createUserWithTokenAsync(user, password, token))
 
-    
     RequestResult(response = response, status = response.status)
   }
 
@@ -1661,7 +1694,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   ): RequestResult = {
     val response = await(sendInvitationAsync(email, admin, rights, cookies))
 
-    
     RequestResult(response = response, status = response.status)
   }
 
@@ -1712,8 +1744,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
     )
 
-    
-    RequestResult(response = response, status = response.status, idField = "name")
+    RequestResult(
+      response = response,
+      status = response.status,
+      idField = "name"
+    )
   }
 
   def changeFeatureStrategyForContextAsync(
@@ -1889,10 +1924,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   }
 
   def fetchTagsWithToken(
-                              tenant: String,
-                              username: String,
-                              token: String
-                            ): RequestResult = {
+      tenant: String,
+      username: String,
+      token: String
+  ): RequestResult = {
     val auth = Base64.getEncoder.encodeToString(
       s"${username}:$token".getBytes(StandardCharsets.UTF_8)
     )
@@ -1941,7 +1976,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .delete()
     )
 
-    
     RequestResult(response = response, status = response.status)
   }
 
@@ -1998,7 +2032,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       updateMailerConfigurationAsync(mailer, configuration, cookies)
     )
 
-    
     RequestResult(response = response, status = response.status)
   }
 
@@ -2828,10 +2861,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     }
 
     def exportWithTokenName(
-                               tenant: String,
-                               user: String,
-                               name: String
-                             ): RequestResult = {
+        tenant: String,
+        user: String,
+        name: String
+    ): RequestResult = {
       val secret = findTokenSecret(user, name)
       exportWithTokenSecret("tenant", user, secret)
     }
@@ -3127,7 +3160,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     def fetchWasmManagerScripts(): RequestResult = {
       val response = await(ws.url("http://localhost:5001/api/plugins").get())
 
-      
       RequestResult(response = response, status = response.status)
     }
 
@@ -3138,7 +3170,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .delete()
       )
 
-      
       RequestResult(response = response, status = response.status)
     }
 
@@ -3153,7 +3184,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .put(newConfig.json)
       )
 
-      
       RequestResult(response = response, status = response.status)
     }
 
@@ -3164,7 +3194,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .get()
       )
 
-      
       RequestResult(response = response, status = response.status)
     }
 
@@ -3175,7 +3204,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .get()
       )
 
-      
       RequestResult(response = response, status = response.status)
     }
 
@@ -3450,7 +3478,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .post(Json.obj())
       )
 
-      
       RequestResult(response = response, status = response.status)
     }
 
@@ -3468,8 +3495,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .get()
       )
 
-      
-      RequestResult(response = response, status = response.status, idField = "name")
+      RequestResult(
+        response = response,
+        status = response.status,
+        idField = "name"
+      )
     }
 
     def fetchTenants(right: String = null): RequestResult = {

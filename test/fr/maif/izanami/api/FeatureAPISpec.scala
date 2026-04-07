@@ -1,6 +1,6 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestFeaturePatch, TestPersonnalAccessToken, TestProject, TestSituationBuilder, TestTenant, TestUser, TestUserListRule, TestWasmConfig, deleteFeatureWithToken, disabledFeatureBase64, enabledFeatureBase64}
+import fr.maif.izanami.api.BaseAPISpec.{TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestFeaturePatch, TestPersonnalAccessToken, TestProject, TestSituationBuilder, TestTenant, TestUser, TestUserListRule, TestWasmConfig, deleteFeatureWithToken, disabledFeatureBase64, enabledFeatureBase64, updateFeatureWithToken}
 import play.api.libs.json.{JsArray, JsBoolean, JsDefined, JsFalse, JsNull, JsNumber, JsObject, JsString, JsTrue, JsValue, Json}
 import play.api.test.Helpers.*
 
@@ -1718,6 +1718,44 @@ class FeatureAPISpec extends BaseAPISpec {
         "tenant",
         (jsonFeature \ "id").as[String],
         newFeature
+      )
+
+      updateResponse.status mustBe OK
+
+      val feature =
+        situation.fetchProject("tenant", "foo").json.get \ "features" \ 0
+      (feature \ "enabled").as[Boolean] mustEqual true
+
+    }
+
+
+    "allow to update feature activation using pat" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("foo").withFeatures(
+                TestFeature("F1", enabled = false)
+              )
+            )
+        )
+        .withPersonnalAccessToken(TestPersonnalAccessToken(name = "toto", allRights = false, rights = Map("tenant" -> Set("UPDATE FEATURE"))))
+        .loggedInWithAdminRights()
+        .build();
+
+      val projectResponse = situation.fetchProject("tenant", "foo")
+      val jsonFeature = (projectResponse.json.get \ "features" \ 0).as[JsObject]
+
+      val newFeature = jsonFeature ++ Json.obj("enabled" -> true)
+
+
+      val secret = situation.findTokenSecret(user = situation.user, "toto")
+      val updateResponse = updateFeatureWithToken(
+        "tenant",
+        (jsonFeature \ "id").as[String],
+        newFeature,
+        situation.user,
+        secret
       )
 
       updateResponse.status mustBe OK

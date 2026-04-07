@@ -32,6 +32,7 @@ class FeatureController(
     val projectAuthAction: ProjectAuthActionFactory,
     val authenticatedAction: AuthenticatedAction,
     val detailledRightForTenanFactory: DetailledRightForTenantFactory,
+    val personnalAccessTokenDetailledRightForTenantFactory: PersonnalAccessTokenDetailledRightForTenantFactory,
     val personnalAccessTokenAuth: PersonnalAccessTokenFeatureAuthActionFactory,
     featureService: FeatureService,
     featureUsageService: FeatureUsageService,
@@ -494,7 +495,7 @@ class FeatureController(
       id: String,
       preserveProtectedContexts: Boolean
   ): Action[JsValue] =
-    detailledRightForTenanFactory(tenant).async(parse.json) {
+    personnalAccessTokenDetailledRightForTenantFactory(tenant, UpdateFeature).async(parse.json) {
       implicit request =>
         Feature.readCompleteFeature(request.body) match {
           case JsError(e) =>
