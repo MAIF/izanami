@@ -104,7 +104,8 @@ function Editor(props: { value: string; onChange: (v: string) => void }) {
   return (
     <>
       <label htmlFor="handlebar-editor">
-        Template
+        Handlebar template (see handlebar documentation{" "}
+        <a href="https://handlebarsjs.com/guide/expressions.html">here</a>)
         <Tooltip id="handlebar-editor-tooltip">
           This handlebar template will be applied to an incoming event
           <br />
