@@ -414,6 +414,7 @@ export function Users() {
         <GenericTable
           selectableRows={user?.admin}
           data={users}
+          defaultSort="username"
           onRowSelectionChange={(rows) => {
             setSelectedRows(rows);
           }}

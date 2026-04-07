@@ -186,6 +186,7 @@ function ProjectUsers(props: {
     <>
       <GenericTable
         data={usersData}
+        defaultSort="username"
         customRowActions={{
           edit: {
             icon: (

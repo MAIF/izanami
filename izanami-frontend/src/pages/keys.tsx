@@ -375,6 +375,7 @@ export default function Keys(props: { tenant: string }) {
           <GenericTable
             columns={columns}
             data={keyQuery.data}
+            defaultSort="name"
             idAccessor={(key) => key.name}
             filters={
               selectedSearchRow

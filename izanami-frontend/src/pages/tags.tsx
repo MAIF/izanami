@@ -66,7 +66,7 @@ export function Tags(props: { tenant: string }) {
   });
 
   const [bulkOperation, setBulkOperation] = useState<string | undefined>(
-    undefined
+    undefined,
   );
 
   const BULK_OPERATIONS = ["Delete"] as const;
@@ -114,7 +114,7 @@ export function Tags(props: { tenant: string }) {
                   constraints: [
                     constraints.matches(
                       TAG_NAME_REGEXP,
-                      `Key name must match regex ${TAG_NAME_REGEXP.toString()}`
+                      `Key name must match regex ${TAG_NAME_REGEXP.toString()}`,
                     ),
                   ],
                 },
@@ -192,10 +192,10 @@ export function Tags(props: { tenant: string }) {
                               () => {
                                 return Promise.all(
                                   selectedRows.map((row) =>
-                                    tagDeleteMutation.mutateAsync(row)
-                                  )
+                                    tagDeleteMutation.mutateAsync(row),
+                                  ),
                                 ).then(() => setBulkOperation(undefined));
-                              }
+                              },
                             );
                             break;
                         }
@@ -213,6 +213,7 @@ export function Tags(props: { tenant: string }) {
             selectableRows={hasTenantWriteRight}
             idAccessor={(tag) => tag.name}
             data={tagsQuery.data}
+            defaultSort="name"
             columns={[
               {
                 id: "name",
@@ -280,7 +281,7 @@ export function Tags(props: { tenant: string }) {
                           constraints: [
                             constraints.matches(
                               TAG_NAME_REGEXP,
-                              `Key name must match regex ${TAG_NAME_REGEXP.toString()}`
+                              `Key name must match regex ${TAG_NAME_REGEXP.toString()}`,
                             ),
                           ],
                         },
@@ -325,7 +326,7 @@ export function Tags(props: { tenant: string }) {
                         tagDeleteMutation
                           .mutateAsync({ name: tag.name })
                           .then((res) => resolve(res))
-                          .catch((err) => reject(err))
+                          .catch((err) => reject(err)),
                     );
                   });
                 },

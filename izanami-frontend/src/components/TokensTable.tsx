@@ -169,6 +169,7 @@ export function TokensTable(props: { user: string }) {
   if (tokenQuery.data) {
     return (
       <GenericTable
+        defaultSort="name"
         columns={columns}
         data={tokenQuery.data}
         idAccessor={(token) => token.id}

@@ -51,6 +51,7 @@ export function WasmScripts(props: { tenant: string }) {
           filters={
             selectedSearchRow ? [{ id: "name", value: selectedSearchRow }] : []
           }
+          defaultSort="name"
           columns={[
             {
               id: "name",
@@ -91,7 +92,7 @@ export function WasmScripts(props: { tenant: string }) {
                             </NavLink>
                           </div>
                         );
-                      }
+                      },
                     )}
                   </>
                 );
@@ -146,9 +147,9 @@ export function WasmScripts(props: { tenant: string }) {
                       () =>
                         queryClient.invalidateQueries({
                           queryKey: [tenantScriptKey(tenant)],
-                        })
+                        }),
                     );
-                  }
+                  },
                 ),
             },
           }}
@@ -176,7 +177,7 @@ function WasmScriptUpdateForm(props: {
     <FormProvider {...methods}>
       <form
         onSubmit={handleSubmit((data: { wasmConfig: TWasmConfig }) =>
-          submit(data.wasmConfig)
+          submit(data.wasmConfig),
         )}
         className="d-flex flex-column flex-shrink-1"
       >

@@ -59,6 +59,7 @@ export function RightTable(props: {
           },
         }}
         idAccessor={(data) => data.username}
+        defaultSort="username"
         columns={[
           {
             accessorKey: "username",

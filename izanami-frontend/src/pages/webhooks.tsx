@@ -105,12 +105,12 @@ export function WebHooks(props: { tenant: string }) {
               const objectHeaders = webhook.headers.reduce(
                 (
                   acc: { [x: string]: string },
-                  { name, value }: { name: string; value: string }
+                  { name, value }: { name: string; value: string },
                 ) => {
                   acc[name] = value;
                   return acc;
                 },
-                {}
+                {},
               );
               return webhookCreationMutation
                 .mutateAsync({
@@ -151,6 +151,7 @@ export function WebHooks(props: { tenant: string }) {
                 ? [{ id: "name", value: selectedSearchRow }]
                 : []
             }
+            defaultSort="name"
             columns={[
               {
                 accessorKey: "name",
@@ -196,21 +197,21 @@ export function WebHooks(props: { tenant: string }) {
                 filterFn: (
                   row: Row<Webhook>,
                   columnId: string,
-                  filterValue: any
+                  filterValue: any,
                 ) => {
                   if (!filterValue || filterValue?.length === 0) {
                     return true;
                   }
                   const featureMatch = Boolean(
                     row.original?.features?.find(({ name }) =>
-                      name.includes(filterValue)
-                    ) || false
+                      name.includes(filterValue),
+                    ) || false,
                   );
 
                   const projectMatch = Boolean(
                     row.original?.projects?.find(({ name }) =>
-                      name.includes(filterValue)
-                    ) || false
+                      name.includes(filterValue),
+                    ) || false,
                   );
 
                   return featureMatch || projectMatch;
@@ -273,12 +274,12 @@ export function WebHooks(props: { tenant: string }) {
                       const objectHeaders = hook.headers.reduce(
                         (
                           acc: { [x: string]: string },
-                          { name, value }: { name: string; value: string }
+                          { name, value }: { name: string; value: string },
                         ) => {
                           acc[name] = value;
                           return acc;
                         },
-                        {}
+                        {},
                       );
                       return webhookUpdateMutation
                         .mutateAsync({
@@ -340,7 +341,7 @@ export function WebHooks(props: { tenant: string }) {
                         throw error;
                       }
                     },
-                    webhook.name
+                    webhook.name,
                   );
                 },
 
@@ -401,11 +402,11 @@ function WebhookRightTable(props: { tenant: string; webhook: Webhook }) {
                     user,
                     right: level,
                   });
-                })
+                }),
               ).then(() => setCreating(false));
             }}
             invitedUsers={webhookRightQuery.data.map(
-              (webhookRight) => webhookRight.username
+              (webhookRight) => webhookRight.username,
             )}
           />
         )}
@@ -468,7 +469,7 @@ function WebHookCreationForm(props: {
               constraints: [
                 constraints.matches(
                   WEBHOOK_NAME_REGEXP,
-                  `Key name must match regex ${WEBHOOK_NAME_REGEXP.toString()}`
+                  `Key name must match regex ${WEBHOOK_NAME_REGEXP.toString()}`,
                 ),
               ],
             },
@@ -509,7 +510,7 @@ function WebHookCreationForm(props: {
                     } catch (err) {
                       return false;
                     }
-                  }
+                  },
                 ),
               ],
             },
@@ -527,7 +528,7 @@ function WebHookCreationForm(props: {
               ),
               type: type.object,
               defaultValue: Object.entries(maybeDefault?.headers ?? {}).map(
-                ([key, value]) => ({ name: key, value })
+                ([key, value]) => ({ name: key, value }),
               ),
               array: true,
               render: ({ value, onChange }) => {
@@ -594,7 +595,7 @@ function WebHookCreationForm(props: {
                   "You must select at least one feature or project",
                   (value, { parent: { projects, global } }) => {
                     return global || value.length > 0 || projects.length > 0;
-                  }
+                  },
                 ),
               ],
             },
@@ -632,7 +633,7 @@ function WebHookCreationForm(props: {
                   "You must select at least one feature or project",
                   (value, { parent: { features, global } }) => {
                     return global || value.length > 0 || features.length > 0;
-                  }
+                  },
                 ),
               ],
             },
@@ -704,7 +705,7 @@ function WebHookCreationForm(props: {
                       console.error(e);
                       return false;
                     }
-                  }
+                  },
                 ),
               ],
               visible: ({ rawValues: { bodyOverloadedActive } }) =>

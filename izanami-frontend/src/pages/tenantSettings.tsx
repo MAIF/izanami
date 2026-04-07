@@ -534,6 +534,7 @@ function TenantUsers(props: { tenant: string; usersData: any }) {
   return (
     <GenericTable
       data={usersData}
+      defaultSort="username"
       customRowActions={{
         edit: {
           icon: (
