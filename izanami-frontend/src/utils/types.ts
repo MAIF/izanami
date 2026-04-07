@@ -44,6 +44,7 @@ export const POSSIBLE_TOKEN_RIGHTS = [
   "DELETE KEY",
   "READ TENANT",
   "READ KEYS",
+  "UPDATE FEATURE",
 ] as const;
 
 export const POSSIBLE_GLOBAL_TOKEN_RIGHTS = [
