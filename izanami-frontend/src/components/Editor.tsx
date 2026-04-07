@@ -192,8 +192,8 @@ events.set(
       id: "73a2ef9e-aade-4eb7-8e12-6145b5e6ef7a",
     },
     null,
-    2
-  )
+    2,
+  ),
 );
 events.set(
   "FEATURE_CREATED",
@@ -248,12 +248,15 @@ events.set(
           },
         },
       },
+      metadata: {
+        user: "RESERVED_ADMIN_USER",
+      },
       type: "FEATURE_CREATED",
       id: "51b72f40-3e08-4b34-8bb2-10d1d925b911",
     },
     null,
-    2
-  )
+    2,
+  ),
 );
 events.set(
   "FEATURE_DELETED",
@@ -261,12 +264,19 @@ events.set(
     {
       _id: 1795016937979248600,
       timestamp: "2024-05-27T08:59:22.473978Z",
+      details: {
+        name: "my-feature",
+        project: "project",
+      },
+      metadata: {
+        user: "RESERVED_ADMIN_USER",
+      },
       type: "FEATURE_DELETED",
       payload: "f458e183-b191-4b31-9071-eff4414cdfea",
     },
     null,
-    2
-  )
+    2,
+  ),
 );
 
 function EventPicker(props: {
