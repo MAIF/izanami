@@ -1187,7 +1187,12 @@ class EventService(env: Env) {
 
       lazy val subscriber = PgSubscriber
         .subscriber(env.postgresql.vertx, env.postgresql.connectOptions)
-        .reconnectPolicy(retryCount => Math.min(30_000, retryCount * 3_000))
+        .reconnectPolicy(retryCount => {
+          Math.min(30_000, retryCount * 3_000)
+        })
+        .closeHandler(_ => {
+          logger.error(s"Postgres subscriber was closed")
+        })
       subscriber
         .connect()
         .onComplete(ar => {
@@ -1214,7 +1219,7 @@ class EventService(env: Env) {
                 })
               })
           }
-        })
+        }).onFailure(ex => logger.error(s"Event consumption failed with error ${ex}"))
       val descriptor = SourceDescriptor(
         source = source,
         killswitch = sharedKillSwitch,
