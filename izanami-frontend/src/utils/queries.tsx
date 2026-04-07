@@ -128,7 +128,7 @@ export function personnalAccessTokenKey(user: string) {
 }
 
 export function queryPersonnalAccessTokens(
-  user: string
+  user: string,
 ): Promise<PersonnalAccessToken[]> {
   return handleFetchJsonResponse(fetch(`/api/admin/users/${user}/tokens`)).then(
     (t) => {
@@ -141,7 +141,7 @@ export function queryPersonnalAccessTokens(
         res.createdAt = new Date(res.createdAt);
         return res;
       });
-    }
+    },
   );
 }
 
@@ -152,7 +152,7 @@ export function createPersonnalAccessToken(
   timezone: string,
   allRights: boolean,
   rights: { [tenant: string]: TokenTenantRight[] },
-  globalRights: TokenGlobalRight[]
+  globalRights: TokenGlobalRight[],
 ) {
   const hasExpiration = expiration && !isNaN(expiration?.getTime());
   return handleFetchJsonResponse(
@@ -171,7 +171,7 @@ export function createPersonnalAccessToken(
       headers: {
         "content-type": "application/json",
       },
-    })
+    }),
   );
 }
 
@@ -193,7 +193,7 @@ export function updatePersonnalAccessToken(token: PersonnalAccessToken) {
       headers: {
         "content-type": "application/json",
       },
-    })
+    }),
   );
 }
 
@@ -201,13 +201,13 @@ export function deletePersonnalAccessToken(user: string, id: string) {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/users/${user}/tokens/${id}`, {
       method: "DELETE",
-    })
+    }),
   );
 }
 
 export function importData(
   tenant: string,
-  importRequest: ImportRequest
+  importRequest: ImportRequest,
 ): Promise<{ messages: string[]; conflicts?: object[] }> {
   const data = new FormData();
   data.append("export", importRequest.file.item(0)!);
@@ -217,7 +217,7 @@ export function importData(
       {
         method: "POST",
         body: data,
-      }
+      },
     ).then((res) => {
       if (res.status === 409) {
         return res.json().then((json) => {
@@ -228,13 +228,13 @@ export function importData(
         });
       }
       return res;
-    })
+    }),
   );
 }
 
 export function requestExport(
   tenant: string,
-  exportRequest: IzanamiTenantExportRequest
+  exportRequest: IzanamiTenantExportRequest,
 ) {
   return fetch(`/api/admin/tenants/${tenant}/_export`, {
     method: "POST",
@@ -268,10 +268,10 @@ export function queryTenantUsers(tenant: string): Promise<
 
 export function findFeatures(
   tenant: string,
-  search = ""
+  search = "",
 ): Promise<TLightFeature[]> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/features?search=${search}`)
+    fetch(`/api/admin/tenants/${tenant}/features?search=${search}`),
   );
 }
 
@@ -280,44 +280,44 @@ export function searchFeatures(
   projects: string[],
   allTagsIn: string[] = [],
   oneTagIn: string[] = [],
-  noTagIn: string[] = []
+  noTagIn: string[] = [],
 ): Promise<TLightFeature[]> {
   return handleFetchJsonResponse(
     fetch(
       `/api/admin/tenants/${tenant}/features?allTagsIn=${allTagsIn.join(
-        ","
-      )}&oneTagIn=${oneTagIn.join(",")}&noTagIn=${noTagIn.join(",")}`
-    )
+        ",",
+      )}&oneTagIn=${oneTagIn.join(",")}&noTagIn=${noTagIn.join(",")}`,
+    ),
   );
 }
 
 export function queryWebhookUsers(
   tenant: string,
-  webhook: string
+  webhook: string,
 ): Promise<TSingleRightForTenantUser[]> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/webhooks/${webhook}/users`)
+    fetch(`/api/admin/tenants/${tenant}/webhooks/${webhook}/users`),
   );
 }
 
 export function queryProjectUsers(
   tenant: string,
-  project: string
+  project: string,
 ): Promise<TSingleRightForTenantUser[]> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/projects/${project}/users`)
+    fetch(`/api/admin/tenants/${tenant}/projects/${project}/users`),
   );
 }
 
 export function queryTenants(
-  tenantLevelFilter?: TLevel
+  tenantLevelFilter?: TLevel,
 ): Promise<TenantType[]> {
   return handleFetchJsonResponse(
     fetch(
       `/api/admin/tenants${
         tenantLevelFilter ? `?right=${tenantLevelFilter}` : ""
-      }`
-    )
+      }`,
+    ),
   );
 }
 
@@ -327,7 +327,7 @@ export function queryTenant(tenant: string): Promise<TenantType> {
 
 export function queryProjects(tenant: string): Promise<ProjectType[]> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/projects`)
+    fetch(`/api/admin/tenants/${tenant}/projects`),
   );
 }
 export function queryUser(user: string): Promise<TUser> {
@@ -336,17 +336,17 @@ export function queryUser(user: string): Promise<TUser> {
 
 export function queryUserForTenant(
   user: string,
-  tenant: string
+  tenant: string,
 ): Promise<TUser> {
   return handleFetchJsonResponse(fetch(`/api/admin/${tenant}/users/${user}`));
 }
 
 export function queryContextsForProject(
   tenant: string,
-  project: string
+  project: string,
 ): Promise<TContext[]> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/projects/${project}/contexts`)
+    fetch(`/api/admin/tenants/${tenant}/projects/${project}/contexts`),
   ).then((contexts) => {
     contexts.forEach(parseOverloadDates);
     return contexts;
@@ -355,10 +355,10 @@ export function queryContextsForProject(
 
 export function queryGlobalContexts(
   tenant: string,
-  all = false
+  all = false,
 ): Promise<TContext[]> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/contexts?all=${"" + all}`)
+    fetch(`/api/admin/tenants/${tenant}/contexts?all=${"" + all}`),
   ).then((contexts) => {
     contexts.forEach(parseOverloadDates);
     return contexts;
@@ -372,12 +372,12 @@ function parseOverloadDates(context: TContext) {
 
 export function queryUserForTenants(
   user: string,
-  tenants: string[]
+  tenants: string[],
 ): Promise<TUser> {
   return Promise.all(
     tenants.map((tenant) =>
-      handleFetchJsonResponse(fetch(`/api/admin/${tenant}/users/${user}`))
-    )
+      handleFetchJsonResponse(fetch(`/api/admin/${tenant}/users/${user}`)),
+    ),
   ).then((users: TUser[]) => {
     const rights = users
       .map((u) => u.rights.tenants)
@@ -390,7 +390,7 @@ export function queryUserForTenants(
 }
 
 export function createTenant(
-  tenant: TenantInCreationType
+  tenant: TenantInCreationType,
 ): Promise<TenantType> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants`, {
@@ -399,13 +399,13 @@ export function createTenant(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(tenant),
-    })
+    }),
   );
 }
 
 export function updateTenant(
   oldName: string,
-  tenant: { name: string; description: string }
+  tenant: { name: string; description: string },
 ): Promise<any> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${oldName}`, {
@@ -414,14 +414,14 @@ export function updateTenant(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
 export function createTag(
   tenant: string,
   name: string,
-  description: string
+  description: string,
 ): Promise<TenantType> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/tags`, {
@@ -430,13 +430,13 @@ export function createTag(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ name, description }),
-    })
+    }),
   );
 }
 
 export function createProject(
   tenant: string,
-  project: ProjectInCreationType
+  project: ProjectInCreationType,
 ): Promise<ProjectType> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/projects`, {
@@ -445,14 +445,14 @@ export function createProject(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(project),
-    })
+    }),
   );
 }
 
 export function updateProject(
   tenant: string,
   oldName: string,
-  project: ProjectInCreationType
+  project: ProjectInCreationType,
 ): Promise<any> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/projects/${oldName}`, {
@@ -461,13 +461,13 @@ export function updateProject(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(project),
-    })
+    }),
   );
 }
 
 export function queryProject(tenant: string, id: string): Promise<ProjectType> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/projects/${id}`)
+    fetch(`/api/admin/tenants/${tenant}/projects/${id}`),
   ).then((json: ProjectType) => {
     json?.features?.forEach((feat) => castDateIfNeeded(feat));
 
@@ -477,7 +477,7 @@ export function queryProject(tenant: string, id: string): Promise<ProjectType> {
 
 export function queryProjectById(
   tenant: string,
-  id: string
+  id: string,
 ): Promise<ProjectType | undefined> {
   return fetch(`/api/admin/tenants/${tenant}/projects/_id/${id}`).then(
     (resp) => {
@@ -486,7 +486,7 @@ export function queryProjectById(
       } else {
         return resp.json();
       }
-    }
+    },
   );
 }
 
@@ -494,7 +494,7 @@ export function updateFeature(
   tenant: string,
   id: string,
   strategyPreservation: boolean,
-  feature: Omit<TCompleteFeature, "stale" | "creationDate">
+  feature: Omit<TCompleteFeature, "stale" | "creationDate">,
 ): Promise<TCompleteFeature> {
   return handleFetchJsonResponse(
     fetch(
@@ -507,8 +507,8 @@ export function updateFeature(
         headers: {
           "Content-Type": "application/json",
         },
-      }
-    )
+      },
+    ),
   );
 }
 
@@ -522,7 +522,7 @@ export function updateFeatureActivationForContext(
   strategyPreservation: boolean,
   conditions?: TClassicalCondition[],
   wasmConfig?: TWasmConfig,
-  value?: string | boolean | number
+  value?: string | boolean | number,
 ) {
   return handleFetchWithoutResponse(
     fetch(
@@ -540,15 +540,15 @@ export function updateFeatureActivationForContext(
         headers: {
           "Content-Type": "application/json",
         },
-      }
-    )
+      },
+    ),
   );
 }
 
 export function createGlobalContext(
   tenant: string,
   path: string,
-  name: string
+  name: string,
 ) {
   return handleFetchWithoutResponse(
     fetch(
@@ -561,8 +561,8 @@ export function createGlobalContext(
         headers: {
           "Content-Type": "application/json",
         },
-      }
-    )
+      },
+    ),
   );
 }
 
@@ -570,7 +570,7 @@ export function createContext(
   tenant: string,
   project: string,
   path: string,
-  name: string
+  name: string,
 ) {
   return handleFetchWithoutResponse(
     fetch(
@@ -583,8 +583,8 @@ export function createContext(
         headers: {
           "Content-Type": "application/json",
         },
-      }
-    )
+      },
+    ),
   );
 }
 
@@ -593,7 +593,7 @@ export function deleteFeatureActivationForContext(
   project: string,
   path: string,
   feature: string,
-  strategyPreservation: boolean = false
+  strategyPreservation: boolean = false,
 ) {
   return handleFetchWithoutResponse(
     fetch(
@@ -602,8 +602,8 @@ export function deleteFeatureActivationForContext(
       }`,
       {
         method: "DELETE",
-      }
-    )
+      },
+    ),
   );
 }
 
@@ -611,7 +611,7 @@ export function deleteContext(tenant: string, project: string, path: string) {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/projects/${project}/contexts/${path}`, {
       method: "DELETE",
-    })
+    }),
   );
 }
 
@@ -619,14 +619,14 @@ export function deleteGlobalContext(tenant: string, path: string) {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/contexts/${path}`, {
       method: "DELETE",
-    })
+    }),
   );
 }
 
 export function createFeature(
   tenant: string,
   project: string,
-  feature: any
+  feature: any,
 ): Promise<TCompleteFeature> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/projects/${project}/features`, {
@@ -635,13 +635,13 @@ export function createFeature(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
 export function toCompleteFeature(
   tenant: string,
-  feature: TLightFeature
+  feature: TLightFeature,
 ): Promise<TCompleteFeature> {
   if (isLightWasmFeature(feature)) {
     return fetchWasmConfig(tenant, feature.wasmConfig).then((wasmConfig) => {
@@ -656,7 +656,7 @@ function fetchWasmConfig(tenant: string, script: string): Promise<TWasmConfig> {
   return handleFetchJsonResponse(
     fetch(`/api/admin/tenants/${tenant}/local-scripts/${script}`, {
       method: "GET",
-    })
+    }),
   );
 }
 
@@ -665,12 +665,12 @@ export function testFeature(
   feature: TCompleteFeature,
   user: string,
   date: Date,
-  payload?: { [x: string]: any }
+  payload?: { [x: string]: any },
 ): Promise<{ active: boolean }> {
   return handleFetchJsonResponse(
     fetch(
       `/api/admin/tenants/${tenant}/test?date=${encodeURIComponent(
-        format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+        format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"),
       )}&user=${user}`,
       {
         method: "POST",
@@ -678,8 +678,8 @@ export function testFeature(
         headers: {
           "Content-Type": "application/json",
         },
-      }
-    )
+      },
+    ),
   );
 }
 
@@ -689,21 +689,21 @@ export function testExistingFeature(
   date: Date,
   context: string,
   user: string,
-  payload?: string
+  payload?: string,
 ): Promise<{ active: boolean }> {
   return handleFetchJsonResponse(
     fetch(
       `/api/admin/tenants/${tenant}/features/${featureId}/test${
         context ? "/" + context : ""
       }?date=${encodeURIComponent(
-        format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+        format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"),
       )}&user=${user}`,
       {
         method: "POST",
         body: payload ? payload : "{}",
         headers: { "Content-Type": "application/json" },
-      }
-    )
+      },
+    ),
   );
 }
 
@@ -711,18 +711,18 @@ export function deleteFeature(tenant: string, id: string): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/features/${id}`, {
       method: "DELETE",
-    })
+    }),
   );
 }
 
 export function deleteProject(
   tenant: string,
-  name: string
+  name: string,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/projects/${name}`, {
       method: "DELETE",
-    })
+    }),
   );
 }
 
@@ -730,7 +730,7 @@ export function deleteTenant(name: string): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${name}`, {
       method: "DELETE",
-    })
+    }),
   );
 }
 
@@ -738,13 +738,13 @@ export function deleteTag(tenant: string, name: string): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/tags/${name}`, {
       method: "DELETE",
-    })
+    }),
   );
 }
 
 export function queryTag(tenant: string, name: string): Promise<TagType> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/tags/${name}`)
+    fetch(`/api/admin/tenants/${tenant}/tags/${name}`),
   );
 }
 
@@ -754,7 +754,7 @@ export function queryTags(tenant: string): Promise<TagType[]> {
 export function updateTag(
   tenant: string,
   tag: TagType,
-  currentName: string
+  currentName: string,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/tags/${currentName}`, {
@@ -763,7 +763,7 @@ export function updateTag(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
@@ -774,7 +774,7 @@ export function queryConfiguration(): Promise<Configuration> {
       anonymousReportingLastAsked: anonymousReportingLastAsked
         ? new Date(anonymousReportingLastAsked)
         : undefined,
-    })
+    }),
   );
 }
 
@@ -783,7 +783,7 @@ export function queryStats(): Promise<object> {
 }
 
 export function updateConfiguration(
-  configuration: Omit<Configuration, "version" | "preventOAuthModification">
+  configuration: Omit<Configuration, "version" | "preventOAuthModification">,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch("/api/admin/configuration", {
@@ -792,21 +792,21 @@ export function updateConfiguration(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
 export function queryMailerConfiguration(
-  id: Mailer
+  id: Mailer,
 ): Promise<MailerConfiguration> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/configuration/mailer/${id}`)
+    fetch(`/api/admin/configuration/mailer/${id}`),
   );
 }
 
 export function updateMailerConfiguration(
   mailer: Mailer,
-  configuration: MailerConfiguration
+  configuration: MailerConfiguration,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/configuration/mailer/${mailer}`, {
@@ -815,7 +815,7 @@ export function updateMailerConfiguration(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
@@ -827,14 +827,14 @@ export function deleteKey(tenant: string, name: string): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/keys/${name}`, {
       method: "DELETE",
-    })
+    }),
   );
 }
 
 export function updateKey(
   tenant: string,
   oldName: string,
-  newKey: TKey
+  newKey: TKey,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/keys/${oldName}`, {
@@ -843,7 +843,7 @@ export function updateKey(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
@@ -852,7 +852,7 @@ export function updateUserPassword(
   user: {
     oldPassword: string;
     password: string;
-  }
+  },
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/users/${name}/password`, {
@@ -861,7 +861,7 @@ export function updateUserPassword(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
@@ -872,7 +872,7 @@ export function updateUserInformation(
     email: string;
     password: string;
     defaultTenant?: string;
-  }
+  },
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/users/${name}`, {
@@ -881,7 +881,7 @@ export function updateUserInformation(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
@@ -890,7 +890,7 @@ export function updateUserRights(
   user: {
     admin: boolean;
     rights: TRights;
-  }
+  },
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/users/${name}/rights`, {
@@ -899,13 +899,13 @@ export function updateUserRights(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
 export function patchFeatures(
   tenant: string,
-  patches: { op: string; path: string; value?: any }[]
+  patches: { op: string; path: string; value?: any }[],
 ) {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/features`, {
@@ -914,7 +914,7 @@ export function patchFeatures(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
@@ -922,7 +922,7 @@ export function updateUserRightsForProject(
   username: string,
   tenant: string,
   project: string,
-  right?: TLevel
+  right?: TLevel,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(
@@ -933,8 +933,8 @@ export function updateUserRightsForProject(
         headers: {
           "Content-Type": "application/json",
         },
-      }
-    )
+      },
+    ),
   );
 }
 
@@ -942,7 +942,7 @@ export function updateUserRightsForWebhook(
   username: string,
   tenant: string,
   webhook: string,
-  right?: TLevel
+  right?: TLevel,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(
@@ -953,8 +953,8 @@ export function updateUserRightsForWebhook(
         headers: {
           "Content-Type": "application/json",
         },
-      }
-    )
+      },
+    ),
   );
 }
 
@@ -962,7 +962,7 @@ export function inviteUsersToProject(
   tenant: string,
   project: string,
   users: string[],
-  level: TProjectLevel
+  level: TProjectLevel,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/projects/${project}/users`, {
@@ -971,14 +971,14 @@ export function inviteUsersToProject(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
 export function inviteUsersToTenant(
   tenant: string,
   users: string[],
-  level: TLevel
+  level: TLevel,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/users`, {
@@ -987,14 +987,14 @@ export function inviteUsersToTenant(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
 export function updateUserRightsForTenant(
   name: string,
   tenant: string,
-  right: TTenantRight
+  right: TTenantRight,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/${tenant}/users/${name}/rights`, {
@@ -1003,7 +1003,7 @@ export function updateUserRightsForTenant(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
@@ -1015,14 +1015,14 @@ export function createKey(tenant: string, key: TKey): Promise<TKey> {
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
 export function createUser(
   username: string,
   password: string,
-  token: string
+  token: string,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch("/api/admin/users", {
@@ -1031,16 +1031,16 @@ export function createUser(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
 export function queryTagFeatures(
   tenant: string,
-  name: string
+  name: string,
 ): Promise<TLightFeature[]> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/features?tag=${name}`)
+    fetch(`/api/admin/tenants/${tenant}/features?tag=${name}`),
   ).then((features: TLightFeature[]) => {
     features?.forEach((feat) => castDateIfNeeded(feat));
     return features;
@@ -1079,7 +1079,7 @@ export function fetchWasmScripts(tenant: string): Promise<
   }[]
 > {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/local-scripts?features=true`)
+    fetch(`/api/admin/tenants/${tenant}/local-scripts?features=true`),
   );
 }
 
@@ -1087,14 +1087,14 @@ export function deleteScript(tenant: string, name: string): Promise<any> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/local-scripts/${name}`, {
       method: "DELETE",
-    })
+    }),
   );
 }
 
 export function updateScript(
   tenant: string,
   name: string,
-  script: TWasmConfig
+  script: TWasmConfig,
 ): Promise<any> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/local-scripts/${name}`, {
@@ -1103,16 +1103,21 @@ export function updateScript(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
 function _handleFetchResponse<T>(
   request: Promise<Response>,
-  handler: (resp: Response) => Promise<T>
+  handler: (resp: Response) => Promise<T>,
 ): Promise<T> {
   return request
     .then((response) => {
+      if (response.status === 401) {
+        window.location.href = `/login?req=${
+          location.pathname + location.search
+        }`;
+      }
       if (response.status >= 400) {
         return response.json().then((body) => Promise.reject(body));
       }
@@ -1144,7 +1149,7 @@ function _handleFetchResponse<T>(
         {
           id: id,
           icon: <i className="fa-solid fa-circle-exclamation" aria-hidden></i>,
-        }
+        },
       );
 
       throw error;
@@ -1152,13 +1157,13 @@ function _handleFetchResponse<T>(
 }
 
 export function handleFetchJsonResponse(
-  request: Promise<Response>
+  request: Promise<Response>,
 ): Promise<any> {
   return _handleFetchResponse(request, (response) => response.json());
 }
 
 export function handleFetchWithoutResponse(
-  request: Promise<Response>
+  request: Promise<Response>,
 ): Promise<undefined> {
   return _handleFetchResponse(request, () => Promise.resolve(undefined));
 }
@@ -1167,14 +1172,14 @@ export function deleteUser(user: string): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/users/${user}`, {
       method: "DELETE",
-    })
+    }),
   );
 }
 
 export function createInvitation(
   email: string,
   admin: boolean,
-  rights: TRights
+  rights: TRights,
 ): Promise<{ invitationUrl?: string } | null> {
   return fetch(`/api/admin/invitation`, {
     method: "POST",
@@ -1193,7 +1198,7 @@ export function createInvitation(
 
 export function fetchWebhooks(tenant: string): Promise<Webhook[]> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/webhooks`)
+    fetch(`/api/admin/tenants/${tenant}/webhooks`),
   );
 }
 
@@ -1201,14 +1206,14 @@ export function deleteWebhook(tenant: string, id: string): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/webhooks/${id}`, {
       method: "DELETE",
-    })
+    }),
   );
 }
 
 export function updateWebhook(
   tenant: string,
   id: string,
-  webhook: LightWebhook
+  webhook: LightWebhook,
 ): Promise<void> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/webhooks/${id}`, {
@@ -1217,13 +1222,13 @@ export function updateWebhook(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(webhook),
-    })
+    }),
   );
 }
 
 export function createWebhook(
   tenant: string,
-  webhook: LightWebhook
+  webhook: LightWebhook,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/webhooks`, {
@@ -1232,25 +1237,25 @@ export function createWebhook(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
 export function fetchWebhookUsers(
   tenant: string,
-  webhook: string
+  webhook: string,
 ): Promise<TSingleRightForTenantUser[]> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/webhooks/${webhook}/users`)
+    fetch(`/api/admin/tenants/${tenant}/webhooks/${webhook}/users`),
   );
 }
 
 export function fetchKeyUsers(
   tenant: string,
-  key: string
+  key: string,
 ): Promise<TSingleRightForTenantUser[]> {
   return handleFetchJsonResponse(
-    fetch(`/api/admin/tenants/${tenant}/keys/${key}/users`)
+    fetch(`/api/admin/tenants/${tenant}/keys/${key}/users`),
   );
 }
 
@@ -1262,7 +1267,7 @@ export function updateWebhookRightsFor(
   tenant: string,
   webhook: string,
   user: string,
-  right?: TLevel
+  right?: TLevel,
 ): Promise<void> {
   return handleFetchWithoutResponse(
     fetch(
@@ -1273,8 +1278,8 @@ export function updateWebhookRightsFor(
         headers: {
           "Content-Type": "application/json",
         },
-      }
-    )
+      },
+    ),
   );
 }
 
@@ -1282,7 +1287,7 @@ export function updateKeyRightsFor(
   tenant: string,
   key: string,
   user: string,
-  right?: TLevel
+  right?: TLevel,
 ): Promise<void> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/keys/${key}/users/${user}/rights`, {
@@ -1291,12 +1296,12 @@ export function updateKeyRightsFor(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
 export function importIzanamiV1Data(
-  importRequest: IzanamiV1ImportRequest
+  importRequest: IzanamiV1ImportRequest,
 ): Promise<any> {
   const data = new FormData();
   data.append("features", importRequest.featureFiles.item(0)!);
@@ -1320,7 +1325,7 @@ export function importIzanamiV1Data(
     {
       method: "POST",
       body: data,
-    }
+    },
   );
 }
 
@@ -1334,7 +1339,7 @@ interface ImportResult {
 
 export function pollForImportResult(
   tenant: string,
-  id: string
+  id: string,
 ): Promise<ImportResult> {
   return new Promise((resolve, reject) => {
     const interval = setInterval(() => {
@@ -1369,7 +1374,7 @@ export function importUsersFile(tenant: string, file: FileList): Promise<any> {
 
 export function searchEntities(
   query: string,
-  filter: string[] = []
+  filter: string[] = [],
 ): Promise<SearchResult[]> {
   let filterString = "";
   if (filter.length > 0) {
@@ -1379,15 +1384,15 @@ export function searchEntities(
     fetch(
       `/api/admin/search?query=${encodeURIComponent(query)}${
         filterString ? `&filter=${filterString}` : ""
-      }`
-    )
+      }`,
+    ),
   );
 }
 
 export function searchEntitiesByTenant(
   tenant: string,
   query: string,
-  filter: string[] = []
+  filter: string[] = [],
 ): Promise<SearchResult[]> {
   let filterString = "";
   if (filter.length > 0) {
@@ -1397,13 +1402,13 @@ export function searchEntitiesByTenant(
     fetch(
       `/api/admin/tenants/${tenant}/search?query=${encodeURIComponent(query)}${
         filterString ? `&filter=${filterString}` : ""
-      }`
-    )
+      }`,
+    ),
   );
 }
 
 export function fetchOpenIdConnectConfiguration(
-  url: string
+  url: string,
 ): Promise<Partial<OIDCSettings>> {
   return handleFetchJsonResponse(
     fetch("/api/admin/openid-connect/configuration", {
@@ -1412,13 +1417,13 @@ export function fetchOpenIdConnectConfiguration(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
 export function fetchFeature(
   tenant: string,
-  id: string
+  id: string,
 ): Promise<TLightFeature | undefined> {
   return fetch(`/api/admin/tenants/${tenant}/features/${id}`, {
     method: "GET",
@@ -1435,7 +1440,7 @@ export function changeProtectionStatusForLocalContext(
   tenant: string,
   project: string,
   path: string,
-  isProtected: boolean
+  isProtected: boolean,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/projects/${project}/contexts${path}`, {
@@ -1444,14 +1449,14 @@ export function changeProtectionStatusForLocalContext(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
 
 export function changeProtectionStatusForGlobalContext(
   tenant: string,
   path: string,
-  isProtected: boolean
+  isProtected: boolean,
 ): Promise<undefined> {
   return handleFetchWithoutResponse(
     fetch(`/api/admin/tenants/${tenant}/contexts${path}`, {
@@ -1460,6 +1465,6 @@ export function changeProtectionStatusForGlobalContext(
       headers: {
         "Content-Type": "application/json",
       },
-    })
+    }),
   );
 }
