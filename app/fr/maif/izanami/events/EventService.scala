@@ -1047,8 +1047,8 @@ object EventService {
     val user = event.user
     implicit val executionContext: ExecutionContext = env.executionContext
     event match {
-      case FeatureDeleted(_, id, _, _, _, _, _, _, _) =>
-        Future.successful(Some(deleteEventV2(id, user)))
+      case fd:FeatureDeleted =>
+        Future.successful(Some(deleteEventV2(fd.id, fd.user, project = fd.project, name = fd.name)))
       case f: ConditionFeatureEvent => {
         val maybeContextmap = f match {
           case FeatureCreated(_, _, _, _, _, map, _, _, _)    => map

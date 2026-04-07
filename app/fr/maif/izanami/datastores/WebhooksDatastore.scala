@@ -30,6 +30,10 @@ class WebhooksDatastore(val env: Env) extends Datastore {
          |RETURNING webhook
          |""".stripMargin,
         List(webhook, java.lang.Long.valueOf(eventId)),
+        silentFor = {
+          case e: PgException if e.getConstraint == "webhooks_call_status_pkey" => true
+          case _ => false
+        }
       ) { r =>
         {
           Some(true)

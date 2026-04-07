@@ -10,33 +10,33 @@ import java.time.{Instant, LocalDateTime}
 object V2FeatureEvents {
   def initialEvent(json: JsValue): JsObject = {
     Json.obj(
-      "_id"       -> V1FeatureEvents.gen.nextId(),
+      "_id" -> V1FeatureEvents.gen.nextId(),
       "timestamp" -> Instant.now(),
-      "payload"  -> json,
-      "type"      -> "FEATURE_STATES"
+      "payload" -> json,
+      "type" -> "FEATURE_STATES"
     )
   }
 
   def errorEvent(message: String): JsObject = {
     Json.obj(
-      "_id"       -> V1FeatureEvents.gen.nextId(),
+      "_id" -> V1FeatureEvents.gen.nextId(),
       "timestamp" -> Instant.now(),
-      "payload"     -> message,
-      "type"      -> "ERROR"
+      "payload" -> message,
+      "type" -> "ERROR"
     )
   }
 
   def updateEventV2(feature: JsObject, user: String): JsObject = {
     baseJson(feature, user) ++ Json.obj(
-      "type" -> "FEATURE_UPDATED",
+      "type" -> "FEATURE_UPDATED"
     )
   }
 
   private def baseJson(feature: JsObject, user: String): JsObject = {
     Json.obj(
-      "_id"       -> V1FeatureEvents.gen.nextId(),
+      "_id" -> V1FeatureEvents.gen.nextId(),
       "timestamp" -> Instant.now(),
-      "payload"   -> feature,
+      "payload" -> feature,
       "metadata" -> Json.obj("user" -> user)
     )
   }
@@ -49,18 +49,24 @@ object V2FeatureEvents {
 
   def keepAliveEventV2(): JsObject = {
     Json.obj(
-      "_id"       -> gen.nextId(),
-      "type"      -> "KEEP_ALIVE",
+      "_id" -> gen.nextId(),
+      "type" -> "KEEP_ALIVE",
       "timestamp" -> Instant.now()
     )
   }
 
-  def deleteEventV2(id: String, user: String): JsObject = {
+  def deleteEventV2(
+      id: String,
+      user: String,
+      project: String,
+      name: String
+  ): JsObject = {
     Json.obj(
-      "_id"       -> gen.nextId(),
+      "_id" -> gen.nextId(),
       "timestamp" -> Instant.now(),
-      "type"      -> "FEATURE_DELETED",
-      "payload"   -> id,
+      "type" -> "FEATURE_DELETED",
+      "payload" -> id,
+      "details" -> Json.obj("name" -> name, "project" -> project),
       "metadata" -> Json.obj("user" -> user)
     )
   }
@@ -71,17 +77,17 @@ object V1FeatureEvents {
 
   def updateEvent(id: String, feature: JsObject): JsObject = {
     baseJson(id, feature) ++ Json.obj(
-      "type"     -> "FEATURE_UPDATED",
+      "type" -> "FEATURE_UPDATED",
       "oldValue" -> feature
     )
   }
 
   private def baseJson(id: String, feature: JsObject): JsObject = {
     Json.obj(
-      "_id"       -> gen.nextId(),
-      "domain"    -> "Feature",
+      "_id" -> gen.nextId(),
+      "domain" -> "Feature",
       "timestamp" -> LocalDateTime.now(),
-      "payload"   -> feature,
+      "payload" -> feature,
       "key" -> id
     )
   }
@@ -94,32 +100,32 @@ object V1FeatureEvents {
 
   def keepAliveEvent(): JsObject = {
     Json.obj(
-      "_id"       -> gen.nextId(),
-      "type"      -> "KEEP_ALIVE",
-      "key"       -> "na",
-      "domain"    -> "Unknown",
-      "payload"   -> Json.obj(),
-      "authInfo"  -> JsNull,
+      "_id" -> gen.nextId(),
+      "type" -> "KEEP_ALIVE",
+      "key" -> "na",
+      "domain" -> "Unknown",
+      "payload" -> Json.obj(),
+      "authInfo" -> JsNull,
       "timestamp" -> LocalDateTime.now()
     )
   }
 
   def deleteEvent(id: String): JsObject = {
     Json.obj(
-      "_id"       -> gen.nextId(),
-      "domain"    -> "Feature",
+      "_id" -> gen.nextId(),
+      "domain" -> "Feature",
       "timestamp" -> LocalDateTime.now(),
-      "key"       -> id,
-      "type"      -> "FEATURE_DELETED",
-      "payload"   -> Json.obj("id" -> id, "enabled" -> false)
+      "key" -> id,
+      "type" -> "FEATURE_DELETED",
+      "payload" -> Json.obj("id" -> id, "enabled" -> false)
     )
   }
 
   private def writeFeatureForEvent(feature: AbstractFeature): JsObject = {
     Json.obj(
-      "enabled"            -> feature.enabled,
-      "id"                 -> feature.id,
-      "parameters"         -> Json.obj(),
+      "enabled" -> feature.enabled,
+      "id" -> feature.id,
+      "parameters" -> Json.obj(),
       "activationStrategy" -> "NO_STRATEGY"
     )
   }

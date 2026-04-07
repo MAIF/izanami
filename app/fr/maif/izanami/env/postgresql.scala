@@ -302,7 +302,7 @@ class Postgresql(env: Env) {
     })
   }
 
-  def executeInTransaction[T](callback: SqlConnection => Future[T]): Future[T] = {
+  def executeInTransaction[T](callback: SqlConnection => Future[T], silentFor: Throwable => Boolean = err => false): Future[T] = {
     var future: io.vertx.core.Future[T] = io.vertx.core.Future.succeededFuture()
     pool
       .withTransaction(conn => {
@@ -310,13 +310,15 @@ class Postgresql(env: Env) {
         future
       })
       .recover(err => {
-        logger.error("Failed to execute queries in transaction", err)
+        if(!silentFor(err)) {
+          logger.error("Failed to execute queries in transaction", err)
+        }
         future
       })
       .scala // Bubble up query error instead of TransactionRollbackException that does not carry much information
   }
 
-  def executeInTransactionF[T](callback: SqlConnection => FutureEither[T]): FutureEither[T] = {
+  def executeInTransactionF[T](callback: SqlConnection => FutureEither[T], silentFor: Throwable => Boolean = err => false): FutureEither[T] = {
     var future: io.vertx.core.Future[Either[IzanamiError, T]] = io.vertx.core.Future.succeededFuture()
     pool
       .withTransaction(conn => {
@@ -324,7 +326,9 @@ class Postgresql(env: Env) {
         future
       })
       .recover(err => {
-        logger.error("Failed to execute queries in transaction", err)
+        if(!silentFor(err)) {
+          logger.error("Failed to execute queries in transaction", err)
+        }
         future
       })
       .scala // Bubble up query error instead of TransactionRollbackException that does not carry much information
@@ -335,28 +339,31 @@ class Postgresql(env: Env) {
       query: String,
       params: List[Any] = List.empty,
       debug: Boolean = false,
+      silentFor: Throwable => Boolean = _ => false,
       conn: Option[SqlConnection] = None
   )(
       f: Row => Option[A]
   ): Future[List[A]] = {
-    queryRaw[List[A]](query, params, debug, conn)(rows => rows.map(f).flatten.toList)
+    queryRaw[List[A]](query, params, debug, silentFor = silentFor, conn = conn)(rows => rows.map(f).flatten.toList)
   }
 
   def queryAllOpt[A](
       query: String,
       params: List[AnyRef] = List.empty,
       debug: Boolean = false,
+      silentFor: Throwable => Boolean = _ => false,
       conn: Option[SqlConnection] = None
   )(
       f: Row => Option[A]
   ): Future[List[Option[A]]] = {
-    queryRaw[List[Option[A]]](query, params, debug, conn)(rows => rows.map(f).toList)
+    queryRaw[List[Option[A]]](query, params, debug, silentFor = silentFor, conn = conn)(rows => rows.map(f).toList)
   }
 
   def queryRaw[A](
       query: String,
       params: List[Any] = List.empty,
       debug: Boolean = false,
+      silentFor: Throwable => Boolean = _ => false,
       conn: Option[SqlConnection] = None
   )(
       f: List[Row] => A
@@ -378,13 +385,14 @@ class Postgresql(env: Env) {
         conn
           .map(conn => lambda(conn))
           .map(f => f.scala)
-          .getOrElse(executeInTransaction(lambda(_).scala))
+          .getOrElse(executeInTransaction(lambda(_).scala, silentFor = silentFor))
       case false =>
         conn
           .map(c => c.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(castedParams.toArray)).scala)
           .getOrElse(
             executeInTransaction(conn =>
-              conn.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(castedParams.toArray)).scala
+              conn.preparedQuery(query).execute(io.vertx.sqlclient.Tuple.from(castedParams.toArray)).scala,
+              silentFor = silentFor
             )
           )
     }).flatMap { _rows =>
@@ -401,7 +409,7 @@ class Postgresql(env: Env) {
     }(env.executionContext)
       .andThen {
         case Failure(e: DbConnectionFailure) => logger.error(e.message)
-        case Failure(e)                      => {
+        case Failure(e) if !silentFor(e)     => {
           val paramsToDisplay = castedParams.map(p => {
             if (p != null && p.toString.length > 10_000) {
               p.toString.substring(0, 10_000) + "<param too long, it was truncated>"
@@ -418,11 +426,12 @@ class Postgresql(env: Env) {
       query: String,
       params: List[Any] = List.empty,
       debug: Boolean = false,
+      silentFor: Throwable => Boolean = _ => false,
       conn: Option[SqlConnection] = None
   )(
       f: Row => Option[A]
   ): Future[Option[A]] = {
-    queryRaw[Option[A]](query, params, debug, conn)(rows => rows.headOption.flatMap(row => f(row)))
+    queryRaw[Option[A]](query, params, debug, silentFor, conn)(rows => rows.headOption.flatMap(row => f(row)))
   }
 
 }
