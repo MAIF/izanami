@@ -1,3 +1,5 @@
+@use "../variables.module";
+
 body {
   padding-top: 60px;
   padding-bottom: 20px;
@@ -9,7 +11,7 @@ body {
 
 a,
 a:hover {
-  color: $primaryColor;
+  color: variables.$primaryColor;
   text-decoration: none;
 }
 
@@ -17,14 +19,14 @@ a:hover {
   padding-right: 30px;
   padding-left: 30px;
   margin-top: 10px;
-  @media screen and (max-width: $screen-lg) {
+  @media screen and (max-width: variables.$screen-lg) {
     margin-top: 70px;
   }
 }
 
 .page-header {
   margin-top: 32px;
-  border-bottom-color: $primaryColor;
+  border-bottom-color: variables.$primaryColor;
   margin-left: 25px;
 }
 
@@ -41,7 +43,7 @@ h3,
 h4,
 h5,
 h6 {
-  color: $primaryColor;
+  color: variables.$primaryColor;
 }
 
 hr {
@@ -79,7 +81,7 @@ hr {
     margin-right: -10px;
   }
 
-  @media only screen and (max-width: $screen-lg) {
+  @media only screen and (max-width: variables.$screen-lg) {
     margin-top: 66px;
   }
 }

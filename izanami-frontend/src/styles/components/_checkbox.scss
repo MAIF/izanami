@@ -1,3 +1,5 @@
+@use "../variables.module";
+
 input[type="checkbox"].ios8-switch {
   position: absolute;
   margin: 8px 0 0 16px !important;
@@ -139,8 +141,8 @@ input.checkbox-rounded:after {
 
 input.checkbox-rounded:checked,
 input.checkbox-rounded:indeterminate {
-  background-color: $primaryColor;
-  border-color: $primaryColor;
+  background-color: variables.$primaryColor;
+  border-color: variables.$primaryColor;
 }
 
 input.checkbox-rounded:checked:after,
@@ -176,8 +178,8 @@ input.checkbox-rounded-select:after {
 }
 input.checkbox-rounded-select:checked,
 input.checkbox-rounded-select:indeterminate {
-  background-color: $primaryColor;
-  border-color: $primaryColor;
+  background-color: variables.$primaryColor;
+  border-color: variables.$primaryColor;
 }
 
 input.checkbox-rounded-select:checked:after,

@@ -1,3 +1,5 @@
+@use "styles/variables.module";
+
 .icon_context {
   fill: var(--color_level1);
 }
@@ -17,7 +19,7 @@ h2 {
 
 .navbar {
   .nav-link {
-    color: $primaryColor;
+    color: variables.$primaryColor;
     text-decoration: none;
   }
 
@@ -44,9 +46,9 @@ main a:focus,
 main a.white-link:active,
 main a.white-link:hover,
 main a.white-link:focus {
-  color: $primaryColor;
+  color: variables.$primaryColor;
   & svg.icon_context {
-    fill: $primaryColor !important;
+    fill: variables.$primaryColor !important;
   }
 }
 
@@ -55,7 +57,7 @@ main a svg.icon_context {
 }
 
 .breadcrumb a {
-  color: $primaryColor;
+  color: variables.$primaryColor;
   text-decoration: none;
 
   &:hover {
@@ -75,7 +77,7 @@ main a svg.icon_context {
   &:hover,
   &:active,
   &:focus {
-    color: $primaryColor;
+    color: variables.$primaryColor;
   }
 }
 
@@ -86,7 +88,7 @@ main a svg.icon_context {
 input,
 textarea {
   color: var(--color_level3) !important;
-  border-color: $color-dark-6 !important;
+  border-color: variables.$color-dark-6 !important;
   border-radius: 4px;
   border: none;
 }
@@ -102,11 +104,11 @@ textarea {
 }
 
 #root .mrf-content_switch_button_on {
-  background-color: $primaryColor;
+  background-color: variables.$primaryColor;
 }
 
 #root .mrf-content_switch_button_off {
-  background-color: $color-dark-1;
+  background-color: variables.$color-dark-1;
 }
 
 .MuiOutlinedInput-notchedOutline {
@@ -119,7 +121,7 @@ textarea {
 }
 
 .alert.alert-primary {
-  border-color: $primaryColor;
+  border-color: variables.$primaryColor;
   background-color: transparent;
   color: var(--color_level3);
   /*background-color: $primaryColor;
@@ -128,7 +130,7 @@ textarea {
 }
 
 .alert.alert-secondary {
-  border-color: $colorBleue;
+  border-color: variables.$colorBleue;
   background-color: transparent;
   color: var(--color_level3);
   /*background-color: $primaryColor;
@@ -238,7 +240,7 @@ thead th {
 }
 
 .activation-status.enabled-status {
-  color: $primaryColor;
+  color: variables.$primaryColor;
 }
 
 .activation-status.disabled-status {
@@ -247,7 +249,7 @@ thead th {
 }
 
 .current-context-overload {
-  color: $primaryColor;
+  color: variables.$primaryColor;
   font-weight: bold;
 }
 
@@ -262,8 +264,8 @@ thead th {
   height: 22px;
   border-radius: 20px;
   display: flex;
-  background-color: $primaryColor;
-  border: 1px solid $primaryColor;
+  background-color: variables.$primaryColor;
+  border: 1px solid variables.$primaryColor;
   justify-content: flex-end;
 }
 
@@ -287,14 +289,14 @@ thead th {
   height: 22px;
   border-radius: 20px;
   display: flex;
-  background-color: $color-dark-1;
-  border: 1px solid $color-dark-1;
+  background-color: variables.$color-dark-1;
+  border: 1px solid variables.$color-dark-1;
   justify-content: flex-start;
 }
 
 .izanami-checkbox:not(:checked)::before {
   content: "";
-  background-color: $color-dark-1;
+  background-color: variables.$color-dark-1;
   border-radius: 20px;
   cursor: pointer;
   width: 20px;
@@ -355,7 +357,7 @@ input[type="time"] {
 
 table .cm-merge-theme {
   max-width: 73vw;
-  @media screen and (max-width: $screen-lg) {
+  @media screen and (max-width: variables.$screen-lg) {
     max-width: 85vw;
   }
 }

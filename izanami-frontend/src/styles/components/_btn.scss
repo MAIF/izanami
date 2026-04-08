@@ -1,3 +1,5 @@
+@use "../variables.module";
+
 .btn {
   background-color: transparent !important;
   margin-right: 5px;
@@ -155,7 +157,7 @@
 
 .btn-default.disabled,
 .btn-default.disabled:hover {
-  color: $color-dark-1;
+  color: variables.$color-dark-1;
   text-shadow: none;
   background-color: transparent;
 }
@@ -181,16 +183,16 @@
 .experiments,
 .experiments:hover {
   color: #fff;
-  background-color: $primaryColor;
+  background-color: variables.$primaryColor;
   width: 80px;
-  border-color: $primaryColor;
+  border-color: variables.$primaryColor;
   margin-bottom: 1px;
 }
 
 .refresh {
-  background-color: $color-dark-6;
-  border-color: $color-dark-1;
-  color: $color-dark-1;
+  background-color: variables.$color-dark-6;
+  border-color: variables.$color-dark-1;
+  color: variables.$color-dark-1;
   background-image: none;
   margin-left: 10px;
   padding: 3px 5px 0px 5px;
@@ -205,7 +207,7 @@
 .openbtn {
   color: #fff;
   :hover {
-    color: $color-dark-1;
+    color: variables.$color-dark-1;
   }
 }
 
@@ -220,7 +222,7 @@
   display: block;
 }
 
-@media only screen and (max-width: $screen-sm) {
+@media only screen and (max-width: variables.$screen-sm) {
   .updateConfig > .btn {
     margin-bottom: 10px;
   }

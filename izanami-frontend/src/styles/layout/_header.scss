@@ -1,3 +1,5 @@
+@use "../variables.module";
+
 .navbar {
   background-color: var(--bg-color_level2) !important;
 
@@ -23,13 +25,13 @@
   .navbar-nav > .open > a,
   .navbar-nav > .open > a:focus,
   .navbar-nav > .open > a:hover {
-    background-color: $color-dark-6;
+    background-color: variables.$color-dark-6;
     background-image: none;
-    color: $primaryColor;
+    color: variables.$primaryColor;
   }
 
   .navbar-right > li > a {
-    color: $primaryColor;
+    color: variables.$primaryColor;
 
     &:focus,
     &:hover {
@@ -40,32 +42,32 @@
 }
 
 .navbar-header {
-  background-color: $primaryColor;
+  background-color: variables.$primaryColor;
   color: #fff;
   font-size: 18px;
   line-height: 20px;
 }
 
 .navbar-inverse .navbar-nav > li > a {
-  color: $primaryColor;
+  color: variables.$primaryColor;
 }
 // izanimi begin
 
 .text-info {
-  color: $primaryColor;
+  color: variables.$primaryColor;
 }
 
 .form-control:focus {
   border-color: #373735;
   box-shadow: none;
-  background-color: $color-dark-5;
+  background-color: variables.$color-dark-5;
 }
 
 .nav > li > a {
   padding: 10px;
 }
 
-@media screen and (max-width: $screen-sm) {
+@media screen and (max-width: variables.$screen-sm) {
   .navbar-right {
     margin-top: -53px;
     float: right;

@@ -1,3 +1,5 @@
+@use "../variables.module";
+
 .card {
   background-color: var(--bg-color_level2);
 }
@@ -9,7 +11,7 @@
   color: var(--color_level2);
 }
 .card-body a:hover{
-  color: $primaryColor;
+  color: variables.$primaryColor;
 }
 
 @mixin icon-background {

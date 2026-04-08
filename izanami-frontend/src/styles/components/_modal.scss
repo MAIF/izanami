@@ -1,3 +1,5 @@
+@use "../variables.module";
+
 .modal {
   position: fixed;
   top: 0;
@@ -9,7 +11,7 @@
   width: 50%;
 }
 
-@media screen and (max-width: $screen-sm) {
+@media screen and (max-width: variables.$screen-sm) {
   .modal {
     width: auto;
   }
@@ -31,7 +33,7 @@
 
 .modal-header {
   padding: 15px;
-  border-bottom: 1px solid $primaryColor;
+  border-bottom: 1px solid variables.$primaryColor;
   font-size: 18px;
 }
 
@@ -52,5 +54,5 @@
 .modal-footer {
   padding: 15px;
   text-align: right;
-  border-top: 1px solid $primaryColor;
+  border-top: 1px solid variables.$primaryColor;
 }
