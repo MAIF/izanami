@@ -1,6 +1,6 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestFeaturePatch, TestPersonnalAccessToken, TestProject, TestSituationBuilder, TestTenant, TestUser, TestUserListRule, TestWasmConfig, deleteFeatureWithToken, disabledFeatureBase64, enabledFeatureBase64, updateFeatureWithToken}
+import fr.maif.izanami.api.BaseAPISpec.{TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestFeaturePatch, TestPersonnalAccessToken, TestProject, TestSituationBuilder, TestTenant, TestUser, TestUserListRule, TestWasmConfig, deleteFeatureWithToken, disabledFeatureBase64, enabledFeatureBase64, patchFeatureWithToken, updateFeatureWithToken}
 import play.api.libs.json.{JsArray, JsBoolean, JsDefined, JsFalse, JsNull, JsNumber, JsObject, JsString, JsTrue, JsValue, Json}
 import play.api.test.Helpers.*
 
@@ -8,6 +8,182 @@ import java.time.{LocalDateTime, OffsetDateTime}
 
 class FeatureAPISpec extends BaseAPISpec {
   "Feature PATCH endpoint" should {
+    "allow the use of personal access token" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false),
+                TestFeature("f2", enabled = false),
+                TestFeature("f3", enabled = true),
+                TestFeature("f4", enabled = true),
+                TestFeature("f5", enabled = true)
+              )
+            )
+        )
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(
+            name = "updateonly",
+            allRights = false,
+            rights = Map("tenant" -> Set("UPDATE FEATURE"))
+          ),
+          TestPersonnalAccessToken(
+            name = "deleteonly",
+            allRights = false,
+            rights = Map("tenant" -> Set("DELETE FEATURE"))
+          ),
+          TestPersonnalAccessToken(
+            name = "updatedelete",
+            allRights = false,
+            rights = Map("tenant" -> Set("UPDATE FEATURE", "DELETE FEATURE"))
+          )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      var response = patchFeatureWithToken(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f1").get}/enabled",
+            value = JsBoolean(true)
+          )
+        ),
+        username= situation.user,
+        token = situation.findTokenSecret(user = situation.user, token = "deleteonly")
+      )
+      response.status mustBe 401
+
+      response = patchFeatureWithToken(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f1").get}/enabled",
+            value = JsBoolean(true)
+          )
+        ),
+        username = situation.user,
+        token = situation.findTokenSecret(user = situation.user, token = "updateonly")
+      )
+      response.status mustBe 204
+
+      response = patchFeatureWithToken(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f2").get}/enabled",
+            value = JsBoolean(false)
+          )
+        ),
+        username = situation.user,
+        token = situation.findTokenSecret(user = situation.user, token = "updatedelete")
+      )
+      response.status mustBe 204
+
+      response = patchFeatureWithToken(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "remove",
+            path = s"/${situation.findFeatureId("tenant", "project", "f1").get}"
+          )
+        ),
+        username = situation.user,
+        token = situation.findTokenSecret(user = situation.user, token = "updateonly")
+      )
+      response.status mustBe 401
+
+      response = patchFeatureWithToken(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "remove",
+            path = s"/${situation.findFeatureId("tenant", "project", "f1").get}"
+          )
+        ),
+        username = situation.user,
+        token = situation.findTokenSecret(user = situation.user, token = "deleteonly")
+      )
+      response.status mustBe 204
+
+      response = patchFeatureWithToken(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "remove",
+            path = s"/${situation.findFeatureId("tenant", "project", "f2").get}"
+          )
+        ),
+        username = situation.user,
+        token = situation.findTokenSecret(user = situation.user, token = "updatedelete")
+      )
+      response.status mustBe 204
+
+      response = patchFeatureWithToken(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f3").get}/enabled",
+            value = JsBoolean(false)
+          ),
+          TestFeaturePatch(
+            op = "remove",
+            path = s"/${situation.findFeatureId("tenant", "project", "f4").get}"
+          )
+        ),
+        username = situation.user,
+        token = situation.findTokenSecret(user = situation.user, token = "updateonly")
+      )
+      response.status mustBe 401
+
+      response = patchFeatureWithToken(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f3").get}/enabled",
+            value = JsBoolean(false)
+          ),
+          TestFeaturePatch(
+            op = "remove",
+            path = s"/${situation.findFeatureId("tenant", "project", "f4").get}"
+          )
+        ),
+        username = situation.user,
+        token = situation.findTokenSecret(user = situation.user, token = "deleteonly")
+      )
+      response.status mustBe 401
+
+      response = patchFeatureWithToken(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f3").get}/enabled",
+            value = JsBoolean(false)
+          ),
+          TestFeaturePatch(
+            op = "remove",
+            path = s"/${situation.findFeatureId("tenant", "project", "f4").get}"
+          )
+        ),
+        username = situation.user,
+        token = situation.findTokenSecret(user = situation.user, token = "updatedelete")
+      )
+      response.status mustBe 204
+    }
+
     "prevent updating project if feature has protected overload and user doesn't have admin rights" in {
       val situation = TestSituationBuilder()
         .withTenants(
@@ -1285,18 +1461,25 @@ class FeatureAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val response = situation.updateFeatureByName(tenant = "foo", project = "proj", name = "f1", transformer = old => {
-        old ++ Json.obj("wasmConfig" -> Json.obj(
-          "name" -> "bar",
-          "functionName" -> "execute",
-          "opa" -> JsFalse,
-          "source"-> Json.obj(
-            "kind"-> "Base64",
-            "opts" -> Json.obj(),
-            "path" -> enabledFeatureBase64
-        )
-        ))
-      })
+      val response = situation.updateFeatureByName(
+        tenant = "foo",
+        project = "proj",
+        name = "f1",
+        transformer = old => {
+          old ++ Json.obj(
+            "wasmConfig" -> Json.obj(
+              "name" -> "bar",
+              "functionName" -> "execute",
+              "opa" -> JsFalse,
+              "source" -> Json.obj(
+                "kind" -> "Base64",
+                "opts" -> Json.obj(),
+                "path" -> enabledFeatureBase64
+              )
+            )
+          )
+        }
+      )
 
       response.status mustBe BAD_REQUEST
     }
@@ -1728,7 +1911,6 @@ class FeatureAPISpec extends BaseAPISpec {
 
     }
 
-
     "allow to update feature activation using pat" in {
       val situation = TestSituationBuilder()
         .withTenants(
@@ -1739,7 +1921,13 @@ class FeatureAPISpec extends BaseAPISpec {
               )
             )
         )
-        .withPersonnalAccessToken(TestPersonnalAccessToken(name = "toto", allRights = false, rights = Map("tenant" -> Set("UPDATE FEATURE"))))
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(
+            name = "toto",
+            allRights = false,
+            rights = Map("tenant" -> Set("UPDATE FEATURE"))
+          )
+        )
         .loggedInWithAdminRights()
         .build();
 
@@ -1747,7 +1935,6 @@ class FeatureAPISpec extends BaseAPISpec {
       val jsonFeature = (projectResponse.json.get \ "features" \ 0).as[JsObject]
 
       val newFeature = jsonFeature ++ Json.obj("enabled" -> true)
-
 
       val secret = situation.findTokenSecret(user = situation.user, "toto")
       val updateResponse = updateFeatureWithToken(
@@ -2456,7 +2643,11 @@ class FeatureAPISpec extends BaseAPISpec {
   "Feature DELETE endpoint" should {
     "allow deleting feature by id with an access token" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("testtenant").withProjects(TestProject("project").withFeatures(TestFeature("f1"))))
+        .withTenants(
+          TestTenant("testtenant").withProjects(
+            TestProject("project").withFeatures(TestFeature("f1"))
+          )
+        )
         .withPersonnalAccessToken(
           TestPersonnalAccessToken(
             "foo",
@@ -2469,10 +2660,21 @@ class FeatureAPISpec extends BaseAPISpec {
 
       val secret = situation.findTokenSecret(situation.user, "foo");
 
-      val res = deleteFeatureWithToken(tenant = "testtenant", featureId = situation.findFeatureId(tenant = "testtenant", project = "project", feature = "f1").get, username = situation.user, token = secret)
+      val res = deleteFeatureWithToken(
+        tenant = "testtenant",
+        featureId = situation
+          .findFeatureId(
+            tenant = "testtenant",
+            project = "project",
+            feature = "f1"
+          )
+          .get,
+        username = situation.user,
+        token = secret
+      )
       res.status mustBe NO_CONTENT
     }
-    
+
     "prevent deleting a feature with protected overload if user is not admin on project" in {
       val tenantName = "my-tenant"
       val projectName = "my-project"

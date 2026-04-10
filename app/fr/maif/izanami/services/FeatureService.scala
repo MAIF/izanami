@@ -120,7 +120,6 @@ class FeatureService(env: Env) {
     }
   }
   
-
   def patchFeature(
       tenant: String,
       patches: Seq[FeaturePatch],

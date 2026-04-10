@@ -24,6 +24,7 @@ import com.typesafe.config.ConfigValueFactory
 import fr.maif.izanami.IzanamiLoader
 import fr.maif.izanami.api.BaseAPISpec.{
   RequestResult,
+  TestFeaturePatch,
   cleanUpDB,
   eventKillSwitch,
   isAvailable,
@@ -949,6 +950,28 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         .get()
     )
     RequestResult(response = response, status = response.status)
+  }
+
+  def patchFeatureWithToken(
+      tenant: String,
+      patches: Seq[TestFeaturePatch],
+      username: String,
+      token: String
+  ): RequestResult = {
+    val auth = Base64.getEncoder.encodeToString(
+      s"${username}:$token".getBytes(StandardCharsets.UTF_8)
+    )
+    val response = await(
+      ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/features")
+        .addHttpHeaders("Authorization" -> s"Basic $auth")
+        .patch(Json.toJson(patches.map(p => p.json)))
+    )
+
+    RequestResult(
+      response = response,
+      status = response.status
+    )
+
   }
 
   def updateFeatureWithToken(
@@ -4705,33 +4728,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                 })
             })
           })
-          .flatMap(_ => {
-            Future.sequence(
-              personnalAccessTokens
-                .map(token => {
-                  createPersonnalAccessToken(
-                    token,
-                    user = loggedInUser.get,
-                    cookies = buildCookies
-                  ).map(resp => {
-                    val secret = (resp.json \ "token").as[String]
-                    val id = (resp.json \ "id").as[String]
-                    tokenIdAndSecretsByUser
-                      .getOrElse(
-                        loggedInUser.get, {
-                          val newMap =
-                            TrieMap[String, (String, String)]()
-                          tokenIdAndSecretsByUser
-                            .update(loggedInUser.get, newMap)
-                          newMap
-                        }
-                      )
-                      .update(token.name, (id, secret))
-                    resp
-                  })
-                })
-            )
-          })
+          
 
       futures.addOne(tenantFuture)
 
@@ -4769,6 +4766,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           .sequence(futures)
           .flatMap(_ => {
             Future.sequence(users.map(user => {
+              tokenIdAndSecretsByUser.update(user.username, TrieMap())
               createUserAsync(
                 user.username,
                 user.password,
@@ -4782,6 +4780,24 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                 } else ()
               })
             }))
+          })
+          .flatMap(_ => {
+            Future.sequence(
+              personnalAccessTokens
+                .map(token => {
+                  tokenIdAndSecretsByUser.update(loggedInUser.get, TrieMap())
+                  createPersonnalAccessToken(
+                    token,
+                    user = loggedInUser.get,
+                    cookies = buildCookies
+                  ).map(resp => {
+                    val secret = (resp.json \ "token").as[String]
+                    val id = (resp.json \ "id").as[String]
+                    tokenIdAndSecretsByUser(loggedInUser.get).update(token.name, (id, secret))
+                    resp
+                  })
+                })
+            )
           })
       )(2.minutes)
 

@@ -1,18 +1,46 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{TokenCheckFailure, TokenCheckSuccess}
-import fr.maif.izanami.datastores.{SessionIdentification, UsernameIdentification}
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{
+  TokenCheckFailure,
+  TokenCheckSuccess
+}
+import fr.maif.izanami.datastores.{
+  SessionIdentification,
+  UsernameIdentification
+}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{MissingPersonalAccessToken, NotEnoughRights, UserNotFound}
+import fr.maif.izanami.errors.{
+  MissingPersonalAccessToken,
+  NotEnoughRights,
+  UserNotFound
+}
 import fr.maif.izanami.events.EventAuthentication
-import fr.maif.izanami.events.EventAuthentication.{BackOfficeAuthentication, RootAuthentication, TokenAuthentication, authenticationName}
+import fr.maif.izanami.events.EventAuthentication.{
+  BackOfficeAuthentication,
+  RootAuthentication,
+  TokenAuthentication,
+  authenticationName
+}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.IzanamiMode.{Leader, Standalone, Worker}
 import fr.maif.izanami.security.JwtService.decodeJWT
-import fr.maif.izanami.services.{ProjectIdIdentification, ProjectIdentification, ProjectNameIdentification, RightService, WebhookIdIdentification}
+import fr.maif.izanami.services.{
+  ProjectIdIdentification,
+  ProjectIdentification,
+  ProjectNameIdentification,
+  RightService,
+  WebhookIdIdentification
+}
 import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterFutureEither, BetterSyntax}
-import fr.maif.izanami.web.AuthAction.{extractAndCheckPersonnalAccessToken, extractClaims}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterFuture,
+  BetterFutureEither,
+  BetterSyntax
+}
+import fr.maif.izanami.web.AuthAction.{
+  extractAndCheckPersonnalAccessToken,
+  extractClaims
+}
 import pdi.jwt.JwtClaim
 import play.api.libs.json.*
 import play.api.mvc.*
@@ -54,20 +82,38 @@ case class UserRequestWithTenantRights[A](
     user: UserWithTenantRights,
     authentication: EventAuthentication
 ) extends WrappedRequest[A](request)
-case class UserRequestWithCompleteRightForOneTenant[A](
-    request: Request[A],
-    user: UserWithCompleteRightForOneTenant,
-    authentication: EventAuthentication
+
+sealed abstract class UserRequestWithCompleteRightForOneTenant[A](
+    request: Request[A]
 ) extends WrappedRequest[A](request) {
+  def user: UserWithCompleteRightForOneTenant
+  def authentication: EventAuthentication
   def userInformation: UserInformation =
-    StandardUserInformation(username = user.username, authentication = authentication)
+    StandardUserInformation(
+      username = user.username,
+      authentication = authentication
+    )
 }
+
+case class UserRequestWithCompleteRightForOneTenantRealUser[A](
+    request: Request[A],
+    override val user: UserWithCompleteRightForOneTenant,
+    override val authentication: EventAuthentication
+) extends UserRequestWithCompleteRightForOneTenant[A](request)
+
+case class UserRequestWithCompleteRightForOneTenantTokenUser[A](
+    request: Request[A],
+    override val user: UserWithCompleteRightForOneTenant,
+    override val authentication: EventAuthentication,
+    token: ReadPersonnalAccessToken
+) extends UserRequestWithCompleteRightForOneTenant[A](request)
+
 case class UserNameRequest[A](request: Request[A], user: UserInformation)
     extends WrappedRequest[A](request)
 case class ProjectIdUserNameRequest[A](
-                                        request: Request[A],
-                                        user: UserInformation,
-                                        project: ProjectIdentification
+    request: Request[A],
+    user: UserInformation,
+    project: ProjectIdentification
 ) extends WrappedRequest[A](request)
 
 case class HookAndUserNameRequest[A](
@@ -127,21 +173,31 @@ class PersonnalAccessTokenTenantRightsAction(
       block: UserRequestWithTenantRights[A] => Future[Result]
   ): Future[Result] = {
     def maybeTokenAuth: Future[Either[Result, (UserWithTenantRights, UUID)]] = {
-      extractAndCheckPersonnalAccessToken(request, env, operation)
+      extractAndCheckPersonnalAccessToken(
+        request,
+        env,
+        token => token.hasRight(operation)
+      )
         .flatMap {
-          case Some((username, tokenId)) =>
+          case Some((username, token)) =>
             env.datastores.users
               .findUser(username)
               .map {
-                case Some(value) => Right((value, tokenId))
-                case None => Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
+                case Some(value) => Right((value, token.id))
+                case None        =>
+                  Left(
+                    Unauthorized(Json.obj("message" -> "Invalid access token"))
+                  )
               }
           case None =>
-            Future.successful(Left(Unauthorized(Json.obj("message" -> "Invalid access token"))))
+            Future.successful(
+              Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
+            )
         }
     }
 
-    def maybeCookieAuth: Future[Option[Either[Result, UserWithTenantRights]]] = {
+    def maybeCookieAuth
+        : Future[Option[Either[Result, UserWithTenantRights]]] = {
       extractClaims(
         request,
         env.typedConfiguration.authentication.secret,
@@ -153,9 +209,13 @@ class PersonnalAccessTokenTenantRightsAction(
             .findSessionWithTenantRights(subject)
             .map {
               case None =>
-                Some(Left(Unauthorized(
-                  Json.obj("message" -> "User is not connected")
-                )))
+                Some(
+                  Left(
+                    Unauthorized(
+                      Json.obj("message" -> "User is not connected")
+                    )
+                  )
+                )
               case Some(user) => Some(Right(user))
             }
         })
@@ -174,7 +234,13 @@ class PersonnalAccessTokenTenantRightsAction(
       case None               =>
         maybeTokenAuth.flatMap {
           case Right((user, tokenId)) =>
-            block(UserRequestWithTenantRights(request = request, user = user, authentication = TokenAuthentication(tokenId)))
+            block(
+              UserRequestWithTenantRights(
+                request = request,
+                user = user,
+                authentication = TokenAuthentication(tokenId)
+              )
+            )
           case Left(result) => Future.successful(result)
         }
     }
@@ -387,7 +453,7 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
     bodyParser: BodyParser[AnyContent],
     override val env: Env,
     tenant: String,
-    requiredTokenRight: TenantTokenRights
+    requiredTokenRight: Option[TenantTokenRights]
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserRequestWithCompleteRightForOneTenant] {
@@ -399,13 +465,17 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
       block: UserRequestWithCompleteRightForOneTenant[A] => Future[Result]
   ): Future[Result] = {
 
-    def maybeTokenAuth
-        : Future[Either[Result, (UUID, UserWithCompleteRightForOneTenant)]] = {
+    def maybeTokenAuth: Future[Either[
+      Result,
+      (ReadPersonnalAccessToken, UserWithCompleteRightForOneTenant)
+    ]] = {
       extractAndCheckPersonnalAccessToken(
         request,
         env,
-        tenant,
-        requiredTokenRight
+        token =>
+          requiredTokenRight.forall(r =>
+            token.hasTenantRight(tenant = tenant, right = r)
+          )
       )
         .flatMap {
           case Some((username, tokenId)) =>
@@ -464,7 +534,7 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
     maybeCookieAuth.flatMap {
       case Some(Right(user)) =>
         block(
-          UserRequestWithCompleteRightForOneTenant(
+          UserRequestWithCompleteRightForOneTenantRealUser(
             request = request,
             user = user,
             authentication = BackOfficeAuthentication
@@ -473,12 +543,13 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
       case Some(Left(result)) => Future.successful(result)
       case None               =>
         maybeTokenAuth.flatMap {
-          case Right((tokenId, user)) =>
+          case Right((token, user)) =>
             block(
-              UserRequestWithCompleteRightForOneTenant(
+              UserRequestWithCompleteRightForOneTenantTokenUser(
                 request = request,
                 user = user,
-                authentication = TokenAuthentication(tokenId)
+                authentication = TokenAuthentication(token.id),
+                token = token
               )
             )
           case Left(result) => Future.successful(result)
@@ -518,7 +589,7 @@ class DetailledRightForTenantAction(
             case Left(err)   => err.toHttpResponse.toFuture
             case Right(user) =>
               block(
-                UserRequestWithCompleteRightForOneTenant(
+                UserRequestWithCompleteRightForOneTenantRealUser(
                   request = request,
                   user = user,
                   authentication = BackOfficeAuthentication
@@ -549,9 +620,13 @@ class PersonnalAccessTokenProjectAuthAction(
   ): Future[Result] = {
 
     def maybeTokenAuth: Future[Either[Result, UserInformation]] = {
-      extractAndCheckPersonnalAccessToken(request, env, tenant, operation)
+      extractAndCheckPersonnalAccessToken(
+        request,
+        env,
+        token => token.hasTenantRight(tenant = tenant, right = operation)
+      )
         .flatMap {
-          case Some((username, tokenId)) =>
+          case Some((username, token)) =>
             env.datastores.users
               .findCompleteRightsFromTenant(
                 username = username,
@@ -567,7 +642,7 @@ class PersonnalAccessTokenProjectAuthAction(
                   Right(
                     StandardUserInformation(
                       username = username,
-                      TokenAuthentication(tokenId = tokenId)
+                      TokenAuthentication(tokenId = token.id)
                     )
                   )
                 case Some(user) =>
@@ -771,16 +846,19 @@ class PersonnalAccessTokenFeatureAuthAction(
   ): Future[Result] = {
 
     def maybeTokenAuth: FutureEither[
-      (UserWithCompleteRightForOneTenant, EventAuthentication)
+      (
+          UserWithCompleteRightForOneTenant,
+          EventAuthentication,
+          ReadPersonnalAccessToken
+      )
     ] = {
       extractAndCheckPersonnalAccessToken(
         request,
         env,
-        tenant,
-        operation
+        token => token.hasTenantRight(tenant = tenant, right = operation)
       ).mapToFEither
         .flatMap {
-          case Some((username, tokenId)) =>
+          case Some((username, token)) =>
             for (
               user <- env.datastores.users
                 .findUserWithRightForTenant(
@@ -800,7 +878,7 @@ class PersonnalAccessTokenFeatureAuthAction(
                 )
               ) {
                 FutureEither.success(
-                  (user, TokenAuthentication(tokenId = tokenId))
+                  (user, TokenAuthentication(tokenId = token.id), token)
                 )
               } else {
                 FutureEither.failure(
@@ -851,7 +929,7 @@ class PersonnalAccessTokenFeatureAuthAction(
     maybeCookieAuth.value.flatMap {
       case Right(Some(user)) =>
         block(
-          UserRequestWithCompleteRightForOneTenant(
+          UserRequestWithCompleteRightForOneTenantRealUser(
             request = request,
             user = user,
             authentication = BackOfficeAuthentication
@@ -860,12 +938,13 @@ class PersonnalAccessTokenFeatureAuthAction(
       case Left(result) => Future.successful(result.toHttpResponse)
       case Right(None)  =>
         maybeTokenAuth.value.flatMap {
-          case Right((user, authentication)) =>
+          case Right((user, authentication, token)) =>
             block(
-              UserRequestWithCompleteRightForOneTenant(
+              UserRequestWithCompleteRightForOneTenantTokenUser(
                 request = request,
                 user = user,
-                authentication = authentication
+                authentication = authentication,
+                token = token
               )
             )
           case Left(result) => Future.successful(result.toHttpResponse)
@@ -894,9 +973,13 @@ class PersonnalAccessTokenKeyAuthAction(
   ): Future[Result] = {
 
     def maybeTokenAuth: Future[Either[Result, UserInformation]] = {
-      extractAndCheckPersonnalAccessToken(request, env, tenant, operation)
+      extractAndCheckPersonnalAccessToken(
+        request,
+        env,
+        token => token.hasTenantRight(tenant = tenant, right = operation)
+      )
         .flatMap {
-          case Some((username, tokenId)) =>
+          case Some((username, token)) =>
             env.datastores.users
               .findCompleteRightsFromTenant(
                 username = username,
@@ -912,7 +995,7 @@ class PersonnalAccessTokenKeyAuthAction(
                   Right(
                     StandardUserInformation(
                       username = username,
-                      TokenAuthentication(tokenId = tokenId)
+                      TokenAuthentication(tokenId = token.id)
                     )
                   )
                 case Some(user) =>
@@ -1008,9 +1091,13 @@ class PersonnalAccessTokenTenantAuthAction(
   ): Future[Result] = {
 
     def maybeTokenAuth: Future[Either[Result, UserInformation]] = {
-      extractAndCheckPersonnalAccessToken(request, env, tenant, operation)
+      extractAndCheckPersonnalAccessToken(
+        request,
+        env,
+        token => token.hasTenantRight(tenant = tenant, right = operation)
+      )
         .flatMap {
-          case Some((username, tokenId)) =>
+          case Some((username, token)) =>
             env.datastores.users
               .findUser(username)
               .map {
@@ -1025,7 +1112,7 @@ class PersonnalAccessTokenTenantAuthAction(
                   Right(
                     StandardUserInformation(
                       username = username,
-                      TokenAuthentication(tokenId = tokenId)
+                      TokenAuthentication(tokenId = token.id)
                     )
                   )
                 case Some(user) =>
@@ -1120,9 +1207,13 @@ class PersonnalAccessTokenAdminAuthAction(
   ): Future[Result] = {
 
     def maybeTokenAuth: Future[Either[Result, UserInformation]] = {
-      extractAndCheckPersonnalAccessToken(request, env, operation)
+      extractAndCheckPersonnalAccessToken(
+        request,
+        env,
+        token => token.hasRight(operation)
+      )
         .flatMap {
-          case Some((username, tokenId)) =>
+          case Some((username, token)) =>
             env.datastores.users
               .findUser(username)
               .map {
@@ -1130,7 +1221,7 @@ class PersonnalAccessTokenAdminAuthAction(
                   Right(
                     StandardUserInformation(
                       username = username,
-                      TokenAuthentication(tokenId = tokenId)
+                      TokenAuthentication(tokenId = token.id)
                     )
                   )
                 case Some(user) =>
@@ -1422,33 +1513,37 @@ class WebhookAuthAction(
       )(subject => {
         Try {
           UUID.fromString(webhook)
-        }.fold(ex => {
-          Future
-            .successful(BadRequest(Json.obj("message" -> "Webhook id must be an UUID")))
-        }, webhookId =>
-          rightService
-            .hasRightForWebhook(
-              SessionIdentification(subject),
-              tenant,
-              WebhookIdIdentification(webhookId),
-              minimumLevel
-            )
-            .flatMap {
-              case Some((username, webhookIdentifiers)) =>
-                block(
-                  HookAndUserNameRequest(
-                    request = request,
-                    user = StandardUserInformation(
-                      username = username,
-                      authentication = BackOfficeAuthentication
-                    ),
-                    hookName = webhookIdentifiers.name
-                  )
-                ).mapToFEither
-              case None =>
-                FutureEither.failure(NotEnoughRights())
-            }
-            .toResult(res => res)
+        }.fold(
+          ex => {
+            Future
+              .successful(
+                BadRequest(Json.obj("message" -> "Webhook id must be an UUID"))
+              )
+          },
+          webhookId =>
+            rightService
+              .hasRightForWebhook(
+                SessionIdentification(subject),
+                tenant,
+                WebhookIdIdentification(webhookId),
+                minimumLevel
+              )
+              .flatMap {
+                case Some((username, webhookIdentifiers)) =>
+                  block(
+                    HookAndUserNameRequest(
+                      request = request,
+                      user = StandardUserInformation(
+                        username = username,
+                        authentication = BackOfficeAuthentication
+                      ),
+                      hookName = webhookIdentifiers.name
+                    )
+                  ).mapToFEither
+                case None =>
+                  FutureEither.failure(NotEnoughRights())
+              }
+              .toResult(res => res)
         )
       })
   }
@@ -1529,22 +1624,41 @@ class PersonnalAccessTokenDetailledRightForTenantFactory(
   def apply(
       tenant: String,
       requiredTokenRight: TenantTokenRights
-  ): PersonnalAccessTokenDetailledRightForTenantAction =
+  ): PersonnalAccessTokenDetailledRightForTenantAction = {
     new PersonnalAccessTokenDetailledRightForTenantAction(
       bodyParser,
       env,
       tenant,
-      requiredTokenRight
+      Some(requiredTokenRight)
     )
+  }
+
+  def apply(
+      tenant: String
+  ): PersonnalAccessTokenDetailledRightForTenantAction = {
+    new PersonnalAccessTokenDetailledRightForTenantAction(
+      bodyParser,
+      env,
+      tenant,
+      None
+    )
+  }
 }
 
-class PersonnalAccessTokenTenantRightsActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
-  implicit ec: ExecutionContext
+class PersonnalAccessTokenTenantRightsActionFactory(
+    bodyParser: BodyParser[AnyContent],
+    env: Env
+)(implicit
+    ec: ExecutionContext
 ) {
   def apply(
-             globalTokenRight: GlobalTokenRight
-           ): PersonnalAccessTokenTenantRightsAction =
-    new PersonnalAccessTokenTenantRightsAction(bodyParser, env, globalTokenRight)
+      globalTokenRight: GlobalTokenRight
+  ): PersonnalAccessTokenTenantRightsAction =
+    new PersonnalAccessTokenTenantRightsAction(
+      bodyParser,
+      env,
+      globalTokenRight
+    )
 }
 
 class KeyAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
@@ -1755,9 +1869,8 @@ object AuthAction {
   def extractAndCheckPersonnalAccessToken[A](
       request: Request[A],
       env: Env,
-      tenant: String,
-      operation: TenantTokenRights
-  ): Future[Option[(String, UUID)]] = {
+      checker: ReadPersonnalAccessToken => Boolean
+  ): Future[Option[(String, ReadPersonnalAccessToken)]] = {
     request.headers
       .get("Authorization")
       .map(header => header.split("Basic "))
@@ -1771,39 +1884,10 @@ object AuthAction {
       .filter(arr => arr.length == 2) match {
       case Some(Array(username, token, _*)) => {
         env.datastores.personnalAccessToken
-          .checkAccessToken(username, token, tenant, operation)
+          .checkAccessToken(username, token, checker)
           .map {
-            case TokenCheckSuccess(tokenId) => Some(username, tokenId)
-            case TokenCheckFailure          => None
-          }(env.executionContext)
-
-      }
-      case _ => Future.successful(None)
-    }
-  }
-
-  def extractAndCheckPersonnalAccessToken[A](
-      request: Request[A],
-      env: Env,
-      operation: GlobalTokenRight
-  ): Future[Option[(String, UUID)]] = {
-    request.headers
-      .get("Authorization")
-      .map(header => header.split("Basic "))
-      .filter(splitted => splitted.length == 2)
-      .map(splitted => splitted(1))
-      .map(header => {
-        Base64.getDecoder.decode(header.getBytes)
-      })
-      .map(bytes => new String(bytes))
-      .map(header => header.split(":"))
-      .filter(arr => arr.length == 2) match {
-      case Some(Array(username, token, _*)) => {
-        env.datastores.personnalAccessToken
-          .checkAccessToken(username, token, operation)
-          .map {
-            case TokenCheckSuccess(tokenId) => Some(username, tokenId)
-            case TokenCheckFailure          => None
+            case TokenCheckSuccess(token) => Some(username, token)
+            case TokenCheckFailure        => None
           }(env.executionContext)
 
       }

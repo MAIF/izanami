@@ -1,12 +1,7 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{
-  FeatureNotFound,
-  IncorrectKey,
-  IzanamiError,
-  TagDoesNotExists
-}
+import fr.maif.izanami.errors.{FeatureNotFound, IncorrectKey, IzanamiError, TagDoesNotExists}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.Feature.*
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
@@ -24,6 +19,7 @@ import play.api.mvc.*
 
 import java.time.Instant
 import java.util.Base64
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 
 class FeatureController(
@@ -462,17 +458,36 @@ class FeatureController(
   }
 
   def patchFeatures(tenant: String): Action[JsValue] =
-    detailledRightForTenanFactory(
+    personnalAccessTokenDetailledRightForTenantFactory(
       tenant
     ).async(parse.json) { implicit request =>
       request.body
         .asOpt[Seq[FeaturePatch]]
         .map(fs => {
-          featureService
-            .patchFeature(tenant, fs, request.user, request.authentication)
-            .toResult(r => {
-              NoContent
-            })
+          val neededRights = fs.foldLeft(Set(): Set[TenantTokenRights])((necessaryRights, patch) => {
+            patch match {
+              case EnabledFeaturePatch(value, id, preserveProtectedContexts) => necessaryRights + UpdateFeature
+              case ProjectFeaturePatch(value, id) => necessaryRights + UpdateFeature
+              case TagsFeaturePatch(value, id) => necessaryRights + UpdateFeature
+              case RemoveFeaturePatch(id) => necessaryRights + DeleteFeature
+            }
+          })
+          val hasRights = neededRights.forall(right => {
+            request match {
+              case r:UserRequestWithCompleteRightForOneTenantRealUser[_] => true
+              case r:UserRequestWithCompleteRightForOneTenantTokenUser[_] => r.token.hasTenantRight(tenant = tenant, right = right)
+            }
+          })
+          
+          if(hasRights) {
+            featureService
+              .patchFeature(tenant, fs, request.user, request.authentication)
+              .toResult(r => {
+                NoContent
+              })
+          } else {
+            Future.successful(Unauthorized(Json.obj("message" -> "Your token doesn't have enough right to perform this operation")))
+          }
         })
         .getOrElse(BadRequest("").future)
     }

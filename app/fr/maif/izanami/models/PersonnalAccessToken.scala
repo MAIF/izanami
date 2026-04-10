@@ -102,7 +102,31 @@ case class PersonnalAccessTokenCreationRequest(
     username: String,
     rights: PersonnalAccessTokenRights,
     expiration: PersonnalAccessTokenExpiration
-)
+) {
+  def hasTenantRight(tenant: String, right: TenantTokenRights): Boolean = {
+    rights match {
+      case AllRights => true
+      case LimitedRights(rights, globalRights) => rights.get(tenant).exists(rs => rs.contains(right))
+    }
+  }
+  
+  def hasRight(right: GlobalTokenRight): Boolean = {
+    rights match {
+      case AllRights => true
+      case LimitedRights(_, globalRights) => globalRights.contains(right)
+    }
+  }
+  
+  def isExpired: Boolean = {
+    expiration match {
+      case NoExpiration => false
+      case Expiration(expiresAt, expirationTimezone) => {
+        val expirationDate = expiresAt.atZone(expirationTimezone)
+        expirationDate.toInstant.isBefore(Instant.now())
+      }
+    }
+  }
+}
 
 case class ReadPersonnalAccessToken(
     id: UUID,
@@ -113,7 +137,12 @@ case class ReadPersonnalAccessToken(
   def expiration: PersonnalAccessTokenExpiration = underlying.expiration
   def name: String = underlying.name
   def username: String = underlying.username
+  
+  def hasTenantRight(tenant: String, right: TenantTokenRights): Boolean = underlying.hasTenantRight(tenant, right)
 
+  def hasRight(right: GlobalTokenRight): Boolean = underlying.hasRight(right)
+
+  def isExpired: Boolean = underlying.isExpired
 }
 case class CompletePersonnalAccessToken(
     token: String,

@@ -70,120 +70,68 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
   def checkAccessToken(
       username: String,
       token: String,
-      tenant: String,
-      operation: TenantTokenRights
+      checker: ReadPersonnalAccessToken => Boolean
   ): Future[TokenCheckResult] = {
-    val parts = token.split("_")
-    if (parts.length != 2) {
-      Future.successful(TokenCheckFailure)
-    } else {
-      val id = UUID.fromString(parts.head)
-      val secret = parts.last
-      env.postgresql
-        .queryOne(
-          s"""
-           |SELECT
-           |  t.token,
-           |  t.expires_at,
-           |  t.expiration_timezone
-           |FROM izanami.personnal_access_tokens t
-           |WHERE username = $$1 AND id = $$2 AND (
-           |  all_rights = true OR EXISTS(
-           |    SELECT value
-           |    FROM izanami.personnal_access_token_rights
-           |    WHERE token=t.id  AND tenant=$$3 AND value = $$4
-           |  )
-           |)
-           |""".stripMargin,
-          List(username, id, tenant, operation.name)
-        ) { r =>
-          {
-            val maybeExpiresAt = r.optLocalDateTime("expires_at")
-            val maybeExpirationTimezone = r.optString("expiration_timezone")
-            if (maybeExpiresAt.isDefined && maybeExpirationTimezone.isDefined) {
-              (for (
-                expiresAt <- maybeExpiresAt;
-                timezoneStr <- maybeExpirationTimezone;
-                timezone <- Try(ZoneId.of(timezoneStr)).toOption;
-                date = expiresAt.atZone(timezone)
-              ) yield {
-                if (date.toInstant.isAfter(Instant.now())) {
-                  r.optString("token")
-                } else {
-                  None
-                }
-              }).flatten
-            } else {
-              r.optString("token")
-            }
-          }
-        }
-        .map {
-          case Some(t) if bcryptCheck(secret, t) => {
-            TokenCheckSuccess(id)
-          }
-          case _ => {
-            TokenCheckFailure
-          }
-        }
-    }
+    findValidAccessToken(token = token, username = username, predicate = checker)
+      .map {
+        case Some(value) => TokenCheckSuccess(value)
+        case None => TokenCheckFailure
+      }
   }
 
-  def checkAccessToken(
-                        username: String,
-                        token: String,
-                        operation: GlobalTokenRight
-                      ): Future[TokenCheckResult] = {
+  type TokenSecret = String
+  type TokenId = UUID
+  private def findValidAccessToken(
+      token: String,
+      username: String,
+      predicate: ReadPersonnalAccessToken => Boolean
+  ): Future[Option[ReadPersonnalAccessToken]] = {
+    extractTokenInformation(token).fold(Future.successful(Option.empty))(
+      (id, secret) => {
+        env.postgresql
+          .queryOne(
+            s"""
+             |SELECT
+             |  t.id,
+             |  t.username,
+             |  t.name,
+             |  t.created_at,
+             |  t.expires_at,
+             |  t.expiration_timezone,
+             |  t.all_rights,
+             |  t.token,
+             |  COALESCE(json_agg(json_build_object('tenant', tr.tenant, 'right', tr.value)) FILTER (WHERE tr.token IS NOT NULL AND tr.value IS NOT NULL), '[]') AS rights,
+             |  COALESCE(json_agg(tr.global_value) FILTER (WHERE tr.token IS NOT NULL AND tr.global_value IS NOT NULL), '[]') AS global_rights
+             |FROM izanami.personnal_access_tokens t
+             |LEFT OUTER JOIN izanami.personnal_access_token_rights tr ON tr.token = t.id
+             |WHERE t.username = $$1 AND t.id = $$2
+             |GROUP BY t.id
+             |""".stripMargin,
+            List(username, id)
+          ) { r =>
+            for (
+              tokenSecret <- r.optString("token");
+              token <- r.optToken
+            ) yield (tokenSecret, token)
+          }
+          .map {
+            case Some((tokenSecret, token)) if (!token.isExpired) && bcryptCheck(secret, tokenSecret) && predicate(token) => Some(token)
+            case _ => None
+          }
+      }
+    )
+  }
+
+  private def extractTokenInformation(
+      token: String
+  ): Option[(TokenId, TokenSecret)] = {
     val parts = token.split("_")
     if (parts.length != 2) {
-      Future.successful(TokenCheckFailure)
+      None
     } else {
       val id = UUID.fromString(parts.head)
       val secret = parts.last
-      env.postgresql
-        .queryOne(
-          s"""
-             |SELECT
-             |  t.token,
-             |  t.expires_at,
-             |  t.expiration_timezone
-             |FROM izanami.personnal_access_tokens t
-             |WHERE username = $$1 AND id = $$2 AND (
-             |  all_rights = true OR EXISTS(
-             |    SELECT value
-             |    FROM izanami.personnal_access_token_rights
-             |    WHERE token=t.id AND global_value = $$3
-             |  )
-             |)
-             |""".stripMargin,
-          List(username, id, operation.name)
-        ) { r => {
-          val maybeExpiresAt = r.optLocalDateTime("expires_at")
-          val maybeExpirationTimezone = r.optString("expiration_timezone")
-          if (maybeExpiresAt.isDefined && maybeExpirationTimezone.isDefined) {
-            (for (
-              expiresAt <- maybeExpiresAt;
-              timezoneStr <- maybeExpirationTimezone;
-              timezone <- Try(ZoneId.of(timezoneStr)).toOption;
-              date = expiresAt.atZone(timezone)
-            ) yield {
-              if (date.toInstant.isAfter(Instant.now())) {
-                r.optString("token")
-              } else {
-                None
-              }
-            }).flatten
-          } else {
-            r.optString("token")
-          }
-        }
-        }
-        .map {
-          case Some(t) if bcryptCheck(secret, t) => {
-            TokenCheckSuccess(id)
-          }
-          case _ => TokenCheckFailure
-        }
+      Some((id, secret))
     }
   }
 
@@ -257,8 +205,12 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
                       )
                     )
                   } else {
-                    val tenantAsArray = rightAsList.flatMap {(tenant, rights) => rights.toList.map(_ => tenant)}.toArray
-                    val rightAsArray = rightAsList.flatMap {(tenant, rights) => rights.map(r => r.name)}.toArray
+                    val tenantAsArray = rightAsList.flatMap {
+                      (tenant, rights) => rights.toList.map(_ => tenant)
+                    }.toArray
+                    val rightAsArray = rightAsList.flatMap { (tenant, rights) =>
+                      rights.map(r => r.name)
+                    }.toArray
                     env.postgresql
                       .queryRaw(
                         s"""
@@ -475,7 +427,8 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
 
 object PersonnalAccessTokenDatastore {
   sealed trait TokenCheckResult
-  case class TokenCheckSuccess(tokenId: UUID) extends TokenCheckResult
+  case class TokenCheckSuccess(token: ReadPersonnalAccessToken)
+      extends TokenCheckResult
   case object TokenCheckFailure extends TokenCheckResult
 }
 
@@ -533,7 +486,9 @@ object PersonnalAccessTokenDatastoreImplicits {
               .optJsArray("global_rights")
               .flatMap(jsArray =>
                 jsArray.asOpt[Set[GlobalTokenRight]](
-                  Reads.set(PersonnalAccessToken.personnalAccessTokenGlobalRightRead)
+                  Reads.set(
+                    PersonnalAccessToken.personnalAccessTokenGlobalRightRead
+                  )
                 )
               )
               .getOrElse(Set())
