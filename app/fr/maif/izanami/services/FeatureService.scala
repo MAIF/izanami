@@ -124,7 +124,8 @@ class FeatureService(env: Env) {
       tenant: String,
       patches: Seq[FeaturePatch],
       user: UserWithCompleteRightForOneTenant,
-      authentication: EventAuthentication
+      authentication: EventAuthentication,
+      preserveProtectedContexts: Boolean
   ): FutureEither[Done] = {
     datastore
       .findByIds(
@@ -136,7 +137,7 @@ class FeatureService(env: Env) {
           patches.foldLeft(FutureEither.success(Done.done()))((acc, next) => {
             acc.flatMap(_ => {
               next match {
-                case EnabledFeaturePatch(value, id, preserveProtectedContexts) => {
+                case EnabledFeaturePatch(value, id) => {
                   features
                     .get(id)
                     .map(feature => {

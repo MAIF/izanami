@@ -24,7 +24,7 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
   context,
 }: OverloadUpdateConfirmationModalProps) {
   const [confirmationText, setConfirmationText] = useState<string | undefined>(
-    undefined
+    undefined,
   );
   const [error, setError] = useState<undefined | string>(undefined);
   const featureEntries = Object.values(features);
@@ -34,7 +34,7 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
         featureEntries[0]?.newFeature?.name
       : undefined;
   const oldNewFeatures: [TLightFeature?, TLightFeature?][] = Object.values(
-    features
+    features,
   ).map(({ oldFeature, newFeature }) => {
     return [oldFeature, newFeature];
   });
@@ -85,11 +85,11 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
         impactedContexts: { [x: string]: string[] };
         rootImpactedContexts: { [x: string]: string[] };
         forbiddenUpdateByProject: { [x: string]: string[] };
-      }
+      },
     );
 
   const [strategyPreservation, setStrategyPreservation] = useState(
-    Object.keys(forbiddenUpdateByProject).length > 0
+    Object.keys(forbiddenUpdateByProject).length > 0,
   );
 
   return (
@@ -98,7 +98,8 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
         onSubmit={(e) => {
           e.preventDefault();
           const names = featureEntries.map(
-            ({ oldFeature, newFeature }) => oldFeature?.name ?? newFeature?.name
+            ({ oldFeature, newFeature }) =>
+              oldFeature?.name ?? newFeature?.name,
           );
           if (
             strategyPreservation ||
@@ -168,7 +169,7 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
                             {!singleFeature && ` (${features.join(",")})`}
                           </li>
                         );
-                      }
+                      },
                     )}
                   </ul>
                 </>

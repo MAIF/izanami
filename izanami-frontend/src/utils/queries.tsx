@@ -906,15 +906,21 @@ export function updateUserRights(
 export function patchFeatures(
   tenant: string,
   patches: { op: string; path: string; value?: any }[],
+  strategyPreservation: boolean,
 ) {
   return handleFetchWithoutResponse(
-    fetch(`/api/admin/tenants/${tenant}/features`, {
-      method: "PATCH",
-      body: JSON.stringify(patches),
-      headers: {
-        "Content-Type": "application/json",
+    fetch(
+      `/api/admin/tenants/${tenant}/features?preserveProtectedContexts=${
+        strategyPreservation ? "true" : "false"
+      }`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(patches),
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    }),
+    ),
   );
 }
 

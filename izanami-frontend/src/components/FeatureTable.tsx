@@ -131,55 +131,60 @@ function OperationButton(props: {
         type="button"
         disabled={!hasSelectedRows || !bulkOperation}
         onClick={() => {
-          validationCallback(bulkOperation, selectedRows).then(() => {
-            switch (bulkOperation) {
-              case "Delete":
-                askConfirmation(
-                  `Are you sure you want to delete ${
-                    selectedRows.length
-                  } feature${selectedRows.length > 1 ? "s" : ""} ?`,
-                  () =>
-                    patchFeatures(
-                      tenant!,
-                      selectedRows.map((f) => ({
-                        op: "remove",
-                        path: `/${f.id}`,
+          validationCallback(bulkOperation, selectedRows).then(
+            (preserveProtectedContexts) => {
+              switch (bulkOperation) {
+                case "Delete":
+                  askConfirmation(
+                    `Are you sure you want to delete ${
+                      selectedRows.length
+                    } feature${selectedRows.length > 1 ? "s" : ""} ?`,
+                    () =>
+                      patchFeatures(
+                        tenant!,
+                        selectedRows.map((f) => ({
+                          op: "remove",
+                          path: `/${f.id}`,
+                        })),
+                        preserveProtectedContexts,
+                      ).then(() => refresh()),
+                  );
+                  break;
+                case "Enable":
+                  patchFeatures(
+                    tenant!,
+                    selectedRows
+                      .filter((f) => !f.enabled)
+                      .map((f) => ({
+                        op: "replace",
+                        path: `/${f.id}/enabled`,
+                        value: true,
                       })),
-                    ).then(() => refresh()),
-                );
-                break;
-              case "Enable":
-                patchFeatures(
-                  tenant!,
-                  selectedRows
-                    .filter((f) => !f.enabled)
-                    .map((f) => ({
-                      op: "replace",
-                      path: `/${f.id}/enabled`,
-                      value: true,
-                    })),
-                )
-                  .then(() => refresh())
-                  .then(() => {
-                    cancel();
-                  });
-                break;
-              case "Disable":
-                patchFeatures(
-                  tenant!,
-                  selectedRows
-                    .filter((f) => f.enabled)
-                    .map((f) => ({
-                      op: "replace",
-                      path: `/${f.id}/enabled`,
-                      value: false,
-                    })),
-                )
-                  .then(() => refresh())
-                  .then(() => cancel());
-                break;
-            }
-          });
+                    preserveProtectedContexts,
+                  )
+                    .then(() => refresh())
+                    .then(() => {
+                      cancel();
+                    });
+                  break;
+                case "Disable":
+                  patchFeatures(
+                    tenant!,
+                    selectedRows
+                      .filter((f) => f.enabled)
+                      .map((f) => ({
+                        op: "replace",
+                        path: `/${f.id}/enabled`,
+                        value: false,
+                      })),
+                    preserveProtectedContexts,
+                  )
+                    .then(() => refresh())
+                    .then(() => cancel());
+                  break;
+              }
+            },
+          );
         }}
       >
         {bulkOperation} {selectedRows.length} feature
@@ -197,7 +202,7 @@ function OperationTransferForm(props: {
   validationCallback: (
     action: string,
     features: TLightFeature[],
-  ) => Promise<any>;
+  ) => Promise<boolean>;
 }) {
   const { tenant, selectedRows, cancel, refresh, validationCallback } = props;
   const selectedRowProjects = selectedRows.map((f) => f.project);
@@ -238,23 +243,25 @@ function OperationTransferForm(props: {
           },
         }}
         onSubmit={(data: { project: string }) => {
-          return validationCallback("Transfer", selectedRows).then(() =>
-            askConfirmation(
-              `Transferring ${selectedRows.length} feature${
-                selectedRows.length > 1 ? "s" : ""
-              }  will delete existing local overloads (if any), are you sure ?`,
-              () =>
-                patchFeatures(
-                  tenant!,
-                  selectedRows.map((f) => ({
-                    op: "replace",
-                    path: `/${f.id}/project`,
-                    value: data.project,
-                  })),
-                )
-                  .then(refresh)
-                  .then(cancel),
-            ),
+          return validationCallback("Transfer", selectedRows).then(
+            (preserveProtectedContexts) =>
+              askConfirmation(
+                `Transferring ${selectedRows.length} feature${
+                  selectedRows.length > 1 ? "s" : ""
+                }  will delete existing local overloads (if any), are you sure ?`,
+                () =>
+                  patchFeatures(
+                    tenant!,
+                    selectedRows.map((f) => ({
+                      op: "replace",
+                      path: `/${f.id}/project`,
+                      value: data.project,
+                    })),
+                    preserveProtectedContexts,
+                  )
+                    .then(refresh)
+                    .then(cancel),
+              ),
           );
         }}
         footer={({ valid }: { valid: () => void }) => {
@@ -287,7 +294,7 @@ function OperationTagForm(props: {
   validationCallback: (
     action: string,
     features: TLightFeature[],
-  ) => Promise<any>;
+  ) => Promise<boolean>;
 }) {
   const { tenant, selectedRows, cancel, refresh, validationCallback } = props;
   const tagsQuery = useQuery({
@@ -302,25 +309,27 @@ function OperationTagForm(props: {
     setSelectedValues(selectedOptions);
   };
   const OnSubmit = (selectedRows: TLightFeature[], values: Option[]) => {
-    validationCallback("Apply Tags", selectedRows).then(() =>
-      askConfirmation(
-        `Are you sure to apply ${values.length} tag${
-          selectedRows.length > 1 ? "s" : ""
-        } on ${selectedRows.length} feature${
-          selectedRows.length > 1 ? "s" : ""
-        }?`,
-        () =>
-          patchFeatures(
-            tenant!,
-            selectedRows.map((f) => ({
-              op: "replace",
-              path: `/${f.id}/tags`,
-              value: [...new Set(values.map((value) => value.value))],
-            })),
-          )
-            .then(refresh)
-            .then(cancel),
-      ),
+    validationCallback("Apply Tags", selectedRows).then(
+      (preserveProtectedContexts) =>
+        askConfirmation(
+          `Are you sure to apply ${values.length} tag${
+            selectedRows.length > 1 ? "s" : ""
+          } on ${selectedRows.length} feature${
+            selectedRows.length > 1 ? "s" : ""
+          }?`,
+          () =>
+            patchFeatures(
+              tenant!,
+              selectedRows.map((f) => ({
+                op: "replace",
+                path: `/${f.id}/tags`,
+                value: [...new Set(values.map((value) => value.value))],
+              })),
+              preserveProtectedContexts,
+            )
+              .then(refresh)
+              .then(cancel),
+        ),
     );
   };
   if (tagsQuery.isLoading) {
@@ -386,14 +395,21 @@ function TransferForm(props: {
   });
 
   const featureUpdateMutation = useMutation({
-    mutationFn: (data: { project: string }) =>
-      patchFeatures(tenant, [
-        {
-          op: "replace",
-          path: `/${feature.id}/project`,
-          value: data.project,
-        },
-      ]).then(() => {
+    mutationFn: (data: {
+      project: string;
+      preserveProtectedContexts: boolean;
+    }) =>
+      patchFeatures(
+        tenant,
+        [
+          {
+            op: "replace",
+            path: `/${feature.id}/project`,
+            value: data.project,
+          },
+        ],
+        data.preserveProtectedContexts,
+      ).then(() => {
         queryClient.invalidateQueries({
           queryKey: [projectQueryKey(tenant, project)],
         });
@@ -429,11 +445,16 @@ function TransferForm(props: {
           },
         }}
         onSubmit={(data) => {
-          return validationCallback([feature]).then(() =>
-            askConfirmation(
-              "Transferring this feature will delete existing local overloads (if any), are you sure ?",
-              () => featureUpdateMutation.mutateAsync(data as any),
-            ),
+          return validationCallback([feature]).then(
+            (preserveProtectedContexts) =>
+              askConfirmation(
+                "Transferring this feature will delete existing local overloads (if any), are you sure ?",
+                () =>
+                  featureUpdateMutation.mutateAsync({
+                    ...data,
+                    preserveProtectedContexts,
+                  } as any),
+              ),
           );
         }}
         onClose={() => cancel()}
@@ -452,7 +473,7 @@ function OperationForm(props: {
   validationCallback: (
     action: string,
     features: TLightFeature[],
-  ) => Promise<any>;
+  ) => Promise<boolean>;
 }) {
   const {
     tenant,
@@ -1951,7 +1972,9 @@ export function FeatureTable(props: {
                       You don't have admin right on these projects and therefore
                       cannot delete these overloards.
                     </div>,
-                  );
+                  ).then(() => {
+                    throw new Error("Not enough rights");
+                  });
                 } else if (
                   bulkOperation === "Enable" ||
                   bulkOperation === "Disable"
@@ -2001,26 +2024,31 @@ export function FeatureTable(props: {
                   ).some((i) => i.impactedProtectedContexts.length > 0);
                   if (hasProtectedContextImpact) {
                     let ok = false; // FIXME this is ugly
+                    let preserveProtectedContexts = false;
                     return displayModal(({ close }) => (
                       <MultiFeatureOverloadUpdateConfirmationModal
                         features={impactByFeature}
                         onCancel={() => close()}
-                        onConfirm={() => {
+                        onConfirm={(shouldPreserveProtectedContexts) => {
                           ok = true;
                           close();
+                          preserveProtectedContexts =
+                            shouldPreserveProtectedContexts;
                           return Promise.resolve();
                         }}
                       />
                     )).then(() => {
                       if (!ok) {
                         throw new Error("");
+                      } else {
+                        return preserveProtectedContexts;
                       }
                     });
                   } else {
-                    return Promise.resolve();
+                    return Promise.resolve(false);
                   }
                 } else {
-                  return Promise.resolve();
+                  return Promise.resolve(false);
                 }
               }}
             />

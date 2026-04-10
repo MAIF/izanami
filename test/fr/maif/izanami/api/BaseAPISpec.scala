@@ -2798,10 +2798,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
     def patchFeatures(
         tenant: String,
-        patches: Seq[TestFeaturePatch]
+        patches: Seq[TestFeaturePatch],
+        preserveProtectedContexts: Boolean = false
     ): RequestResult = {
       val response = await(
-        ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/features")
+        ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/features?preserveProtectedContexts=${preserveProtectedContexts}")
           .withCookies(cookies: _*)
           .patch(Json.toJson(patches.map(p => p.json)))
       )

@@ -1,6 +1,6 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestFeaturePatch, TestPersonnalAccessToken, TestProject, TestSituationBuilder, TestTenant, TestUser, TestUserListRule, TestWasmConfig, deleteFeatureWithToken, disabledFeatureBase64, enabledFeatureBase64, patchFeatureWithToken, updateFeatureWithToken}
+import fr.maif.izanami.api.BaseAPISpec.{TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestFeaturePatch, TestPersonnalAccessToken, TestProject, TestRights, TestSituationBuilder, TestTenant, TestTenantRight, TestUser, TestUserListRule, TestWasmConfig, deleteFeatureWithToken, disabledFeatureBase64, enabledFeatureBase64, patchFeatureWithToken, updateFeatureWithToken}
 import play.api.libs.json.{JsArray, JsBoolean, JsDefined, JsFalse, JsNull, JsNumber, JsObject, JsString, JsTrue, JsValue, Json}
 import play.api.test.Helpers.*
 
@@ -8,6 +8,156 @@ import java.time.{LocalDateTime, OffsetDateTime}
 
 class FeatureAPISpec extends BaseAPISpec {
   "Feature PATCH endpoint" should {
+    "duplicate old strategy to protected context on multiple feature enable / disable if requested" in {
+      val situation = TestSituationBuilder()
+        
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext(name = "prod", isProtected = true))
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false),
+                TestFeature("f2", enabled = false),
+                TestFeature("f3", enabled = true)
+              )
+            )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val response = situation.patchFeatures(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f1").get}/enabled",
+            value = JsBoolean(true)
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f2").get}/enabled",
+            value = JsBoolean(true)
+          )
+        ),
+        preserveProtectedContexts = true
+      )
+
+      response.status mustBe 204
+
+
+      val contextResponse = situation.fetchContexts(tenant = "tenant", project = "project")
+      (contextResponse.json.get \ 0 \ "overloads" \\ "enabled").map(v => v.as[Boolean]) must contain theSameElementsAs Seq(false, false)
+    }
+
+    "update features without protecting context if requested" in {
+      val situation = TestSituationBuilder()
+
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext(name = "prod", isProtected = true))
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false),
+                TestFeature("f2", enabled = false),
+                TestFeature("f3", enabled = true)
+              )
+            )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      val response = situation.patchFeatures(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f1").get}/enabled",
+            value = JsBoolean(true)
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f2").get}/enabled",
+            value = JsBoolean(true)
+          )
+        ),
+        preserveProtectedContexts = false
+      )
+
+      response.status mustBe 204
+
+
+      val contextResponse = situation.fetchContexts(tenant = "tenant", project = "project")
+      (contextResponse.json.get \ 0 \ "overloads").as[JsArray].value mustBe empty
+    }
+
+    "prevent updating features without protecting contexts if user is not admin" in {
+      val situation = TestSituationBuilder()
+
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext(name = "prod", isProtected = true))
+            .withProjects(
+              TestProject("project").withFeatures(
+                TestFeature("f1", enabled = false),
+                TestFeature("f2", enabled = false),
+                TestFeature("f3", enabled = true)
+              )
+            )
+        )
+        .withUsers(TestUser(username = "testu")
+          .withTenantReadRight("tenant")
+          .withProjectReadWriteRight("project", "tenant"))
+        .loggedAs("testu")
+        .build()
+
+      var response = situation.patchFeatures(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f1").get}/enabled",
+            value = JsBoolean(true)
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f2").get}/enabled",
+            value = JsBoolean(true)
+          )
+        ),
+        preserveProtectedContexts = false
+      )
+
+      response.status mustBe 403
+
+
+      response = situation.patchFeatures(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f1").get}/enabled",
+            value = JsBoolean(true)
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path =
+              s"/${situation.findFeatureId("tenant", "project", "f2").get}/enabled",
+            value = JsBoolean(true)
+          )
+        ),
+        preserveProtectedContexts = true
+      )
+
+      response.status mustBe 204
+    }
+
     "allow the use of personal access token" in {
       val situation = TestSituationBuilder()
         .withTenants(

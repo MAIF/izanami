@@ -28,8 +28,7 @@ sealed trait FeaturePatch {
 
 case class EnabledFeaturePatch(
     value: Boolean,
-    id: String,
-    preserveProtectedContexts: Boolean
+    id: String
 ) extends FeaturePatch {
   override def op: PatchOperation = Replace
   override def path: PatchPathField = Enabled
@@ -95,7 +94,7 @@ object FeaturePatch {
           path <- (json \ "path").asOpt[PatchPath]
         ) yield (op, path) match {
           case (Replace, PatchPath(id, Enabled)) =>
-            (json \ "value").asOpt[Boolean].map(b => EnabledFeaturePatch(b, id, false)) // TODO hard coded preserveProtectedContext
+            (json \ "value").asOpt[Boolean].map(b => EnabledFeaturePatch(b, id))
           case (Replace, PatchPath(id, ProjectFeature)) =>
             (json \ "value").asOpt[String].map(b => ProjectFeaturePatch(b, id))
           case (Replace, PatchPath(id, TagsFeature)) =>

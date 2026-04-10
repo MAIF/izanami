@@ -457,7 +457,7 @@ class FeatureController(
     })
   }
 
-  def patchFeatures(tenant: String): Action[JsValue] =
+  def patchFeatures(tenant: String, preserveProtectedContexts: Boolean): Action[JsValue] =
     personnalAccessTokenDetailledRightForTenantFactory(
       tenant
     ).async(parse.json) { implicit request =>
@@ -466,7 +466,7 @@ class FeatureController(
         .map(fs => {
           val neededRights = fs.foldLeft(Set(): Set[TenantTokenRights])((necessaryRights, patch) => {
             patch match {
-              case EnabledFeaturePatch(value, id, preserveProtectedContexts) => necessaryRights + UpdateFeature
+              case EnabledFeaturePatch(value, id) => necessaryRights + UpdateFeature
               case ProjectFeaturePatch(value, id) => necessaryRights + UpdateFeature
               case TagsFeaturePatch(value, id) => necessaryRights + UpdateFeature
               case RemoveFeaturePatch(id) => necessaryRights + DeleteFeature
@@ -481,7 +481,7 @@ class FeatureController(
           
           if(hasRights) {
             featureService
-              .patchFeature(tenant, fs, request.user, request.authentication)
+              .patchFeature(tenant, fs, request.user, request.authentication, preserveProtectedContexts)
               .toResult(r => {
                 NoContent
               })

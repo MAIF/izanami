@@ -322,7 +322,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
          |) as overloads
          |FROM "${tenant}".new_contexts c
          |LEFT JOIN "${tenant}".feature_contexts_strategies s ON "${extensionSchema}".ltree_eq(s.context, c.ctx_path)
-         |LEFT JOIN "${tenant}".features f ON f.name=s.feature
+         |LEFT JOIN "${tenant}".features f ON f.name=s.feature AND f.project=$$1
          |WHERE c.project=$$1 or c.global=true
          |GROUP BY (c.name, parent, c.protected, c.project, c.global)
          |""".stripMargin,
