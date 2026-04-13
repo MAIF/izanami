@@ -778,6 +778,16 @@ export type IzanamiTenantExportRequest = {
 export type ImportRequest = {
   file: FileList;
   conflictStrategy: string;
+  fineTuneFeatureConflict: boolean;
+  featureConflict?: {
+    name: string;
+    description: string;
+    tags: string;
+    project: string;
+    enabling: string;
+    conditions: string;
+    id: string;
+  };
 };
 
 export interface LightWebhook {

@@ -1,18 +1,56 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.ImportExportDatastore.{DBImportResult, TableMetadata, UnitDBImportResult}
+import fr.maif.izanami.datastores.ImportExportDatastore.{
+  DBImportResult,
+  TableMetadata,
+  UnitDBImportResult
+}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{InternalServerError, IzanamiError, PartialImportFailure}
+import fr.maif.izanami.errors.{
+  InternalServerError,
+  IzanamiError,
+  PartialImportFailure
+}
 import fr.maif.izanami.events.EventOrigin.ImportOrigin
-import fr.maif.izanami.events.{PreviousProject, SourceFeatureCreated, SourceFeatureUpdated, SourceProjectCreated, SourceProjectUpdated}
-import fr.maif.izanami.models.{ExportedType, FeatureType, FeatureWithOverloads, KeyRightType, Project, ProjectRightType, ProjectType, Tenant, WebhookRightType}
+import fr.maif.izanami.events.{
+  PreviousProject,
+  SourceFeatureCreated,
+  SourceFeatureUpdated,
+  SourceProjectCreated,
+  SourceProjectUpdated
+}
+import fr.maif.izanami.models.{
+  ExportedType,
+  FeatureType,
+  FeatureWithOverloads,
+  KeyRightType,
+  Project,
+  ProjectRightType,
+  ProjectType,
+  Tenant,
+  WebhookRightType
+}
 import fr.maif.izanami.models.ExportedType.exportedTypeToString
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.web.ExportController.{ExportResult, TenantExportRequest, projectExportResultWrites}
-import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, MergeOverwrite, Replace}
-import fr.maif.izanami.web.{ExportController, ImportController, ImportResult, ProjectId, UserInformation}
+import fr.maif.izanami.web.ExportController.{
+  ExportResult,
+  TenantExportRequest,
+  projectExportResultWrites
+}
+import fr.maif.izanami.web.ImportController.{
+  ImportConflictStrategy,
+  MergeOverwrite,
+  Replace
+}
+import fr.maif.izanami.web.{
+  ExportController,
+  ImportController,
+  ImportResult,
+  ProjectId,
+  UserInformation
+}
 import io.vertx.core.json.JsonArray
 import io.vertx.sqlclient.SqlConnection
 import play.api.libs.json.{JsObject, Json}
@@ -20,6 +58,11 @@ import play.api.libs.json.{JsObject, Json}
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
+import fr.maif.izanami.models.ConflictStrategy
+import fr.maif.izanami.web.ImportController.Fail
+import fr.maif.izanami.web.ImportController.Skip
+import fr.maif.izanami.models.ConflictField
+import fr.maif.izanami.models.FeatureTagType
 
 class ImportExportDatastore(val env: Env) extends Datastore {
   private val extensionSchema: String = env.extensionsSchema
@@ -60,7 +103,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
   def importTenantData(
       tenant: String,
       entries: Map[ExportedType, Seq[JsObject]],
-      conflictStrategy: ImportConflictStrategy,
+      conflictStrategy: ConflictStrategy,
       user: UserInformation
   ): Future[Either[IzanamiError, Unit]] = {
     Tenant.isTenantValid(tenant)
@@ -98,54 +141,67 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                 agg.flatMap {
                   case Right(previousResult) => {
                     val f: Future[Either[IzanamiError, UnitDBImportResult]] =
-                      conflictStrategy match {
-                        case ImportController.MergeOverwrite =>
-                          importTenantDataWithMergeOnConflict(
-                            tenant,
-                            t._1,
-                            t._2,
-                            maybeId
-                          ).map(r => Right(r))
-                        case ImportController.Skip =>
-                          importTenantDataWithSkipOnConflict(
-                            tenant,
-                            t._1,
-                            t._2,
-                            maybeId
-                          ).map(r => Right(r))
-                        case ImportController.Fail =>
-                          importTenantDataWithFailOnConflict(
-                            tenant,
-                            t._1,
-                            t._2,
-                            conn
-                          ).map {
-                            case Right(_) =>
+                      if (t._3 == FeatureType) {
+                        importFeatures(
+                          tenant = tenant,
+                          rows = t._2,
+                          conflictStrategy = conflictStrategy
+                        ).map(r => Right(r))
+                      } else if (t._3 == FeatureTagType) {
+                        importFeatureTags(
+                          tenant = tenant,
+                          rows = t._2,
+                          conflictStrategy = conflictStrategy
+                        ).map(r => Right(r))
+                      } else {
+                        conflictStrategy.defaultStrategy match {
+                          case ImportController.MergeOverwrite =>
+                            importTenantDataWithMergeOnConflict(
+                              tenant,
+                              t._1,
+                              t._2,
                               maybeId
-                                .map(idCol =>
-                                  t._2
-                                    .map(json => (json \ idCol).asOpt[String])
-                                    .collect { case Some(id) =>
-                                      id
-                                    }
-                                )
-                                .map(ids =>
-                                  Right(
-                                    UnitDBImportResult(createdElements =
-                                      ids.toSet
+                            ).map(r => Right(r))
+                          case ImportController.Skip =>
+                            importTenantDataWithSkipOnConflict(
+                              tenant,
+                              t._1,
+                              t._2,
+                              maybeId
+                            ).map(r => Right(r))
+                          case ImportController.Fail =>
+                            importTenantDataWithFailOnConflict(
+                              tenant,
+                              t._1,
+                              t._2,
+                              conn
+                            ).map {
+                              case Right(_) =>
+                                maybeId
+                                  .map(idCol =>
+                                    t._2
+                                      .map(json => (json \ idCol).asOpt[String])
+                                      .collect { case Some(id) =>
+                                        id
+                                      }
+                                  )
+                                  .map(ids =>
+                                    Right(
+                                      UnitDBImportResult(createdElements =
+                                        ids.toSet
+                                      )
                                     )
                                   )
-                                )
-                                .getOrElse(Right(UnitDBImportResult()))
-                            case Left(jsons) =>
-                              Left(PartialImportFailure(Map(t._3 -> jsons)))
-                          }
-                        case Replace =>
-                          throw new IllegalArgumentException(
-                            "Replace strategy can't be used for tenant import"
-                          )
+                                  .getOrElse(Right(UnitDBImportResult()))
+                              case Left(jsons) =>
+                                Left(PartialImportFailure(Map(t._3 -> jsons)))
+                            }
+                          case Replace =>
+                            throw new IllegalArgumentException(
+                              "Replace strategy can't be used for tenant import"
+                            )
+                        }
                       }
-
                     f.flatMap {
                       case Left(err) =>
                         Future.successful(
@@ -204,7 +260,8 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     }))
                     .flatMap(_ => {
                       if (result.updatedProjects.nonEmpty) {
-                        val previousProjectNames: Future[Map[ProjectId, String]] =
+                        val previousProjectNames
+                            : Future[Map[ProjectId, String]] =
                           if (
                             conflictStrategy == MergeOverwrite && entries
                               .get(FeatureType)
@@ -290,22 +347,23 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                               if (result.updatedFeatures.nonEmpty) {
                                 val previousFeatureStates: Future[
                                   Map[String, FeatureWithOverloads]
-                                ] = if (
-                                  conflictStrategy == MergeOverwrite && entries
-                                    .get(FeatureType)
-                                    .exists(s => s.nonEmpty)
-                                ) {
-                                  env.datastores.features
-                                    .findActivationStrategiesForFeatures(
-                                      tenant,
-                                      entries(FeatureType)
-                                        .map(f => (f \ "id").as[String])
-                                        .toSet
-                                    )
-                                    .recover(_ => Map())
-                                } else {
-                                  Future.successful(Map())
-                                }
+                                ] =
+                                  if (
+                                    conflictStrategy == MergeOverwrite && entries
+                                      .get(FeatureType)
+                                      .exists(s => s.nonEmpty)
+                                  ) {
+                                    env.datastores.features
+                                      .findActivationStrategiesForFeatures(
+                                        tenant,
+                                        entries(FeatureType)
+                                          .map(f => (f \ "id").as[String])
+                                          .toSet
+                                      )
+                                      .recover(_ => Map())
+                                  } else {
+                                    Future.successful(Map())
+                                  }
                                 previousFeatureStates.flatMap(
                                   previousStates => {
                                     Future.sequence(
@@ -360,6 +418,218 @@ class ImportExportDatastore(val env: Env) extends Datastore {
           })
         }
       })
+  }
+
+  private def importFeatureUpdateStatement(table: String)(
+      name: String,
+      conflictStrategy: ImportConflictStrategy
+  ): String = {
+    val base = s"${name}="
+
+    val value = conflictStrategy match
+      case Fail =>
+        "1/0" // This is ugly, but it's impossible to RAISE after a DO UPDATE
+      case MergeOverwrite | Replace => s"EXCLUDED.${name}"
+      case Skip                     => s"${table}.${name}"
+
+    base + value
+  }
+
+  private def importFeatureTags(
+      tenant: String,
+      rows: Seq[JsObject],
+      conflictStrategy: ConflictStrategy
+  ): Future[UnitDBImportResult] = {
+    val conflictFunction = importFeatureUpdateStatement("features_tags")
+    val conflictPart =
+      Seq(
+        conflictFunction(
+          "tag",
+          conflictStrategy.strategyFor(ConflictField.FeatureTags)
+        ),
+        conflictFunction(
+          "feature",
+          conflictStrategy.strategyFor(ConflictField.FeatureTags)
+        )
+      ).mkString(", ");
+    val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
+    val columns =
+      "(tag, feature)"
+    val query =
+      s"""
+                 |INSERT INTO "${tenant}".features_tags $columns select $columns from json_populate_recordset(null::"${tenant}".features_tags, $$1)
+                 |ON CONFLICT (tag, feature) DO UPDATE
+                 |SET $conflictPart
+                 |RETURNING (xmax = 0) AS inserted, id
+                 |""".stripMargin;
+    env.postgresql.executeInTransaction(conn => {
+      env.postgresql
+        .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) {
+          _ => ()
+        }
+        .flatMap(_ => {
+          env.postgresql
+            .queryRaw(
+              query,
+              List(vertxJsonArray),
+              conn = Some(conn)
+            ) { rows => UnitDBImportResult() }.recoverWith {
+              case _ => {
+                logger.info(
+                  s"There has been import errors, switching to unit import mode for features_tags"
+                )
+                rows.foldLeft(Future.successful(UnitDBImportResult()))(
+                  (facc, row) => {
+                    facc.flatMap(acc =>
+                      env.postgresql
+                        .queryOne(
+                          query,
+                          List(row.vertxJsValue)
+                        ) { r => Option.empty }
+                        .map(r => r.getOrElse(acc))
+                        .recoverWith {
+                          case _ => {
+                            logger.info(
+                              s"Import of following row failed for table features : ${row}"
+                            )
+                            Future.successful(acc.addFailedElement(row))
+                          }
+                        }
+                    )
+                  }
+                )
+              }
+            }
+        })
+    })
+  }
+
+  private def importFeatures(
+      tenant: String,
+      rows: Seq[JsObject],
+      conflictStrategy: ConflictStrategy
+  ): Future[UnitDBImportResult] = {
+
+    val conflictFunction = importFeatureUpdateStatement("feature")
+    val conflictPart = Seq(
+      conflictFunction(
+        "id",
+        conflictStrategy.strategyFor(ConflictField.FeatureId)
+      ),
+      conflictFunction(
+        "name",
+        conflictStrategy.strategyFor(ConflictField.FeatureName)
+      ),
+      conflictFunction(
+        "description",
+        conflictStrategy.strategyFor(ConflictField.FeatureDescription)
+      ),
+      conflictFunction(
+        "project",
+        conflictStrategy.strategyFor(ConflictField.FeatureProject)
+      ),
+      conflictFunction(
+        "enabled",
+        conflictStrategy.strategyFor(ConflictField.FeatureEnabling)
+      ),
+      conflictFunction(
+        "conditions",
+        conflictStrategy.strategyFor(ConflictField.FeatureConditions)
+      ),
+      conflictFunction(
+        "value",
+        conflictStrategy.strategyFor(ConflictField.FeatureConditions)
+      ),
+      conflictFunction(
+        "result_type",
+        conflictStrategy.strategyFor(ConflictField.FeatureConditions)
+      ),
+      conflictFunction(
+        "script_config",
+        conflictStrategy.strategyFor(ConflictField.FeatureConditions)
+      ),
+      conflictFunction(
+        "created_at",
+        conflictStrategy.defaultStrategy
+      )
+    ).mkString(", ")
+    val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
+    val columns =
+      "(id, name, project, enabled, conditions, script_config, metadata, description, value, result_type, created_at)"
+    val query =
+      s"""
+                 |INSERT INTO "${tenant}".features $columns select $columns from json_populate_recordset(null::"${tenant}".features, $$1)
+                 |ON CONFLICT (id) DO UPDATE
+                 |SET $conflictPart
+                 |RETURNING (xmax = 0) AS inserted, id
+                 |""".stripMargin;
+    env.postgresql.executeInTransaction(conn => {
+      env.postgresql
+        .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) {
+          _ => ()
+        }
+        .flatMap(_ => {
+          env.postgresql
+            .queryRaw(
+              query,
+              List(vertxJsonArray),
+              conn = Some(conn)
+            ) { rows =>
+              {
+                val insertionMap = rows.map(r =>
+                  for (
+                    id <- r.optString("id");
+                    inserted <- r.optBoolean("inserted")
+                  ) yield (id, inserted)
+                ).flatMap(o => o.toList)
+                  .groupMap(t => t._2)(t => t._1)
+                UnitDBImportResult(
+                  createdElements =
+                    insertionMap.getOrElse(true, List[String]()).toSet,
+                  updatedElements =
+                    insertionMap.getOrElse(false, List[String]()).toSet
+                )
+              }
+            }.recoverWith {
+              case _ => {
+                logger.info(
+                  s"There has been import errors, switching to unit import mode for features"
+                )
+                rows.foldLeft(Future.successful(UnitDBImportResult()))(
+                  (facc, row) => {
+                    facc.flatMap(acc =>
+                      env.postgresql
+                        .queryOne(
+                          query,
+                          List(row.vertxJsValue)
+                        ) { r =>
+                          {
+                            (for (
+                              id <- r.optString("id");
+                              inserted <- r.optBoolean("inserted")
+                            ) yield (id, inserted))
+                              .map {
+                                case (id, false) => acc.addUpdatedElements(id)
+                                case (id, true)  => acc.addCreatedElements(id)
+                              }
+                          }
+                        }
+                        .map(r => r.getOrElse(acc))
+                        .recoverWith {
+                          case _ => {
+                            logger.info(
+                              s"Import of following row failed for table features : ${row}"
+                            )
+                            Future.successful(acc.addFailedElement(row))
+                          }
+                        }
+                    )
+                  }
+                )
+              }
+            }
+        })
+    })
   }
 
   def importTenantDataWithMergeOnConflict(
