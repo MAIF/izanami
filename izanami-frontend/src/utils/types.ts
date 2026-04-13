@@ -786,7 +786,6 @@ export type ImportRequest = {
     project: string;
     enabling: string;
     conditions: string;
-    id: string;
   };
 };
 

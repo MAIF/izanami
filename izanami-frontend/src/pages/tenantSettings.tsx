@@ -1283,7 +1283,6 @@ export function FeatureConflictFormPart() {
             { name: "description" },
             { name: "enabling" },
             { name: "conditions" },
-            { name: "id" },
             { name: "project" },
             { name: "tags" },
           ] as const
