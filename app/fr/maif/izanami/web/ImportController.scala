@@ -208,8 +208,7 @@ class ImportController(
       featureTags: Option[String],
       featureProject: Option[String],
       featureEnabling: Option[String],
-      featureConditions: Option[String],
-      featureId: Option[String]
+      featureConditions: Option[String]
   ): Action[MultipartFormData[Files.TemporaryFile]] =
     maybeTokenAuthAction(tenant, RightLevel.Admin, Import).async(
       parse.multipartFormData
@@ -243,8 +242,7 @@ class ImportController(
               FeatureEnabling -> featureEnabling,
               FeatureConditions -> featureConditions,
               FeatureProject -> featureProject,
-              FeatureTags -> featureTags,
-              FeatureId -> featureId
+              FeatureTags -> featureTags
             )
               .view
               .mapValues(maybeStrategy =>

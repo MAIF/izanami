@@ -63,6 +63,7 @@ import fr.maif.izanami.web.ImportController.Fail
 import fr.maif.izanami.web.ImportController.Skip
 import fr.maif.izanami.models.ConflictField
 import fr.maif.izanami.models.FeatureTagType
+import fr.maif.izanami.models.OverloadType
 
 class ImportExportDatastore(val env: Env) extends Datastore {
   private val extensionSchema: String = env.extensionsSchema
@@ -149,6 +150,12 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                         ).map(r => Right(r))
                       } else if (t._3 == FeatureTagType) {
                         importFeatureTags(
+                          tenant = tenant,
+                          rows = t._2,
+                          conflictStrategy = conflictStrategy
+                        ).map(r => Right(r))
+                      } else if (t._3 == OverloadType) {
+                        importFeatureOverloads(
                           tenant = tenant,
                           rows = t._2,
                           conflictStrategy = conflictStrategy
@@ -349,7 +356,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                                   Map[String, FeatureWithOverloads]
                                 ] =
                                   if (
-                                    conflictStrategy == MergeOverwrite && entries
+                                    conflictStrategy.hasOverrideStrategy && entries
                                       .get(FeatureType)
                                       .exists(s => s.nonEmpty)
                                   ) {
@@ -434,6 +441,99 @@ class ImportExportDatastore(val env: Env) extends Datastore {
 
     base + value
   }
+  private def importFeatureOverloads(
+      tenant: String,
+      rows: Seq[JsObject],
+      conflictStrategy: ConflictStrategy
+  ): Future[UnitDBImportResult] = {
+    val conflictFunction =
+      importFeatureUpdateStatement("feature_contexts_strategies")
+    val conflictPart =
+      Seq(
+        conflictFunction(
+          "project",
+          conflictStrategy.strategyFor(ConflictField.FeatureProject)
+        ),
+        conflictFunction(
+          "feature",
+          conflictStrategy.strategyFor(ConflictField.FeatureName)
+        ),
+        conflictFunction(
+          "conditions",
+          conflictStrategy.strategyFor(ConflictField.FeatureConditions)
+        ),
+        conflictFunction(
+          "script_config",
+          conflictStrategy.strategyFor(ConflictField.FeatureConditions)
+        ),
+        conflictFunction(
+          "value",
+          conflictStrategy.strategyFor(ConflictField.FeatureConditions)
+        ),
+        conflictFunction(
+          "result_type",
+          conflictStrategy.strategyFor(ConflictField.FeatureConditions)
+        ),
+        conflictFunction(
+          "enabled",
+          conflictStrategy.strategyFor(ConflictField.FeatureEnabling)
+        ),
+        conflictFunction(
+          "context",
+          conflictStrategy.defaultStrategy
+        )
+      ).mkString(", ");
+    val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
+    val columns =
+      "project, feature, conditions, script_config, enabled, value, result_type, context"
+    val query =
+      s"""
+                 |INSERT INTO "${tenant}".feature_contexts_strategies ($columns) select $columns from json_populate_recordset(null::"${tenant}".feature_contexts_strategies, $$1)
+                 |ON CONFLICT (project, context, feature) DO UPDATE
+                 |SET $conflictPart
+                 |RETURNING (xmax = 0) AS inserted
+                 |""".stripMargin;
+    env.postgresql.executeInTransaction(conn => {
+      env.postgresql
+        .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) {
+          _ => ()
+        }
+        .flatMap(_ => {
+          env.postgresql
+            .queryRaw(
+              query,
+              List(vertxJsonArray),
+              conn = Some(conn)
+            ) { rows => UnitDBImportResult() }.recoverWith {
+              case _ => {
+                logger.info(
+                  s"There has been import errors, switching to unit import mode for features_tags"
+                )
+                rows.foldLeft(Future.successful(UnitDBImportResult()))(
+                  (facc, row) => {
+                    facc.flatMap(acc =>
+                      env.postgresql
+                        .queryOne(
+                          query,
+                          List(row.vertxJsValue)
+                        ) { r => Option.empty }
+                        .map(r => r.getOrElse(acc))
+                        .recoverWith {
+                          case _ => {
+                            logger.info(
+                              s"Import of following row failed for table features : ${row}"
+                            )
+                            Future.successful(acc.addFailedElement(row))
+                          }
+                        }
+                    )
+                  }
+                )
+              }
+            }
+        })
+    })
+  }
 
   private def importFeatureTags(
       tenant: String,
@@ -454,10 +554,10 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       ).mkString(", ");
     val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
     val columns =
-      "(tag, feature)"
+      "tag, feature"
     val query =
       s"""
-                 |INSERT INTO "${tenant}".features_tags $columns select $columns from json_populate_recordset(null::"${tenant}".features_tags, $$1)
+                 |INSERT INTO "${tenant}".features_tags ($columns) select $columns from json_populate_recordset(null::"${tenant}".features_tags, $$1)
                  |ON CONFLICT (tag, feature) DO UPDATE
                  |SET $conflictPart
                  |RETURNING (xmax = 0) AS inserted, id
@@ -510,11 +610,11 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       conflictStrategy: ConflictStrategy
   ): Future[UnitDBImportResult] = {
 
-    val conflictFunction = importFeatureUpdateStatement("feature")
+    val conflictFunction = importFeatureUpdateStatement("features")
     val conflictPart = Seq(
       conflictFunction(
         "id",
-        conflictStrategy.strategyFor(ConflictField.FeatureId)
+        Skip
       ),
       conflictFunction(
         "name",
@@ -551,18 +651,24 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       conflictFunction(
         "created_at",
         conflictStrategy.defaultStrategy
+      ),
+      conflictFunction(
+        "metadata",
+        conflictStrategy.defaultStrategy
       )
     ).mkString(", ")
     val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
     val columns =
-      "(id, name, project, enabled, conditions, script_config, metadata, description, value, result_type, created_at)"
+      "id, name, project, enabled, conditions, script_config, metadata, description, value, result_type, created_at"
     val query =
       s"""
-                 |INSERT INTO "${tenant}".features $columns select $columns from json_populate_recordset(null::"${tenant}".features, $$1)
+                 |INSERT INTO "${tenant}".features ($columns) select $columns from json_populate_recordset(null::"${tenant}".features, $$1)
                  |ON CONFLICT (id) DO UPDATE
                  |SET $conflictPart
                  |RETURNING (xmax = 0) AS inserted, id
                  |""".stripMargin;
+
+    println(s"query : ${query}")
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
         .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) {

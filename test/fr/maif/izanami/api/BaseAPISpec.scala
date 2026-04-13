@@ -2802,7 +2802,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         preserveProtectedContexts: Boolean = false
     ): RequestResult = {
       val response = await(
-        ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/features?preserveProtectedContexts=${preserveProtectedContexts}")
+        ws.url(
+          s"${ADMIN_BASE_URL}/tenants/${tenant}/features?preserveProtectedContexts=${preserveProtectedContexts}"
+        )
           .withCookies(cookies: _*)
           .patch(Json.toJson(patches.map(p => p.json)))
       )
@@ -3435,20 +3437,25 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         user: String = "",
         date: Instant = null
     ): RequestResult = {
-      val url = s"${ADMIN_BASE_URL}/tenants/${tenant}/features/_test?oneTagIn=${oneTagIn
-          .map(t => findTagId(tenant, t).get)
-          .mkString(",")}&allTagsIn=${allTagsIn.map(t => findTagId(tenant, t).get).mkString(",")}&noTagIn=${noTagIn
-          .map(t => findTagId(tenant, t).get)
-          .mkString(",")}&projects=${projects.map(pname => findProjectId(tenant, pname).get).mkString(",")}&features=${features
-          .map { case (project, feature) =>
-            findFeatureId(tenant, project, feature).get
-          }
-          .mkString(",")}${
-          if (context.nonEmpty) s"&context=${context}" else ""
-        }${
-          if (user.nonEmpty) s"&user=${user}"
-          else ""
-        }"
+      val url =
+        s"${ADMIN_BASE_URL}/tenants/${tenant}/features/_test?oneTagIn=${oneTagIn
+            .map(t => findTagId(tenant, t).get)
+            .mkString(",")}&allTagsIn=${allTagsIn.map(t =>
+            findTagId(tenant, t).get
+          ).mkString(",")}&noTagIn=${noTagIn
+            .map(t => findTagId(tenant, t).get)
+            .mkString(",")}&projects=${projects.map(pname =>
+            findProjectId(tenant, pname).get
+          ).mkString(",")}&features=${features
+            .map { case (project, feature) =>
+              findFeatureId(tenant, project, feature).get
+            }
+            .mkString(",")}${
+            if (context.nonEmpty) s"&context=${context}" else ""
+          }${
+            if (user.nonEmpty) s"&user=${user}"
+            else ""
+          }"
 
       val response = await(ws.url(url).withCookies(cookies: _*).get())
       RequestResult(
@@ -3945,13 +3952,36 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     def importV2(
         tenant: String,
         conflictStrategy: String = "fail",
-        data: Seq[String] = Seq()
+        data: Seq[String] = Seq(),
+        featureName: Option[String] = Option.empty,
+        featureDescription: Option[String] = Option.empty,
+        featureTags: Option[String] = Option.empty,
+        featureProject: Option[String] = Option.empty,
+        featureEnabling: Option[String] = Option.empty,
+        featureConditions: Option[String] = Option.empty,
+        featureId: Option[String] = Option.empty
     ): RequestResult = {
       val dataFile = writeTemporaryFile("export", "ndjson", data)
 
+      var featureSpecificPart = Seq(
+        (featureName, "featureName"),
+        (featureDescription, "featureDescription"),
+        (featureTags, "featureTags"),
+        (featureProject, "featureProject"),
+        (featureEnabling, "featureEnabling"),
+        (featureConditions, "featureConditions"),
+        (featureId, "featureId")
+      ).collect {
+        case (Some(conflictStrategy), name) => s"${name}=${conflictStrategy}"
+      }.mkString("&")
+
+      if (featureSpecificPart.nonEmpty) {
+        featureSpecificPart = "&" + featureSpecificPart;
+      }
+
       val response = await(
         ws.url(
-          s"${ADMIN_BASE_URL}/tenants/${tenant}/_import?version=2&conflict=${conflictStrategy}"
+          s"${ADMIN_BASE_URL}/tenants/${tenant}/_import?version=2&conflict=${conflictStrategy}${featureSpecificPart}"
         ).withCookies(cookies: _*)
           .post(
             Source(
@@ -4729,7 +4759,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                 })
             })
           })
-          
 
       futures.addOne(tenantFuture)
 
@@ -4794,7 +4823,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                   ).map(resp => {
                     val secret = (resp.json \ "token").as[String]
                     val id = (resp.json \ "id").as[String]
-                    tokenIdAndSecretsByUser(loggedInUser.get).update(token.name, (id, secret))
+                    tokenIdAndSecretsByUser(loggedInUser.get).update(
+                      token.name,
+                      (id, secret)
+                    )
                     resp
                   })
                 })

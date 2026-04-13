@@ -28,9 +28,84 @@ import play.api.http.Status.{
 import play.api.libs.json.{JsNull, JsObject, Json}
 
 import java.util.UUID
+import play.api.libs.json.JsArray
 
 class ImportApiSpec extends BaseAPISpec {
   "V2 feature import" should {
+    "allow specifying custom merge rules for features" in {
+      val situation = TestSituationBuilder()
+        .withTenantNames("testtenant")
+        .loggedInWithAdminRights()
+        .build()
+      var data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"simple feature","enabled":true,"project":"test-project","metadata":{},"conditions":[],"description":"bar","script_config":null},"_type":"feature"}"""
+      )
+
+      var res = situation.importV2(
+        "testtenant",
+        data = data,
+        conflictStrategy = "skip",
+        featureName = Some("overwrite")
+      )
+
+      res.status mustEqual OK
+
+      data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"foobar","enabled":false,"project":"test-project","metadata":{},"conditions":[{"rule": {"percentage": 10},"period": null}],"description":"foo","script_config":null},"_type":"feature"}"""
+      )
+
+      res = situation.importV2(
+        "testtenant",
+        data = data,
+        conflictStrategy = "skip",
+        featureName = Some("overwrite")
+      )
+
+      res.status mustEqual OK
+
+      var proj = situation.fetchProject(
+        tenant = "testtenant",
+        projectId = "test-project"
+      )
+
+      (proj.json.get \ "features" \ 0 \ "name").as[String] mustEqual "foobar"
+      (proj.json.get \ "features" \ 0 \ "description").as[String] mustEqual "bar"
+      (proj.json.get \ "features" \ 0 \ "enabled").as[Boolean] mustEqual true
+      (proj.json.get \ "features" \ 0 \ "conditions").as[JsArray].value mustBe empty
+
+      data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"foobarbaz","enabled":false,"project":"test-project","metadata":{},"conditions":[{"rule": {"percentage": 10},"period": null}],"description":"foo","script_config":null},"_type":"feature"}"""
+      )
+
+      res = situation.importV2(
+        "testtenant",
+        data = data,
+        conflictStrategy = "skip",
+        featureName = Some("skip"),
+        featureDescription = Some("overwrite"),
+        featureEnabling = Some("overwrite"),
+        featureConditions = Some("overwrite")
+      )
+
+      res.status mustEqual OK
+
+      proj = situation.fetchProject(
+        tenant = "testtenant",
+        projectId = "test-project"
+      )
+
+      (proj.json.get \ "features" \ 0 \ "name").as[String] mustEqual "foobar"
+      (proj.json.get \ "features" \ 0 \ "description").as[String] mustEqual "foo"
+      (proj.json.get \ "features" \ 0 \ "enabled").as[Boolean] mustEqual false
+      (proj.json.get \ "features" \ 0 \ "conditions" \ 0 \ "rule" \ "percentage").as[
+        Int
+      ] mustEqual 10
+
+    }
+
     "return warning when importing wasm based features in an instance that doesn't allow wasm" in {
       var situation = TestSituationBuilder()
         .loggedInWithAdminRights()
@@ -54,8 +129,7 @@ class ImportApiSpec extends BaseAPISpec {
                     name = "bar",
                     enabled = true
                   )
-                ),
-
+                )
             )
         )
         .withPersonnalAccessToken(
