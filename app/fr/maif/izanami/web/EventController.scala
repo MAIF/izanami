@@ -4,33 +4,38 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.events.*
 import fr.maif.izanami.events.EventService.internalToExternalEvent
 import fr.maif.izanami.models.*
-import fr.maif.izanami.models.features.{ActivationCondition, ResultType}
 import fr.maif.izanami.services.FeatureService
-import fr.maif.izanami.v1.V1FeatureEvents.{
-  createEvent,
-  deleteEvent,
-  keepAliveEvent,
-  updateEvent
-}
+import fr.maif.izanami.v1.V1FeatureEvents.createEvent
+import fr.maif.izanami.v1.V1FeatureEvents.deleteEvent
+import fr.maif.izanami.v1.V1FeatureEvents.keepAliveEvent
+import fr.maif.izanami.v1.V1FeatureEvents.updateEvent
 import fr.maif.izanami.v1.V2FeatureEvents.*
 import org.apache.pekko.NotUsed
 import org.apache.pekko.stream.Materializer
-import org.apache.pekko.stream.scaladsl.{Flow, Merge, Source}
+import org.apache.pekko.stream.scaladsl.Flow
+import org.apache.pekko.stream.scaladsl.Merge
+import org.apache.pekko.stream.scaladsl.Source
 import play.api.http.ContentTypes
 import play.api.libs.EventSource
-import play.api.libs.EventSource.{
-  EventDataExtractor,
-  EventIdExtractor,
-  EventNameExtractor
-}
+import play.api.libs.EventSource.EventDataExtractor
+import play.api.libs.EventSource.EventIdExtractor
+import play.api.libs.EventSource.EventNameExtractor
+import play.api.libs.json.JsObject
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
 import play.api.libs.json.Json.JsValueWrapper
-import play.api.libs.json.{JsObject, JsValue, Json, Writes}
-import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
+import play.api.mvc.Action
+import play.api.mvc.AnyContent
+import play.api.mvc.BaseController
+import play.api.mvc.ControllerComponents
 
 import java.time.Instant
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
+import scala.util.Failure
+import scala.util.Success
 
 class EventController(
     val controllerComponents: ControllerComponents,

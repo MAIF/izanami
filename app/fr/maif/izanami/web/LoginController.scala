@@ -1,27 +1,24 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.RoleRightMode.{Initial, Supervised}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{
-  FailedToReadTokenClaims,
-  IzanamiError,
-  MissingOIDCConfigurationError,
-  RightComplianceError
-}
+import fr.maif.izanami.errors.FailedToReadTokenClaims
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.MissingOIDCConfigurationError
+import fr.maif.izanami.errors.RightComplianceError
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
 import fr.maif.izanami.models.User.userRightsWrites
+import fr.maif.izanami.services.CompleteRights
+import fr.maif.izanami.services.MaxRightComplianceResult
+import fr.maif.izanami.services.MaxRights
+import fr.maif.izanami.services.RightService
 import fr.maif.izanami.services.RightService.RightsByRole
-import fr.maif.izanami.services.{
-  CompleteRights,
-  MaxRightComplianceResult,
-  MaxRights,
-  RightService
-}
-import fr.maif.izanami.utils.{Done, FutureEither}
-import fr.maif.izanami.utils.syntax.implicits.{BetterFutureEither, BetterSyntax}
+import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.AuthAction.delayResponse
-import pdi.jwt.{JwtJson, JwtOptions}
+import pdi.jwt.JwtJson
+import pdi.jwt.JwtOptions
 import play.api.Logger
 import play.api.libs.json.*
 import play.api.libs.ws.DefaultBodyWritables.writeableOf_urlEncodedSimpleForm
@@ -29,10 +26,12 @@ import play.api.libs.ws.WSAuthScheme
 import play.api.mvc.*
 import play.api.mvc.Cookie.SameSite
 
-import java.security.{MessageDigest, SecureRandom}
+import java.security.MessageDigest
+import java.security.SecureRandom
 import java.util.Base64
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{ExecutionContext, Future}
 
 class LoginController(
     val env: Env,
@@ -267,36 +266,45 @@ class LoginController(
                               ): FutureEither[
                                 Option[MaxRightComplianceResult]
                               ] = {
-                                val maxRights = maxRightsByRoles.map(mr =>
+                                maxRightsByRoles.map(mr =>
                                   CompleteRights.maxRightsToApply(roles, mr)
                                 )
                                 env.postgresql
                                   .executeInTransactionF(conn =>
                                     maybeUser
                                       .fold {
-                                        val rights = rightService.generateRightForNewUser(roles)
-                                          env.datastores.users
-                                            .createUser(
-                                              User(
-                                                username,
-                                                email = email,
-                                                userType = OIDC,
-                                                admin = rights.admin,
-                                                roles = roles
-                                              )
-                                                .withRights(
-                                                  Rights(rights.tenants)
-                                                ),
-                                              conn = Some(conn)
+                                        val rights =
+                                          rightService.generateRightForNewUser(
+                                            roles
+                                          )
+                                        env.datastores.users
+                                          .createUser(
+                                            User(
+                                              username,
+                                              email = email,
+                                              userType = OIDC,
+                                              admin = rights.admin,
+                                              roles = roles
                                             )
-                                            .toFEither
-                                            .map(_ => {
-                                              val r: Option[
-                                                MaxRightComplianceResult
-                                              ] = Option.empty
-                                              r
-                                            })
-                                      }(user => rightService.updateUserRightsIfNeeded(user, roles, Some(conn)))
+                                              .withRights(
+                                                Rights(rights.tenants)
+                                              ),
+                                            conn = Some(conn)
+                                          )
+                                          .toFEither
+                                          .map(_ => {
+                                            val r: Option[
+                                              MaxRightComplianceResult
+                                            ] = Option.empty
+                                            r
+                                          })
+                                      }(user =>
+                                        rightService.updateUserRightsIfNeeded(
+                                          user,
+                                          roles,
+                                          Some(conn)
+                                        )
+                                      )
                                   )
                               }
                               val rightByRolesFromEnvIfAny =
@@ -373,7 +381,11 @@ class LoginController(
                             if (maybeRightCompliance.exists(!_.isEmpty)) {
                               Ok(
                                 Json.obj(
-                                  "rightUpdates" -> Json.toJson(maybeRightCompliance)(Writes.optionWithNull(MaxRightComplianceResult.writes))
+                                  "rightUpdates" -> Json.toJson(
+                                    maybeRightCompliance
+                                  )(Writes.optionWithNull(
+                                    MaxRightComplianceResult.writes
+                                  ))
                                 )
                               )
                                 .withCookies(

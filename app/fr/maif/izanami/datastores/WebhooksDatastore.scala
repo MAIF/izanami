@@ -4,9 +4,16 @@ import fr.maif.izanami.datastores.webhookImplicits.WebhookRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{IzanamiError, WebhookCreationFailed, WebhookDoesNotExists}
-import fr.maif.izanami.events.{EventService, IzanamiEvent}
-import fr.maif.izanami.models.{LightWebhook, Tenant, Webhook, WebhookFeature, WebhookProject}
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.WebhookCreationFailed
+import fr.maif.izanami.errors.WebhookDoesNotExists
+import fr.maif.izanami.events.EventService
+import fr.maif.izanami.events.IzanamiEvent
+import fr.maif.izanami.models.LightWebhook
+import fr.maif.izanami.models.Tenant
+import fr.maif.izanami.models.Webhook
+import fr.maif.izanami.models.WebhookFeature
+import fr.maif.izanami.models.WebhookProject
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import fr.maif.izanami.web.UserInformation
@@ -15,13 +22,18 @@ import io.vertx.sqlclient.Row
 import play.api.libs.json.Json
 
 import java.net.URI
-import java.time.{Instant, ZoneOffset}
+import java.time.Instant
+import java.time.ZoneOffset
 import java.util.UUID
 import scala.concurrent.Future
 
 class WebhooksDatastore(val env: Env) extends Datastore {
 
-  def createWebhookCall(tenant: String, webhook: UUID, eventId: Long): Future[Boolean] = {
+  def createWebhookCall(
+      tenant: String,
+      webhook: UUID,
+      eventId: Long
+  ): Future[Boolean] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryOne(
@@ -31,7 +43,8 @@ class WebhooksDatastore(val env: Env) extends Datastore {
          |""".stripMargin,
         List(webhook, java.lang.Long.valueOf(eventId)),
         silentFor = {
-          case e: PgException if e.getConstraint == "webhooks_call_status_pkey" => true
+          case e: PgException
+              if e.getConstraint == "webhooks_call_status_pkey" => true
           case _ => false
         }
       ) { r =>
@@ -40,7 +53,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
         }
       }
       .map(o => o.getOrElse(false))
-      .recover(ex => {
+      .recover(_ => {
         false
       })
   }
@@ -65,7 +78,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
         List(
           webhook,
           java.lang.Long.valueOf(eventId),
-          java.lang.Integer.valueOf(lastCount-1),
+          java.lang.Integer.valueOf(lastCount - 1),
           nextCall.atOffset(ZoneOffset.UTC)
         )
       ) { r =>
@@ -74,7 +87,11 @@ class WebhooksDatastore(val env: Env) extends Datastore {
       .map(_ => ())
   }
 
-  def deleteWebhookCall(tenant: String, webhook: UUID, eventId: Long): Future[Unit] = {
+  def deleteWebhookCall(
+      tenant: String,
+      webhook: UUID,
+      eventId: Long
+  ): Future[Unit] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryRaw(
@@ -88,7 +105,8 @@ class WebhooksDatastore(val env: Env) extends Datastore {
       ) { _ => () }
   }
 
-  def findAbandoneddWebhooks(tenant: String): Future[Option[Seq[(LightWebhook, IzanamiEvent, Int)]]] = {
+  def findAbandoneddWebhooks(tenant: String)
+      : Future[Option[Seq[(LightWebhook, IzanamiEvent, Int)]]] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryAll(
@@ -107,62 +125,65 @@ class WebhooksDatastore(val env: Env) extends Datastore {
         List()
       ) { r =>
         for (
-          webhook      <- r.optLightWebhook();
-          event        <- r.optJsObject("event");
+          webhook <- r.optLightWebhook();
+          event <- r.optJsObject("event");
           izanamiEvent <- event.asOpt[IzanamiEvent](EventService.eventFormat);
-          count        <- r.optInt("count")
+          count <- r.optInt("count")
         ) yield (webhook, izanamiEvent, count)
       }
       .map(s => Some(s))
       .recover {
         case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => None
-        case e                                                           => throw e
+        case e => throw e
       }
   }
 
-  def updateWebhook(tenant: String, id: UUID, webhook: LightWebhook): Future[Either[IzanamiError, Unit]] = {
+  def updateWebhook(
+      tenant: String,
+      id: UUID,
+      webhook: LightWebhook
+  ): Future[Either[IzanamiError, Unit]] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql.executeInTransaction(
-      conn => {
-        env.postgresql
-          .queryOne(
-            s"""
+    env.postgresql.executeInTransaction(conn => {
+      env.postgresql
+        .queryOne(
+          s"""
            |DELETE FROM "${tenant}".webhooks_features WHERE webhook=$$1
            |""".stripMargin,
+          List(id),
+          conn = Some(conn)
+        ) { _ => Some(()) }
+        .flatMap(_ =>
+          env.postgresql.queryOne(
+            s"""
+             |DELETE FROM "${tenant}".webhooks_projects WHERE webhook=$$1
+             |""".stripMargin,
             List(id),
             conn = Some(conn)
           ) { _ => Some(()) }
-          .flatMap(_ =>
-            env.postgresql.queryOne(
-              s"""
-             |DELETE FROM "${tenant}".webhooks_projects WHERE webhook=$$1
-             |""".stripMargin,
-              List(id),
-              conn = Some(conn)
-            ) { _ => Some(()) }
-          )
-          .flatMap(_ =>
-            env.postgresql.queryOne(
-              s"""
+        )
+        .flatMap(_ =>
+          env.postgresql.queryOne(
+            s"""
              |INSERT INTO "${tenant}".webhooks_features(webhook, feature) VALUES($$1, UNNEST($$2::text[]))
              |""".stripMargin,
-              List(id, webhook.features.toArray),
-              conn = Some(conn)
-            ) { _ => Some(()) }
-          )
-          .flatMap(_ =>
-            env.postgresql.queryOne(
-              s"""
+            List(id, webhook.features.toArray),
+            conn = Some(conn)
+          ) { _ => Some(()) }
+        )
+        .flatMap(_ =>
+          env.postgresql.queryOne(
+            s"""
              |INSERT INTO "${tenant}".webhooks_projects(webhook, project) VALUES($$1, UNNEST($$2::uuid[]))
              |""".stripMargin,
-              List(id, webhook.projects.map(UUID.fromString).toArray),
-              conn = Some(conn)
-            ) { _ => Some(()) }
-          )
-          .flatMap(_ =>
-            env.postgresql
-              .queryOne(
-                s"""
+            List(id, webhook.projects.map(UUID.fromString).toArray),
+            conn = Some(conn)
+          ) { _ => Some(()) }
+        )
+        .flatMap(_ =>
+          env.postgresql
+            .queryOne(
+              s"""
              |UPDATE "${tenant}".webhooks SET
              |name=$$2,
              |description=$$3,
@@ -176,28 +197,32 @@ class WebhooksDatastore(val env: Env) extends Datastore {
              |WHERE id=$$1
              |RETURNING id
              |""".stripMargin,
-                List(
-                  id,
-                  webhook.name,
-                  webhook.description,
-                  webhook.url.toString,
-                  webhook.user,
-                  Json.toJson(webhook.headers).vertxJsValue,
-                  webhook.context,
-                  java.lang.Boolean.valueOf(webhook.enabled),
-                  webhook.bodyTemplate.orNull,
-                  java.lang.Boolean.valueOf(webhook.global)
-                ),
-                conn = Some(conn)
-              ) { _ => Some(()) }
-              .map(_.toRight(WebhookDoesNotExists(id.toString)))
-              .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
-          )
-      }
-    )
+              List(
+                id,
+                webhook.name,
+                webhook.description,
+                webhook.url.toString,
+                webhook.user,
+                Json.toJson(webhook.headers).vertxJsValue,
+                webhook.context,
+                java.lang.Boolean.valueOf(webhook.enabled),
+                webhook.bodyTemplate.orNull,
+                java.lang.Boolean.valueOf(webhook.global)
+              ),
+              conn = Some(conn)
+            ) { _ => Some(()) }
+            .map(_.toRight(WebhookDoesNotExists(id.toString)))
+            .recover(env.postgresql.pgErrorPartialFunction.andThen(err =>
+              Left(err)
+            ))
+        )
+    })
   }
 
-  def deleteWebhook(tenant: String, webhook: String): Future[Either[IzanamiError, Unit]] = {
+  def deleteWebhook(
+      tenant: String,
+      webhook: String
+  ): Future[Either[IzanamiError, Unit]] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryOne(
@@ -277,41 +302,41 @@ class WebhooksDatastore(val env: Env) extends Datastore {
     ) { r =>
       {
         for (
-          name        <- r.optString("name");
-          enabled     <- r.optBoolean("enabled");
-          global      <- r.optBoolean("global");
+          name <- r.optString("name");
+          enabled <- r.optBoolean("enabled");
+          global <- r.optBoolean("global");
           description <- r.optString("description");
-          context     <- r.optString("context");
-          user        <- r.optString("username");
-          url         <- r.optString("url");
+          context <- r.optString("context");
+          user <- r.optString("username");
+          url <- r.optString("url");
           headersJson <- r.optJsObject("headers");
-          headers     <- headersJson.asOpt[Map[String, String]];
-          id          <- r.optUUID("id");
+          headers <- headersJson.asOpt[Map[String, String]];
+          id <- r.optUUID("id");
           featureJson <- r.optJsArray("features");
-          features     = featureJson.value
-                           .map(jsObj => {
-                             for (
-                               fname <- (jsObj \ "name").asOpt[String];
-                               pname <- (jsObj \ "project").asOpt[String];
-                               id    <- (jsObj \ "id").asOpt[String]
-                             ) yield WebhookFeature(name = fname, project = pname, id = id)
-                           })
-                           .collect { case Some(value) =>
-                             value
-                           }
-                           .toSet;
+          features = featureJson.value
+            .map(jsObj => {
+              for (
+                fname <- (jsObj \ "name").asOpt[String];
+                pname <- (jsObj \ "project").asOpt[String];
+                id <- (jsObj \ "id").asOpt[String]
+              ) yield WebhookFeature(name = fname, project = pname, id = id)
+            })
+            .collect { case Some(value) =>
+              value
+            }
+            .toSet;
           projectJson <- r.optJsArray("projects");
-          projects     = projectJson.value
-                           .map(jsObj => {
-                             for (
-                               pname <- (jsObj \ "name").asOpt[String];
-                               id    <- (jsObj \ "id").asOpt[String]
-                             ) yield WebhookProject(name = pname, id = id)
-                           })
-                           .collect { case Some(value) =>
-                             value
-                           }
-                           .toSet;
+          projects = projectJson.value
+            .map(jsObj => {
+              for (
+                pname <- (jsObj \ "name").asOpt[String];
+                id <- (jsObj \ "id").asOpt[String]
+              ) yield WebhookProject(name = pname, id = id)
+            })
+            .collect { case Some(value) =>
+              value
+            }
+            .toSet;
           bodyTemplate = r.optString("body_template")
         )
           yield Webhook(
@@ -337,70 +362,73 @@ class WebhooksDatastore(val env: Env) extends Datastore {
       user: UserInformation
   ): Future[Either[IzanamiError, String]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql.executeInTransaction(
-      conn => {
-        env.datastores.featureContext.env.postgresql
-          .queryOne(
-            s"""
+    env.postgresql.executeInTransaction(conn => {
+      env.datastores.featureContext.env.postgresql
+        .queryOne(
+          s"""
            |INSERT INTO "${tenant}".webhooks (name, description, url, headers, context, username, enabled, body_template, global) VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7, $$8, $$9)
            |RETURNING id
            |""".stripMargin,
-            List(
-              webhook.name,
-              webhook.description,
-              webhook.url.toString,
-              Json.toJson(webhook.headers).vertxJsValue,
-              webhook.context,
-              webhook.user,
-              java.lang.Boolean.valueOf(webhook.enabled),
-              webhook.bodyTemplate.orNull,
-              java.lang.Boolean.valueOf(webhook.global)
-            ),
-            conn = Some(conn)
-          ) { r => r.optUUID("id").map(_.toString) }
-          .map(_.toRight(WebhookCreationFailed()))
-          .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
-          .flatMap {
-            case Right(id) if webhook.features.nonEmpty =>
-              env.postgresql
-                .queryOne(
-                  s"""
+          List(
+            webhook.name,
+            webhook.description,
+            webhook.url.toString,
+            Json.toJson(webhook.headers).vertxJsValue,
+            webhook.context,
+            webhook.user,
+            java.lang.Boolean.valueOf(webhook.enabled),
+            webhook.bodyTemplate.orNull,
+            java.lang.Boolean.valueOf(webhook.global)
+          ),
+          conn = Some(conn)
+        ) { r => r.optUUID("id").map(_.toString) }
+        .map(_.toRight(WebhookCreationFailed()))
+        .recover(env.postgresql.pgErrorPartialFunction.andThen(err =>
+          Left(err)
+        ))
+        .flatMap {
+          case Right(id) if webhook.features.nonEmpty =>
+            env.postgresql
+              .queryOne(
+                s"""
                |INSERT INTO "${tenant}".webhooks_features (webhook, feature) VALUES ($$1, UNNEST($$2::text[]))
                |""".stripMargin,
-                  params = List(id, webhook.features.toArray),
-                  conn = Some(conn)
-                ) { _ => Some(id) }
-                .map(_ => Right(id))
-            case either                                 => Future.successful(either)
-          }
-          .flatMap {
-            case Right(id) if webhook.projects.nonEmpty =>
-              env.postgresql
-                .queryOne(
-                  s"""
+                params = List(id, webhook.features.toArray),
+                conn = Some(conn)
+              ) { _ => Some(id) }
+              .map(_ => Right(id))
+          case either => Future.successful(either)
+        }
+        .flatMap {
+          case Right(id) if webhook.projects.nonEmpty =>
+            env.postgresql
+              .queryOne(
+                s"""
                      |INSERT INTO "${tenant}".webhooks_projects (webhook, project) VALUES ($$1, UNNEST($$2::uuid[]))
                      |""".stripMargin,
-                  params = List(id, webhook.projects.map(str => UUID.fromString(str)).toArray),
-                  conn = Some(conn)
-                ) { _ => Some(id) }
-                .map(_ => Right(id))
-            case either                                 => Future.successful(either)
-          }
-          .flatMap {
-            case Right(id) =>
-              env.postgresql
-                .queryOne(
-                  s"""
+                params = List(
+                  id,
+                  webhook.projects.map(str => UUID.fromString(str)).toArray
+                ),
+                conn = Some(conn)
+              ) { _ => Some(id) }
+              .map(_ => Right(id))
+          case either => Future.successful(either)
+        }
+        .flatMap {
+          case Right(id) =>
+            env.postgresql
+              .queryOne(
+                s"""
                      |INSERT INTO "${tenant}".users_webhooks_rights (webhook, username, level) VALUES ($$1, $$2, 'ADMIN')
                      |""".stripMargin,
-                  params = List(webhook.name, user.username),
-                  conn = Some(conn)
-                ) { _ => Some(id) }
-                .map(_ => Right(id))
-            case either    => Future.successful(either)
-          }
-      }
-    )
+                params = List(webhook.name, user.username),
+                conn = Some(conn)
+              ) { _ => Some(id) }
+              .map(_ => Right(id))
+          case either => Future.successful(either)
+        }
+    })
   }
 }
 
@@ -409,21 +437,21 @@ object webhookImplicits {
     def optLightWebhook(): Option[LightWebhook] = {
       {
         for (
-          name         <- r.optString("name");
-          enabled      <- r.optBoolean("enabled");
-          global       <- r.optBoolean("global");
-          description  <- r.optString("description");
-          context      <- r.optString("context");
-          user         <- r.optString("username");
-          url          <- r.optString("url");
-          headersJson  <- r.optJsObject("headers");
-          headers      <- headersJson.asOpt[Map[String, String]];
-          id           <- r.optUUID("id");
+          name <- r.optString("name");
+          enabled <- r.optBoolean("enabled");
+          global <- r.optBoolean("global");
+          description <- r.optString("description");
+          context <- r.optString("context");
+          user <- r.optString("username");
+          url <- r.optString("url");
+          headersJson <- r.optJsObject("headers");
+          headers <- headersJson.asOpt[Map[String, String]];
+          id <- r.optUUID("id");
           featuresJson <- r.optJsArray("features");
-          features      = featuresJson.value.map(_.as[String]).toSet;
+          features = featuresJson.value.map(_.as[String]).toSet;
           projectsJson <- r.optJsArray("projects");
-          projects      = projectsJson.value.map(_.as[String]).toSet;
-          bodyTemplate  = r.optString("body_template")
+          projects = projectsJson.value.map(_.as[String]).toSet;
+          bodyTemplate = r.optString("body_template")
         )
           yield LightWebhook(
             name = name,

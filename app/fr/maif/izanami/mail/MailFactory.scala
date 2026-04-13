@@ -2,7 +2,7 @@ package fr.maif.izanami.mail
 
 import fr.maif.izanami.env.Env
 
-class   MailFactory(env: Env) {
+class MailFactory(env: Env) {
   def invitationEmail(target: String, token: String): Mail = {
     val baseUrl = env.expositionUrl
     val completeUrl = s"${baseUrl}/invitation?token=${token}"
@@ -28,7 +28,7 @@ class   MailFactory(env: Env) {
 
   def passwordResetEmail(target: String, token: String): Mail = {
     val baseUrl = env.expositionUrl
-      val completeUrl = s"${baseUrl}/password/_reset?token=${token}"
+    val completeUrl = s"${baseUrl}/password/_reset?token=${token}"
     Mail(
       subject = "Izanami password reset",
       targetMail = target,

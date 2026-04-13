@@ -10,7 +10,8 @@ class ContextTest extends AnyWordSpec with Matchers {
   "impactedProtectedContextsByRootUpdate" should {
     "return contexts without overload" in {
       val res = FeatureService.impactedProtectedContextsByUpdate(
-        protectedContexts = Set(FeatureContextPath(Seq("prod")), FeatureContextPath(Seq("bar"))),
+        protectedContexts =
+          Set(FeatureContextPath(Seq("prod")), FeatureContextPath(Seq("bar"))),
         currentOverloads = Set(FeatureContextPath(Seq("prod"))),
         updatedContext = FeatureContextPath()
       )
@@ -20,7 +21,10 @@ class ContextTest extends AnyWordSpec with Matchers {
 
     "not return context that have overloaded parent context" in {
       val res = FeatureService.impactedProtectedContextsByUpdate(
-        protectedContexts = Set(FeatureContextPath.fromUserString("prod"), FeatureContextPath.fromUserString("prod/mobile")),
+        protectedContexts = Set(
+          FeatureContextPath.fromUserString("prod"),
+          FeatureContextPath.fromUserString("prod/mobile")
+        ),
         currentOverloads = Set(FeatureContextPath(Seq("prod"))),
         updatedContext = FeatureContextPath()
       )
@@ -30,8 +34,12 @@ class ContextTest extends AnyWordSpec with Matchers {
 
     "return contexts that are parent context of overloaded contexts" in {
       val res = FeatureService.impactedProtectedContextsByUpdate(
-        protectedContexts = Set(FeatureContextPath.fromUserString("prod"), FeatureContextPath.fromUserString("prod/mobile")),
-        currentOverloads = Set(FeatureContextPath.fromUserString("prod/mobile")),
+        protectedContexts = Set(
+          FeatureContextPath.fromUserString("prod"),
+          FeatureContextPath.fromUserString("prod/mobile")
+        ),
+        currentOverloads =
+          Set(FeatureContextPath.fromUserString("prod/mobile")),
         updatedContext = FeatureContextPath()
       )
 
@@ -40,13 +48,19 @@ class ContextTest extends AnyWordSpec with Matchers {
 
     "take current update context into account" in {
       val res = FeatureService.impactedProtectedContextsByUpdate(
-        protectedContexts = Set(FeatureContextPath.fromUserString("prod"), FeatureContextPath.fromUserString("prod/mobile"), FeatureContextPath.fromUserString("dev"), FeatureContextPath.fromUserString("dev/mobile")),
+        protectedContexts = Set(
+          FeatureContextPath.fromUserString("prod"),
+          FeatureContextPath.fromUserString("prod/mobile"),
+          FeatureContextPath.fromUserString("dev"),
+          FeatureContextPath.fromUserString("dev/mobile")
+        ),
         currentOverloads = Set(FeatureContextPath.fromUserString("dev")),
         updatedContext = FeatureContextPath.fromUserString("dev")
       )
 
-
-      res should contain theSameElementsAs Seq(FeatureContextPath.fromUserString("dev/mobile"))
+      res should contain theSameElementsAs Seq(
+        FeatureContextPath.fromUserString("dev/mobile")
+      )
     }
   }
 
@@ -60,13 +74,18 @@ class ContextTest extends AnyWordSpec with Matchers {
         FeatureContextPath.fromUserString("bar"),
         FeatureContextPath.fromUserString("bar/foo"),
         FeatureContextPath.fromUserString("baz"),
-        FeatureContextPath.fromUserString("production"),
+        FeatureContextPath.fromUserString("production")
       )
 
       val result = FeatureService.computeRootContexts(contexts)
 
       result must have size 4
-      result.map(_.toUserPath) must contain theSameElementsAs Seq("prod", "bar", "baz", "production")
+      result.map(_.toUserPath) must contain theSameElementsAs Seq(
+        "prod",
+        "bar",
+        "baz",
+        "production"
+      )
     }
   }
 }

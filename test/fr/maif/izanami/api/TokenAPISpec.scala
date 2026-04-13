@@ -1,23 +1,20 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{
-  TestPersonnalAccessToken,
-  TestSituationBuilder,
-  TestTenant,
-  TestUser
-}
-import play.api.http.Status.{
-  BAD_REQUEST,
-  CREATED,
-  FORBIDDEN,
-  NOT_FOUND,
-  NO_CONTENT,
-  OK,
-  UNAUTHORIZED
-}
-import play.api.libs.json.{JsArray, JsObject}
+import fr.maif.izanami.api.BaseAPISpec.TestPersonnalAccessToken
+import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
+import fr.maif.izanami.api.BaseAPISpec.TestTenant
+import fr.maif.izanami.api.BaseAPISpec.TestUser
+import play.api.http.Status.BAD_REQUEST
+import play.api.http.Status.CREATED
+import play.api.http.Status.FORBIDDEN
+import play.api.http.Status.NOT_FOUND
+import play.api.http.Status.NO_CONTENT
+import play.api.http.Status.OK
+import play.api.libs.json.JsArray
+import play.api.libs.json.JsObject
 
-import java.time.{LocalDateTime, ZoneId}
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.UUID
 
 class TokenAPISpec extends BaseAPISpec {

@@ -1,14 +1,18 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
-import fr.maif.izanami.models.Feature.{lightweightFeatureRead, lightweightFeatureWrite}
+import fr.maif.izanami.errors.InternalServerError
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.models.Feature.lightweightFeatureWrite
 import fr.maif.izanami.models.StaleStatus.staleStatusWrites
 import fr.maif.izanami.models.features.*
-import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
+import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.v1.OldFeature
 import fr.maif.izanami.v1.OldFeature.oldFeatureReads
-import fr.maif.izanami.v1.{OldFeature, OldGlobalScriptFeature}
-import fr.maif.izanami.wasm.{WasmConfig, WasmUtils}
+import fr.maif.izanami.v1.OldGlobalScriptFeature
+import fr.maif.izanami.wasm.WasmConfig
+import fr.maif.izanami.wasm.WasmUtils
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.Logger
 import play.api.libs.json.*
@@ -16,11 +20,15 @@ import play.api.mvc.QueryStringBindable
 
 import java.time.*
 import java.time.format.DateTimeFormatter
-import java.util.{Objects, UUID}
-import scala.concurrent.{ExecutionContext, Future}
+import java.util.Objects
+import java.util.UUID
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 import scala.util.hashing.MurmurHash3
 import scala.util.matching.Regex
-import scala.util.{Failure, Success, Try}
 
 case class FeatureWithOverloads(
     baseFeature: LightWeightFeature,
@@ -52,7 +60,7 @@ case class FeatureWithOverloads(
       context: FeatureContextPath,
       contextualFeatureStrategy: LightweightContextualStrategy
   ): FeatureWithOverloads = {
-    val currentStrategy = overloads
+    overloads
       .getOrElse(context, baseFeature)
 
     copy(overloads =
@@ -217,7 +225,7 @@ object LightWeightFeature {
   ): Boolean = {
     (f1, f2) match {
       case (f1: LightWeightWasmFeature, f2: LightWeightWasmFeatureStrategy) =>
-        f1.enabled != f2.enabled || f1.wasmConfigName != f2.wasmConfigName ||  f1.resultType != f2.resultType
+        f1.enabled != f2.enabled || f1.wasmConfigName != f2.wasmConfigName || f1.resultType != f2.resultType
       case (f1: Feature, f2: ClassicalFeatureStrategy) =>
         f1.enabled != f2.enabled || f1.resultDescriptor != f2.resultDescriptor || f1.resultType != f2.resultType
       case _ => true
@@ -460,7 +468,6 @@ case class Feature(
       requestContext: RequestContext,
       env: Env
   ): Future[Either[IzanamiError, JsValue]] = {
-    implicit val ec: ExecutionContext = env.executionContext
     Future.successful(Right((enabled, resultDescriptor) match {
       case (false, r: BooleanResultDescriptor)         => JsFalse
       case (false, _)                                  => JsNull
@@ -567,16 +574,21 @@ case class CompleteWasmFeature(
 
     (isWasmAllowed, enabled, resultType) match {
       case (false, true, BooleanResult) => {
-        logger.warn(s"Evaluation result of wasm feature ${name} (id ${id}, context ${requestContext.context.toUserPath}) was changed to false, since this izanami instance doesn't allow wasm features")
+        logger.warn(
+          s"Evaluation result of wasm feature ${name} (id ${id}, context ${requestContext.context.toUserPath}) was changed to false, since this izanami instance doesn't allow wasm features"
+        )
         Future.successful(Right(JsFalse))
       }
       case (false, true, _) => {
-        logger.warn(s"Evaluation result of wasm feature ${name} (id ${id}, context ${requestContext.context.toUserPath}) was changed to null, since this izanami instance doesn't allow wasm features")
+        logger.warn(
+          s"Evaluation result of wasm feature ${name} (id ${id}, context ${requestContext.context.toUserPath}) was changed to null, since this izanami instance doesn't allow wasm features"
+        )
         Future.successful(Right(JsNull))
       }
       case (_, false, BooleanResult) => Future.successful(Right(JsFalse))
-      case (_, false, _) => Future.successful(Right(JsNull))
-      case (_, true, _) => WasmUtils.handle(wasmConfig, requestContext, resultType)(ec, env)
+      case (_, false, _)             => Future.successful(Right(JsNull))
+      case (_, true, _)              =>
+        WasmUtils.handle(wasmConfig, requestContext, resultType)(ec, env)
     }
   }
 
@@ -1048,7 +1060,7 @@ object Feature {
       json.select("metadata").asOpt[JsObject].getOrElse(JsObject.empty)
     val id = json.select("id").asOpt[String].orNull
     val description = json.select("description").asOpt[String].getOrElse("")
-    val lastCall = json.select("lastCall").asOpt[Instant]
+    json.select("lastCall").asOpt[Instant]
     val tags = (json \ "tags")
       .asOpt[Set[String]]
       .getOrElse(Set())

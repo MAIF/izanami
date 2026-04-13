@@ -1,14 +1,14 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{
-  disabledFeatureBase64,
-  enabledFeatureBase64,
-  TestSituationBuilder,
-  TestTenant,
-  TestWasmConfig
-}
-import play.api.http.Status.{BAD_REQUEST, NO_CONTENT}
-import play.api.libs.json.{JsArray, Json}
+import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
+import fr.maif.izanami.api.BaseAPISpec.TestTenant
+import fr.maif.izanami.api.BaseAPISpec.TestWasmConfig
+import fr.maif.izanami.api.BaseAPISpec.disabledFeatureBase64
+import fr.maif.izanami.api.BaseAPISpec.enabledFeatureBase64
+import play.api.http.Status.BAD_REQUEST
+import play.api.http.Status.NO_CONTENT
+import play.api.libs.json.JsArray
+import play.api.libs.json.Json
 
 class PluginAPISpec extends BaseAPISpec {
 
@@ -126,7 +126,7 @@ class PluginAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val featureresponse = situation.createFeature(
+      situation.createFeature(
         "feature",
         enabled = true,
         project = "foo",

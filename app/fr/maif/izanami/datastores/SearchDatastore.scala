@@ -4,12 +4,14 @@ import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.utils.Datastore
-import play.api.libs.json.{JsObject, Json}
-import fr.maif.izanami.web.SearchController.{SearchEntityObject, SearchEntityType}
+import fr.maif.izanami.web.SearchController.SearchEntityObject
+import fr.maif.izanami.web.SearchController.SearchEntityType
+import play.api.libs.json.JsObject
 
 import scala.concurrent.Future
 class SearchDatastore(val env: Env) extends Datastore {
-  private val similarityThresholdParam  =  env.typedConfiguration.search.similarityThreshold
+  private val similarityThresholdParam =
+    env.typedConfiguration.search.similarityThreshold
   def tenantSearch(
       tenant: String,
       username: String,
@@ -17,13 +19,17 @@ class SearchDatastore(val env: Env) extends Datastore {
       filter: List[Option[SearchEntityType]]
   ): Future[List[(String, JsObject, Double)]] = {
     Tenant.isTenantValid(tenant)
-    val searchQuery  = new StringBuilder()
+    val searchQuery = new StringBuilder()
     val extensionsSchema = env.extensionsSchema
     searchQuery.append("WITH ")
 
     var scoredQueries = List[String]()
-    var unionQueries  = List[String]()
-    if (filter.isEmpty || filter.contains(Some(SearchEntityObject.Project))|| filter.contains(Some(SearchEntityObject.Feature))) {
+    var unionQueries = List[String]()
+    if (
+      filter.isEmpty || filter.contains(
+        Some(SearchEntityObject.Project)
+      ) || filter.contains(Some(SearchEntityObject.Feature))
+    ) {
       scoredQueries :+=
         s"""
       scored_projects AS (
@@ -138,7 +144,9 @@ class SearchDatastore(val env: Env) extends Datastore {
         FROM scored_scripts s
         WHERE s.name_score > $similarityThresholdParam"""
     }
-    if (filter.isEmpty || filter.contains(Some(SearchEntityObject.GlobalContext))) {
+    if (
+      filter.isEmpty || filter.contains(Some(SearchEntityObject.GlobalContext))
+    ) {
       scoredQueries :+=
         s"""
       scored_global_contexts AS (
@@ -157,7 +165,9 @@ class SearchDatastore(val env: Env) extends Datastore {
          FROM scored_global_contexts gc
          WHERE gc.name_score > $similarityThresholdParam """
     }
-    if (filter.isEmpty || filter.contains(Some(SearchEntityObject.LocalContext))) {
+    if (
+      filter.isEmpty || filter.contains(Some(SearchEntityObject.LocalContext))
+    ) {
       scoredQueries :+=
         s"""
           scored_local_contexts AS (
@@ -207,11 +217,11 @@ class SearchDatastore(val env: Env) extends Datastore {
 
     env.postgresql.queryAll(
       searchQuery.toString(),
-      List(query, username, tenant),
+      List(query, username, tenant)
     ) { r =>
       for {
-        t     <- r.optString("_type")
-        json  <- r.optJsObject("json")
+        t <- r.optString("_type")
+        json <- r.optJsObject("json")
         score <- r.optDouble("match_score")
       } yield {
         (t, json, score)

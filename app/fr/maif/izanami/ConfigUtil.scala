@@ -1,6 +1,8 @@
 package fr.maif.izanami
 
-import com.typesafe.config.{Config, ConfigValueFactory, ConfigValueType}
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigValueFactory
+import com.typesafe.config.ConfigValueType
 import play.api.libs.json.Json
 
 import java.util.Collections
@@ -9,17 +11,21 @@ import scala.util.Try
 
 object ConfigUtil {
   def fixIzanamiConfigIfNeeded(config: Config): Config = {
-    Seq("app.cluster.context-blocklist", "app.cluster.context-allowlist").foldLeft(config)((config, path) => {
+    Seq(
+      "app.cluster.context-blocklist",
+      "app.cluster.context-allowlist"
+    ).foldLeft(config)((config, path) => {
       fixStringArrayifNeeded(config, path)
     })
   }
 
-
   def fixStringArrayifNeeded(config: Config, path: String): Config = {
-    Try{
+    Try {
       val value = config.getValue(path)
       if (value.valueType() == ConfigValueType.STRING) {
-        val newValue = Json.parse(value.unwrapped().asInstanceOf[String]).asOpt[Seq[String]].map(_.asJava).getOrElse(Collections.emptyList())
+        val newValue = Json.parse(
+          value.unwrapped().asInstanceOf[String]
+        ).asOpt[Seq[String]].map(_.asJava).getOrElse(Collections.emptyList())
         config.withValue(path, ConfigValueFactory.fromIterable(newValue))
       } else {
         config

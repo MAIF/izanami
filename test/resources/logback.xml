@@ -33,6 +33,7 @@
 
   <logger name="play" level="INFO" />
   <logger name="izanami" level="DEBUG" />
+  <logger name="izanami-datastore" level="INFO"/>
   <logger name="application" level="INFO" />
   <logger name="izanami-wasm" level="WARN" />
   <logger name="org.testcontainers" level="ERROR" />
@@ -41,9 +42,10 @@
   <logger name="org.flywaydb" level="WARN"/>
   <logger name="com.zaxxer.hikari" level="WARN"/>
   <logger name="akka" level="WARN"/>
+  <logger name ="org.flywaydb.core.internal.scanner.filesystem.FileSystemScanner" level="OFF"/>
 
 
-  <root level="INFO">
+  <root level="ERROR">
     <appender-ref ref="ASYNCFILE" />
     <appender-ref ref="ASYNCSTDOUT" />
   </root>

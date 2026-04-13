@@ -1,6 +1,6 @@
 package fr.maif.izanami.helpers
 
-import fr.maif.izanami.api.BaseAPISpec.{TestUser, _}
+import fr.maif.izanami.api.BaseAPISpec.*
 
 object OIDCSecurityDemoLoader {
   def main(args: Array[String]): Unit = {
@@ -10,11 +10,29 @@ object OIDCSecurityDemoLoader {
       .loggedInWithAdminRights()
       .withTenants(
         TestTenant("openbar")
-          .withGlobalContext(TestFeatureContext(name = "prod", isProtected = true), TestFeatureContext(name = "dev", isProtected = false))
-          .withProjects(TestProject("shop").withFeatureNames("new-ui", "sales"), TestProject("store").withFeatureNames("rating", "supplier-availability")),
+          .withGlobalContext(
+            TestFeatureContext(name = "prod", isProtected = true),
+            TestFeatureContext(name = "dev", isProtected = false)
+          )
+          .withProjects(
+            TestProject("shop").withFeatureNames("new-ui", "sales"),
+            TestProject("store").withFeatureNames(
+              "rating",
+              "supplier-availability"
+            )
+          ),
         TestTenant("secret")
-          .withGlobalContext(TestFeatureContext(name = "prod", isProtected = true), TestFeatureContext(name = "dev", isProtected = false))
-          .withProjects(TestProject("secret-car").withFeatureNames("fifth-wheel", "swimmin-pool"), TestProject("secret-boat").withFeatureNames("submarine", "fly"))
+          .withGlobalContext(
+            TestFeatureContext(name = "prod", isProtected = true),
+            TestFeatureContext(name = "dev", isProtected = false)
+          )
+          .withProjects(
+            TestProject("secret-car").withFeatureNames(
+              "fifth-wheel",
+              "swimmin-pool"
+            ),
+            TestProject("secret-boat").withFeatureNames("submarine", "fly")
+          )
       )
       .withCustomConfiguration(Map(
         "app.openid.client-id" -> "foo",
@@ -89,7 +107,6 @@ object OIDCSecurityDemoLoader {
       "fly",
       enabled = false
     )
-
 
     System.exit(0)
   }

@@ -1,23 +1,38 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.ConfigurationDatastore.{parseDbMailer, parseInvitationMode}
+import fr.maif.izanami.datastores.ConfigurationDatastore.parseDbMailer
+import fr.maif.izanami.datastores.ConfigurationDatastore.parseInvitationMode
 import fr.maif.izanami.datastores.configurationImplicits.MailerConfigurationRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{ConfigurationReadError, InternalServerError, IzanamiError}
+import fr.maif.izanami.errors.ConfigurationReadError
+import fr.maif.izanami.errors.InternalServerError
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.events.EventOrigin
 import fr.maif.izanami.events.EventOrigin.TechnicalOrigin
-import fr.maif.izanami.events.{EventOrigin, SourceConfigurationUpdatedEvent}
+import fr.maif.izanami.events.SourceConfigurationUpdatedEvent
 import fr.maif.izanami.mail.*
-import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTPConfigurationWrites, mailGunConfigurationReads, mailJetConfigurationReads}
 import fr.maif.izanami.models.*
-import fr.maif.izanami.services.{CompleteRights, CompleteRightsWithMaxRights, OIDCRights}
-import fr.maif.izanami.services.RightService.RightsByRole
-import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterFutureEither, BetterJsValue}
-import fr.maif.izanami.utils.{Datastore, Done, FutureEither}
-import fr.maif.izanami.web.{IzanamiApplicationUserInformation, UserInformation}
+import fr.maif.izanami.models.IzanamiConfiguration.SMTPConfigurationReads
+import fr.maif.izanami.models.IzanamiConfiguration.SMTPConfigurationWrites
+import fr.maif.izanami.models.IzanamiConfiguration.mailGunConfigurationReads
+import fr.maif.izanami.models.IzanamiConfiguration.mailJetConfigurationReads
+import fr.maif.izanami.services.CompleteRightsWithMaxRights
+import fr.maif.izanami.utils.Datastore
+import fr.maif.izanami.utils.Done
+import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.utils.syntax.implicits.BetterFuture
+import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
+import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
+import fr.maif.izanami.web.IzanamiApplicationUserInformation
+import fr.maif.izanami.web.UserInformation
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
-import io.vertx.sqlclient.{Row, SqlConnection}
-import play.api.libs.json.{JsNull, Json, Reads, Writes}
+import io.vertx.sqlclient.Row
+import io.vertx.sqlclient.SqlConnection
+import play.api.libs.json.JsNull
+import play.api.libs.json.Json
+import play.api.libs.json.Reads
+import play.api.libs.json.Writes
 
 import java.time.ZoneOffset
 import java.util.UUID
@@ -25,15 +40,15 @@ import scala.concurrent.Future
 
 class ConfigurationDatastore(val env: Env) extends Datastore {
 
-  /**
-   * Updates OIDC rights roles to keep only existing stuff.
-   * This is used if existing oidc configuration references non
-   * existing project / keys / webhooks / tenants.
-   * This methods verify existence of everything listed in oidc configuration
-   * and remove parts that references non existing stuff.
-   * @param rights configuration to update
-   * @return updated configuration
-   */
+  /** Updates OIDC rights roles to keep only existing stuff. This is used if
+    * existing oidc configuration references non existing project / keys /
+    * webhooks / tenants. This methods verify existence of everything listed in
+    * oidc configuration and remove parts that references non existing stuff.
+    * @param rights
+    *   configuration to update
+    * @return
+    *   updated configuration
+    */
   def updateOIDCRightByRolesIfNeeded(
       rights: Map[String, CompleteRightsWithMaxRights]
   ): FutureEither[Map[String, CompleteRightsWithMaxRights]] = {
@@ -71,45 +86,49 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
         val tenantsToDelete = tenants.diff(setTenants)
         val tenantsToKeep = tenants.diff(tenantsToDelete)
 
-        val tenantItemsToDelete = tenantsToKeep.foldLeft(FutureEither.success(Map(): Map[String, TenantItemsToDelete]))((acc, t) =>{
-          acc.flatMap(map => {
-            require(Tenant.isTenantValid(t))
+        val tenantItemsToDelete =
+          tenantsToKeep.foldLeft(FutureEither.success(Map(): Map[
+            String,
+            TenantItemsToDelete
+          ]))((acc, t) => {
+            acc.flatMap(map => {
+              require(Tenant.isTenantValid(t))
 
-            (for (
-              existingProjects <- env.postgresql
-                .queryAll(
-                  s"""SELECT name from "${t}".projects"""
-                ) { r => r.optString("name") }
-                .map(l => l.toSet);
-              existingKeys <- env.postgresql
-                .queryAll(
-                  s"""SELECT name from "${t}".apikeys"""
-                ) { r => r.optString("name") }
-                .map(l => l.toSet);
-              existingWebhooks <- env.postgresql
-                .queryAll(
-                  s"""SELECT name from "${t}".webhooks"""
-                ) { r => r.optString("name") }
-                .map(l => l.toSet)
-            ) yield {
-              val completeRights = rights.values
-              val projectToDelete = completeRights
-                .flatMap(_.tenants(t).projects.keySet.diff(existingProjects))
-                .toSet
-              val keyToDelete = completeRights
-                .flatMap(_.tenants(t).keys.keySet.diff(existingKeys))
-                .toSet
-              val webhookToDelete = completeRights
-                .flatMap(_.tenants(t).webhooks.keySet.diff(existingWebhooks))
-                .toSet
-              map + (t -> TenantItemsToDelete(
-                projects = projectToDelete,
-                keys = keyToDelete,
-                webhooks = webhookToDelete
-              ))
-            }).mapToFEither
+              (for (
+                existingProjects <- env.postgresql
+                  .queryAll(
+                    s"""SELECT name from "${t}".projects"""
+                  ) { r => r.optString("name") }
+                  .map(l => l.toSet);
+                existingKeys <- env.postgresql
+                  .queryAll(
+                    s"""SELECT name from "${t}".apikeys"""
+                  ) { r => r.optString("name") }
+                  .map(l => l.toSet);
+                existingWebhooks <- env.postgresql
+                  .queryAll(
+                    s"""SELECT name from "${t}".webhooks"""
+                  ) { r => r.optString("name") }
+                  .map(l => l.toSet)
+              ) yield {
+                val completeRights = rights.values
+                val projectToDelete = completeRights
+                  .flatMap(_.tenants(t).projects.keySet.diff(existingProjects))
+                  .toSet
+                val keyToDelete = completeRights
+                  .flatMap(_.tenants(t).keys.keySet.diff(existingKeys))
+                  .toSet
+                val webhookToDelete = completeRights
+                  .flatMap(_.tenants(t).webhooks.keySet.diff(existingWebhooks))
+                  .toSet
+                map + (t -> TenantItemsToDelete(
+                  projects = projectToDelete,
+                  keys = keyToDelete,
+                  webhooks = webhookToDelete
+                ))
+              }).mapToFEither
+            })
           })
-        })
 
         tenantItemsToDelete.flatMap(toDelete => {
           val newRights = deleteNeededItems(tenantsToDelete, toDelete)
@@ -187,7 +206,11 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
   ): FutureEither[Done] = {
     readFullConfiguration().flatMap(oldConf => {
       updateConfiguration(
-        oldConf.copy(oidcConfiguration = oldConf.oidcConfiguration.map(c => c.copy(userRightsByRoles = Some(rights)))),
+        oldConf.copy(oidcConfiguration =
+          oldConf.oidcConfiguration.map(c =>
+            c.copy(userRightsByRoles = Some(rights))
+          )
+        ),
         userInformation = IzanamiApplicationUserInformation,
         origin = TechnicalOrigin
       )
@@ -275,7 +298,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
                 env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
               )
           }.toFEither;
-          _ <- if(updatedConfiguration != oldConfig) {
+          _ <- if (updatedConfiguration != oldConfig) {
             (env.eventService.emitGlobalEvent(
               SourceConfigurationUpdatedEvent(
                 user = userInformation.username,

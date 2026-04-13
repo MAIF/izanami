@@ -1,8 +1,6 @@
 package fr.maif.izanami.helpers
 
-import fr.maif.izanami.api.BaseAPISpec.{TestUser, _}
-
-import java.time.{DayOfWeek, LocalDateTime, LocalTime}
+import fr.maif.izanami.api.BaseAPISpec.*
 
 object ResetInstance {
   def main(args: Array[String]): Unit = {

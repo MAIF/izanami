@@ -1,0 +1,58 @@
+package fr.maif
+
+import org.scalatest.Suites
+import fr.maif.izanami.api.ApplicationKeysAPISpec
+import fr.maif.izanami.api.ConfigurationAPISpec
+import fr.maif.izanami.api.EventsAPISpec
+import fr.maif.izanami.api.ExportAPISpec
+import fr.maif.izanami.api.FeatureAPISpec
+import fr.maif.izanami.api.FeatureCallAPISpec
+import fr.maif.izanami.api.FeatureClientAPISpec
+import fr.maif.izanami.api.FeatureContextAPISpec
+import fr.maif.izanami.api.ImportApiSpec
+import fr.maif.izanami.api.LeaderWorkerAPISpec
+import fr.maif.izanami.api.LoginAPISpec
+import fr.maif.izanami.api.OIDCRightSpec
+import fr.maif.izanami.api.PersonalAccessTokenAPISpec
+import fr.maif.izanami.api.PluginAPISpec
+import fr.maif.izanami.api.ProjectAPISpec
+import fr.maif.izanami.api.SearchAPISpec
+import fr.maif.izanami.api.TagAPISpec
+import fr.maif.izanami.api.TenantAPISpec
+import fr.maif.izanami.api.TokenAPISpec
+import fr.maif.izanami.api.UsersAPISpec
+import fr.maif.izanami.api.WebhookAPISpec
+import fr.maif.izanami.api.ZShouldRunLast_V1CompatibilityTest
+import fr.maif.izanami.units.ContextTest
+import fr.maif.izanami.units.RightServiceTest
+import fr.maif.izanami.units.ScriptTest
+import org.scalatest.DoNotDiscover
+
+@DoNotDiscover
+class AllTests extends Suites(
+      new ContextTest,
+      new RightServiceTest,
+      new ScriptTest,
+      new ApplicationKeysAPISpec,
+      new ConfigurationAPISpec,
+      new EventsAPISpec,
+      new ExportAPISpec,
+      new FeatureAPISpec,
+      new FeatureCallAPISpec,
+      new FeatureClientAPISpec,
+      new FeatureContextAPISpec,
+      new ImportApiSpec,
+      new LeaderWorkerAPISpec,
+      new LoginAPISpec,
+      new OIDCRightSpec,
+      new PersonalAccessTokenAPISpec,
+      new PluginAPISpec,
+      new ProjectAPISpec,
+      new SearchAPISpec,
+      new TagAPISpec,
+      new TenantAPISpec,
+      new TokenAPISpec,
+      new UsersAPISpec,
+      new WebhookAPISpec,
+      new ZShouldRunLast_V1CompatibilityTest
+    )

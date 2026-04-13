@@ -1,11 +1,16 @@
 package fr.maif.izanami.v1
 
-import fr.maif.izanami.models.{ProjectAtomicRight, ProjectRightLevel, RightLevel, TenantRight}
+import fr.maif.izanami.models.ProjectAtomicRight
+import fr.maif.izanami.models.ProjectRightLevel
+import fr.maif.izanami.models.RightLevel
+import fr.maif.izanami.models.TenantRight
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.libs.json.{JsError, JsSuccess, Reads}
+import play.api.libs.json.JsError
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.Reads
 
 sealed trait Right
-case object Read   extends Right
+case object Read extends Right
 case object Update extends Right
 case object Create extends Right
 case object Delete extends Right
@@ -23,8 +28,10 @@ object OldCommons {
     val projectRights = patterns
       .map(ap => {
         for (
-          filteredProjects <- if (shouldFilterProjects) filterProjects(ap.pattern, projects) else projects;
-          right            <- oldRightToNewProjectRight(ap.rights.toSet)
+          filteredProjects <- if (shouldFilterProjects)
+            filterProjects(ap.pattern, projects)
+          else projects;
+          right <- oldRightToNewProjectRight(ap.rights.toSet)
         ) yield (filteredProjects, right)
       })
       .flatMap(_.toSeq)
@@ -32,7 +39,10 @@ object OldCommons {
       .view
       .mapValues(s =>
         s.map { case (_, level) => level }
-          .reduce((r1, r2) => if (ProjectRightLevel.superiorOrEqualLevels(r1).contains(r2)) r2 else r1)
+          .reduce((r1, r2) =>
+            if (ProjectRightLevel.superiorOrEqualLevels(r1).contains(r2)) r2
+            else r1
+          )
       )
       .view
       .mapValues(ProjectAtomicRight.apply)
@@ -67,7 +77,7 @@ object OldCommons {
     (for (
       str <- json.asOpt[String];
       if str.length == 1;
-      c   <- str.charAt(0).toUpper.option
+      c <- str.charAt(0).toUpper.option
     ) yield c match {
       case 'R' => JsSuccess(Read)
       case 'U' => JsSuccess(Update)
@@ -77,7 +87,8 @@ object OldCommons {
     }).getOrElse(JsError(s"Right string too long ${json}"))
   }
 
-  def oldRightToNewProjectRight(right: Set[Right]): Option[ProjectRightLevel] = {
+  def oldRightToNewProjectRight(right: Set[Right])
+      : Option[ProjectRightLevel] = {
     val OLD_ALL_RIGHTS: Set[Right] = Set(Read, Update, Delete, Create)
 
     if (right.isEmpty) {
@@ -110,7 +121,10 @@ object OldCommons {
   implicit val authorizedPatternReads: Reads[AuthorizedPattern] = { json =>
     (for (
       pattern <- (json \ "pattern").asOpt[String];
-      rights  <- (json \ "rights").asOpt[Seq[Right]]
-    ) yield JsSuccess(AuthorizedPattern(pattern = pattern, rights = rights))).getOrElse(JsError("Bad right format"))
+      rights <- (json \ "rights").asOpt[Seq[Right]]
+    ) yield JsSuccess(AuthorizedPattern(
+      pattern = pattern,
+      rights = rights
+    ))).getOrElse(JsError("Bad right format"))
   }
 }

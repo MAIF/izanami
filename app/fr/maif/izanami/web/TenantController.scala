@@ -1,14 +1,14 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.EventDatastore.{
-  AscOrder,
-  TenantEventRequest,
-  parseSortOrder
-}
+import fr.maif.izanami.datastores.EventDatastore.AscOrder
+import fr.maif.izanami.datastores.EventDatastore.TenantEventRequest
+import fr.maif.izanami.datastores.EventDatastore.parseSortOrder
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.events.{EventAuthentication, EventService}
+import fr.maif.izanami.events.EventAuthentication
+import fr.maif.izanami.events.EventService
 import fr.maif.izanami.models.*
-import fr.maif.izanami.models.RightLevel.{Read, superiorOrEqualLevels}
+import fr.maif.izanami.models.RightLevel.Read
+import fr.maif.izanami.models.RightLevel.superiorOrEqualLevels
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.WasmManagerClient
 import fr.maif.izanami.web.ProjectController.parseStringSet
@@ -16,7 +16,8 @@ import play.api.libs.json.*
 import play.api.mvc.*
 
 import java.time.Instant
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.util.Try
 
 sealed trait ProjectChoiceStrategy
@@ -98,7 +99,7 @@ class TenantController(
                         json ++ Json.obj("tokenName" -> tokenName)
                       }
                       case EventAuthentication.BackOfficeAuthentication => json
-                      case EventAuthentication.RootAuthentication => json
+                      case EventAuthentication.RootAuthentication       => json
                     }
                   }),
                   maybeCount
@@ -156,25 +157,28 @@ class TenantController(
     }
 
   def readTenants(right: Option[RightLevel]): Action[AnyContent] =
-    personnalAccessTokenTenantRightsAuthAction(ReadTenants).async { implicit request =>
-      if (request.user.admin) {
-        env.datastores.tenants
-          .readTenants()
-          .map(tenants => Ok(Json.toJson(tenants)(Writes.seq(Tenant.simpleTenantWrite))))
-      } else {
-        val minimumRightLevel = right.getOrElse(RightLevel.Read)
-        val allowedTenants = Option(request.user.tenantRights)
-          .map(m =>
-            m.filter { case (name, level) =>
-              superiorOrEqualLevels(minimumRightLevel).contains(level)
-            }.keys
-              .toSet
-          )
-          .getOrElse(Set())
-        env.datastores.tenants
-          .readTenantsFiltered(allowedTenants)
-          .map(tenants => Ok(Json.toJson(tenants)))
-      }
+    personnalAccessTokenTenantRightsAuthAction(ReadTenants).async {
+      implicit request =>
+        if (request.user.admin) {
+          env.datastores.tenants
+            .readTenants()
+            .map(tenants =>
+              Ok(Json.toJson(tenants)(Writes.seq(Tenant.simpleTenantWrite)))
+            )
+        } else {
+          val minimumRightLevel = right.getOrElse(RightLevel.Read)
+          val allowedTenants = Option(request.user.tenantRights)
+            .map(m =>
+              m.filter { case (name, level) =>
+                superiorOrEqualLevels(minimumRightLevel).contains(level)
+              }.keys
+                .toSet
+            )
+            .getOrElse(Set())
+          env.datastores.tenants
+            .readTenantsFiltered(allowedTenants)
+            .map(tenants => Ok(Json.toJson(tenants)))
+        }
     }
 
   def deleteTenant(name: String): Action[AnyContent] =

@@ -5,11 +5,13 @@ import fr.maif.izanami.models.FeatureCallAggregator.FeatureCallRange
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.JsValue
 
-import java.time.{Instant, ZoneId, ZoneOffset}
+import java.time.Instant
+import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.concurrent.TrieMap
 
-case class FeatureCallAggregator (calls: TrieMap[FeatureCallRange, AtomicLong] = TrieMap()) {
+case class FeatureCallAggregator(calls: TrieMap[FeatureCallRange, AtomicLong] =
+  TrieMap()) {
   def addCall(call: FeatureCall): FeatureCallAggregator = {
     val key = FeatureCallRange.fromCall(call)
     calls.getOrElseUpdate(key, new AtomicLong()).incrementAndGet();
@@ -21,22 +23,25 @@ case class FeatureCallAggregator (calls: TrieMap[FeatureCallRange, AtomicLong] =
   }
 }
 
-
 case object FeatureCallAggregator {
-  case class FeatureCallRange(tenant: String,
-                              feature: String,
-                              key: String,
-                              result: JsValue,
-                              context: FeatureContextPath,
-                              rangeStart: Instant,
-                              origin: FeatureCallOrigin) {}
+  case class FeatureCallRange(
+      tenant: String,
+      feature: String,
+      key: String,
+      result: JsValue,
+      context: FeatureContextPath,
+      rangeStart: Instant,
+      origin: FeatureCallOrigin
+  ) {}
 
   case object FeatureCallRange {
     def fromCall(call: FeatureCall): FeatureCallRange = {
-      val rangeStart = call.time.atZone(ZoneId.of("UTC")).withNano(0).withMinute(0).withSecond(0).toInstant;
+      val rangeStart = call.time.atZone(
+        ZoneId.of("UTC")
+      ).withNano(0).withMinute(0).withSecond(0).toInstant;
       FeatureCallRange(
         tenant = call.tenant,
-        key=call.key,
+        key = call.key,
         feature = call.feature,
         result = call.result,
         context = call.context,

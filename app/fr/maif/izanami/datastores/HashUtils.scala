@@ -1,7 +1,7 @@
 package fr.maif.izanami.datastores
 
 import org.apache.commons.codec.binary.Hex
-import org.mindrot.jbcrypt.BCrypt._
+import org.mindrot.jbcrypt.BCrypt.*
 
 import java.security.MessageDigest
 

@@ -1,50 +1,41 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.HashUtils.{bcryptCheck, bcryptHash}
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{
-  TokenCheckFailure,
-  TokenCheckResult,
-  TokenCheckSuccess
-}
+import fr.maif.izanami.datastores.HashUtils.bcryptCheck
+import fr.maif.izanami.datastores.HashUtils.bcryptHash
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckFailure
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckResult
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckSuccess
 import fr.maif.izanami.datastores.PersonnalAccessTokenDatastoreImplicits.PersonnalAccessTokenRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{
-  FOREIGN_KEY_VIOLATION,
-  UNIQUE_VIOLATION
-}
+import fr.maif.izanami.env.PostgresqlErrors.FOREIGN_KEY_VIOLATION
+import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{
-  InternalServerError,
-  IzanamiError,
-  OneProjectDoesNotExists,
-  TenantDoesNotExists,
-  TokenDoesNotExist,
-  TokenWithThisNameAlreadyExists
-}
-import fr.maif.izanami.models.{
-  AllRights,
-  CompletePersonnalAccessToken,
-  Expiration,
-  GlobalTokenRight,
-  LimitedRights,
-  NoExpiration,
-  PersonnalAccessToken,
-  PersonnalAccessTokenCreationRequest,
-  PersonnalAccessTokenExpiration,
-  PersonnalAccessTokenRights,
-  ReadPersonnalAccessToken,
-  TenantTokenRights
-}
+import fr.maif.izanami.errors.InternalServerError
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.TenantDoesNotExists
+import fr.maif.izanami.errors.TokenDoesNotExist
+import fr.maif.izanami.errors.TokenWithThisNameAlreadyExists
+import fr.maif.izanami.models.AllRights
+import fr.maif.izanami.models.CompletePersonnalAccessToken
+import fr.maif.izanami.models.Expiration
+import fr.maif.izanami.models.GlobalTokenRight
+import fr.maif.izanami.models.LimitedRights
+import fr.maif.izanami.models.NoExpiration
+import fr.maif.izanami.models.PersonnalAccessToken
+import fr.maif.izanami.models.PersonnalAccessTokenCreationRequest
+import fr.maif.izanami.models.PersonnalAccessTokenExpiration
+import fr.maif.izanami.models.PersonnalAccessTokenRights
+import fr.maif.izanami.models.ReadPersonnalAccessToken
 import fr.maif.izanami.security.IdGenerator.token
 import fr.maif.izanami.utils.Datastore
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
 import play.api.libs.json.Reads
 
-import java.time.{Instant, LocalDateTime, ZoneId, ZoneOffset}
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.UUID
 import scala.concurrent.Future
-import scala.util.Try
 
 class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
   def findAccessTokenByIds(ids: Set[UUID]): Future[Map[UUID, String]] = {
@@ -72,10 +63,14 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
       token: String,
       checker: ReadPersonnalAccessToken => Boolean
   ): Future[TokenCheckResult] = {
-    findValidAccessToken(token = token, username = username, predicate = checker)
+    findValidAccessToken(
+      token = token,
+      username = username,
+      predicate = checker
+    )
       .map {
         case Some(value) => TokenCheckSuccess(value)
-        case None => TokenCheckFailure
+        case None        => TokenCheckFailure
       }
   }
 
@@ -115,7 +110,11 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
             ) yield (tokenSecret, token)
           }
           .map {
-            case Some((tokenSecret, token)) if (!token.isExpired) && bcryptCheck(secret, tokenSecret) && predicate(token) => Some(token)
+            case Some((tokenSecret, token))
+                if (!token.isExpired) && bcryptCheck(
+                  secret,
+                  tokenSecret
+                ) && predicate(token) => Some(token)
             case _ => None
           }
       }
@@ -208,7 +207,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
                     val tenantAsArray = rightAsList.flatMap {
                       (tenant, rights) => rights.toList.map(_ => tenant)
                     }.toArray
-                    val rightAsArray = rightAsList.flatMap { (tenant, rights) =>
+                    val rightAsArray = rightAsList.flatMap { (_, rights) =>
                       rights.map(r => r.name)
                     }.toArray
                     env.postgresql

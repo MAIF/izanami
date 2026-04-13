@@ -2,19 +2,28 @@ package fr.maif.izanami.web
 
 import buildinfo.BuildInfo
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{BadBodyFormat, CantUpdateOIDCCOnfiguration}
+import fr.maif.izanami.errors.BadBodyFormat
+import fr.maif.izanami.errors.CantUpdateOIDCCOnfiguration
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
-import fr.maif.izanami.mail.{MailGunMailProvider, MailJetMailProvider, SMTPMailProvider}
-import fr.maif.izanami.models.{FullIzanamiConfiguration, IzanamiConfiguration}
-import fr.maif.izanami.services.{FeatureService, MaxRights}
+import fr.maif.izanami.mail.MailGunMailProvider
+import fr.maif.izanami.mail.MailJetMailProvider
+import fr.maif.izanami.mail.SMTPMailProvider
+import fr.maif.izanami.models.FullIzanamiConfiguration
+import fr.maif.izanami.models.IzanamiConfiguration
+import fr.maif.izanami.services.FeatureService
+import fr.maif.izanami.services.MaxRights
+import fr.maif.izanami.utils.Done
+import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.utils.{Done, FutureEither}
 import fr.maif.izanami.web.ConfigurationController.extractRoleWithLoweredRights
 import play.api.libs.json.*
+import play.api.mvc.Action
+import play.api.mvc.AnyContent
+import play.api.mvc.BaseController
+import play.api.mvc.ControllerComponents
 import play.api.mvc.Results.Ok
-import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 class ConfigurationController(
     val controllerComponents: ControllerComponents,
@@ -34,7 +43,9 @@ class ConfigurationController(
   def updateConfiguration(): Action[JsValue] =
     adminAuthAction.async(parse.json) { implicit request =>
       {
-        IzanamiConfiguration.inputFullConfigurationReads.reads(request.body) match {
+        IzanamiConfiguration.inputFullConfigurationReads.reads(
+          request.body
+        ) match {
           case JsError(_) => BadBodyFormat().toHttpResponse.future
           case JsSuccess(configurationFromBody, _path) => {
             val futureConfiguration =
@@ -98,7 +109,10 @@ class ConfigurationController(
 
                     (if (rolesToUpdate.nonEmpty) {
                        env.datastores.users
-                         .logoutConnectedUsersWithRoleIn(rolesToUpdate, conn = Some(conn))
+                         .logoutConnectedUsersWithRoleIn(
+                           rolesToUpdate,
+                           conn = Some(conn)
+                         )
                      } else {
                        FutureEither.success(Done.done())
                      }).flatMap(_ => {

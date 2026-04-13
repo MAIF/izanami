@@ -1,40 +1,27 @@
 package fr.maif.izanami.models
 
-import fr.maif.izanami.models.ProjectRightLevel.{
-  Admin,
-  ProjectRightOrdering,
-  Read,
-  Update,
-  Write,
-  projectRightLevelWrites,
-  superiorOrEqualLevels
-}
+import fr.maif.izanami.models.ProjectRightLevel.superiorOrEqualLevels
 import fr.maif.izanami.models.ProjectRightLevelIncludingNoRight.ProjectRightLevelIncludingNoRightOrdering
-import fr.maif.izanami.models.RightLevel.{Admin, Write}
 import fr.maif.izanami.models.RightLevelIncludingNoRight.RightLevelIncludingNoRightOrdering
-import fr.maif.izanami.models.Rights.{
-  RightDiff,
-  TenantRightDiff,
-  UpsertTenantRights,
-  compare
-}
-import fr.maif.izanami.models.User.{projectRightReads, rightReads}
-import fr.maif.izanami.services.{
-  CompleteRights,
-  MaxTenantRoleRights,
-  ProjectIdentification,
-  RightComplianceChange,
-  TenantRightComplianceResult,
-  WebhookIdentification
-}
+import fr.maif.izanami.models.Rights.RightDiff
+import fr.maif.izanami.models.Rights.TenantRightDiff
+import fr.maif.izanami.models.Rights.UpsertTenantRights
+import fr.maif.izanami.models.User.projectRightReads
+import fr.maif.izanami.models.User.rightReads
+import fr.maif.izanami.services.CompleteRights
+import fr.maif.izanami.services.MaxTenantRoleRights
+import fr.maif.izanami.services.ProjectIdentification
+import fr.maif.izanami.services.RightComplianceChange
+import fr.maif.izanami.services.TenantRightComplianceResult
+import fr.maif.izanami.services.WebhookIdentification
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.data.validation.{Constraints, Valid}
+import play.api.data.validation.Constraints
+import play.api.data.validation.Valid
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*
 import play.api.libs.json.Writes.OptionWrites
 import play.api.mvc.QueryStringBindable
 
-import scala.collection.mutable.ArrayBuffer
 import scala.util.matching.Regex
 
 object RightTypes extends Enumeration {
@@ -266,14 +253,6 @@ object ProjectRightLevelIncludingNoRight {
     case level: ProjectRightLevel =>
       ProjectRightLevel.projectRightLevelWrites.writes(level)
     case None => JsString("None")
-  }
-
-  private def readFromString(
-      s: String
-  ): Option[ProjectRightLevelIncludingNoRight] = {
-    ProjectRightLevel
-      .readFromString(s)
-      .orElse(if (s.toUpperCase() == "NONE") Some(None) else Option.empty)
   }
 
   def superiorOrEqualLevels(
@@ -1029,19 +1008,19 @@ case class TenantRight(
             removedWebhookRights
           ) => {
         val newProjects = projects
-          .filter { (name, r) =>
+          .filter { (name, _) =>
             !removedProjectRights.contains(name)
           } ++ addedProjectRights.map(r =>
           (r.name, ProjectAtomicRight(r.level))
         )
 
         val newKeys = keys
-          .filter { (name, r) =>
+          .filter { (name, _) =>
             !removedKeyRights.contains(name)
           } ++ addedKeyRights.map(r => (r.name, GeneralAtomicRight(r.level)))
 
         val newWebhooks = webhooks
-          .filter { (name, r) =>
+          .filter { (name, _) =>
             !removedWebhookRights.contains(name)
           } ++ addedWebhookRights.map(r =>
           (r.name, GeneralAtomicRight(r.level))
@@ -1114,7 +1093,7 @@ case class TenantRightWithMaxRights(
 
 object TenantRightWithMaxRights {
   def writes: Writes[TenantRightWithMaxRights] = t => {
-    val r = t.underlying
+    t.underlying
       .map(User.tenantRightWrite.writes(_).as[JsObject])
       .getOrElse(Json.obj())
 

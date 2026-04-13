@@ -1,8 +1,11 @@
 package fr.maif.izanami.security
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.security.JwtService.{decodeJWT, decrypt, encrypt}
-import pdi.jwt.{JwtAlgorithm, JwtClaim, JwtJson}
+import fr.maif.izanami.security.JwtService.decodeJWT
+import fr.maif.izanami.security.JwtService.encrypt
+import pdi.jwt.JwtAlgorithm
+import pdi.jwt.JwtClaim
+import pdi.jwt.JwtJson
 import play.api.libs.json.JsValue
 
 import java.time.Instant
@@ -14,7 +17,7 @@ import scala.util.Try
 class JwtService(env: Env) {
   def generateToken(username: String, content: JsValue = null): String = {
     val secondsSinceEpoch = Instant.now().getEpochSecond
-    var claim             = JwtClaim(
+    var claim = JwtClaim(
       issuer = Some("Izanami"),
       subject = Some(username),
       expiration = Some(secondsSinceEpoch + 3600),
@@ -22,16 +25,24 @@ class JwtService(env: Env) {
       issuedAt = Some(secondsSinceEpoch),
       audience = Some(Set(env.expositionUrl))
     )
-    claim = Option(content).map(c => claim.withContent(c.toString())).getOrElse(claim)
-    encrypt(JwtJson.encode(
-      claim,
-      env.typedConfiguration.authentication.secret,
-      JwtAlgorithm.HS256
-    ), env.encryptionKey)
+    claim =
+      Option(content).map(c => claim.withContent(c.toString())).getOrElse(claim)
+    encrypt(
+      JwtJson.encode(
+        claim,
+        env.typedConfiguration.authentication.secret,
+        JwtAlgorithm.HS256
+      ),
+      env.encryptionKey
+    )
   }
 
   def parseJWT(token: String): Try[JwtClaim] =
-    decodeJWT(token, env.typedConfiguration.authentication.secret, env.encryptionKey)
+    decodeJWT(
+      token,
+      env.typedConfiguration.authentication.secret,
+      env.encryptionKey
+    )
 }
 
 object JwtService {
@@ -48,7 +59,11 @@ object JwtService {
     new String(cipher.doFinal(Base64.getUrlDecoder.decode(subject.getBytes())))
   }
 
-  def decodeJWT(token: String, signingSecret: String, secret: SecretKeySpec): Try[JwtClaim] = {
+  def decodeJWT(
+      token: String,
+      signingSecret: String,
+      secret: SecretKeySpec
+  ): Try[JwtClaim] = {
     // Factorize with AuthAction code
     JwtJson
       .decode(decrypt(token, secret), signingSecret, Seq(JwtAlgorithm.HS256))

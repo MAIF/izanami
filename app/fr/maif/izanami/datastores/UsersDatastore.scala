@@ -1,33 +1,30 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.userImplicits.{
-  UserRow,
-  dbUserTypeToUserType,
-  projectRightRead,
-  rightRead,
-  webhookRightRead
-}
+import fr.maif.izanami.datastores.userImplicits.UserRow
+import fr.maif.izanami.datastores.userImplicits.dbUserTypeToUserType
+import fr.maif.izanami.datastores.userImplicits.projectRightRead
+import fr.maif.izanami.datastores.userImplicits.rightRead
+import fr.maif.izanami.datastores.userImplicits.webhookRightRead
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{
-  RELATION_DOES_NOT_EXISTS,
-  UNIQUE_VIOLATION
-}
+import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
+import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.*
-import fr.maif.izanami.models.{ProjectRightLevelIncludingNoRight, *}
+import fr.maif.izanami.models.*
 import fr.maif.izanami.models.RightLevel.superiorOrEqualLevels
 import fr.maif.izanami.models.Rights.*
 import fr.maif.izanami.models.User.tenantRightReads
 import fr.maif.izanami.services.*
-import fr.maif.izanami.utils.syntax.implicits.{
-  BetterFuture,
-  BetterJsValue,
-  BetterSyntax
-}
-import fr.maif.izanami.utils.{Datastore, Done, FutureEither}
+import fr.maif.izanami.utils.Datastore
+import fr.maif.izanami.utils.Done
+import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.utils.syntax.implicits.BetterFuture
+import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ImportController.*
 import io.vertx.pgclient.PgException
-import io.vertx.sqlclient.{Row, SqlConnection}
+import io.vertx.sqlclient.Row
+import io.vertx.sqlclient.SqlConnection
 import org.apache.pekko.actor.Cancellable
 import play.api.libs.json.*
 
@@ -389,7 +386,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     )
     val conflictParts = ArrayBuffer[String]()
     val replaceParts = ArrayBuffer[String]()
-    val mergeParts = ArrayBuffer[String]()
+    ArrayBuffer[String]()
 
     fields.addOne("default_project_right")
     args.addOne(
@@ -1104,7 +1101,7 @@ class UsersDatastore(val env: Env) extends Datastore {
             .flatMap(json => parseToNameById(json))
             .getOrElse(Map())
 
-          val keyNameById = jsonRights
+          jsonRights
             .flatMap(jsObject => {
               (jsObject \ "keyIds").asOpt[JsArray]
             })
@@ -1731,7 +1728,7 @@ class UsersDatastore(val env: Env) extends Datastore {
         val rightsByUser = users.groupMap(_._2)(u => (u._1, u._3))
 
         rightsByUser
-          .map { (user, tenantByRights) =>
+          .map { (_, tenantByRights) =>
             {
               val baseUser = tenantByRights.headOption
                 .map(_._2)

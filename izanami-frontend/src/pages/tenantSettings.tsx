@@ -40,7 +40,12 @@ import {
 import { UserEdition } from "./users";
 import { InvitationForm } from "../components/InvitationForm";
 import { TENANT_NAME_REGEXP } from "../utils/patterns";
-import { Controller, FormProvider, useForm } from "react-hook-form";
+import {
+  Controller,
+  FormProvider,
+  useForm,
+  useFormContext,
+} from "react-hook-form";
 import { Tooltip } from "../components/Tooltip";
 import { customStyles } from "../styles/reactSelect";
 import { TimeZoneSelect } from "../components/TimeZoneSelect";
@@ -420,8 +425,12 @@ function ImportForm(props: {
     handleSubmit,
     register,
     control,
+    getValues,
+    watch,
     formState: { isSubmitting },
   } = methods;
+
+  watch(["fineTuneFeatureConflict"]);
 
   return (
     <FormProvider {...methods}>
@@ -460,6 +469,19 @@ function ImportForm(props: {
             )}
           />
         </label>
+        <label className="mt-3 mb-3">
+          Fine tune feature conflict strategy
+          <input
+            type="checkbox"
+            className="izanami-checkbox"
+            {...register("fineTuneFeatureConflict")}
+          />
+        </label>
+        {getValues("fineTuneFeatureConflict") && (
+          <div style={{ marginLeft: "2rem", marginRight: "2rem" }}>
+            <FeatureConflictFormPart />
+          </div>
+        )}
         <label className="mt-3">
           Exported file (ndjson)
           <Tooltip id="exported-file">
@@ -677,7 +699,7 @@ const CONFLICT_STRATEGIES_OPTIONS = [
     value: "overwrite",
   },
   { label: "fail", value: "fail" },
-];
+] as const;
 
 type ConflictStrategy = "skip" | "overwrite" | "fail";
 
@@ -1248,4 +1270,71 @@ function IzanamiV1ImportForm(props: {
   } else {
     return <Loader message="Loading..." />;
   }
+}
+
+export function FeatureConflictFormPart() {
+  return (
+    <>
+      <h4>Feature conflict strategy</h4>
+      <div className="d-flex flex-row flex-wrap flex-grow-1">
+        {(
+          [
+            { name: "name" },
+            { name: "description" },
+            { name: "enabling" },
+            { name: "conditions" },
+            { name: "project" },
+            { name: "tags" },
+          ] as const
+        ).map(({ name }) => (
+          <div
+            style={{
+              width: "30%",
+              minWidth: "300px",
+              margin: "0.5rem 1rem",
+            }}
+            key={name}
+          >
+            <ConflictStrategySelect name={name} />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+export function ConflictStrategySelect({
+  name,
+  tooltip,
+}: {
+  name: keyof NonNullable<ImportRequest["featureConflict"]>;
+  tooltip?: React.JSX.Element;
+}) {
+  const { control } = useFormContext();
+  return (
+    <label style={{ width: "100%" }}>
+      {String(name).charAt(0).toUpperCase() + String(name).slice(1)}
+      {tooltip && (
+        <Tooltip id={`${name}-conflict-selection`}>{tooltip}</Tooltip>
+      )}
+      <Controller
+        name={`featureConflict.${name}`}
+        control={control}
+        render={({ field: { onChange, value } }) => (
+          <Select
+            value={CONFLICT_STRATEGIES_OPTIONS.find(
+              ({ value: aValue }) => value === aValue,
+            )}
+            onChange={(value) => {
+              onChange(value?.value);
+            }}
+            styles={customStyles}
+            options={CONFLICT_STRATEGIES_OPTIONS.filter(
+              ({ value }) => value !== "fail",
+            )}
+          />
+        )}
+      />
+    </label>
+  );
 }

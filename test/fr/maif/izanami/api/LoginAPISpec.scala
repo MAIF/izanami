@@ -1,21 +1,10 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec._
-import play.api.http.Status._
-import play.api.libs.json.{
-  __,
-  JsBoolean,
-  JsError,
-  JsFalse,
-  JsObject,
-  JsSuccess,
-  Json
-}
-import play.api.libs.ws.{WSCookie, WSResponse}
-import play.api.test.Helpers.await
+import fr.maif.izanami.api.BaseAPISpec.*
+import play.api.http.Status.*
+import play.api.libs.ws.WSCookie
 import play.api.libs.ws.writeableOf_String
-
-import scala.concurrent.Future
+import play.api.test.Helpers.await
 
 class LoginAPISpec extends BaseAPISpec {
   def baseOIDCConfiguration: Map[String, AnyRef] = Map(
@@ -35,7 +24,7 @@ class LoginAPISpec extends BaseAPISpec {
     "app.openid.method" -> "BASIC",
     "app.openid.pkce.enabled" -> "true"
   )
-  
+
   "Login endpoint" should {
     "set cookie if login / password is correct" in {
       TestSituationBuilder()
@@ -137,9 +126,7 @@ class LoginAPISpec extends BaseAPISpec {
       val response = situation.fetchTenants()
       response.status mustBe OK
     }
-    
-  }
 
-  
+  }
 
 }

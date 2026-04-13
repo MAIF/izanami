@@ -1,14 +1,12 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{
-  ADMIN_BASE_URL,
-  TestSituationBuilder,
-  TestUser,
-  ws
-}
-import play.api.http.Status._
+import fr.maif.izanami.api.BaseAPISpec.ADMIN_BASE_URL
+import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
+import fr.maif.izanami.api.BaseAPISpec.TestUser
+import fr.maif.izanami.api.BaseAPISpec.ws
+import play.api.http.Status.*
 import play.api.libs.json.Json
-import play.api.test.Helpers.{await, defaultAwaitTimeout}
+import play.api.test.Helpers.await
 
 class ConfigurationAPISpec extends BaseAPISpec {
 

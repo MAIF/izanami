@@ -1,15 +1,11 @@
 package fr.maif.izanami.utils
 
 import com.github.tomakehurst.wiremock.common.FileSource
-import com.github.tomakehurst.wiremock.extension.{
-  Parameters,
-  ResponseDefinitionTransformer
-}
-import com.github.tomakehurst.wiremock.http.{
-  HttpHeaders,
-  Request,
-  ResponseDefinition
-}
+import com.github.tomakehurst.wiremock.extension.Parameters
+import com.github.tomakehurst.wiremock.extension.ResponseDefinitionTransformer
+import com.github.tomakehurst.wiremock.http.HttpHeaders
+import com.github.tomakehurst.wiremock.http.Request
+import com.github.tomakehurst.wiremock.http.ResponseDefinition
 
 import scala.collection.mutable.ArrayBuffer
 

@@ -1,15 +1,15 @@
 package fr.maif.izanami.api
 
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
-import fr.maif.izanami.api.BaseAPISpec.{
-  TestApiKey,
-  TestFeature,
-  TestProject,
-  TestSituationBuilder,
-  TestTenant,
-  ws
-}
-import play.api.http.Status.{BAD_REQUEST, NOT_FOUND, OK}
+import com.typesafe.config.ConfigValueFactory
+import fr.maif.izanami.api.BaseAPISpec.TestApiKey
+import fr.maif.izanami.api.BaseAPISpec.TestFeature
+import fr.maif.izanami.api.BaseAPISpec.TestProject
+import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
+import fr.maif.izanami.api.BaseAPISpec.TestTenant
+import fr.maif.izanami.api.BaseAPISpec.ws
+import play.api.http.Status.BAD_REQUEST
+import play.api.http.Status.NOT_FOUND
+import play.api.http.Status.OK
 import play.api.test.Helpers.await
 
 class LeaderWorkerAPISpec extends BaseAPISpec {
@@ -54,15 +54,14 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
     }
 
     "serve frontend" in {
-      var testSitutation = TestSituationBuilder()
+      TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
         )
         .loggedInWithAdminRights()
         .build()
-      val response = await(ws.url("http://localhost:9000/login").get())
-      (response.json \ "message")
-        .as[String] mustEqual "Resource not found by Assets controller"
+      val response = await(ws.url("http://localhost:9000/login").get());
+      response.status mustEqual OK
     }
   }
 
@@ -263,12 +262,12 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
       )
       checkResponse.status mustBe BAD_REQUEST
     }
-    
+
   }
 
   "Standalone mode" should {
     "allow to call client endpoints" in {
-      var testSitutation = TestSituationBuilder()
+      val testSitutation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
             .withApiKeys(TestApiKey(name = "my-key", admin = true))
@@ -307,15 +306,14 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
     }
 
     "serve frontend" in {
-      var testSitutation = TestSituationBuilder()
+      TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
         )
         .loggedInWithAdminRights()
         .build()
       val response = await(ws.url("http://localhost:9000/login").get());
-      (response.json \ "message")
-        .as[String] mustEqual "Resource not found by Assets controller"
+      response.status mustEqual OK
     }
 
     "should not take blacklist into account" in {
@@ -343,7 +341,7 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
         .findFeatureId(tenant = "tenant", project = "project", feature = "f1")
         .get
 
-      var checkResponse =
+      val checkResponse =
         testSitutation.checkFeature(
           featureId,
           key = "my-key",
@@ -377,7 +375,7 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
         .findFeatureId(tenant = "tenant", project = "project", feature = "f1")
         .get
 
-      var checkResponse =
+      val checkResponse =
         testSitutation.checkFeature(
           featureId,
           key = "my-key",

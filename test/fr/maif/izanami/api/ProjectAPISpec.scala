@@ -1,7 +1,7 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec._
-import play.api.http.Status._
+import fr.maif.izanami.api.BaseAPISpec.*
+import play.api.http.Status.*
 import play.api.libs.json.JsArray
 
 class ProjectAPISpec extends BaseAPISpec {
@@ -22,7 +22,12 @@ class ProjectAPISpec extends BaseAPISpec {
       val secret = situation.findTokenSecret(situation.user, "foo");
 
       val res =
-        readProjectWithToken(tenant = "testtenant", project = "ppp", username = situation.user, token = secret)
+        readProjectWithToken(
+          tenant = "testtenant",
+          project = "ppp",
+          username = situation.user,
+          token = secret
+        )
       res.status mustBe OK
     }
 
@@ -122,10 +127,15 @@ class ProjectAPISpec extends BaseAPISpec {
       val secret = situation.findTokenSecret(situation.user, "foo");
 
       val res =
-        deleteProjectWithToken(tenant = "testtenant", project = "ppp", username=situation.user, token=secret)
+        deleteProjectWithToken(
+          tenant = "testtenant",
+          project = "ppp",
+          username = situation.user,
+          token = secret
+        )
       res.status mustBe NO_CONTENT
     }
-    
+
     "Delete project with local overloads" in {
       val situation = TestSituationBuilder()
         .withTenants(
@@ -199,7 +209,11 @@ class ProjectAPISpec extends BaseAPISpec {
   "project GET endpoint without name" should {
     "return all projects for tenant if requested with personnal access token" in {
       val situation = TestSituationBuilder()
-        .withTenants(TestTenant("testtenant").withProjectNames("project-1", "project-2", "project-3"))
+        .withTenants(TestTenant("testtenant").withProjectNames(
+          "project-1",
+          "project-2",
+          "project-3"
+        ))
         .withPersonnalAccessToken(
           TestPersonnalAccessToken(
             "foo",
@@ -212,7 +226,11 @@ class ProjectAPISpec extends BaseAPISpec {
 
       val secret = situation.findTokenSecret(situation.user, "foo")
 
-      val result = fetchProjectsWithToken("testtenant", username = situation.user, token = secret)
+      val result = fetchProjectsWithToken(
+        "testtenant",
+        username = situation.user,
+        token = secret
+      )
 
       result.status mustBe OK
 

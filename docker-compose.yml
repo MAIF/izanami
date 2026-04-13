@@ -146,7 +146,7 @@ services:
     volumes:
       - .:/tmp/config:ro
   db:
-    image: postgres
+    image: postgres:17.5
     restart: always
     environment:
       POSTGRES_USER: postgres

@@ -1,8 +1,11 @@
 package fr.maif.izanami.models.features
 
 import fr.maif.izanami.models.ProjectRightLevel
-import fr.maif.izanami.models.ProjectRightLevel.{Update, Write}
-import play.api.libs.json.{JsError, JsSuccess, Reads}
+import fr.maif.izanami.models.ProjectRightLevel.Update
+import fr.maif.izanami.models.ProjectRightLevel.Write
+import play.api.libs.json.JsError
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.Reads
 
 import scala.util.matching.Regex
 
@@ -66,7 +69,8 @@ object FeaturePatch {
       .map {
         case ENABLED_PATH_PATTERN(id) =>
           JsSuccess(PatchPath(id, Enabled))
-        case PROJECT_PATH_PATTERN(id) => JsSuccess(PatchPath(id, ProjectFeature))
+        case PROJECT_PATH_PATTERN(id) =>
+          JsSuccess(PatchPath(id, ProjectFeature))
         case TAGS_PATH_PATTERN(id)    => JsSuccess(PatchPath(id, TagsFeature))
         case FEATURE_PATH_PATTERN(id) => JsSuccess(PatchPath(id, RootFeature))
         case _ => JsError(s"Illegal path for patch: $json")
@@ -81,7 +85,7 @@ object FeaturePatch {
         .map {
           case "replace" => JsSuccess(Replace)
           case "remove"  => JsSuccess(Remove)
-          case _ => JsError(s"Unknown patch operation $json")
+          case _         => JsError(s"Unknown patch operation $json")
         }
         .getOrElse(JsError("Bad patch operation"))
   }

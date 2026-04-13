@@ -1,30 +1,27 @@
 package fr.maif.izanami.api
 
+import com.github.tomakehurst.wiremock.http.HttpHeaders
+import com.github.tomakehurst.wiremock.http.Request
 import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
-import BaseAPISpec._
-import com.github.tomakehurst.wiremock.http.{HttpHeaders, Request}
 import org.awaitility.Awaitility.await
-import play.api.http.Status.{
-  BAD_REQUEST,
-  CREATED,
-  FORBIDDEN,
-  INTERNAL_SERVER_ERROR,
-  NO_CONTENT,
-  OK,
-  UNAUTHORIZED
-}
-import play.api.libs.json.{
-  JsArray,
-  JsObject,
-  JsString,
-  JsUndefined,
-  JsValue,
-  Json
-}
+import play.api.http.Status.BAD_REQUEST
+import play.api.http.Status.CREATED
+import play.api.http.Status.FORBIDDEN
+import play.api.http.Status.INTERNAL_SERVER_ERROR
+import play.api.http.Status.NO_CONTENT
+import play.api.http.Status.OK
+import play.api.http.Status.UNAUTHORIZED
+import play.api.libs.json.JsArray
+import play.api.libs.json.JsObject
+import play.api.libs.json.JsString
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
 
 import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.SECONDS
+
+import BaseAPISpec.*
 
 class WebhookAPISpec extends BaseAPISpec {
   "webhook POST endpoint" should {
@@ -962,7 +959,7 @@ class WebhookAPISpec extends BaseAPISpec {
         .withWebhookServer(port = 9995, responseCode = OK)
         .build()
 
-      val response = situation.changeFeatureStrategyForContext(
+      situation.changeFeatureStrategyForContext(
         tenant = tenant,
         project = "project",
         contextPath = "foo",

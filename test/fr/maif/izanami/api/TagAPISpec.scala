@@ -1,14 +1,12 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec._
-import play.api.http.Status.{
-  BAD_REQUEST,
-  CREATED,
-  FORBIDDEN,
-  NOT_FOUND,
-  NO_CONTENT,
-  OK
-}
+import fr.maif.izanami.api.BaseAPISpec.*
+import play.api.http.Status.BAD_REQUEST
+import play.api.http.Status.CREATED
+import play.api.http.Status.FORBIDDEN
+import play.api.http.Status.NOT_FOUND
+import play.api.http.Status.NO_CONTENT
+import play.api.http.Status.OK
 
 class TagAPISpec extends BaseAPISpec {
 
@@ -155,7 +153,11 @@ class TagAPISpec extends BaseAPISpec {
 
       val secret = situation.findTokenSecret(situation.user, "foo")
 
-      val result = fetchTagsWithToken("testtenant", username = situation.user, token = secret)
+      val result = fetchTagsWithToken(
+        "testtenant",
+        username = situation.user,
+        token = secret
+      )
 
       result.status mustBe OK
 

@@ -1,9 +1,11 @@
 package fr.maif.izanami.v1
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{IzanamiError, NoWasmManagerConfigured}
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.NoWasmManagerConfigured
 import fr.maif.izanami.v1.OldScripts.generateNewScriptContent
-import io.otoroshi.wasm4s.scaladsl.{ApikeyHelper, WasmoSettings}
+import io.otoroshi.wasm4s.scaladsl.ApikeyHelper
+import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import org.apache.pekko.util.ByteString
 import org.mozilla.javascript.Parser
 import org.mozilla.javascript.ast.*
@@ -14,11 +16,12 @@ import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue
 import play.api.libs.ws.WSClient
 
 import java.time.Duration
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
   implicit val logger: Logger = env.logger
-  val httpClient: WSClient    = env.Ws
+  val httpClient: WSClient = env.Ws
 
   def transferLegacyJsScript(
       name: String,
@@ -26,7 +29,7 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
       local: Boolean
   ): Future[Either[IzanamiError, (String, ByteString)]] = {
     wasmoConfiguration match {
-      case None                   => Future.successful(Left(NoWasmManagerConfigured()))
+      case None => Future.successful(Left(NoWasmManagerConfigured()))
       case Some(w: WasmoSettings) => {
         createScript(
           name,
@@ -38,7 +41,8 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
     }
   }
 
-  def wasmoConfiguration: Option[WasmoSettings] = env.datastores.configuration.readWasmConfiguration()
+  def wasmoConfiguration: Option[WasmoSettings] =
+    env.datastores.configuration.readWasmConfiguration()
 
   def createScript(
       name: String,
@@ -49,23 +53,27 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
     if (local) {
       build(config, name, content)
         .map(queueId => queueId)
-        .flatMap(queueId => retrieveLocallyBuildedWasm(s"$name-1.0.0-dev", config).map(bs => (queueId, bs)))
+        .flatMap(queueId =>
+          retrieveLocallyBuildedWasm(s"$name-1.0.0-dev", config).map(bs =>
+            (queueId, bs)
+          )
+        )
     } else {
       val pluginName = s"$name-1.0.0"
       val body = Json.obj(
         "metadata" -> Json.obj(
-          "type"    -> "js",
-          "name"    -> name,
+          "type" -> "js",
+          "name" -> name,
           "release" -> true,
-          "local"   -> false
+          "local" -> false
         ),
-        "files"    -> Json.arr(
+        "files" -> Json.arr(
           Json.obj(
-            "name"    -> "index.js",
+            "name" -> "index.js",
             "content" -> content
           ),
           Json.obj(
-            "name"    -> "plugin.d.ts",
+            "name" -> "plugin.d.ts",
             "content" ->
               """declare module 'main' {
                 |  export function execute(): I32;
@@ -74,21 +82,26 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
         )
       )
       if (logger.isDebugEnabled) {
-        logger.debug(s"Creating script : POST ${config.url}/api/plugins with body $body and auth headers ${ApikeyHelper.generate(config)}")
+        logger.debug(
+          s"Creating script : POST ${config.url}/api/plugins with body $body and auth headers ${ApikeyHelper.generate(config)}"
+        )
       }
 
       for (
         pluginId <- httpClient
-                      .url(s"${config.url}/api/plugins")
-                      .withHttpHeaders(("Content-Type", "application/json"), ApikeyHelper.generate(config))
-                      .post(body)
-                      .map(response => {
-                        val json = response.json
-                        logger.debug(s"Response from ${config.url}/api/plugins is $json")
-                        (json \ "plugin_id").as[String]
-                      });
-        _        <- buildAndSave(pluginId, config = config);
-        wasm     <- retrieveBuildedWasm(pluginName, config)
+          .url(s"${config.url}/api/plugins")
+          .withHttpHeaders(
+            ("Content-Type", "application/json"),
+            ApikeyHelper.generate(config)
+          )
+          .post(body)
+          .map(response => {
+            val json = response.json
+            logger.debug(s"Response from ${config.url}/api/plugins is $json")
+            (json \ "plugin_id").as[String]
+          });
+        _ <- buildAndSave(pluginId, config = config);
+        wasm <- retrieveBuildedWasm(pluginName, config)
       ) yield {
         (pluginName, wasm)
       }
@@ -102,7 +115,7 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
     if (logger.isDebugEnabled) {
       logger.debug(
         s"Building plugin for release : POST ${config.url}/api/plugins/$pluginId/build?release=true and auth header ${ApikeyHelper
-          .generate(config)}"
+            .generate(config)}"
       )
     }
     httpClient
@@ -111,7 +124,9 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
       .post("")
       .map(response => {
         val json = response.json
-        logger.debug(s"Response from ${config.url}/api/plugins/$pluginId/build?release=true is $json")
+        logger.debug(
+          s"Response from ${config.url}/api/plugins/$pluginId/build?release=true is $json"
+        )
         (json \ "queue_id").as[String]
       })
   }
@@ -128,25 +143,25 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
       .post(
         Json.obj(
           "metadata" -> Json.obj(
-            "type"    -> "js",
-            "name"    -> name,
+            "type" -> "js",
+            "name" -> name,
             "version" -> "1.0.0",
-            "local"   -> true,
+            "local" -> true,
             "release" -> false
           ),
-          "files"    -> Json.arr(
+          "files" -> Json.arr(
             Json.obj("name" -> "index.js", "content" -> content),
             Json.obj(
-              "name"        -> "plugin.d.ts",
-              "content"     ->
-              """declare module 'main' {
+              "name" -> "plugin.d.ts",
+              "content" ->
+                """declare module 'main' {
                 |  export function execute(): I32;
                 |}""".stripMargin
             ),
             Json.obj(
-              "name"        -> "package.json",
-              "content"     ->
-              s"""
+              "name" -> "package.json",
+              "content" ->
+                s"""
                 {
                   "name": "$name",
                   "version": "1.0.0",
@@ -162,27 +177,39 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
       .map(response => (response.json \ "queue_id").as[String])
   }
 
-  private def retrieveBuildedWasm(name: String, config: WasmoSettings): Future[ByteString] = {
+  private def retrieveBuildedWasm(
+      name: String,
+      config: WasmoSettings
+  ): Future[ByteString] = {
     tryUntil(
       () => {
         httpClient
           .url(s"${config.url}/api/wasm/$name")
           .withHttpHeaders(ApikeyHelper.generate(config))
           .get()
-          .map(resp => if (resp.status >= 400) throw new RuntimeException("Bad status") else resp.bodyAsBytes)
+          .map(resp =>
+            if (resp.status >= 400) throw new RuntimeException("Bad status")
+            else resp.bodyAsBytes
+          )
       },
       Duration.ofMinutes(1)
     )
   }
 
-  private def retrieveLocallyBuildedWasm(id: String, config: WasmoSettings): Future[ByteString] = {
+  private def retrieveLocallyBuildedWasm(
+      id: String,
+      config: WasmoSettings
+  ): Future[ByteString] = {
     tryUntil(
       () => {
         httpClient
           .url(s"${config.url}/local/wasm/$id")
           .withHttpHeaders(ApikeyHelper.generate(config))
           .get()
-          .map(resp => if (resp.status >= 400) throw new RuntimeException("Bad status") else resp.bodyAsBytes)
+          .map(resp =>
+            if (resp.status >= 400) throw new RuntimeException("Bad status")
+            else resp.bodyAsBytes
+          )
       },
       Duration.ofMinutes(1)
     )
@@ -192,8 +219,14 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
     val start = System.currentTimeMillis()
 
     def act(count: Int = 0): Future[T] = {
-      if (Duration.ofMillis(System.currentTimeMillis() - start).compareTo(duration) > 0) {
-        throw new RuntimeException(s"Failed attempted operation, tried ${count} times")
+      if (
+        Duration.ofMillis(System.currentTimeMillis() - start).compareTo(
+          duration
+        ) > 0
+      ) {
+        throw new RuntimeException(
+          s"Failed attempted operation, tried ${count} times"
+        )
       }
       op().recoverWith(ex => {
         Thread.sleep(1000L)
@@ -225,28 +258,30 @@ object OldScripts {
   }
 
   def doesUseHttp(script: String): Boolean = {
-    val astRoot                     = new Parser().parse(script, "tmp.js", 1)
-    var paramName: Option[String]   = None
+    val astRoot = new Parser().parse(script, "tmp.js", 1)
+    var paramName: Option[String] = None
     var hasFunctionEnoughParameters = true
-    var foundUsage                  = false
-    var shouldSkipFirst             = true
+    var foundUsage = false
+    var shouldSkipFirst = true
     astRoot.visitAll(new NodeVisitor() {
       override def visit(node: AstNode): Boolean = {
         node match {
-          case node: FunctionNode      => {
+          case node: FunctionNode => {
             val params = node.getParams
-            if (node.getName == "enabled" && (node.getParent == null || node.getParent.getParent == null)) {
+            if (
+              node.getName == "enabled" && (node.getParent == null || node.getParent.getParent == null)
+            ) {
               hasFunctionEnoughParameters = params.size() >= 4
               if (params.size() >= 4 && params.get(3).isInstanceOf[Name]) {
-                val scope = params.get(3).asInstanceOf[Name].getDefiningScope
+                params.get(3).asInstanceOf[Name].getDefiningScope
                 paramName = Some(params.get(3).asInstanceOf[Name].getIdentifier)
               }
 
             }
           }
-          case fc: FunctionCall        => {
+          case fc: FunctionCall => {
             if (fc.getTarget.isInstanceOf[Name]) {
-              val name      = fc.getTarget.asInstanceOf[Name].getIdentifier
+              val name = fc.getTarget.asInstanceOf[Name].getIdentifier
               val nameMatch = paramName.contains(name)
               if (nameMatch) {
                 foundUsage = true
@@ -256,7 +291,7 @@ object OldScripts {
           case es: ExpressionStatement => {
             es.getExpression.visit(this)
           }
-          case name: Name              => {
+          case name: Name => {
             foundUsage = paramName
               .map(n => n == name.getIdentifier)
               .map(res => {
@@ -269,7 +304,7 @@ object OldScripts {
               })
               .getOrElse(foundUsage)
           }
-          case s @ _                   => ()
+          case s @ _ => ()
         }
         hasFunctionEnoughParameters && !foundUsage
       }
@@ -291,7 +326,7 @@ object OldScripts {
               .findFirst()
               .ifPresent(_ => found = true)
           }
-          case _                => {}
+          case _ => {}
         }
         true
       }

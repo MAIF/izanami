@@ -1,29 +1,18 @@
 package fr.maif.izanami.helpers
 
+import com.mifmif.common.regex.Generex
+import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
+import fr.maif.izanami.api.BaseAPISpec.TestTenant
+import fr.maif.izanami.api.BaseAPISpec.cleanUpDB
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.Materializer
-import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.apache.pekko.stream.scaladsl.Source
 import org.apache.pekko.util.Timeout
-import com.mifmif.common.regex.Generex
-import fr.maif.izanami.api.BaseAPISpec.{
-  TestApiKey,
-  TestCondition,
-  TestDateTimePeriod,
-  TestDayPeriod,
-  TestFeature,
-  TestFeatureContext,
-  TestHourPeriod,
-  TestProject,
-  TestSituationBuilder,
-  TestTenant,
-  TestUser,
-  cleanUpDB
-}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import play.api.test.Helpers.await
 
-import java.time.{DayOfWeek, LocalDateTime, LocalTime}
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 object HighVolumetryLoader {
   def main(args: Array[String]): Unit = {

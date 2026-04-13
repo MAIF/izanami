@@ -3,13 +3,14 @@ package fr.maif.izanami.web
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.models.*
-import fr.maif.izanami.requests.{OverloadFeatureUpdateRequest}
+import fr.maif.izanami.requests.OverloadFeatureUpdateRequest
 import fr.maif.izanami.services.FeatureService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.*
 import play.api.mvc.*
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class FeatureContextController(
     val controllerComponents: ControllerComponents,
@@ -141,7 +142,15 @@ class FeatureContextController(
   ): Action[AnyContent] =
     detailledRightForTenantFactory(tenant)
       .async { implicit request =>
-        featureService.deleteOverload(tenant, project = project, name = name, contextPath = context, user = request.user, userInformation = request.userInformation, preserveProtectedContexts = preserveProtectedContexts)
+        featureService.deleteOverload(
+          tenant,
+          project = project,
+          name = name,
+          contextPath = context,
+          user = request.user,
+          userInformation = request.userInformation,
+          preserveProtectedContexts = preserveProtectedContexts
+        )
           .toResult(_ => NoContent)
       }
 
@@ -390,7 +399,5 @@ class FeatureContextController(
         }
       }
     }
-
-  
 
 }

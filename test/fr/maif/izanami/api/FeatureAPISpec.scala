@@ -1,19 +1,48 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{TestCondition, TestDateTimePeriod, TestDayPeriod, TestFeature, TestFeatureContext, TestFeaturePatch, TestPersonnalAccessToken, TestProject, TestRights, TestSituationBuilder, TestTenant, TestTenantRight, TestUser, TestUserListRule, TestWasmConfig, deleteFeatureWithToken, disabledFeatureBase64, enabledFeatureBase64, patchFeatureWithToken, updateFeatureWithToken}
-import play.api.libs.json.{JsArray, JsBoolean, JsDefined, JsFalse, JsNull, JsNumber, JsObject, JsString, JsTrue, JsValue, Json}
+import fr.maif.izanami.api.BaseAPISpec.TestCondition
+import fr.maif.izanami.api.BaseAPISpec.TestDateTimePeriod
+import fr.maif.izanami.api.BaseAPISpec.TestDayPeriod
+import fr.maif.izanami.api.BaseAPISpec.TestFeature
+import fr.maif.izanami.api.BaseAPISpec.TestFeatureContext
+import fr.maif.izanami.api.BaseAPISpec.TestFeaturePatch
+import fr.maif.izanami.api.BaseAPISpec.TestPersonnalAccessToken
+import fr.maif.izanami.api.BaseAPISpec.TestProject
+import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
+import fr.maif.izanami.api.BaseAPISpec.TestTenant
+import fr.maif.izanami.api.BaseAPISpec.TestUser
+import fr.maif.izanami.api.BaseAPISpec.TestUserListRule
+import fr.maif.izanami.api.BaseAPISpec.TestWasmConfig
+import fr.maif.izanami.api.BaseAPISpec.deleteFeatureWithToken
+import fr.maif.izanami.api.BaseAPISpec.disabledFeatureBase64
+import fr.maif.izanami.api.BaseAPISpec.enabledFeatureBase64
+import fr.maif.izanami.api.BaseAPISpec.patchFeatureWithToken
+import fr.maif.izanami.api.BaseAPISpec.updateFeatureWithToken
+import play.api.libs.json.JsArray
+import play.api.libs.json.JsBoolean
+import play.api.libs.json.JsFalse
+import play.api.libs.json.JsNull
+import play.api.libs.json.JsNumber
+import play.api.libs.json.JsObject
+import play.api.libs.json.JsString
+import play.api.libs.json.JsTrue
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
 import play.api.test.Helpers.*
 
-import java.time.{LocalDateTime, OffsetDateTime}
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
 
 class FeatureAPISpec extends BaseAPISpec {
   "Feature PATCH endpoint" should {
     "duplicate old strategy to protected context on multiple feature enable / disable if requested" in {
       val situation = TestSituationBuilder()
-        
         .withTenants(
           TestTenant("tenant")
-            .withGlobalContext(TestFeatureContext(name = "prod", isProtected = true))
+            .withGlobalContext(TestFeatureContext(
+              name = "prod",
+              isProtected = true
+            ))
             .withProjects(
               TestProject("project").withFeatures(
                 TestFeature("f1", enabled = false),
@@ -46,17 +75,21 @@ class FeatureAPISpec extends BaseAPISpec {
 
       response.status mustBe 204
 
-
-      val contextResponse = situation.fetchContexts(tenant = "tenant", project = "project")
-      (contextResponse.json.get \ 0 \ "overloads" \\ "enabled").map(v => v.as[Boolean]) must contain theSameElementsAs Seq(false, false)
+      val contextResponse =
+        situation.fetchContexts(tenant = "tenant", project = "project")
+      (contextResponse.json.get \ 0 \ "overloads" \\ "enabled").map(v =>
+        v.as[Boolean]
+      ) must contain theSameElementsAs Seq(false, false)
     }
 
     "update features without protecting context if requested" in {
       val situation = TestSituationBuilder()
-
         .withTenants(
           TestTenant("tenant")
-            .withGlobalContext(TestFeatureContext(name = "prod", isProtected = true))
+            .withGlobalContext(TestFeatureContext(
+              name = "prod",
+              isProtected = true
+            ))
             .withProjects(
               TestProject("project").withFeatures(
                 TestFeature("f1", enabled = false),
@@ -89,17 +122,19 @@ class FeatureAPISpec extends BaseAPISpec {
 
       response.status mustBe 204
 
-
-      val contextResponse = situation.fetchContexts(tenant = "tenant", project = "project")
+      val contextResponse =
+        situation.fetchContexts(tenant = "tenant", project = "project")
       (contextResponse.json.get \ 0 \ "overloads").as[JsArray].value mustBe empty
     }
 
     "prevent updating features without protecting contexts if user is not admin" in {
       val situation = TestSituationBuilder()
-
         .withTenants(
           TestTenant("tenant")
-            .withGlobalContext(TestFeatureContext(name = "prod", isProtected = true))
+            .withGlobalContext(TestFeatureContext(
+              name = "prod",
+              isProtected = true
+            ))
             .withProjects(
               TestProject("project").withFeatures(
                 TestFeature("f1", enabled = false),
@@ -134,7 +169,6 @@ class FeatureAPISpec extends BaseAPISpec {
       )
 
       response.status mustBe 403
-
 
       response = situation.patchFeatures(
         "tenant",
@@ -202,8 +236,9 @@ class FeatureAPISpec extends BaseAPISpec {
             value = JsBoolean(true)
           )
         ),
-        username= situation.user,
-        token = situation.findTokenSecret(user = situation.user, token = "deleteonly")
+        username = situation.user,
+        token =
+          situation.findTokenSecret(user = situation.user, token = "deleteonly")
       )
       response.status mustBe 401
 
@@ -218,7 +253,8 @@ class FeatureAPISpec extends BaseAPISpec {
           )
         ),
         username = situation.user,
-        token = situation.findTokenSecret(user = situation.user, token = "updateonly")
+        token =
+          situation.findTokenSecret(user = situation.user, token = "updateonly")
       )
       response.status mustBe 204
 
@@ -233,7 +269,10 @@ class FeatureAPISpec extends BaseAPISpec {
           )
         ),
         username = situation.user,
-        token = situation.findTokenSecret(user = situation.user, token = "updatedelete")
+        token = situation.findTokenSecret(
+          user = situation.user,
+          token = "updatedelete"
+        )
       )
       response.status mustBe 204
 
@@ -246,7 +285,8 @@ class FeatureAPISpec extends BaseAPISpec {
           )
         ),
         username = situation.user,
-        token = situation.findTokenSecret(user = situation.user, token = "updateonly")
+        token =
+          situation.findTokenSecret(user = situation.user, token = "updateonly")
       )
       response.status mustBe 401
 
@@ -259,7 +299,8 @@ class FeatureAPISpec extends BaseAPISpec {
           )
         ),
         username = situation.user,
-        token = situation.findTokenSecret(user = situation.user, token = "deleteonly")
+        token =
+          situation.findTokenSecret(user = situation.user, token = "deleteonly")
       )
       response.status mustBe 204
 
@@ -272,7 +313,10 @@ class FeatureAPISpec extends BaseAPISpec {
           )
         ),
         username = situation.user,
-        token = situation.findTokenSecret(user = situation.user, token = "updatedelete")
+        token = situation.findTokenSecret(
+          user = situation.user,
+          token = "updatedelete"
+        )
       )
       response.status mustBe 204
 
@@ -291,7 +335,8 @@ class FeatureAPISpec extends BaseAPISpec {
           )
         ),
         username = situation.user,
-        token = situation.findTokenSecret(user = situation.user, token = "updateonly")
+        token =
+          situation.findTokenSecret(user = situation.user, token = "updateonly")
       )
       response.status mustBe 401
 
@@ -310,7 +355,8 @@ class FeatureAPISpec extends BaseAPISpec {
           )
         ),
         username = situation.user,
-        token = situation.findTokenSecret(user = situation.user, token = "deleteonly")
+        token =
+          situation.findTokenSecret(user = situation.user, token = "deleteonly")
       )
       response.status mustBe 401
 
@@ -329,7 +375,10 @@ class FeatureAPISpec extends BaseAPISpec {
           )
         ),
         username = situation.user,
-        token = situation.findTokenSecret(user = situation.user, token = "updatedelete")
+        token = situation.findTokenSecret(
+          user = situation.user,
+          token = "updatedelete"
+        )
       )
       response.status mustBe 204
     }
@@ -993,7 +1042,7 @@ class FeatureAPISpec extends BaseAPISpec {
         .loggedAs("updateRight")
         .build()
 
-      var result = testSituation.createFeature(
+      val result = testSituation.createFeature(
         "my feature",
         project = "bar",
         tenant = "foo",
@@ -1011,7 +1060,7 @@ class FeatureAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      var result = testSituation.createFeature(
+      val result = testSituation.createFeature(
         "my feature",
         project = "bar",
         tenant = "foo",
@@ -1028,7 +1077,7 @@ class FeatureAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      var result = testSituation.createFeature(
+      val result = testSituation.createFeature(
         "my feature",
         project = "bar",
         tenant = "foo",
@@ -1053,7 +1102,7 @@ class FeatureAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      var result = testSituation.createFeature(
+      val result = testSituation.createFeature(
         "foobar",
         project = "bar",
         tenant = "foo",
@@ -1750,7 +1799,7 @@ class FeatureAPISpec extends BaseAPISpec {
     }
 
     "not update existing overload for protected context, even if old strategy preservation is set" in {
-      var situation = TestSituationBuilder()
+      val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
             .withProjects(
@@ -1791,7 +1840,7 @@ class FeatureAPISpec extends BaseAPISpec {
     }
 
     "preserve old strategy only for higher protected context, not for their child" in {
-      var situation = TestSituationBuilder()
+      val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
             .withProjects(
@@ -1843,7 +1892,7 @@ class FeatureAPISpec extends BaseAPISpec {
     }
 
     "preserve old strategy for protected context when updating a feature with protectedContextPreservation" in {
-      var situation = TestSituationBuilder()
+      val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
             .withProjects(
@@ -2146,7 +2195,7 @@ class FeatureAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      var response = situation.createFeature(
+      val response = situation.createFeature(
         "feature",
         enabled = true,
         project = "foo",

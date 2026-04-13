@@ -3,7 +3,8 @@ package fr.maif.izanami.utils
 import fr.maif.izanami.errors.IzanamiError
 import play.api.mvc.Result
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 case class FutureEither[+A](value: Future[Either[IzanamiError, A]]) {
   def flatMap[B](
@@ -44,10 +45,10 @@ case class FutureEither[+A](value: Future[Either[IzanamiError, A]]) {
   }
 
   def toFutureResult(
-                mapper: A => Future[play.api.mvc.Result]
-              )(implicit ec: ExecutionContext): Future[Result] = {
+      mapper: A => Future[play.api.mvc.Result]
+  )(implicit ec: ExecutionContext): Future[Result] = {
     value.flatMap {
-      case Left(error) => Future.successful(error.toHttpResponse)
+      case Left(error)  => Future.successful(error.toHttpResponse)
       case Right(value) => mapper(value)
     }
   }

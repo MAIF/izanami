@@ -1,14 +1,17 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{ADMIN_BASE_URL, RequestResult, TestFeature, TestPersonnalAccessToken, TestProject, TestSituationBuilder, TestTenant, TestUser, deleteAPIKey, exportWithTokenSecret, ws}
-import play.api.http.Status.{FORBIDDEN, OK, UNAUTHORIZED}
-import play.api.libs.json.Json
-import play.api.test.Helpers.await
+import fr.maif.izanami.api.BaseAPISpec.TestPersonnalAccessToken
+import fr.maif.izanami.api.BaseAPISpec.TestProject
+import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
+import fr.maif.izanami.api.BaseAPISpec.TestTenant
+import fr.maif.izanami.api.BaseAPISpec.TestUser
+import fr.maif.izanami.api.BaseAPISpec.exportWithTokenSecret
+import play.api.http.Status.FORBIDDEN
+import play.api.http.Status.OK
+import play.api.http.Status.UNAUTHORIZED
 
-import java.time.{LocalDateTime, ZoneId}
-import java.util.Base64
-import scala.util.Try
-import play.api.libs.ws.writeableOf_JsValue
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 class ExportAPISpec extends BaseAPISpec {
   "Export endpoint" should {
@@ -27,7 +30,11 @@ class ExportAPISpec extends BaseAPISpec {
         )
         .build()
 
-      situation.exportWithTokenName("tenant", situation.user, "foo").status mustBe OK
+      situation.exportWithTokenName(
+        "tenant",
+        situation.user,
+        "foo"
+      ).status mustBe OK
     }
 
     "Allow export with personnal access tokens with all rights if user is tenant admin" in {
@@ -71,7 +78,11 @@ class ExportAPISpec extends BaseAPISpec {
       )
 
       val secret = (resp.json.get \ "token").as[String]
-      exportWithTokenSecret("tenant", situation.user, secret).status mustBe FORBIDDEN
+      exportWithTokenSecret(
+        "tenant",
+        situation.user,
+        secret
+      ).status mustBe FORBIDDEN
     }
 
     "Prevent export with personnal access tokens with all rights if token is expired" in {

@@ -1,18 +1,15 @@
 package fr.maif.izanami.utils
 
 import org.apache.pekko.util.ByteString
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import org.apache.commons.io.output.ByteArrayOutputStream
-import play.api.libs.json.{JsBoolean, Json}
+import play.api.libs.json.JsBoolean
+import play.api.libs.json.Json
 import play.api.libs.ws.WSClient
-
-import java.io.ByteArrayInputStream
-import java.time.Duration
-import java.util.Objects
-import java.util.zip.{ZipEntry, ZipInputStream, ZipOutputStream}
-import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.ws.writeableOf_JsValue
 import play.api.libs.ws.writeableOf_String
+
+import java.time.Duration
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 case class WasmManagerClient(client: WSClient, url: String)(implicit
     ec: ExecutionContext

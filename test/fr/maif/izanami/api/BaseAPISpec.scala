@@ -1,87 +1,105 @@
 package fr.maif.izanami.api
 
-import org.apache.pekko.NotUsed
-import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.http.scaladsl.Http
-import org.apache.pekko.http.scaladsl.model.headers.RawHeader
-import org.apache.pekko.http.scaladsl.model.sse.ServerSentEvent
-import org.apache.pekko.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
-import org.apache.pekko.stream.connectors.sse.scaladsl.EventSource
-import org.apache.pekko.stream.scaladsl.{FileIO, Keep, Sink, Source}
-import org.apache.pekko.stream.{
-  KillSwitches,
-  Materializer,
-  ThrottleMode,
-  UniqueKillSwitch
-}
-import org.apache.pekko.util.Timeout
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
-import com.github.tomakehurst.wiremock.http.{HttpHeaders, Request}
+import com.github.tomakehurst.wiremock.http.HttpHeaders
+import com.github.tomakehurst.wiremock.http.Request
 import com.typesafe.config.ConfigValueFactory
 import fr.maif.izanami.IzanamiLoader
-import fr.maif.izanami.api.BaseAPISpec.{
-  RequestResult,
-  TestFeaturePatch,
-  cleanUpDB,
-  eventKillSwitch,
-  isAvailable,
-  izanamiInstance,
-  login,
-  maybeContainers,
-  shouldCleanUpMails,
-  shouldCleanUpWasmServer,
-  shouldRestartInstance,
-  startContainers,
-  webhookServers,
-  ws
-}
+import fr.maif.izanami.api.BaseAPISpec.cleanUpDB
+import fr.maif.izanami.api.BaseAPISpec.eventKillSwitch
+import fr.maif.izanami.api.BaseAPISpec.isAvailable
+import fr.maif.izanami.api.BaseAPISpec.izanamiInstance
+import fr.maif.izanami.api.BaseAPISpec.login
+import fr.maif.izanami.api.BaseAPISpec.maybeContainers
+import fr.maif.izanami.api.BaseAPISpec.shouldCleanUpMails
+import fr.maif.izanami.api.BaseAPISpec.shouldCleanUpWasmServer
+import fr.maif.izanami.api.BaseAPISpec.shouldRestartInstance
+import fr.maif.izanami.api.BaseAPISpec.startContainers
+import fr.maif.izanami.api.BaseAPISpec.webhookServers
+import fr.maif.izanami.api.BaseAPISpec.ws
+import fr.maif.izanami.utils.WasmManagerClient
+import fr.maif.izanami.utils.WiremockResponseDefinitionTransformer
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.utils.{
-  WasmManagerClient,
-  WiremockResponseDefinitionTransformer
-}
+import org.apache.pekko.NotUsed
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.model.HttpRequest
+import org.apache.pekko.http.scaladsl.model.HttpResponse
+import org.apache.pekko.http.scaladsl.model.Uri
+import org.apache.pekko.http.scaladsl.model.headers.RawHeader
+import org.apache.pekko.http.scaladsl.model.sse.ServerSentEvent
+import org.apache.pekko.stream.KillSwitches
+import org.apache.pekko.stream.Materializer
+import org.apache.pekko.stream.ThrottleMode
+import org.apache.pekko.stream.UniqueKillSwitch
+import org.apache.pekko.stream.connectors.sse.scaladsl.EventSource
+import org.apache.pekko.stream.scaladsl.FileIO
+import org.apache.pekko.stream.scaladsl.Keep
+import org.apache.pekko.stream.scaladsl.Sink
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.util.Timeout
 import org.awaitility.scala.AwaitilitySupport
 import org.postgresql.util.PSQLException
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.BeforeAndAfterEach
 import org.scalatestplus.play.PlaySpec
 import org.testcontainers.containers.DockerComposeContainer
+import play.api.Application
 import play.api.ApplicationLoader.Context
+import play.api.Configuration
+import play.api.Environment
+import play.api.Mode
 import play.api.inject.DefaultApplicationLifecycle
 import play.api.libs.json.*
-import play.api.libs.ws.ahc.{AhcWSClient, StandaloneAhcWSClient}
-import play.api.libs.ws.{WSAuthScheme, WSClient, WSCookie, WSResponse}
+import play.api.libs.ws.WSAuthScheme
+import play.api.libs.ws.WSClient
+import play.api.libs.ws.WSCookie
+import play.api.libs.ws.WSResponse
+import play.api.libs.ws.ahc.AhcWSClient
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
+import play.api.libs.ws.writeableOf_ByteArray
+import play.api.libs.ws.writeableOf_JsValue
+import play.api.libs.ws.writeableOf_String
+import play.api.libs.ws.writeableOf_urlEncodedSimpleForm
 import play.api.mvc.MultipartFormData.FilePart
-import play.api.test.Helpers.{OK, await}
-import play.api.test.{
-  DefaultAwaitTimeout,
-  DefaultTestServerFactory,
-  RunningServer
-}
-import play.api.{Application, Configuration, Environment, Mode}
+import play.api.test.DefaultAwaitTimeout
+import play.api.test.DefaultTestServerFactory
+import play.api.test.Helpers.OK
+import play.api.test.Helpers.await
+import play.api.test.RunningServer
 import play.core.server.ServerConfig
 
-import java.io.{BufferedWriter, File, FileWriter, IOException}
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileWriter
+import java.io.IOException
 import java.net.Socket
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
-import java.sql.{Connection, DriverManager}
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.sql.Connection
+import java.sql.DriverManager
 import java.time.*
 import java.time.format.DateTimeFormatter
-import java.util.{Base64, Objects, TimeZone}
+import java.util.Base64
+import java.util.Objects
+import java.util.TimeZone
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.{DurationInt, SECONDS}
-import scala.concurrent.{ExecutionContextExecutor, Future, Promise}
+import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.Future
+import scala.concurrent.Promise
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.SECONDS
 import scala.util.Try
-import play.api.libs.ws.writeableOf_JsValue
-import play.api.libs.ws.writeableOf_String
-import play.api.libs.ws.writeableOf_ByteArray
-import play.api.libs.ws.writeableOf_urlEncodedSimpleForm
+import fr.maif.izanami.utils.Done
+import org.slf4j.LoggerFactory
+import fr.maif.izanami.api.BaseAPISpec.logger
 
 case class StubServer(
     server: WireMockServer,
@@ -165,14 +183,14 @@ class BaseAPISpec
       val res = baseFuture.map(_ => {
         if (shouldRestartInstance) {
           shouldRestartInstance = false
-          println(
+          logger.info(
             "Izanami instance is running from previous test, stopping it..."
           )
           BaseAPISpec.stopServer()
-          println("Izanami is stopped")
+          logger.info("Izanami is stopped")
           cleanUpDB(hard = true)
         } else {
-          println(
+          logger.info(
             "An izanami instance is already running, and no custom configuration was provided, no need to shut it down"
           )
           cleanUpDB(hard = false)
@@ -228,7 +246,7 @@ class BaseAPISpec
     if (webhookServers.nonEmpty) {
       webhookServers.foreach {
         case (port, StubServer(server, extension)) => {
-          println(s"Stopping wiremock on port $port")
+          logger.info(s"Stopping wiremock on port $port")
           server.stop()
         }
       }
@@ -257,6 +275,7 @@ class IzanamiServerFactory extends DefaultTestServerFactory {
 }
 
 object BaseAPISpec extends DefaultAwaitTimeout {
+  val logger = LoggerFactory.getLogger("izanami-tests")
   override implicit def defaultAwaitTimeout: Timeout = 30.seconds
   type TenantName = String
   type ProjectName = String
@@ -323,7 +342,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     val ciEnvVariable = System.getenv("CI");
     val isCi = Option(ciEnvVariable).map(_.toUpperCase).contains("TRUE")
     if (isAvailable(5432)) {
-      println(
+      logger.info(
         "Port 5432 is available, starting docker-compose for the current suite"
       )
       var containers = new DockerComposeContainer(
@@ -343,7 +362,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
       BaseAPISpec.shouldCleanUpWasmServer = false
     } else {
-      println(
+      logger.info(
         "Port 5432 is taken, assuming that docker containers are already running"
       )
     }
@@ -366,7 +385,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       maybeContainers.foreach(_.close())
     } catch { // In case the suite aborts, ensure containers are stopped
       case ex: Throwable => {
-        println(s"Exception was thrown ${ex.getMessage}")
+        logger.info(s"Exception was thrown ${ex.getMessage}")
         maybeContainers.foreach(_.close())
         throw ex
       }
@@ -378,7 +397,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       Environment.simple(),
       Map("config.file" -> "conf/dev.conf")
     )
-    var updatedConfig = customConfig
+    val updatedConfig = customConfig
       // .foldLeft(configuration.underlying.withValue("app.openid.enabled", ConfigValueFactory.fromAnyRef(false)))(
       .foldLeft(
         configuration.underlying
@@ -398,7 +417,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
 
     lazy val server = new IzanamiServerFactory()
 
-    println("Starting server")
+    logger.info("Starting server")
     val runningServer = server.start(application)
     org.awaitility.Awaitility.await atMost (30, SECONDS) until (() => {
       val b = await(
@@ -408,7 +427,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
       b
     })
-    println("Server started")
+    logger.info("Server started")
 
     runningServer
   }
@@ -459,7 +478,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       val stm = conn.createStatement()
       val result =
         stm.executeQuery("SELECT schema_name FROM information_schema.schemata")
-      println("Killing connections...")
+      logger.info("Killing connections...")
       conn
         .createStatement()
         .execute(s"""
@@ -518,7 +537,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         }
         if (!SCHEMA_TO_KEEP.contains(schema.toUpperCase())) {
           try {
-            val result = conn
+            conn
               .createStatement()
               .executeQuery(s"""DROP SCHEMA "${schema}" CASCADE""")
           } catch {
@@ -1389,7 +1408,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
           )
         )
       })
-      .map(s => ())
+      .map(_ => ())
   }
 
   def createContext(
@@ -2569,7 +2588,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         conditions: Boolean = true,
         refreshInterval: Duration = Duration.ofSeconds(0L),
         keepAliveInterval: Duration = Duration.ofSeconds(25L)
-    ): Unit = {
+    ): Done = {
+      val response = Promise[Done]()
       shouldCleanUpEvents = true
       val send: HttpRequest => Future[HttpResponse] = request => {
         val r = request.withHeaders(keyHeaders(key).map { case (name, value) =>
@@ -2601,11 +2621,16 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         )
         .viaMat(KillSwitches.single)(Keep.right)
         .toMat(Sink.foreach((evt: ServerSentEvent) => {
-          println(s"RECEIVED $evt")
+          if (!response.isCompleted) {
+            response.success(Done.done())
+          }
+          logger.info(s"RECEIVED $evt")
           consumer(evt)
         }))(Keep.both)
         .run()
       eventKillSwitch = killswitch
+
+      await(response.future)
     }
 
     def keyHeaders(name: String): Map[String, String] = {
@@ -2802,7 +2827,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         preserveProtectedContexts: Boolean = false
     ): RequestResult = {
       val response = await(
-        ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/features?preserveProtectedContexts=${preserveProtectedContexts}")
+        ws.url(
+          s"${ADMIN_BASE_URL}/tenants/${tenant}/features?preserveProtectedContexts=${preserveProtectedContexts}"
+        )
           .withCookies(cookies: _*)
           .patch(Json.toJson(patches.map(p => p.json)))
       )
@@ -3435,20 +3462,25 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         user: String = "",
         date: Instant = null
     ): RequestResult = {
-      val url = s"${ADMIN_BASE_URL}/tenants/${tenant}/features/_test?oneTagIn=${oneTagIn
-          .map(t => findTagId(tenant, t).get)
-          .mkString(",")}&allTagsIn=${allTagsIn.map(t => findTagId(tenant, t).get).mkString(",")}&noTagIn=${noTagIn
-          .map(t => findTagId(tenant, t).get)
-          .mkString(",")}&projects=${projects.map(pname => findProjectId(tenant, pname).get).mkString(",")}&features=${features
-          .map { case (project, feature) =>
-            findFeatureId(tenant, project, feature).get
-          }
-          .mkString(",")}${
-          if (context.nonEmpty) s"&context=${context}" else ""
-        }${
-          if (user.nonEmpty) s"&user=${user}"
-          else ""
-        }"
+      val url =
+        s"${ADMIN_BASE_URL}/tenants/${tenant}/features/_test?oneTagIn=${oneTagIn
+            .map(t => findTagId(tenant, t).get)
+            .mkString(",")}&allTagsIn=${allTagsIn.map(t =>
+            findTagId(tenant, t).get
+          ).mkString(",")}&noTagIn=${noTagIn
+            .map(t => findTagId(tenant, t).get)
+            .mkString(",")}&projects=${projects.map(pname =>
+            findProjectId(tenant, pname).get
+          ).mkString(",")}&features=${features
+            .map { case (project, feature) =>
+              findFeatureId(tenant, project, feature).get
+            }
+            .mkString(",")}${
+            if (context.nonEmpty) s"&context=${context}" else ""
+          }${
+            if (user.nonEmpty) s"&user=${user}"
+            else ""
+          }"
 
       val response = await(ws.url(url).withCookies(cookies: _*).get())
       RequestResult(
@@ -3914,7 +3946,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     ): RequestResult = {
       val oldConf = fetchConfiguration()
       val newConfig = callback(oldConf.json.get.as[JsObject])
-      println(s"newConfig ${newConfig}")
+      logger.info(s"newConfig ${newConfig}")
       val response = await(
         BaseAPISpec.this.updateConfigurationRaw(newConfig, cookies)
       )
@@ -3945,13 +3977,36 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     def importV2(
         tenant: String,
         conflictStrategy: String = "fail",
-        data: Seq[String] = Seq()
+        data: Seq[String] = Seq(),
+        featureName: Option[String] = Option.empty,
+        featureDescription: Option[String] = Option.empty,
+        featureTags: Option[String] = Option.empty,
+        featureProject: Option[String] = Option.empty,
+        featureEnabling: Option[String] = Option.empty,
+        featureConditions: Option[String] = Option.empty,
+        featureId: Option[String] = Option.empty
     ): RequestResult = {
       val dataFile = writeTemporaryFile("export", "ndjson", data)
 
+      var featureSpecificPart = Seq(
+        (featureName, "featureName"),
+        (featureDescription, "featureDescription"),
+        (featureTags, "featureTags"),
+        (featureProject, "featureProject"),
+        (featureEnabling, "featureEnabling"),
+        (featureConditions, "featureConditions"),
+        (featureId, "featureId")
+      ).collect {
+        case (Some(conflictStrategy), name) => s"${name}=${conflictStrategy}"
+      }.mkString("&")
+
+      if (featureSpecificPart.nonEmpty) {
+        featureSpecificPart = "&" + featureSpecificPart;
+      }
+
       val response = await(
         ws.url(
-          s"${ADMIN_BASE_URL}/tenants/${tenant}/_import?version=2&conflict=${conflictStrategy}"
+          s"${ADMIN_BASE_URL}/tenants/${tenant}/_import?version=2&conflict=${conflictStrategy}${featureSpecificPart}"
         ).withCookies(cookies: _*)
           .post(
             Source(
@@ -4430,11 +4485,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       val runningServer = if (izanamiInstance == null) {
         startServer(customConfiguration)
       } else if (customConfiguration.nonEmpty) {
-        println(
+        logger.info(
           "Custom configuration was provided, restarting already running Izanami instance"
         )
         stopServer()
-        println(
+        logger.info(
           "Already running instance was stopped, restarting new instance with custom config"
         )
         startServer(customConfiguration)
@@ -4443,7 +4498,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       }
       // val runningServer = startServer(customConfiguration)
 
-      var scriptIds: Map[String, String] = Map()
+      val scriptIds: Map[String, String] = Map()
       var keyData: Map[String, TestSituationKey] = Map()
       val featuresData: TrieMap[String, TrieMap[
         String,
@@ -4485,7 +4540,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                   wasmManagerClient
                     .createScript(name, fileContent, local = false)
                 )
-                .map(ids => ())
+                .map(_ => ())
             }
           }
         })
@@ -4729,7 +4784,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                 })
             })
           })
-          
 
       futures.addOne(tenantFuture)
 
@@ -4794,7 +4848,10 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                   ).map(resp => {
                     val secret = (resp.json \ "token").as[String]
                     val id = (resp.json \ "id").as[String]
-                    tokenIdAndSecretsByUser(loggedInUser.get).update(token.name, (id, secret))
+                    tokenIdAndSecretsByUser(loggedInUser.get).update(
+                      token.name,
+                      (id, secret)
+                    )
                     resp
                   })
                 })

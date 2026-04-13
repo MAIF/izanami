@@ -1,7 +1,10 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{TestPersonnalAccessToken, TestSituationBuilder, TestTenant}
-import play.api.http.Status.{CREATED, NO_CONTENT, OK}
+import fr.maif.izanami.api.BaseAPISpec.TestPersonnalAccessToken
+import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
+import fr.maif.izanami.api.BaseAPISpec.TestTenant
+import play.api.http.Status.CREATED
+import play.api.http.Status.OK
 
 class PersonalAccessTokenAPISpec extends BaseAPISpec {
   "POST endpoint" should {
@@ -38,13 +41,15 @@ class PersonalAccessTokenAPISpec extends BaseAPISpec {
 
       val id = situation.findTokenId(situation.user, "foo")
 
-
-      val res = situation.updatePersonnalAccessToken(id, TestPersonnalAccessToken(
-        "foo",
-        id = id,
-        allRights = false,
-        rights = Map("testtenant" -> Set("READ KEYS", "DELETE FEATURE"))
-      ))
+      val res = situation.updatePersonnalAccessToken(
+        id,
+        TestPersonnalAccessToken(
+          "foo",
+          id = id,
+          allRights = false,
+          rights = Map("testtenant" -> Set("READ KEYS", "DELETE FEATURE"))
+        )
+      )
 
       res.status mustBe OK
     }

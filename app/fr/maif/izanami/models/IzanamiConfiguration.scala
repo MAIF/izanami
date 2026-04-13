@@ -1,19 +1,16 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.RoleRightMode
+import fr.maif.izanami.mail.*
 import fr.maif.izanami.mail.MailGunRegion.mailGunRegionReads
-import fr.maif.izanami.mail.{MailProviderConfiguration, *}
 import fr.maif.izanami.models.InvitationMode.invitationModeReads
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2Method
-import fr.maif.izanami.services.{
-  CompleteRights,
-  CompleteRightsWithMaxRights,
-  MaxRights
-}
+import fr.maif.izanami.services.CompleteRightsWithMaxRights
+import fr.maif.izanami.services.MaxRights
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
-import play.api.libs.json.Reads.instantReads
 import play.api.libs.json.*
+import play.api.libs.json.Reads.instantReads
 
 import java.time.Instant
 import java.time.format.DateTimeFormatter
@@ -388,8 +385,8 @@ object IzanamiConfiguration {
       )
     }
 
-  implicit val mailGunConfigurationWrite: Writes[MailGunConfiguration] = json =>
-    {
+  implicit val mailGunConfigurationWrite: Writes[MailGunConfiguration] =
+    json => {
       Json.obj(
         "url" -> json.url,
         "apiKey" -> json.apiKey,

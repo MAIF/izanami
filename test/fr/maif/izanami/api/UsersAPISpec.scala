@@ -1,9 +1,11 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec._
-import play.api.http.Status._
-import play.api.libs.json.{JsArray, JsObject, JsUndefined, Json}
-import play.api.test.Helpers.{await, defaultAwaitTimeout}
+import fr.maif.izanami.api.BaseAPISpec.*
+import play.api.http.Status.*
+import play.api.libs.json.JsArray
+import play.api.libs.json.JsUndefined
+import play.api.libs.json.Json
+import play.api.test.Helpers.await
 
 import java.nio.charset.StandardCharsets
 import java.util.Base64
@@ -1596,7 +1598,7 @@ class UsersAPISpec extends BaseAPISpec {
     }
 
     "Invalidate reset request if a new one is sent" in {
-      var situation = TestSituationBuilder()
+      val situation = TestSituationBuilder()
         .withUsers(TestUser("foo", email = "foo.bar@baz.bar"))
         .withOriginEmail("izanami@baz.com")
         .withMailerConfiguration(
@@ -1609,7 +1611,7 @@ class UsersAPISpec extends BaseAPISpec {
         )
         .build()
 
-      val response = situation.resetPassword("foo.bar@baz.bar")
+      situation.resetPassword("foo.bar@baz.bar")
       val secondRequest = situation.resetPassword("foo.bar@baz.bar")
       secondRequest.status mustBe NO_CONTENT
 

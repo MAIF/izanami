@@ -2,10 +2,17 @@ package fr.maif.izanami.api
 
 import com.typesafe.config.ConfigValueFactory
 import fr.maif.izanami.api.BaseAPISpec.*
-import play.api.http.Status.{FORBIDDEN, NOT_FOUND, OK, UNAUTHORIZED}
-import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
+import play.api.http.Status.FORBIDDEN
+import play.api.http.Status.OK
+import play.api.http.Status.UNAUTHORIZED
+import play.api.libs.json.JsObject
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
 
-import java.time.{DayOfWeek, LocalDate, LocalDateTime, LocalTime}
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 
 class FeatureClientAPISpec extends BaseAPISpec {
   "Feature check GET endpoint" should {
@@ -29,10 +36,16 @@ class FeatureClientAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      situation = situation.restartServerWithConf(Map("app.feature.allow-wasm" -> "false"))
+      situation = situation.restartServerWithConf(
+        Map("app.feature.allow-wasm" -> "false")
+      )
 
       val response = situation.checkFeature(
-        id = situation.findFeatureId(tenant = "tenant", project = "proj", feature = "f1").get,
+        id = situation.findFeatureId(
+          tenant = "tenant",
+          project = "proj",
+          feature = "f1"
+        ).get,
         key = "foo"
       )
       response.status mustEqual OK
@@ -59,15 +72,29 @@ class FeatureClientAPISpec extends BaseAPISpec {
       )
 
       var response = checkFeature(
-        id = situation.findFeatureId(tenant = "tenant", project = "proj", feature = "f1").get,
-        headers = Map("izanami-client-id" -> "tenant_foobarbaz", "izanami-client-secret" -> "notARealSecret"),
-        context="doesnotexist"
+        id = situation.findFeatureId(
+          tenant = "tenant",
+          project = "proj",
+          feature = "f1"
+        ).get,
+        headers = Map(
+          "izanami-client-id" -> "tenant_foobarbaz",
+          "izanami-client-secret" -> "notARealSecret"
+        ),
+        context = "doesnotexist"
       )
       response.status mustBe FORBIDDEN
 
       response = checkFeature(
-        id = situation.findFeatureId(tenant = "tenant", project = "proj", feature = "f1").get,
-        headers = Map("izanami-client-id" -> "tenant_foobarbaz", "izanami-client-secret" -> "notARealSecret"),
+        id = situation.findFeatureId(
+          tenant = "tenant",
+          project = "proj",
+          feature = "f1"
+        ).get,
+        headers = Map(
+          "izanami-client-id" -> "tenant_foobarbaz",
+          "izanami-client-secret" -> "notARealSecret"
+        ),
         context = "prod"
       )
       response.status mustBe FORBIDDEN
@@ -82,7 +109,17 @@ class FeatureClientAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val response = checkFeature(situation.findFeatureId(tenant = "tenant", project = "proj", feature = "f1").get, headers = Map("izanami-client-id" -> "ERROR_foobarbaz", "izanami-client-secret" -> "notARealSecret"))
+      val response = checkFeature(
+        situation.findFeatureId(
+          tenant = "tenant",
+          project = "proj",
+          feature = "f1"
+        ).get,
+        headers = Map(
+          "izanami-client-id" -> "ERROR_foobarbaz",
+          "izanami-client-secret" -> "notARealSecret"
+        )
+      )
       response.status mustBe FORBIDDEN
     }
 
@@ -96,7 +133,7 @@ class FeatureClientAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val res = situation.importAndWaitTermination(
+      situation.importAndWaitTermination(
         tenant = "tenant",
         features = Seq(
           """{"id":"project:another:customer-list-feature","enabled":true,"description":"An old style user list feature","parameters":{"customers":["foo","bar","baz"]},"activationStrategy":"CUSTOMERS_LIST"}""".stripMargin,

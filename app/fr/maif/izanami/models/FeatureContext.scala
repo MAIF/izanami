@@ -2,20 +2,18 @@ package fr.maif.izanami.models
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.models.features.{
-  ActivationCondition,
-  BooleanActivationCondition,
-  BooleanResult,
-  BooleanResultDescriptor,
-  ResultDescriptor,
-  ResultType,
-  ValuedActivationCondition,
-  ValuedResultDescriptor,
-  ValuedResultType
-}
-import fr.maif.izanami.wasm.{WasmConfig, WasmUtils}
+import fr.maif.izanami.models.features.ActivationCondition
+import fr.maif.izanami.models.features.BooleanActivationCondition
+import fr.maif.izanami.models.features.BooleanResult
+import fr.maif.izanami.models.features.BooleanResultDescriptor
+import fr.maif.izanami.models.features.ResultDescriptor
+import fr.maif.izanami.models.features.ResultType
+import fr.maif.izanami.models.features.ValuedResultDescriptor
+import fr.maif.izanami.models.features.ValuedResultType
+import fr.maif.izanami.wasm.WasmConfig
+import fr.maif.izanami.wasm.WasmUtils
 import fr.maif.izanami.web.FeatureContextPath
-import play.api.libs.json._
+import play.api.libs.json.*
 
 import scala.concurrent.Future
 import scala.util.matching.Regex

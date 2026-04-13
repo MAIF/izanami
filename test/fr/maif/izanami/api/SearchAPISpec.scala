@@ -1,12 +1,10 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{
-  TestProject,
-  TestSituationBuilder,
-  TestTenant
-}
+import fr.maif.izanami.api.BaseAPISpec.TestProject
+import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
+import fr.maif.izanami.api.BaseAPISpec.TestTenant
 import play.api.http.Status.OK
-import play.api.libs.json.{JsArray, Json}
+import play.api.libs.json.JsArray
 
 class SearchAPISpec extends BaseAPISpec {
 

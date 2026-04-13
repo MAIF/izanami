@@ -1,19 +1,18 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.models.PersonnalAccessToken.TokenRights
-import play.api.libs.json.{
-  JsError,
-  JsFalse,
-  JsObject,
-  JsResult,
-  JsSuccess,
-  JsTrue,
-  Json,
-  Reads,
-  Writes
-}
+import play.api.libs.json.JsError
+import play.api.libs.json.JsFalse
+import play.api.libs.json.JsObject
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.JsTrue
+import play.api.libs.json.Json
+import play.api.libs.json.Reads
+import play.api.libs.json.Writes
 
-import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.UUID
 
 sealed trait TenantTokenRights {
@@ -105,21 +104,22 @@ case class PersonnalAccessTokenCreationRequest(
 ) {
   def hasTenantRight(tenant: String, right: TenantTokenRights): Boolean = {
     rights match {
-      case AllRights => true
-      case LimitedRights(rights, globalRights) => rights.get(tenant).exists(rs => rs.contains(right))
+      case AllRights                           => true
+      case LimitedRights(rights, globalRights) =>
+        rights.get(tenant).exists(rs => rs.contains(right))
     }
   }
-  
+
   def hasRight(right: GlobalTokenRight): Boolean = {
     rights match {
-      case AllRights => true
+      case AllRights                      => true
       case LimitedRights(_, globalRights) => globalRights.contains(right)
     }
   }
-  
+
   def isExpired: Boolean = {
     expiration match {
-      case NoExpiration => false
+      case NoExpiration                              => false
       case Expiration(expiresAt, expirationTimezone) => {
         val expirationDate = expiresAt.atZone(expirationTimezone)
         expirationDate.toInstant.isBefore(Instant.now())
@@ -137,8 +137,9 @@ case class ReadPersonnalAccessToken(
   def expiration: PersonnalAccessTokenExpiration = underlying.expiration
   def name: String = underlying.name
   def username: String = underlying.username
-  
-  def hasTenantRight(tenant: String, right: TenantTokenRights): Boolean = underlying.hasTenantRight(tenant, right)
+
+  def hasTenantRight(tenant: String, right: TenantTokenRights): Boolean =
+    underlying.hasTenantRight(tenant, right)
 
   def hasRight(right: GlobalTokenRight): Boolean = underlying.hasRight(right)
 
@@ -168,7 +169,7 @@ object PersonnalAccessToken {
       case "DELETE KEY"     => DeleteKey
       case "READ TENANT"    => ReadTenant
       case "READ PROJECT"   => ReadProject
-      case "READ KEYS" => ReadTenantKeys
+      case "READ KEYS"      => ReadTenantKeys
       case "UPDATE FEATURE" => UpdateFeature
       case _ => throw new IllegalArgumentException(s"Unknown right ${rawRight}")
     }
@@ -210,13 +211,13 @@ object PersonnalAccessToken {
   def personnalAccessTokenGlobalRightRead: Reads[GlobalTokenRight] = json => {
     json.asOpt[String].map(str => str.toUpperCase) match {
       case Some("CREATE TENANT") => JsSuccess(CreateTenant)
-      case Some("READ TENANTS") => JsSuccess(ReadTenants)
+      case Some("READ TENANTS")  => JsSuccess(ReadTenants)
       case _                     => JsError("Bad body format")
     }
   }
 
-  def personnalAccessTokenTenantRightsReads: Reads[TenantTokenRights] = json =>
-    {
+  def personnalAccessTokenTenantRightsReads: Reads[TenantTokenRights] =
+    json => {
       val res = json.asOpt[String].map(_.toUpperCase) match {
         case Some("EXPORT")         => JsSuccess(Export)
         case Some("IMPORT")         => JsSuccess(Import)
@@ -225,8 +226,8 @@ object PersonnalAccessToken {
         case Some("DELETE KEY")     => JsSuccess(DeleteKey)
         case Some("READ TENANT")    => JsSuccess(ReadTenant)
         case Some("READ PROJECT")   => JsSuccess(ReadProject)
-        case Some("READ KEYS")  => JsSuccess(ReadTenantKeys)
-        case Some("UPDATE FEATURE")  => JsSuccess(UpdateFeature)
+        case Some("READ KEYS")      => JsSuccess(ReadTenantKeys)
+        case Some("UPDATE FEATURE") => JsSuccess(UpdateFeature)
         case _                      => JsError("Bad body format")
       }
 
@@ -234,20 +235,20 @@ object PersonnalAccessToken {
     }
 
   def personnalAccessTokenTenantRightsWrites: Writes[TenantTokenRights] = {
-    case Import             => Json.toJson("IMPORT")
-    case Export             => Json.toJson("EXPORT")
-    case DeleteFeature      => Json.toJson("DELETE FEATURE")
-    case DeleteProject      => Json.toJson("DELETE PROJECT")
-    case DeleteKey          => Json.toJson("DELETE KEY")
-    case ReadProject        => Json.toJson("READ PROJECT")
-    case ReadTenant         => Json.toJson("READ TENANT")
-    case ReadTenantKeys         => Json.toJson("READ KEYS")
-    case UpdateFeature         => Json.toJson("UPDATE FEATURE")
+    case Import         => Json.toJson("IMPORT")
+    case Export         => Json.toJson("EXPORT")
+    case DeleteFeature  => Json.toJson("DELETE FEATURE")
+    case DeleteProject  => Json.toJson("DELETE PROJECT")
+    case DeleteKey      => Json.toJson("DELETE KEY")
+    case ReadProject    => Json.toJson("READ PROJECT")
+    case ReadTenant     => Json.toJson("READ TENANT")
+    case ReadTenantKeys => Json.toJson("READ KEYS")
+    case UpdateFeature  => Json.toJson("UPDATE FEATURE")
   }
 
   def personnalAccessTokenGlobalRightsWrites: Writes[GlobalTokenRight] = {
     case CreateTenant => Json.toJson("CREATE TENANT")
-    case ReadTenants => Json.toJson("READ TENANTS")
+    case ReadTenants  => Json.toJson("READ TENANTS")
   }
 
   def personnalAccessTokenRightsReads: Reads[PersonnalAccessTokenRights] =

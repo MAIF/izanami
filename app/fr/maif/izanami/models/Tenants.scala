@@ -1,28 +1,42 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.models.Project.dbProjectReads
+import play.api.libs.json.*
 import play.api.libs.json.Format.GenericFormat
-import play.api.libs.json._
 
-import fr.maif.izanami.models.RightLevel
 import scala.util.matching.Regex
 
 case class SimpleTenant(name: String, description: String = "")
-case class SimpleTenantWithProjectAndTags(name: String, projects: List[SimpleProject] = List(), tags: List[Tag] = List(), description: String = "")
-case class Tenant(name: String, projects: List[Project] = List(), tags: List[Tag] = List(), description: String = "") {
+case class SimpleTenantWithProjectAndTags(
+    name: String,
+    projects: List[SimpleProject] = List(),
+    tags: List[Tag] = List(),
+    description: String = ""
+)
+case class Tenant(
+    name: String,
+    projects: List[Project] = List(),
+    tags: List[Tag] = List(),
+    description: String = ""
+) {
   def addProject(project: Project): Tenant = Tenant(name, projects :+ project)
 }
 case class TenantCreationRequest(name: String, description: String = "")
 
 object Tenant {
-  def isTenantValid(candidate: String): Boolean = TENANT_REGEXP.pattern.matcher(candidate).matches()
+  def isTenantValid(candidate: String): Boolean =
+    TENANT_REGEXP.pattern.matcher(candidate).matches()
 
   val tenantReads: Reads[TenantCreationRequest] = { json =>
     (json \ "name")
       .asOpt[String]
       .filter(id => TENANT_REGEXP.pattern.matcher(id).matches())
-      .map(name => TenantCreationRequest(name,
-        description=(json \ "description").asOpt[String].getOrElse("")))
+      .map(name =>
+        TenantCreationRequest(
+          name,
+          description = (json \ "description").asOpt[String].getOrElse("")
+        )
+      )
       .map(JsSuccess(_))
       .getOrElse(JsError("Invalid tenant"))
   }
@@ -30,7 +44,7 @@ object Tenant {
 
   implicit val tenantWrite: Writes[Tenant] = { tenant =>
     Json.obj(
-      "name"     -> tenant.name,
+      "name" -> tenant.name,
       "projects" -> tenant.projects,
       "description" -> tenant.description,
       "tags" -> tenant.tags
@@ -44,12 +58,15 @@ object Tenant {
     )
   }
 
-  val simpleTenantWithProjectWrites: Writes[SimpleTenantWithProjectAndTags] = { tenant =>
-    Json.obj(
-      "name" -> tenant.name,
-      "description" -> tenant.description,
-      "projects" -> Json.toJson(tenant.projects)(Writes.seq(SimpleProject.simpleProjectWrites)),
-      "tags" -> Json.toJson(tenant.tags)
-    )
+  val simpleTenantWithProjectWrites: Writes[SimpleTenantWithProjectAndTags] = {
+    tenant =>
+      Json.obj(
+        "name" -> tenant.name,
+        "description" -> tenant.description,
+        "projects" -> Json.toJson(tenant.projects)(
+          Writes.seq(SimpleProject.simpleProjectWrites)
+        ),
+        "tags" -> Json.toJson(tenant.tags)
+      )
   }
 }

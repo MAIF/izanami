@@ -1,83 +1,80 @@
 package fr.maif.izanami.services
 
-import org.apache.pekko.stream.Materializer.matFromSystem
-import fr.maif.izanami.RoleRightMode.{Initial, Supervised, roleRightModeConvert}
-import fr.maif.izanami.datastores.{SessionIdentification, UserIdentification}
-import fr.maif.izanami.{RoleRightMode, RoleRights, TenantRoleRights}
+import fr.maif.izanami.RoleRightMode
+import fr.maif.izanami.RoleRightMode.Initial
+import fr.maif.izanami.RoleRightMode.Supervised
+import fr.maif.izanami.datastores.UserIdentification
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{
-  CantUpdateOIDCUser,
-  IzanamiError,
-  RightComplianceError,
-  UserDoesNotExist,
-  UserNotFound
-}
-import fr.maif.izanami.events.{ConfigurationUpdated, EventService}
-import fr.maif.izanami.models.ProjectRightLevel.{ProjectRightOrdering, Read}
+import fr.maif.izanami.errors.CantUpdateOIDCUser
+import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.RightComplianceError
+import fr.maif.izanami.errors.UserDoesNotExist
+import fr.maif.izanami.errors.UserNotFound
+import fr.maif.izanami.events.ConfigurationUpdated
+import fr.maif.izanami.events.EventService
+import fr.maif.izanami.models.GeneralAtomicRight
+import fr.maif.izanami.models.KeyRightUnit
+import fr.maif.izanami.models.OAuth2Configuration
+import fr.maif.izanami.models.OIDC
+import fr.maif.izanami.models.ProjectAtomicRight
+import fr.maif.izanami.models.ProjectRightLevel
+import fr.maif.izanami.models.ProjectRightLevel.ProjectRightOrdering
+import fr.maif.izanami.models.ProjectRightLevelIncludingNoRight
 import fr.maif.izanami.models.ProjectRightLevelIncludingNoRight.ProjectRightLevelIncludingNoRightOrdering
-import fr.maif.izanami.models.RightLevel.{Admin, RightOrdering}
+import fr.maif.izanami.models.ProjectRightUnit
+import fr.maif.izanami.models.ProjectScopedUser
+import fr.maif.izanami.models.RightLevel
+import fr.maif.izanami.models.RightLevel.Admin
+import fr.maif.izanami.models.RightLevel.RightOrdering
+import fr.maif.izanami.models.RightLevelIncludingNoRight
 import fr.maif.izanami.models.RightLevelIncludingNoRight.RightLevelIncludingNoRightOrdering
-import fr.maif.izanami.models.Rights.{
-  DeleteTenantRights,
-  RightDiff,
-  TenantRightDiff,
-  TenantWideRightUpdate,
-  UnscopedFlattenKeyRight,
-  UnscopedFlattenProjectRight,
-  UnscopedFlattenWebhookRight,
-  UpsertTenantRights
-}
-import fr.maif.izanami.models.{
-  GeneralAtomicRight,
-  KeyRightUnit,
-  OAuth2Configuration,
-  OIDC,
-  ProjectAtomicRight,
-  ProjectRightLevel,
-  ProjectRightLevelIncludingNoRight,
-  ProjectRightUnit,
-  ProjectScopedUser,
-  RightLevel,
-  RightLevelIncludingNoRight,
-  RightUnit,
-  Rights,
-  SingleItemScopedUser,
-  TenantRight,
-  TenantRightWithMaxRights,
-  User,
-  UserRightsUpdateRequest,
-  UserTrait,
-  UserWithCompleteRightForOneTenant,
-  UserWithRights,
-  UserWithSingleLevelRight,
-  UserWithTenantRights,
-  WebhookRightUnit
-}
-import fr.maif.izanami.services.RightService.{
-  DEFAULT_ROLE,
-  RightsByRole,
-  Role,
-  effectiveRights,
-  keepHigher
-}
-import fr.maif.izanami.utils.{Done, FutureEither}
-import fr.maif.izanami.utils.syntax.implicits.{
-  BetterFuture,
-  BetterFutureEither,
-  BetterJsValue,
-  BetterSyntax
-}
-import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, Replace}
+import fr.maif.izanami.models.RightUnit
+import fr.maif.izanami.models.Rights
+import fr.maif.izanami.models.Rights.DeleteTenantRights
+import fr.maif.izanami.models.Rights.RightDiff
+import fr.maif.izanami.models.Rights.TenantRightDiff
+import fr.maif.izanami.models.Rights.TenantWideRightUpdate
+import fr.maif.izanami.models.Rights.UnscopedFlattenKeyRight
+import fr.maif.izanami.models.Rights.UnscopedFlattenProjectRight
+import fr.maif.izanami.models.Rights.UnscopedFlattenWebhookRight
+import fr.maif.izanami.models.Rights.UpsertTenantRights
+import fr.maif.izanami.models.SingleItemScopedUser
+import fr.maif.izanami.models.TenantRight
+import fr.maif.izanami.models.TenantRightWithMaxRights
+import fr.maif.izanami.models.User
+import fr.maif.izanami.models.UserRightsUpdateRequest
+import fr.maif.izanami.models.UserTrait
+import fr.maif.izanami.models.UserWithCompleteRightForOneTenant
+import fr.maif.izanami.models.UserWithRights
+import fr.maif.izanami.models.UserWithSingleLevelRight
+import fr.maif.izanami.models.UserWithTenantRights
+import fr.maif.izanami.models.WebhookRightUnit
+import fr.maif.izanami.services.RightService.DEFAULT_ROLE
+import fr.maif.izanami.services.RightService.RightsByRole
+import fr.maif.izanami.services.RightService.keepHigher
+import fr.maif.izanami.utils.Done
+import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.utils.syntax.implicits.BetterFuture
+import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.web.ImportController.ImportConflictStrategy
+import fr.maif.izanami.web.ImportController.Replace
 import io.vertx.sqlclient.SqlConnection
 import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.Materializer.matFromSystem
 import org.apache.pekko.stream.SharedKillSwitch
 import play.api.Logger
-import play.api.libs.json.{JsError, JsSuccess, Json, Reads, Writes}
+import play.api.libs.json.JsError
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.Json
+import play.api.libs.json.Reads
+import play.api.libs.json.Writes
 
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 case class RightCheckConfirmation(
     user: User,
@@ -91,7 +88,7 @@ case class RightCheckConfirmation(
       webhook: WebhookIdentification
   ): Option[EntityIdentifiers] = webhook match {
     case WebhookNameIdentification(name) =>
-      webhookNameById.find { (keyId, keyName) => name == keyName }.map {
+      webhookNameById.find { (_, keyName) => name == keyName }.map {
         (id, name) => EntityIdentifiers(id = id, name = name)
       }
     case WebhookIdIdentification(id) =>
@@ -805,8 +802,7 @@ class RightService(
     .get()
     .flatMap(_.userRightsByRoles)
     .map(rightByRoles => OIDCRights(rightByRoles))
-  private def oidcConfiguration: Option[OAuth2Configuration] =
-    currentOidcConfiguration.get()
+
   private def roleRightMode: Option[RoleRightMode] =
     currentOidcConfiguration.get().flatMap(_.roleRightMode)
   private def maxRightsByRoles: Option[Map[String, MaxRights]] =
@@ -984,7 +980,7 @@ case class TenantRightComplianceResult(
     ) {
       Some(DeleteTenantRights)
     } else {
-      val levelDiff = levelRight.map(r => r.after)
+      levelRight.map(r => r.after)
 
       val addedProjects = projects.collect {
         case (
@@ -1206,10 +1202,10 @@ object MaxRightComplianceResult {
 case class OIDCRights(rights: Map[String, CompleteRightsWithMaxRights]) {
   private def maxRightsForRoles(roles: Set[String]): Option[MaxRights] = {
     val maxRights = rights
-      .filter { (role, rights) =>
+      .filter { (role, _) =>
         roles.contains(role) || role == DEFAULT_ROLE
       }
-      .map { (role, rights) => rights.maxRights }
+      .map { (_, rights) => rights.maxRights }
 
     if (maxRights.isEmpty) {
       Option.empty
@@ -1724,7 +1720,7 @@ case object CompleteRights {
       roles: Set[String],
       maxRightsByRole: Map[String, MaxRights]
   ): MaxRights = {
-    val rs = maxRightsByRole.filter { (role, maxRights) =>
+    val rs = maxRightsByRole.filter { (role, _) =>
       {
         roles.contains(role) || DEFAULT_ROLE == role
       }

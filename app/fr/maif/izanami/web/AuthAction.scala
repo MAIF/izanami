@@ -1,56 +1,48 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{
-  TokenCheckFailure,
-  TokenCheckSuccess
-}
-import fr.maif.izanami.datastores.{
-  SessionIdentification,
-  UsernameIdentification
-}
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckFailure
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckSuccess
+import fr.maif.izanami.datastores.SessionIdentification
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{
-  MissingPersonalAccessToken,
-  NotEnoughRights,
-  UserNotFound
-}
+import fr.maif.izanami.errors.MissingPersonalAccessToken
+import fr.maif.izanami.errors.NotEnoughRights
+import fr.maif.izanami.errors.UserNotFound
 import fr.maif.izanami.events.EventAuthentication
-import fr.maif.izanami.events.EventAuthentication.{
-  BackOfficeAuthentication,
-  RootAuthentication,
-  TokenAuthentication,
-  authenticationName
-}
+import fr.maif.izanami.events.EventAuthentication.BackOfficeAuthentication
+import fr.maif.izanami.events.EventAuthentication.RootAuthentication
+import fr.maif.izanami.events.EventAuthentication.TokenAuthentication
 import fr.maif.izanami.models.*
-import fr.maif.izanami.models.IzanamiMode.{Leader, Standalone, Worker}
+import fr.maif.izanami.models.IzanamiMode.Leader
+import fr.maif.izanami.models.IzanamiMode.Standalone
+import fr.maif.izanami.models.IzanamiMode.Worker
 import fr.maif.izanami.security.JwtService.decodeJWT
-import fr.maif.izanami.services.{
-  ProjectIdIdentification,
-  ProjectIdentification,
-  ProjectNameIdentification,
-  RightService,
-  WebhookIdIdentification
-}
+import fr.maif.izanami.services.ProjectIdIdentification
+import fr.maif.izanami.services.ProjectIdentification
+import fr.maif.izanami.services.ProjectNameIdentification
+import fr.maif.izanami.services.RightService
+import fr.maif.izanami.services.WebhookIdIdentification
 import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.{
-  BetterFuture,
-  BetterFutureEither,
-  BetterSyntax
-}
-import fr.maif.izanami.web.AuthAction.{
-  extractAndCheckPersonnalAccessToken,
-  extractClaims
-}
+import fr.maif.izanami.utils.syntax.implicits.BetterFuture
+import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
+import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.web.AuthAction.extractAndCheckPersonnalAccessToken
+import fr.maif.izanami.web.AuthAction.extractClaims
 import pdi.jwt.JwtClaim
 import play.api.libs.json.*
 import play.api.mvc.*
-import play.api.mvc.Results.{BadRequest, Forbidden, Unauthorized}
+import play.api.mvc.Results.BadRequest
+import play.api.mvc.Results.Forbidden
+import play.api.mvc.Results.Unauthorized
 
 import java.time.Duration
-import java.util.concurrent.{Executors, TimeUnit}
-import java.util.{Base64, UUID}
+import java.util.Base64
+import java.util.UUID
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import javax.crypto.spec.SecretKeySpec
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.Promise
 import scala.util.Try
 
 sealed trait UserInformation {

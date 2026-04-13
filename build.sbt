@@ -38,13 +38,23 @@ scalacOptions ++= {
         "-explain-cyclic",
         "-explain",
         "-Xmax-inlines:64",
-        "-Ycheck-all-patmat"
+        "-Ycheck-all-patmat",
+        "-Wunused:implicits",
+        "-Wunused:explicits",
+        "-Wunused:imports",
+        "-Wunused:locals",
+        "-Wunused:params",
+        "-Wunused:privates",
+        "-Wconf:src=target/.*:silent"
       )
     }
     case _ => sys.error("Unsupported scala version")
   }
 
 }
+
+semanticdbEnabled := true
+semanticdbVersion := scalafixSemanticdb.revision
 
 excludeDependencies ++= Seq(
   ExclusionRule("org.reactivecouchbase.json", "json-lib")

@@ -1,15 +1,18 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{FeatureNotFound, IncorrectKey, IzanamiError, TagDoesNotExists}
+import fr.maif.izanami.errors.FeatureNotFound
+import fr.maif.izanami.errors.IncorrectKey
+import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.Feature.*
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
 import fr.maif.izanami.models.LightWeightFeatureWithUsageInformation.writeLightWeightFeatureWithUsageInformation
 import fr.maif.izanami.models.ProjectRightLevel.Write
 import fr.maif.izanami.models.features.*
-import fr.maif.izanami.requests.{BaseFeatureUpdateRequest, FeatureUpdateRequest}
-import fr.maif.izanami.services.{FeatureService, FeatureUsageService}
+import fr.maif.izanami.requests.BaseFeatureUpdateRequest
+import fr.maif.izanami.services.FeatureService
+import fr.maif.izanami.services.FeatureUsageService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import play.api.libs.json.*
@@ -19,8 +22,8 @@ import play.api.mvc.*
 
 import java.time.Instant
 import java.util.Base64
-import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class FeatureController(
     val env: Env,
@@ -279,7 +282,10 @@ class FeatureController(
       case Left(error)                      => Left(error)
       case Right(evaluatedCompleteFeatures) =>
         val response =
-          FeatureService.formatFeatureResponse(evaluatedCompleteFeatures, conditions)
+          FeatureService.formatFeatureResponse(
+            evaluatedCompleteFeatures,
+            conditions
+          )
         featureUsageService.registerCalls(
           requestContext.tenant,
           clientId,
@@ -291,9 +297,6 @@ class FeatureController(
         Right(response)
     }
   }
-
-  
-  
 
   def processInputSeqString(input: Seq[String]): Set[String] = {
     input.filter(str => str.nonEmpty).flatMap(str => str.split(",")).toSet
@@ -457,36 +460,54 @@ class FeatureController(
     })
   }
 
-  def patchFeatures(tenant: String, preserveProtectedContexts: Boolean): Action[JsValue] =
+  def patchFeatures(
+      tenant: String,
+      preserveProtectedContexts: Boolean
+  ): Action[JsValue] =
     personnalAccessTokenDetailledRightForTenantFactory(
       tenant
     ).async(parse.json) { implicit request =>
       request.body
         .asOpt[Seq[FeaturePatch]]
         .map(fs => {
-          val neededRights = fs.foldLeft(Set(): Set[TenantTokenRights])((necessaryRights, patch) => {
-            patch match {
-              case EnabledFeaturePatch(value, id) => necessaryRights + UpdateFeature
-              case ProjectFeaturePatch(value, id) => necessaryRights + UpdateFeature
-              case TagsFeaturePatch(value, id) => necessaryRights + UpdateFeature
-              case RemoveFeaturePatch(id) => necessaryRights + DeleteFeature
+          val neededRights = fs.foldLeft(Set(): Set[TenantTokenRights])(
+            (necessaryRights, patch) => {
+              patch match {
+                case EnabledFeaturePatch(value, id) =>
+                  necessaryRights + UpdateFeature
+                case ProjectFeaturePatch(value, id) =>
+                  necessaryRights + UpdateFeature
+                case TagsFeaturePatch(value, id) =>
+                  necessaryRights + UpdateFeature
+                case RemoveFeaturePatch(id) => necessaryRights + DeleteFeature
+              }
             }
-          })
+          )
           val hasRights = neededRights.forall(right => {
             request match {
-              case r:UserRequestWithCompleteRightForOneTenantRealUser[_] => true
-              case r:UserRequestWithCompleteRightForOneTenantTokenUser[_] => r.token.hasTenantRight(tenant = tenant, right = right)
+              case r: UserRequestWithCompleteRightForOneTenantRealUser[_] =>
+                true
+              case r: UserRequestWithCompleteRightForOneTenantTokenUser[_] =>
+                r.token.hasTenantRight(tenant = tenant, right = right)
             }
           })
-          
-          if(hasRights) {
+
+          if (hasRights) {
             featureService
-              .patchFeature(tenant, fs, request.user, request.authentication, preserveProtectedContexts)
+              .patchFeature(
+                tenant,
+                fs,
+                request.user,
+                request.authentication,
+                preserveProtectedContexts
+              )
               .toResult(r => {
                 NoContent
               })
           } else {
-            Future.successful(Unauthorized(Json.obj("message" -> "Your token doesn't have enough right to perform this operation")))
+            Future.successful(Unauthorized(Json.obj(
+              "message" -> "Your token doesn't have enough right to perform this operation"
+            )))
           }
         })
         .getOrElse(BadRequest("").future)
@@ -500,7 +521,12 @@ class FeatureController(
         case JsError(e) =>
           BadRequest(Json.obj("message" -> "bad body format")).future
         case JsSuccess(feature, _) =>
-          featureService.createFeature(tenant = tenant, project = project, feature = feature, user = request.user)
+          featureService.createFeature(
+            tenant = tenant,
+            project = project,
+            feature = feature,
+            user = request.user
+          )
             .toResult(feat => Created(Json.toJson(feat)(featureWrite)))
       }
     }
@@ -510,7 +536,10 @@ class FeatureController(
       id: String,
       preserveProtectedContexts: Boolean
   ): Action[JsValue] =
-    personnalAccessTokenDetailledRightForTenantFactory(tenant, UpdateFeature).async(parse.json) {
+    personnalAccessTokenDetailledRightForTenantFactory(
+      tenant,
+      UpdateFeature
+    ).async(parse.json) {
       implicit request =>
         Feature.readCompleteFeature(request.body) match {
           case JsError(e) =>

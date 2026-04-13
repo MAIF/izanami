@@ -1,27 +1,48 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.models.LightWeightFeatureWithUsageInformation.writeLightWeightFeatureWithUsageInformation
+import play.api.libs.json.*
 import play.api.libs.json.Format.GenericFormat
-import play.api.libs.json._
 
 import scala.util.matching.Regex
 
 case class SimpleProject(id: String, name: String, description: String)
-case class Project(id: String, name: String, features: List[LightWeightFeature] = List(), description: String)
-case class ProjectWithUsageInformation(id: String, name: String, features: List[LightWeightFeatureWithUsageInformation] = List(), description: String)
+case class Project(
+    id: String,
+    name: String,
+    features: List[LightWeightFeature] = List(),
+    description: String
+)
+case class ProjectWithUsageInformation(
+    id: String,
+    name: String,
+    features: List[LightWeightFeatureWithUsageInformation] = List(),
+    description: String
+)
 object ProjectWithUsageInformation {
-  def fromProject(project: Project, features: List[LightWeightFeatureWithUsageInformation]): ProjectWithUsageInformation = {
-    ProjectWithUsageInformation(id = project.id, name = project.name, features = features, description = project.description)
-  }
-
-  def projectWithUsageInformationWrites: Writes[ProjectWithUsageInformation] = project => {
-    Json.obj(
-      "id" -> project.id,
-      "description" -> project.description,
-      "name" -> project.name,
-      "features" -> Json.toJson(project.features)(Writes.list(writeLightWeightFeatureWithUsageInformation))
+  def fromProject(
+      project: Project,
+      features: List[LightWeightFeatureWithUsageInformation]
+  ): ProjectWithUsageInformation = {
+    ProjectWithUsageInformation(
+      id = project.id,
+      name = project.name,
+      features = features,
+      description = project.description
     )
   }
+
+  def projectWithUsageInformationWrites: Writes[ProjectWithUsageInformation] =
+    project => {
+      Json.obj(
+        "id" -> project.id,
+        "description" -> project.description,
+        "name" -> project.name,
+        "features" -> Json.toJson(project.features)(
+          Writes.list(writeLightWeightFeatureWithUsageInformation)
+        )
+      )
+    }
 }
 
 case class ProjectCreationRequest(name: String, description: String)
@@ -31,7 +52,12 @@ object Project {
     (json \ "name")
       .asOpt[String]
       .filter(name => PROJECT_REGEXP.pattern.matcher(name).matches())
-      .map(name => JsSuccess(ProjectCreationRequest(name = name, description=(json \ "description").asOpt[String].getOrElse(""))))
+      .map(name =>
+        JsSuccess(ProjectCreationRequest(
+          name = name,
+          description = (json \ "description").asOpt[String].getOrElse("")
+        ))
+      )
       .getOrElse(JsError("Invalid project"))
   }
   private val PROJECT_REGEXP: Regex = "^[a-zA-Z0-9_-]+$".r
@@ -41,23 +67,29 @@ object Project {
       for (
         name <- (json \ "name").asOpt[String];
         id <- (json \ "id").asOpt[String];
-        description   <- (json \ "description").asOpt[String]
-      ) yield JsSuccess(Project(name = name, description=description, id=id))
+        description <- (json \ "description").asOpt[String]
+      ) yield JsSuccess(Project(
+        name = name,
+        description = description,
+        id = id
+      ))
     }.getOrElse(JsError("Error reading project"))
   }
 
   implicit val projectWrites: Writes[Project] = { project =>
     Json.obj(
-      "name"     -> project.name,
-      "id"     -> project.id,
-      "features" -> {project.features.map(f => Feature.featureWrite.writes(f))},
+      "name" -> project.name,
+      "id" -> project.id,
+      "features" -> {
+        project.features.map(f => Feature.featureWrite.writes(f))
+      },
       "description" -> project.description
     )
   }
 }
 
 object SimpleProject {
-  val simpleProjectWrites: Writes[SimpleProject] = { project => 
+  val simpleProjectWrites: Writes[SimpleProject] = { project =>
     Json.obj(
       "name" -> project.name,
       "id" -> project.id,

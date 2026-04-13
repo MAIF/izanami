@@ -1,8 +1,12 @@
 package fr.maif.izanami.requests
 
 import fr.maif.izanami.events.EventAuthentication
-import fr.maif.izanami.models.{CompleteContextualStrategy, CompleteFeature, UserWithCompleteRightForOneTenant}
-import fr.maif.izanami.web.{FeatureContextPath, StandardUserInformation, UserInformation}
+import fr.maif.izanami.models.CompleteContextualStrategy
+import fr.maif.izanami.models.CompleteFeature
+import fr.maif.izanami.models.UserWithCompleteRightForOneTenant
+import fr.maif.izanami.web.FeatureContextPath
+import fr.maif.izanami.web.StandardUserInformation
+import fr.maif.izanami.web.UserInformation
 
 sealed trait FeatureUpdateRequest {
   def tenant: String
@@ -14,7 +18,8 @@ sealed trait FeatureUpdateRequest {
   def strategy: CompleteContextualStrategy
   def featureName: String
   def userInformation: UserInformation = StandardUserInformation(
-    username = user.username, authentication = authentication
+    username = user.username,
+    authentication = authentication
   )
   def maybeContext: Option[FeatureContextPath]
 }
@@ -29,7 +34,8 @@ case class BaseFeatureUpdateRequest(
 ) extends FeatureUpdateRequest {
   def project: String = feature.project
   def tags: Set[String] = feature.tags
-  def strategy: CompleteContextualStrategy = feature.toCompleteContextualStrategy
+  def strategy: CompleteContextualStrategy =
+    feature.toCompleteContextualStrategy
   def featureName: String = feature.name
 
   override def maybeContext: Option[FeatureContextPath] = None

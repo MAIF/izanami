@@ -1,35 +1,39 @@
 package fr.maif.izanami.datastores
 
-import org.apache.pekko.actor.Cancellable
 import buildinfo.BuildInfo
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.security.IdGenerator
 import fr.maif.izanami.utils.Datastore
-import io.vertx.sqlclient.{Row, SqlConnection}
-import play.api.libs.json.{JsObject, JsValue, Json}
+import io.vertx.sqlclient.Row
+import io.vertx.sqlclient.SqlConnection
+import org.apache.pekko.actor.Cancellable
+import play.api.libs.json.JsObject
+import play.api.libs.json.JsValue
+import play.api.libs.json.Json
 import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue
 
+import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.{Instant, ZoneId}
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
-
 
 class StatsDatastore(val env: Env) extends Datastore {
   var anonymousReportingCancellation: Cancellable = Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {
-    anonymousReportingCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(0.minutes, 24.hours)(() =>
-      env.datastores.configuration
-        .readFullConfiguration()
-        .foreach(conf => {
-          if (conf.anonymousReporting) {
-            sendAnonymousReporting()
-          } else {}
-        })
-    )
+    anonymousReportingCancellation =
+      env.actorSystem.scheduler.scheduleAtFixedRate(0.minutes, 24.hours)(() =>
+        env.datastores.configuration
+          .readFullConfiguration()
+          .foreach(conf => {
+            if (conf.anonymousReporting) {
+              sendAnonymousReporting()
+            } else {}
+          })
+      )
     Future.successful(())
   }
 
@@ -61,7 +65,9 @@ class StatsDatastore(val env: Env) extends Datastore {
           .map(l => l.foldLeft(TenantStats())((s1, s2) => s1.mergeWith(s2)))
       })
       .flatMap(stats => {
-        retrieveRunInformations().map(runInfo => runInfo ++ Json.obj("entities" -> stats.toJson))
+        retrieveRunInformations().map(runInfo =>
+          runInfo ++ Json.obj("entities" -> stats.toJson)
+        )
       })
       .flatMap(json => {
         readMailerType()
@@ -74,7 +80,11 @@ class StatsDatastore(val env: Env) extends Datastore {
           })
       })
       .map(json => {
-        json ++ Json.obj("stats" -> Json.obj(), "tenants" -> Json.arr(), "containerized" -> isContainerized)
+        json ++ Json.obj(
+          "stats" -> Json.obj(),
+          "tenants" -> Json.arr(),
+          "containerized" -> isContainerized
+        )
       })
   }
 
@@ -84,20 +94,22 @@ class StatsDatastore(val env: Env) extends Datastore {
     val now = Instant.now()
     for (izanamiId <- env.datastores.configuration.readId())
       yield Json.obj(
-        "os"                 -> Json.obj(
-          "name"    -> System.getProperty("os.name"),
-          "arch"    -> System.getProperty("os.arch"),
+        "os" -> Json.obj(
+          "name" -> System.getProperty("os.name"),
+          "arch" -> System.getProperty("os.arch"),
           "version" -> System.getProperty("os.version")
         ),
-        "izanami_version"    -> BuildInfo.version,
-        "java_version"       -> Json.obj(
+        "izanami_version" -> BuildInfo.version,
+        "java_version" -> Json.obj(
           "version" -> System.getProperty("java.version"),
-          "vendor"  -> System.getProperty("java.vendor")
+          "vendor" -> System.getProperty("java.vendor")
         ),
-        "@id"                -> IdGenerator.uuid,
+        "@id" -> IdGenerator.uuid,
         "izanami_cluster_id" -> izanamiId,
-        "@timestamp"         -> now.toEpochMilli,
-        "timestamp_str"      -> now.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        "@timestamp" -> now.toEpochMilli,
+        "timestamp_str" -> now.atZone(
+          ZoneId.systemDefault()
+        ).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
       )
   }
 
@@ -115,9 +127,11 @@ class StatsDatastore(val env: Env) extends Datastore {
   ) {
     def mergeWith(other: TenantStats): TenantStats = {
       copy(
-        classicalFeaturesCount = classicalFeaturesCount + other.classicalFeaturesCount,
+        classicalFeaturesCount =
+          classicalFeaturesCount + other.classicalFeaturesCount,
         scriptFeaturesCount = scriptFeaturesCount + other.scriptFeaturesCount,
-        classicalOverloadCount = classicalOverloadCount + other.classicalOverloadCount,
+        classicalOverloadCount =
+          classicalOverloadCount + other.classicalOverloadCount,
         scriptOverloadCount = scriptOverloadCount + other.scriptOverloadCount,
         projectCount = projectCount + other.projectCount,
         adminKeyCount = adminKeyCount + other.adminKeyCount,
@@ -131,20 +145,23 @@ class StatsDatastore(val env: Env) extends Datastore {
     def toJson: JsObject = {
       Json.obj(
         "classicalFeaturesCount" -> classicalFeaturesCount,
-        "scriptFeaturesCount"    -> scriptFeaturesCount,
+        "scriptFeaturesCount" -> scriptFeaturesCount,
         "classicalOverloadCount" -> classicalOverloadCount,
-        "scriptOverloadCount"    -> scriptOverloadCount,
-        "projectCount"           -> projectCount,
-        "adminKeyCount"          -> adminKeyCount,
-        "nonAdminKeyCount"       -> nonAdminKeyCount,
-        "adminUserCount"         -> adminUserCount,
-        "nonAdminUserCount"      -> nonAdminUserCount,
-        "tagCount"               -> tagCount
+        "scriptOverloadCount" -> scriptOverloadCount,
+        "projectCount" -> projectCount,
+        "adminKeyCount" -> adminKeyCount,
+        "nonAdminKeyCount" -> nonAdminKeyCount,
+        "adminUserCount" -> adminUserCount,
+        "nonAdminUserCount" -> nonAdminUserCount,
+        "tagCount" -> tagCount
       )
     }
   }
 
-  def retrieveTenantStats(tenant: String, conn: SqlConnection): Future[TenantStats] = {
+  def retrieveTenantStats(
+      tenant: String,
+      conn: SqlConnection
+  ): Future[TenantStats] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryRaw(
@@ -199,7 +216,9 @@ class StatsDatastore(val env: Env) extends Datastore {
            |""".stripMargin,
             conn = Some(conn)
           ) { rows => readBooleanCount(rows, "admin") }
-          .map { case (admin, nonAdmin) => stats.copy(adminKeyCount = admin, nonAdminKeyCount = nonAdmin) }
+          .map { case (admin, nonAdmin) =>
+            stats.copy(adminKeyCount = admin, nonAdminKeyCount = nonAdmin)
+          }
       })
       .flatMap(stats => {
         env.postgresql
@@ -209,7 +228,9 @@ class StatsDatastore(val env: Env) extends Datastore {
                |""".stripMargin,
             conn = Some(conn)
           ) { rows => readBooleanCount(rows, "admin") }
-          .map { case (admin, nonAdmin) => stats.copy(adminUserCount = admin, nonAdminUserCount = nonAdmin) }
+          .map { case (admin, nonAdmin) =>
+            stats.copy(adminUserCount = admin, nonAdminUserCount = nonAdmin)
+          }
       })
       .flatMap(stats => {
         env.postgresql
@@ -224,9 +245,17 @@ class StatsDatastore(val env: Env) extends Datastore {
       })
   }
 
-  private def readBooleanCount(rows: List[Row], booleanColumnName: String): (Int, Int) = {
+  private def readBooleanCount(
+      rows: List[Row],
+      booleanColumnName: String
+  ): (Int, Int) = {
     rows
-      .map(r => for (count <- r.optInt("count"); classical <- r.optBoolean(booleanColumnName)) yield (count, classical))
+      .map(r =>
+        for (
+          count <- r.optInt("count");
+          classical <- r.optBoolean(booleanColumnName)
+        ) yield (count, classical)
+      )
       .filter(_.isDefined)
       .map(_.get)
       .foldLeft((0, 0): (Int, Int)) {
@@ -236,20 +265,21 @@ class StatsDatastore(val env: Env) extends Datastore {
   }
 
   def readIntegrationInformations(): Future[JsObject] = {
-    val isWasmPresent = env.datastores.configuration.readWasmConfiguration().isDefined
+    val isWasmPresent =
+      env.datastores.configuration.readWasmConfiguration().isDefined
     env.datastores.configuration
       .readFullConfiguration()
       .fold(
         err =>
           Json.obj(
             "wasmo" -> isWasmPresent,
-            "oidc"  -> false
+            "oidc" -> false
           ),
         config =>
           (
             Json.obj(
               "wasmo" -> isWasmPresent,
-              "oidc"  -> config.oidcConfiguration.isDefined
+              "oidc" -> config.oidcConfiguration.isDefined
             )
           )
       )
@@ -262,7 +292,7 @@ class StatsDatastore(val env: Env) extends Datastore {
         err => Json.obj(),
         c =>
           Json.obj(
-            "mailer"          -> c.mailConfiguration.mailerType.toString,
+            "mailer" -> c.mailConfiguration.mailerType.toString,
             "invitation_mode" -> c.invitationMode.toString
           )
       )

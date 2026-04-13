@@ -1,9 +1,11 @@
 package fr.maif.izanami.v1
 
 import fr.maif.izanami.models.ApiKey
-import fr.maif.izanami.v1.OldCommons.{authorizedPatternReads, filterProjects, oldRightToNewRight, toNewRights}
+import fr.maif.izanami.v1.OldCommons.authorizedPatternReads
+import fr.maif.izanami.v1.OldCommons.filterProjects
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
-import play.api.libs.json.{Reads, __}
+import play.api.libs.json.Reads
+import play.api.libs.json.__
 
 case class OldKey(
     clientId: String,
@@ -16,18 +18,29 @@ case class OldKey(
 object OldKey {
   val oldKeyReads: Reads[OldKey] = {
     (
-      (__ \ "clientId").read[String].filter(name => "^[@0-9\\p{L} .'-]+$".r.pattern.matcher(name).matches()) and
-      (__ \ "name").read[String].filter(name => "^[@0-9\\p{L} .'-]+$".r.pattern.matcher(name).matches()) and
-      (__ \ "clientSecret").read[String].filter(name => "^[@0-9\\p{L} .'-]+$".r.pattern.matcher(name).matches()) and
-      (__ \ "authorizedPatterns")
-        .read[Seq[AuthorizedPattern]]
-        .orElse((__ \ "authorizedPatterns").read[Seq[AuthorizedPattern]]) and
-      (__ \ "admin").read[Boolean].orElse(Reads.pure(false))
+      (__ \ "clientId").read[String].filter(name =>
+        "^[@0-9\\p{L} .'-]+$".r.pattern.matcher(name).matches()
+      ) and
+        (__ \ "name").read[String].filter(name =>
+          "^[@0-9\\p{L} .'-]+$".r.pattern.matcher(name).matches()
+        ) and
+        (__ \ "clientSecret").read[String].filter(name =>
+          "^[@0-9\\p{L} .'-]+$".r.pattern.matcher(name).matches()
+        ) and
+        (__ \ "authorizedPatterns")
+          .read[Seq[AuthorizedPattern]]
+          .orElse((__ \ "authorizedPatterns").read[Seq[AuthorizedPattern]]) and
+        (__ \ "admin").read[Boolean].orElse(Reads.pure(false))
     )(OldKey.apply _)
   }
 
-  def toNewKey(tenant: String, key: OldKey, projects: Set[String], shoudlFilterProject: Boolean): ApiKey = {
-    val filteredProjects = if(shoudlFilterProject){
+  def toNewKey(
+      tenant: String,
+      key: OldKey,
+      projects: Set[String],
+      shoudlFilterProject: Boolean
+  ): ApiKey = {
+    val filteredProjects = if (shoudlFilterProject) {
       key.authorizedPatterns.flatMap(ap => {
         filterProjects(ap.pattern, projects)
       }).toSet
@@ -43,7 +56,7 @@ object OldKey {
       projects = filteredProjects,
       enabled = true,
       legacy = true,
-      admin=key.admin
+      admin = key.admin
     )
   }
 }

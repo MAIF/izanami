@@ -6,7 +6,9 @@ import java.net.http.HttpResponse.BodySubscriber
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.util
-import java.util.concurrent.{CompletableFuture, CompletionStage, Flow}
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionStage
+import java.util.concurrent.Flow
 import java.util.regex.Pattern
 
 class SseSubscriber(consumer: String => Unit) extends BodySubscriber[Void] {
@@ -58,13 +60,14 @@ class SseSubscriber(consumer: String => Unit) extends BodySubscriber[Void] {
   override def onError(throwable: Throwable): Unit =
     this.future.completeExceptionally(throwable)
 
-  override def onComplete(): Unit = try {
-    this.future.complete(null)
-  } catch {
-    case e: Throwable => {
-      this.future.completeExceptionally(e)
+  override def onComplete(): Unit =
+    try {
+      this.future.complete(null)
+    } catch {
+      case e: Throwable => {
+        this.future.completeExceptionally(e)
+      }
     }
-  }
 }
 
 object SseSubscriber {

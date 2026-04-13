@@ -1,6 +1,8 @@
 package fr.maif.izanami.env
 
 import com.typesafe.config.ConfigFactory
+import fr.maif.izanami.AppConf
+import fr.maif.izanami.PlayRoot
 import fr.maif.izanami.datastores.*
 import fr.maif.izanami.events.EventOrigin.TechnicalOrigin
 import fr.maif.izanami.events.EventService
@@ -8,16 +10,18 @@ import fr.maif.izanami.jobs.WebhookListener
 import fr.maif.izanami.mail.Mails
 import fr.maif.izanami.models.FullIzanamiConfiguration
 import fr.maif.izanami.security.JwtService
-import fr.maif.izanami.services.{OIDCRights, RightService}
+import fr.maif.izanami.services.RightService
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
 import fr.maif.izanami.web.IzanamiApplicationUserInformation
-import fr.maif.izanami.{AppConf, PlayRoot, RoleRightMode}
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
-import org.apache.pekko.actor.{ActorSystem, Scheduler}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.Scheduler
 import org.apache.pekko.stream.Materializer
+import play.api.Configuration
+import play.api.Environment
+import play.api.Logger
 import play.api.libs.ws.WSClient
-import play.api.{Configuration, Environment, Logger}
 
 import javax.crypto.spec.SecretKeySpec
 import scala.concurrent.*

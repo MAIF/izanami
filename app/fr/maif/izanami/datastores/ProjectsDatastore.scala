@@ -2,18 +2,35 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.projectImplicits.ProjectRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
+import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
+import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
-import fr.maif.izanami.events.{PreviousProject, SourceFeatureDeleted, SourceProjectCreated, SourceProjectDeleted, SourceProjectUpdated}
-import fr.maif.izanami.models.{Feature, Project, ProjectCreationRequest, RightLevel, SimpleProject, Tenant}
+import fr.maif.izanami.events.PreviousProject
+import fr.maif.izanami.events.SourceFeatureDeleted
+import fr.maif.izanami.events.SourceProjectCreated
+import fr.maif.izanami.events.SourceProjectDeleted
+import fr.maif.izanami.events.SourceProjectUpdated
+import fr.maif.izanami.models.Feature
+import fr.maif.izanami.models.Project
+import fr.maif.izanami.models.ProjectCreationRequest
+import fr.maif.izanami.models.RightLevel
+import fr.maif.izanami.models.SimpleProject
+import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.{ImportController, ProjectId, UserInformation}
-import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy, MergeOverwrite, Replace, Skip}
+import fr.maif.izanami.web.ImportController
+import fr.maif.izanami.web.ImportController.Fail
+import fr.maif.izanami.web.ImportController.ImportConflictStrategy
+import fr.maif.izanami.web.ImportController.MergeOverwrite
+import fr.maif.izanami.web.ImportController.Replace
+import fr.maif.izanami.web.ImportController.Skip
+import fr.maif.izanami.web.ProjectId
+import fr.maif.izanami.web.UserInformation
 import io.vertx.pgclient.PgException
-import io.vertx.sqlclient.{Row, SqlConnection}
+import io.vertx.sqlclient.Row
+import io.vertx.sqlclient.SqlConnection
 import play.api.libs.json.JsObject
 
 import java.util.UUID
@@ -22,7 +39,11 @@ import scala.concurrent.Future
 
 class ProjectsDatastore(val env: Env) extends Datastore {
 
-  def findProjectId(tenant: String, projectName: String, conn: Option[SqlConnection] = None): Future[Option[UUID]] = {
+  def findProjectId(
+      tenant: String,
+      projectName: String,
+      conn: Option[SqlConnection] = None
+  ): Future[Option[UUID]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryOne(
@@ -33,36 +54,37 @@ class ProjectsDatastore(val env: Env) extends Datastore {
   }
 
   def createProjects(
-                      tenant: String,
-                      names: Set[String],
-                      conflictStrategy: ImportConflictStrategy,
-                      user: UserInformation,
-                      conn: SqlConnection
-                    ): Future[Either[IzanamiError, Unit]] = {
+      tenant: String,
+      names: Set[String],
+      conflictStrategy: ImportConflictStrategy,
+      user: UserInformation,
+      conn: SqlConnection
+  ): Future[Either[IzanamiError, Unit]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryAll(
         s"""
            |INSERT INTO "${tenant}".projects(name, description) VALUES(unnest($$1::text[]), '')
            |${
-          conflictStrategy match {
-            case Fail => ""
-            case MergeOverwrite | Replace => """
+            conflictStrategy match {
+              case Fail                     => ""
+              case MergeOverwrite | Replace => """
            | ON CONFLICT(name) DO UPDATE SET description = excluded.description
            |""".stripMargin
-            case Skip => " ON CONFLICT(name) DO NOTHING "
+              case Skip => " ON CONFLICT(name) DO NOTHING "
+            }
           }
-        }
            |RETURNING name, id
            |""".stripMargin,
         List(names.toArray),
         conn = Some(conn)
-      ) { r => {
-        for (
-          id <- r.optString("id");
-          name <- r.optString("name")
-        ) yield (name, id)
-      }
+      ) { r =>
+        {
+          for (
+            id <- r.optString("id");
+            name <- r.optString("name")
+          ) yield (name, id)
+        }
       }
       .map(ls => ls.toMap)
       .flatMap(ls =>
@@ -73,26 +95,42 @@ class ProjectsDatastore(val env: Env) extends Datastore {
                |ON CONFLICT(username, project) DO NOTHING
                |RETURNING 1
                |""".stripMargin,
-            List(user.username, names.toArray, RightLevel.Admin.toString.toUpperCase),
+            List(
+              user.username,
+              names.toArray,
+              RightLevel.Admin.toString.toUpperCase
+            ),
             conn = Some(conn)
           ) { _ => Some(ls) }
           .map(o => {
             o.toRight(InternalServerError())
           })
       ).flatMap {
-        case Left(err) => Left(err).future
+        case Left(err)           => Left(err).future
         case Right(projectIdMap) => {
           projectIdMap.foldLeft(Future.successful(()))((f, ds) => {
             val (name, id) = ds
             f.flatMap(_ => {
-              env.eventService.emitEvent(tenant, SourceProjectCreated(tenant = tenant, id = id, name = name, user = user.username, origin = NormalOrigin, authentication = user.authentication))(conn)
+              env.eventService.emitEvent(
+                tenant,
+                SourceProjectCreated(
+                  tenant = tenant,
+                  id = id,
+                  name = name,
+                  user = user.username,
+                  origin = NormalOrigin,
+                  authentication = user.authentication
+                )
+              )(conn)
             })
           }).map(_ => Right(()))
         }
       }
       .recover {
         case f: PgException if f.getSqlState == UNIQUE_VIOLATION => {
-          val regexp = Pattern.compile("Key \\(name\\)=\\((?<name>.*)\\) already exists\\.")
+          val regexp = Pattern.compile(
+            "Key \\(name\\)=\\((?<name>.*)\\) already exists\\."
+          )
           val matcher = regexp.matcher(f.getDetail)
           matcher.matches()
           val name = matcher.group("name")
@@ -105,54 +143,67 @@ class ProjectsDatastore(val env: Env) extends Datastore {
   }
 
   def createProject(
-                     tenant: String,
-                     projectCreationRequest: ProjectCreationRequest,
-                     user: UserInformation
-                   ): Future[Either[IzanamiError, Project]] = {
+      tenant: String,
+      projectCreationRequest: ProjectCreationRequest,
+      user: UserInformation
+  ): Future[Either[IzanamiError, Project]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql.executeInTransaction(
-      conn => {
-        env.postgresql
-          .queryOne(
-            s"""insert into "${tenant}".projects (name, description) values ($$1, $$2) returning *""",
-            List(projectCreationRequest.name, projectCreationRequest.description),
-            conn = Some(conn)
-          ) { row => row.optProject() }
-          .map {
-            _.toRight(InternalServerError())
+    env.postgresql.executeInTransaction(conn => {
+      env.postgresql
+        .queryOne(
+          s"""insert into "${tenant}".projects (name, description) values ($$1, $$2) returning *""",
+          List(projectCreationRequest.name, projectCreationRequest.description),
+          conn = Some(conn)
+        ) { row => row.optProject() }
+        .map {
+          _.toRight(InternalServerError())
+        }
+        .recover {
+          case f: PgException if f.getSqlState == UNIQUE_VIOLATION =>
+            Left(ProjectAlreadyExists(projectCreationRequest.name, tenant))
+          case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
+            Left(TenantDoesNotExists(tenant))
+        }.recover(env.postgresql.pgErrorPartialFunction.andThen(err =>
+          Left(err)
+        ))
+        .flatMap {
+          case Left(value) => Left(value).future
+          case Right(proj) =>
+            env.postgresql
+              .queryOne(
+                s"""INSERT INTO "${tenant}".users_projects_rights (username, project, level) VALUES ($$1, $$2, $$3) RETURNING project""",
+                List(
+                  user.username,
+                  projectCreationRequest.name,
+                  RightLevel.Admin.toString.toUpperCase
+                ),
+                conn = Some(conn)
+              ) { _ => Some(proj) }
+              .map(_.toRight(InternalServerError()))
+        }.flatMap {
+          case Left(err)   => Future.successful(Left(err))
+          case Right(proj) => {
+            env.eventService.emitEvent(
+              tenant,
+              SourceProjectCreated(
+                tenant = tenant,
+                id = proj.id.toString,
+                name = projectCreationRequest.name,
+                user = user.username,
+                origin = NormalOrigin,
+                authentication = user.authentication
+              )
+            )(conn).map(_ => Right(proj))
           }
-          .recover {
-            case f: PgException if f.getSqlState == UNIQUE_VIOLATION =>
-              Left(ProjectAlreadyExists(projectCreationRequest.name, tenant))
-            case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
-          }.recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
-          .flatMap {
-            case Left(value) => Left(value).future
-            case Right(proj) =>
-              env.postgresql
-                .queryOne(
-                  s"""INSERT INTO "${tenant}".users_projects_rights (username, project, level) VALUES ($$1, $$2, $$3) RETURNING project""",
-                  List(user.username, projectCreationRequest.name, RightLevel.Admin.toString.toUpperCase),
-                  conn = Some(conn)
-                ) { _ => Some(proj) }
-                .map(_.toRight(InternalServerError()))
-          }.flatMap {
-            case Left(err) => Future.successful(Left(err))
-            case Right(proj) => {
-              env.eventService.emitEvent(tenant, SourceProjectCreated(
-                tenant = tenant, id = proj.id.toString, name = projectCreationRequest.name, user = user.username, origin = NormalOrigin, authentication = user.authentication
-              ))(conn).map(_ => Right(proj))
-            }
-          }
-      }
-    )
+        }
+    })
   }
 
   def updateProject(
-                     tenant: String,
-                     oldName: String,
-                     newProject: ProjectCreationRequest,
-                     user: UserInformation
+      tenant: String,
+      oldName: String,
+      newProject: ProjectCreationRequest,
+      user: UserInformation
   ): Future[Either[IzanamiError, Unit]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql.executeInTransaction(conn => {
@@ -165,11 +216,24 @@ class ProjectsDatastore(val env: Env) extends Datastore {
           conn = Some(conn)
         ) { r => r.optUUID("id") }
         .map(o => o.toRight(InternalServerError()))
-        .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+        .recover(env.postgresql.pgErrorPartialFunction.andThen(err =>
+          Left(err)
+        ))
         .flatMap {
           case Left(value) => Future.successful(Left(value))
-          case Right(id) if(oldName != newProject.name) => {
-            env.eventService.emitEvent(tenant, SourceProjectUpdated(tenant = tenant, id = id.toString, name = newProject.name, user = user.username, origin = NormalOrigin, authentication = user.authentication, previous = PreviousProject(name = oldName)))(conn)
+          case Right(id) if (oldName != newProject.name) => {
+            env.eventService.emitEvent(
+              tenant,
+              SourceProjectUpdated(
+                tenant = tenant,
+                id = id.toString,
+                name = newProject.name,
+                user = user.username,
+                origin = NormalOrigin,
+                authentication = user.authentication,
+                previous = PreviousProject(name = oldName)
+              )
+            )(conn)
               .map(_ => Right(()))
           }
           case Right(_) => Future.successful(Right(()))
@@ -178,7 +242,10 @@ class ProjectsDatastore(val env: Env) extends Datastore {
 
   }
 
-  def readTenantProjectForUser(tenant: String, user: String): Future[List[SimpleProject]] = {
+  def readTenantProjectForUser(
+      tenant: String,
+      user: String
+  ): Future[List[SimpleProject]] = {
     Tenant.isTenantValid(tenant)
     // TODO ensure performance of this query
     env.postgresql.queryAll(
@@ -190,17 +257,23 @@ class ProjectsDatastore(val env: Env) extends Datastore {
       OR p.name=ANY(SELECT upr.project FROM "${tenant}".users_projects_rights upr WHERE upr.username=$$1)
       ORDER BY p.name
       """,
-      List(user),
-    ) { row => {
-      for(
-        name <- row.optString("name");
-        id <- row.optString("id");
-        description <- row.optString("description")
-      ) yield SimpleProject(name = name, id = id, description = description)
-    } }
+      List(user)
+    ) { row =>
+      {
+        for (
+          name <- row.optString("name");
+          id <- row.optString("id");
+          description <- row.optString("description")
+        ) yield SimpleProject(name = name, id = id, description = description)
+      }
+    }
   }
 
-  def deleteProject(tenant: String, project: String, user: UserInformation): Future[Either[IzanamiError, List[String]]] = {
+  def deleteProject(
+      tenant: String,
+      project: String,
+      user: UserInformation
+  ): Future[Either[IzanamiError, List[String]]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
@@ -208,46 +281,65 @@ class ProjectsDatastore(val env: Env) extends Datastore {
           s"""DELETE FROM "${tenant}".projects p WHERE p.name=$$1 RETURNING (SELECT json_agg(json_build_object('id', f.id, 'name', f.name)) AS ids FROM "${tenant}".features f WHERE f.project=p.name), p.id as id;""",
           List(project),
           conn = Some(conn)
-        ) { row => {
-          val featureInfos = row
-            .optJsArray("ids")
-            .flatMap(arr =>
-              arr
-                .asOpt[Seq[JsObject]]
-                .map(jsons => {
-                  jsons
-                    .map(json => {
-                      for (
-                        id <- (json \ "id").asOpt[String];
-                        name <- (json \ "name").asOpt[String]
-                      ) yield (id, name)
-                    })
-                    .collect { case Some(value) =>
-                      value
-                    }
-                })
-            )
+        ) { row =>
+          {
+            val featureInfos = row
+              .optJsArray("ids")
+              .flatMap(arr =>
+                arr
+                  .asOpt[Seq[JsObject]]
+                  .map(jsons => {
+                    jsons
+                      .map(json => {
+                        for (
+                          id <- (json \ "id").asOpt[String];
+                          name <- (json \ "name").asOpt[String]
+                        ) yield (id, name)
+                      })
+                      .collect { case Some(value) =>
+                        value
+                      }
+                  })
+              )
 
-          for (
-            projectId <- row.optUUID("id")
-          ) yield (featureInfos.getOrElse(Seq()), projectId)
-        }
+            for (projectId <- row.optUUID("id"))
+              yield (featureInfos.getOrElse(Seq()), projectId)
+          }
         }
         .map(o => o.toRight(ProjectDoesNotExists(project)))
         .flatMap {
           case Left(value) => Future.successful(Left(value))
           case Right((featureInfos, projectId)) => {
-            env.eventService.emitEvent(tenant, SourceProjectDeleted(tenant = tenant, id = projectId.toString, name = project, user = user.username, origin = NormalOrigin, authentication = user.authentication))(conn)
+            env.eventService.emitEvent(
+              tenant,
+              SourceProjectDeleted(
+                tenant = tenant,
+                id = projectId.toString,
+                name = project,
+                user = user.username,
+                origin = NormalOrigin,
+                authentication = user.authentication
+              )
+            )(conn)
               .flatMap(_ =>
                 Future
                   .sequence(
                     featureInfos.map { case (id, name) =>
                       env.eventService.emitEvent(
                         channel = tenant,
-                        event = SourceFeatureDeleted(id = id, project = project, tenant = tenant, user = user.username, name = name, authentication = user.authentication, origin = NormalOrigin)
+                        event = SourceFeatureDeleted(
+                          id = id,
+                          project = project,
+                          tenant = tenant,
+                          user = user.username,
+                          name = name,
+                          authentication = user.authentication,
+                          origin = NormalOrigin
+                        )
                       )(conn)
                     }
-                  ))
+                  )
+              )
               .map(_ => Right(featureInfos.map(_._1).toList))
           }
         }
@@ -255,7 +347,10 @@ class ProjectsDatastore(val env: Env) extends Datastore {
 
   }
 
-  def readProject(tenant: String, project: String): Future[Either[IzanamiError, Project]] = {
+  def readProject(
+      tenant: String,
+      project: String
+  ): Future[Either[IzanamiError, Project]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryOne(
@@ -281,7 +376,7 @@ class ProjectsDatastore(val env: Env) extends Datastore {
          |left join "${tenant}".features f on p.name = f.project
          |WHERE p.name = $$1
          |group by p.id""".stripMargin,
-        List(project),
+        List(project)
       ) { row => row.optProjectWithFeatures() }
       .map(o => o.toRight(ProjectDoesNotExists(project)))
   }
@@ -312,7 +407,10 @@ class ProjectsDatastore(val env: Env) extends Datastore {
       ) { row => row.optProjectWithFeatures() }
   }
 
-  def readProjectsFiltered(tenant: String, projectFilter: Set[String]): Future[List[Project]] = {
+  def readProjectsFiltered(
+      tenant: String,
+      projectFilter: Set[String]
+  ): Future[List[Project]] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryAll(
@@ -339,7 +437,10 @@ class ProjectsDatastore(val env: Env) extends Datastore {
       ) { row => row.optProjectWithFeatures() }
   }
 
-  def readProjectsById(tenant: String, ids: Set[String]): Future[Map[ProjectId, Project]] = {
+  def readProjectsById(
+      tenant: String,
+      ids: Set[String]
+  ): Future[Map[ProjectId, Project]] = {
     Tenant.isTenantValid(tenant)
     if (ids.isEmpty) {
       Future.successful(Map())
@@ -352,9 +453,10 @@ class ProjectsDatastore(val env: Env) extends Datastore {
            |WHERE id=ANY($$1)
            |""".stripMargin,
         List(ids.toArray)
-      ) { r => {
-        r.optProject()
-      }
+      ) { r =>
+        {
+          r.optProject()
+        }
       }
       .map(ps => ps.map(p => (p.id, p)).toMap)
   }
@@ -368,7 +470,12 @@ object projectImplicits {
         name <- row.optString("name");
         description <- row.optString("description")
       )
-      yield Project(id = id, name = name, features = List(), description = description)
+        yield Project(
+          id = id,
+          name = name,
+          features = List(),
+          description = description
+        )
     }
 
     def optProjectWithFeatures(): Option[Project] = {
@@ -377,14 +484,21 @@ object projectImplicits {
         name <- row.optString("name");
         description <- row.optString("description")
       )
-      yield {
-        val maybeFeatures = row
-          .optJsArray("features")
-          .map(array =>
-            array.value.map(v => Feature.readLightWeightFeature(v, name).asOpt).flatMap(o => o.toList).toList
+        yield {
+          val maybeFeatures = row
+            .optJsArray("features")
+            .map(array =>
+              array.value.map(v =>
+                Feature.readLightWeightFeature(v, name).asOpt
+              ).flatMap(o => o.toList).toList
+            )
+          Project(
+            id = id,
+            name = name,
+            features = maybeFeatures.getOrElse(List()),
+            description = description
           )
-        Project(id = id, name = name, features = maybeFeatures.getOrElse(List()), description = description)
-      }
+        }
     }
   }
 }

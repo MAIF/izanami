@@ -1,24 +1,16 @@
 package fr.maif.izanami.models.features
 
-import fr.maif.izanami.models.features.ActivationCondition.{
-  maxNumberValue,
-  minNumberValue
-}
-import play.api.libs.json.{
-  JsArray,
-  JsBoolean,
-  JsError,
-  JsNull,
-  JsNumber,
-  JsString,
-  JsSuccess,
-  JsValue,
-  Reads,
-  Writes
-}
-
-import scala.runtime.RichBoolean
-import scala.util.Try
+import fr.maif.izanami.models.features.ActivationCondition.maxNumberValue
+import fr.maif.izanami.models.features.ActivationCondition.minNumberValue
+import play.api.libs.json.JsArray
+import play.api.libs.json.JsBoolean
+import play.api.libs.json.JsError
+import play.api.libs.json.JsNumber
+import play.api.libs.json.JsString
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.JsValue
+import play.api.libs.json.Reads
+import play.api.libs.json.Writes
 
 /** Represents result type of flag evaluation. Boolean flags are well known,
   * however flags can also returns multiple other values, such as String or

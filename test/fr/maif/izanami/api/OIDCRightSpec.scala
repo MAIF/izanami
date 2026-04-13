@@ -1,14 +1,17 @@
 package fr.maif.izanami.api
 
-import fr.maif.izanami.api.BaseAPISpec.{
-  TestRights,
-  TestSituation,
-  TestSituationBuilder,
-  TestTenant,
-  TestTenantRight
-}
-import play.api.http.Status.{BAD_REQUEST, NO_CONTENT, OK, UNAUTHORIZED}
-import play.api.libs.json.{JsBoolean, JsFalse, __}
+import fr.maif.izanami.api.BaseAPISpec.TestRights
+import fr.maif.izanami.api.BaseAPISpec.TestSituation
+import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
+import fr.maif.izanami.api.BaseAPISpec.TestTenant
+import fr.maif.izanami.api.BaseAPISpec.TestTenantRight
+import play.api.http.Status.BAD_REQUEST
+import play.api.http.Status.NO_CONTENT
+import play.api.http.Status.OK
+import play.api.http.Status.UNAUTHORIZED
+import play.api.libs.json.JsBoolean
+import play.api.libs.json.JsFalse
+import play.api.libs.json.__
 
 class OIDCRightSpec extends BaseAPISpec {
   "right by roles" should {
@@ -270,7 +273,7 @@ class OIDCRightSpec extends BaseAPISpec {
     }
 
     "Prevent right for role update if they are set from env" in {
-      var situation: TestSituation = TestSituationBuilder()
+      val situation: TestSituation = TestSituationBuilder()
         .withTenants(
           TestTenant("test").withProjectNames("proj").withApiKeyNames("apikey")
         )
@@ -356,14 +359,13 @@ class OIDCRightSpec extends BaseAPISpec {
       "app.openid.pkce.enabled" -> "true"
     )
 
-
     "prevent adding tenant / project rights if max-rights is set to none" in {
       val initialConfig = baseOIDCConfiguration ++ Map(
         // MAX RIGHTS
         ("app.openid.right-by-roles.\"\".admin-allowed" -> "false"),
         ("app.openid.right-by-roles.\"\".tenants.test.max-tenant-right" -> "read"),
         ("app.openid.right-by-roles.\"\".tenants.test.max-project-right" -> "none"),
-        ("app.openid.right-by-roles.\"\".tenants.another.max-tenant-right" -> "none"),
+        ("app.openid.right-by-roles.\"\".tenants.another.max-tenant-right" -> "none")
       )
       var situation: TestSituation = TestSituationBuilder()
         .withTenants(
@@ -386,7 +388,6 @@ class OIDCRightSpec extends BaseAPISpec {
 
       projectResponse.status mustBe BAD_REQUEST
 
-
       val tenantResponse =
         situation.updateUserRightsForTenant(
           name = "Sam Tailor2",
@@ -408,7 +409,6 @@ class OIDCRightSpec extends BaseAPISpec {
 
       forbiddenTenantProjectResponse.status mustBe BAD_REQUEST
     }
-
 
     "apply even when adding a user with no rights on a given project" in {
       val initialConfig = baseOIDCConfiguration ++ Map(
@@ -789,13 +789,33 @@ class OIDCRightSpec extends BaseAPISpec {
       situation = situation.logAsOIDCUser("User1")
       situation = situation.logout()
       situation = situation.loggedAsAdmin()
-      var response = situation.updateUserRightsForTenant("Sam Tailor", rights = TestTenantRight(name = "bar", level = "Write"))
+      var response = situation.updateUserRightsForTenant(
+        "Sam Tailor",
+        rights = TestTenantRight(name = "bar", level = "Write")
+      )
       response.status mustBe BAD_REQUEST
-      response = situation.updateUserRightsForTenant("Sam Tailor", rights = TestTenantRight(name = "bar", level = "Read"))
+      response = situation.updateUserRightsForTenant(
+        "Sam Tailor",
+        rights = TestTenantRight(name = "bar", level = "Read")
+      )
       response.status mustBe NO_CONTENT
-      response = situation.updateUserRightsForTenant("Sam Tailor", rights = TestTenantRight(name = "bar", level = "Read", defaultProjectRight = Some("Admin")))
+      response = situation.updateUserRightsForTenant(
+        "Sam Tailor",
+        rights = TestTenantRight(
+          name = "bar",
+          level = "Read",
+          defaultProjectRight = Some("Admin")
+        )
+      )
       response.status mustBe BAD_REQUEST
-      response = situation.updateUserRightsForTenant("Sam Tailor", rights = TestTenantRight(name = "bar", level = "Read", defaultProjectRight = Some("Write")))
+      response = situation.updateUserRightsForTenant(
+        "Sam Tailor",
+        rights = TestTenantRight(
+          name = "bar",
+          level = "Read",
+          defaultProjectRight = Some("Write")
+        )
+      )
       response.status mustBe NO_CONTENT
     }
 
