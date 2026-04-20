@@ -32,7 +32,164 @@ import play.api.libs.json.JsArray
 
 class ImportApiSpec extends BaseAPISpec {
   "V2 feature import" should {
-    "allow specifying custom merge rules for features" in {
+    "allow specifying custom merge rules for feature projects" in {
+      val situation = TestSituationBuilder()
+        .withTenantNames("testtenant")
+        .loggedInWithAdminRights()
+        .build()
+      var data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"9241408d-d04c-4f90-a45f-a3427eb1119a","name":"another-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"foobar","value":null,"enabled":false,"project":"test-project","metadata":{},"conditions":[{"rule":{"percentage":10},"period":null}],"created_at":"2026-04-13T14:14:39.312741+00:00","description":"foo","result_type":"boolean","script_config":null},"_type":"feature"}"""
+      )
+
+      var res = situation.importV2(
+        "testtenant",
+        data = data,
+        conflictStrategy = "skip"
+      )
+
+      res.status mustEqual OK
+
+      data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"9241408d-d04c-4f90-a45f-a3427eb1119a","name":"another-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"foobar","value":null,"enabled":false,"project":"another-project","metadata":{},"conditions":[{"rule":{"percentage":10},"period":null}],"created_at":"2026-04-13T14:14:39.312741+00:00","description":"foo","result_type":"boolean","script_config":null},"_type":"feature"}"""
+      )
+
+      res = situation.importV2(
+        "testtenant",
+        data = data,
+        conflictStrategy = "skip",
+        featureProject = Some("overwrite")
+      )
+
+      res.status mustEqual OK
+
+      var proj = situation.fetchProject(
+        tenant = "testtenant",
+        projectId = "another-project"
+      )
+
+      (proj.json.get \ "features" \ 0 \ "name").as[String] mustEqual "foobar"
+
+      proj = situation.fetchProject(
+        tenant = "testtenant",
+        projectId = "test-project"
+      )
+
+      (proj.json.get \ "features").as[JsArray].value mustBe empty
+
+      data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"9241408d-d04c-4f90-a45f-a3427eb1119a","name":"another-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"foobar","value":null,"enabled":false,"project":"test-project","metadata":{},"conditions":[{"rule":{"percentage":10},"period":null}],"created_at":"2026-04-13T14:14:39.312741+00:00","description":"foo","result_type":"boolean","script_config":null},"_type":"feature"}"""
+      )
+
+      res = situation.importV2(
+        "testtenant",
+        data = data,
+        conflictStrategy = "skip",
+        featureProject = Some("skip")
+      )
+
+      res.status mustEqual OK
+
+      proj = situation.fetchProject(
+        tenant = "testtenant",
+        projectId = "test-project"
+      )
+
+      (proj.json.get \ "features").as[JsArray].value mustBe empty
+
+      proj = situation.fetchProject(
+        tenant = "testtenant",
+        projectId = "another-project"
+      )
+
+      (proj.json.get \ "features" \ 0 \ "name").as[String] mustEqual "foobar"
+    }
+
+    "allow specifying custom merge rules for feature tags" in {
+      val situation = TestSituationBuilder()
+        .withTenantNames("testtenant")
+        .loggedInWithAdminRights()
+        .build()
+      var data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"foobar","value":null,"enabled":false,"project":"test-project","metadata":{},"conditions":[{"rule":{"percentage":10},"period":null}],"created_at":"2026-04-13T14:14:39.312741+00:00","description":"foo","result_type":"boolean","script_config":null},"_type":"feature"}""",
+        """{"row":{"id":"57c1ff3b-59cd-48b8-8086-f3f84237dcaf","name":"foo","description":""},"_type":"tag"}""",
+        """{"row":{"id":"80100f5d-f93f-4dbf-acf0-1789e712b774","name":"bar","description":""},"_type":"tag"}""",
+        """{"row":{"id":"35fd79f5-512a-4082-a05e-9561ed3dcfd9","name":"baz","description":""},"_type":"tag"}""",
+        """{"row":{"tag":"bar","feature":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8"},"_type":"feature_tag"}""",
+        """{"row":{"tag":"foo","feature":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8"},"_type":"feature_tag"}"""
+      )
+
+      var res = situation.importV2(
+        "testtenant",
+        data = data,
+        conflictStrategy = "skip"
+      )
+
+      res.status mustEqual OK
+
+      data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"foobar","value":null,"enabled":false,"project":"test-project","metadata":{},"conditions":[{"rule":{"percentage":10},"period":null}],"created_at":"2026-04-13T14:14:39.312741+00:00","description":"foo","result_type":"boolean","script_config":null},"_type":"feature"}""",
+        """{"row":{"id":"57c1ff3b-59cd-48b8-8086-f3f84237dcaf","name":"foo","description":""},"_type":"tag"}""",
+        """{"row":{"id":"80100f5d-f93f-4dbf-acf0-1789e712b774","name":"bar","description":""},"_type":"tag"}""",
+        """{"row":{"id":"35fd79f5-512a-4082-a05e-9561ed3dcfd9","name":"baz","description":""},"_type":"tag"}""",
+        """{"row":{"tag":"baz","feature":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8"},"_type":"feature_tag"}""",
+        """{"row":{"tag":"foo","feature":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8"},"_type":"feature_tag"}"""
+      )
+
+      res = situation.importV2(
+        "testtenant",
+        data = data,
+        conflictStrategy = "skip",
+        featureTags = Some("overwrite")
+      )
+
+      res.status mustEqual OK
+
+      var proj = situation.fetchProject(
+        tenant = "testtenant",
+        projectId = "test-project"
+      )
+
+      (proj.json.get \ "features" \ 0 \ "tags").as[Seq[
+        String
+      ]] must contain theSameElementsAs Seq("baz", "foo")
+
+      data = Seq(
+        """{"row":{"id":"f049894f-fc2d-4335-b3a5-1a2a9af242b8","name":"test-project","description":""},"_type":"project"}""",
+        """{"row":{"id":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8","name":"foobar","value":null,"enabled":false,"project":"test-project","metadata":{},"conditions":[{"rule":{"percentage":10},"period":null}],"created_at":"2026-04-13T14:14:39.312741+00:00","description":"foo","result_type":"boolean","script_config":null},"_type":"feature"}""",
+        """{"row":{"id":"57c1ff3b-59cd-48b8-8086-f3f84237dcaf","name":"foo","description":""},"_type":"tag"}""",
+        """{"row":{"id":"80100f5d-f93f-4dbf-acf0-1789e712b774","name":"bar","description":""},"_type":"tag"}""",
+        """{"row":{"id":"35fd79f5-512a-4082-a05e-9561ed3dcfd9","name":"baz","description":""},"_type":"tag"}""",
+        """{"row":{"tag":"bar","feature":"00273cce-5b8e-447b-8a2e-0ba8d39bdea8"},"_type":"feature_tag"}"""
+      )
+
+      res = situation.importV2(
+        "testtenant",
+        data = data,
+        conflictStrategy = "overwrite",
+        featureTags = Some("skip")
+      )
+
+      res.status mustEqual OK
+
+      proj = situation.fetchProject(
+        tenant = "testtenant",
+        projectId = "test-project"
+      )
+
+      (proj.json.get \ "features" \ 0 \ "tags").as[Seq[
+        String
+      ]] must contain theSameElementsAs Seq("baz", "foo")
+    }
+
+    "allow specifying custom merge rules for feature properties" in {
       val situation = TestSituationBuilder()
         .withTenantNames("testtenant")
         .loggedInWithAdminRights()

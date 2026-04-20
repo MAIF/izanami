@@ -3,6 +3,7 @@ package fr.maif.izanami.models
 import fr.maif.izanami.web.ImportController.ImportConflictStrategy
 import fr.maif.izanami.web.ImportController.FieldSpecificImportConflictStrategy
 import fr.maif.izanami.web.ImportController.MergeOverwrite
+import fr.maif.izanami.web.ImportController.Skip
 
 enum ConflictField:
   case FeatureName, FeatureDescription, FeatureEnabling,
@@ -16,7 +17,7 @@ class ConflictStrategy(
     ]
 ) {
 
-  def hasOverrideStrategy =
+  def hasOverrideStrategy: Boolean =
     defaultStrategy == MergeOverwrite || specificStrategies.values.exists(s =>
       s == MergeOverwrite
     )
