@@ -141,8 +141,17 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                 val maybeId =
                   if (t._3 == FeatureType || t._3 == ProjectType) Some("id")
                   else None
-                agg.flatMap {
-                  case Right(previousResult) => {
+                agg.flatMap(data => {
+                  env.postgresql
+                    .queryRaw(
+                      s"SET CONSTRAINTS ALL DEFERRED",
+                      List(),
+                      conn = Some(conn)
+                    ) {
+                      _ => data
+                    }
+                }) flatMap {
+                  case Right(previousResult) if t._2.nonEmpty => {
                     val f: Future[Either[IzanamiError, UnitDBImportResult]] =
                       if (t._3 == FeatureType) {
                         importFeatures(
@@ -165,56 +174,36 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                           conflictStrategy = conflictStrategy,
                           conn = conn
                         ).map(r => Right(r))
-                      } else if (t._3 == TagType) {
-                        importTags(
-                          tenant = tenant,
-                          rows = t._2,
-                          conflictStrategy = conflictStrategy,
-                          conn = conn
-                        ).map(r => Right(r))
                       } else {
                         conflictStrategy.defaultStrategy match {
-                          case ImportController.MergeOverwrite =>
-                            importTenantDataWithMergeOnConflict(
+                          case ImportController.MergeOverwrite | ImportController.Skip =>
+                            doImportTenantData(
                               tenant,
                               t._1,
                               t._2,
-                              maybeId
-                            ).map(r => Right(r))
-                          case ImportController.Skip =>
-                            importTenantDataWithSkipOnConflict(
-                              tenant,
-                              t._1,
-                              t._2,
-                              maybeId
-                            ).map(r => Right(r))
+                              maybeId,
+                              conflictStrategy.defaultStrategy,
+                              conn = conn
+                            ).map(r => {
+                              Right(r)
+                            })
                           case ImportController.Fail =>
-                            importTenantDataWithFailOnConflict(
+                            doImportTenantData(
                               tenant,
                               t._1,
                               t._2,
+                              maybeId,
+                              conflictStrategy.defaultStrategy,
                               conn
-                            ).map {
-                              case Right(_) =>
-                                maybeId
-                                  .map(idCol =>
-                                    t._2
-                                      .map(json => (json \ idCol).asOpt[String])
-                                      .collect { case Some(id) =>
-                                        id
-                                      }
-                                  )
-                                  .map(ids =>
-                                    Right(
-                                      UnitDBImportResult(createdElements =
-                                        ids.toSet
-                                      )
-                                    )
-                                  )
-                                  .getOrElse(Right(UnitDBImportResult()))
-                              case Left(jsons) =>
-                                Left(PartialImportFailure(Map(t._3 -> jsons)))
-                            }
+                            ).map(importResult => {
+                              if (importResult.failedElements.isEmpty) {
+                                Right(importResult)
+                              } else {
+                                Left(PartialImportFailure(
+                                  Map(t._3 -> importResult.failedElements.toSeq)
+                                ))
+                              }
+                            })
                           case Replace =>
                             throw new IllegalArgumentException(
                               "Replace strategy can't be used for tenant import"
@@ -240,15 +229,17 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                         )
                     }.map(e => e.map(v => previousResult + (t._3 -> v)))
                   }
+                  case Right(previousResult) =>
+                    Future.successful(Right(previousResult))
                   case Left(err) => Future.successful(Left(err))
                 }
               })
               .map(e => e.map(m => DBImportResult.from(m)))
               .flatMap {
-                case Left(err) => (
+                case Left(err) => {
                   Future
                     .successful(Left(err)): Future[Either[IzanamiError, Unit]]
-                )
+                }
                 case Right(result) => {
                   val projectNamesBydId = entries
                     .get(ProjectType)
@@ -337,6 +328,9 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                       }
                     })
                     .flatMap(_ => {
+                      println(
+                        s"Looking for strategy for feature ${result.createdFeatures ++ result.updatedFeatures} (in connection)"
+                      )
                       env.datastores.features
                         .findActivationStrategiesForFeatures(
                           tenant,
@@ -374,12 +368,16 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                                       .get(FeatureType)
                                       .exists(s => s.nonEmpty)
                                   ) {
+                                    val ids = entries(FeatureType)
+                                      .map(f => (f \ "id").as[String])
+                                      .toSet
+                                    println(
+                                      s"Looking for strategy for feature ${ids} (not in connection)"
+                                    )
                                     env.datastores.features
                                       .findActivationStrategiesForFeatures(
                                         tenant,
-                                        entries(FeatureType)
-                                          .map(f => (f \ "id").as[String])
-                                          .toSet
+                                        ids
                                       )
                                       .recover(_ => Map())
                                   } else {
@@ -449,7 +447,11 @@ class ImportExportDatastore(val env: Env) extends Datastore {
 
     val value = conflictStrategy match
       case Fail =>
-        "1/0" // This is ugly, but it's impossible to RAISE after a DO UPDATE
+        s"""
+        |CASE WHEN EXCLUDED.${name}=${table}.${name} THEN ${table}.${name}
+        |ELSE CASE WHEN 1/(txid_current() - txid_current()) = 1 THEN ${table}.${name} ELSE ${table}.${name} END -- ugly hack to make request fail
+        |END
+        """ // This is ugly, but it's impossible to RAISE after a DO UPDATE
       case MergeOverwrite | Replace => s"EXCLUDED.${name}"
       case Skip                     => s"${table}.${name}"
 
@@ -676,11 +678,11 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       "id, name, project, enabled, conditions, script_config, metadata, description, value, result_type, created_at"
     val query =
       s"""
-                 |INSERT INTO "${tenant}".features ($columns) select $columns from json_populate_recordset(null::"${tenant}".features, $$1)
-                 |ON CONFLICT (id) DO UPDATE
-                 |SET $conflictPart
-                 |RETURNING (xmax = 0) AS inserted, id
-                 |""".stripMargin;
+          |INSERT INTO "${tenant}".features ($columns) select $columns from json_populate_recordset(null::"${tenant}".features, $$1)
+          |ON CONFLICT (id) DO UPDATE
+          |SET $conflictPart
+          |RETURNING (xmax = 0) AS inserted, id
+          |""".stripMargin;
 
     env.postgresql
       .queryRaw(
@@ -706,244 +708,94 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       }
   }
 
-  def importTenantDataWithMergeOnConflict(
+  /*def importTenantDataWithMergeOnConflict(
       tenant: String,
       metadata: TableMetadata,
       rows: Seq[JsObject],
-      maybeId: Option[String]
-  ): Future[UnitDBImportResult] = {
-    Tenant.isTenantValid(tenant)
-    val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
-    val cols = metadata.tableColumns.mkString(",")
-
-    env.postgresql.executeInTransaction(conn => {
-      env.postgresql
-        .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) {
-          _ => ()
-        }
-        .flatMap(_ => {
-          env.postgresql
-            .queryRaw(
-              s"""
-                 |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::"${tenant}".${metadata.table}, $$1)
-                 |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO UPDATE SET($cols)=(select $cols from json_populate_recordset(NULL::"${tenant}".${metadata.table}, $$1))
-                 |RETURNING (xmax = 0) AS inserted ${maybeId
-                  .map(idCol => s", ${idCol}::TEXT as id")
-                  .getOrElse("")}
-                 |""".stripMargin,
-              List(vertxJsonArray),
-              conn = Some(conn)
-            ) { rows =>
-              {
-                maybeId
-                  .map(_ => {
-                    val insertedMap = rows
-                      .map(r => {
-                        (for (
-                          id <- r.optString("id");
-                          inserted <- r.optBoolean("inserted")
-                        ) yield (id, inserted))
-                      })
-                      .collect { case Some(r) =>
-                        r
-                      }
-                      .groupMap(_._2)(_._1)
-
-                    UnitDBImportResult(
-                      createdElements =
-                        insertedMap.getOrElse(true, List[String]()).toSet,
-                      updatedElements =
-                        insertedMap.getOrElse(false, List[String]()).toSet
-                    )
-                  })
-                  .getOrElse(UnitDBImportResult())
-              }
-            }
-            .recoverWith {
-              case _ => {
-                logger.info(
-                  s"There has been import errors, switching to unit import mode for ${metadata.table}"
-                )
-                rows.foldLeft(Future.successful(UnitDBImportResult()))(
-                  (facc, row) => {
-                    facc.flatMap(acc =>
-                      env.postgresql
-                        .queryOne(
-                          s"""
-                           |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::"${tenant}".${metadata.table}, $$1)
-                           |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO UPDATE SET($cols)=((select $cols from json_populate_record(NULL::"${tenant}".${metadata.table}, $$1)))
-                           |RETURNING (xmax = 0) AS inserted ${maybeId
-                              .map(idCol => s", ${idCol}::TEXT as id")
-                              .getOrElse("")}
-                           |""".stripMargin,
-                          List(row.vertxJsValue)
-                        ) { r =>
-                          {
-                            (for (
-                              id <- r.optString("id");
-                              inserted <- r.optBoolean("inserted")
-                            ) yield (id, inserted))
-                              .map {
-                                case (id, false) => acc.addUpdatedElements(id)
-                                case (id, true)  => acc.addCreatedElements(id)
-                              }
-                          }
-                        }
-                        .map(r => r.getOrElse(acc))
-                        .recoverWith {
-                          case _ => {
-                            logger.info(
-                              s"Import of following row failed for table ${metadata.table} : ${row}"
-                            )
-                            Future.successful(acc.addFailedElement(row))
-                          }
-                        }
-                    )
-                  }
-                )
-              }
-            }
-        })
-    })
-
-  }
-
-  def importTenantDataWithFailOnConflict(
-      tenant: String,
-      metadata: TableMetadata,
-      rows: Seq[JsObject],
+      maybeId: Option[String],
       conn: SqlConnection
-  ): Future[Either[Seq[JsObject], Unit]] = {
-    Tenant.isTenantValid(tenant)
-    val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
-    val cols = metadata.tableColumns.mkString(",")
-    env.postgresql
-      .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) {
-        _ => ()
-      }
-      .flatMap(_ =>
-        env.postgresql
-          .queryOne(
-            s"""
-           |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::"${tenant}".${metadata.table}, $$1)
-           |""".stripMargin,
-            List(vertxJsonArray),
-            conn = Some(conn)
-          ) { _ => Some(()) }
-          .map(_ => Right(()))
-          .recoverWith {
-            case _ => {
-              logger.info(
-                s"There has been import errors, since strategy is to fail on conflict, all elements will be attempted"
-              )
-              rows.foldLeft(
-                Future
-                  .successful(Right(())): Future[Either[Seq[JsObject], Unit]]
-              )((facc, row) => {
-                facc.flatMap {
-                  case Left(failedRow) => Future.successful((Left(failedRow)))
-                  case Right(_)        => {
-                    env.postgresql
-                      .queryOne(
-                        s"""
-                       |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::"${tenant}".${metadata.table}, $$1)
-                       |""".stripMargin,
-                        List(row.vertxJsValue),
-                        conn = Some(conn)
-                      ) { _ => Some(()) }
-                      .map(_ => Right(()))
-                      .recoverWith {
-                        case _ => {
-                          logger.info(
-                            s"Import of following row failed for table ${metadata.table} : ${row}"
-                          )
-                          Future.successful(Left(Seq(row)))
-                        }
-                      }
-                  }
-                }
-              })
-            }
-          }
-      )
-  }
-
-  def importTenantDataWithSkipOnConflict(
-      tenant: String,
-      metadata: TableMetadata,
-      rows: Seq[JsObject],
-      maybeId: Option[String]
   ): Future[UnitDBImportResult] = {
     Tenant.isTenantValid(tenant)
     val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
     val cols = metadata.tableColumns.mkString(",")
-    env.postgresql.executeInTransaction(conn => {
-      env.postgresql
-        .queryRaw(s"SET CONSTRAINTS ALL DEFERRED", List(), conn = Some(conn)) {
-          _ => ()
-        }
-        .flatMap(_ => {
-          env.postgresql
-            .queryRaw(
-              s"""
-                 |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::"${tenant}".${metadata.table}, $$1)
-                 |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO NOTHING
-                 |RETURNING (xmax = 0) AS inserted ${maybeId
-                  .map(idCol => s", ${idCol}::TEXT as id")
-                  .getOrElse("")}
-                 |""".stripMargin,
-              List(vertxJsonArray),
-              conn = Some(conn)
-            ) { rows =>
-              {
-                maybeId
-                  .map(_ => {
-                    val insertedIds = rows
-                      .map(r => {
-                        (for (
-                          id <- r.optString("id");
-                          inserted <- r.optBoolean("inserted")
-                        ) yield (id, inserted))
-                      })
-                      .collect { case Some(r @ (featureId, true)) =>
-                        featureId
-                      }
-                      .toSet
 
-                    UnitDBImportResult(createdElements = insertedIds)
-                  })
-                  .getOrElse(UnitDBImportResult())
-              }
-            }
-            .recoverWith {
-              case _ => {
-                logger.info(
-                  s"There has been import errors, switching to unit import mode for ${metadata.table}"
-                )
-                rows.foldLeft(
-                  Future.successful(UnitDBImportResult()): Future[
-                    UnitDBImportResult
-                  ]
-                )((facc, row) => {
-                  facc.flatMap(acc =>
+    val updatePart = metadata.tableColumns.map(col => s"""
+    |${col}=EXCLUDED.${col}
+    |""".stripMargin).mkString(", ");
+
+    val idReturnPart = maybeId
+      .map(idCol => s", ${idCol}::TEXT as id")
+      .getOrElse("")
+
+    env.postgresql
+      .queryRaw(
+        s"""
+              |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::"${tenant}".${metadata.table}, $$1)
+              |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO UPDATE SET ${updatePart}
+              |RETURNING (xmax = 0) AS inserted ${idReturnPart}
+              |""".stripMargin,
+        List(vertxJsonArray),
+        conn = Some(conn)
+      ) { rows =>
+        {
+          maybeId
+            .map(_ => {
+              val insertedMap = rows
+                .map(r => {
+                  (for (
+                    id <- r.optString("id");
+                    inserted <- r.optBoolean("inserted")
+                  ) yield (id, inserted))
+                })
+                .collect { case Some(r) =>
+                  r
+                }
+                .groupMap(_._2)(_._1)
+
+              UnitDBImportResult(
+                createdElements =
+                  insertedMap.getOrElse(true, List[String]()).toSet,
+                updatedElements =
+                  insertedMap.getOrElse(false, List[String]()).toSet
+              )
+            })
+            .getOrElse(UnitDBImportResult())
+        }
+      }
+      .recoverWith {
+        case _ => {
+          logger.info(
+            s"There has been import errors, switching to unit import mode for ${metadata.table}"
+          )
+          rows.foldLeft(Future.successful(UnitDBImportResult()))(
+            (facc, row) => {
+              facc.flatMap(acc =>
+                env.postgresql.queryRaw(
+                  "SAVEPOINT savepoint",
+                  conn = Some(conn)
+                ) { _ =>
+                  Done.done()
+                }
+                  .flatMap(_ => {
                     env.postgresql
                       .queryOne(
                         s"""
-                           |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::"${tenant}".${metadata.table}, $$1)
-                           |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO NOTHING
-                           |RETURNING (xmax = 0) AS inserted ${maybeId
-                            .map(idCol => s", ${idCol}::TEXT as id")
-                            .getOrElse("")}
-                           |""".stripMargin,
-                        List(row.vertxJsValue)
+                        |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::"${tenant}".${metadata.table}, $$1)
+                        |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO UPDATE SET $updatePart
+                        |RETURNING (xmax = 0) AS inserted ${idReturnPart}
+                        |""".stripMargin,
+                        params = List(row.vertxJsValue),
+                        conn = Some(conn)
                       ) { r =>
                         {
-                          maybeId.flatMap(_ => {
-                            r.optBoolean("inserted")
-                              .filter(r => r)
-                              .flatMap(_ => r.optString("id"))
-                              .map(id => acc.addCreatedElements(id))
-                          })
+                          (for (
+                            id <- r.optString("id");
+                            inserted <- r.optBoolean("inserted")
+                          ) yield (id, inserted))
+                            .map {
+                              case (id, false) => acc.addUpdatedElements(id)
+                              case (id, true)  => acc.addCreatedElements(id)
+                            }
                         }
                       }
                       .map(r => r.getOrElse(acc))
@@ -952,16 +804,310 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                           logger.info(
                             s"Import of following row failed for table ${metadata.table} : ${row}"
                           )
-                          Future.successful(acc.addFailedElement(row))
+                          env.postgresql.queryRaw(
+                            "ROLLBACK TO SAVEPOINT savepoint",
+                            conn = Some(conn)
+                          ) { _ =>
+                            Done.done()
+                          }.map(_ => acc.addFailedElement(row))
                         }
                       }
-                  )
+                  })
+              )
+            }
+          )
+        }
+      }
+  }*/
+
+  private def doImportTenantData(
+      tenant: String,
+      metadata: TableMetadata,
+      rows: Seq[JsObject],
+      maybeId: Option[String],
+      conflictStrategy: ImportConflictStrategy,
+      conn: SqlConnection
+  ): Future[UnitDBImportResult] = {
+    println(s"Importing tenant data for ${metadata.table}")
+    val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
+    val cols = metadata.tableColumns.mkString(",")
+    val idReturnPart = maybeId
+      .map(idCol => s", ${idCol}::TEXT as id")
+      .getOrElse("")
+
+    val conflictPart = conflictStrategy match {
+      case MergeOverwrite | Replace => {
+        val setPart = metadata.tableColumns
+          .map(col =>
+            s"""
+              |${col}=EXCLUDED.${col}
+              |""".stripMargin
+          ).mkString(", ")
+
+        s"ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO UPDATE SET ${setPart}"
+      }
+      case Skip => {
+        s"ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO NOTHING"
+      }
+      case Fail => {
+        ""
+      }
+    }
+
+    val query = s"""
+                   |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::"${tenant}".${metadata.table}, $$1)
+                   |${conflictPart}
+                   |RETURNING (xmax = 0) AS inserted ${idReturnPart}
+                   |""".stripMargin
+
+    env.postgresql
+      .queryRaw(
+        query,
+        List(vertxJsonArray),
+        conn = Some(conn)
+      ) { rows =>
+        {
+          maybeId
+            .map(_ => {
+              val insertedMap = rows
+                .map(r => {
+                  (for (
+                    id <- r.optString("id");
+                    inserted <- r.optBoolean("inserted")
+                  ) yield (id, inserted))
                 })
+                .collect { case Some(r) =>
+                  r
+                }
+                .groupMap(_._2)(_._1)
+
+              UnitDBImportResult(
+                createdElements =
+                  insertedMap.getOrElse(true, List[String]()).toSet,
+                updatedElements =
+                  insertedMap.getOrElse(false, List[String]()).toSet
+              )
+            })
+            .getOrElse(UnitDBImportResult())
+        }
+      }
+      .recoverWith {
+        case _ => {
+          logger.info(
+            s"There has been import errors, switching to unit import mode for ${metadata.table}"
+          )
+          rows.foldLeft(Future.successful(UnitDBImportResult()))(
+            (facc, row) => {
+              facc.flatMap(acc =>
+                env.postgresql.queryRaw(
+                  "SAVEPOINT savepoint",
+                  conn = Some(conn)
+                ) { _ =>
+                  Done.done()
+                }
+                  .flatMap(_ => {
+                    env.postgresql
+                      .queryOne(
+                        s"""
+                        |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::"${tenant}".${metadata.table}, $$1)
+                        |$conflictPart
+                        |RETURNING (xmax = 0) AS inserted ${idReturnPart}
+                        |""".stripMargin,
+                        params = List(row.vertxJsValue),
+                        conn = Some(conn)
+                      ) { r =>
+                        {
+                          (for (
+                            id <- r.optString("id");
+                            inserted <- r.optBoolean("inserted")
+                          ) yield (id, inserted))
+                            .map {
+                              case (id, false) => acc.addUpdatedElements(id)
+                              case (id, true)  => acc.addCreatedElements(id)
+                            }
+                        }
+                      }.flatMap(r =>
+                        env.postgresql.queryRaw("RELEASE SAVEPOINT savepoint") {
+                          _ => r
+                        }
+                      )
+                      .map(r => r.getOrElse(acc))
+                      .recoverWith {
+                        case _ => {
+                          logger.info(
+                            s"Import of following row failed for table ${metadata.table} : ${row}"
+                          )
+                          env.postgresql.queryRaw(
+                            "ROLLBACK TO SAVEPOINT savepoint",
+                            conn = Some(conn)
+                          ) { _ =>
+                            Done.done()
+                          }.map(_ => acc.addFailedElement(row))
+                        }
+                      }
+                  })
+              )
+            }
+          )
+        }
+      }
+  }
+
+  /*def importTenantDataWithFailOnConflict(
+      tenant: String,
+      metadata: TableMetadata,
+      rows: Seq[JsObject],
+      conn: SqlConnection
+  ): Future[Either[Seq[JsObject], Unit]] = {
+    Tenant.isTenantValid(tenant)
+    val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
+    val cols = metadata.tableColumns.mkString(",")
+
+    env.postgresql
+      .queryOne(
+        s"""
+        |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::"${tenant}".${metadata.table}, $$1)
+        |""".stripMargin,
+        List(vertxJsonArray),
+        conn = Some(conn)
+      ) { _ => Some(()) }
+      .map(_ => Right(()))
+      .recoverWith {
+        case _ => {
+          logger.info(
+            s"There has been import errors, since strategy is to fail on conflict, all elements will be attempted"
+          )
+          rows.foldLeft(
+            Future
+              .successful(Right(())): Future[Either[Seq[JsObject], Unit]]
+          )((facc, row) => {
+            facc.flatMap {
+              case Left(failedRow) => Future.successful((Left(failedRow)))
+              case Right(_)        => {
+                env.postgresql
+                  .queryOne(
+                    s"""
+                    |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::"${tenant}".${metadata.table}, $$1)
+                    |""".stripMargin,
+                    List(row.vertxJsValue),
+                    conn = Some(conn)
+                  ) { _ => Some(()) }
+                  .map(_ => Right(()))
+                  .recoverWith {
+                    case _ => {
+                      logger.info(
+                        s"Import of following row failed for table ${metadata.table} : ${row}"
+                      )
+                      Future.successful(Left(Seq(row)))
+                    }
+                  }
               }
             }
-        })
-    })
+          })
+        }
+      }
   }
+
+  def importTenantDataWithSkipOnConflict(
+      tenant: String,
+      metadata: TableMetadata,
+      rows: Seq[JsObject],
+      maybeId: Option[String],
+      conn: SqlConnection
+  ): Future[UnitDBImportResult] = {
+    Tenant.isTenantValid(tenant)
+    val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
+    val cols = metadata.tableColumns.mkString(",")
+    val idReturnPart = maybeId
+      .map(idCol => s", ${idCol}::TEXT as id")
+      .getOrElse("")
+
+    env.postgresql
+      .queryRaw(
+        s"""
+            |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_recordset(null::"${tenant}".${metadata.table}, $$1)
+            |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO NOTHING
+            |RETURNING (xmax = 0) AS inserted ${idReturnPart}
+            |""".stripMargin,
+        List(vertxJsonArray),
+        conn = Some(conn)
+      ) { rows =>
+        {
+          maybeId
+            .map(_ => {
+              val insertedIds = rows
+                .map(r => {
+                  (for (
+                    id <- r.optString("id");
+                    inserted <- r.optBoolean("inserted")
+                  ) yield (id, inserted))
+                })
+                .collect { case Some(r @ (featureId, true)) =>
+                  featureId
+                }
+                .toSet
+
+              UnitDBImportResult(createdElements = insertedIds)
+            })
+            .getOrElse(UnitDBImportResult())
+        }
+      }
+      .recoverWith {
+        case _ => {
+          logger.info(
+            s"There has been import errors, switching to unit import mode for ${metadata.table}"
+          )
+          rows.foldLeft(
+            Future.successful(UnitDBImportResult()): Future[
+              UnitDBImportResult
+            ]
+          )((facc, row) => {
+            facc.flatMap(acc =>
+              env.postgresql.queryRaw(
+                "SAVEPOINT savepoint",
+                conn = Some(conn)
+              ) { _ =>
+                Done.done()
+              }.flatMap(_ =>
+                env.postgresql
+                  .queryOne(
+                    s"""
+                      |INSERT INTO "${tenant}".${metadata.table} (${cols}) select ${cols} from json_populate_record(null::"${tenant}".${metadata.table}, $$1)
+                      |ON CONFLICT ON CONSTRAINT ${metadata.primaryKeyConstraint} DO NOTHING
+                      |RETURNING (xmax = 0) AS inserted ${idReturnPart}
+                      |""".stripMargin,
+                    List(row.vertxJsValue),
+                    conn = Some(conn)
+                  ) { r =>
+                    {
+                      maybeId.flatMap(_ => {
+                        r.optBoolean("inserted")
+                          .filter(r => r)
+                          .flatMap(_ => r.optString("id"))
+                          .map(id => acc.addCreatedElements(id))
+                      })
+                    }
+                  }
+                  .map(r => r.getOrElse(acc))
+                  .recoverWith {
+                    case _ => {
+                      logger.info(
+                        s"Import of following row failed for table ${metadata.table} : ${row}"
+                      )
+                      env.postgresql.queryRaw(
+                        "ROLLBACK TO SAVEPOINT savepoint",
+                        conn = Some(conn)
+                      ) { _ =>
+                        Done.done()
+                      }.map(_ => acc.addFailedElement(row))
+                    }
+                  }
+              )
+            )
+          })
+        }
+      }
+  }*/
 
   def exportTenantData(
       tenant: String,

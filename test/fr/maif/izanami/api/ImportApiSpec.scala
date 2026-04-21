@@ -383,7 +383,7 @@ class ImportApiSpec extends BaseAPISpec {
       val res =
         situation.importV2(
           "tenant",
-          data = payload.split("\n"),
+          data = payload.split("\n").toIndexedSeq,
           conflictStrategy = "SKIP"
         )
 
