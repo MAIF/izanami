@@ -1,12 +1,32 @@
 package fr.maif.izanami.models
 
-import fr.maif.izanami.models.ProjectRightLevel.{Admin, ProjectRightOrdering, Read, Update, Write, projectRightLevelWrites, superiorOrEqualLevels}
+import fr.maif.izanami.models.ProjectRightLevel.{
+  Admin,
+  ProjectRightOrdering,
+  Read,
+  Update,
+  Write,
+  projectRightLevelWrites,
+  superiorOrEqualLevels
+}
 import fr.maif.izanami.models.ProjectRightLevelIncludingNoRight.ProjectRightLevelIncludingNoRightOrdering
 import fr.maif.izanami.models.RightLevel.{Admin, Write}
 import fr.maif.izanami.models.RightLevelIncludingNoRight.RightLevelIncludingNoRightOrdering
-import fr.maif.izanami.models.Rights.{RightDiff, TenantRightDiff, UpsertTenantRights, compare}
+import fr.maif.izanami.models.Rights.{
+  RightDiff,
+  TenantRightDiff,
+  UpsertTenantRights,
+  compare
+}
 import fr.maif.izanami.models.User.{projectRightReads, rightReads}
-import fr.maif.izanami.services.{CompleteRights, MaxTenantRoleRights, ProjectIdentification, RightComplianceChange, TenantRightComplianceResult, WebhookIdentification}
+import fr.maif.izanami.services.{
+  CompleteRights,
+  MaxTenantRoleRights,
+  ProjectIdentification,
+  RightComplianceChange,
+  TenantRightComplianceResult,
+  WebhookIdentification
+}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.data.validation.{Constraints, Valid}
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
@@ -53,16 +73,20 @@ sealed trait RightLevel extends RightLevelIncludingNoRight {
 object RightLevelIncludingNoRight {
   case object None extends RightLevelIncludingNoRight
 
-  object RightLevelIncludingNoRightOrdering extends Ordering[RightLevelIncludingNoRight] {
-    def compare(a: RightLevelIncludingNoRight, b: RightLevelIncludingNoRight): Int = (a, b) match {
-      case (ar, br) if ar == br => 0
+  object RightLevelIncludingNoRightOrdering
+      extends Ordering[RightLevelIncludingNoRight] {
+    def compare(
+        a: RightLevelIncludingNoRight,
+        b: RightLevelIncludingNoRight
+    ): Int = (a, b) match {
+      case (ar, br) if ar == br  => 0
       case (RightLevel.Admin, _) => 1
       case (_, RightLevel.Admin) => -1
       case (RightLevel.Write, _) => 1
       case (_, RightLevel.Write) => -1
-      case (RightLevel.Read, _) => 1
-      case (_, RightLevel.Read) => -1
-      case _ => 1
+      case (RightLevel.Read, _)  => 1
+      case (_, RightLevel.Read)  => -1
+      case _                     => 1
     }
   }
 
@@ -110,7 +134,8 @@ object RightLevel {
   case object Admin extends RightLevel
 
   object RightOrdering extends Ordering[RightLevel] {
-    def compare(a: RightLevel, b: RightLevel): Int = RightLevelIncludingNoRightOrdering.compare(a,b)
+    def compare(a: RightLevel, b: RightLevel): Int =
+      RightLevelIncludingNoRightOrdering.compare(a, b)
   }
 
   val rightLevelWithNoneReads: Reads[Option[RightLevel]] = json => {
@@ -200,19 +225,23 @@ sealed trait ProjectRightLevel extends ProjectRightLevelIncludingNoRight {
 object ProjectRightLevelIncludingNoRight {
   case object None extends ProjectRightLevelIncludingNoRight
 
-  object ProjectRightLevelIncludingNoRightOrdering extends Ordering[ProjectRightLevelIncludingNoRight] {
-    def compare(a: ProjectRightLevelIncludingNoRight, b: ProjectRightLevelIncludingNoRight): Int = {
+  object ProjectRightLevelIncludingNoRightOrdering
+      extends Ordering[ProjectRightLevelIncludingNoRight] {
+    def compare(
+        a: ProjectRightLevelIncludingNoRight,
+        b: ProjectRightLevelIncludingNoRight
+    ): Int = {
       (a, b) match {
-        case (ar, br) if ar == br => 0
-        case (ProjectRightLevel.Admin, _) => 1
-        case (_, ProjectRightLevel.Admin) => -1
-        case (ProjectRightLevel.Write, _) => 1
-        case (_, ProjectRightLevel.Write) => -1
+        case (ar, br) if ar == br          => 0
+        case (ProjectRightLevel.Admin, _)  => 1
+        case (_, ProjectRightLevel.Admin)  => -1
+        case (ProjectRightLevel.Write, _)  => 1
+        case (_, ProjectRightLevel.Write)  => -1
         case (ProjectRightLevel.Update, _) => 1
         case (_, ProjectRightLevel.Update) => -1
-        case (ProjectRightLevel.Read, _) => 1
-        case (_, ProjectRightLevel.Read) => -1
-        case _ => 1
+        case (ProjectRightLevel.Read, _)   => 1
+        case (_, ProjectRightLevel.Read)   => -1
+        case _                             => 1
       }
     }
   }
@@ -221,13 +250,15 @@ object ProjectRightLevelIncludingNoRight {
     json
       .asOpt[String]
       .fold(JsSuccess(ProjectRightLevelIncludingNoRight.None))(s =>
-        ProjectRightLevel.readFromString(s)
-        .orElse(
-          if (s.toUpperCase() == "NONE") Some(ProjectRightLevelIncludingNoRight.None)
-          else Option.empty
-        )
-        .map(v => JsSuccess(v))
-        .getOrElse(JsError("Failed to parse RightLevelIncludingNoRight"))
+        ProjectRightLevel
+          .readFromString(s)
+          .orElse(
+            if (s.toUpperCase() == "NONE")
+              Some(ProjectRightLevelIncludingNoRight.None)
+            else Option.empty
+          )
+          .map(v => JsSuccess(v))
+          .getOrElse(JsError("Failed to parse RightLevelIncludingNoRight"))
       )
   }
 
@@ -284,7 +315,7 @@ case object ProjectRightLevel {
 
   object ProjectRightOrdering extends Ordering[ProjectRightLevel] {
     def compare(a: ProjectRightLevel, b: ProjectRightLevel): Int =
-      ProjectRightLevelIncludingNoRightOrdering.compare(a,b)
+      ProjectRightLevelIncludingNoRightOrdering.compare(a, b)
   }
 
   val projectRightLevelWrites: Writes[ProjectRightLevel] = {
@@ -431,7 +462,9 @@ case class User(
     override val legacy: Boolean = false,
     override val roles: Set[String]
 ) extends UserTrait {
-  def withSingleLevelRight(level: RightLevel): UserWithSingleLevelRight =
+  def withSingleLevelRight(
+      level: Option[RightLevel]
+  ): UserWithSingleLevelRight =
     UserWithSingleLevelRight(
       username,
       email,
@@ -515,7 +548,7 @@ case class UserWithSingleLevelRight(
     override val password: String = null,
     override val admin: Boolean = false,
     override val userType: UserType,
-    right: RightLevel,
+    right: Option[RightLevel],
     override val defaultTenant: Option[String] = None,
     override val roles: Set[String],
     previsionalRights: Boolean = false
@@ -713,7 +746,11 @@ case class UserWithCompleteRightForOneTenant(
       .getOrElse(
         tenantRight
           .flatMap(tr =>
-            tr.projects.get(project).map(_.level).getOrElse(tr.defaultProjectRight).toMaybeProjectRightLevel
+            tr.projects
+              .get(project)
+              .map(_.level)
+              .getOrElse(tr.defaultProjectRight)
+              .toMaybeProjectRightLevel
           )
           .exists(r =>
             ProjectRightLevel.superiorOrEqualLevels(level).contains(r)
@@ -736,7 +773,11 @@ case class UserWithCompleteRightForOneTenant(
     } else {
       tenantRight
         .flatMap(tr =>
-          tr.projects.get(project).map(_.level).getOrElse(tr.defaultProjectRight).toMaybeProjectRightLevel
+          tr.projects
+            .get(project)
+            .map(_.level)
+            .getOrElse(tr.defaultProjectRight)
+            .toMaybeProjectRightLevel
         )
     }
   }
@@ -763,9 +804,12 @@ case class TenantRight(
     projects: Map[String, ProjectAtomicRight] = Map(),
     keys: Map[String, GeneralAtomicRight] = Map(),
     webhooks: Map[String, GeneralAtomicRight] = Map(),
-    defaultProjectRight: ProjectRightLevelIncludingNoRight = ProjectRightLevelIncludingNoRight.None,
-    defaultKeyRight: RightLevelIncludingNoRight = RightLevelIncludingNoRight.None,
-    defaultWebhookRight: RightLevelIncludingNoRight = RightLevelIncludingNoRight.None
+    defaultProjectRight: ProjectRightLevelIncludingNoRight =
+      ProjectRightLevelIncludingNoRight.None,
+    defaultKeyRight: RightLevelIncludingNoRight =
+      RightLevelIncludingNoRight.None,
+    defaultWebhookRight: RightLevelIncludingNoRight =
+      RightLevelIncludingNoRight.None
 ) {
   def checkCompliance(
       maxRights: MaxTenantRoleRights
@@ -1009,12 +1053,15 @@ case class TenantRight(
             projects = newProjects,
             keys = newKeys,
             webhooks = newWebhooks,
-            defaultProjectRight =
-              tenantWideUpdate.map(t => t.defaultProjectRight).getOrElse(defaultProjectRight),
-            defaultKeyRight =
-              tenantWideUpdate.map(t => t.defaultKeyRight).getOrElse(defaultKeyRight),
-            defaultWebhookRight =
-              tenantWideUpdate.map(t => t.defaultWebhookRight).getOrElse(defaultWebhookRight),
+            defaultProjectRight = tenantWideUpdate
+              .map(t => t.defaultProjectRight)
+              .getOrElse(defaultProjectRight),
+            defaultKeyRight = tenantWideUpdate
+              .map(t => t.defaultKeyRight)
+              .getOrElse(defaultKeyRight),
+            defaultWebhookRight = tenantWideUpdate
+              .map(t => t.defaultWebhookRight)
+              .getOrElse(defaultWebhookRight)
           )
         )
       }
@@ -1286,11 +1333,10 @@ object Rights {
 
   case object DeleteTenantRights extends TenantRightDiff
   case class TenantWideRightUpdate(
-    level: RightLevel,
-    defaultProjectRight: ProjectRightLevelIncludingNoRight,
-    defaultKeyRight: RightLevelIncludingNoRight,
-    defaultWebhookRight:
-    RightLevelIncludingNoRight
+      level: RightLevel,
+      defaultProjectRight: ProjectRightLevelIncludingNoRight,
+      defaultKeyRight: RightLevelIncludingNoRight,
+      defaultWebhookRight: RightLevelIncludingNoRight
   )
   case class UpsertTenantRights(
       tenantWideUpdate: Option[TenantWideRightUpdate] = Option.empty,
@@ -1318,17 +1364,23 @@ object Rights {
 
   case class UnscopedTenantRight(
       level: Option[RightLevel],
-      defaultProjectRight: ProjectRightLevelIncludingNoRight = ProjectRightLevelIncludingNoRight.None,
-      defaultKeyRight: RightLevelIncludingNoRight = RightLevelIncludingNoRight.None,
-      defaultWebhookRight: RightLevelIncludingNoRight = RightLevelIncludingNoRight.None
+      defaultProjectRight: ProjectRightLevelIncludingNoRight =
+        ProjectRightLevelIncludingNoRight.None,
+      defaultKeyRight: RightLevelIncludingNoRight =
+        RightLevelIncludingNoRight.None,
+      defaultWebhookRight: RightLevelIncludingNoRight =
+        RightLevelIncludingNoRight.None
   ) extends FlattenRight
 
   case class FlattenTenantRight(
       name: String,
       level: RightLevel,
-      defaultProjectRight: ProjectRightLevelIncludingNoRight = ProjectRightLevelIncludingNoRight.None,
-      defaultKeyRight: RightLevelIncludingNoRight = RightLevelIncludingNoRight.None,
-      defaultWebhookRight: RightLevelIncludingNoRight = RightLevelIncludingNoRight.None
+      defaultProjectRight: ProjectRightLevelIncludingNoRight =
+        ProjectRightLevelIncludingNoRight.None,
+      defaultKeyRight: RightLevelIncludingNoRight =
+        RightLevelIncludingNoRight.None,
+      defaultWebhookRight: RightLevelIncludingNoRight =
+        RightLevelIncludingNoRight.None
   ) extends FlattenRight
 
   case class FlattenProjectRight(
@@ -1391,10 +1443,17 @@ object Rights {
       case (None, Some(newRights)) =>
         Some(
           UpsertTenantRights(
-            tenantWideUpdate = Some(TenantWideRightUpdate(level = newRights.level, defaultProjectRight = newRights.defaultProjectRight, defaultKeyRight = newRights.defaultKeyRight, defaultWebhookRight = newRights.defaultWebhookRight)),
+            tenantWideUpdate = Some(
+              TenantWideRightUpdate(
+                level = newRights.level,
+                defaultProjectRight = newRights.defaultProjectRight,
+                defaultKeyRight = newRights.defaultKeyRight,
+                defaultWebhookRight = newRights.defaultWebhookRight
+              )
+            ),
             addedProjectRights = flattenProjects(newRights),
             addedKeyRights = flattenKeys(newRights),
-            addedWebhookRights = flattenWebhooks(newRights),
+            addedWebhookRights = flattenWebhooks(newRights)
           )
         )
       case (
@@ -1424,7 +1483,14 @@ object Rights {
           if oldLevel != newLevel || oldDefaultProjectRight != newDefaultProjectRight || oldDefaultKeyRight != newDefaultKeyRight || oldDefaultWebhookRight != newDefaultWebhookRight => {
         Some(
           UpsertTenantRights(
-            tenantWideUpdate = Some(TenantWideRightUpdate(level = newLevel, defaultProjectRight = newDefaultProjectRight, defaultKeyRight = newDefaultKeyRight, defaultWebhookRight = newDefaultWebhookRight)),
+            tenantWideUpdate = Some(
+              TenantWideRightUpdate(
+                level = newLevel,
+                defaultProjectRight = newDefaultProjectRight,
+                defaultKeyRight = newDefaultKeyRight,
+                defaultWebhookRight = newDefaultWebhookRight
+              )
+            ),
             addedProjectRights =
               flattenProjects(newR).diff(flattenProjects(oldR)),
             removedProjectRights =
@@ -1435,7 +1501,7 @@ object Rights {
             addedWebhookRights =
               flattenWebhooks(newR).diff(flattenWebhooks(oldR)),
             removedWebhookRights =
-              flattenWebhooks(oldR).diff(flattenWebhooks(newR)).map(_.name),
+              flattenWebhooks(oldR).diff(flattenWebhooks(newR)).map(_.name)
           )
         )
       }
@@ -1498,10 +1564,12 @@ object User {
     ProjectRightLevel.projectRightLevelReads
   implicit val projectRightLevelWrite: Writes[ProjectRightLevel] =
     ProjectRightLevel.projectRightLevelWrites
-  implicit val projectRightLevelIncludingNoRightWrite: Writes[ProjectRightLevelIncludingNoRight] =
+  implicit val projectRightLevelIncludingNoRightWrite
+      : Writes[ProjectRightLevelIncludingNoRight] =
     ProjectRightLevelIncludingNoRight.writes
 
-  implicit val rightLevelIncludingNoRightWrite: Writes[RightLevelIncludingNoRight] =
+  implicit val rightLevelIncludingNoRightWrite
+      : Writes[RightLevelIncludingNoRight] =
     RightLevelIncludingNoRight.writes
 
   implicit val rightReads: Reads[GeneralAtomicRight] =
@@ -1522,13 +1590,20 @@ object User {
       (__ \ "webhooks").readWithDefault[Map[String, GeneralAtomicRight]](
         Map()
       ) and
-      (__ \ "defaultProjectRight").readWithDefault[ProjectRightLevelIncludingNoRight](ProjectRightLevelIncludingNoRight.None)(
-        ProjectRightLevelIncludingNoRight.reads
-      ) and
-      (__ \ "defaultKeyRight").readWithDefault[RightLevelIncludingNoRight](RightLevelIncludingNoRight.None)(
+      (__ \ "defaultProjectRight")
+        .readWithDefault[ProjectRightLevelIncludingNoRight](
+          ProjectRightLevelIncludingNoRight.None
+        )(
+          ProjectRightLevelIncludingNoRight.reads
+        ) and
+      (__ \ "defaultKeyRight").readWithDefault[RightLevelIncludingNoRight](
+        RightLevelIncludingNoRight.None
+      )(
         RightLevelIncludingNoRight.reads
       ) and
-      (__ \ "defaultWebhookRight").readWithDefault[RightLevelIncludingNoRight](RightLevelIncludingNoRight.None)(
+      (__ \ "defaultWebhookRight").readWithDefault[RightLevelIncludingNoRight](
+        RightLevelIncludingNoRight.None
+      )(
         RightLevelIncludingNoRight.reads
       )
   )(TenantRight.apply _)
@@ -1605,7 +1680,7 @@ object User {
             "roles" -> user.roles,
             "previsionalRights" -> user.previsionalRights
           )
-          .applyOnWithOpt(Option(user.right)) { (json, right) =>
+          .applyOnWithOpt(user.right) { (json, right) =>
             json ++ Json.obj(
               "right" -> RightLevel.rightLevelWrites.writes(right)
             )

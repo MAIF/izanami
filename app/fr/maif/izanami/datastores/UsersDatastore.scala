@@ -1,8 +1,17 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.userImplicits.{UserRow, dbUserTypeToUserType, projectRightRead, rightRead, webhookRightRead}
+import fr.maif.izanami.datastores.userImplicits.{
+  UserRow,
+  dbUserTypeToUserType,
+  projectRightRead,
+  rightRead,
+  webhookRightRead
+}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{RELATION_DOES_NOT_EXISTS, UNIQUE_VIOLATION}
+import fr.maif.izanami.env.PostgresqlErrors.{
+  RELATION_DOES_NOT_EXISTS,
+  UNIQUE_VIOLATION
+}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.models.{ProjectRightLevelIncludingNoRight, *}
@@ -10,7 +19,11 @@ import fr.maif.izanami.models.RightLevel.superiorOrEqualLevels
 import fr.maif.izanami.models.Rights.*
 import fr.maif.izanami.models.User.tenantRightReads
 import fr.maif.izanami.services.*
-import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterJsValue, BetterSyntax}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterFuture,
+  BetterJsValue,
+  BetterSyntax
+}
 import fr.maif.izanami.utils.{Datastore, Done, FutureEither}
 import fr.maif.izanami.web.ImportController.*
 import io.vertx.pgclient.PgException
@@ -362,12 +375,12 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   private def upsertTenantRights(
-                                  tenant: String,
-                                  usernames: Set[String],
-                                  right: TenantWideRightUpdate,
-                                  importConflictStrategy: ImportConflictStrategy,
-                                  conn: Option[SqlConnection]
-                                ): FutureEither[Unit] = {
+      tenant: String,
+      usernames: Set[String],
+      right: TenantWideRightUpdate,
+      importConflictStrategy: ImportConflictStrategy,
+      conn: Option[SqlConnection]
+  ): FutureEither[Unit] = {
     val fields = ArrayBuffer[String]()
     val args = ArrayBuffer[Any](
       usernames.toArray,
@@ -378,13 +391,16 @@ class UsersDatastore(val env: Env) extends Datastore {
     val replaceParts = ArrayBuffer[String]()
     val mergeParts = ArrayBuffer[String]()
 
-      fields.addOne("default_project_right")
-      args.addOne(if(right.defaultProjectRight != ProjectRightLevelIncludingNoRight.None) right.defaultProjectRight.toString.toUpperCase() else null)
-      replaceParts.addOne(
-        "default_project_right=EXCLUDED.default_project_right"
-      )
-      conflictParts.addOne(
-        """default_project_right=CASE
+    fields.addOne("default_project_right")
+    args.addOne(
+      if (right.defaultProjectRight != ProjectRightLevelIncludingNoRight.None)
+        right.defaultProjectRight.toString.toUpperCase()
+      else null
+    )
+    replaceParts.addOne(
+      "default_project_right=EXCLUDED.default_project_right"
+    )
+    conflictParts.addOne("""default_project_right=CASE
           |    WHEN users_tenants_rights.default_project_right = NULL THEN excluded.default_project_right
           |    WHEN users_tenants_rights.default_project_right = 'READ' AND excluded.default_project_right != NULL THEN excluded.default_project_right
           |    WHEN (users_projects_rights.default_project_right = 'UPDATE' AND (excluded.default_project_right = 'ADMIN' OR excluded.default_project_right = 'WRITE')) THEN excluded.default_project_right
@@ -393,11 +409,14 @@ class UsersDatastore(val env: Env) extends Datastore {
           |    ELSE users_tenants_rights.default_project_right
           |  END""".stripMargin)
 
-      replaceParts.addOne("default_key_right=EXCLUDED.default_key_right")
-      fields.addOne("default_key_right")
-      args.addOne(if(right.defaultKeyRight != RightLevelIncludingNoRight.None) right.defaultKeyRight.toString.toUpperCase() else null)
-      conflictParts.addOne(
-        """default_key_right=CASE
+    replaceParts.addOne("default_key_right=EXCLUDED.default_key_right")
+    fields.addOne("default_key_right")
+    args.addOne(
+      if (right.defaultKeyRight != RightLevelIncludingNoRight.None)
+        right.defaultKeyRight.toString.toUpperCase()
+      else null
+    )
+    conflictParts.addOne("""default_key_right=CASE
           |    WHEN users_tenants_rights.default_key_right = NULL THEN excluded.default_key_right
           |    WHEN users_tenants_rights.default_key_right = 'READ' AND excluded.default_key_right != NULL THEN excluded.default_key_right
           |    WHEN (users_tenants_rights.default_key_right = 'WRITE' AND excluded.default_key_right = 'ADMIN') THEN 'ADMIN'
@@ -405,13 +424,16 @@ class UsersDatastore(val env: Env) extends Datastore {
           |    ELSE users_tenants_rights.default_key_right
           |  END""".stripMargin)
 
-      replaceParts.addOne(
-        "default_webhook_right=EXCLUDED.default_webhook_right"
-      )
-      fields.addOne("default_webhook_right")
-      args.addOne(if(right.defaultWebhookRight != RightLevelIncludingNoRight.None) right.defaultWebhookRight.toString.toUpperCase() else null)
-      conflictParts.addOne(
-        """default_webhook_right=CASE
+    replaceParts.addOne(
+      "default_webhook_right=EXCLUDED.default_webhook_right"
+    )
+    fields.addOne("default_webhook_right")
+    args.addOne(
+      if (right.defaultWebhookRight != RightLevelIncludingNoRight.None)
+        right.defaultWebhookRight.toString.toUpperCase()
+      else null
+    )
+    conflictParts.addOne("""default_webhook_right=CASE
           |   WHEN users_tenants_rights.default_webhook_right = NULL THEN excluded.default_webhook_right
           |   WHEN users_tenants_rights.default_webhook_right = 'READ' AND excluded.default_webhook_right != NULL THEN excluded.default_webhook_right
           |   WHEN (users_tenants_rights.default_webhook_right = 'WRITE' AND excluded.default_webhook_right = 'ADMIN') THEN 'ADMIN'
@@ -454,10 +476,9 @@ class UsersDatastore(val env: Env) extends Datastore {
           s"""
              |INSERT INTO izanami.users_tenants_rights(username, tenant, level $fieldPart)
              |VALUES(unnest($$1::TEXT[]), $$2, $$3 ${fieldIndexPart})
-             |${
-            importConflictStrategy match {
-              case Skip => " ON CONFLICT(username, tenant) DO NOTHING"
-              case Fail => ""
+             |${importConflictStrategy match {
+              case Skip    => " ON CONFLICT(username, tenant) DO NOTHING"
+              case Fail    => ""
               case Replace =>
                 s""" ON CONFLICT (username, tenant) DO UPDATE
                    | SET level=EXCLUDED.level
@@ -473,8 +494,7 @@ class UsersDatastore(val env: Env) extends Datastore {
                    | END
                    | ${conflictPartStr}
                    |""".stripMargin
-            }
-          }
+            }}
              |RETURNING username
              |""".stripMargin,
           args.toList,
@@ -675,7 +695,8 @@ class UsersDatastore(val env: Env) extends Datastore {
         webhooks = rights.removedWebhookRights,
         conn = Some(conn)
       );
-      _ <- rights.tenantWideUpdate.map(tenantRight => {
+      _ <- rights.tenantWideUpdate
+        .map(tenantRight => {
           upsertTenantRights(
             tenant = tenant,
             usernames = usernames,
@@ -683,7 +704,8 @@ class UsersDatastore(val env: Env) extends Datastore {
             importConflictStrategy = importConflictStrategy,
             conn = Some(conn)
           )
-        }).getOrElse(FutureEither.success(()));
+        })
+        .getOrElse(FutureEither.success(()));
       _ <- createProjectRights(
         tenant = tenant,
         usernames = usernames,
@@ -735,10 +757,16 @@ class UsersDatastore(val env: Env) extends Datastore {
     )
   }
 
-  def logoutConnectedUsersWithRoleIn(roles: Set[String], conn: Option[SqlConnection] = Option.empty): FutureEither[Done] = {
-    env.postgresql.executeInOptionalTransaction(conn, conn => {
-      env.postgresql.queryAll(
-        s"""
+  def logoutConnectedUsersWithRoleIn(
+      roles: Set[String],
+      conn: Option[SqlConnection] = Option.empty
+  ): FutureEither[Done] = {
+    env.postgresql.executeInOptionalTransaction(
+      conn,
+      conn => {
+        env.postgresql
+          .queryAll(
+            s"""
            |WITH users_to_logout AS (
            |  SELECT username
            |  FROM izanami.users u
@@ -747,11 +775,12 @@ class UsersDatastore(val env: Env) extends Datastore {
            |DELETE FROM izanami.sessions s
            |WHERE s.username IN (SELECT username FROM users_to_logout)
            |""".stripMargin,
-          List(roles.toArray)
-        ){r => Some(())}
-        .mapToFEither()
-        .map(_ => Done.done())
-    })
+            List(roles.toArray)
+          ) { r => Some(()) }
+          .mapToFEither()
+          .map(_ => Done.done())
+      }
+    )
   }
 
   def updateUserRights(
@@ -887,10 +916,10 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def hasRightFor(
-                   tenant: String,
-                   userIdentication: UserIdentification,
-                   rights: Set[RightUnit],
-                   tenantLevel: Option[RightLevel] = Option.empty
+      tenant: String,
+      userIdentication: UserIdentification,
+      rights: Set[RightUnit],
+      tenantLevel: Option[RightLevel] = Option.empty
   ): Future[Option[RightCheckConfirmation]] = {
     require(Tenant.isTenantValid(tenant))
     val webhooks = ArrayBuffer[WebhookRightUnit]()
@@ -898,13 +927,13 @@ class UsersDatastore(val env: Env) extends Datastore {
     val projects = ArrayBuffer[ProjectRightUnit]()
 
     rights.foreach {
-      case p@ProjectRightUnit(name, rightLevel) => {
+      case p @ ProjectRightUnit(name, rightLevel) => {
         projects.addOne(p)
       }
-      case k@KeyRightUnit(name, rightLevel) => {
+      case k @ KeyRightUnit(name, rightLevel) => {
         keys.addOne(k)
       }
-      case w@WebhookRightUnit(name, rightLevel) => {
+      case w @ WebhookRightUnit(name, rightLevel) => {
         webhooks.addOne(w)
       }
     }
@@ -918,7 +947,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       val projectIds = ArrayBuffer[String]()
 
       projects.map(_.project).foreach {
-        case ProjectIdIdentification(id) => projectIds.addOne(id)
+        case ProjectIdIdentification(id)     => projectIds.addOne(id)
         case ProjectNameIdentification(name) => projectNames.addOne(name)
       }
 
@@ -929,7 +958,7 @@ class UsersDatastore(val env: Env) extends Datastore {
            |  select json_build_object('name', p.name, 'id', p.id)
            |  from "${tenant}".projects p
            |  where p.name=ANY($$${index})
-           |  or p.id=ANY($$${index+1}::TEXT[])
+           |  or p.id=ANY($$${index + 1}::TEXT[])
            |)
            |""".stripMargin
       )
@@ -942,7 +971,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           |  left join "${tenant}".projects pr on p.project =pr.name
           |  where p.username=u.username
           |  and (p.project=ANY($$${index})
-          |  or pr.id=ANY($$${index+1}::TEXT[]))
+          |  or pr.id=ANY($$${index + 1}::TEXT[]))
           |)
           |""".stripMargin)
       index = index + 2
@@ -971,7 +1000,7 @@ class UsersDatastore(val env: Env) extends Datastore {
 
       webhooks.map(_.webhook).foreach {
         case WebhookNameIdentification(name) => webhookNames.addOne(name)
-        case WebhookIdIdentification(id) => webhookIds.addOne(id)
+        case WebhookIdIdentification(id)     => webhookIds.addOne(id)
       }
 
       subQueries.addOne(
@@ -995,7 +1024,7 @@ class UsersDatastore(val env: Env) extends Datastore {
            |  left join "${tenant}".webhooks w on wr.webhook=w.name
            |  where wr.username=u.username
            |  and (
-           |    w.username=ANY($$${index}) OR w.id = ANY($$${index+1}::UUID[])
+           |    w.username=ANY($$${index}) OR w.id = ANY($$${index + 1}::UUID[])
            |  )
            |)
            |""".stripMargin
@@ -1051,35 +1080,42 @@ class UsersDatastore(val env: Env) extends Datastore {
             .getOrElse(Set())
 
           def parseToNameById(json: JsArray): Option[Map[UUID, String]] = {
-            json.asOpt[Seq[Map[String, String]]]
+            json
+              .asOpt[Seq[Map[String, String]]]
               .map(data => {
                 val r = data.map(obj => {
-                  for(
+                  for (
                     idStr <- obj.get("id");
                     id = UUID.fromString(idStr);
                     name <- obj.get("name")
                   ) yield (id, name)
                 })
 
-                r.collect {
-                  case Some(value) => value
+                r.collect { case Some(value) =>
+                  value
                 }.toMap
               })
           }
 
-          val projectNameById = jsonRights.flatMap(jsObject => {
-            (jsObject \ "projectIds").asOpt[JsArray]
-          }).flatMap(json => parseToNameById(json))
+          val projectNameById = jsonRights
+            .flatMap(jsObject => {
+              (jsObject \ "projectIds").asOpt[JsArray]
+            })
+            .flatMap(json => parseToNameById(json))
             .getOrElse(Map())
 
-          val keyNameById = jsonRights.flatMap(jsObject => {
-            (jsObject \ "keyIds").asOpt[JsArray]
-          }).flatMap(json => parseToNameById(json))
+          val keyNameById = jsonRights
+            .flatMap(jsObject => {
+              (jsObject \ "keyIds").asOpt[JsArray]
+            })
+            .flatMap(json => parseToNameById(json))
             .getOrElse(Map())
 
-          val webhookNameById = jsonRights.flatMap(jsObject => {
-            (jsObject \ "webhookIds").asOpt[JsArray]
-          }).flatMap(json => parseToNameById(json))
+          val webhookNameById = jsonRights
+            .flatMap(jsObject => {
+              (jsObject \ "webhookIds").asOpt[JsArray]
+            })
+            .flatMap(json => parseToNameById(json))
             .getOrElse(Map())
 
           val userKeyRights = jsonRights
@@ -1103,8 +1139,10 @@ class UsersDatastore(val env: Env) extends Datastore {
             .forall(requestedRight => {
               userProjectRights.exists(actualRight => {
                 (requestedRight.project match {
-                  case ProjectIdIdentification(identification) => actualRight.id == identification
-                  case ProjectNameIdentification(identification) => actualRight.name == identification
+                  case ProjectIdIdentification(identification) =>
+                    actualRight.id == identification
+                  case ProjectNameIdentification(identification) =>
+                    actualRight.name == identification
                 }) &&
                 ProjectRightLevel
                   .superiorOrEqualLevels(requestedRight.rightLevel)
@@ -1142,12 +1180,13 @@ class UsersDatastore(val env: Env) extends Datastore {
             .forall(requestedRight => {
               userWebhookRights.exists(actualRight => {
                 (requestedRight.webhook match {
-                  case WebhookNameIdentification(name) => name == actualRight.name
+                  case WebhookNameIdentification(name) =>
+                    name == actualRight.name
                   case WebhookIdIdentification(id) => id == actualRight.id
                 }) &&
-                  RightLevel
-                    .superiorOrEqualLevels(requestedRight.rightLevel)
-                    .contains(actualRight.level)
+                RightLevel
+                  .superiorOrEqualLevels(requestedRight.rightLevel)
+                  .contains(actualRight.level)
               }) || defaultWebhookRight
                 .exists(dpr =>
                   RightLevel
@@ -1159,15 +1198,24 @@ class UsersDatastore(val env: Env) extends Datastore {
           r.optUser()
             .filter(u => {
               u.admin ||
-                actualTenantRight.contains(RightLevel.Admin) ||
-                tenantLevel
-                  .map(tLevel => {
-                    actualTenantRight.exists(extractedLevel =>
-                      superiorOrEqualLevels(tLevel).contains(extractedLevel)
-                    ) && hasRightForProjects && hasRightForKeys && hasRightForWebhooks
-                  })
-                  .getOrElse(hasRightForProjects && hasRightForKeys && hasRightForWebhooks)
-            }).map(u => RightCheckConfirmation(user = u, projectNameById = projectNameById, webhookNameById = webhookNameById))
+              actualTenantRight.contains(RightLevel.Admin) ||
+              tenantLevel
+                .map(tLevel => {
+                  actualTenantRight.exists(extractedLevel =>
+                    superiorOrEqualLevels(tLevel).contains(extractedLevel)
+                  ) && hasRightForProjects && hasRightForKeys && hasRightForWebhooks
+                })
+                .getOrElse(
+                  hasRightForProjects && hasRightForKeys && hasRightForWebhooks
+                )
+            })
+            .map(u =>
+              RightCheckConfirmation(
+                user = u,
+                projectNameById = projectNameById,
+                webhookNameById = webhookNameById
+              )
+            )
         }
       }
   }
@@ -1409,7 +1457,10 @@ class UsersDatastore(val env: Env) extends Datastore {
     findUsers(Set(username)).map(_.headOption)
   }
 
-  def findUsers(usernames: Set[String], roles: Option[Set[String]] = None): Future[Seq[UserWithTenantRights]] = {
+  def findUsers(
+      usernames: Set[String],
+      roles: Option[Set[String]] = None
+  ): Future[Seq[UserWithTenantRights]] = {
     env.postgresql.queryAll(
       s"""
          |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant, u.roles,
@@ -1420,8 +1471,12 @@ class UsersDatastore(val env: Env) extends Datastore {
          |  ), '{}'::json) as tenants
          |from izanami.users u
          |WHERE u.username=ANY($$1::TEXT[])
-         |${roles.map(rs => s"AND u.roles=ANY($$2::TEXT[])").getOrElse("")}""".stripMargin,
-      roles.map(rs => List(usernames.toArray, rs.toArray)).getOrElse(List(usernames.toArray))
+         |${roles
+          .map(rs => s"AND u.roles=ANY($$2::TEXT[])")
+          .getOrElse("")}""".stripMargin,
+      roles
+        .map(rs => List(usernames.toArray, rs.toArray))
+        .getOrElse(List(usernames.toArray))
     ) { row => row.optUserWithTenantRights() }
   }
 
@@ -1491,7 +1546,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       List(tenant)
     ) { r =>
       r.optUser()
-        .map(u => u.withSingleLevelRight(r.optRightLevel("level").orNull))
+        .map(u => u.withSingleLevelRight(r.optRightLevel("level")))
     }
   }
 
@@ -1872,8 +1927,10 @@ class UsersDatastore(val env: Env) extends Datastore {
 sealed trait UserIdentification {
   val identification: String
 }
-case class UsernameIdentification(override val identification: String) extends UserIdentification
-case class SessionIdentification(override val identification: String) extends UserIdentification
+case class UsernameIdentification(override val identification: String)
+    extends UserIdentification
+case class SessionIdentification(override val identification: String)
+    extends UserIdentification
 
 case class ProjectRightValue(name: String, id: String, level: ProjectRightLevel)
 case class KeyRightValue(name: String, level: RightLevel)
@@ -1989,7 +2046,7 @@ object userImplicits {
         id <- (json \ "id").asOpt[String]
       ) yield {
         val right = dbProjectRightToProjectRight(level)
-        JsSuccess(ProjectRightValue(name = name, level = right, id=id))
+        JsSuccess(ProjectRightValue(name = name, level = right, id = id))
       }
     }.getOrElse(JsError("Failed to read rights"))
   }
@@ -2006,16 +2063,17 @@ object userImplicits {
     }.getOrElse(JsError("Failed to read rights"))
   }
 
-  implicit val webhookRightRead: Reads[WebhookRightValue] = { json => {
-    for (
-      name <- (json \ "name").asOpt[String];
-      level <- (json \ "level").asOpt[String];
-      id <- (json \ "id").asOpt[UUID]
-    ) yield {
-      val right = dbRightToRight(level)
-      JsSuccess(WebhookRightValue(name = name, level = right, id = id))
-    }
-  }.getOrElse(JsError("Failed to read rights"))
+  implicit val webhookRightRead: Reads[WebhookRightValue] = { json =>
+    {
+      for (
+        name <- (json \ "name").asOpt[String];
+        level <- (json \ "level").asOpt[String];
+        id <- (json \ "id").asOpt[UUID]
+      ) yield {
+        val right = dbRightToRight(level)
+        JsSuccess(WebhookRightValue(name = name, level = right, id = id))
+      }
+    }.getOrElse(JsError("Failed to read rights"))
   }
 
   def dbRightToRight(dbRight: String): RightLevel = {
@@ -2042,7 +2100,8 @@ object userImplicits {
       case "OTOROSHI" => OTOROSHI
       case "INTERNAL" => INTERNAL
       case "OIDC"     => OIDC
-      case _ => throw new IllegalArgumentException(s"Unknown userType $userType")
+      case _          =>
+        throw new IllegalArgumentException(s"Unknown userType $userType")
     }
   }
 }

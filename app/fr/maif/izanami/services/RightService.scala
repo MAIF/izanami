@@ -5,17 +5,68 @@ import fr.maif.izanami.RoleRightMode.{Initial, Supervised, roleRightModeConvert}
 import fr.maif.izanami.datastores.{SessionIdentification, UserIdentification}
 import fr.maif.izanami.{RoleRightMode, RoleRights, TenantRoleRights}
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{CantUpdateOIDCUser, IzanamiError, RightComplianceError, UserDoesNotExist, UserNotFound}
+import fr.maif.izanami.errors.{
+  CantUpdateOIDCUser,
+  IzanamiError,
+  RightComplianceError,
+  UserDoesNotExist,
+  UserNotFound
+}
 import fr.maif.izanami.events.{ConfigurationUpdated, EventService}
 import fr.maif.izanami.models.ProjectRightLevel.{ProjectRightOrdering, Read}
 import fr.maif.izanami.models.ProjectRightLevelIncludingNoRight.ProjectRightLevelIncludingNoRightOrdering
 import fr.maif.izanami.models.RightLevel.{Admin, RightOrdering}
 import fr.maif.izanami.models.RightLevelIncludingNoRight.RightLevelIncludingNoRightOrdering
-import fr.maif.izanami.models.Rights.{DeleteTenantRights, RightDiff, TenantRightDiff, TenantWideRightUpdate, UnscopedFlattenKeyRight, UnscopedFlattenProjectRight, UnscopedFlattenWebhookRight, UpsertTenantRights}
-import fr.maif.izanami.models.{GeneralAtomicRight, KeyRightUnit, OAuth2Configuration, OIDC, ProjectAtomicRight, ProjectRightLevel, ProjectRightLevelIncludingNoRight, ProjectRightUnit, ProjectScopedUser, RightLevel, RightLevelIncludingNoRight, RightUnit, Rights, SingleItemScopedUser, TenantRight, TenantRightWithMaxRights, User, UserRightsUpdateRequest, UserTrait, UserWithCompleteRightForOneTenant, UserWithRights, UserWithSingleLevelRight, UserWithTenantRights, WebhookRightUnit}
-import fr.maif.izanami.services.RightService.{DEFAULT_ROLE, RightsByRole, Role, effectiveRights, keepHigher}
+import fr.maif.izanami.models.Rights.{
+  DeleteTenantRights,
+  RightDiff,
+  TenantRightDiff,
+  TenantWideRightUpdate,
+  UnscopedFlattenKeyRight,
+  UnscopedFlattenProjectRight,
+  UnscopedFlattenWebhookRight,
+  UpsertTenantRights
+}
+import fr.maif.izanami.models.{
+  GeneralAtomicRight,
+  KeyRightUnit,
+  OAuth2Configuration,
+  OIDC,
+  ProjectAtomicRight,
+  ProjectRightLevel,
+  ProjectRightLevelIncludingNoRight,
+  ProjectRightUnit,
+  ProjectScopedUser,
+  RightLevel,
+  RightLevelIncludingNoRight,
+  RightUnit,
+  Rights,
+  SingleItemScopedUser,
+  TenantRight,
+  TenantRightWithMaxRights,
+  User,
+  UserRightsUpdateRequest,
+  UserTrait,
+  UserWithCompleteRightForOneTenant,
+  UserWithRights,
+  UserWithSingleLevelRight,
+  UserWithTenantRights,
+  WebhookRightUnit
+}
+import fr.maif.izanami.services.RightService.{
+  DEFAULT_ROLE,
+  RightsByRole,
+  Role,
+  effectiveRights,
+  keepHigher
+}
 import fr.maif.izanami.utils.{Done, FutureEither}
-import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterFutureEither, BetterJsValue, BetterSyntax}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterFuture,
+  BetterFutureEither,
+  BetterJsValue,
+  BetterSyntax
+}
 import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, Replace}
 import io.vertx.sqlclient.SqlConnection
 import org.apache.pekko.actor.ActorSystem
@@ -52,36 +103,51 @@ case class RightCheckConfirmation(
 
 case class EntityIdentifiers(name: String, id: UUID)
 
-class RightService(private val env: Env, private val eventService: EventService) {
+class RightService(
+    private val env: Env,
+    private val eventService: EventService
+) {
   private val logger = Logger("izanami.right-service")
   private implicit val executionContext: ExecutionContext = env.executionContext
   private implicit val actorSystem: ActorSystem = env.actorSystem
   private var sourceKillSwitch: Option[SharedKillSwitch] = Option.empty
-  private val currentOidcConfiguration: AtomicReference[Option[OAuth2Configuration]] = new AtomicReference(Option.empty)
+  private val currentOidcConfiguration
+      : AtomicReference[Option[OAuth2Configuration]] = new AtomicReference(
+    Option.empty
+  )
   private val usersDatastore = env.datastores.users
 
   def onStart(): Future[Done] = {
 
-    val initialOidcConfiguration = env.typedConfiguration.openid.flatMap(
-      _.toIzanamiOAuth2Configuration
-    ).map(conf => FutureEither.success(Some(conf)))
-      .getOrElse(env.datastores.configuration.readFullConfiguration().map(_.oidcConfiguration))
+    val initialOidcConfiguration = env.typedConfiguration.openid
+      .flatMap(
+        _.toIzanamiOAuth2Configuration
+      )
+      .map(conf => FutureEither.success(Some(conf)))
+      .getOrElse(
+        env.datastores.configuration
+          .readFullConfiguration()
+          .map(_.oidcConfiguration)
+      )
 
-    initialOidcConfiguration.map(maybeConfig => {
+    initialOidcConfiguration
+      .map(maybeConfig => {
 
-      this.currentOidcConfiguration.set(maybeConfig)
+        this.currentOidcConfiguration.set(maybeConfig)
 
-      val sourceDescriptor = eventService.consumeGlobal()
-      sourceKillSwitch = Some(sourceDescriptor.killswitch)
-      sourceDescriptor.source.runForeach {
-        case c: ConfigurationUpdated => {
-          currentOidcConfiguration.set(c.newConfiguration.oidcConfiguration)
+        val sourceDescriptor = eventService.consumeGlobal()
+        sourceKillSwitch = Some(sourceDescriptor.killswitch)
+        sourceDescriptor.source.runForeach {
+          case c: ConfigurationUpdated => {
+            currentOidcConfiguration.set(c.newConfiguration.oidcConfiguration)
+          }
+          case _ => ()
         }
-        case _ => ()
-      }
 
-      Done.done()
-    }).value.map(e => Done.done())
+        Done.done()
+      })
+      .value
+      .map(e => Done.done())
 
   }
 
@@ -101,27 +167,25 @@ class RightService(private val env: Env, private val eventService: EventService)
       true
     }
   }
-  
-  def
-  generateRightForNewUser(roles: Set[String]): CompleteRights = {
+
+  def generateRightForNewUser(roles: Set[String]): CompleteRights = {
     val defaultRightsToApply = defaultRights
       .map(r =>
         RightService
           .effectiveRights(r, roles)
       )
       .getOrElse(CompleteRights.EMPTY)
-    
+
     roleRightMode match {
       case Some(Initial) => {
-        val maxRights = maxRightsByRoles.map(mr =>
-          CompleteRights.maxRightsToApply(roles, mr)
-        )
+        val maxRights =
+          maxRightsByRoles.map(mr => CompleteRights.maxRightsToApply(roles, mr))
         val rightCompliance = maxRights
           .map(r => defaultRightsToApply.checkCompliance(r))
           .getOrElse(
             MaxRightComplianceResult.empty
           )
-        if(!rightCompliance.isEmpty) {
+        if (!rightCompliance.isEmpty) {
           logger.error(
             s"Configured max rights are below configured default rights, therefore default rights are reduced to max rights (roles are ${roles.mkString(",")})"
           )
@@ -131,11 +195,15 @@ class RightService(private val env: Env, private val eventService: EventService)
         }
       }
       case Some(Supervised) => defaultRightsToApply
-      case None => CompleteRights.EMPTY
+      case None             => CompleteRights.EMPTY
     }
   }
 
-  def updateUserRightsIfNeeded(user: UserWithRights, newRoles: Set[String], conn: Option[SqlConnection]): FutureEither[Option[MaxRightComplianceResult]] = {
+  def updateUserRightsIfNeeded(
+      user: UserWithRights,
+      newRoles: Set[String],
+      conn: Option[SqlConnection]
+  ): FutureEither[Option[MaxRightComplianceResult]] = {
     roleRightMode match {
       case Some(Initial) => {
         val maxRights = maxRightsByRoles.map(mr =>
@@ -152,11 +220,16 @@ class RightService(private val env: Env, private val eventService: EventService)
             MaxRightComplianceResult.empty
           )
 
-        if(!maxRightComplanceResult.isEmpty) {
+        if (!maxRightComplanceResult.isEmpty) {
           env.datastores.users
             .updateUserRights(
               user.username,
-              maxRightComplanceResult.rightDiff(CompleteRights(admin = user.admin, tenants = user.rights.tenants)),
+              maxRightComplanceResult.rightDiff(
+                CompleteRights(
+                  admin = user.admin,
+                  tenants = user.rights.tenants
+                )
+              ),
               conn = conn
             )
             .toFEither
@@ -173,14 +246,16 @@ class RightService(private val env: Env, private val eventService: EventService)
           )
           .getOrElse(CompleteRights.EMPTY)
 
-        if(user.admin != defaultRightsToApply.admin || user.rights.tenants != defaultRightsToApply.tenants) {
+        if (
+          user.admin != defaultRightsToApply.admin || user.rights.tenants != defaultRightsToApply.tenants
+        ) {
           updateUserRights(
-              user.username,
-              UserRightsUpdateRequest
-                .fromRights(defaultRightsToApply),
-              force = true,
-              conn = conn
-            ).map(_ => Option.empty) // FIXME this should return right change
+            user.username,
+            UserRightsUpdateRequest
+              .fromRights(defaultRightsToApply),
+            force = true,
+            conn = conn
+          ).map(_ => Option.empty) // FIXME this should return right change
         } else {
           FutureEither.success(Option.empty)
         }
@@ -299,7 +374,7 @@ class RightService(private val env: Env, private val eventService: EventService)
       user <- usersDatastore
         .findUserWithRightForTenant(targetUser, tenant = tenant)
         .toFEither;
-      maxRightsByRoles  = this.maxRightsByRoles;
+      maxRightsByRoles = this.maxRightsByRoles;
       res <- doUpdateUserRightsForTenant(
         Set(user),
         tenant,
@@ -318,27 +393,40 @@ class RightService(private val env: Env, private val eventService: EventService)
       .map(user => adjustRightsRoMaxRightsIfNeeded(user))
   }
 
-  def findUserRightsForTenant(user: String, tenant: String): FutureEither[UserWithRights] = { // TODO return type should be user with single tenant
-    usersDatastore.findCompleteRightsFromTenant(user, Set(tenant))
+  def findUserRightsForTenant(user: String, tenant: String): FutureEither[
+    UserWithRights
+  ] = { // TODO return type should be user with single tenant
+    usersDatastore
+      .findCompleteRightsFromTenant(user, Set(tenant))
       .map(_.toRight(UserDoesNotExist(user)))
       .toFEither
       .map(user => adjustRightsRoMaxRightsIfNeeded(user))
   }
 
-  private def adjustRightsRoMaxRightsIfNeeded(user: UserWithRights): UserWithRights = {
+  private def adjustRightsRoMaxRightsIfNeeded(
+      user: UserWithRights
+  ): UserWithRights = {
     if (shouldCheckMaxRight(user)) {
-      maxRightsByRoles.map(maxRights => {
-        val currentRights = CompleteRights(tenants = user.rights.tenants, admin = user.admin)
-        val maxRightsToApply = CompleteRights.maxRightsToApply(user.roles, maxRights)
-        val complianceResult = currentRights.checkCompliance(maxRightsToApply)
+      maxRightsByRoles
+        .map(maxRights => {
+          val currentRights =
+            CompleteRights(tenants = user.rights.tenants, admin = user.admin)
+          val maxRightsToApply =
+            CompleteRights.maxRightsToApply(user.roles, maxRights)
+          val complianceResult = currentRights.checkCompliance(maxRightsToApply)
 
-        if (complianceResult.isEmpty) {
-          user
-        } else {
-          val rightToUse = currentRights.updateToComplyWith(complianceResult)
-          user.copy(rights = Rights(rightToUse.tenants), admin = rightToUse.admin, previsionalRights = true)
-        }
-      }).getOrElse(user)
+          if (complianceResult.isEmpty) {
+            user
+          } else {
+            val rightToUse = currentRights.updateToComplyWith(complianceResult)
+            user.copy(
+              rights = Rights(rightToUse.tenants),
+              admin = rightToUse.admin,
+              previsionalRights = true
+            )
+          }
+        })
+        .getOrElse(user)
     } else {
       user
     }
@@ -364,7 +452,6 @@ class RightService(private val env: Env, private val eventService: EventService)
             baseAdmin = user.admin,
             admin = updateRequest.admin
           )
-
 
           val maxRightsAndComplianceResult = maxRightsByRoles
             .map(maxRightsByRoles => {
@@ -472,7 +559,7 @@ class RightService(private val env: Env, private val eventService: EventService)
             case None => Some(res)
             case _    => None
           }
-        case None => None
+        case None      => None
         case Some(res) => Some(res)
       }
   }
@@ -526,134 +613,210 @@ class RightService(private val env: Env, private val eventService: EventService)
   }
 
   def findUsersForProject(
-                           tenant: String,
-                           project: String
-                         ): Future[List[ProjectScopedUser]] = {
+      tenant: String,
+      project: String
+  ): Future[List[ProjectScopedUser]] = {
     for (
       users <- usersDatastore.findUsersForProject(tenant, project);
       oidcConfig = oidcRights
     ) yield {
-      oidcConfig.map(rights => {
-        users.flatMap(user => {
-          val maxPossibleRight = rights.maxRightForProject(tenant,  project, user.roles)
-          maxPossibleRight.toMaybeProjectRightLevel.map(maxRight => {
-            if (shouldCheckMaxRight(user)) {
-              val rightAboveMaxRights = Option(user.right).exists(_.isGreaterThan(maxRight))
-              val defaultRightsAboveMaxRights = user.defaultRight.exists(dr => dr.isGreaterThan(maxRight))
-              user.copy(previsionalRights = rightAboveMaxRights || defaultRightsAboveMaxRights, right = if(rightAboveMaxRights) maxRight else user.right, defaultRight = user.defaultRight.map(dr => if(dr.isGreaterThan(maxRight)) maxRight else dr))
-            } else {
-              user
-            }
+      oidcConfig
+        .map(rights => {
+          users.flatMap(user => {
+            val maxPossibleRight =
+              rights.maxRightForProject(tenant, project, user.roles)
+            maxPossibleRight.toMaybeProjectRightLevel.map(maxRight => {
+              if (shouldCheckMaxRight(user)) {
+                val rightAboveMaxRights =
+                  Option(user.right).exists(_.isGreaterThan(maxRight))
+                val defaultRightsAboveMaxRights =
+                  user.defaultRight.exists(dr => dr.isGreaterThan(maxRight))
+                user.copy(
+                  previsionalRights =
+                    rightAboveMaxRights || defaultRightsAboveMaxRights,
+                  right = if (rightAboveMaxRights) maxRight else user.right,
+                  defaultRight = user.defaultRight
+                    .map(dr => if (dr.isGreaterThan(maxRight)) maxRight else dr)
+                )
+              } else {
+                user
+              }
+            })
           })
         })
-      }).getOrElse(users)
+        .getOrElse(users)
     }
   }
 
   def findUsersForKey(
-                       tenant: String,
-                       key: String
-                     ): Future[List[SingleItemScopedUser]] = {
+      tenant: String,
+      key: String
+  ): Future[List[SingleItemScopedUser]] = {
     for (
       users <- usersDatastore.findUsersForKey(tenant, key);
       oidcConfig = oidcRights
     ) yield {
-      oidcConfig.map(rights => {
-        users.flatMap(user => {
-          val maxPossibleRight = rights.maxRightForKey(tenant, key, user.roles)
-          maxPossibleRight.toMaybeRightLevel.map(maxRight => {
-            if (shouldCheckMaxRight(user)) {
-              val rightAboveMaxRights = Option(user.right).exists(_.isGreaterThan(maxRight))
-              val defaultRightsAboveMaxRights = user.defaultRight.exists(dr => dr.isGreaterThan(maxRight))
-              user.copy(previsionalRights = rightAboveMaxRights || defaultRightsAboveMaxRights, right = if(user.right.isGreaterThan(maxRight)) maxRight else user.right, defaultRight = user.defaultRight.map(dr => if(dr.isGreaterThan(maxRight)) maxRight else dr))
-            } else {
-              user
-            }
+      oidcConfig
+        .map(rights => {
+          users.flatMap(user => {
+            val maxPossibleRight =
+              rights.maxRightForKey(tenant, key, user.roles)
+            maxPossibleRight.toMaybeRightLevel.map(maxRight => {
+              if (shouldCheckMaxRight(user)) {
+                val rightAboveMaxRights =
+                  Option(user.right).exists(_.isGreaterThan(maxRight))
+                val defaultRightsAboveMaxRights =
+                  user.defaultRight.exists(dr => dr.isGreaterThan(maxRight))
+                user.copy(
+                  previsionalRights =
+                    rightAboveMaxRights || defaultRightsAboveMaxRights,
+                  right =
+                    if (user.right.isGreaterThan(maxRight)) maxRight
+                    else user.right,
+                  defaultRight = user.defaultRight
+                    .map(dr => if (dr.isGreaterThan(maxRight)) maxRight else dr)
+                )
+              } else {
+                user
+              }
+            })
           })
         })
-      }).getOrElse(users)
+        .getOrElse(users)
     }
   }
 
   def findUsersForWebhook(
-                           tenant: String,
-                           webhook: String
-                         ): Future[List[SingleItemScopedUser]] = {
+      tenant: String,
+      webhook: String
+  ): Future[List[SingleItemScopedUser]] = {
     for (
       users <- usersDatastore.findUsersForWebhook(tenant, webhook);
       oidcConfig = oidcRights
     ) yield {
-      oidcConfig.map(rights => {
-        users.flatMap(user => {
-          val maxPossibleRight = rights.maxRightForWebhook(tenant, webhook, user.roles)
-          maxPossibleRight.toMaybeRightLevel.map(maxRight => {
-            if (shouldCheckMaxRight(user)) {
-              val rightAboveMaxRights = Option(user.right).exists(_.isGreaterThan(maxRight))
-              val defaultRightsAboveMaxRights = user.defaultRight.exists(dr => dr.isGreaterThan(maxRight))
-              user.copy(previsionalRights = rightAboveMaxRights || defaultRightsAboveMaxRights, right = if(user.right.isGreaterThan(maxRight)) maxRight else user.right, defaultRight = user.defaultRight.map(dr => if(dr.isGreaterThan(maxRight)) maxRight else dr))
-            } else {
-              user
-            }
+      oidcConfig
+        .map(rights => {
+          users.flatMap(user => {
+            val maxPossibleRight =
+              rights.maxRightForWebhook(tenant, webhook, user.roles)
+            maxPossibleRight.toMaybeRightLevel.map(maxRight => {
+              if (shouldCheckMaxRight(user)) {
+                val rightAboveMaxRights =
+                  Option(user.right).exists(_.isGreaterThan(maxRight))
+                val defaultRightsAboveMaxRights =
+                  user.defaultRight.exists(dr => dr.isGreaterThan(maxRight))
+                user.copy(
+                  previsionalRights =
+                    rightAboveMaxRights || defaultRightsAboveMaxRights,
+                  right =
+                    if (user.right.isGreaterThan(maxRight)) maxRight
+                    else user.right,
+                  defaultRight = user.defaultRight
+                    .map(dr => if (dr.isGreaterThan(maxRight)) maxRight else dr)
+                )
+              } else {
+                user
+              }
+            })
           })
         })
-      }).getOrElse(users)
+        .getOrElse(users)
     }
   }
 
-  def findUsersForTenant(tenant: String):  Future[List[UserWithSingleLevelRight]] = {
-    for(
+  def findUsersForTenant(
+      tenant: String
+  ): Future[List[UserWithSingleLevelRight]] = {
+    for (
       users <- usersDatastore.findUsersForTenant(tenant);
       oidcConfig = oidcRights
     ) yield {
-      oidcConfig.map(rights => {
-        users.flatMap(user => {
-          val maxPossibleRight = rights.maxRightForTenant(tenant, user.roles)
-          maxPossibleRight.toMaybeRightLevel.map(maxRight => {
-            if(user.right.isGreaterThan(maxRight) && shouldCheckMaxRight(user)) {
-              user.copy(right = maxRight, previsionalRights = true)
-            } else {
-              user
-            }
+      oidcConfig
+        .map(rights => {
+          users.flatMap(user => {
+            val maxPossibleRight = rights.maxRightForTenant(tenant, user.roles)
+            maxPossibleRight.toMaybeRightLevel.map(maxRight => {
+              if (
+                user.right.exists(r =>
+                  r.isGreaterThan(maxRight)
+                ) && shouldCheckMaxRight(user)
+              ) {
+                user.copy(right = Some(maxRight), previsionalRights = true)
+              } else {
+                user
+              }
+            })
           })
         })
-      }).getOrElse(users)
+        .getOrElse(users)
     }
   }
 
   def findVisibleUsers(username: String): Future[Set[UserWithTenantRights]] = {
-    for(
+    for (
       users <- usersDatastore.findVisibleUsers(username);
       oidcConfig = oidcRights
     ) yield {
-      oidcConfig.map(rights => {
-        users.map(user => {
-          var previsionalRights = false
-          val newRights = user.tenantRights.map {(tenant, rightLevel) => {
-            val maxPossibleRight = rights.maxRightForTenant(tenant, user.roles)
-            maxPossibleRight match {
-              case level: RightLevel if rightLevel.isGreaterThan(level) && shouldCheckMaxRight(user) => {
-                previsionalRights = true
-                Some((tenant, level))
+      oidcConfig
+        .map(rights => {
+          users.map(user => {
+            var previsionalRights = false
+            val newRights = user.tenantRights
+              .map { (tenant, rightLevel) =>
+                {
+                  val maxPossibleRight =
+                    rights.maxRightForTenant(tenant, user.roles)
+                  maxPossibleRight match {
+                    case level: RightLevel
+                        if rightLevel.isGreaterThan(
+                          level
+                        ) && shouldCheckMaxRight(user) => {
+                      previsionalRights = true
+                      Some((tenant, level))
+                    }
+                    case RightLevelIncludingNoRight.None => Option.empty
+                    case _ => Some((tenant, rightLevel))
+                  }
+                }
               }
-              case RightLevelIncludingNoRight.None => Option.empty
-              case _ => Some((tenant, rightLevel))
-            }
-          }}.flatten.toMap
-          user.copy(tenantRights = newRights, previsionalRights = previsionalRights)
+              .flatten
+              .toMap
+            user.copy(
+              tenantRights = newRights,
+              previsionalRights = previsionalRights
+            )
+          })
         })
-      }).getOrElse(users)
+        .getOrElse(users)
     }
   }
-  
+
   private def shouldCheckMaxRight(user: UserTrait): Boolean = {
-    user.userType == OIDC  && currentOidcConfiguration.get().map(_.roleRightMode).exists(_ != Supervised)  && currentOidcConfiguration.get().flatMap(_.maxRightsByRoles).exists(_.nonEmpty)
+    user.userType == OIDC && currentOidcConfiguration
+      .get()
+      .map(_.roleRightMode)
+      .exists(_ != Supervised) && currentOidcConfiguration
+      .get()
+      .flatMap(_.maxRightsByRoles)
+      .exists(_.nonEmpty)
   }
 
-  private def oidcRights: Option[OIDCRights] = currentOidcConfiguration.get().flatMap(_.userRightsByRoles).map(rightByRoles => OIDCRights(rightByRoles))
-  private def oidcConfiguration: Option[OAuth2Configuration] = currentOidcConfiguration.get()
-  private def roleRightMode: Option[RoleRightMode] = currentOidcConfiguration.get().flatMap(_.roleRightMode)
-  private def maxRightsByRoles: Option[Map[String, MaxRights]] = currentOidcConfiguration.get().flatMap(_.maxRightsByRoles)
-  private def defaultRights: Option[RightsByRole] = currentOidcConfiguration.get().flatMap(_.userRightsByRoles.map(m => m.view.mapValues(r => r.completeRights).toMap))
+  private def oidcRights: Option[OIDCRights] = currentOidcConfiguration
+    .get()
+    .flatMap(_.userRightsByRoles)
+    .map(rightByRoles => OIDCRights(rightByRoles))
+  private def oidcConfiguration: Option[OAuth2Configuration] =
+    currentOidcConfiguration.get()
+  private def roleRightMode: Option[RoleRightMode] =
+    currentOidcConfiguration.get().flatMap(_.roleRightMode)
+  private def maxRightsByRoles: Option[Map[String, MaxRights]] =
+    currentOidcConfiguration.get().flatMap(_.maxRightsByRoles)
+  private def defaultRights: Option[RightsByRole] = currentOidcConfiguration
+    .get()
+    .flatMap(
+      _.userRightsByRoles
+        .map(m => m.view.mapValues(r => r.completeRights).toMap)
+    )
 }
 
 sealed trait ProjectIdentification
@@ -665,7 +828,6 @@ case class ProjectNameIdentification(identification: String)
 sealed trait WebhookIdentification
 case class WebhookNameIdentification(name: String) extends WebhookIdentification
 case class WebhookIdIdentification(id: UUID) extends WebhookIdentification
-
 
 object RightService {
   type Role = String
@@ -782,7 +944,8 @@ case class RightComplianceChange(
 
 object RightComplianceChange {
   def writes: Writes[RightComplianceChange] = r => {
-    implicit val w: Writes[RightLevelIncludingNoRight] = RightLevelIncludingNoRight.writes
+    implicit val w: Writes[RightLevelIncludingNoRight] =
+      RightLevelIncludingNoRight.writes
     Json.obj("before" -> r.before, "after" -> r.after)
   }
 }
@@ -794,7 +957,8 @@ case class ProjectRightComplianceChange(
 
 object ProjectRightComplianceChange {
   def writes: Writes[ProjectRightComplianceChange] = r => {
-    implicit val w: Writes[ProjectRightLevelIncludingNoRight] = ProjectRightLevelIncludingNoRight.writes
+    implicit val w: Writes[ProjectRightLevelIncludingNoRight] =
+      ProjectRightLevelIncludingNoRight.writes
     Json.obj("before" -> r.before, "after" -> r.after)
   }
 }
@@ -808,7 +972,9 @@ case class TenantRightComplianceResult(
     keys: Map[String, RightComplianceChange],
     webhooks: Map[String, RightComplianceChange]
 ) {
-  def rightDiff(maybeExistingRights: Option[TenantRight]): Option[TenantRightDiff] = {
+  def rightDiff(
+      maybeExistingRights: Option[TenantRight]
+  ): Option[TenantRightDiff] = {
     if (isEmpty) {
       Option.empty
     } else if (
@@ -875,9 +1041,19 @@ case class TenantRightComplianceResult(
           tenantWideUpdate = levelRight.map(tenantLevelChange => {
             TenantWideRightUpdate(
               level = tenantLevelChange.after.toMaybeRightLevel.get,
-              defaultProjectRight = defaultProjectRight.map(c => c.after).orElse(maybeExistingRights.map(_.defaultProjectRight)).getOrElse(ProjectRightLevelIncludingNoRight.None),
-              defaultKeyRight = defaultKeyRight.map(c => c.after).orElse(maybeExistingRights.map(_.defaultKeyRight)).getOrElse(RightLevelIncludingNoRight.None),
-              defaultWebhookRight = defaultWebhookRight.map(c => c.after).orElse(maybeExistingRights.map(_.defaultWebhookRight)).getOrElse(RightLevelIncludingNoRight.None))
+              defaultProjectRight = defaultProjectRight
+                .map(c => c.after)
+                .orElse(maybeExistingRights.map(_.defaultProjectRight))
+                .getOrElse(ProjectRightLevelIncludingNoRight.None),
+              defaultKeyRight = defaultKeyRight
+                .map(c => c.after)
+                .orElse(maybeExistingRights.map(_.defaultKeyRight))
+                .getOrElse(RightLevelIncludingNoRight.None),
+              defaultWebhookRight = defaultWebhookRight
+                .map(c => c.after)
+                .orElse(maybeExistingRights.map(_.defaultWebhookRight))
+                .getOrElse(RightLevelIncludingNoRight.None)
+            )
           }),
           addedProjectRights = addedProjects,
           removedProjectRights = removedProjects,
@@ -951,18 +1127,23 @@ object TenantRightComplianceResult {
     Map()
   )
   def writes: Writes[TenantRightComplianceResult] = r => {
-    implicit val _: Writes[ProjectRightComplianceChange] = ProjectRightComplianceChange.writes
+    implicit val _: Writes[ProjectRightComplianceChange] =
+      ProjectRightComplianceChange.writes
     implicit val _: Writes[RightComplianceChange] = RightComplianceChange.writes
-    Json.obj("projects" -> r.projects, "keys" -> r.keys, "webhooks" -> r.webhooks)
+    Json
+      .obj("projects" -> r.projects, "keys" -> r.keys, "webhooks" -> r.webhooks)
       .applyOnWithOpt(r.defaultProjectRight)((json, defaultProject) => {
-      json + ("defaultProject" -> Json.toJson(defaultProject))
-    }).applyOnWithOpt(r.defaultKeyRight)((json, defaultKey) => {
-      json + ("defaultKey" -> Json.toJson(defaultKey))
-    }).applyOnWithOpt(r.defaultWebhookRight)((json, defaultWebhook) => {
-      json + ("defaultWebhook" -> Json.toJson(defaultWebhook))
-    }).applyOnWithOpt(r.levelRight)((json, levelRight) => {
+        json + ("defaultProject" -> Json.toJson(defaultProject))
+      })
+      .applyOnWithOpt(r.defaultKeyRight)((json, defaultKey) => {
+        json + ("defaultKey" -> Json.toJson(defaultKey))
+      })
+      .applyOnWithOpt(r.defaultWebhookRight)((json, defaultWebhook) => {
+        json + ("defaultWebhook" -> Json.toJson(defaultWebhook))
+      })
+      .applyOnWithOpt(r.levelRight)((json, levelRight) => {
         json + ("levelRight" -> Json.toJson(levelRight))
-    })
+      })
   }
 }
 
@@ -1013,7 +1194,8 @@ case class MaxRightComplianceResult(
 
 object MaxRightComplianceResult {
   def writes: Writes[MaxRightComplianceResult] = r => {
-    implicit val _: Writes[TenantRightComplianceResult] = TenantRightComplianceResult.writes
+    implicit val _: Writes[TenantRightComplianceResult] =
+      TenantRightComplianceResult.writes
     Json.obj("admin" -> r.admin, "tenants" -> r.tenants)
   }
 
@@ -1032,32 +1214,47 @@ case class OIDCRights(rights: Map[String, CompleteRightsWithMaxRights]) {
     if (maxRights.isEmpty) {
       Option.empty
     } else {
-        Some(maxRights.reduce((mr1, mr2) => MaxRights.keepHigher(mr1, mr2)))
+      Some(maxRights.reduce((mr1, mr2) => MaxRights.keepHigher(mr1, mr2)))
     }
   }
 
-  def maxRightForTenant(tenant: String, roles: Set[String]): RightLevelIncludingNoRight = {
-    (for(
+  def maxRightForTenant(
+      tenant: String,
+      roles: Set[String]
+  ): RightLevelIncludingNoRight = {
+    (for (
       maxRights <- maxRightsForRoles(roles);
       tenantRights <- maxRights.tenants.get(tenant)
     ) yield tenantRights.level).getOrElse(Admin)
   }
 
-  def maxRightForProject(tenant: String, project: String, roles: Set[String]): ProjectRightLevelIncludingNoRight = {
+  def maxRightForProject(
+      tenant: String,
+      project: String,
+      roles: Set[String]
+  ): ProjectRightLevelIncludingNoRight = {
     (for (
       maxRights <- maxRightsForRoles(roles);
       tenantRights <- maxRights.tenants.get(tenant)
     ) yield tenantRights.maxProjectRight).getOrElse(ProjectRightLevel.Admin)
   }
 
-  def maxRightForKey(tenant: String, key: String, roles: Set[String]): RightLevelIncludingNoRight = {
+  def maxRightForKey(
+      tenant: String,
+      key: String,
+      roles: Set[String]
+  ): RightLevelIncludingNoRight = {
     (for (
       maxRights <- maxRightsForRoles(roles);
       tenantRights <- maxRights.tenants.get(tenant)
     ) yield tenantRights.maxKeyRight).getOrElse(RightLevel.Admin)
   }
 
-  def maxRightForWebhook(tenant: String, webhook: String, roles: Set[String]): RightLevelIncludingNoRight = {
+  def maxRightForWebhook(
+      tenant: String,
+      webhook: String,
+      roles: Set[String]
+  ): RightLevelIncludingNoRight = {
     (for (
       maxRights <- maxRightsForRoles(roles);
       tenantRights <- maxRights.tenants.get(tenant)
@@ -1083,7 +1280,8 @@ case class OIDCRights(rights: Map[String, CompleteRightsWithMaxRights]) {
             tenant = tenant,
             requestLevel = rightLevel
           )
-      })
+      }
+    )
   }
 
   def allowsWebhookRight(
@@ -1533,11 +1731,12 @@ case object CompleteRights {
     }.values
 
     rs.toList match {
-      case Nil => MaxRights(admin = true, tenants = Map())
-      case head::Nil => head
-      case head::tail => tail.foldLeft(head)((acc, next) => {
-        max(acc, next)
-      })
+      case Nil          => MaxRights(admin = true, tenants = Map())
+      case head :: Nil  => head
+      case head :: tail =>
+        tail.foldLeft(head)((acc, next) => {
+          max(acc, next)
+        })
     }
   }
 
