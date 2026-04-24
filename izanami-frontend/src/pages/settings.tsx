@@ -1091,114 +1091,126 @@ function RightByRoleSelector(props: {
           </p>
         )}
         <fieldset disabled={readOnly.readOnly}>
-          {Object.entries(rights).map(([role, right], index, array) => {
-            let effectiveRight = right;
-            const missingTenants = Object.keys(right.tenants ?? {}).filter(
-              (t) => !existingTenants.includes(t),
-            );
-            if (missingTenants.length > 0) {
-              effectiveRight = {
-                adminAllowed: effectiveRight.adminAllowed,
-                admin: effectiveRight.admin,
-                tenants: Object.entries(right.tenants ?? {})
-                  .filter((entry) => {
-                    return !missingTenants.includes(entry[0]);
-                  })
-                  .reduce((acc, [key, value]) => {
-                    acc[key] = value;
-                    return acc;
-                  }, {} as { [k: string]: any }),
-              };
-            }
+          {Object.entries(rights)
+            .toSorted(([role1, right1], [role2, right2]) => {
+              if (role1 === "") {
+                return -1;
+              } else if (role2 === "") {
+                return 1;
+              } else {
+                return role1 > role2 ? 1 : role1 > role2 ? -1 : 0;
+              }
+            })
+            .map(([role, right], index, array) => {
+              let effectiveRight = right;
+              const missingTenants = Object.keys(right.tenants ?? {}).filter(
+                (t) => !existingTenants.includes(t),
+              );
+              if (missingTenants.length > 0) {
+                effectiveRight = {
+                  adminAllowed: effectiveRight.adminAllowed,
+                  admin: effectiveRight.admin,
+                  tenants: Object.entries(right.tenants ?? {})
+                    .filter((entry) => {
+                      return !missingTenants.includes(entry[0]);
+                    })
+                    .reduce((acc, [key, value]) => {
+                      acc[key] = value;
+                      return acc;
+                    }, {} as { [k: string]: any }),
+                };
+              }
 
-            return (
-              <>
-                <div key={`${role}-right`}>
-                  <h3>
-                    {role === "" ? "Default rights" : `Rights for role ${role}`}
-                    &nbsp;
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => {
-                        const newRights = {
-                          ...rights,
-                        };
-                        delete newRights[role];
-                        onChange?.(newRights);
-                      }}
-                    >
-                      Delete role
-                    </button>
-                  </h3>
-                  <div className="d-flex flex-column">
-                    <label className="d-flex flex-row align-items-center">
-                      Admin&nbsp;
-                      <input
-                        style={{ marginTop: 0 }}
-                        type="checkbox"
-                        className="izanami-checkbox"
-                        checked={right.admin}
-                        onChange={(e) => {
-                          const newAdmin = e.target.checked;
+              return (
+                <>
+                  <div key={`${role}-right`}>
+                    <h3>
+                      {role === ""
+                        ? "Default rights"
+                        : `Rights for role ${role}`}
+                      &nbsp;
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => {
                           const newRights = {
                             ...rights,
-                            [role]: { ...right, admin: newAdmin },
                           };
+                          delete newRights[role];
                           onChange?.(newRights);
                         }}
-                      />
-                    </label>
-                    <label className="d-flex flex-row align-items-center">
-                      Can become admin
-                      <Tooltip id="max-right-admin-tooltip">
-                        Whether users with this role can become admin of this
-                        Izanami instance.
-                      </Tooltip>
-                      &nbsp;
-                      <input
-                        type="checkbox"
-                        className="izanami-checkbox"
-                        style={{ marginTop: 0 }}
-                        checked={right?.adminAllowed}
-                        onChange={(e) => {
-                          const newAdminAllowed = e.target.checked;
+                      >
+                        Delete role
+                      </button>
+                    </h3>
+                    <div className="d-flex flex-column">
+                      <label className="d-flex flex-row align-items-center">
+                        Admin&nbsp;
+                        <input
+                          style={{ marginTop: 0 }}
+                          type="checkbox"
+                          className="izanami-checkbox"
+                          checked={right.admin}
+                          onChange={(e) => {
+                            const newAdmin = e.target.checked;
+                            const newRights = {
+                              ...rights,
+                              [role]: { ...right, admin: newAdmin },
+                            };
+                            onChange?.(newRights);
+                          }}
+                        />
+                      </label>
+                      <label className="d-flex flex-row align-items-center">
+                        Can become admin
+                        <Tooltip id="max-right-admin-tooltip">
+                          Whether users with this role can become admin of this
+                          Izanami instance.
+                        </Tooltip>
+                        &nbsp;
+                        <input
+                          type="checkbox"
+                          className="izanami-checkbox"
+                          style={{ marginTop: 0 }}
+                          checked={right?.adminAllowed}
+                          onChange={(e) => {
+                            const newAdminAllowed = e.target.checked;
+                            const newRights = {
+                              ...rights,
+                              [role]: {
+                                ...right,
+                                adminAllowed: newAdminAllowed,
+                              },
+                            };
+                            onChange?.(newRights);
+                          }}
+                        ></input>
+                      </label>
+                    </div>
+
+                    <RightSelector
+                      defaultValue={effectiveRight}
+                      tenantLevelFilter="Admin"
+                      onChange={(v) => {
+                        const newR = rightStateArrayToBackendMap(v);
+                        if (!isEqual(effectiveRight.tenants, newR.tenants)) {
                           const newRights = {
                             ...rights,
                             [role]: {
-                              ...right,
-                              adminAllowed: newAdminAllowed,
+                              ...newR,
+                              admin: right.admin,
+                              adminAllowed: right.adminAllowed,
                             },
                           };
                           onChange?.(newRights);
-                        }}
-                      ></input>
-                    </label>
+                        }
+                      }}
+                      maxRights={true}
+                    />
                   </div>
-
-                  <RightSelector
-                    defaultValue={effectiveRight}
-                    tenantLevelFilter="Admin"
-                    onChange={(v) => {
-                      const newR = rightStateArrayToBackendMap(v);
-                      if (!isEqual(effectiveRight.tenants, newR.tenants)) {
-                        const newRights = {
-                          ...rights,
-                          [role]: {
-                            ...newR,
-                            admin: right.admin,
-                            adminAllowed: right.adminAllowed,
-                          },
-                        };
-                        onChange?.(newRights);
-                      }
-                    }}
-                    maxRights={true}
-                  />
-                </div>
-                {index < array.length - 1 && <hr />}
-              </>
-            );
-          })}
+                  {index < array.length - 1 && <hr />}
+                </>
+              );
+            })}
           {!creatingRole.creating ? (
             <div className="d-flex flex-row justify-content-end">
               <button

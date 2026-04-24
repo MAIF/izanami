@@ -576,7 +576,7 @@ export function RightSelector(props: {
                         <div className="sub_container sub_container-bglighter project-selector">
                           <label>
                             <i className="fas fa-building" aria-hidden></i>
-                            &nbsp;Project rights for {name}
+                            &nbsp;Projects rights for {name}
                           </label>
                           <div>
                             <div className="d-flex flex-row justify-content-between">
