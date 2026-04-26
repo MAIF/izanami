@@ -8,7 +8,6 @@ import fr.maif.izanami.api.BaseAPISpec.{
   TestRights,
   TestSituationBuilder,
   TestTenant,
-  TestTenantRight,
   TestUser,
   TestWasmConfig,
   enabledFeatureBase64,
@@ -17,7 +16,6 @@ import fr.maif.izanami.api.BaseAPISpec.{
 import org.scalatest.matchers.should.Matchers.should
 import play.api.http.Status.{
   ACCEPTED,
-  BAD_REQUEST,
   CREATED,
   FORBIDDEN,
   NOT_FOUND,
@@ -25,7 +23,7 @@ import play.api.http.Status.{
   OK,
   UNAUTHORIZED
 }
-import play.api.libs.json.{JsNull, JsObject, Json}
+import play.api.libs.json.{JsObject, Json}
 
 import java.util.UUID
 import play.api.libs.json.JsArray

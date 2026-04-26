@@ -8,7 +8,7 @@ import fr.maif.izanami.errors.{
   IzanamiError,
   TagDoesNotExists
 }
-import fr.maif.izanami.models.{Rights, Tag, TagCreationRequest, Tenant}
+import fr.maif.izanami.models.{Tag, TagCreationRequest, Tenant}
 import fr.maif.izanami.utils.Datastore
 import io.vertx.sqlclient.{Row, SqlConnection}
 

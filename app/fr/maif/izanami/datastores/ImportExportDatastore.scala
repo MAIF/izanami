@@ -25,20 +25,14 @@ import fr.maif.izanami.models.{
   FeatureType,
   FeatureWithOverloads,
   KeyRightType,
-  Project,
   ProjectRightType,
   ProjectType,
   Tenant,
   WebhookRightType
 }
-import fr.maif.izanami.models.ExportedType.exportedTypeToString
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.web.ExportController.{
-  ExportResult,
-  TenantExportRequest,
-  projectExportResultWrites
-}
+import fr.maif.izanami.web.ExportController.{TenantExportRequest}
 import fr.maif.izanami.web.ImportController.{
   ImportConflictStrategy,
   MergeOverwrite,
@@ -47,7 +41,6 @@ import fr.maif.izanami.web.ImportController.{
 import fr.maif.izanami.web.{
   ExportController,
   ImportController,
-  ImportResult,
   ProjectId,
   UserInformation
 }
@@ -55,7 +48,6 @@ import io.vertx.core.json.JsonArray
 import io.vertx.sqlclient.SqlConnection
 import play.api.libs.json.{JsObject, Json}
 
-import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
 import fr.maif.izanami.models.ConflictStrategy
@@ -65,7 +57,6 @@ import fr.maif.izanami.models.ConflictField
 import fr.maif.izanami.models.FeatureTagType
 import fr.maif.izanami.models.OverloadType
 import fr.maif.izanami.utils.Done
-import fr.maif.izanami.models.TagType
 
 class ImportExportDatastore(val env: Env) extends Datastore {
   private val extensionSchema: String = env.extensionsSchema
@@ -110,18 +101,21 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       user: UserInformation
   ): Future[Either[IzanamiError, Unit]] = {
     Tenant.isTenantValid(tenant)
-    Future
-      .sequence(
-        entries.toSeq
-          .sortBy { case (t, _) =>
-            t.order
-          }
-          .map(t =>
-            tableMetadata(tenant, t._1.table)
-              .map(maybeMetdata => (maybeMetdata, t._2, t._1))
-          )
-      )
-      .flatMap(s => {
+    entries.toSeq
+      .sortBy { case (t, _) =>
+        t.order
+      }.foldLeft(Future.successful(Seq()): Future[Seq[(
+          Option[TableMetadata],
+          Seq[JsObject],
+          ExportedType
+      )]])((acc, next) => {
+        val futureMetadata = tableMetadata(tenant, next._1.table)
+          .map(maybeMetdata => (maybeMetdata, next._2, next._1))
+        for (
+          curr <- acc;
+          metadata <- futureMetadata
+        ) yield curr.appended(metadata)
+      }).flatMap(s => {
         if (s.exists(_._1.isEmpty)) {
           // TODO precise table in error
           Future.successful(
@@ -160,11 +154,11 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                   }
                 ).flatMap {
                   case Right(previousResult) if t._2.nonEmpty => {
+                    logger.info(s"Starting import for table ${t._1.table}")
                     val f: Future[Either[IzanamiError, UnitDBImportResult]] =
                       if (t._3 == FeatureType) {
                         importFeatures(
                           tenant = tenant,
-                          metadata = t._1,
                           rows = t._2,
                           conflictStrategy = conflictStrategy,
                           conn = conn
@@ -172,7 +166,6 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                       } else if (t._3 == FeatureTagType) {
                         importFeatureTags(
                           tenant = tenant,
-                          metadata = t._1,
                           rows = t._2,
                           conflictStrategy = conflictStrategy,
                           conn = conn
@@ -469,6 +462,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
 
     base + value
   }
+
   private def importFeatureOverloads(
       tenant: String,
       rows: Seq[JsObject],
@@ -515,27 +509,30 @@ class ImportExportDatastore(val env: Env) extends Datastore {
     val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
     val columns =
       "project, feature, conditions, script_config, enabled, value, result_type, context"
-    val query =
-      s"""
+    val query = s"""
                  |INSERT INTO "${tenant}".feature_contexts_strategies ($columns) select $columns from json_populate_recordset(null::"${tenant}".feature_contexts_strategies, $$1)
                  |ON CONFLICT (project, context, feature) DO UPDATE
                  |SET $conflictPart
                  |RETURNING (xmax = 0) AS inserted
                  |""".stripMargin;
 
-    env.postgresql
-      .queryRaw(
-        query,
-        List(vertxJsonArray),
-        conn = Some(conn)
-      ) { rows =>
-        UnitDBImportResult()
-      } // TODO add feature ids to updateFeatures
+    val unitQuery = s"""
+                         |INSERT INTO "${tenant}".feature_contexts_strategies ($columns) select $columns from json_populate_record(null::"${tenant}".feature_contexts_strategies, $$1)
+                         |ON CONFLICT (project, context, feature) DO UPDATE
+                         |SET $conflictPart
+                         |RETURNING (xmax = 0) AS inserted
+                         |""".stripMargin;
+
+    genericTableImport(
+      globalQuery = query,
+      unitQuery = unitQuery,
+      rows = rows,
+      conn = conn
+    )
   }
 
   private def importFeatureTags(
       tenant: String,
-      metadata: TableMetadata,
       rows: Seq[JsObject],
       conflictStrategy: ConflictStrategy,
       conn: SqlConnection
@@ -587,7 +584,6 @@ class ImportExportDatastore(val env: Env) extends Datastore {
 
   private def importFeatures(
       tenant: String,
-      metadata: TableMetadata,
       rows: Seq[JsObject],
       conflictStrategy: ConflictStrategy,
       conn: SqlConnection
@@ -651,40 +647,28 @@ class ImportExportDatastore(val env: Env) extends Datastore {
           |RETURNING (xmax = 0) AS inserted, id
           |""".stripMargin;
 
-    env.postgresql
-      .queryRaw(
-        query,
-        List(vertxJsonArray),
-        conn = Some(conn)
-      ) { rows =>
-        {
-          val insertionMap = rows.map(r =>
-            for (
-              id <- r.optString("id");
-              inserted <- r.optBoolean("inserted")
-            ) yield (id, inserted)
-          ).flatMap(o => o.toList)
-            .groupMap(t => t._2)(t => t._1)
-          UnitDBImportResult(
-            createdElements =
-              insertionMap.getOrElse(true, List[String]()).toSet,
-            updatedElements =
-              insertionMap.getOrElse(false, List[String]()).toSet
-          )
-        }
-      }
+    val unitQuery =
+      s"""
+          |INSERT INTO "${tenant}".features ($columns) select $columns from json_populate_record(null::"${tenant}".features, $$1)
+          |ON CONFLICT (id) DO UPDATE
+          |SET $conflictPart
+          |RETURNING (xmax = 0) AS inserted, id
+          |""".stripMargin;
+
+    genericTableImport(
+      globalQuery = query,
+      unitQuery = unitQuery,
+      rows = rows,
+      conn
+    )
   }
 
   private def genericTableImport(
-      tenant: String,
-      metadata: TableMetadata,
       globalQuery: String,
       unitQuery: String,
       rows: Seq[JsObject],
-      maybeId: Option[String],
       conn: SqlConnection
   ): Future[UnitDBImportResult] = {
-    println(s"Importing tenant data for ${metadata.table}")
     val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
 
     env.postgresql
@@ -694,35 +678,30 @@ class ImportExportDatastore(val env: Env) extends Datastore {
         conn = Some(conn)
       ) { rows =>
         {
-          maybeId
-            .map(_ => {
-              val insertedMap = rows
-                .map(r => {
-                  (for (
-                    id <- r.optString("id");
-                    inserted <- r.optBoolean("inserted")
-                  ) yield (id, inserted))
-                })
-                .collect { case Some(r) =>
-                  r
-                }
-                .groupMap(_._2)(_._1)
 
-              UnitDBImportResult(
-                createdElements =
-                  insertedMap.getOrElse(true, List[String]()).toSet,
-                updatedElements =
-                  insertedMap.getOrElse(false, List[String]()).toSet
-              )
+          val insertedMap = rows
+            .map(r => {
+              (for (
+                id <- r.optString("id");
+                inserted <- r.optBoolean("inserted")
+              ) yield (id, inserted))
             })
-            .getOrElse(UnitDBImportResult())
+            .collect { case Some(r) =>
+              r
+            }
+            .groupMap(_._2)(_._1)
+
+          UnitDBImportResult(
+            createdElements =
+              insertedMap.getOrElse(true, List[String]()).toSet,
+            updatedElements =
+              insertedMap.getOrElse(false, List[String]()).toSet
+          )
         }
       }
       .recoverWith {
         case _ => {
-          logger.info(
-            s"There has been import errors, switching to unit import mode for ${metadata.table}"
-          )
+          logger.info("There has been import error, switching to unit mode")
           rows.foldLeft(Future.successful(UnitDBImportResult()))(
             (facc, row) => {
               facc.flatMap(acc =>
@@ -758,7 +737,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                       .recoverWith {
                         case _ => {
                           logger.info(
-                            s"Import of following row failed for table ${metadata.table} : ${row}"
+                            s"Insertion of this row failed in unit mode : ${row}"
                           )
                           env.postgresql.queryRaw(
                             "ROLLBACK TO SAVEPOINT savepoint",
@@ -820,12 +799,9 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                         |RETURNING (xmax = 0) AS inserted ${idReturnPart}
                         |""".stripMargin
     genericTableImport(
-      tenant = tenant,
-      metadata = metadata,
       globalQuery = query,
       unitQuery = unitQuery,
       rows = rows,
-      maybeId = maybeId,
       conn = conn
     )
   }

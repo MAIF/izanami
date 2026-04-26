@@ -1,11 +1,14 @@
 package fr.maif.izanami
 
 import com.softwaremill.macwire.wire
-import com.typesafe.config.{ConfigValue, ConfigValueFactory}
 import controllers.{Assets, AssetsComponents}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiHttpErrorHandler
-import fr.maif.izanami.services.{FeatureService, FeatureUsageService, RightService}
+import fr.maif.izanami.services.{
+  FeatureService,
+  FeatureUsageService,
+  RightService
+}
 import fr.maif.izanami.v1.WasmManagerClient
 import fr.maif.izanami.web.*
 import play.api.ApplicationLoader.Context
@@ -20,11 +23,8 @@ import play.filters.csp.CSPComponents
 import play.filters.csrf.CSRFFilter
 import play.filters.gzip.GzipFilterComponents
 import play.filters.https.RedirectHttpsComponents
-import pureconfig.{ConfigReader, ConfigSource}
 import router.Routes
-import pureconfig.generic.semiauto.deriveReader
 
-import java.util.Collections
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 
@@ -60,7 +60,9 @@ class IzanamiComponentsInstances(
     wire[IzanamiHttpErrorHandler]
 
   implicit lazy val typedConfig: IzanamiTypedConfiguration =
-    IzanamiTypedConfiguration.from(ConfigUtil.fixIzanamiConfigIfNeeded(configuration.underlying))
+    IzanamiTypedConfiguration.from(
+      ConfigUtil.fixIzanamiConfigIfNeeded(configuration.underlying)
+    )
 
   implicit lazy val env: Env = new Env(
     environment = environment,
@@ -72,7 +74,9 @@ class IzanamiComponentsInstances(
 
   lazy val rightService: RightService = env.rightService
   lazy val filters = new DefaultHttpFilters(httpFilters: _*)
-  lazy val personnalAccessTokenTenantRightsActionFactory: PersonnalAccessTokenTenantRightsActionFactory = wire[PersonnalAccessTokenTenantRightsActionFactory]
+  lazy val personnalAccessTokenTenantRightsActionFactory
+      : PersonnalAccessTokenTenantRightsActionFactory =
+    wire[PersonnalAccessTokenTenantRightsActionFactory]
   lazy val authAction: TenantAuthActionFactory = wire[TenantAuthActionFactory]
   lazy val tenantAuthAction: ProjectAuthActionFactory =
     wire[ProjectAuthActionFactory]
@@ -84,8 +88,9 @@ class IzanamiComponentsInstances(
   lazy val detailledAuthAction: DetailledAuthAction = wire[DetailledAuthAction]
   lazy val detailledRightForTenantFactory: DetailledRightForTenantFactory =
     wire[DetailledRightForTenantFactory]
-  lazy val personnalAccessTokenDetailledRightForTenantFactory: PersonnalAccessTokenDetailledRightForTenantFactory =
-      wire[PersonnalAccessTokenDetailledRightForTenantFactory]
+  lazy val personnalAccessTokenDetailledRightForTenantFactory
+      : PersonnalAccessTokenDetailledRightForTenantFactory =
+    wire[PersonnalAccessTokenDetailledRightForTenantFactory]
   lazy val tenantRightsAction: TenantRightsAction = wire[TenantRightsAction]
   lazy val sessionAuthAction: AuthenticatedSessionAction =
     wire[AuthenticatedSessionAction]
@@ -103,11 +108,13 @@ class IzanamiComponentsInstances(
       : PersonnalAccessTokenKeyAuthActionFactory =
     wire[PersonnalAccessTokenKeyAuthActionFactory]
   lazy val adminTokenAuthAction: PersonnalAccessTokenAdminAuthActionFactory =
-      wire[PersonnalAccessTokenAdminAuthActionFactory]
-  lazy val featureTokenAuthAction: PersonnalAccessTokenFeatureAuthActionFactory =
+    wire[PersonnalAccessTokenAdminAuthActionFactory]
+  lazy val featureTokenAuthAction
+      : PersonnalAccessTokenFeatureAuthActionFactory =
     wire[PersonnalAccessTokenFeatureAuthActionFactory]
   lazy val workerActionBuilder: WorkerActionBuilder = wire[WorkerActionBuilder]
-  lazy val leaderActionBuilder: LeaderActionBuilderImpl = wire[LeaderActionBuilderImpl]
+  lazy val leaderActionBuilder: LeaderActionBuilderImpl =
+    wire[LeaderActionBuilderImpl]
 
   lazy val featureService: FeatureService = wire[FeatureService]
   lazy val staleFeatureService: FeatureUsageService = wire[FeatureUsageService]

@@ -4,8 +4,7 @@ import fr.maif.izanami.datastores.FeatureContextDatastore.FeatureContextRow
 import fr.maif.izanami.env.{Env, Postgresql}
 import fr.maif.izanami.env.PostgresqlErrors.{
   FOREIGN_KEY_VIOLATION,
-  RELATION_DOES_NOT_EXISTS,
-  UNIQUE_VIOLATION
+  RELATION_DOES_NOT_EXISTS
 }
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
@@ -23,7 +22,6 @@ import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.{Row, SqlConnection}
 import play.api.libs.json.{JsArray, Json, Writes}
 
-import java.util.Objects
 import scala.concurrent.Future
 
 class FeatureContextDatastore(val env: Env) extends Datastore {

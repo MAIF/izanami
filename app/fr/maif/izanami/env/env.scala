@@ -8,11 +8,11 @@ import fr.maif.izanami.jobs.WebhookListener
 import fr.maif.izanami.mail.Mails
 import fr.maif.izanami.models.FullIzanamiConfiguration
 import fr.maif.izanami.security.JwtService
-import fr.maif.izanami.services.{OIDCRights, RightService}
+import fr.maif.izanami.services.{RightService}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
 import fr.maif.izanami.web.IzanamiApplicationUserInformation
-import fr.maif.izanami.{AppConf, PlayRoot, RoleRightMode}
+import fr.maif.izanami.{AppConf, PlayRoot}
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 import org.apache.pekko.actor.{ActorSystem, Scheduler}
 import org.apache.pekko.stream.Materializer

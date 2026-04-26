@@ -13,9 +13,13 @@ import fr.maif.izanami.errors.{
   TenantDoesNotExists
 }
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
-import fr.maif.izanami.events.EventService.IZANAMI_CHANNEL
 import fr.maif.izanami.events.{SourceTenantCreated, SourceTenantDeleted}
-import fr.maif.izanami.models.{RightLevel, SimpleTenant, Tenant, TenantCreationRequest}
+import fr.maif.izanami.models.{
+  RightLevel,
+  SimpleTenant,
+  Tenant,
+  TenantCreationRequest
+}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.web.ImportState.{

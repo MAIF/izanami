@@ -9,7 +9,6 @@ import fr.maif.izanami.env.PostgresqlErrors.{
 }
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.*
-import fr.maif.izanami.events.EventAuthentication.BackOfficeAuthentication
 import fr.maif.izanami.events.EventOrigin.{ImportOrigin, NormalOrigin}
 import fr.maif.izanami.events.{
   SourceFeatureCreated,

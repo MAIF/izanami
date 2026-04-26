@@ -16,7 +16,6 @@ import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{
   InternalServerError,
   IzanamiError,
-  OneProjectDoesNotExists,
   TenantDoesNotExists,
   TokenDoesNotExist,
   TokenWithThisNameAlreadyExists
@@ -32,8 +31,7 @@ import fr.maif.izanami.models.{
   PersonnalAccessTokenCreationRequest,
   PersonnalAccessTokenExpiration,
   PersonnalAccessTokenRights,
-  ReadPersonnalAccessToken,
-  TenantTokenRights
+  ReadPersonnalAccessToken
 }
 import fr.maif.izanami.security.IdGenerator.token
 import fr.maif.izanami.utils.Datastore
@@ -41,10 +39,9 @@ import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
 import play.api.libs.json.Reads
 
-import java.time.{Instant, LocalDateTime, ZoneId, ZoneOffset}
+import java.time.{LocalDateTime, ZoneId}
 import java.util.UUID
 import scala.concurrent.Future
-import scala.util.Try
 
 class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
   def findAccessTokenByIds(ids: Set[UUID]): Future[Map[UUID, String]] = {
@@ -72,10 +69,14 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
       token: String,
       checker: ReadPersonnalAccessToken => Boolean
   ): Future[TokenCheckResult] = {
-    findValidAccessToken(token = token, username = username, predicate = checker)
+    findValidAccessToken(
+      token = token,
+      username = username,
+      predicate = checker
+    )
       .map {
         case Some(value) => TokenCheckSuccess(value)
-        case None => TokenCheckFailure
+        case None        => TokenCheckFailure
       }
   }
 
@@ -115,7 +116,11 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
             ) yield (tokenSecret, token)
           }
           .map {
-            case Some((tokenSecret, token)) if (!token.isExpired) && bcryptCheck(secret, tokenSecret) && predicate(token) => Some(token)
+            case Some((tokenSecret, token))
+                if (!token.isExpired) && bcryptCheck(
+                  secret,
+                  tokenSecret
+                ) && predicate(token) => Some(token)
             case _ => None
           }
       }

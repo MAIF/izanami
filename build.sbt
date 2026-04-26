@@ -38,7 +38,13 @@ scalacOptions ++= {
         "-explain-cyclic",
         "-explain",
         "-Xmax-inlines:64",
-        "-Ycheck-all-patmat"
+        "-Ycheck-all-patmat",
+        "-Wunused:implicits",
+        "-Wunused:explicits",
+        "-Wunused:imports",
+        "-Wunused:locals",
+        "-Wunused:params",
+        "-Wunused:privates"
       )
     }
     case _ => sys.error("Unsupported scala version")
