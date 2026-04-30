@@ -123,7 +123,8 @@ case class AppConf(
     search: Search,
     feature: Feature,
     housekeeping: Housekeeping,
-    cluster: Cluster
+    cluster: Cluster,
+    cliAuth: CliAuth
 )
 
 object AppConf {
@@ -269,6 +270,7 @@ case class CallRecords(
     callRetentionTimeInHours: Long
 )
 case class Housekeeping(startDelayInSeconds: Long, intervalInSeconds: Long)
+case class CliAuth(storage: String = "in-memory")
 case class RoleRights(
     admin: Boolean = false,
     tenants: Map[String, TenantRoleRights] = Map(),

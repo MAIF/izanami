@@ -42,12 +42,14 @@ class Datastores(env: Env) {
   val personnalAccessToken: PersonnalAccessTokenDatastore =
     new PersonnalAccessTokenDatastore(env)
   val events: EventDatastore = new EventDatastore(env)
+  val cliAuth: CliAuthDatastore = new CliAuthDatastore(env)
 
   def onStart(): Future[Unit] = {
     for {
       _ <- users.onStart()
       _ <- events.onStart()
       _ <- featureCalls.onStart()
+      _ <- cliAuth.onStart()
     } yield ()
   }
 
@@ -56,6 +58,7 @@ class Datastores(env: Env) {
       _ <- users.onStop()
       _ <- events.onStop()
       _ <- featureCalls.onStop()
+      _ <- cliAuth.onStop()
     } yield ()
   }
 }

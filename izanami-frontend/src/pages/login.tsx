@@ -7,18 +7,37 @@ import { TUser } from "../utils/types";
 import { Loader } from "../components/Loader";
 
 export function Login(props: any) {
-  const code = new URLSearchParams(props.location.search).get("code");
+  const searchParams = new URLSearchParams(props.location.search);
+  const code = searchParams.get("code");
+  const state = searchParams.get("state");
   if (code) {
-    return <TokenWaitScreen code={code} />;
+    return <TokenWaitScreen code={code} state={state} />;
   } else {
     return <LoginForm {...props} />;
   }
 }
 
-function TokenWaitScreen({ code }: { code: string }) {
+/**
+ * Handles the OIDC callback after user authenticates with the identity provider.
+ *
+ * This component exchanges the authorization code for tokens. It supports two flows:
+ *
+ * 1. **Standard browser flow**: User is redirected to the dashboard after successful auth.
+ *
+ * 2. **CLI flow**: When the state parameter starts with "cli:", the backend stores the token
+ *    for CLI pickup instead of creating a session. The response includes `{ cliAuth: true }`
+ *    and this component shows a "close this window" message so the user knows to return
+ *    to their terminal where the CLI is polling for the token.
+ *
+ * @param code - The authorization code from the OIDC provider
+ * @param state - Optional state parameter; if prefixed with "cli:" indicates CLI auth flow
+ */
+function TokenWaitScreen({ code, state }: { code: string; state: string | null }) {
   const fetching = React.useRef<boolean>(false);
   const [error, setError] = React.useState("");
   const navigate = useNavigate();
+  const [cliAuthSuccess, setCliAuthSuccess] = React.useState(false);
+
   React.useEffect(() => {
     if (!fetching.current) {
       fetching.current = true;
@@ -28,7 +47,7 @@ function TokenWaitScreen({ code }: { code: string }) {
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, state }),
       }).then((response) => {
         if (response.status >= 400) {
           setError("Failed to retrieve token from code");
@@ -36,17 +55,36 @@ function TokenWaitScreen({ code }: { code: string }) {
           response
             .json()
             .then((payload) => {
-              navigate("/", {
-                state: { message: payload.rightUpdates },
-              });
+              if (payload?.cliAuth) {
+                // CLI flow: show success message, user should return to terminal
+                setCliAuthSuccess(true);
+              } else {
+                navigate("/", {
+                  state: { message: payload?.rightUpdates },
+                });
+              }
             })
             .catch(() => {
+              // No JSON body (NoContent response) - standard browser flow
               window.location.href = "/";
             });
         }
       });
     }
   }, []);
+
+  if (cliAuthSuccess) {
+    return (
+      <div className="d-flex flex-column justify-content-center align-items-center" style={{ minHeight: "50vh" }}>
+        <div className="text-center p-4" style={{ maxWidth: "400px" }}>
+          <i className="fa fa-check-circle text-success" style={{ fontSize: "64px", marginBottom: "20px" }}></i>
+          <h2>Authentication Successful</h2>
+          <p className="text-secondary">You have been authenticated with Izanami.</p>
+          <p className="text-secondary">You can close this window and return to your terminal.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return <div>{error}</div>;
