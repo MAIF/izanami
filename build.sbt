@@ -89,7 +89,7 @@ libraryDependencies += "com.github.pureconfig" %% "pureconfig-generic-scala3" % 
 
 libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.2" % Test
 libraryDependencies += "org.scalatest" %% "scalatest-flatspec" % "3.2.12" % "test"
-libraryDependencies += "com.github.tomakehurst" % "wiremock-jre8" % "2.34.0" % Test
+libraryDependencies += "com.github.tomakehurst" % "wiremock-jre8" % "2.35.2" % Test
 libraryDependencies += "com.fasterxml.jackson.core" % "jackson-databind" % "2.13.4.2" % Test
 libraryDependencies += "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.4" % Test
 libraryDependencies += jdbc % "test"
