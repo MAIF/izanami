@@ -83,9 +83,9 @@ libraryDependencies += "org.apache.pekko" %% "pekko-serialization-jackson" % "1.
 libraryDependencies += "org.apache.pekko" %% "pekko-actor-typed" % "1.1.5"
 libraryDependencies += "org.apache.pekko" %% "pekko-protobuf-v3" % "1.1.5"
 libraryDependencies += "org.apache.pekko" %% "pekko-stream" % "1.1.5"
-libraryDependencies += "com.github.pureconfig" %% "pureconfig-core" % "0.17.9"
-libraryDependencies += "com.github.pureconfig" %% "pureconfig-generic-base" % "0.17.9"
-libraryDependencies += "com.github.pureconfig" %% "pureconfig-generic-scala3" % "0.17.9"
+libraryDependencies += "com.github.pureconfig" %% "pureconfig-core" % "0.17.10"
+libraryDependencies += "com.github.pureconfig" %% "pureconfig-generic-base" % "0.17.10"
+libraryDependencies += "com.github.pureconfig" %% "pureconfig-generic-scala3" % "0.17.10"
 
 libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.2" % Test
 libraryDependencies += "org.scalatest" %% "scalatest-flatspec" % "3.2.12" % "test"
