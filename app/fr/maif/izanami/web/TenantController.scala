@@ -98,7 +98,7 @@ class TenantController(
                         json ++ Json.obj("tokenName" -> tokenName)
                       }
                       case EventAuthentication.BackOfficeAuthentication => json
-                      case EventAuthentication.RootAuthentication => json
+                      case EventAuthentication.RootAuthentication       => json
                     }
                   }),
                   maybeCount
@@ -156,25 +156,28 @@ class TenantController(
     }
 
   def readTenants(right: Option[RightLevel]): Action[AnyContent] =
-    personnalAccessTokenTenantRightsAuthAction(ReadTenants).async { implicit request =>
-      if (request.user.admin) {
-        env.datastores.tenants
-          .readTenants()
-          .map(tenants => Ok(Json.toJson(tenants)(Writes.seq(Tenant.simpleTenantWrite))))
-      } else {
-        val minimumRightLevel = right.getOrElse(RightLevel.Read)
-        val allowedTenants = Option(request.user.tenantRights)
-          .map(m =>
-            m.filter { case (name, level) =>
-              superiorOrEqualLevels(minimumRightLevel).contains(level)
-            }.keys
-              .toSet
-          )
-          .getOrElse(Set())
-        env.datastores.tenants
-          .readTenantsFiltered(allowedTenants)
-          .map(tenants => Ok(Json.toJson(tenants)))
-      }
+    personnalAccessTokenTenantRightsAuthAction(ReadTenants).async {
+      implicit request =>
+        if (request.user.admin) {
+          env.datastores.tenants
+            .readTenants()
+            .map(tenants =>
+              Ok(Json.toJson(tenants)(Writes.seq(Tenant.simpleTenantWrite)))
+            )
+        } else {
+          val minimumRightLevel = right.getOrElse(RightLevel.Read)
+          val allowedTenants = Option(request.user.tenantRights)
+            .map(m =>
+              m.filter { case (name, level) =>
+                superiorOrEqualLevels(minimumRightLevel).contains(level)
+              }.keys
+                .toSet
+            )
+            .getOrElse(Set())
+          env.datastores.tenants
+            .readTenantsFiltered(allowedTenants)
+            .map(tenants => Ok(Json.toJson(tenants)))
+        }
     }
 
   def deleteTenant(name: String): Action[AnyContent] =

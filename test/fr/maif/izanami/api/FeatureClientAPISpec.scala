@@ -13,26 +13,34 @@ class FeatureClientAPISpec extends BaseAPISpec {
       var situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")
-            .withProjects(TestProject("proj").withFeatures(TestFeature(
-              name = "f1",
-              enabled = true,
-              wasmConfig = TestWasmConfig(
-                name = "wasmScript",
-                source = Json.obj(
-                  "kind" -> "Base64",
-                  "path" -> enabledFeatureBase64
+            .withProjects(
+              TestProject("proj").withFeatures(
+                TestFeature(
+                  name = "f1",
+                  enabled = true,
+                  wasmConfig = TestWasmConfig(
+                    name = "wasmScript",
+                    source = Json.obj(
+                      "kind" -> "Base64",
+                      "path" -> enabledFeatureBase64
+                    )
+                  )
                 )
               )
-            )))
+            )
             .withAllRightsKey("foo")
         )
         .loggedInWithAdminRights()
         .build()
 
-      situation = situation.restartServerWithConf(Map("app.feature.allow-wasm" -> "false"))
+      situation = situation.restartServerWithConf(
+        Map("app.feature.allow-wasm" -> "false")
+      )
 
       val response = situation.checkFeature(
-        id = situation.findFeatureId(tenant = "tenant", project = "proj", feature = "f1").get,
+        id = situation
+          .findFeatureId(tenant = "tenant", project = "proj", feature = "f1")
+          .get,
         key = "foo"
       )
       response.status mustEqual OK
@@ -59,15 +67,25 @@ class FeatureClientAPISpec extends BaseAPISpec {
       )
 
       var response = checkFeature(
-        id = situation.findFeatureId(tenant = "tenant", project = "proj", feature = "f1").get,
-        headers = Map("izanami-client-id" -> "tenant_foobarbaz", "izanami-client-secret" -> "notARealSecret"),
-        context="doesnotexist"
+        id = situation
+          .findFeatureId(tenant = "tenant", project = "proj", feature = "f1")
+          .get,
+        headers = Map(
+          "izanami-client-id" -> "tenant_foobarbaz",
+          "izanami-client-secret" -> "notARealSecret"
+        ),
+        context = "doesnotexist"
       )
       response.status mustBe FORBIDDEN
 
       response = checkFeature(
-        id = situation.findFeatureId(tenant = "tenant", project = "proj", feature = "f1").get,
-        headers = Map("izanami-client-id" -> "tenant_foobarbaz", "izanami-client-secret" -> "notARealSecret"),
+        id = situation
+          .findFeatureId(tenant = "tenant", project = "proj", feature = "f1")
+          .get,
+        headers = Map(
+          "izanami-client-id" -> "tenant_foobarbaz",
+          "izanami-client-secret" -> "notARealSecret"
+        ),
         context = "prod"
       )
       response.status mustBe FORBIDDEN
@@ -82,7 +100,15 @@ class FeatureClientAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      val response = checkFeature(situation.findFeatureId(tenant = "tenant", project = "proj", feature = "f1").get, headers = Map("izanami-client-id" -> "ERROR_foobarbaz", "izanami-client-secret" -> "notARealSecret"))
+      val response = checkFeature(
+        situation
+          .findFeatureId(tenant = "tenant", project = "proj", feature = "f1")
+          .get,
+        headers = Map(
+          "izanami-client-id" -> "ERROR_foobarbaz",
+          "izanami-client-secret" -> "notARealSecret"
+        )
+      )
       response.status mustBe FORBIDDEN
     }
 

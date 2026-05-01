@@ -1230,8 +1230,8 @@ class FeatureContextAPISpec extends BaseAPISpec {
 
       response.status mustBe NO_CONTENT
 
-
-      val contexts = situation.fetchContexts("tenant", project = "project").json.get
+      val contexts =
+        situation.fetchContexts("tenant", project = "project").json.get
 
       val ctx = (contexts \ 0).as[JsObject]
       val prodCtx = (ctx \ "children" \ 0).as[JsObject]
@@ -1394,7 +1394,7 @@ class FeatureContextAPISpec extends BaseAPISpec {
           )
         )
       )
-      
+
       overloadCreationResponse.status mustBe BAD_REQUEST
     }
 

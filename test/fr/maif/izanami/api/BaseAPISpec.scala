@@ -2802,8 +2802,9 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         preserveProtectedContexts: Boolean = false
     ): RequestResult = {
       val response = await(
-        ws.url(s"${ADMIN_BASE_URL}/tenants/${tenant}/features?preserveProtectedContexts=${preserveProtectedContexts}")
-          .withCookies(cookies: _*)
+        ws.url(
+          s"${ADMIN_BASE_URL}/tenants/${tenant}/features?preserveProtectedContexts=${preserveProtectedContexts}"
+        ).withCookies(cookies: _*)
           .patch(Json.toJson(patches.map(p => p.json)))
       )
 
@@ -4729,7 +4730,6 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                 })
             })
           })
-          
 
       futures.addOne(tenantFuture)
 
@@ -4794,7 +4794,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                   ).map(resp => {
                     val secret = (resp.json \ "token").as[String]
                     val id = (resp.json \ "id").as[String]
-                    tokenIdAndSecretsByUser(loggedInUser.get).update(token.name, (id, secret))
+                    tokenIdAndSecretsByUser(loggedInUser.get)
+                      .update(token.name, (id, secret))
                     resp
                   })
                 })

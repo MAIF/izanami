@@ -54,8 +54,7 @@ class ImportApiSpec extends BaseAPISpec {
                     name = "bar",
                     enabled = true
                   )
-                ),
-
+                )
             )
         )
         .withPersonnalAccessToken(

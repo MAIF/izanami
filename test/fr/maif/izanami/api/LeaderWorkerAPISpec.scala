@@ -263,7 +263,7 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
       )
       checkResponse.status mustBe BAD_REQUEST
     }
-    
+
   }
 
   "Standalone mode" should {

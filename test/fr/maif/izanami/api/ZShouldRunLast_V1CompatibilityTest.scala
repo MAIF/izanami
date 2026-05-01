@@ -30,11 +30,10 @@ import java.time.{Duration, LocalDateTime, ZoneId}
 import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 
-
-/**
- * This test name starts with a "Z" to ensure that it runs last, since legacy Izanami Client
- * can't be stopped easily and trigger memory & http connection leaks
- */
+/** This test name starts with a "Z" to ensure that it runs last, since legacy
+  * Izanami Client can't be stopped easily and trigger memory & http connection
+  * leaks
+  */
 class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
   "Legacy check endpoint" should {
     "convert no strategy legacy feature to V1 format" in {
@@ -944,9 +943,11 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
         .build()
 
       val clientId = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:default-feature","enabled":false,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
         ),
@@ -957,24 +958,38 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
 
       val client = IzanamiClient.client(
         ActorSystem.create(),
-        ClientConfig.create("http://localhost:9000")
+        ClientConfig
+          .create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
           .sseBackend()
       )
 
-      val featureClient = client.featureClient(Strategy.CacheWithSseStrategy(
-        patterns = Seq("project:*"),
-        errorStrategy = Crash)
-        .withPollingDisabled()
+      val featureClient = client.featureClient(
+        Strategy
+          .CacheWithSseStrategy(
+            patterns = Seq("project:*"),
+            errorStrategy = Crash
+          )
+          .withPollingDisabled()
       )
-      await until {() => featureClient.checkFeature("project:foo:default-feature").get() == false}
+      await until { () =>
+        featureClient.checkFeature("project:foo:default-feature").get() == false
+      }
 
-      val feature = (situation.fetchProject("tenant", "project").json.get \ "features" \ 0).as[JsObject]
+      val feature =
+        (situation.fetchProject("tenant", "project").json.get \ "features" \ 0)
+          .as[JsObject]
       val updatedFeature = feature + ("enabled" -> JsTrue)
-      situation.updateFeature("tenant", "project:foo:default-feature", updatedFeature)
+      situation.updateFeature(
+        "tenant",
+        "project:foo:default-feature",
+        updatedFeature
+      )
 
-      await until {() => featureClient.checkFeature("project:foo:default-feature").get() == true}
+      await until { () =>
+        featureClient.checkFeature("project:foo:default-feature").get() == true
+      }
     }
 
     "allow to get feature change state via SSE (feature patch)" in {
@@ -984,9 +999,11 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
         .build()
 
       val clientId = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:default-feature1","enabled":false,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
           """{"id":"project:foo:default-feature2","enabled":true,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
@@ -999,40 +1016,59 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
 
       val client = IzanamiClient.client(
         ActorSystem.create(),
-        ClientConfig.create("http://localhost:9000")
+        ClientConfig
+          .create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
           .sseBackend()
       )
 
-      val featureClient = client.featureClient(Strategy.CacheWithSseStrategy(
-          patterns = Seq("project:*"),
-          errorStrategy = Crash)
-        .withPollingDisabled()
+      val featureClient = client.featureClient(
+        Strategy
+          .CacheWithSseStrategy(
+            patterns = Seq("project:*"),
+            errorStrategy = Crash
+          )
+          .withPollingDisabled()
       )
 
-      await until {() => featureClient.checkFeature("project:foo:default-feature").get() == false}
+      await until { () =>
+        featureClient.checkFeature("project:foo:default-feature").get() == false
+      }
 
-      situation.patchFeatures("tenant", Seq(
-        TestFeaturePatch(
-          op = "replace",
-          path = s"/project:foo:default-feature1/enabled",
-          value = JsBoolean(true)
-        ),
-        TestFeaturePatch(
-          op = "replace",
-          path = s"/project:foo:default-feature2/enabled",
-          value = JsBoolean(false)
-        ),
-        TestFeaturePatch(
-          op = "remove",
-          path = s"/project:foo:default-feature3"
+      situation.patchFeatures(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/project:foo:default-feature1/enabled",
+            value = JsBoolean(true)
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/project:foo:default-feature2/enabled",
+            value = JsBoolean(false)
+          ),
+          TestFeaturePatch(
+            op = "remove",
+            path = s"/project:foo:default-feature3"
+          )
         )
-      ))
+      )
 
-      await until {() => featureClient.checkFeature("project:foo:default-feature1").get() == true }
-      await until {() => featureClient.checkFeature("project:foo:default-feature2").get() == false }
-      await until {() => featureClient.checkFeature("project:foo:default-feature3").get() == false }
+      await until { () =>
+        featureClient.checkFeature("project:foo:default-feature1").get() == true
+      }
+      await until { () =>
+        featureClient
+          .checkFeature("project:foo:default-feature2")
+          .get() == false
+      }
+      await until { () =>
+        featureClient
+          .checkFeature("project:foo:default-feature3")
+          .get() == false
+      }
     }
 
     "allow to get feature state change via SSE (feature delete)" in {
@@ -1042,9 +1078,11 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
         .build()
 
       val clientId = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:default-feature","enabled":true,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
         ),
@@ -1055,25 +1093,31 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
 
       val client = IzanamiClient.client(
         ActorSystem.create(),
-        ClientConfig.create("http://localhost:9000")
+        ClientConfig
+          .create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
           .sseBackend()
       )
 
-      val featureClient = client.featureClient(Strategy.CacheWithSseStrategy(
-          patterns = Seq("project:*"),
-          errorStrategy = Crash)
-        .withPollingDisabled()
+      val featureClient = client.featureClient(
+        Strategy
+          .CacheWithSseStrategy(
+            patterns = Seq("project:*"),
+            errorStrategy = Crash
+          )
+          .withPollingDisabled()
       )
 
-      await until {
-        () => featureClient.checkFeature("project:foo:default-feature").get() == true
+      await until { () =>
+        featureClient.checkFeature("project:foo:default-feature").get() == true
       }
 
       situation.deleteFeature("tenant", "project:foo:default-feature")
 
-      await until {() => featureClient.checkFeature("project:foo:default-feature").get() == false}
+      await until { () =>
+        featureClient.checkFeature("project:foo:default-feature").get() == false
+      }
     }
 
     "allow to get feature state change via SSE (project delete)" in {
@@ -1083,9 +1127,11 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
         .build()
 
       val clientId = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:default-feature","enabled":true,"description":"An old default feature","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
         ),
@@ -1096,25 +1142,31 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
 
       val client = IzanamiClient.client(
         ActorSystem.create(),
-        ClientConfig.create("http://localhost:9000")
+        ClientConfig
+          .create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
           .sseBackend()
       )
 
-      val featureClient = client.featureClient(Strategy.CacheWithSseStrategy(
-          patterns = Seq("project:*"),
-          errorStrategy = Crash)
-        .withPollingDisabled()
+      val featureClient = client.featureClient(
+        Strategy
+          .CacheWithSseStrategy(
+            patterns = Seq("project:*"),
+            errorStrategy = Crash
+          )
+          .withPollingDisabled()
       )
 
-      await until {
-        () => featureClient.checkFeature("project:foo:default-feature").get() == true
+      await until { () =>
+        featureClient.checkFeature("project:foo:default-feature").get() == true
       }
 
       situation.deleteProject("project", "tenant")
 
-      await until { () => featureClient.checkFeature("project:foo:default-feature").get() == false }
+      await until { () =>
+        featureClient.checkFeature("project:foo:default-feature").get() == false
+      }
     }
 
     "allow to update smartcache internal state based on emitted events(hour range)" in {
@@ -1124,10 +1176,11 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
         .build()
 
       val clientId = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           s"""{"id":"project:hour-range-feature","enabled":true,"description":"An old style hour range feature","parameters":{"endAt":"23:59","startAt":"00:00"},"activationStrategy":"HOUR_RANGE"}""".stripMargin
         ),
@@ -1138,29 +1191,54 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
 
       val client = IzanamiClient.client(
         ActorSystem.create(),
-        ClientConfig.create("http://localhost:9000")
+        ClientConfig
+          .create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
           .sseBackend()
       )
 
-      val featureClient = client.featureClient(Strategy.CacheWithSseStrategy(errorStrategy = Crash, patterns = Seq("project:*")).withPollingDisabled())
-       await until {() => featureClient.checkFeature("project:hour-range-feature").get() == true}
+      val featureClient = client.featureClient(
+        Strategy
+          .CacheWithSseStrategy(
+            errorStrategy = Crash,
+            patterns = Seq("project:*")
+          )
+          .withPollingDisabled()
+      )
+      await until { () =>
+        featureClient.checkFeature("project:hour-range-feature").get() == true
+      }
 
+      val feature =
+        (situation.fetchProject("tenant", "project").json.get \ "features" \ 0)
+          .as[JsObject]
 
-      val feature = (situation.fetchProject("tenant", "project").json.get \ "features" \ 0).as[JsObject]
-
-      var newCondition = (feature \ "conditions").as[JsObject] ++ play.api.libs.json.Json.obj("startTime"  -> s"23:59")
+      var newCondition = (feature \ "conditions")
+        .as[JsObject] ++ play.api.libs.json.Json.obj("startTime" -> s"23:59")
       var updatedFeature = feature + ("conditions" -> newCondition)
-      situation.updateFeature("tenant", "project:hour-range-feature", updatedFeature)
+      situation.updateFeature(
+        "tenant",
+        "project:hour-range-feature",
+        updatedFeature
+      )
 
-      await until {() => featureClient.checkFeature("project:hour-range-feature").get() == false}
+      await until { () =>
+        featureClient.checkFeature("project:hour-range-feature").get() == false
+      }
 
-      newCondition = (feature \ "conditions").as[JsObject] ++ play.api.libs.json.Json.obj("startTime" -> s"00:00")
+      newCondition = (feature \ "conditions")
+        .as[JsObject] ++ play.api.libs.json.Json.obj("startTime" -> s"00:00")
       updatedFeature = feature + ("conditions" -> newCondition)
-      situation.updateFeature("tenant", "project:hour-range-feature", updatedFeature)
+      situation.updateFeature(
+        "tenant",
+        "project:hour-range-feature",
+        updatedFeature
+      )
 
-      await until { () => featureClient.checkFeature("project:hour-range-feature").get() == true }
+      await until { () =>
+        featureClient.checkFeature("project:hour-range-feature").get() == true
+      }
     }
 
     "allow to update smartcache internal state based on emitted events (date range)" in {
@@ -1170,15 +1248,20 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
         .build()
 
       val clientId = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       val LEGACY_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
       val now = LocalDateTime.now()
       val begin = now.minusDays(2)
       val end = now.plusDays(2)
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
-          s"""{"id":"project:test:date-range","enabled":true,"description":"An old style date range feature","parameters":{"from":"${begin.format(LEGACY_FORMATTER)}","to":"${end.format(LEGACY_FORMATTER)}"},"activationStrategy":"DATE_RANGE"}""".stripMargin
+          s"""{"id":"project:test:date-range","enabled":true,"description":"An old style date range feature","parameters":{"from":"${begin
+              .format(LEGACY_FORMATTER)}","to":"${end.format(
+              LEGACY_FORMATTER
+            )}"},"activationStrategy":"DATE_RANGE"}""".stripMargin
         ),
         keys = Seq(
           s"""{"clientId":"$clientId","name":"local create read key","clientSecret":"$clientSecret","authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"admin":true}""".stripMargin
@@ -1187,28 +1270,62 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
 
       val client = IzanamiClient.client(
         ActorSystem.create(),
-        ClientConfig.create("http://localhost:9000")
+        ClientConfig
+          .create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
           .sseBackend()
       )
 
-      val featureClient = client.featureClient(Strategy.CacheWithSseStrategy(errorStrategy = Crash, patterns = Seq("project:*")).withPollingDisabled())
-      await until { () => featureClient.checkFeature("project:test:date-range").get() == true }
+      val featureClient = client.featureClient(
+        Strategy
+          .CacheWithSseStrategy(
+            errorStrategy = Crash,
+            patterns = Seq("project:*")
+          )
+          .withPollingDisabled()
+      )
+      await until { () =>
+        featureClient.checkFeature("project:test:date-range").get() == true
+      }
 
-      val feature = (situation.fetchProject("tenant", "project").json.get \ "features" \ 0).as[JsObject]
+      val feature =
+        (situation.fetchProject("tenant", "project").json.get \ "features" \ 0)
+          .as[JsObject]
 
-      var newCondition = (feature \ "conditions").as[JsObject] ++ play.api.libs.json.Json.obj("begin" -> end.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+      var newCondition =
+        (feature \ "conditions").as[JsObject] ++ play.api.libs.json.Json.obj(
+          "begin" -> end
+            .atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        )
       var updatedFeature = feature + ("conditions" -> newCondition)
-      situation.updateFeature("tenant", "project:test:date-range", updatedFeature)
+      situation.updateFeature(
+        "tenant",
+        "project:test:date-range",
+        updatedFeature
+      )
 
-      await until { () => featureClient.checkFeature("project:test:date-range").get() == false }
+      await until { () =>
+        featureClient.checkFeature("project:test:date-range").get() == false
+      }
 
-      newCondition = (feature \ "conditions").as[JsObject] ++ play.api.libs.json.Json.obj("begin" -> begin.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+      newCondition =
+        (feature \ "conditions").as[JsObject] ++ play.api.libs.json.Json.obj(
+          "begin" -> begin
+            .atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        )
       updatedFeature = feature + ("conditions" -> newCondition)
-      situation.updateFeature("tenant", "project:test:date-range", updatedFeature)
+      situation.updateFeature(
+        "tenant",
+        "project:test:date-range",
+        updatedFeature
+      )
 
-      await until { () => featureClient.checkFeature("project:test:date-range").get() == true }
+      await until { () =>
+        featureClient.checkFeature("project:test:date-range").get() == true
+      }
     }
 
     "allow to update smartcache internal state based on emitted events (release date)" in {
@@ -1218,15 +1335,20 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
         .build()
 
       val clientId = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
       val LEGACY_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
       val now = LocalDateTime.now()
       val begin = now.minusDays(2)
       val afterNow = now.plusDays(2)
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
-          s"""{"id":"project:release-date","enabled":true,"description":"An old release date feature","parameters":{"releaseDate":"${begin.format(LEGACY_FORMATTER)}"},"activationStrategy":"RELEASE_DATE"}""".stripMargin
+          s"""{"id":"project:release-date","enabled":true,"description":"An old release date feature","parameters":{"releaseDate":"${begin
+              .format(
+                LEGACY_FORMATTER
+              )}"},"activationStrategy":"RELEASE_DATE"}""".stripMargin
         ),
         keys = Seq(
           s"""{"clientId":"$clientId","name":"local create read key","clientSecret":"$clientSecret","authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"admin":true}""".stripMargin
@@ -1235,28 +1357,54 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
 
       val client = IzanamiClient.client(
         ActorSystem.create(),
-        ClientConfig.create("http://localhost:9000")
+        ClientConfig
+          .create("http://localhost:9000")
           .withClientId(clientId)
           .withClientSecret(clientSecret)
           .sseBackend()
       )
 
-      val featureClient = client.featureClient(Strategy.CacheWithSseStrategy(errorStrategy = Crash, patterns = Seq("project:*")).withPollingDisabled())
-      await until { () => featureClient.checkFeature("project:release-date").get() == true }
+      val featureClient = client.featureClient(
+        Strategy
+          .CacheWithSseStrategy(
+            errorStrategy = Crash,
+            patterns = Seq("project:*")
+          )
+          .withPollingDisabled()
+      )
+      await until { () =>
+        featureClient.checkFeature("project:release-date").get() == true
+      }
 
-      val feature = (situation.fetchProject("tenant", "project").json.get \ "features" \ 0).as[JsObject]
+      val feature =
+        (situation.fetchProject("tenant", "project").json.get \ "features" \ 0)
+          .as[JsObject]
 
-      var newCondition = (feature \ "conditions").as[JsObject] ++ play.api.libs.json.Json.obj("begin" -> afterNow.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+      var newCondition =
+        (feature \ "conditions").as[JsObject] ++ play.api.libs.json.Json.obj(
+          "begin" -> afterNow
+            .atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        )
       var updatedFeature = feature + ("conditions" -> newCondition)
       situation.updateFeature("tenant", "project:release-date", updatedFeature)
 
-      await until { () => featureClient.checkFeature("project:release-date").get() == false }
+      await until { () =>
+        featureClient.checkFeature("project:release-date").get() == false
+      }
 
-      newCondition = (feature \ "conditions").as[JsObject] ++ play.api.libs.json.Json.obj("begin" -> begin.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+      newCondition =
+        (feature \ "conditions").as[JsObject] ++ play.api.libs.json.Json.obj(
+          "begin" -> begin
+            .atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        )
       updatedFeature = feature + ("conditions" -> newCondition)
       situation.updateFeature("tenant", "project:release-date", updatedFeature)
 
-      await until { () => featureClient.checkFeature("project:release-date").get() == true }
+      await until { () =>
+        featureClient.checkFeature("project:release-date").get() == true
+      }
     }
   }
 
@@ -1268,9 +1416,11 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
         .build()
 
       val clientId = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:bar","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
           """{"id":"project:foo:baz","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
@@ -1285,16 +1435,22 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
       EventSource(
         uri = Uri(s"$BASE_URL/events"),
         send = { req =>
-          Http().singleRequest(req.withHeaders(req.headers ++ Seq(
-            RawHeader("Izanami-Client-Id", clientId),
-            RawHeader("Izanami-Client-Secret", clientSecret)
-          )))
+          Http().singleRequest(
+            req.withHeaders(
+              req.headers ++ Seq(
+                RawHeader("Izanami-Client-Id", clientId),
+                RawHeader("Izanami-Client-Secret", clientSecret)
+              )
+            )
+          )
         },
         initialLastEventId = None,
         retryDelay = 2.seconds
       )
         .map(sse => play.api.libs.json.Json.parse(sse.data))
-        .filter(json => (json \ "type").asOpt[String].forall(str => str == "FEATURE_UPDATED"))
+        .filter(json =>
+          (json \ "type").asOpt[String].forall(str => str == "FEATURE_UPDATED")
+        )
         .map(json => {
           msgs.addOne(json)
           json
@@ -1303,28 +1459,31 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
 
       Thread.sleep(5000)
 
-      situation.patchFeatures("tenant", Seq(
-        TestFeaturePatch(
-          op = "replace",
-          path = s"/project:foo:bar/enabled",
-          value = JsBoolean(false)
-        ),
-        TestFeaturePatch(
-          op = "replace",
-          path = s"/project:foo:baz/enabled",
-          value = JsBoolean(false)
-        ),
-        TestFeaturePatch(
-          op = "replace",
-          path = s"/project1:baz:bar/enabled",
-          value = JsBoolean(false)
+      situation.patchFeatures(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/project:foo:bar/enabled",
+            value = JsBoolean(false)
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/project:foo:baz/enabled",
+            value = JsBoolean(false)
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/project1:baz:bar/enabled",
+            value = JsBoolean(false)
+          )
         )
-      ))
+      )
 
-
-      await.pollDelay(Duration.ofSeconds(3)) until { () => {
-        msgs.size == 2
-      }
+      await.pollDelay(Duration.ofSeconds(3)) until { () =>
+        {
+          msgs.size == 2
+        }
       }
     }
 
@@ -1335,9 +1494,11 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
         .build()
 
       val clientId = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:bar","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
           """{"id":"project:foo:baz","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
@@ -1352,16 +1513,22 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
       EventSource(
         uri = Uri(s"$BASE_URL/events"),
         send = { req =>
-          Http().singleRequest(req.withHeaders(req.headers ++ Seq(
-            RawHeader("Izanami-Client-Id", clientId),
-            RawHeader("Izanami-Client-Secret", clientSecret)
-          )))
+          Http().singleRequest(
+            req.withHeaders(
+              req.headers ++ Seq(
+                RawHeader("Izanami-Client-Id", clientId),
+                RawHeader("Izanami-Client-Secret", clientSecret)
+              )
+            )
+          )
         },
         initialLastEventId = None,
         retryDelay = 2.seconds
       )
         .map(sse => play.api.libs.json.Json.parse(sse.data))
-        .filter(json => (json \ "type").asOpt[String].forall(str => str == "FEATURE_UPDATED"))
+        .filter(json =>
+          (json \ "type").asOpt[String].forall(str => str == "FEATURE_UPDATED")
+        )
         .map(json => {
           msgs.addOne(json)
           json
@@ -1370,28 +1537,31 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
 
       Thread.sleep(5000)
 
-      situation.patchFeatures("tenant", Seq(
-        TestFeaturePatch(
-          op = "replace",
-          path = s"/project:foo:bar/enabled",
-          value = JsBoolean(false)
-        ),
-        TestFeaturePatch(
-          op = "replace",
-          path = s"/project:foo:baz/enabled",
-          value = JsBoolean(false)
-        ),
-        TestFeaturePatch(
-          op = "replace",
-          path = s"/project1:baz:bar/enabled",
-          value = JsBoolean(false)
+      situation.patchFeatures(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/project:foo:bar/enabled",
+            value = JsBoolean(false)
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/project:foo:baz/enabled",
+            value = JsBoolean(false)
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/project1:baz:bar/enabled",
+            value = JsBoolean(false)
+          )
         )
-      ))
+      )
 
-
-      await.pollDelay(Duration.ofSeconds(3)) until { () => {
-        msgs.size == 3
-      }
+      await.pollDelay(Duration.ofSeconds(3)) until { () =>
+        {
+          msgs.size == 3
+        }
       }
     }
 
@@ -1402,9 +1572,11 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
         .build()
 
       val clientId = "yfsc5ooy3v3hu5z2"
-      val clientSecret = "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
 
-      situation.importAndWaitTermination("tenant",
+      situation.importAndWaitTermination(
+        "tenant",
         features = Seq(
           """{"id":"project:foo:bar","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
           """{"id":"project:baz:bar","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
@@ -1421,16 +1593,22 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
       EventSource(
         uri = Uri(s"$BASE_URL/events?pattern=project:*"),
         send = { req =>
-          Http().singleRequest(req.withHeaders(req.headers ++ Seq(
-            RawHeader("Izanami-Client-Id", clientId),
-            RawHeader("Izanami-Client-Secret", clientSecret)
-          )))
+          Http().singleRequest(
+            req.withHeaders(
+              req.headers ++ Seq(
+                RawHeader("Izanami-Client-Id", clientId),
+                RawHeader("Izanami-Client-Secret", clientSecret)
+              )
+            )
+          )
         },
         initialLastEventId = None,
         retryDelay = 2.seconds
       )
         .map(sse => play.api.libs.json.Json.parse(sse.data))
-        .filter(json => (json \ "type").asOpt[String].forall(str => str == "FEATURE_UPDATED"))
+        .filter(json =>
+          (json \ "type").asOpt[String].forall(str => str == "FEATURE_UPDATED")
+        )
         .map(json => {
           msgs.addOne(json)
           json
@@ -1439,37 +1617,42 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
 
       Thread.sleep(5000)
 
-      situation.patchFeatures("tenant", Seq(
-        TestFeaturePatch(
-          op = "replace",
-          path = s"/project:foo:bar/enabled",
-          value = JsBoolean(false)
-        ),
-        TestFeaturePatch(
-          op = "replace",
-          path = s"/project:baz:bar/enabled",
-          value = JsBoolean(false)
-        ),
-        TestFeaturePatch(
-          op = "replace",
-          path = s"/project:fifou:buzz/enabled",
-          value = JsBoolean(false)
-        ),
-        TestFeaturePatch(
-          op = "replace",
-          path = s"/another:foo:bar/enabled",
-          value = JsBoolean(false)
-        ),
-        TestFeaturePatch(
-          op = "replace",
-          path = s"/another:baz:bar/enabled",
-          value = JsBoolean(false)
+      situation.patchFeatures(
+        "tenant",
+        Seq(
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/project:foo:bar/enabled",
+            value = JsBoolean(false)
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/project:baz:bar/enabled",
+            value = JsBoolean(false)
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/project:fifou:buzz/enabled",
+            value = JsBoolean(false)
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/another:foo:bar/enabled",
+            value = JsBoolean(false)
+          ),
+          TestFeaturePatch(
+            op = "replace",
+            path = s"/another:baz:bar/enabled",
+            value = JsBoolean(false)
+          )
         )
-      ))
+      )
 
-      await.pollDelay(Duration.ofSeconds(1)) until {() => {
-        msgs.size == 3
-      }}
+      await.pollDelay(Duration.ofSeconds(1)) until { () =>
+        {
+          msgs.size == 3
+        }
+      }
     }
   }
 }

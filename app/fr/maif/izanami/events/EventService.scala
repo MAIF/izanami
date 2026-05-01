@@ -8,14 +8,44 @@ import fr.maif.izanami.env.pgimplicits.{EnhancedRow, VertxFutureEnhancer}
 import fr.maif.izanami.events.EventAuthentication.eventAuthenticationReads
 import fr.maif.izanami.events.EventOrigin.{ORIGIN_NAME_MAP, eventOriginReads}
 import fr.maif.izanami.events.EventService.{IZANAMI_CHANNEL, sourceEventWrites}
-import fr.maif.izanami.models.{ConfigurationForExposition, Feature, FeatureWithOverloads, FullIzanamiConfiguration, IzanamiConfiguration, LightWeightFeature, RequestContext, Tenant}
+import fr.maif.izanami.models.{
+  ConfigurationForExposition,
+  Feature,
+  FeatureWithOverloads,
+  FullIzanamiConfiguration,
+  IzanamiConfiguration,
+  LightWeightFeature,
+  RequestContext,
+  Tenant
+}
 import io.vertx.pgclient.pubsub.PgSubscriber
 import io.vertx.sqlclient.SqlConnection
-import play.api.libs.json.{Format, JsError, JsNumber, JsObject, JsResult, JsString, JsSuccess, JsValue, Json, Reads, Writes}
-import fr.maif.izanami.models.Feature.{featureWrite, lightweightFeatureRead, lightweightFeatureWrite, writeStrategiesForEvent}
+import play.api.libs.json.{
+  Format,
+  JsError,
+  JsNumber,
+  JsObject,
+  JsResult,
+  JsString,
+  JsSuccess,
+  JsValue,
+  Json,
+  Reads,
+  Writes
+}
+import fr.maif.izanami.models.Feature.{
+  featureWrite,
+  lightweightFeatureRead,
+  lightweightFeatureWrite,
+  writeStrategiesForEvent
+}
 import fr.maif.izanami.models.FeatureWithOverloads.featureWithOverloadWrite
 import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
-import fr.maif.izanami.v1.V2FeatureEvents.{createEventV2, deleteEventV2, updateEventV2}
+import fr.maif.izanami.v1.V2FeatureEvents.{
+  createEventV2,
+  deleteEventV2,
+  updateEventV2
+}
 import play.api.Logger
 
 import java.time.{Instant, OffsetDateTime}
@@ -28,12 +58,16 @@ sealed trait UserEventOrigin extends EventOrigin
 
 object EventOrigin {
   val ORIGIN_NAME_MAP: Map[EventOrigin, String] =
-    Map((ImportOrigin, "IMPORT"), (NormalOrigin, "NORMAL"), (TechnicalOrigin, "TECHNICAL"))
+    Map(
+      (ImportOrigin, "IMPORT"),
+      (NormalOrigin, "NORMAL"),
+      (TechnicalOrigin, "TECHNICAL")
+    )
 
   case object ImportOrigin extends UserEventOrigin;
 
   case object NormalOrigin extends UserEventOrigin;
-  
+
   case object TechnicalOrigin extends EventOrigin
 
   def eventOriginReads: Reads[EventOrigin] = json => {
@@ -57,7 +91,7 @@ object EventAuthentication {
     authentication match {
       case TokenAuthentication(_)   => "TOKEN"
       case BackOfficeAuthentication => "BACKOFFICE"
-      case RootAuthentication => "IZANAMI"
+      case RootAuthentication       => "IZANAMI"
     }
   }
 
@@ -75,8 +109,8 @@ object EventAuthentication {
         case "TOKEN" =>
           (json \ "token").asOpt[UUID].map(token => TokenAuthentication(token))
         case "BACKOFFICE" => Some(BackOfficeAuthentication)
-        case "IZANAMI" => Some(RootAuthentication)
-        case _ => None
+        case "IZANAMI"    => Some(RootAuthentication)
+        case _            => None
       }
       .map(a => JsSuccess(a))
       .getOrElse(JsError(s"Unknown authentication $json"))
@@ -347,14 +381,14 @@ case class ProjectUpdated(
 ) extends IzanamiEvent
 
 case class ConfigurationUpdated(
-   override val eventId: Long,
-   override val user: String,
-   override val emittedAt: Option[Instant],
-   oldConfiguration: ConfigurationForExposition,
-   newConfiguration: ConfigurationForExposition,
-   origin: EventOrigin,
-   authentication: EventAuthentication
-)extends IzanamiEvent
+    override val eventId: Long,
+    override val user: String,
+    override val emittedAt: Option[Instant],
+    oldConfiguration: ConfigurationForExposition,
+    newConfiguration: ConfigurationForExposition,
+    origin: EventOrigin,
+    authentication: EventAuthentication
+) extends IzanamiEvent
 
 case class SourceDescriptor(
     source: Source[IzanamiEvent, NotUsed],
@@ -570,13 +604,23 @@ object EventService {
       ) ++ EventAuthentication.eventAuthenticationWrites
         .writes(authentication)
         .as[JsObject]
-    case SourceConfigurationUpdatedEvent(user, origin, authentication, oldConfiguration, newConfiguration) =>
+    case SourceConfigurationUpdatedEvent(
+          user,
+          origin,
+          authentication,
+          oldConfiguration,
+          newConfiguration
+        ) =>
       Json.obj(
         "user" -> user,
         "type" -> "CONFIGURATION_UPDATED",
         "origin" -> EventOrigin.eventOriginWrites.writes(origin),
-        "oldConfiguration" -> Json.toJson(oldConfiguration)(IzanamiConfiguration.configurationWriteForExposition),
-        "newConfiguration" -> Json.toJson(newConfiguration)(IzanamiConfiguration.configurationWriteForExposition)
+        "oldConfiguration" -> Json.toJson(oldConfiguration)(
+          IzanamiConfiguration.configurationWriteForExposition
+        ),
+        "newConfiguration" -> Json.toJson(newConfiguration)(
+          IzanamiConfiguration.configurationWriteForExposition
+        )
       ) ++ EventAuthentication.eventAuthenticationWrites
         .writes(authentication)
         .as[JsObject]
@@ -791,27 +835,32 @@ object EventService {
             .writes(authentication)
             .as[JsObject]
         case ConfigurationUpdated(
-          eventId,
-          user,
-          emittedAt,
-          oldConf,
-          newConf,
-          origin,
-          authentication
-        ) => Json
-          .obj(
-            "eventId" -> eventId,
-            "type" -> "CONFIGURATION_UPDATED",
-            "user" -> user,
-            "origin" -> EventOrigin.eventOriginWrites.writes(origin),
-            "oldConfiguration" -> Json.toJson(oldConf)(IzanamiConfiguration.configurationForExpositionWrites),
-            "newConfiguration" -> Json.toJson(newConf)(IzanamiConfiguration.configurationForExpositionWrites)
-          )
-          .applyOnWithOpt(emittedAt)((obj, instant) =>
-            obj + ("emittedAt" -> JsString(instant.toString))
-          ) ++ EventAuthentication.eventAuthenticationWrites
-          .writes(authentication)
-          .as[JsObject]
+              eventId,
+              user,
+              emittedAt,
+              oldConf,
+              newConf,
+              origin,
+              authentication
+            ) =>
+          Json
+            .obj(
+              "eventId" -> eventId,
+              "type" -> "CONFIGURATION_UPDATED",
+              "user" -> user,
+              "origin" -> EventOrigin.eventOriginWrites.writes(origin),
+              "oldConfiguration" -> Json.toJson(oldConf)(
+                IzanamiConfiguration.configurationForExpositionWrites
+              ),
+              "newConfiguration" -> Json.toJson(newConf)(
+                IzanamiConfiguration.configurationForExpositionWrites
+              )
+            )
+            .applyOnWithOpt(emittedAt)((obj, instant) =>
+              obj + ("emittedAt" -> JsString(instant.toString))
+            ) ++ EventAuthentication.eventAuthenticationWrites
+            .writes(authentication)
+            .as[JsObject]
       }
     }
 
@@ -1015,20 +1064,36 @@ object EventService {
             )
         }
         case "CONFIGURATION_UPDATED" =>
-          for(
+          for (
             eventId <- (json \ "eventId").asOpt[Long];
             user <- (json \ "user").asOpt[String];
-            newConf <- (json \ "newConfiguration").asOpt[ConfigurationForExposition](IzanamiConfiguration.configurationForExpositionReads);
-            oldConf <- (json \ "oldConfiguration").asOpt[ConfigurationForExposition](IzanamiConfiguration.configurationForExpositionReads);
+            newConf <- (json \ "newConfiguration")
+              .asOpt[ConfigurationForExposition](
+                IzanamiConfiguration.configurationForExpositionReads
+              );
+            oldConf <- (json \ "oldConfiguration")
+              .asOpt[ConfigurationForExposition](
+                IzanamiConfiguration.configurationForExpositionReads
+              );
             authentication <- json.asOpt[EventAuthentication](
               eventAuthenticationReads
             );
             origin <- (json \ "origin").asOpt[EventOrigin](eventOriginReads)
           ) yield {
-            ConfigurationUpdated(eventId = eventId, user = user, emittedAt = emissionDate, oldConfiguration = oldConf, newConfiguration = newConf, origin = origin, authentication = authentication)
+            ConfigurationUpdated(
+              eventId = eventId,
+              user = user,
+              emittedAt = emissionDate,
+              oldConfiguration = oldConf,
+              newConfiguration = newConf,
+              origin = origin,
+              authentication = authentication
+            )
           }
         case unknownEventType: String => {
-          logger.error(s"Failed to process event, event type ${unknownEventType} is unknown")
+          logger.error(
+            s"Failed to process event, event type ${unknownEventType} is unknown"
+          )
           None
         }
       }
@@ -1047,8 +1112,12 @@ object EventService {
     val user = event.user
     implicit val executionContext: ExecutionContext = env.executionContext
     event match {
-      case fd:FeatureDeleted =>
-        Future.successful(Some(deleteEventV2(fd.id, fd.user, project = fd.project, name = fd.name)))
+      case fd: FeatureDeleted =>
+        Future.successful(
+          Some(
+            deleteEventV2(fd.id, fd.user, project = fd.project, name = fd.name)
+          )
+        )
       case f: ConditionFeatureEvent => {
         val maybeContextmap = f match {
           case FeatureCreated(_, _, _, _, _, map, _, _, _)    => map
@@ -1096,9 +1165,9 @@ class EventService(env: Env) {
   val logger: Logger = env.logger
   val sourceMap: scala.collection.mutable.Map[String, SourceDescriptor] =
     scala.collection.mutable.Map()
-    
+
   def emitGlobalEvent(event: SourceIzanamiEvent)(implicit
-                                                 conn: SqlConnection
+      conn: SqlConnection
   ): Future[Unit] = {
     emitEvent(IZANAMI_CHANNEL, event)
   }
@@ -1171,7 +1240,7 @@ class EventService(env: Env) {
         case None => Future.successful(())
       }
   }
-  
+
   def consumeGlobal(): SourceDescriptor = consume(IZANAMI_CHANNEL)
 
   def consume(channel: String): SourceDescriptor = {
@@ -1219,7 +1288,10 @@ class EventService(env: Env) {
                 })
               })
           }
-        }).onFailure(ex => logger.error(s"Event consumption failed with error ${ex}"))
+        })
+        .onFailure(ex =>
+          logger.error(s"Event consumption failed with error ${ex}")
+        )
       val descriptor = SourceDescriptor(
         source = source,
         killswitch = sharedKillSwitch,

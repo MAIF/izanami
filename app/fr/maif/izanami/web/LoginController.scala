@@ -274,29 +274,36 @@ class LoginController(
                                   .executeInTransactionF(conn =>
                                     maybeUser
                                       .fold {
-                                        val rights = rightService.generateRightForNewUser(roles)
-                                          env.datastores.users
-                                            .createUser(
-                                              User(
-                                                username,
-                                                email = email,
-                                                userType = OIDC,
-                                                admin = rights.admin,
-                                                roles = roles
-                                              )
-                                                .withRights(
-                                                  Rights(rights.tenants)
-                                                ),
-                                              conn = Some(conn)
+                                        val rights = rightService
+                                          .generateRightForNewUser(roles)
+                                        env.datastores.users
+                                          .createUser(
+                                            User(
+                                              username,
+                                              email = email,
+                                              userType = OIDC,
+                                              admin = rights.admin,
+                                              roles = roles
                                             )
-                                            .toFEither
-                                            .map(_ => {
-                                              val r: Option[
-                                                MaxRightComplianceResult
-                                              ] = Option.empty
-                                              r
-                                            })
-                                      }(user => rightService.updateUserRightsIfNeeded(user, roles, Some(conn)))
+                                              .withRights(
+                                                Rights(rights.tenants)
+                                              ),
+                                            conn = Some(conn)
+                                          )
+                                          .toFEither
+                                          .map(_ => {
+                                            val r: Option[
+                                              MaxRightComplianceResult
+                                            ] = Option.empty
+                                            r
+                                          })
+                                      }(user =>
+                                        rightService.updateUserRightsIfNeeded(
+                                          user,
+                                          roles,
+                                          Some(conn)
+                                        )
+                                      )
                                   )
                               }
                               val rightByRolesFromEnvIfAny =
@@ -330,7 +337,8 @@ class LoginController(
                                           ),
                                           oauth2Configuration.maxRightsByRoles
                                         )
-                                      ).value
+                                      )
+                                      .value
                                   }
                                   case Left(err) => Future.successful(Left(err))
                                   case Right(value) =>
@@ -373,7 +381,12 @@ class LoginController(
                             if (maybeRightCompliance.exists(!_.isEmpty)) {
                               Ok(
                                 Json.obj(
-                                  "rightUpdates" -> Json.toJson(maybeRightCompliance)(Writes.optionWithNull(MaxRightComplianceResult.writes))
+                                  "rightUpdates" -> Json
+                                    .toJson(maybeRightCompliance)(
+                                      Writes.optionWithNull(
+                                        MaxRightComplianceResult.writes
+                                      )
+                                    )
                                 )
                               )
                                 .withCookies(

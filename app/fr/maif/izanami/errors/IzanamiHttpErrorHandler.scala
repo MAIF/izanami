@@ -18,7 +18,11 @@ class IzanamiHttpErrorHandler(env: Env) extends HttpErrorHandler {
   lazy val clientErrorLogger: Logger = Logger("izanami-client-error-handler")
   lazy val serverErrorLogger: Logger = Logger("izanami-server-error-handler")
 
-  override def onClientError(request: mvc.RequestHeader, statusCode: Int, message: String): Future[Result] = {
+  override def onClientError(
+      request: mvc.RequestHeader,
+      statusCode: Int,
+      message: String
+  ): Future[Result] = {
     val uuid =
       java.util.UUID.nameUUIDFromBytes(new SecureRandom().generateSeed(16))
     val msg =
@@ -30,13 +34,20 @@ class IzanamiHttpErrorHandler(env: Env) extends HttpErrorHandler {
     Future.successful(Status(statusCode)(Json.obj("message" -> msg)))
   }
 
-  override def onServerError(request: mvc.RequestHeader, exception: Throwable): Future[Result] = {
+  override def onServerError(
+      request: mvc.RequestHeader,
+      exception: Throwable
+  ): Future[Result] = {
     val uuid =
       java.util.UUID.nameUUIDFromBytes(new SecureRandom().generateSeed(16))
 
     serverErrorLogger.error(
       s"Server Error [$uuid]: ${exception.getMessage} on ${request.uri}",
-      exception)
-    Future.successful(Status(INTERNAL_SERVER_ERROR)(Json.obj("message" -> exception.getMessage)).withHeaders(("content-type", "application/json")))
+      exception
+    )
+    Future.successful(
+      Status(INTERNAL_SERVER_ERROR)(Json.obj("message" -> exception.getMessage))
+        .withHeaders(("content-type", "application/json"))
+    )
   }
 }

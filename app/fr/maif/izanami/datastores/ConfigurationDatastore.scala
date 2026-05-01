@@ -1,18 +1,38 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.ConfigurationDatastore.{parseDbMailer, parseInvitationMode}
+import fr.maif.izanami.datastores.ConfigurationDatastore.{
+  parseDbMailer,
+  parseInvitationMode
+}
 import fr.maif.izanami.datastores.configurationImplicits.MailerConfigurationRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{ConfigurationReadError, InternalServerError, IzanamiError}
+import fr.maif.izanami.errors.{
+  ConfigurationReadError,
+  InternalServerError,
+  IzanamiError
+}
 import fr.maif.izanami.events.EventOrigin.TechnicalOrigin
 import fr.maif.izanami.events.{EventOrigin, SourceConfigurationUpdatedEvent}
 import fr.maif.izanami.mail.*
-import fr.maif.izanami.models.IzanamiConfiguration.{SMTPConfigurationReads, SMTPConfigurationWrites, mailGunConfigurationReads, mailJetConfigurationReads}
+import fr.maif.izanami.models.IzanamiConfiguration.{
+  SMTPConfigurationReads,
+  SMTPConfigurationWrites,
+  mailGunConfigurationReads,
+  mailJetConfigurationReads
+}
 import fr.maif.izanami.models.*
-import fr.maif.izanami.services.{CompleteRights, CompleteRightsWithMaxRights, OIDCRights}
+import fr.maif.izanami.services.{
+  CompleteRights,
+  CompleteRightsWithMaxRights,
+  OIDCRights
+}
 import fr.maif.izanami.services.RightService.RightsByRole
-import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterFutureEither, BetterJsValue}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterFuture,
+  BetterFutureEither,
+  BetterJsValue
+}
 import fr.maif.izanami.utils.{Datastore, Done, FutureEither}
 import fr.maif.izanami.web.{IzanamiApplicationUserInformation, UserInformation}
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
@@ -25,15 +45,15 @@ import scala.concurrent.Future
 
 class ConfigurationDatastore(val env: Env) extends Datastore {
 
-  /**
-   * Updates OIDC rights roles to keep only existing stuff.
-   * This is used if existing oidc configuration references non
-   * existing project / keys / webhooks / tenants.
-   * This methods verify existence of everything listed in oidc configuration
-   * and remove parts that references non existing stuff.
-   * @param rights configuration to update
-   * @return updated configuration
-   */
+  /** Updates OIDC rights roles to keep only existing stuff. This is used if
+    * existing oidc configuration references non existing project / keys /
+    * webhooks / tenants. This methods verify existence of everything listed in
+    * oidc configuration and remove parts that references non existing stuff.
+    * @param rights
+    *   configuration to update
+    * @return
+    *   updated configuration
+    */
   def updateOIDCRightByRolesIfNeeded(
       rights: Map[String, CompleteRightsWithMaxRights]
   ): FutureEither[Map[String, CompleteRightsWithMaxRights]] = {
@@ -71,7 +91,9 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
         val tenantsToDelete = tenants.diff(setTenants)
         val tenantsToKeep = tenants.diff(tenantsToDelete)
 
-        val tenantItemsToDelete = tenantsToKeep.foldLeft(FutureEither.success(Map(): Map[String, TenantItemsToDelete]))((acc, t) =>{
+        val tenantItemsToDelete = tenantsToKeep.foldLeft(
+          FutureEither.success(Map(): Map[String, TenantItemsToDelete])
+        )((acc, t) => {
           acc.flatMap(map => {
             require(Tenant.isTenantValid(t))
 
@@ -185,13 +207,18 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
   private def updateOAuthRightByRole(
       rights: Map[String, CompleteRightsWithMaxRights]
   ): FutureEither[Done] = {
-    readFullConfiguration().flatMap(oldConf => {
-      updateConfiguration(
-        oldConf.copy(oidcConfiguration = oldConf.oidcConfiguration.map(c => c.copy(userRightsByRoles = Some(rights)))),
-        userInformation = IzanamiApplicationUserInformation,
-        origin = TechnicalOrigin
-      )
-    }).map(c => Done.done())
+    readFullConfiguration()
+      .flatMap(oldConf => {
+        updateConfiguration(
+          oldConf.copy(oidcConfiguration =
+            oldConf.oidcConfiguration
+              .map(c => c.copy(userRightsByRoles = Some(rights)))
+          ),
+          userInformation = IzanamiApplicationUserInformation,
+          origin = TechnicalOrigin
+        )
+      })
+      .map(c => Done.done())
   }
 
   def updateConfiguration(
@@ -275,16 +302,18 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
                 env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
               )
           }.toFEither;
-          _ <- if(updatedConfiguration != oldConfig) {
-            (env.eventService.emitGlobalEvent(
-              SourceConfigurationUpdatedEvent(
-                user = userInformation.username,
-                origin = origin,
-                authentication = userInformation.authentication,
-                oldConfiguration = oldConfig,
-                newConfiguration = updatedConfiguration
-              )
-            )(conn)).mapToFEither
+          _ <- if (updatedConfiguration != oldConfig) {
+            (env.eventService
+              .emitGlobalEvent(
+                SourceConfigurationUpdatedEvent(
+                  user = userInformation.username,
+                  origin = origin,
+                  authentication = userInformation.authentication,
+                  oldConfiguration = oldConfig,
+                  newConfiguration = updatedConfiguration
+                )
+              )(conn))
+              .mapToFEither
           } else {
             FutureEither.success(())
           }

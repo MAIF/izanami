@@ -2,7 +2,12 @@ package fr.maif.izanami.units
 
 import fr.maif.izanami.models.RightLevel.{Admin, Read, Write}
 import fr.maif.izanami.models.{ProjectRightLevel, *}
-import fr.maif.izanami.services.{CompleteRights, MaxRights, MaxTenantRoleRights, RightService}
+import fr.maif.izanami.services.{
+  CompleteRights,
+  MaxRights,
+  MaxTenantRoleRights,
+  RightService
+}
 import org.scalatest.matchers.must.Matchers.{mustBe, mustEqual}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -168,7 +173,8 @@ class RightServiceTest extends AnyWordSpec with Matchers {
         )
       )
 
-      val compliance = rights.checkCompliance(MaxRights(admin = false, tenants = Map()))
+      val compliance =
+        rights.checkCompliance(MaxRights(admin = false, tenants = Map()))
 
       compliance.isEmpty mustBe true
     }
@@ -190,9 +196,19 @@ class RightServiceTest extends AnyWordSpec with Matchers {
         )
       )
 
-      val compliance = rights.checkCompliance(MaxRights(admin = false, tenants = Map(
-        "secret" -> MaxTenantRoleRights(level = Read, maxProjectRight = ProjectRightLevel.Read, maxKeyRight = Read, maxWebhookRight = Read)
-      )))
+      val compliance = rights.checkCompliance(
+        MaxRights(
+          admin = false,
+          tenants = Map(
+            "secret" -> MaxTenantRoleRights(
+              level = Read,
+              maxProjectRight = ProjectRightLevel.Read,
+              maxKeyRight = Read,
+              maxWebhookRight = Read
+            )
+          )
+        )
+      )
 
       compliance.isEmpty mustBe false
       compliance.admin mustBe true
@@ -201,8 +217,12 @@ class RightServiceTest extends AnyWordSpec with Matchers {
       secretComplianceResult.levelRight.get.before mustBe Write
       secretComplianceResult.levelRight.get.after mustBe Read
 
-      secretComplianceResult.projects("proj").before mustBe ProjectRightLevel.Write
-      secretComplianceResult.projects("proj").after mustBe ProjectRightLevel.Read
+      secretComplianceResult
+        .projects("proj")
+        .before mustBe ProjectRightLevel.Write
+      secretComplianceResult
+        .projects("proj")
+        .after mustBe ProjectRightLevel.Read
 
       secretComplianceResult.keys("key").before mustBe Admin
       secretComplianceResult.keys("key").after mustBe Read
@@ -240,9 +260,19 @@ class RightServiceTest extends AnyWordSpec with Matchers {
         )
       )
 
-      val compliance = rights.checkCompliance(MaxRights(admin = false, tenants = Map(
-        "secret" -> MaxTenantRoleRights(level = Read, maxProjectRight = ProjectRightLevel.Read, maxKeyRight = Read, maxWebhookRight = Read)
-      )))
+      val compliance = rights.checkCompliance(
+        MaxRights(
+          admin = false,
+          tenants = Map(
+            "secret" -> MaxTenantRoleRights(
+              level = Read,
+              maxProjectRight = ProjectRightLevel.Read,
+              maxKeyRight = Read,
+              maxWebhookRight = Read
+            )
+          )
+        )
+      )
 
       val res = rights.updateToComplyWith(compliance)
 
@@ -274,9 +304,19 @@ class RightServiceTest extends AnyWordSpec with Matchers {
         )
       )
 
-      val compliance = rights.checkCompliance(MaxRights(admin = true, tenants = Map(
-        "secret" -> MaxTenantRoleRights(level = Write, maxProjectRight = ProjectRightLevel.Write, maxKeyRight = Admin, maxWebhookRight = Admin)
-      )))
+      val compliance = rights.checkCompliance(
+        MaxRights(
+          admin = true,
+          tenants = Map(
+            "secret" -> MaxTenantRoleRights(
+              level = Write,
+              maxProjectRight = ProjectRightLevel.Write,
+              maxKeyRight = Admin,
+              maxWebhookRight = Admin
+            )
+          )
+        )
+      )
 
       val res = rights.updateToComplyWith(compliance)
 
@@ -286,7 +326,12 @@ class RightServiceTest extends AnyWordSpec with Matchers {
 
   "MaxTenantRoleRights allowRightForXXX" should {
     "allow rights if equal to max rights" in {
-      val maxRights = MaxTenantRoleRights(level = Read, maxProjectRight = ProjectRightLevel.Read, maxKeyRight = Read, maxWebhookRight = Read)
+      val maxRights = MaxTenantRoleRights(
+        level = Read,
+        maxProjectRight = ProjectRightLevel.Read,
+        maxKeyRight = Read,
+        maxWebhookRight = Read
+      )
 
       maxRights.allowRightForProject(ProjectRightLevel.Read) mustBe true
       maxRights.allowRightForKey(Read) mustBe true
@@ -294,7 +339,12 @@ class RightServiceTest extends AnyWordSpec with Matchers {
     }
 
     "not allow rights if superior to max rights" in {
-      val maxRights = MaxTenantRoleRights(level = Read, maxProjectRight = ProjectRightLevel.Read, maxKeyRight = Read, maxWebhookRight = Read)
+      val maxRights = MaxTenantRoleRights(
+        level = Read,
+        maxProjectRight = ProjectRightLevel.Read,
+        maxKeyRight = Read,
+        maxWebhookRight = Read
+      )
 
       maxRights.allowRightForProject(ProjectRightLevel.Update) mustBe false
       maxRights.allowRightForKey(Write) mustBe false

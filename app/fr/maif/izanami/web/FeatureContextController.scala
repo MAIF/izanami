@@ -95,7 +95,8 @@ class FeatureContextController(
                     Left(NotEnoughRights).future
                   }
                 } else {
-                  featureService.canUpdateContext(tenant, request.user, parents)
+                  featureService
+                    .canUpdateContext(tenant, request.user, parents)
                     .map(either => either.map(ctx => ctx.isProtected))
                 }
 
@@ -141,7 +142,16 @@ class FeatureContextController(
   ): Action[AnyContent] =
     detailledRightForTenantFactory(tenant)
       .async { implicit request =>
-        featureService.deleteOverload(tenant, project = project, name = name, contextPath = context, user = request.user, userInformation = request.userInformation, preserveProtectedContexts = preserveProtectedContexts)
+        featureService
+          .deleteOverload(
+            tenant,
+            project = project,
+            name = name,
+            contextPath = context,
+            user = request.user,
+            userInformation = request.userInformation,
+            preserveProtectedContexts = preserveProtectedContexts
+          )
           .toResult(_ => NoContent)
       }
 
@@ -272,7 +282,8 @@ class FeatureContextController(
                   Right(false).future
                 }
               } else {
-                featureService.canUpdateContext(tenant, request.user, parents)
+                featureService
+                  .canUpdateContext(tenant, request.user, parents)
                   .map(either => either.map(c => c.isProtected))
               }
 
@@ -390,7 +401,5 @@ class FeatureContextController(
         }
       }
     }
-
-  
 
 }

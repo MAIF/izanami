@@ -1,18 +1,56 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.ImportExportDatastore.{DBImportResult, TableMetadata, UnitDBImportResult}
+import fr.maif.izanami.datastores.ImportExportDatastore.{
+  DBImportResult,
+  TableMetadata,
+  UnitDBImportResult
+}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.{InternalServerError, IzanamiError, PartialImportFailure}
+import fr.maif.izanami.errors.{
+  InternalServerError,
+  IzanamiError,
+  PartialImportFailure
+}
 import fr.maif.izanami.events.EventOrigin.ImportOrigin
-import fr.maif.izanami.events.{PreviousProject, SourceFeatureCreated, SourceFeatureUpdated, SourceProjectCreated, SourceProjectUpdated}
-import fr.maif.izanami.models.{ExportedType, FeatureType, FeatureWithOverloads, KeyRightType, Project, ProjectRightType, ProjectType, Tenant, WebhookRightType}
+import fr.maif.izanami.events.{
+  PreviousProject,
+  SourceFeatureCreated,
+  SourceFeatureUpdated,
+  SourceProjectCreated,
+  SourceProjectUpdated
+}
+import fr.maif.izanami.models.{
+  ExportedType,
+  FeatureType,
+  FeatureWithOverloads,
+  KeyRightType,
+  Project,
+  ProjectRightType,
+  ProjectType,
+  Tenant,
+  WebhookRightType
+}
 import fr.maif.izanami.models.ExportedType.exportedTypeToString
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.web.ExportController.{ExportResult, TenantExportRequest, projectExportResultWrites}
-import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, MergeOverwrite, Replace}
-import fr.maif.izanami.web.{ExportController, ImportController, ImportResult, ProjectId, UserInformation}
+import fr.maif.izanami.web.ExportController.{
+  ExportResult,
+  TenantExportRequest,
+  projectExportResultWrites
+}
+import fr.maif.izanami.web.ImportController.{
+  ImportConflictStrategy,
+  MergeOverwrite,
+  Replace
+}
+import fr.maif.izanami.web.{
+  ExportController,
+  ImportController,
+  ImportResult,
+  ProjectId,
+  UserInformation
+}
 import io.vertx.core.json.JsonArray
 import io.vertx.sqlclient.SqlConnection
 import play.api.libs.json.{JsObject, Json}
@@ -204,7 +242,8 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     }))
                     .flatMap(_ => {
                       if (result.updatedProjects.nonEmpty) {
-                        val previousProjectNames: Future[Map[ProjectId, String]] =
+                        val previousProjectNames
+                            : Future[Map[ProjectId, String]] =
                           if (
                             conflictStrategy == MergeOverwrite && entries
                               .get(FeatureType)
@@ -216,8 +255,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                                    |SELECT id, name FROM "${tenant}".projects WHERE id=ANY($$1)
                                    |""".stripMargin,
                                 List(
-                                  result.updatedProjects
-                                    .toArray
+                                  result.updatedProjects.toArray
                                 )
                               ) { r =>
                                 {
