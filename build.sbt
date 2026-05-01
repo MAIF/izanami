@@ -56,7 +56,7 @@ libraryDependencies += guice
 libraryDependencies += ws
 libraryDependencies += "com.softwaremill.macwire" %% "macros" % "2.6.7" % "provided"
 
-libraryDependencies += "com.zaxxer" % "HikariCP" % "5.1.0"
+libraryDependencies += "com.zaxxer" % "HikariCP" % "7.0.2"
 libraryDependencies += "io.vertx" % "vertx-pg-client" % "4.5.12"
 libraryDependencies += "com.ongres.scram" % "common" % "2.1"
 libraryDependencies += "com.ongres.scram" % "client" % "2.1"
