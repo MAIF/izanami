@@ -57,7 +57,7 @@ libraryDependencies += ws
 libraryDependencies += "com.softwaremill.macwire" %% "macros" % "2.6.7" % "provided"
 
 libraryDependencies += "com.zaxxer" % "HikariCP" % "5.1.0"
-libraryDependencies += "io.vertx" % "vertx-pg-client" % "4.5.12"
+libraryDependencies += "io.vertx" % "vertx-pg-client" % "4.5.26"
 libraryDependencies += "com.ongres.scram" % "common" % "2.1"
 libraryDependencies += "com.ongres.scram" % "client" % "2.1"
 libraryDependencies += "org.flywaydb" % "flyway-database-postgresql" % "12.3.0"
