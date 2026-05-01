@@ -17,11 +17,12 @@ class TagController(
 ) extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
 
-  def createTag(tenant: String): Action[JsValue] = authAction(tenant, RightLevel.Write).async(parse.json) {
-    implicit request =>
+  def createTag(tenant: String): Action[JsValue] =
+    authAction(tenant, RightLevel.Write).async(parse.json) { implicit request =>
       Future.successful(Forbidden)
       Tag.tagRequestReads.reads(request.body) match {
-        case JsError(e)        => BadRequest(Json.obj("message" -> "bad body format")).future
+        case JsError(e) =>
+          BadRequest(Json.obj("message" -> "bad body format")).future
         case JsSuccess(tag, _) => {
           env.datastores.tags
             .createTag(tag, tenant)
@@ -33,21 +34,23 @@ class TagController(
             )
         }
       }
-  }
-
-  def deleteTag(tenant: String, name: String): Action[AnyContent] = authAction(tenant, RightLevel.Write).async {
-    implicit request: Request[AnyContent] => env.datastores.tags.deleteTag(tenant, name).map {
-      case Left(err) => err.toHttpResponse
-      case Right(value) => NoContent
     }
-  }
 
-  def readTag(tenant: String, name: String): Action[AnyContent] = personnalAccessTokenTenantAuthAction(
-    tenant = tenant,
-    minimumLevel = Read,
-    operation = ReadTenant
-  ).async {
-    implicit request: Request[AnyContent] =>
+  def deleteTag(tenant: String, name: String): Action[AnyContent] =
+    authAction(tenant, RightLevel.Write).async {
+      implicit request: Request[AnyContent] =>
+        env.datastores.tags.deleteTag(tenant, name).map {
+          case Left(err)    => err.toHttpResponse
+          case Right(value) => NoContent
+        }
+    }
+
+  def readTag(tenant: String, name: String): Action[AnyContent] =
+    personnalAccessTokenTenantAuthAction(
+      tenant = tenant,
+      minimumLevel = Read,
+      operation = ReadTenant
+    ).async { implicit request: Request[AnyContent] =>
       env.datastores.tags
         .readTag(tenant, name)
         .map(maybeTag =>
@@ -56,23 +59,25 @@ class TagController(
             tag => Ok(Json.toJson(tag))
           )
         )
-  }
+    }
 
-  def readTags(tenant: String): Action[AnyContent] =personnalAccessTokenTenantAuthAction(
-    tenant = tenant,
-    minimumLevel = Read,
-    operation = ReadTenant
-  ).async { implicit request: Request[AnyContent] =>
-    env.datastores.tags.readTags(tenant).map(tags => Ok(Json.toJson(tags)))
-  }
+  def readTags(tenant: String): Action[AnyContent] =
+    personnalAccessTokenTenantAuthAction(
+      tenant = tenant,
+      minimumLevel = Read,
+      operation = ReadTenant
+    ).async { implicit request: Request[AnyContent] =>
+      env.datastores.tags.readTags(tenant).map(tags => Ok(Json.toJson(tags)))
+    }
 
-  def updateTag(tenant: String, currentName: String): Action[JsValue] = authAction(tenant, RightLevel.Write).async(parse.json) {
-    implicit request =>
+  def updateTag(tenant: String, currentName: String): Action[JsValue] =
+    authAction(tenant, RightLevel.Write).async(parse.json) { implicit request =>
       Tag.tagReads.reads(request.body) match {
-        case JsError(e)        => BadRequest(Json.obj("message" -> "bad body format")).future
+        case JsError(e) =>
+          BadRequest(Json.obj("message" -> "bad body format")).future
         case JsSuccess(tag, _) => {
           env.datastores.tags
-            .updateTag(tag, tenant,currentName)
+            .updateTag(tag, tenant, currentName)
             .map(maybeTenant =>
               maybeTenant.fold(
                 err => Results.Status(err.status)(Json.toJson(err)),
@@ -81,6 +86,6 @@ class TagController(
             )
         }
       }
-  }
+    }
 
 }

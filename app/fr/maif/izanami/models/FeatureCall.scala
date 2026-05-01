@@ -6,7 +6,7 @@ import play.api.libs.json.JsValue
 
 import java.time.Instant
 
-case class FeatureCall (
+case class FeatureCall(
     tenant: String,
     feature: String,
     result: JsValue,
@@ -14,8 +14,7 @@ case class FeatureCall (
     time: Instant,
     origin: FeatureCallOrigin,
     key: String
- )
-
+)
 
 object FeatureCall {
   sealed trait FeatureCallOrigin

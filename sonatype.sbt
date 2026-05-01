@@ -5,7 +5,9 @@ sonatypeProfileName := "fr.maif"
 publishMavenStyle := true
 
 // Open-source license of your choice
-licenses := Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0"))
+licenses := Seq(
+  "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
+)
 
 homepage := Some(url("https://github.com/MAIF/izanami"))
 scmInfo := Some(
@@ -20,5 +22,10 @@ description := "Izanami is an open source centralized feature flag solution."
 organization := "fr.maif"
 
 developers := List(
-  Developer("ptitFicus", "Benjamin Cavy", email = "benjamin.cavy@maif.fr", url = url("https://github.com/ptitFicus/"))
+  Developer(
+    "ptitFicus",
+    "Benjamin Cavy",
+    email = "benjamin.cavy@maif.fr",
+    url = url("https://github.com/ptitFicus/")
+  )
 )

@@ -16,12 +16,18 @@ import scala.concurrent.Future
 import scala.concurrent.duration.{DurationInt, DurationLong}
 
 class FeatureCallsDatastore(val env: Env) extends Datastore {
-  private val callRetentionDelayInHours: Long = env.typedConfiguration.feature.callRecords.callRetentionTimeInHours
-  private var outDatedCallDeleteCancellation: Cancellable = Cancellable.alreadyCancelled
+  private val callRetentionDelayInHours: Long =
+    env.typedConfiguration.feature.callRecords.callRetentionTimeInHours
+  private var outDatedCallDeleteCancellation: Cancellable =
+    Cancellable.alreadyCancelled
   override def onStart(): Future[Unit] = {
-    outDatedCallDeleteCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() => {
-      deleteOutDatedCalls(Duration.ofHours(callRetentionDelayInHours))
-    })
+    outDatedCallDeleteCancellation =
+      env.actorSystem.scheduler.scheduleAtFixedRate(
+        env.houseKeepingStartDelayInSeconds.seconds,
+        env.houseKeepingIntervalInSeconds.seconds
+      )(() => {
+        deleteOutDatedCalls(Duration.ofHours(callRetentionDelayInHours))
+      })
     Future.successful(())
   }
 
@@ -31,26 +37,34 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
   }
 
   def deleteOutDatedCalls(duration: Duration): Future[Unit] = {
-    env.datastores.tenants.readTenants().map(tenants => {
-      Future.sequence(tenants.map(tenant => deleteOutDatedCallsForTenant(tenant.name, duration)))
-    })
+    env.datastores.tenants
+      .readTenants()
+      .map(tenants => {
+        Future.sequence(
+          tenants
+            .map(tenant => deleteOutDatedCallsForTenant(tenant.name, duration))
+        )
+      })
   }
 
-  def deleteOutDatedCallsForTenant(tenant: String, duration: Duration): Future[Unit] = {
+  def deleteOutDatedCallsForTenant(
+      tenant: String,
+      duration: Duration
+  ): Future[Unit] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql.queryRaw(
       s"""
          |DELETE FROM "${tenant}".feature_calls WHERE EXTRACT(EPOCH FROM (NOW() - range_stop)) > $$1 returning feature
          |""".stripMargin,
       List(duration.toSeconds.asInstanceOf[Number])
-    ){_ => ()}
+    ) { _ => () }
   }
 
   def registerCalls(
-                     tenant: String,
-                     calls: Map[FeatureCallRange, Long],
-                     rangeDurationInMinutes: Long
-                   ): Future[Unit] = {
+      tenant: String,
+      calls: Map[FeatureCallRange, Long],
+      rangeDurationInMinutes: Long
+  ): Future[Unit] = {
     require(Tenant.isTenantValid(tenant))
     val callSeq = calls.toSeq
     env.postgresql.queryRaw(
@@ -72,23 +86,41 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
         callSeq.map(_._1.feature).toArray,
         callSeq.map(_._1.key).toArray,
         callSeq.map(_._1.context.toDBPath).toArray,
-        callSeq.map(_._1.result).map(v => {
-          Json.obj("value" -> v).vertxJsValue
-        }).toArray,
-        callSeq.map(_._1.rangeStart).map(s => s.atOffset(ZoneOffset.UTC)).toArray,
-        callSeq.map(_._1.rangeStart).map(s => s.atOffset(ZoneOffset.UTC).plusMinutes(rangeDurationInMinutes)).toArray,
+        callSeq
+          .map(_._1.result)
+          .map(v => {
+            Json.obj("value" -> v).vertxJsValue
+          })
+          .toArray,
+        callSeq
+          .map(_._1.rangeStart)
+          .map(s => s.atOffset(ZoneOffset.UTC))
+          .toArray,
+        callSeq
+          .map(_._1.rangeStart)
+          .map(s =>
+            s.atOffset(ZoneOffset.UTC).plusMinutes(rangeDurationInMinutes)
+          )
+          .toArray,
         callSeq.map(_._2).map(l => l.asInstanceOf[Number]).toArray
       )
-    ){r => ()}
+    ) { r => () }
   }
 
-  /**
-   * Find last call date of given features, their creation dates and their last values.
-   * @param tenant tenant name
-   * @param featureIds feature ids
-   * @return feature last call, creation date and last values
-   */
-  def findFeatureUsages(tenant: String, featureIds: Seq[String], valuesSince :Instant ): Future[Either[IzanamiError, Map[String, FeatureUsage]]] = {
+  /** Find last call date of given features, their creation dates and their last
+    * values.
+    * @param tenant
+    *   tenant name
+    * @param featureIds
+    *   feature ids
+    * @return
+    *   feature last call, creation date and last values
+    */
+  def findFeatureUsages(
+      tenant: String,
+      featureIds: Seq[String],
+      valuesSince: Instant
+  ): Future[Either[IzanamiError, Map[String, FeatureUsage]]] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryAll(
@@ -112,14 +144,31 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
          |GROUP BY f.id, dv.values
          |""".stripMargin,
         params = List(featureIds.toArray, valuesSince.atOffset(ZoneOffset.UTC))
-      ) { r => {
-        val lastCall = r.optOffsetDatetime("last_call").map(_.toInstant)
-        val values = r.optStringArray("values").map(vs => vs.map(str => Json.parse(str)).map(json => (json \ "value").as[JsValue]).toSet).getOrElse(Set.empty)
-        for(
-          createdAt <- r.optOffsetDatetime("created_at").map(_.toInstant);
-          id <- r.optString("id")
-        ) yield (id, FeatureUsage(creationDate = createdAt, lastCall = lastCall, lastValues = values))
-      }}
+      ) { r =>
+        {
+          val lastCall = r.optOffsetDatetime("last_call").map(_.toInstant)
+          val values = r
+            .optStringArray("values")
+            .map(vs =>
+              vs.map(str => Json.parse(str))
+                .map(json => (json \ "value").as[JsValue])
+                .toSet
+            )
+            .getOrElse(Set.empty)
+          for (
+            createdAt <- r.optOffsetDatetime("created_at").map(_.toInstant);
+            id <- r.optString("id")
+          )
+            yield (
+              id,
+              FeatureUsage(
+                creationDate = createdAt,
+                lastCall = lastCall,
+                lastValues = values
+              )
+            )
+        }
+      }
       .map(ls => Right(ls.toMap))
       .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
   }

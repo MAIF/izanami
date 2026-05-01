@@ -72,10 +72,14 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
       token: String,
       checker: ReadPersonnalAccessToken => Boolean
   ): Future[TokenCheckResult] = {
-    findValidAccessToken(token = token, username = username, predicate = checker)
+    findValidAccessToken(
+      token = token,
+      username = username,
+      predicate = checker
+    )
       .map {
         case Some(value) => TokenCheckSuccess(value)
-        case None => TokenCheckFailure
+        case None        => TokenCheckFailure
       }
   }
 
@@ -115,7 +119,12 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
             ) yield (tokenSecret, token)
           }
           .map {
-            case Some((tokenSecret, token)) if (!token.isExpired) && bcryptCheck(secret, tokenSecret) && predicate(token) => Some(token)
+            case Some((tokenSecret, token))
+                if (!token.isExpired) && bcryptCheck(
+                  secret,
+                  tokenSecret
+                ) && predicate(token) =>
+              Some(token)
             case _ => None
           }
       }

@@ -1,17 +1,66 @@
 package fr.maif.izanami.services
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{BadOPAReturnType, FeatureContextDoesNotExist, FeatureDoesNotExist, FeatureNotFound, IncorrectKey, InternalServerError, IzanamiError, ModernFeatureNotAllowed, ModernFeaturesForbiddenByConfig, NoProtectedContextAccess, NotEnoughRights, OPAResultMustBeBoolean, TagDoesNotExists, WasmFeatureNotAllowed}
+import fr.maif.izanami.errors.{
+  BadOPAReturnType,
+  FeatureContextDoesNotExist,
+  FeatureDoesNotExist,
+  FeatureNotFound,
+  IncorrectKey,
+  InternalServerError,
+  IzanamiError,
+  ModernFeatureNotAllowed,
+  ModernFeaturesForbiddenByConfig,
+  NoProtectedContextAccess,
+  NotEnoughRights,
+  OPAResultMustBeBoolean,
+  TagDoesNotExists,
+  WasmFeatureNotAllowed
+}
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models.*
-import fr.maif.izanami.models.ProjectRightLevel.{Admin, Read, Update, Write, projectRightLevelReads}
-import fr.maif.izanami.models.features.{ActivationCondition, BooleanResult, EnabledFeaturePatch, FeaturePatch, ProjectFeaturePatch, RemoveFeaturePatch, ResultType, TagsFeaturePatch, ValuedResultDescriptor}
-import fr.maif.izanami.requests.{BaseFeatureUpdateRequest, FeatureUpdateRequest, OverloadFeatureUpdateRequest}
-import fr.maif.izanami.services.FeatureService.{canCreateOrDeleteFeature, computeRootContexts, impactedProtectedContextsByUpdate, validateFeature}
+import fr.maif.izanami.models.ProjectRightLevel.{
+  Admin,
+  Read,
+  Update,
+  Write,
+  projectRightLevelReads
+}
+import fr.maif.izanami.models.features.{
+  ActivationCondition,
+  BooleanResult,
+  EnabledFeaturePatch,
+  FeaturePatch,
+  ProjectFeaturePatch,
+  RemoveFeaturePatch,
+  ResultType,
+  TagsFeaturePatch,
+  ValuedResultDescriptor
+}
+import fr.maif.izanami.requests.{
+  BaseFeatureUpdateRequest,
+  FeatureUpdateRequest,
+  OverloadFeatureUpdateRequest
+}
+import fr.maif.izanami.services.FeatureService.{
+  canCreateOrDeleteFeature,
+  computeRootContexts,
+  impactedProtectedContextsByUpdate,
+  validateFeature
+}
 import fr.maif.izanami.utils.{Done, FutureEither, Helpers}
-import fr.maif.izanami.utils.syntax.implicits.{BetterEither, BetterFuture, BetterFutureEither, BetterSyntax}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterEither,
+  BetterFuture,
+  BetterFutureEither,
+  BetterSyntax
+}
 import fr.maif.izanami.v1.OldFeature
-import fr.maif.izanami.web.{FeatureContextPath, StandardUserInformation, UserInformation}
+import fr.maif.izanami.web.{
+  FeatureContextPath,
+  StandardUserInformation,
+  UserInformation
+}
 import io.vertx.sqlclient.SqlConnection
 import play.api.libs.json.{JsObject, JsValue, Json, Writes}
 import play.api.libs.json.Json.JsValueWrapper
@@ -78,39 +127,51 @@ class FeatureService(env: Env) {
       })
       .mapToFEither
   }
-  
-  def createFeature(tenant: String, project: String, feature: CompleteFeature, user: UserInformation): FutureEither[CompleteFeature] = {
+
+  def createFeature(
+      tenant: String,
+      project: String,
+      feature: CompleteFeature,
+      user: UserInformation
+  ): FutureEither[CompleteFeature] = {
     feature match {
       case f: CompleteWasmFeature if !isWasmAllowed =>
         FutureEither.failure(WasmFeatureNotAllowed)
-      case f: AbstractFeature if env.typedConfiguration.feature.forceLegacy && !f
-          .isInstanceOf[SingleConditionFeature] =>
+      case f: AbstractFeature
+          if env.typedConfiguration.feature.forceLegacy && !f
+            .isInstanceOf[SingleConditionFeature] =>
         FutureEither.failure(ModernFeatureNotAllowed)
-      case f: CompleteWasmFeature if f.resultType != BooleanResult && f.wasmConfig.opa =>
+      case f: CompleteWasmFeature
+          if f.resultType != BooleanResult && f.wasmConfig.opa =>
         FutureEither.failure(BadOPAReturnType)
       case feature => {
         env.datastores.tags
-          .readTags(tenant, feature.tags).toFEither
+          .readTags(tenant, feature.tags)
+          .toFEither
           .flatMap(tags =>
             if (tags.size < feature.tags.size) {
               val tagsToCreate =
                 feature.tags.diff(tags.map(t => t.name).toSet)
-              env.datastores.tags.createTags(
-                tagsToCreate
-                  .map(name => TagCreationRequest(name = name))
-                  .toList,
-                tenant
-              ).toFEither
+              env.datastores.tags
+                .createTags(
+                  tagsToCreate
+                    .map(name => TagCreationRequest(name = name))
+                    .toList,
+                  tenant
+                )
+                .toFEither
             } else {
               FutureEither.success(tags)
             }
           )
           .flatMap(_ =>
             env.datastores.features
-              .create(tenant, project, feature, user).toFEither
+              .create(tenant, project, feature, user)
+              .toFEither
               .flatMap(id => {
                 env.datastores.features
-                  .findById(tenant, id).toFEither
+                  .findById(tenant, id)
+                  .toFEither
                   .flatMap(maybeFeature =>
                     FutureEither.from(maybeFeature.toRight(FeatureNotFound(id)))
                   )
@@ -119,7 +180,7 @@ class FeatureService(env: Env) {
       }
     }
   }
-  
+
   def patchFeature(
       tenant: String,
       patches: Seq[FeaturePatch],
@@ -195,7 +256,13 @@ class FeatureService(env: Env) {
                     .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)))
                 }
                 case RemoveFeaturePatch(id) =>
-                  deleteFeature(tenant, id, user, authentication, conn = Some(conn))
+                  deleteFeature(
+                    tenant,
+                    id,
+                    user,
+                    authentication,
+                    conn = Some(conn)
+                  )
                     .map(_ => Done.done())
               }
             })
@@ -386,53 +453,60 @@ class FeatureService(env: Env) {
       authentification: EventAuthentication,
       conn: Option[SqlConnection] = None
   ): FutureEither[Unit] = {
-    env.postgresql.executeInOptionalTransaction(conn, conn => {
-      for (
-        maybeFeature <- datastore
-          .findActivationStrategiesForFeature(tenant, id)
-          .mapToFEither;
-        feature <- maybeFeature
-          .map(f => FutureEither.success(f))
-          .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)));
-        hasProtectedOverload <- hasProtectedOverload(
-          tenant,
-          feature = feature
-        );
-        hasDeleteRightOnProject = canCreateOrDeleteFeature(feature.project, user);
-        res <- if (!hasDeleteRightOnProject) {
-          FutureEither.failure(
-            NotEnoughRights(
-              "You don't have right to delete feature for this project"
+    env.postgresql.executeInOptionalTransaction(
+      conn,
+      conn => {
+        for (
+          maybeFeature <- datastore
+            .findActivationStrategiesForFeature(tenant, id)
+            .mapToFEither;
+          feature <- maybeFeature
+            .map(f => FutureEither.success(f))
+            .getOrElse(FutureEither.failure(FeatureDoesNotExist(id)));
+          hasProtectedOverload <- hasProtectedOverload(
+            tenant,
+            feature = feature
+          );
+          hasDeleteRightOnProject = canCreateOrDeleteFeature(
+            feature.project,
+            user
+          );
+          res <- if (!hasDeleteRightOnProject) {
+            FutureEither.failure(
+              NotEnoughRights(
+                "You don't have right to delete feature for this project"
+              )
             )
-          )
-        } else if (
-          hasProtectedOverload && !user.hasRightForProject(feature.project, Admin)
-        ) {
-          FutureEither.failure(
-            NotEnoughRights(
-              "You don't have right to delete a feature with protected overload for this project"
+          } else if (
+            hasProtectedOverload && !user
+              .hasRightForProject(feature.project, Admin)
+          ) {
+            FutureEither.failure(
+              NotEnoughRights(
+                "You don't have right to delete a feature with protected overload for this project"
+              )
             )
-          )
-        } else {
-          datastore
-            .delete(
-              tenant,
-              id,
-              StandardUserInformation(
-                username = user.username,
-                authentication = authentification
-              ),
-              conn=Some(conn)
-            )
-            .map(maybeFeature =>
-              maybeFeature
-                .map(_ => Right(()))
-                .getOrElse(Left(FeatureDoesNotExist(id)))
-            )
-            .toFEither
-        }
-      ) yield res
-    })
+          } else {
+            datastore
+              .delete(
+                tenant,
+                id,
+                StandardUserInformation(
+                  username = user.username,
+                  authentication = authentification
+                ),
+                conn = Some(conn)
+              )
+              .map(maybeFeature =>
+                maybeFeature
+                  .map(_ => Right(()))
+                  .getOrElse(Left(FeatureDoesNotExist(id)))
+              )
+              .toFEither
+          }
+        ) yield res
+      }
+    )
 
   }
 
@@ -546,7 +620,8 @@ class FeatureService(env: Env) {
       conn => {
         for (
           _ <- request.strategy match {
-            case _:CompleteWasmFeatureStrategy if !isWasmAllowed => FutureEither.failure(WasmFeatureNotAllowed)
+            case _: CompleteWasmFeatureStrategy if !isWasmAllowed =>
+              FutureEither.failure(WasmFeatureNotAllowed)
             case _ => FutureEither.success(Done.done())
           };
           _ <- validateFeature(
@@ -826,9 +901,9 @@ class FeatureService(env: Env) {
 
 object FeatureService {
   def formatFeatureResponse(
-                                     evaluatedCompleteFeatures: Seq[EvaluatedCompleteFeature],
-                                     conditions: Boolean
-                                   ): JsValue = {
+      evaluatedCompleteFeatures: Seq[EvaluatedCompleteFeature],
+      conditions: Boolean
+  ): JsValue = {
     val fields = evaluatedCompleteFeatures
       .map(evaluated => {
         val active: JsValueWrapper = evaluated.result
@@ -856,7 +931,7 @@ object FeatureService {
       .toMap
     Json.toJson(fields)
   }
-  
+
   def writeConditions(f: CompleteFeature): JsObject = {
     val resultType: JsValueWrapper =
       Json.toJson(f.resultType)(ResultType.resultTypeWrites)
@@ -931,7 +1006,10 @@ object FeatureService {
     } else {
       val projectRight =
         user.tenantRight.map(tr =>
-          tr.projects.get(project).map(_.level).getOrElse(tr.defaultProjectRight)
+          tr.projects
+            .get(project)
+            .map(_.level)
+            .getOrElse(tr.defaultProjectRight)
         )
       projectRight.exists(currentRight =>
         ProjectRightLevelIncludingNoRight

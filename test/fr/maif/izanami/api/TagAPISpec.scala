@@ -155,7 +155,11 @@ class TagAPISpec extends BaseAPISpec {
 
       val secret = situation.findTokenSecret(situation.user, "foo")
 
-      val result = fetchTagsWithToken("testtenant", username = situation.user, token = secret)
+      val result = fetchTagsWithToken(
+        "testtenant",
+        username = situation.user,
+        token = secret
+      )
 
       result.status mustBe OK
 

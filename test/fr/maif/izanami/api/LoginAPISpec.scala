@@ -35,7 +35,7 @@ class LoginAPISpec extends BaseAPISpec {
     "app.openid.method" -> "BASIC",
     "app.openid.pkce.enabled" -> "true"
   )
-  
+
   "Login endpoint" should {
     "set cookie if login / password is correct" in {
       TestSituationBuilder()
@@ -137,9 +137,7 @@ class LoginAPISpec extends BaseAPISpec {
       val response = situation.fetchTenants()
       response.status mustBe OK
     }
-    
-  }
 
-  
+  }
 
 }

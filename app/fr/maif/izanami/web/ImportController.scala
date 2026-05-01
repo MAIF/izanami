@@ -436,9 +436,7 @@ class ImportController(
             case (Some(str1), Some(str2)) => str1.length < str2.length
           }
         }
-      })
-
-      (
+      })(
         messages.toSeq,
         data ++ Map(
           FeatureType -> features,

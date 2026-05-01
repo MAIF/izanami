@@ -1,7 +1,12 @@
 package fr.maif.izanami.v1
 
 import fr.maif.izanami.models.features.*
-import fr.maif.izanami.models.{CompleteFeature, CompleteWasmFeature, LightWeightWasmFeature, SingleConditionFeature}
+import fr.maif.izanami.models.{
+  CompleteFeature,
+  CompleteWasmFeature,
+  LightWeightWasmFeature,
+  SingleConditionFeature
+}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldFeatureType.*
 import fr.maif.izanami.wasm.WasmConfig
@@ -9,7 +14,10 @@ import fr.maif.izanami.web.ImportController.scriptIdToNodeCompatibleName
 import io.otoroshi.wasm4s.scaladsl.WasmSource
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.Wasmo
 import play.api.libs.functional.FunctionalBuilder
-import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps}
+import play.api.libs.functional.syntax.{
+  toApplicativeOps,
+  toFunctionalBuilderOps
+}
 import play.api.libs.json.*
 import play.api.libs.json.Reads.{localDateTimeReads, localTimeReads, max, min}
 
@@ -28,7 +36,7 @@ sealed trait OldFeature {
       globalScriptById: Map[String, OldGlobalScript]
   ): Either[String, (CompleteFeature, Option[OldScript])] = {
     this match {
-      case OldDefaultFeature(id, name, enabled, description, tags, _)                   =>
+      case OldDefaultFeature(id, name, enabled, description, tags, _) =>
         Right(
           (
             SingleConditionFeature(
@@ -43,7 +51,16 @@ sealed trait OldFeature {
             None
           )
         )
-      case OldDateRangeFeature(id, name, enabled, description, tags, from, to, _)       =>
+      case OldDateRangeFeature(
+            id,
+            name,
+            enabled,
+            description,
+            tags,
+            from,
+            to,
+            _
+          ) =>
         Right(
           (
             SingleConditionFeature(
@@ -62,7 +79,15 @@ sealed trait OldFeature {
             None
           )
         )
-      case OldReleaseDateFeature(id, name, enabled, description, tags, date, _)         =>
+      case OldReleaseDateFeature(
+            id,
+            name,
+            enabled,
+            description,
+            tags,
+            date,
+            _
+          ) =>
         Right(
           (
             SingleConditionFeature(
@@ -70,14 +95,26 @@ sealed trait OldFeature {
               name = Option(name).getOrElse(id),
               enabled = enabled,
               project = project,
-              condition = DateRangeActivationCondition(begin = Option(date.atZone(zone).toInstant), timezone = zone),
+              condition = DateRangeActivationCondition(
+                begin = Option(date.atZone(zone).toInstant),
+                timezone = zone
+              ),
               description = description.getOrElse(""),
               tags = tags
             ),
             None
           )
         )
-      case OldHourRangeFeature(id, name, enabled, description, tags, startAt, endAt, _) =>
+      case OldHourRangeFeature(
+            id,
+            name,
+            enabled,
+            description,
+            tags,
+            startAt,
+            endAt,
+            _
+          ) =>
         Right(
           (
             SingleConditionFeature(
@@ -85,15 +122,24 @@ sealed trait OldFeature {
               name = Option(name).getOrElse(id),
               enabled = enabled,
               project = project,
-              condition =
-                ZonedHourPeriod(timezone = zone, hourPeriod = HourPeriod(startTime = startAt, endTime = endAt)),
+              condition = ZonedHourPeriod(
+                timezone = zone,
+                hourPeriod = HourPeriod(startTime = startAt, endTime = endAt)
+              ),
               description = description.getOrElse(""),
               tags = tags
             ),
             None
           )
         )
-      case OldPercentageFeature(id, name, enabled, description, tags, percentage)       =>
+      case OldPercentageFeature(
+            id,
+            name,
+            enabled,
+            description,
+            tags,
+            percentage
+          ) =>
         Right(
           (
             SingleConditionFeature(
@@ -108,7 +154,14 @@ sealed trait OldFeature {
             None
           )
         )
-      case OldCustomersFeature(id, name, enabled, description, tags, customers)         =>
+      case OldCustomersFeature(
+            id,
+            name,
+            enabled,
+            description,
+            tags,
+            customers
+          ) =>
         Right(
           (
             SingleConditionFeature(
@@ -123,7 +176,7 @@ sealed trait OldFeature {
             None
           )
         )
-      case OldScriptFeature(id, name, enabled, description, tags, script)               =>
+      case OldScriptFeature(id, name, enabled, description, tags, script) =>
         Right(
           (
             CompleteWasmFeature(
@@ -136,7 +189,8 @@ sealed trait OldFeature {
               wasmConfig = WasmConfig(
                 name = s"${id}_script",
                 // TODO release script &  remove -dev
-                source = WasmSource(kind = null, path = "TODO", opts = Json.obj()),
+                source =
+                  WasmSource(kind = null, path = "TODO", opts = Json.obj()),
                 functionName = Some("execute"),
                 wasi = true
               ),
@@ -145,10 +199,19 @@ sealed trait OldFeature {
             Some(script)
           )
         )
-      case OldGlobalScriptFeature(id, name, enabled, description, tags, ref)            => {
+      case OldGlobalScriptFeature(
+            id,
+            name,
+            enabled,
+            description,
+            tags,
+            ref
+          ) => {
         globalScriptById.get(scriptIdToNodeCompatibleName(ref)) match {
-          case None                                                                   => Left(s"Can't find referenced global script ${ref}")
-          case Some(OldGlobalScript(scriptId, scriptName, scriptDescription, source)) => {
+          case None => Left(s"Can't find referenced global script ${ref}")
+          case Some(
+                OldGlobalScript(scriptId, scriptName, scriptDescription, source)
+              ) => {
             Right(
               (
                 CompleteWasmFeature(
@@ -161,7 +224,11 @@ sealed trait OldFeature {
                   wasmConfig = WasmConfig(
                     name = scriptId,
                     // TODO release script &  remove -dev
-                    source = WasmSource(kind = Wasmo, path = "TODO", opts = Json.obj()),
+                    source = WasmSource(
+                      kind = Wasmo,
+                      path = "TODO",
+                      opts = Json.obj()
+                    ),
                     functionName = Some("execute"),
                     wasi = true
                   ),
@@ -179,8 +246,8 @@ sealed trait OldFeature {
 
 sealed trait OldPluginLangage
 case object JavaScript extends OldPluginLangage
-case object Kotlin     extends OldPluginLangage
-case object Scala      extends OldPluginLangage
+case object Kotlin extends OldPluginLangage
+case object Scala extends OldPluginLangage
 
 case class OldDefaultFeature(
     id: String,
@@ -192,7 +259,12 @@ case class OldDefaultFeature(
 ) extends OldFeature
 
 case class OldScript(language: OldPluginLangage, script: String)
-case class OldGlobalScript(id: String, name: String, description: Option[String], source: OldScript)
+case class OldGlobalScript(
+    id: String,
+    name: String,
+    description: Option[String],
+    source: OldScript
+)
 
 case class OldGlobalScriptFeature(
     id: String,
@@ -263,13 +335,13 @@ case class OldCustomersFeature(
 ) extends OldFeature
 
 object OldFeatureType {
-  val NO_STRATEGY    = "NO_STRATEGY"
-  val RELEASE_DATE   = "RELEASE_DATE"
-  val DATE_RANGE     = "DATE_RANGE"
-  val SCRIPT         = "SCRIPT"
-  val GLOBAL_SCRIPT  = "GLOBAL_SCRIPT"
-  val PERCENTAGE     = "PERCENTAGE"
-  val HOUR_RANGE     = "HOUR_RANGE"
+  val NO_STRATEGY = "NO_STRATEGY"
+  val RELEASE_DATE = "RELEASE_DATE"
+  val DATE_RANGE = "DATE_RANGE"
+  val SCRIPT = "SCRIPT"
+  val GLOBAL_SCRIPT = "GLOBAL_SCRIPT"
+  val PERCENTAGE = "PERCENTAGE"
+  val HOUR_RANGE = "HOUR_RANGE"
   val CUSTOMERS_LIST = "CUSTOMERS_LIST"
 }
 
@@ -296,18 +368,21 @@ object OldFeature {
       }
       .getOrElse(JsError("Bad feature format"))
   }
-  val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern3)
+  val dateFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern(dateTimePattern3)
   val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
   val oldFeatureWrites: Writes[OldFeature] = {
     case f: OldDefaultFeature      => oldDefaultFeatureWrites.writes(f)
     case f: OldGlobalScriptFeature => oldGlobalScriptWrites.writes(f)
     case f: OldScriptFeature       =>
-      throw new RuntimeException("Failed to write OldGlobalScriptFeature, this should no happen")
-    case f: OldDateRangeFeature    => oldDateRangeFeatureWrites.writes(f)
-    case f: OldReleaseDateFeature  => oldReleaseDateFeatureWrites.writes(f)
-    case f: OldHourRangeFeature    => oldHourRangeWrites.writes(f)
-    case f: OldPercentageFeature   => oldPercentageFeatureWrites.writes(f)
-    case f: OldCustomersFeature    => oldCustomerFeatureWrites.writes(f)
+      throw new RuntimeException(
+        "Failed to write OldGlobalScriptFeature, this should no happen"
+      )
+    case f: OldDateRangeFeature   => oldDateRangeFeatureWrites.writes(f)
+    case f: OldReleaseDateFeature => oldReleaseDateFeatureWrites.writes(f)
+    case f: OldHourRangeFeature   => oldHourRangeWrites.writes(f)
+    case f: OldPercentageFeature  => oldPercentageFeatureWrites.writes(f)
+    case f: OldCustomersFeature   => oldCustomerFeatureWrites.writes(f)
   }
 
   implicit val percentageReads: Reads[OldPercentageFeature] = (
@@ -447,7 +522,7 @@ object OldFeature {
           )
         )
       }
-      case ZonedHourPeriod(HourPeriod(start, end), timezone)  =>
+      case ZonedHourPeriod(HourPeriod(start, end), timezone) =>
         OldHourRangeFeature(
           id = f.id,
           name = f.name,
@@ -458,7 +533,7 @@ object OldFeature {
           timezone = timezone,
           tags = f.tags
         )
-      case UserPercentage(percentage)                         =>
+      case UserPercentage(percentage) =>
         OldPercentageFeature(
           id = f.id,
           name = f.name,
@@ -467,7 +542,7 @@ object OldFeature {
           percentage = percentage,
           tags = f.tags
         )
-      case UserList(users)                                    =>
+      case UserList(users) =>
         OldCustomersFeature(
           id = f.id,
           name = f.name,
@@ -476,7 +551,7 @@ object OldFeature {
           customers = users.toList,
           tags = f.tags
         )
-      case All                                                =>
+      case All =>
         OldDefaultFeature(
           f.id,
           f.name,
@@ -488,7 +563,7 @@ object OldFeature {
     }
   }
 
-  def fromScriptFeature[E ](f: LightWeightWasmFeature): OldFeature = {
+  def fromScriptFeature[E](f: LightWeightWasmFeature): OldFeature = {
     OldGlobalScriptFeature(
       f.id,
       name = f.name,
@@ -502,36 +577,39 @@ object OldFeature {
   implicit val oldDefaultFeatureWrites: Writes[OldDefaultFeature] = feature => {
     commonWrite(feature) ++ Json.obj(
       "activationStrategy" -> NO_STRATEGY,
-      "parameters"         -> Json.obj()
+      "parameters" -> Json.obj()
     )
   }
 
-  implicit val oldGlobalScriptWrites: Writes[OldGlobalScriptFeature] = feature => {
-    commonWrite(feature) ++ Json.obj(
-      "activationStrategy" -> GLOBAL_SCRIPT,
-      "parameters"         -> Json.obj("ref" -> feature.ref)
-    )
-  }
-
-  implicit val oldPercentageFeatureWrites: Writes[OldPercentageFeature] = feature => {
-    commonWrite(feature) ++ Json.obj(
-      "activationStrategy" -> PERCENTAGE,
-      "parameters"         -> Json.obj(
-        "percentage" -> feature.percentage
+  implicit val oldGlobalScriptWrites: Writes[OldGlobalScriptFeature] =
+    feature => {
+      commonWrite(feature) ++ Json.obj(
+        "activationStrategy" -> GLOBAL_SCRIPT,
+        "parameters" -> Json.obj("ref" -> feature.ref)
       )
-    )
-  }
+    }
 
-  implicit val oldCustomerFeatureWrites: Writes[OldCustomersFeature] = feature => {
-    commonWrite(feature) ++ Json.obj(
-      "activationStrategy" -> CUSTOMERS_LIST,
-      "parameters"         -> Json.obj(
-        "customers" -> feature.customers
+  implicit val oldPercentageFeatureWrites: Writes[OldPercentageFeature] =
+    feature => {
+      commonWrite(feature) ++ Json.obj(
+        "activationStrategy" -> PERCENTAGE,
+        "parameters" -> Json.obj(
+          "percentage" -> feature.percentage
+        )
       )
-    )
-  }
+    }
 
-  def fromScriptFeature[E ](f: CompleteWasmFeature): OldFeature = {
+  implicit val oldCustomerFeatureWrites: Writes[OldCustomersFeature] =
+    feature => {
+      commonWrite(feature) ++ Json.obj(
+        "activationStrategy" -> CUSTOMERS_LIST,
+        "parameters" -> Json.obj(
+          "customers" -> feature.customers
+        )
+      )
+    }
+
+  def fromScriptFeature[E](f: CompleteWasmFeature): OldFeature = {
     OldGlobalScriptFeature(
       f.id,
       name = f.name,
@@ -542,38 +620,43 @@ object OldFeature {
     )
   }
 
-  implicit val oldReleaseDateFeatureWrites: Writes[OldReleaseDateFeature] = feature => {
-    commonWrite(feature) ++ Json.obj(
-      "activationStrategy" -> RELEASE_DATE,
-      "parameters"         -> Json.obj(
-        "releaseDate" -> feature.releaseDate.format(dateFormatter)
+  implicit val oldReleaseDateFeatureWrites: Writes[OldReleaseDateFeature] =
+    feature => {
+      commonWrite(feature) ++ Json.obj(
+        "activationStrategy" -> RELEASE_DATE,
+        "parameters" -> Json.obj(
+          "releaseDate" -> feature.releaseDate.format(dateFormatter)
+        )
       )
-    )
-  }
+    }
 
-  implicit val oldDateRangeFeatureWrites: Writes[OldDateRangeFeature] = feature => {
-    commonWrite(feature) ++ Json.obj(
-      "activationStrategy" -> DATE_RANGE,
-      "parameters"         -> Json.obj(
-        "from" -> feature.from.format(dateFormatter),
-        "to"   -> feature.to.format(dateFormatter)
+  implicit val oldDateRangeFeatureWrites: Writes[OldDateRangeFeature] =
+    feature => {
+      commonWrite(feature) ++ Json.obj(
+        "activationStrategy" -> DATE_RANGE,
+        "parameters" -> Json.obj(
+          "from" -> feature.from.format(dateFormatter),
+          "to" -> feature.to.format(dateFormatter)
+        )
       )
-    )
-  }
+    }
 
-  def commonRead: FunctionalBuilder[Reads]#CanBuild5[String,String,Boolean,Option[String],Set[String]] =
+  def commonRead
+      : FunctionalBuilder[Reads]#CanBuild5[String, String, Boolean, Option[
+        String
+      ], Set[String]] =
     (__ \ "id").read[String] and
-    (__ \ "name").readWithDefault[String]("null") and
-    (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
-    (__ \ "description").readNullable[String] and
-    (__ \ "tags").readWithDefault[Set[String]](Set[String]())
+      (__ \ "name").readWithDefault[String]("null") and
+      (__ \ "enabled").read[Boolean].orElse(Reads.pure(false)) and
+      (__ \ "description").readNullable[String] and
+      (__ \ "tags").readWithDefault[Set[String]](Set[String]())
 
   implicit val oldHourRangeWrites: Writes[OldHourRangeFeature] = feature => {
     commonWrite(feature) ++ Json.obj(
       "activationStrategy" -> HOUR_RANGE,
-      "parameters"         -> Json.obj(
+      "parameters" -> Json.obj(
         "startAt" -> feature.startAt.format(timeFormatter),
-        "endAt"   -> feature.endAt.format(timeFormatter)
+        "endAt" -> feature.endAt.format(timeFormatter)
       )
     )
   }
@@ -581,11 +664,13 @@ object OldFeature {
   def commonWrite(feature: OldFeature): JsObject = {
     Json
       .obj(
-        "id"      -> feature.id,
-        "name"    -> feature.name,
+        "id" -> feature.id,
+        "name" -> feature.name,
         "enabled" -> feature.enabled,
-        "tags"    -> feature.tags
+        "tags" -> feature.tags
       )
-      .applyOnWithOpt(feature.description)((json, desc) => json ++ Json.obj("description" -> desc))
+      .applyOnWithOpt(feature.description)((json, desc) =>
+        json ++ Json.obj("description" -> desc)
+      )
   }
 }

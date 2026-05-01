@@ -204,7 +204,8 @@ class TenantAPISpec extends BaseAPISpec {
       )
 
       val token = (tokenResponse.json.get \ "token").as[String]
-      val fetchResponse = fetchTenantsWithToken(username = "tuser", token = token)
+      val fetchResponse =
+        fetchTenantsWithToken(username = "tuser", token = token)
 
       fetchResponse.status mustBe OK
       val json = fetchResponse.json

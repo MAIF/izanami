@@ -1,11 +1,19 @@
 package fr.maif.izanami.datastores
 
 import org.apache.pekko.actor.Cancellable
-import fr.maif.izanami.datastores.EventDatastore.{AscOrder, FeatureEventRequest, TenantEventRequest}
+import fr.maif.izanami.datastores.EventDatastore.{
+  AscOrder,
+  FeatureEventRequest,
+  TenantEventRequest
+}
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.{EventNotFound, FailedToReadEvent, IzanamiError}
-import fr.maif.izanami.events.EventService.{FeatureEventType, IZANAMI_CHANNEL, eventFormat}
+import fr.maif.izanami.events.EventService.{
+  FeatureEventType,
+  IZANAMI_CHANNEL,
+  eventFormat
+}
 import fr.maif.izanami.events.IzanamiEvent
 import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.utils.Datastore
@@ -15,10 +23,13 @@ import scala.concurrent.Future
 import scala.concurrent.duration.{DurationInt, DurationLong}
 
 class EventDatastore(val env: Env) extends Datastore {
-  var eventCleanerCancellation: Cancellable    = Cancellable.alreadyCancelled
+  var eventCleanerCancellation: Cancellable = Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {
-    eventCleanerCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(env.houseKeepingStartDelayInSeconds.seconds, env.houseKeepingIntervalInSeconds.seconds)(() =>{
+    eventCleanerCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(
+      env.houseKeepingStartDelayInSeconds.seconds,
+      env.houseKeepingIntervalInSeconds.seconds
+    )(() => {
       deleteExpiredEvents(env.typedConfiguration.audit.eventsHoursTtl)
     })
     Future.successful(())
@@ -30,11 +41,15 @@ class EventDatastore(val env: Env) extends Datastore {
   }
 
   def deleteExpiredEvents(hours: Int): Future[Unit] = {
-    env.datastores.tenants.readTenants()
-      .flatMap(tenants => Future.sequence(tenants.map(t => deleteExpiredEventsForTenant(t.name, hours))))
+    env.datastores.tenants
+      .readTenants()
+      .flatMap(tenants =>
+        Future.sequence(
+          tenants.map(t => deleteExpiredEventsForTenant(t.name, hours))
+        )
+      )
       .map(_ => ())
   }
-
 
   def deleteExpiredEventsForTenant(tenant: String, hours: Int): Future[Unit] = {
     require(Tenant.isTenantValid(tenant))
@@ -42,28 +57,38 @@ class EventDatastore(val env: Env) extends Datastore {
       s"""
          |DELETE FROM "${tenant}".events WHERE EXTRACT(HOUR FROM NOW() - emitted_at) > $$1
          |""".stripMargin,
-      params=List(java.lang.Integer.valueOf(hours))
-    ){_ => Some(())}
+      params = List(java.lang.Integer.valueOf(hours))
+    ) { _ => Some(()) }
   }
 
-
-
-  def readEventFromDb(tenant: String, id: Long): Future[Either[IzanamiError, IzanamiEvent]] = {
+  def readEventFromDb(
+      tenant: String,
+      id: Long
+  ): Future[Either[IzanamiError, IzanamiEvent]] = {
     require(Tenant.isTenantValid(tenant))
     val global = tenant.equals(IZANAMI_CHANNEL)
     env.postgresql
       .queryOne(
         s"""
-           |SELECT event FROM ${if (global) "izanami.global_events" else s""""${tenant}".events"""} WHERE id=$$1
+           |SELECT event FROM ${
+            if (global) "izanami.global_events" else s""""${tenant}".events"""
+          } WHERE id=$$1
            |""".stripMargin,
         List(java.lang.Long.valueOf(id))
       ) { r => r.optJsObject("event") }
       .map(o => o.toRight(EventNotFound(tenant, id)))
-      .map(e => e.flatMap(js => eventFormat.reads(js).asOpt.toRight(FailedToReadEvent(js.toString()))))
+      .map(e =>
+        e.flatMap(js =>
+          eventFormat.reads(js).asOpt.toRight(FailedToReadEvent(js.toString()))
+        )
+      )
 
   }
 
-  def listEventsForTenant(tenant: String, request: TenantEventRequest): Future[(Seq[IzanamiEvent], Option[Long])] = {
+  def listEventsForTenant(
+      tenant: String,
+      request: TenantEventRequest
+  ): Future[(Seq[IzanamiEvent], Option[Long])] = {
     require(Tenant.isTenantValid(tenant))
     def queryBody(startIndex: Int): (String, List[AnyRef]) = {
       var index = startIndex
@@ -72,20 +97,49 @@ class EventDatastore(val env: Env) extends Datastore {
         s"""
            |FROM "${tenant}".events e
            |WHERE 1 = 1
-           |${if (request.users.nonEmpty) s"AND e.username = ANY($$${index += 1; index}::TEXT[])" else ""}
-           |${request.begin.map(_ => s"AND e.emitted_at >= $$${index += 1; index}").getOrElse("")}
-           |${request.end.map(_ => s"AND e.emitted_at <= $$${index += 1; index}").getOrElse("")}
-           |${if (request.eventTypes.nonEmpty) s"AND e.event_type = ANY($$${index += 1; index}::izanami.LOCAL_EVENT_TYPES[])" else ""}
-           |${if (entityIds.nonEmpty) s"""AND (
+           |${
+            if (request.users.nonEmpty)
+              s"AND e.username = ANY($$${index += 1; index}::TEXT[])"
+            else ""
+          }
+           |${request.begin
+            .map(_ => s"AND e.emitted_at >= $$${index += 1; index}")
+            .getOrElse("")}
+           |${request.end
+            .map(_ => s"AND e.emitted_at <= $$${index += 1; index}")
+            .getOrElse("")}
+           |${
+            if (request.eventTypes.nonEmpty) s"AND e.event_type = ANY($$${
+                index += 1; index
+              }::izanami.LOCAL_EVENT_TYPES[])"
+            else ""
+          }
+           |${
+            if (entityIds.nonEmpty) s"""AND (
               |  e.entity_id=ANY($$${index += 1; index})
-              |${if(request.projects.nonEmpty) s" OR (e.event_type IN ('FEATURE_CREATED', 'FEATURE_UPDATED', 'FEATURE_DELETED') AND e.event->>'projectId'=ANY($$${index += 1; index}::TEXT[]))" else ""}
+              |${
+                                        if (request.projects.nonEmpty)
+                                          s" OR (e.event_type IN ('FEATURE_CREATED', 'FEATURE_UPDATED', 'FEATURE_DELETED') AND e.event->>'projectId'=ANY($$${
+                                              index += 1; index
+                                            }::TEXT[]))"
+                                        else ""
+                                      }
               |)""".stripMargin
-              else ""}
+            else ""
+          }
            |""".stripMargin
 
-      (query, List(
-        Option(request.users.toArray).filter(_.nonEmpty), request.begin.map(_.atOffset(ZoneOffset.UTC)), request.end.map(_.atOffset(ZoneOffset.UTC)), Option(request.eventTypes.map(_.name).toArray).filter(_.nonEmpty), Option(entityIds.toArray).filter(_.nonEmpty), Option(request.projects.toArray).filter(_.nonEmpty)
-      ).collect { case Some(t: AnyRef) => t })
+      (
+        query,
+        List(
+          Option(request.users.toArray).filter(_.nonEmpty),
+          request.begin.map(_.atOffset(ZoneOffset.UTC)),
+          request.end.map(_.atOffset(ZoneOffset.UTC)),
+          Option(request.eventTypes.map(_.name).toArray).filter(_.nonEmpty),
+          Option(entityIds.toArray).filter(_.nonEmpty),
+          Option(request.projects.toArray).filter(_.nonEmpty)
+        ).collect { case Some(t: AnyRef) => t }
+      )
     }
 
     val maybeFutureCount = if (request.total) {
@@ -94,7 +148,8 @@ class EventDatastore(val env: Env) extends Datastore {
         s"""
            |SELECT COUNT(*) as total
            |${body}
-           |""".stripMargin, params = params
+           |""".stripMargin,
+        params = params
       ) { r => r.optLong("total") }
     } else {
       Future.successful(None)
@@ -107,11 +162,20 @@ class EventDatastore(val env: Env) extends Datastore {
           s"""
              |SELECT e.event
              |${body}
-             |${request.cursor.map(_ => s"AND e.id ${if (request.sortOrder == AscOrder) ">" else "<"} $$2").getOrElse("")}
+             |${request.cursor
+              .map(_ =>
+                s"AND e.id ${
+                    if (request.sortOrder == AscOrder) ">" else "<"
+                  } $$2"
+              )
+              .getOrElse("")}
              |ORDER BY e.id ${request.sortOrder.toDb}
              |LIMIT $$1
              |""".stripMargin,
-          params = List(Some(java.lang.Integer.valueOf(request.count)), request.cursor.map(java.lang.Long.valueOf)).collect { case Some(t) => t }.concat(ps)
+          params = List(
+            Some(java.lang.Integer.valueOf(request.count)),
+            request.cursor.map(java.lang.Long.valueOf)
+          ).collect { case Some(t) => t }.concat(ps)
         ) { r => r.optJsObject("event") }
     }.map(jsons => {
       jsons
@@ -133,7 +197,11 @@ class EventDatastore(val env: Env) extends Datastore {
     })
   }
 
-  def listEventsForProject(tenant: String, projectId: String, request: FeatureEventRequest): Future[(Seq[IzanamiEvent], Option[Long])] = {
+  def listEventsForProject(
+      tenant: String,
+      projectId: String,
+      request: FeatureEventRequest
+  ): Future[(Seq[IzanamiEvent], Option[Long])] = {
     require(Tenant.isTenantValid(tenant))
     def queryBody(startIndex: Int): (String, List[AnyRef]) = {
       var index = startIndex
@@ -142,16 +210,42 @@ class EventDatastore(val env: Env) extends Datastore {
            |FROM "${tenant}".events e, "${tenant}".projects p
            |WHERE e.event->>'projectId'=p.id::TEXT
            |AND p.name=$$${index}
-           |${if (request.users.nonEmpty) s"AND e.username = ANY($$${index += 1; index}::TEXT[])" else ""}
-           |${request.begin.map(_ => s"AND e.emitted_at >= $$${index += 1; index}").getOrElse("")}
-           |${request.end.map(_ => s"AND e.emitted_at <= $$${index += 1; index}").getOrElse("")}
-           |${if (request.eventTypes.nonEmpty) s"AND e.event_type = ANY($$${index += 1; index}::izanami.LOCAL_EVENT_TYPES[])" else ""}
-           |${if (request.features.nonEmpty) s"AND e.entity_id = ANY($$${index += 1; index}::TEXT[])" else ""}
+           |${
+            if (request.users.nonEmpty)
+              s"AND e.username = ANY($$${index += 1; index}::TEXT[])"
+            else ""
+          }
+           |${request.begin
+            .map(_ => s"AND e.emitted_at >= $$${index += 1; index}")
+            .getOrElse("")}
+           |${request.end
+            .map(_ => s"AND e.emitted_at <= $$${index += 1; index}")
+            .getOrElse("")}
+           |${
+            if (request.eventTypes.nonEmpty) s"AND e.event_type = ANY($$${
+                index += 1; index
+              }::izanami.LOCAL_EVENT_TYPES[])"
+            else ""
+          }
+           |${
+            if (request.features.nonEmpty)
+              s"AND e.entity_id = ANY($$${index += 1; index}::TEXT[])"
+            else ""
+          }
            |""".stripMargin
 
-      (query, List(projectId).concat(List(
-        Option(request.users.toArray).filter(_.nonEmpty), request.begin.map(_.atOffset(ZoneOffset.UTC)), request.end.map(_.atOffset(ZoneOffset.UTC)), Option(request.eventTypes.map(_.name).toArray).filter(_.nonEmpty), Option(request.features.toArray).filter(_.nonEmpty)
-      ).collect { case Some(t: AnyRef) => t }))
+      (
+        query,
+        List(projectId).concat(
+          List(
+            Option(request.users.toArray).filter(_.nonEmpty),
+            request.begin.map(_.atOffset(ZoneOffset.UTC)),
+            request.end.map(_.atOffset(ZoneOffset.UTC)),
+            Option(request.eventTypes.map(_.name).toArray).filter(_.nonEmpty),
+            Option(request.features.toArray).filter(_.nonEmpty)
+          ).collect { case Some(t: AnyRef) => t }
+        )
+      )
     }
 
     val maybeFutureCount = if (request.total) {
@@ -160,7 +254,8 @@ class EventDatastore(val env: Env) extends Datastore {
         s"""
            |SELECT COUNT(*) as total
            |${body}
-           |""".stripMargin, params = params
+           |""".stripMargin,
+        params = params
       ) { r => r.optLong("total") }
     } else {
       Future.successful(None)
@@ -173,11 +268,20 @@ class EventDatastore(val env: Env) extends Datastore {
           s"""
              |SELECT e.event
              |${body}
-             |${request.cursor.map(_ => s"AND e.id ${if (request.sortOrder == AscOrder) ">" else "<"} $$2").getOrElse("")}
+             |${request.cursor
+              .map(_ =>
+                s"AND e.id ${
+                    if (request.sortOrder == AscOrder) ">" else "<"
+                  } $$2"
+              )
+              .getOrElse("")}
              |ORDER BY e.id ${request.sortOrder.toDb}
              |LIMIT $$1
              |""".stripMargin,
-          params = List(Some(java.lang.Integer.valueOf(request.count)), request.cursor.map(java.lang.Long.valueOf)).collect { case Some(t) => t }.concat(ps)
+          params = List(
+            Some(java.lang.Integer.valueOf(request.count)),
+            request.cursor.map(java.lang.Long.valueOf)
+          ).collect { case Some(t) => t }.concat(ps)
         ) { r => r.optJsObject("event") }
     }.map(jsons => {
       jsons
@@ -199,9 +303,7 @@ class EventDatastore(val env: Env) extends Datastore {
     })
   }
 
-
 }
-
 
 object EventDatastore {
 
@@ -219,33 +321,33 @@ object EventDatastore {
 
   def parseSortOrder(order: String): Option[SortOrder] = {
     Option(order).map(_.toUpperCase).collect {
-      case "ASC" => AscOrder
+      case "ASC"  => AscOrder
       case "DESC" => DescOrder
     }
   }
 
   case class FeatureEventRequest(
-                                  sortOrder: SortOrder,
-                                  cursor: Option[Long],
-                                  count: Int,
-                                  users: Set[String] = Set(),
-                                  features: Set[String] = Set(),
-                                  begin: Option[Instant] = None,
-                                  end: Option[Instant] = None,
-                                  eventTypes: Set[FeatureEventType] = Set(),
-                                  total: Boolean
-                                )
+      sortOrder: SortOrder,
+      cursor: Option[Long],
+      count: Int,
+      users: Set[String] = Set(),
+      features: Set[String] = Set(),
+      begin: Option[Instant] = None,
+      end: Option[Instant] = None,
+      eventTypes: Set[FeatureEventType] = Set(),
+      total: Boolean
+  )
 
   case class TenantEventRequest(
-                                  sortOrder: SortOrder,
-                                  cursor: Option[Long],
-                                  count: Int,
-                                  users: Set[String] = Set(),
-                                  begin: Option[Instant] = None,
-                                  end: Option[Instant] = None,
-                                  eventTypes: Set[FeatureEventType] = Set(),
-                                  total: Boolean,
-                                  features: Set[String] = Set(),
-                                  projects: Set[String] = Set()
-                                )
+      sortOrder: SortOrder,
+      cursor: Option[Long],
+      count: Int,
+      users: Set[String] = Set(),
+      begin: Option[Instant] = None,
+      end: Option[Instant] = None,
+      eventTypes: Set[FeatureEventType] = Set(),
+      total: Boolean,
+      features: Set[String] = Set(),
+      projects: Set[String] = Set()
+  )
 }

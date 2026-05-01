@@ -2,10 +2,18 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.apiKeyImplicites.ApiKeyRow
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.{FOREIGN_KEY_VIOLATION, RELATION_DOES_NOT_EXISTS}
+import fr.maif.izanami.env.PostgresqlErrors.{
+  FOREIGN_KEY_VIOLATION,
+  RELATION_DOES_NOT_EXISTS
+}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors._
-import fr.maif.izanami.models.{ApiKey, ApiKeyProject, ApiKeyWithCompleteRights, Tenant}
+import fr.maif.izanami.models.{
+  ApiKey,
+  ApiKeyProject,
+  ApiKeyWithCompleteRights,
+  Tenant
+}
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ImportController.{Fail, ImportConflictStrategy}
@@ -19,10 +27,16 @@ import scala.concurrent.Future
 
 class ApiKeyDatastore(val env: Env) extends Datastore {
   def createApiKey(
-                    apiKey: ApiKey,
-                    user: UserInformation
-                  ): Future[Either[IzanamiError, ApiKey]] = {
-    createApiKeys(apiKey.tenant, apiKeys = Seq(apiKey), user = user, conflictStrategy = Fail, conn = None)
+      apiKey: ApiKey,
+      user: UserInformation
+  ): Future[Either[IzanamiError, ApiKey]] = {
+    createApiKeys(
+      apiKey.tenant,
+      apiKeys = Seq(apiKey),
+      user = user,
+      conflictStrategy = Fail,
+      conn = None
+    )
       .map(e => e.map(_.head).left.map(_.head))
   }
 
@@ -34,15 +48,17 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
   }
 
   def createApiKeys(
-                     tenant: String,
-                     apiKeys: Seq[ApiKey],
-                     user: UserInformation,
-                     conflictStrategy: ImportConflictStrategy,
-                     conn: Option[SqlConnection]
-                   ): Future[Either[Seq[IzanamiError], Seq[ApiKey]]] = {
+      tenant: String,
+      apiKeys: Seq[ApiKey],
+      user: UserInformation,
+      conflictStrategy: ImportConflictStrategy,
+      conn: Option[SqlConnection]
+  ): Future[Either[Seq[IzanamiError], Seq[ApiKey]]] = {
     // TODO handle conflict strategy
     require(Tenant.isTenantValid(tenant))
-    def callback(connection: SqlConnection): Future[Either[Seq[IzanamiError], Seq[ApiKey]]] = {
+    def callback(
+        connection: SqlConnection
+    ): Future[Either[Seq[IzanamiError], Seq[ApiKey]]] = {
       env.postgresql
         .queryAll(
           s"""insert into "${tenant}".apikeys (name, clientid, clientsecret, description, enabled, legacy, admin)
@@ -57,15 +73,24 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
             apiKeys.map(k => java.lang.Boolean.valueOf(k.admin)).toArray
           ),
           conn = Some(connection)
-        ) { row => {
-          val requestKey = apiKeys.find(k => k.name == row.getString("name")).get
-          row.optApiKey(requestKey.tenant).map(key => key.copy(clientSecret = requestKey.clientSecret))
+        ) { row =>
+          {
+            val requestKey =
+              apiKeys.find(k => k.name == row.getString("name")).get
+            row
+              .optApiKey(requestKey.tenant)
+              .map(key => key.copy(clientSecret = requestKey.clientSecret))
+          }
         }
-        }.map(_ => Right(())).recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+        .map(_ => Right(()))
+        .recover(
+          env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+        )
         .flatMap {
           case Left(err) => Future.successful(Left(Seq(err)))
-          case Right(_) => {
-            val futures: Seq[Future[Either[IzanamiError, ApiKey]]] = apiKeys.filter(key => key.projects.nonEmpty)
+          case Right(_)  => {
+            val futures: Seq[Future[Either[IzanamiError, ApiKey]]] = apiKeys
+              .filter(key => key.projects.nonEmpty)
               .map(apiKey =>
                 env.postgresql
                   .queryOne(
@@ -81,50 +106,65 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                     _.toRight(InternalServerError())
                   }
                   .recover {
-                    case f: PgException if f.getSqlState == FOREIGN_KEY_VIOLATION =>
+                    case f: PgException
+                        if f.getSqlState == FOREIGN_KEY_VIOLATION =>
                       Left(OneProjectDoesNotExists(apiKey.projects))
                     case ex =>
                       logger.error("Failed to update project mapping table", ex)
                       Left(InternalServerError())
                   }
               )
-            Future.sequence(futures).flatMap(eitherKey => {
-              val errors = eitherKey.toList.filter(_.isLeft)
-                .map(_.swap.toOption).flatMap(_.toList)
-              errors match {
-                case Nil => {
-                  env.postgresql
-                    .queryAll(
-                      s"""
+            Future
+              .sequence(futures)
+              .flatMap(eitherKey => {
+                val errors = eitherKey.toList
+                  .filter(_.isLeft)
+                  .map(_.swap.toOption)
+                  .flatMap(_.toList)
+                errors match {
+                  case Nil => {
+                    env.postgresql
+                      .queryAll(
+                        s"""
                          |INSERT INTO "${tenant}".users_keys_rights(username, apikey, level)
                          |VALUES (unnest($$1::text[]), unnest($$2::text[]), 'ADMIN')
                          |RETURNING apikey
                          |""".stripMargin,
-                      List(Array.fill(apiKeys.size)(user.username), apiKeys.map(_.name).toArray),
-                      conn = Some(connection)
-                    ) { r => apiKeys.find(k => k.name == r.getString("apikey")) }
-                    .map(l => Right(l))
+                        List(
+                          Array.fill(apiKeys.size)(user.username),
+                          apiKeys.map(_.name).toArray
+                        ),
+                        conn = Some(connection)
+                      ) { r =>
+                        apiKeys.find(k => k.name == r.getString("apikey"))
+                      }
+                      .map(l => Right(l))
+                  }
+                  case _ => Left(errors).future
                 }
-                case _ => Left(errors).future
-              }
-            }).flatMap(either => {
-              // FIXME remove this filter to add a legacy flag
-              val clientIds = either.getOrElse(List()).map(_.clientId).filter(clientId => !clientId.contains("_"))
-              if (clientIds.isEmpty) {
-                either.future
-              } else {
-                env.postgresql.queryOne(
-                    s"""
+              })
+              .flatMap(either => {
+                // FIXME remove this filter to add a legacy flag
+                val clientIds = either
+                  .getOrElse(List())
+                  .map(_.clientId)
+                  .filter(clientId => !clientId.contains("_"))
+                if (clientIds.isEmpty) {
+                  either.future
+                } else {
+                  env.postgresql
+                    .queryOne(
+                      s"""
                        |INSERT INTO izanami.key_tenant (client_id, tenant) VALUES (unnest($$1::TEXT[]), $$2)
                        |RETURNING tenant
                        |""".stripMargin,
-                    List(clientIds.toArray, tenant),
-                    conn = Some(connection)
-                  ) { _ => Some(()) }
-                  .map(o => o.toRight(Seq(InternalServerError())))
-                  .map(e => e.flatMap(_ => either))
-              }
-            })
+                      List(clientIds.toArray, tenant),
+                      conn = Some(connection)
+                    ) { _ => Some(()) }
+                    .map(o => o.toRight(Seq(InternalServerError())))
+                    .map(e => e.flatMap(_ => either))
+                }
+              })
           }
         }
     }
@@ -132,7 +172,9 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
     if (apiKeys.isEmpty) {
       Future.successful(Right(Seq()))
     } else {
-      conn.map(c => callback(c)).getOrElse(env.postgresql.executeInTransaction(c => callback(c)))
+      conn
+        .map(c => callback(c))
+        .getOrElse(env.postgresql.executeInTransaction(c => callback(c)))
     }
   }
 
@@ -184,7 +226,10 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
     ) { r => r.optApiKeyWithSubObjects(tenant) }
   }
 
-  def deleteApiKey(tenant: String, name: String): Future[Either[IzanamiError, String]] = {
+  def deleteApiKey(
+      tenant: String,
+      name: String
+  ): Future[Either[IzanamiError, String]] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
@@ -197,7 +242,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
         ) { row => row.optString("clientid") }
         .map(o => o.toRight(KeyNotFound(name)))
         .flatMap {
-          case Left(value) => Left(value).future
+          case Left(value)     => Left(value).future
           case Right(clientId) =>
             env.postgresql.queryRaw(
               s"DELETE FROM izanami.key_tenant WHERE client_id=$$1",
@@ -208,22 +253,25 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
     })
   }
 
-  def updateApiKey(tenant: String, oldName: String, newKey: ApiKey): Future[Either[IzanamiError, Unit]] = {
+  def updateApiKey(
+      tenant: String,
+      oldName: String,
+      newKey: ApiKey
+  ): Future[Either[IzanamiError, Unit]] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql.executeInTransaction(
-      conn => {
-        env.postgresql
-          .queryRaw(
-            s"""
+    env.postgresql.executeInTransaction(conn => {
+      env.postgresql
+        .queryRaw(
+          s"""
                |DELETE FROM "${tenant}".apikeys_projects WHERE apikey = $$1
                |""".stripMargin,
-            List(oldName),
-            conn = Some(conn)
-          ) { _ => Right(()) }
-          .flatMap(_ => {
-            env.postgresql
-              .queryOne(
-                s"""
+          List(oldName),
+          conn = Some(conn)
+        ) { _ => Right(()) }
+        .flatMap(_ => {
+          env.postgresql
+            .queryOne(
+              s"""
                UPDATE "${tenant}".apikeys
                    |SET name=$$1,
                    |description=$$2,
@@ -232,41 +280,48 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                    |WHERE name=$$3
                    |RETURNING name
                    |""".stripMargin,
-                List(newKey.name, newKey.description, oldName, java.lang.Boolean.valueOf(newKey.enabled), java.lang.Boolean.valueOf(newKey.admin)),
-                conn = Some(conn)
-              ) { row => row.optString("name") }
-              .map(o => o.toRight(KeyNotFound(oldName)))
-              .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
-          })
-          .flatMap {
-            case Left(err) => Future.successful(Left(err))
-            case Right(_) if (newKey.projects.nonEmpty) => {
-                env.postgresql.queryRaw(
-                  s"""
+              List(
+                newKey.name,
+                newKey.description,
+                oldName,
+                java.lang.Boolean.valueOf(newKey.enabled),
+                java.lang.Boolean.valueOf(newKey.admin)
+              ),
+              conn = Some(conn)
+            ) { row => row.optString("name") }
+            .map(o => o.toRight(KeyNotFound(oldName)))
+            .recover(
+              env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+            )
+        })
+        .flatMap {
+          case Left(err) => Future.successful(Left(err))
+          case Right(_) if (newKey.projects.nonEmpty) => {
+            env.postgresql.queryRaw(
+              s"""
                      |INSERT INTO "${tenant}".apikeys_projects (apikey, project)
                      |SELECT $$1, unnest($$2::text[])
                      |""".stripMargin,
-                  List(newKey.name, newKey.projects.toArray),
-                  conn = Some(conn)
-                ) { _ => Right(()) }
-            }
-            case _ => Future.successful(Right(()))
+              List(newKey.name, newKey.projects.toArray),
+              conn = Some(conn)
+            ) { _ => Right(()) }
           }
-      }
-    )
+          case _ => Future.successful(Right(()))
+        }
+    })
   }
 
   def readAndCheckApiKey(
-                          clientId: String,
-                          clientSecret: String
-                        ): Future[Either[IzanamiError, ApiKeyWithCompleteRights]] = {
+      clientId: String,
+      clientSecret: String
+  ): Future[Either[IzanamiError, ApiKeyWithCompleteRights]] = {
     val futureMaybeTenant = ApiKey.extractTenant(clientId) match {
-      case s@Some(tenant) => Future.successful(s)
-      case None => findLegacyKeyTenant(clientId)
+      case s @ Some(tenant) => Future.successful(s)
+      case None             => findLegacyKeyTenant(clientId)
     }
 
     futureMaybeTenant.flatMap {
-      case None => Future.successful(Left(ApiKeyDoesNotExist(clientId)))
+      case None         => Future.successful(Left(ApiKeyDoesNotExist(clientId)))
       case Some(tenant) => {
         require(Tenant.isTenantValid(tenant))
         env.postgresql
@@ -289,46 +344,48 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                |GROUP BY a.name
                |""".stripMargin,
             List(clientId)
-          ) { r => {
-            val projects = r
-              .optJsArray("projects")
-              .map(arr =>
-                arr.value
-                  .map(v => {
-                    for (
-                      name <- (v \ "name").asOpt[String];
-                      id <- (v \ "id").asOpt[UUID]
-                    ) yield ApiKeyProject(name, id)
-                  })
-                  .toSet
+          ) { r =>
+            {
+              val projects = r
+                .optJsArray("projects")
+                .map(arr =>
+                  arr.value
+                    .map(v => {
+                      for (
+                        name <- (v \ "name").asOpt[String];
+                        id <- (v \ "id").asOpt[UUID]
+                      ) yield ApiKeyProject(name, id)
+                    })
+                    .toSet
+                )
+                .getOrElse(Set())
+                .filter(_.isDefined)
+                .map(_.get)
+              for (
+                _ <- r.optBoolean("enabled").filter(_ == true);
+                clientSecret <- r.optString("clientsecret");
+                clientid <- r.optString("clientid");
+                enabled <- r.optBoolean("enabled");
+                name <- r.optString("name");
+                legacy <- r.optBoolean("legacy");
+                admin <- r.optBoolean("admin")
               )
-              .getOrElse(Set())
-              .filter(_.isDefined)
-              .map(_.get)
-            for (
-              _ <- r.optBoolean("enabled").filter(_ == true);
-              clientSecret <- r.optString("clientsecret");
-              clientid <- r.optString("clientid");
-              enabled <- r.optBoolean("enabled");
-              name <- r.optString("name");
-              legacy <- r.optBoolean("legacy");
-              admin <- r.optBoolean("admin")
-            )
-            yield ApiKeyWithCompleteRights(
-              clientId = clientid,
-              clientSecret = clientSecret,
-              tenant = tenant,
-              name = name,
-              projects = projects,
-              enabled = enabled,
-              legacy = legacy,
-              admin = admin
-            )
-          }
+                yield ApiKeyWithCompleteRights(
+                  clientId = clientid,
+                  clientSecret = clientSecret,
+                  tenant = tenant,
+                  name = name,
+                  projects = projects,
+                  enabled = enabled,
+                  legacy = legacy,
+                  admin = admin
+                )
+            }
           }
           .map(o => o.toRight(KeyNotFound(clientId)))
           .recover {
-            case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => Left(TenantDoesNotExists(tenant))
+            case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
+              Left(TenantDoesNotExists(tenant))
             case _ => Left(InternalServerError())
           }
       }
@@ -348,20 +405,23 @@ object apiKeyImplicites {
         legacy <- row.optBoolean("legacy");
         admin <- row.optBoolean("admin")
       )
-      yield ApiKey(
-        clientId = clientid,
-        clientSecret = clientsecret,
-        tenant = tenant,
-        name = name,
-        description = description,
-        enabled = enabled,
-        legacy = legacy,
-        admin = admin
-      )
+        yield ApiKey(
+          clientId = clientid,
+          clientSecret = clientsecret,
+          tenant = tenant,
+          name = name,
+          description = description,
+          enabled = enabled,
+          legacy = legacy,
+          admin = admin
+        )
     }
 
     def optApiKeyWithSubObjects(tenant: String): Option[ApiKey] = {
-      val projects = row.optJsArray("projects").map(arr => arr.value.map(v => v.as[String]).toSet).getOrElse(Set())
+      val projects = row
+        .optJsArray("projects")
+        .map(arr => arr.value.map(v => v.as[String]).toSet)
+        .getOrElse(Set())
 
       for (
         clientid <- row.optString("clientid");
@@ -372,17 +432,17 @@ object apiKeyImplicites {
         admin <- row.optBoolean("admin");
         clientSecret <- row.optString("clientsecret")
       )
-      yield ApiKey(
-        clientId = clientid,
-        tenant = tenant,
-        name = name,
-        projects = projects,
-        description = description,
-        enabled = enabled,
-        legacy = legacy,
-        admin = admin,
-        clientSecret = clientSecret
-      )
+        yield ApiKey(
+          clientId = clientid,
+          tenant = tenant,
+          name = name,
+          projects = projects,
+          description = description,
+          enabled = enabled,
+          legacy = legacy,
+          admin = admin,
+          clientSecret = clientSecret
+        )
     }
   }
 }

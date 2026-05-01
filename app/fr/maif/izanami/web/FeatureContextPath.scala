@@ -13,11 +13,13 @@ case class FeatureContextPath(elements: Seq[String] = Seq()) {
   }
   def isEmpty: Boolean = elements.isEmpty
 
-  def append(name: String): FeatureContextPath = FeatureContextPath(elements.appended(name))
+  def append(name: String): FeatureContextPath = FeatureContextPath(
+    elements.appended(name)
+  )
 }
 
 object FeatureContextPath {
-  def fromDBString(dbString: String):FeatureContextPath = {
+  def fromDBString(dbString: String): FeatureContextPath = {
     FeatureContextPath(dbString.split("\\.").toSeq)
   }
 

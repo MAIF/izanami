@@ -4,7 +4,11 @@ import buildinfo.BuildInfo
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{BadBodyFormat, CantUpdateOIDCCOnfiguration}
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
-import fr.maif.izanami.mail.{MailGunMailProvider, MailJetMailProvider, SMTPMailProvider}
+import fr.maif.izanami.mail.{
+  MailGunMailProvider,
+  MailJetMailProvider,
+  SMTPMailProvider
+}
 import fr.maif.izanami.models.{FullIzanamiConfiguration, IzanamiConfiguration}
 import fr.maif.izanami.services.{FeatureService, MaxRights}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -34,7 +38,9 @@ class ConfigurationController(
   def updateConfiguration(): Action[JsValue] =
     adminAuthAction.async(parse.json) { implicit request =>
       {
-        IzanamiConfiguration.inputFullConfigurationReads.reads(request.body) match {
+        IzanamiConfiguration.inputFullConfigurationReads.reads(
+          request.body
+        ) match {
           case JsError(_) => BadBodyFormat().toHttpResponse.future
           case JsSuccess(configurationFromBody, _path) => {
             val futureConfiguration =
@@ -98,7 +104,10 @@ class ConfigurationController(
 
                     (if (rolesToUpdate.nonEmpty) {
                        env.datastores.users
-                         .logoutConnectedUsersWithRoleIn(rolesToUpdate, conn = Some(conn))
+                         .logoutConnectedUsersWithRoleIn(
+                           rolesToUpdate,
+                           conn = Some(conn)
+                         )
                      } else {
                        FutureEither.success(Done.done())
                      }).flatMap(_ => {
