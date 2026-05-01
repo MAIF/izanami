@@ -101,7 +101,7 @@ libraryDependencies += ("fr.maif" %% "izanami-client" % "1.11.5" % Test)
   .cross(CrossVersion.for3Use2_13)
 libraryDependencies += "org.awaitility" % "awaitility-scala" % "4.2.0" % Test
 libraryDependencies += "com.github.mifmif" % "generex" % "1.0.1" % Test
-libraryDependencies += "org.apache.pekko" %% "pekko-connectors-sse" % "1.2.0" % Test
+libraryDependencies += "org.apache.pekko" %% "pekko-connectors-sse" % "1.3.0" % Test
 
 routesImport += "fr.maif.izanami.models.CustomBinders._"
 
