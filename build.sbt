@@ -26,7 +26,7 @@ lazy val excludeLegacyClientDep = Seq(
 
 version := (ThisBuild / version).value
 
-scalaVersion := "3.3.6"
+scalaVersion := "3.3.7"
 
 scalacOptions ++= {
   CrossVersion.partialVersion(scalaVersion.value) match {
