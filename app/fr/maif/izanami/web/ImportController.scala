@@ -322,8 +322,6 @@ class ImportController(
         )
 
         if (!errors.isEmpty) {
-          println(s"ERRORS : ${errors.map(t => t._2.message)}")
-          // TODO return error as well
           Left(ImportFailureError(Map("Unknown" -> errors.toSeq.map(
             (json, error) => (error, json)
           ))))

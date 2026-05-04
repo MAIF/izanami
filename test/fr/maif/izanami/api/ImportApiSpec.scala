@@ -94,7 +94,6 @@ class ImportApiSpec extends BaseAPISpec {
         )
       }
 
-      println(s"RES ${res.json.get}")
       val failedElements = extractFailedElements(res.json.get)
 
       val featureAnomalies = failedElements("Feature")
