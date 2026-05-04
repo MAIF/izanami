@@ -33,8 +33,30 @@ import scala.concurrent.duration.SECONDS
 import play.api.libs.json.JsValue
 
 class ImportApiSpec extends BaseAPISpec {
-  "V2 feature import" should {
 
+  type ImportedType = String
+  type ImportedRow = String
+  type ImportErrorMessage = String
+  def extractFailedElements(importFailureResponse: JsValue)
+      : Map[ImportedType, Seq[(ImportErrorMessage, ImportedRow)]] = {
+    val maybeDetails = (importFailureResponse \ "details").asOpt[JsObject]
+
+    maybeDetails.fold(Map(): Map[ImportedType, Seq[(
+        ImportErrorMessage,
+        ImportedRow
+    )]])(details => {
+      details.value.map((importedType, failedElements) => {
+        val failedArray = failedElements.as[JsArray].value.map(json => {
+          val error = (json \ "error").as[ImportErrorMessage];
+          val row = (json \ "row").as[ImportedRow];
+          (error, row)
+        }).toSeq;
+        (importedType, failedArray)
+      }).toMap
+    })
+  }
+
+  "V2 feature import" should {
     "fail on incorrect row with known type" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("testtenant").withApiKeys(TestApiKey(
@@ -61,45 +83,55 @@ class ImportApiSpec extends BaseAPISpec {
 
       res.status mustEqual BAD_REQUEST
 
-      def extractRowField(
-          rows: scala.collection.IndexedSeq[JsValue],
+      def extractRowFieldAndError(
+          rows: Seq[(ImportErrorMessage, ImportedRow)],
           fieldName: String
-      ): scala.collection.IndexedSeq[String] = {
-        rows.flatMap(json =>
-          (json \ fieldName).asOpt[String].toSeq
+      ): Seq[(ImportErrorMessage, String)] = {
+        rows.flatMap((error, json) =>
+          (Json.parse(json) \ fieldName).asOpt[String].map(v =>
+            (error, v)
+          ).toSeq
         )
       }
 
-      val featureAnomalies =
-        (res.json.get \ "details" \ "Feature").as[JsArray].value;
-      val projectAnomalies =
-        (res.json.get \ "details" \ "Project").as[JsArray].value;
+      println(s"RES ${res.json.get}")
+      val failedElements = extractFailedElements(res.json.get)
+
+      val featureAnomalies = failedElements("Feature")
+
+      val projectAnomalies = failedElements("Project")
 
       featureAnomalies must have size 2
-      extractRowField(
+      extractRowFieldAndError(
         featureAnomalies,
         "id"
-      ) must contain theSameElementsAs (Seq(
+      ) must contain theSameElementsAs (Seq((
+        "Row is missing a value for field name",
         "00273cce-5b8e-447b-8a2e-0ba8d39bdea7"
-      ));
+      )));
 
-      extractRowField(
+      extractRowFieldAndError(
         featureAnomalies,
         "name"
-      ) must contain theSameElementsAs (Seq(
+      ) must contain theSameElementsAs (Seq((
+        "Row is missing a value for field id",
         "foobar2"
-      ))
+      )))
 
-      extractRowField(
+      extractRowFieldAndError(
         projectAnomalies,
         "id"
-      ) must contain theSameElementsAs (Seq(
+      ) must contain theSameElementsAs (Seq((
+        "Row is missing a value for field name",
         "f049894f-fc2d-4335-b3a5-1a2a9af242b9"
-      ))
-      extractRowField(
+      )))
+      extractRowFieldAndError(
         projectAnomalies,
         "name"
-      ) must contain theSameElementsAs (Seq("test-project2"))
+      ) must contain theSameElementsAs (Seq((
+        "Row is missing a value for field id",
+        "test-project2"
+      )))
 
     }
 

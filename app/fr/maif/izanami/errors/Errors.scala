@@ -15,7 +15,6 @@ import play.api.mvc.Results
 
 import java.util.Objects
 import scala.collection.immutable.Iterable
-import fr.maif.izanami.v1.UserType.Izanami
 
 sealed abstract class IzanamiError(val message: String, val status: Int)
     extends RuntimeException(message) {
@@ -50,6 +49,54 @@ case object FeatureWithThisIdAlreadyExist
         s"A feature with this id already exist for this tenant. Try again if you didn't specify custom id, otherwise search this tenant for your id to find problematic feature.",
       status = BAD_REQUEST
     )
+case object ApiKeyWithThisNameAlreadyExist
+    extends IzanamiError(
+      message =
+        "An API key with this name already exist",
+      status = BAD_REQUEST
+    )
+case object ApiKeyWithThisClientIdAlreadyExist
+    extends IzanamiError(
+      message =
+        "An API key with this client id already exist",
+      status = BAD_REQUEST
+    )
+case object WebhookWithThisIdAlreadyExist
+    extends IzanamiError(
+      message =
+        "A webhook with this id already exist",
+      status = BAD_REQUEST
+    )
+case object WebhookWithThisNameAlreadyExist
+    extends IzanamiError(
+      message =
+        "A webhook with this name already exist",
+      status = BAD_REQUEST
+    )
+case object FeatureWebhookAssociationAlreadyExist
+    extends IzanamiError(
+      message =
+        "This webhook already depends on this feature",
+      status = BAD_REQUEST
+    )
+case object ProjectWebhookAssociationAlreadyExist
+    extends IzanamiError(
+      message =
+        "This webhook already depends on this project",
+      status = BAD_REQUEST
+    )
+case object ProjectWithThisIdAlreadyExist
+    extends IzanamiError(
+      message =
+        "A project with this id already exist",
+      status = BAD_REQUEST
+    )
+case object ProjectWithThisNameAlreadyExist
+    extends IzanamiError(
+      message =
+        "A project with this name already exist",
+      status = BAD_REQUEST
+    )
 case class TenantDoesNotExists(id: String)
     extends IzanamiError(
       message = s"Tenant ${id} does not exist",
@@ -71,6 +118,30 @@ case object TagFieldTooLong
     extends IzanamiError(
       message =
         "Tag name or description is too long. Max char count is 200 for name and 500 for description.",
+      status = BAD_REQUEST
+    )
+case object TagWithThisNameAlreadyExist
+    extends IzanamiError(
+      message =
+        "A tag with this name already exist",
+      status = BAD_REQUEST
+    )
+case object TagWithThisIdAlreadyExist
+    extends IzanamiError(
+      message =
+        "A tag with this id already exist",
+      status = BAD_REQUEST
+    )
+case object ThisTagIsAlreadyAssignedToThisFeature
+    extends IzanamiError(
+      message =
+        "This feature already have this tag",
+      status = BAD_REQUEST
+    )
+case object ThisAPIKeyIsAlreadyAssignedToThisProject
+    extends IzanamiError(
+      message =
+        "This API key already has this project right",
       status = BAD_REQUEST
     )
 case object ApiKeyFieldTooLong
@@ -126,6 +197,11 @@ case object ContextNameTooLong
 case object WasmScriptNameTooLong
     extends IzanamiError(
       message = "Wasm script name is too long, max char count is 200.",
+      status = BAD_REQUEST
+    )
+case object WasmScriptIdAlreadyExist
+    extends IzanamiError(
+      message = "A wasm script with this id already exist",
       status = BAD_REQUEST
     )
 case class TagDoesNotExists(id: String)
@@ -185,6 +261,10 @@ case class KeyNotFound(name: String)
       message = s"Key ${name} does not exists",
       status = NOT_FOUND
     )
+case object KeyDoesNotExist extends IzanamiError(
+      message = s"Key does not exist",
+      status = NOT_FOUND
+    )
 case class ProjectContextOrFeatureDoesNotExist(
     project: String,
     context: String,
@@ -197,6 +277,11 @@ case class ProjectContextOrFeatureDoesNotExist(
 case class FeatureContextDoesNotExist(context: String)
     extends IzanamiError(
       message = s"Context ${context} does not exist",
+      status = NOT_FOUND
+    )
+case object OverloadContextDoesNotExist
+    extends IzanamiError(
+      message = "Overload context does not exist",
       status = NOT_FOUND
     )
 
@@ -307,6 +392,11 @@ case class FeatureOverloadDoesNotExist(
         s"No overload for feature ${feature} found at ${path} (project ${project})",
       status = NOT_FOUND
     )
+case object FeatureOverloadIsAlreadyDefined extends IzanamiError(
+      message =
+        "An overload already exist for this feature and context",
+      status = NOT_FOUND
+    )
 case class WasmScriptAlreadyExists(path: String)
     extends IzanamiError(
       message = s"Script ${path} already exists",
@@ -410,7 +500,7 @@ case class GenericBadRequest(override val message: String)
     extends IzanamiError(message = message, status = 400)
 
 case class ImportFailureError(
-    failedElements: Map[ExportedType | "Unknown", Seq[String]]
+    failedElements: Map[ExportedType | "Unknown", Seq[(IzanamiError, String)]]
 ) extends IzanamiError(
       message = s"Import failed due to error on some element insertion",
       status = 400
@@ -421,7 +511,10 @@ case class ImportFailureError(
         case t: ExportedType => t.displayName
         case str: String     => str
       }
-      json + (errorEntry -> Json.toJson(next._2))
+      val errorValue = next._2.map((error, row) =>
+        Json.obj("row" -> row, "error" -> error.message)
+      )
+      json + (errorEntry -> Json.toJson(errorValue))
     })
 
     Results.Status(BAD_REQUEST)(Json.obj(
@@ -462,12 +555,6 @@ case class DbConnectionFailure(query: String = "")
           }",
       status = 500
     )
-case class ImportError(table: String, json: String, errorMessage: String)
-    extends IzanamiError(
-      message =
-        s"Error key while inserting into table $table with error $errorMessage values $json : ",
-      status = 400
-    )
 case class NoProtectedContextAccess(context: String)
     extends IzanamiError(
       message =
@@ -482,6 +569,8 @@ case class CantUpdateOIDCUser()
     )
 case class UserDoesNotExist(user: String)
     extends IzanamiError(message = s"User $user does not exist", status = 404)
+case object AssociatedUserDoesNotExist
+    extends IzanamiError(message = s"User does not exist", status = 404)
 case class RightComplianceError(override val message: String)
     extends IzanamiError(message = message, status = 400)
 
@@ -527,7 +616,111 @@ case class ErrorAggregator(errors: Seq[IzanamiError])
       message = errors.map(err => err.message).mkString("\n"),
       status = errors.map(_.status).minOption.getOrElse(INTERNAL_SERVER_ERROR)
     ) {}
-
+case object IncompatibleResultTypeAndValue extends IzanamiError(
+      message = "Value is incompatible with result type",
+      status = BAD_REQUEST
+    )
+case object OverloadIncompatibleResultTypeAndValue extends IzanamiError(
+      message = "Overload value is incompatible with result type",
+      status = BAD_REQUEST
+    )
+case object FeatureMustHaveConditionOrScript extends IzanamiError(
+      message = "Feature must define conditions or script",
+      status = BAD_REQUEST
+    )
+case object OverloadMustHaveConditionOrScript extends IzanamiError(
+      message = "Overload must define conditions or script",
+      status = BAD_REQUEST
+    )
+case object FeatureProjectDoesNotExist extends IzanamiError(
+      message = "Project referenced by this feature does not exist",
+      status = BAD_REQUEST
+    )
+case object FeatureScriptDoesNotExist extends IzanamiError(
+      message = "Script referenced by this feature does not exist",
+      status = BAD_REQUEST
+    )
+case object OverloadScriptDoesNotExist extends IzanamiError(
+      message = "Script referenced by this overload does not exist",
+      status = BAD_REQUEST
+    )
+case object TagFeatureDoesNotExist extends IzanamiError(
+      message = "Feature referenced by this tag does not exist",
+      status = BAD_REQUEST
+    )
+case object FeatureTagDoesNotExist extends IzanamiError(
+      message = "Tag referenced by this feature does not exist",
+      status = BAD_REQUEST
+    )
+case object LocalContextMustHaveProject extends IzanamiError(
+      message = "Local context must have project",
+      status = BAD_REQUEST
+    )
+case object ParentContextDoesNotExist extends IzanamiError(
+      message = "Parent context does not exist",
+      status = BAD_REQUEST
+    )
+case object ContextProjectDoesNotExist extends IzanamiError(
+      message = "Context project does not exist",
+      status = BAD_REQUEST
+    )
+case object ValueIsTooLong extends IzanamiError(
+      message = "Value is too long",
+      status = BAD_REQUEST
+    )
+case object OverloadProjectResultTypeMustMatchFeature extends IzanamiError(
+      message =
+        "Overload project and result type must match to associated feature",
+      status = BAD_REQUEST
+    )
+case object OverloadProjectDoesNotExist extends IzanamiError(
+      message =
+        "Overload project does not exist",
+      status = BAD_REQUEST
+    )
+case object WebhookFeatureDoesNotExist extends IzanamiError(
+      message =
+        "Webhook feature does not exist",
+      status = BAD_REQUEST
+    )
+case object WebhookProjectDoesNotExist extends IzanamiError(
+      message =
+        "Webhook project does not exist",
+      status = BAD_REQUEST
+    )
+case object ProjectDoesNotExist extends IzanamiError(
+      message = "Project does not exist",
+      status = BAD_REQUEST
+    )
+case object WebhookDoesNotExist extends IzanamiError(
+      message = "Webhook does not exist",
+      status = BAD_REQUEST
+    )
+case object AssociatedWebhookDoesNotExist extends IzanamiError(
+      message =
+        "Webhook does not exist",
+      status = BAD_REQUEST
+    )
+case object UserAlreadyHaveRightsForThisKey
+    extends IzanamiError(
+      message = "User already have right for this key",
+      status = BAD_REQUEST
+    )
+case object UserAlreadyHaveRightsForThisWebhook
+    extends IzanamiError(
+      message = "User already have right for this webhook",
+      status = BAD_REQUEST
+    )
+case object UserAlreadyHaveRightsForThisProject
+    extends IzanamiError(
+      message = "User already have right for this project",
+      status = BAD_REQUEST
+    )
+case class MissingValueFor(field: String)
+    extends IzanamiError(
+      message = s"Row is missing a value for field ${field}",
+      status = BAD_REQUEST
+    )
 object ErrorAggregator {
   def fromEitherSeq(
       eithers: Seq[Either[IzanamiError, Any]]

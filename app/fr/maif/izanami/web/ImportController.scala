@@ -311,17 +311,24 @@ class ImportController(
         FailedToReadImportFile
       );
       parsedRows <- {
-        val (errors, correctRows) = bf.getLines().map(line =>
-          parseImportV2Line(line).left.map(err => (err, line))
-        ).partition(e => e.isLeft)
+
+        val errors = new ArrayBuffer[(String, IzanamiError)]()
+        val correctRows = new ArrayBuffer[(ExportedType, JsObject)]()
+        bf.getLines().foreach(line =>
+          parseImportV2Line(line).fold(
+            err => errors.addOne((line, err)),
+            v => correctRows.addOne(v)
+          )
+        )
 
         if (!errors.isEmpty) {
+          println(s"ERRORS : ${errors.map(t => t._2.message)}")
           // TODO return error as well
-          Left(ImportFailureError(Map("Unknown" -> errors.map(e =>
-            e.left.get._2
-          ).toSeq)))
+          Left(ImportFailureError(Map("Unknown" -> errors.toSeq.map(
+            (json, error) => (error, json)
+          ))))
         } else {
-          Right(correctRows.map(e => e.right.get)
+          Right(correctRows
             .toSeq
             .groupBy(_._1)
             .view
@@ -343,51 +350,6 @@ class ImportController(
         }
       }
     }).fold(err => Future.successful(err.toHttpResponse), res => res)
-
-    /*(for (uri <- files.get("export")) yield {
-      Try(scala.io.Source.fromFile(uri)).toEither.left
-        .map(ex => {
-          InternalServerError(
-            Json.obj("message" -> "Failed to read file")
-          ).future
-        })
-        .map(bf => {
-          val (errors, correctRows) = bf.getLines().map(line =>
-            parseImportV2Line(line).left.map(err => (err, line))
-          ).partition(e => e.isLeft)
-
-          if (!errors.isEmpty) {
-            // TODO return error as well
-            Left(ImportFailureError(Map("Unknown" -> errors.map(e =>
-              e.left.get._2
-            ).toSet)))
-          } else {
-            Right(correctRows.map(e => e.right.get)
-              .toSeq
-              .groupBy(_._1)
-              .view
-              .mapValues(v => v.map(_._2))
-              .toMap)
-          }
-        })
-        .map(m => fixImportDataIfNeeded(tenant, m))
-        .map {
-          case (messages, data) => {
-            env.datastores.exportDatastore
-              .importTenantData(tenant, data, conflictStrategy, request.user)
-              .map {
-                case Right(_) =>
-                  Ok(Json.obj("messages" -> Json.toJson(messages)))
-                case Left(err) => err.toHttpResponse
-              }
-          }
-        }
-    }).toRight(
-      Future.successful(
-        BadRequest(Json.obj("message" -> "Missing export file"))
-      )
-    ).flatten
-      .fold(r => r, r => r)*/
   }
 
   def fixImportDataIfNeeded(

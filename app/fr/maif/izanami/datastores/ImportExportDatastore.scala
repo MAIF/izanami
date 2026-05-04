@@ -45,6 +45,7 @@ import play.api.libs.json.Json
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
 import fr.maif.izanami.errors.ImportFailureError
+import fr.maif.izanami.errors.PostgresErrorMapper
 
 class ImportExportDatastore(val env: Env) extends Datastore {
   private val extensionSchema: String = env.extensionsSchema
@@ -195,9 +196,10 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                                 } else {
                                   Left(ImportFailureError(
                                     Map(
-                                      t._3 -> importResult.failedElements.toSeq.map(
-                                        json => Json.stringify(json)
-                                      )
+                                      t._3 -> importResult.failedElements.map {
+                                        case (json, error) =>
+                                          (error, Json.stringify(json))
+                                      }
                                     )
                                   ))
                                 }
@@ -244,8 +246,8 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     )
                     rollback().map(_ =>
                       Left(ImportFailureError(failedElements =
-                        result.failedElements.mapValues(jsons =>
-                          jsons.map(json => Json.stringify(json))
+                        result.failedElements.view.mapValues(jsons =>
+                          jsons.map((err, json) => (err, Json.stringify(json)))
                         ).toMap
                       ))
                     )
@@ -745,7 +747,9 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                       })
                       .map(r => r.getOrElse(acc))
                       .recoverWith {
-                        case _ => {
+                        case ex => {
+                          val error =
+                            PostgresErrorMapper.postgresErrorToIzanamiError(ex)
                           logger.info(
                             s"Insertion of this row failed in unit mode : ${row}"
                           )
@@ -754,7 +758,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                             conn = Some(conn)
                           ) { _ =>
                             Done.done()
-                          }.map(_ => acc.addFailedElement(row))
+                          }.map(_ => acc.addFailedElement(row, error))
                         }
                       }
                   })
@@ -1008,7 +1012,7 @@ object ImportExportDatastore {
   )
 
   case class DBImportResult(
-      failedElements: Map[ExportedType, Seq[JsObject]] = Map(),
+      failedElements: Map[ExportedType, Seq[(IzanamiError, JsObject)]] = Map(),
       updatedFeatures: Set[String] = Set(),
       createdFeatures: Set[String] = Set(),
       createdProjects: Set[String] = Set(),
@@ -1017,7 +1021,7 @@ object ImportExportDatastore {
   ) {
     def withFailedElements(
         exportedType: ExportedType,
-        jsons: Seq[JsObject]
+        jsons: Seq[(IzanamiError, JsObject)]
     ): DBImportResult =
       if (jsons.isEmpty) {
         this
@@ -1052,7 +1056,10 @@ object ImportExportDatastore {
   object DBImportResult {
     def from(m: Map[ExportedType, UnitDBImportResult]): DBImportResult = {
       val res = m.foldLeft(DBImportResult())((res, t) => {
-        val resWithFailures = res.withFailedElements(t._1, t._2.failedElements)
+        val resWithFailures = res.withFailedElements(
+          t._1,
+          t._2.failedElements.map((json, error) => (error, json))
+        )
         if (t._1 == FeatureType || t._1 == FeatureTagType) {
           resWithFailures
             .withCreatedFeatures(t._2.createdElements)
@@ -1076,13 +1083,16 @@ object ImportExportDatastore {
   }
 
   case class UnitDBImportResult(
-      failedElements: Seq[JsObject] = Seq(),
+      failedElements: Seq[(JsObject, IzanamiError)] = Seq(),
       updatedElements: Set[String] = Set(),
       createdElements: Set[String] = Set(),
       previousStrategies: Map[String, FeatureWithOverloads] = Map()
   ) {
-    def addFailedElement(json: JsObject): UnitDBImportResult =
-      copy(failedElements = failedElements.appended(json))
+    def addFailedElement(
+        json: JsObject,
+        error: IzanamiError
+    ): UnitDBImportResult =
+      copy(failedElements = failedElements.appended((json, error)))
 
     def addUpdatedElements(id: String): UnitDBImportResult =
       copy(updatedElements = updatedElements + id)

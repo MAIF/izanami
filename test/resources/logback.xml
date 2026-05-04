@@ -30,6 +30,8 @@
     <appender-ref ref="STDOUT" />
   </appender>
 
+<logger name ="org.flywaydb.core.internal.scanner.filesystem.FileSystemScanner" level="OFF"/>
+
 
   <logger name="play" level="INFO" />
   <logger name="izanami" level="DEBUG" />
@@ -42,7 +44,6 @@
   <logger name="org.flywaydb" level="WARN"/>
   <logger name="com.zaxxer.hikari" level="WARN"/>
   <logger name="akka" level="WARN"/>
-  <logger name ="org.flywaydb.core.internal.scanner.filesystem.FileSystemScanner" level="OFF"/>
 
 
   <root level="ERROR">

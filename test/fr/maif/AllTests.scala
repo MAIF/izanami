@@ -28,7 +28,6 @@ import fr.maif.izanami.units.RightServiceTest
 import fr.maif.izanami.units.ScriptTest
 import org.scalatest.DoNotDiscover
 
-@DoNotDiscover
 class AllTests extends Suites(
       new ContextTest,
       new RightServiceTest,
