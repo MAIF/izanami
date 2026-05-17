@@ -41,6 +41,8 @@ import scala.util.Success
 import scala.util.Try
 import fr.maif.izanami.utils.Done
 import java.util.concurrent.atomic.AtomicBoolean
+import io.vertx.core.net.NetClientOptions
+import io.vertx.core.net.ClientSSLOptions
 
 class Postgresql(env: Env) {
 
@@ -64,16 +66,8 @@ class Postgresql(env: Env) {
         ) yield {
 
           val sslEnabled = sslConfiguration.enabled
+
           new PgConnectOptions()
-            .applyOnWithOpt(pgConfiguration.connectTimeout)((p, v) =>
-              p.setConnectTimeout(v)
-            )
-            .applyOnWithOpt(pgConfiguration.idleTimeout)((p, v) =>
-              p.setIdleTimeout(v)
-            )
-            .applyOnWithOpt(pgConfiguration.logActivity)((p, v) =>
-              p.setLogActivity(v)
-            )
             .applyOnWithOpt(pgConfiguration.pipeliningLimit)((p, v) =>
               p.setPipeliningLimit(v)
             )
@@ -82,62 +76,61 @@ class Postgresql(env: Env) {
             .setDatabase(database)
             .setUser(user)
             .setPassword(pgConfiguration.password)
+            .setSslMode(if (sslEnabled) { SslMode.of(sslConfiguration.mode) }
+            else { SslMode.DISABLE })
             .applyOnIf(sslEnabled) { pgopt =>
-              pgopt.setSsl(true)
-              val mode = SslMode.of(sslConfiguration.mode)
+
+              var sslOptions = new ClientSSLOptions()
               val pemTrustOptions = new PemTrustOptions()
               val pemKeyCertOptions = new PemKeyCertOptions()
-              pgopt.setSslMode(mode)
+              sslOptions =
+                sslOptions.applyOnWithOpt(sslConfiguration.sslHandshakeTimeout)(
+                  (p, v) => {
+                    p.setSslHandshakeTimeout(v)
+                  }
+                )
 
-              pgopt.applyOnWithOpt(sslConfiguration.sslHandshakeTimeout)(
-                (p, v) => p.setSslHandshakeTimeout(v)
-              )
-              /*sslConfiguration.trustedCertsPath match {
-              case Nil    => ()
-              case pathes => {
-                pathes.map(p => pemTrustOptions.addCertPath(p))
-                pgopt.setPemTrustOptions(pemTrustOptions)
+              sslConfiguration.trustedCertsPath match {
+                case Nil    => ()
+                case pathes => {
+                  pathes.map(p => pemTrustOptions.addCertPath(p))
+                }
               }
-            }*/
-              sslConfiguration.trustedCertPath.map { path =>
-                pemTrustOptions.addCertPath(path)
-                pgopt.setPemTrustOptions(pemTrustOptions)
+
+              sslConfiguration.trustedCerts match {
+                case Nil   => ()
+                case certs => {
+                  certs.map(p => pemTrustOptions.addCertValue(Buffer.buffer(p)))
+                }
               }
-              /*sslConfiguration.trustedCerts match {
-              case Nil   =>
-              case certs => {
-                certs.map(p => pemTrustOptions.addCertValue(Buffer.buffer(p)))
-                pgopt.setPemTrustOptions(pemTrustOptions)
+
+              if (
+                !pemTrustOptions.getCertPaths().isEmpty() || !pemTrustOptions.getCertValues().isEmpty()
+              ) {
+                sslOptions.setTrustOptions(pemTrustOptions)
               }
-            }*/
-              sslConfiguration.trustedCert.map { path =>
-                pemTrustOptions.addCertValue(Buffer.buffer(path))
-                pgopt.setPemTrustOptions(pemTrustOptions)
+
+              sslConfiguration.clientCertsPath match {
+                case Nil    => ()
+                case pathes => {
+                  pathes.map(p => pemKeyCertOptions.addCertPath(p))
+                }
               }
-              /*sslConfiguration.clientCertsPath match {
-              case Nil    => ()
-              case pathes => {
-                pathes.map(p => pemKeyCertOptions.addCertPath(p))
-                pgopt.setPemKeyCertOptions(pemKeyCertOptions)
+              sslConfiguration.clientCerts match {
+                case Nil   => ()
+                case certs => {
+                  certs.map(p =>
+                    pemKeyCertOptions.addCertValue(Buffer.buffer(p))
+                  )
+                }
               }
-            }*/
-              /*sslConfiguration.clientCerts match {
-              case Nil   => ()
-              case certs => {
-                certs.map(p => pemKeyCertOptions.addCertValue(Buffer.buffer(p)))
-                pgopt.setPemKeyCertOptions(pemKeyCertOptions)
+
+              if (!pemKeyCertOptions.getCertPaths().isEmpty() || !pemKeyCertOptions.getCertValues().isEmpty()) {
+                sslOptions.setKeyCertOptions(pemKeyCertOptions)
               }
-            }*/
-              sslConfiguration.clientCertPath.map { path =>
-                pemKeyCertOptions.addCertPath(path)
-                pgopt.setPemKeyCertOptions(pemKeyCertOptions)
-              }
-              sslConfiguration.clientCert.map { path =>
-                pemKeyCertOptions.addCertValue(Buffer.buffer(path))
-                pgopt.setPemKeyCertOptions(pemKeyCertOptions)
-              }
+
               sslConfiguration.trustAll.map { v =>
-                pgopt.setTrustAll(v)
+                sslOptions.setTrustAll(v)
               }
 
               pgopt
@@ -151,14 +144,24 @@ class Postgresql(env: Env) {
       )
     }
   lazy val vertx: Vertx = Vertx.vertx()
+  private lazy val netOptions = new NetClientOptions()
+    .applyOnWithOpt(pgConfiguration.connectTimeout)((p, v) =>
+      p.setConnectTimeout(v)
+    )
+    .applyOnWithOpt(pgConfiguration.idleTimeout)((p, v) => p.setIdleTimeout(v))
+    .applyOnWithOpt(pgConfiguration.logActivity)((p, v) => p.setLogActivity(v));
+
   private lazy val poolOptions = new PoolOptions()
     .setMaxSize(pgConfiguration.poolSize)
+    .applyOnWithOpt(pgConfiguration.connectTimeout)((p, v) =>
+      p.setConnectionTimeout(v)
+    )
     .applyOnWithOpt(pgConfiguration.idleTimeout)((p, v) => p.setIdleTimeout(v))
     .applyOnWithOpt(pgConfiguration.maxLifetime)((p, v) => p.setMaxLifetime(v))
   // private lazy val pool = PgPool.pool(connectOptions, poolOptions)
   private lazy val pool = PgBuilder.pool().`with`(
     poolOptions
-  ).connectingTo(connectOptions).using(vertx).build();
+  ).`with`(netOptions).connectingTo(connectOptions).using(vertx).build();
   val pgConfiguration = env.typedConfiguration.pg
   val sslConfiguration = pgConfiguration.ssl
   def pgErrorPartialFunction: PartialFunction[Throwable, IzanamiError] = {
@@ -491,7 +494,10 @@ class Postgresql(env: Env) {
         }
         conn
           .map(conn => lambda(conn).scala)
-          .getOrElse(executeInTransaction(conn => lambda(conn).scala, silentFor = silentFor))
+          .getOrElse(executeInTransaction(
+            conn => lambda(conn).scala,
+            silentFor = silentFor
+          ))
       case false =>
         conn
           .map(c =>
