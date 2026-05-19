@@ -3,7 +3,6 @@ package fr.maif.izanami.web
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.BadBodyFormat
 import fr.maif.izanami.errors.EmailAlreadyUsed
-import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.RightLevel.Read
 import fr.maif.izanami.models.Rights.*

@@ -2,7 +2,6 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.FailedToReadTokenClaims
-import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.errors.MissingOIDCConfigurationError
 import fr.maif.izanami.errors.RightComplianceError
 import fr.maif.izanami.models.*

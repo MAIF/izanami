@@ -842,7 +842,6 @@ class ImportController(
                             tenant,
                             keys,
                             request.user,
-                            conflictStrategy,
                             conn.some
                           )
                     }

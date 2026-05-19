@@ -23,7 +23,7 @@ import org.awaitility.Awaitility.await
 import org.reactivecouchbase.json.Json
 import org.reactivecouchbase.json.Syntax
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import play.api.http.Status.OK
+import play.api.http.Status.{OK, UNAUTHORIZED}
 import play.api.libs.json.*
 
 import java.time.Duration
@@ -40,6 +40,38 @@ import scala.collection.mutable.ArrayBuffer
 
 class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
   "Legacy check endpoint" should {
+
+    "reject call if client secret is incorrect" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant"))
+        .loggedInWithAdminRights()
+        .build()
+
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+
+      situation.importAndWaitTermination(
+        "tenant",
+        features = Seq(
+          """{"id":"project:foo:bar","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
+          """{"id":"project:foo:baz","enabled":false,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
+          """{"id":"project1:baz:bar","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
+        ),
+        keys = Seq(
+          s"""{"clientId":"$clientId","name":"local create read key","clientSecret":"$clientSecret","authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"admin":true}""".stripMargin
+        )
+      )
+
+      val result =
+        situation.readFeatureAsLegacy(
+          "project:foo:bar",
+          clientId = clientId,
+          clientSecret = "fooooo"
+        )
+      result.status mustBe UNAUTHORIZED
+    }
+
     "convert no strategy legacy feature to V1 format" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant"))
@@ -324,6 +356,38 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
   }
 
   "legacy /feature endpoint" should {
+    "reject call if client secret is incorrect" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant"))
+        .loggedInWithAdminRights()
+        .build()
+
+      val clientId = "yfsc5ooy3v3hu5z2"
+      val clientSecret =
+        "sygl4ls9sjr93v1p9ufc7y8p83117w1f3t2p6nh8w15b7njfoz9er4sgjgabkxmw"
+
+      situation.importAndWaitTermination(
+        "tenant",
+        features = Seq(
+          """{"id":"project:foo:bar","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
+          """{"id":"project:foo:baz","enabled":false,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin,
+          """{"id":"project1:baz:bar","enabled":true,"description":"","parameters":{},"activationStrategy":"NO_STRATEGY"}""".stripMargin
+        ),
+        keys = Seq(
+          s"""{"clientId":"$clientId","name":"local create read key","clientSecret":"$clientSecret","authorizedPatterns":[{"pattern":"*","rights":["C","R","U","D"]}],"admin":true}""".stripMargin
+        )
+      )
+
+      val result =
+        situation.readFeaturesAsLegacy(
+          clientId = clientId,
+          clientSecret = "foo",
+          pattern = None,
+          active = true
+        )
+      result.status mustBe UNAUTHORIZED
+    }
+
     "return all authorized features when calling without pattern" in {
       val situation = TestSituationBuilder()
         .withTenantNames("tenant")

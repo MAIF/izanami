@@ -12,8 +12,6 @@ import fr.maif.izanami.models.ApiKeyWithCompleteRights
 import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.ImportController.Fail
-import fr.maif.izanami.web.ImportController.ImportConflictStrategy
 import fr.maif.izanami.web.UserInformation
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
@@ -32,7 +30,6 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
       apiKey.tenant,
       apiKeys = Seq(apiKey),
       user = user,
-      conflictStrategy = Fail,
       conn = None
     )
       .map(e => e.map(_.head).left.map(_.head))
@@ -49,7 +46,6 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
       tenant: String,
       apiKeys: Seq[ApiKey],
       user: UserInformation,
-      conflictStrategy: ImportConflictStrategy,
       conn: Option[SqlConnection]
   ): Future[Either[Seq[IzanamiError], Seq[ApiKey]]] = {
     // TODO handle conflict strategy
@@ -330,11 +326,11 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                |FROM "${tenant}".apikeys a
                |LEFT JOIN "${tenant}".apikeys_projects ap ON ap.apikey = a.name
                |LEFT JOIN "${tenant}".projects p ON p.name=ap.project
-               |WHERE a.clientid=$$1
+               |WHERE a.clientid=$$1 AND a.clientsecret=$$2
                |AND a.enabled=true
                |GROUP BY a.name
                |""".stripMargin,
-            List(clientId)
+            List(clientId, clientSecret)
           ) { r =>
             {
               val projects = r
