@@ -232,6 +232,40 @@ class UsersAPISpec extends BaseAPISpec {
   }
 
   "Users GET endpoint by name" should {
+    "Return roles for user if user has external oidc roles" in {
+      var situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("foo")
+        )
+        .withCustomConfiguration(Map(
+          "app.openid.client-id" -> "foo",
+          "app.openid.client-secret" -> "bar",
+          "app.openid.authorize-url" -> "http://localhost:9001/connect/authorize",
+          "app.openid.token-url" -> "http://localhost:9001/connect/token",
+          "app.openid.redirect-url" -> "http://localhost:9000/login",
+          "app.openid.scopes" -> "openid email profile roles",
+          "app.openid.username-field" -> "name",
+          "app.openid.email-field" -> "email",
+          "app.openid.role-right-mode" -> "supervised",
+          "app.openid.role-claim" -> "roles",
+          "app.openid.enabled" -> "true",
+          "app.openid.email-field" -> "email",
+          "app.openid.username-field" -> "name",
+          "app.openid.method" -> "BASIC",
+          "app.openid.pkce.enabled" -> "true"
+        ))
+        .loggedInWithAdminRights()
+        .build()
+
+      situation = situation.logAsOIDCUser("User1")
+      situation = situation.logout()
+      situation = situation.loggedAsAdmin()
+
+      val result = situation.fetchUser("Sam Tailor").json.get;
+      
+      (result \ "roles").as[Seq[String]] must contain theSameElementsAs Seq("admin")
+    }
+
     "Retrieve user and right information if requester is admin" in {
       val situation = TestSituationBuilder()
         .withTenants(
