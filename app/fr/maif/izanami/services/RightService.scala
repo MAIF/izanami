@@ -196,69 +196,77 @@ class RightService(
     }
   }
 
-  def updateUserRightsIfNeeded(
+  def updateUserRightsAndRolesIfNeeded(
       user: UserWithRights,
       newRoles: Set[String],
       conn: Option[SqlConnection]
   ): FutureEither[Option[MaxRightComplianceResult]] = {
-    roleRightMode match {
-      case Some(Initial) => {
-        val maxRights = maxRightsByRoles.map(mr =>
-          CompleteRights.maxRightsToApply(newRoles, mr)
-        )
-        val maxRightComplanceResult = maxRights
-          .map(r =>
-            CompleteRights(
-              user.rights.tenants,
-              user.admin
-            ).checkCompliance(r)
-          )
-          .getOrElse(
-            MaxRightComplianceResult.empty
-          )
-
-        if (!maxRightComplanceResult.isEmpty) {
-          env.datastores.users
-            .updateUserRights(
-              user.username,
-              maxRightComplanceResult.rightDiff(
-                CompleteRights(
-                  admin = user.admin,
-                  tenants = user.rights.tenants
-                )
-              ),
-              conn = conn
-            )
-            .toFEither
-            .map(_ => Some(maxRightComplanceResult))
-        } else {
-          FutureEither.success(Option.empty)
-        }
-      }
-      case Some(Supervised) => {
-        val defaultRightsToApply = defaultRights
-          .map(r =>
-            RightService
-              .effectiveRights(r, newRoles)
-          )
-          .getOrElse(CompleteRights.EMPTY)
-
-        if (
-          user.admin != defaultRightsToApply.admin || user.rights.tenants != defaultRightsToApply.tenants
-        ) {
-          updateUserRights(
-            user.username,
-            UserRightsUpdateRequest
-              .fromRights(defaultRightsToApply),
-            force = true,
-            conn = conn
-          ).map(_ => Option.empty) // FIXME this should return right change
-        } else {
-          FutureEither.success(Option.empty)
-        }
-      }
-      case None => FutureEither.success(Option.empty)
+    val roleFuture = if (user.roles != newRoles) {
+      env.datastores.users.updateUserRoles(user.username, newRoles, conn = conn)
+    } else {
+      FutureEither.success(Done.done())
     }
+
+    roleFuture.flatMap(_ => {
+      roleRightMode match {
+        case Some(Initial) => {
+          val maxRights = maxRightsByRoles.map(mr =>
+            CompleteRights.maxRightsToApply(newRoles, mr)
+          )
+          val maxRightComplanceResult = maxRights
+            .map(r =>
+              CompleteRights(
+                user.rights.tenants,
+                user.admin
+              ).checkCompliance(r)
+            )
+            .getOrElse(
+              MaxRightComplianceResult.empty
+            )
+
+          if (!maxRightComplanceResult.isEmpty) {
+            env.datastores.users
+              .updateUserRights(
+                user.username,
+                maxRightComplanceResult.rightDiff(
+                  CompleteRights(
+                    admin = user.admin,
+                    tenants = user.rights.tenants
+                  )
+                ),
+                conn = conn
+              )
+              .toFEither
+              .map(_ => Some(maxRightComplanceResult))
+          } else {
+            FutureEither.success(Option.empty)
+          }
+        }
+        case Some(Supervised) => {
+          val defaultRightsToApply = defaultRights
+            .map(r =>
+              RightService
+                .effectiveRights(r, newRoles)
+            )
+            .getOrElse(CompleteRights.EMPTY)
+
+          if (
+            user.admin != defaultRightsToApply.admin || user.rights.tenants != defaultRightsToApply.tenants
+          ) {
+            updateUserRights(
+              user.username,
+              UserRightsUpdateRequest
+                .fromRights(defaultRightsToApply),
+              force = true,
+              conn = conn
+            ).map(_ => Option.empty) // FIXME this should return right change
+          } else {
+            FutureEither.success(Option.empty)
+          }
+        }
+        case None => FutureEither.success(Option.empty)
+      }
+    })
   }
 
   def updateUsersRightsForTenant(

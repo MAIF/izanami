@@ -812,6 +812,13 @@ class UsersDatastore(val env: Env) extends Datastore {
 
   }
 
+  def updateUserRoles(user: String, roles: Set[String], conn: Option[SqlConnection]): FutureEither[Done] = {
+    env.postgresql.queryOne(s"UPDATE izanami.users SET roles=$$1 WHERE username=$$2", params = List(JsArray(roles.map(JsString(_)).toIndexedSeq).vertxJsValue, user), conn= conn)(r => {
+      Some(Done.done())
+    }).map(_ => Done.done())
+    .mapToFEither
+  }
+
   def createUserWithConn(
       users: Seq[UserWithRights],
       conn: SqlConnection,

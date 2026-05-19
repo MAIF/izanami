@@ -298,7 +298,7 @@ class LoginController(
                                             r
                                           })
                                       }(user =>
-                                        rightService.updateUserRightsIfNeeded(
+                                        rightService.updateUserRightsAndRolesIfNeeded(
                                           user,
                                           roles,
                                           Some(conn)
@@ -446,22 +446,6 @@ class LoginController(
       Some(roles)
     }
   }
-
-  /*maybeJson.toOption.flatMap(roleClaim => roleClaim.)
-
-
-    val roles      =
-      JwtJson.decode(token, JwtOptions(signature = false, leeway = 1))
-      .flatMap(_.toOption)
-      .map(claims => claims.toJson)
-      .map(json => Json.parse(json))
-      .flatMap(json => roleClaim.flatMap(roleClaimeName => (json \ roleClaimeName).toOption))
-      .map {
-        case JsString(value) => Set(value)
-        case arr: JsArray    => arr.value.map((el: JsValue) => el.as[String]).toSet
-        case _               => Set(): Set[String]
-      }
-      .getOrElse(Set(): Set[String])*/
 
   def fetchOpenIdConnectConfiguration: Action[AnyContent] = Action.async {
     implicit request =>
