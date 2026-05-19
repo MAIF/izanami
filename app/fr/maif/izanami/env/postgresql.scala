@@ -133,7 +133,7 @@ class Postgresql(env: Env) {
                 sslOptions.setTrustAll(v)
               }
 
-              pgopt
+              pgopt.setSslOptions(sslOptions)
             }
         }
 
