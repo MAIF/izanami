@@ -11,7 +11,6 @@ import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.*
 import pureconfig.ConfigReader
 import pureconfig.ConfigSource
-import pureconfig.error.CannotConvert
 import pureconfig.error.CannotParse
 import pureconfig.error.ConfigReaderFailures
 import pureconfig.error.UnknownKey

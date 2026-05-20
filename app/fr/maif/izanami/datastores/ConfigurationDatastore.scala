@@ -214,7 +214,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
         userInformation = IzanamiApplicationUserInformation,
         origin = TechnicalOrigin
       )
-    }).map(c => Done.done())
+    }).map(_ => Done.done())
   }
 
   def updateConfiguration(
@@ -318,7 +318,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
 
   private def updateMailerConfiguration(
       mailProviderConfiguration: MailProviderConfiguration,
-      conn: Option[SqlConnection] = None
+      conn: Option[SqlConnection]
   ): Future[Either[IzanamiError, MailProviderConfiguration]] = {
     env.postgresql
       .queryOne(

@@ -2,7 +2,6 @@ package fr.maif.izanami.api
 
 import fr.maif.izanami.api.BaseAPISpec.*
 import play.api.http.Status.*
-import play.api.libs.ws.WSCookie
 import play.api.libs.ws.writeableOf_String
 import play.api.test.Helpers.await
 

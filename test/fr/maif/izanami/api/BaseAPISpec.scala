@@ -100,7 +100,6 @@ import scala.util.Try
 import fr.maif.izanami.utils.Done
 import org.slf4j.LoggerFactory
 import fr.maif.izanami.api.BaseAPISpec.logger
-import org.scalatest.flatspec.AnyFlatSpec
 
 case class StubServer(
     server: WireMockServer,
@@ -1041,7 +1040,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       context: String = null,
       conditions: Boolean = false
   ): RequestResult = {
-    val maybeContext = Option(context).map(ctx => s"context=${context}")
+    val maybeContext = Option(context).map(ctx => s"context=${ctx}")
     val maybeUser = Option(user).map(u => s"user=${u}")
     val params =
       Seq(maybeContext, maybeUser).filter(_.isDefined).map(_.get).mkString("&")
@@ -2918,7 +2917,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         name: String
     ): RequestResult = {
       val secret = findTokenSecret(user, name)
-      exportWithTokenSecret("tenant", user, secret)
+      exportWithTokenSecret(tenant, user, secret)
     }
 
     def createTenant(
@@ -3460,8 +3459,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         projects: Seq[String] = Seq(),
         features: Seq[(String, String)] = Seq(),
         context: String = "",
-        user: String = "",
-        date: Instant = null
+        user: String = ""
     ): RequestResult = {
       val url =
         s"${ADMIN_BASE_URL}/tenants/${tenant}/features/_test?oneTagIn=${oneTagIn

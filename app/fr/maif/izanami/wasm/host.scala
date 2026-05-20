@@ -28,6 +28,7 @@ import scala.collection.Seq
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
+import scala.annotation.nowarn
 
 object HFunction {
   def defineContextualFunction(
@@ -150,7 +151,7 @@ object Logging {
     LibExtism.ExtismValType.I32,
     LibExtism.ExtismValType.I64,
     LibExtism.ExtismValType.I64
-  ) { (plugin, params, returns, data) =>
+  ) { (plugin, params, returns, _) =>
     val logLevel = LogLevel(params(0).v.i32)
 
     val messageData =
@@ -167,10 +168,10 @@ object Logging {
     returns(0).v.i32 = Status.StatusOK.id
   }
 
-  def getFunctions(config: WasmConfig)(implicit
-      env: Env,
-      executionContext: ExecutionContext,
-      mat: Materializer
+  def getFunctions(@nowarn config: WasmConfig)(implicit
+      @nowarn env: Env,
+      @nowarn executionContext: ExecutionContext,
+      @nowarn mat: Materializer
   ): Seq[HostFunctionWithAuthorization] = {
     Seq(
       HostFunctionWithAuthorization(proxyLog(), _ => true)
@@ -289,7 +290,7 @@ object HttpCall {
       .withNamespace("env")
   }
 
-  def getFunctions(config: WasmConfig, attrs: Option[TypedMap])(implicit
+  def getFunctions(config: WasmConfig, @nowarn attrs: Option[TypedMap])(implicit
       env: Env,
       executionContext: ExecutionContext,
       mat: Materializer
@@ -307,7 +308,7 @@ object HostFunctions {
 
   def getFunctions(
       config: WasmConfig,
-      pluginId: String,
+      @nowarn pluginId: String,
       attrs: Option[TypedMap]
   )(implicit
       env: Env,

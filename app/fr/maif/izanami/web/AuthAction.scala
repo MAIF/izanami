@@ -135,7 +135,7 @@ class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
       .map(futureKey =>
         futureKey.flatMap(eitherKey => {
           eitherKey.fold(
-            error =>
+            _ =>
               Future.successful(
                 Unauthorized(Json.obj("message" -> "Invalid key"))
               ),
@@ -1506,7 +1506,7 @@ class WebhookAuthAction(
         Try {
           UUID.fromString(webhook)
         }.fold(
-          ex => {
+          _ => {
             Future
               .successful(
                 BadRequest(Json.obj("message" -> "Webhook id must be an UUID"))

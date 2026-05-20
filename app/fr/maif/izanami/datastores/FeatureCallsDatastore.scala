@@ -97,7 +97,7 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
         ).toArray,
         callSeq.map(_._2).map(l => l.asInstanceOf[Number]).toArray
       )
-    ) { r => () }
+    ) { _ => () }
   }
 
   /** Find last call date of given features, their creation dates and their last

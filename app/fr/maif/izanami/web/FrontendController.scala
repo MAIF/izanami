@@ -22,12 +22,6 @@ class FrontendController(
     "Access-Control-Allow-Credentials" -> "true"
   )
 
-  def rootOptions: Action[AnyContent] = options("/")
-
-  def options(url: String): Action[AnyContent] = Action { request =>
-    NoContent.withHeaders(headers: _*)
-  }
-
   private def leaderAssets(action: Action[AnyContent]): Action[AnyContent] = {
     leaderAction.async { request =>
       action(request)

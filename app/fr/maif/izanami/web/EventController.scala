@@ -23,7 +23,6 @@ import play.api.libs.EventSource.EventNameExtractor
 import play.api.libs.json.JsObject
 import play.api.libs.json.JsValue
 import play.api.libs.json.Json
-import play.api.libs.json.Json.JsValueWrapper
 import play.api.mvc.Action
 import play.api.mvc.AnyContent
 import play.api.mvc.BaseController
@@ -265,7 +264,7 @@ class EventController(
       )
   }
 
-  def killAllSources(): Action[AnyContent] = adminAuthAction.async { request =>
+  def killAllSources(): Action[AnyContent] = adminAuthAction.async { _ =>
     Future
       .sequence(
         Seq(

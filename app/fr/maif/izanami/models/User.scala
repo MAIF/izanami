@@ -1225,9 +1225,7 @@ case class Rights(tenants: Map[String, TenantRight]) {
       }
       .toMap
 
-    diff.admin.fold(copy(tenants = tenantRights))(admin =>
-      copy(tenants = tenantRights)
-    )
+    copy(tenants = tenantRights)
   }
 
   def withTenantRight(name: String, level: RightLevel): Rights = {

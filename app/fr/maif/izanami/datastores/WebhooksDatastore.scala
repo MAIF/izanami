@@ -31,6 +31,7 @@ import fr.maif.izanami.errors.InternalServerError
 import fr.maif.izanami.errors.TenantDoesNotExists
 import fr.maif.izanami.utils.syntax.implicits.BetterFuture
 import fr.maif.izanami.utils.Done
+import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 
 class WebhooksDatastore(val env: Env) extends Datastore {
 
@@ -52,7 +53,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
               if e.getConstraint == "webhooks_call_status_pkey" => true
           case _ => false
         }
-      ) { r =>
+      ) { _ =>
         {
           Some(true)
         }
@@ -86,10 +87,10 @@ class WebhooksDatastore(val env: Env) extends Datastore {
           java.lang.Integer.valueOf(lastCount - 1),
           nextCall.atOffset(ZoneOffset.UTC)
         )
-      ) { r =>
-        Some(())
+      ) { _ =>
+        Some(Done.done())
       }
-      .map(_ => Done.done())
+      .map(o => o.getOrElse(Done.done()))
   }
 
   def deleteWebhookCall(
@@ -228,7 +229,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
   def deleteWebhook(
       tenant: String,
       webhook: String
-  ): Future[Either[IzanamiError, Unit]] = {
+  ): FutureEither[Done] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql
       .queryOne(
@@ -237,8 +238,9 @@ class WebhooksDatastore(val env: Env) extends Datastore {
          |RETURNING id
          |""".stripMargin,
         List(webhook)
-      ) { r => Some(()) }
-      .map(_.toRight(WebhookDoesNotExists(webhook)))
+      ) { _ => Some((Done.done())) }
+      .map(o => o.toRight(WebhookDoesNotExists(webhook)))
+      .toFEither
   }
 
   def findEnabledWebhooksForScope(

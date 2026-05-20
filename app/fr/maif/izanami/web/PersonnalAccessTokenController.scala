@@ -207,11 +207,7 @@ class PersonnalAccessTokenController(
           )
         )
       } else {
-        env.datastores.personnalAccessToken.deleteAcessToken(id, user).map {
-          case Right(_)  => NoContent
-          case Left(err) =>
-            err.toHttpResponse
-        }
+        env.datastores.personnalAccessToken.deleteAcessToken(id, user).toResult(_ => NoContent)
       }
     }
 

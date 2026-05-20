@@ -27,6 +27,9 @@ import play.api.libs.json.Json
 import play.api.libs.json.Writes
 
 import scala.concurrent.Future
+import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
+import org.apache.pekko.Done
 
 class FeatureContextDatastore(val env: Env) extends Datastore {
   private val postgresql: Postgresql = env.postgresql
@@ -46,10 +49,9 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
          |OR project=$$1)
          |AND protected=true
          |${parent
-          .map(path =>
+          .fold("")(_ =>
             s"""AND "${extensionSchema}".text2ltree($$2) OPERATOR("${extensionSchema}".@>) ctx_path"""
-          )
-          .getOrElse("")}
+          )}
          |""".stripMargin,
       params = parent.fold(List(project))(p => List(project, p.toDBPath))
     ) { r => r.optContext }
@@ -202,7 +204,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
   def deleteGlobalFeatureContext(
       tenant: String,
       path: FeatureContextPath
-  ): Future[Either[IzanamiError, Unit]] = {
+  ): FutureEither[Done] = {
     require(Tenant.isTenantValid(tenant))
     postgresql
       .queryOne(
@@ -212,8 +214,9 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
            |RETURNING *
            |""".stripMargin,
         List(path.toDBPath)
-      ) { r => Some(()) }
+      ) { _ => Some(Done.done()) }
       .map(_.toRight(FeatureContextDoesNotExist(path.toUserPath)))
+      .toFEither
   }
 
   def createContext(
@@ -334,7 +337,6 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
 
   def deleteContext(
       tenant: String,
-      project: String,
       path: FeatureContextPath
   ): Future[Either[IzanamiError, Unit]] = {
     Tenant.isTenantValid(tenant)
@@ -348,7 +350,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
              |""".stripMargin,
           List(path.toDBPath),
           conn = Some(conn)
-        ) { r => Some(()) }
+        ) { _ => Some(()) }
         .map(_.toRight(FeatureContextDoesNotExist(path.toUserPath)))
     })
   }

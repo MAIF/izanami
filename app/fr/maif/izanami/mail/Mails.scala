@@ -260,8 +260,6 @@ object SMTPMailService {
       mail: Mail,
       configuration: SMTPConfiguration,
       originEmail: String
-  )(implicit
-      ec: ExecutionContext
   ): FutureEither[Unit] = {
     val props = new Properties()
     val protocol = if (configuration.smtps) "smtps" else "smtp"

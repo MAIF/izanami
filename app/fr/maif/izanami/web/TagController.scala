@@ -90,7 +90,7 @@ class TagController(
               .map(maybeTenant =>
                 maybeTenant.fold(
                   err => Results.Status(err.status)(Json.toJson(err)),
-                  tag => NoContent
+                  _ => NoContent
                 )
               )
           }

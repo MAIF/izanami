@@ -11,7 +11,6 @@ import fr.maif.izanami.services.CompleteRights
 import fr.maif.izanami.services.MaxRightComplianceResult
 import fr.maif.izanami.services.MaxRights
 import fr.maif.izanami.services.RightService
-import fr.maif.izanami.services.RightService.RightsByRole
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -84,7 +83,7 @@ class LoginController(
   }
 
   private def generatePKCECodes(
-      codeChallengeMethod: Option[String] = Some("S256")
+      codeChallengeMethod: Option[String]
   ) = {
     val code = new Array[Byte](120)
     val secureRandom = new SecureRandom()
@@ -258,7 +257,6 @@ class LoginController(
                             .findUserWithCompleteRights(username)
                             .flatMap(maybeUser => {
                               def createOrUpdateUser(
-                                  rs: Option[RightsByRole],
                                   maxRightsByRoles: Option[
                                     Map[String, MaxRights]
                                   ]
@@ -313,9 +311,6 @@ class LoginController(
                                   .orElse(oauth2Configuration.userRightsByRoles)
 
                               createOrUpdateUser(
-                                rightByRolesFromEnvIfAny.map(
-                                  _.view.mapValues(_.completeRights).toMap
-                                ),
                                 oauth2Configuration.maxRightsByRoles
                               ).value
                                 .flatMap {
@@ -328,13 +323,8 @@ class LoginController(
                                       .updateOIDCRightByRolesIfNeeded(
                                         rightByRolesFromEnvIfAny.get
                                       )
-                                      .flatMap(newRights =>
+                                      .flatMap(_ =>
                                         createOrUpdateUser(
-                                          Some(
-                                            newRights.view
-                                              .mapValues(_.completeRights)
-                                              .toMap
-                                          ),
                                           oauth2Configuration.maxRightsByRoles
                                         )
                                       ).value

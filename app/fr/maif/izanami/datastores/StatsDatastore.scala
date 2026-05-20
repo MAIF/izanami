@@ -270,7 +270,7 @@ class StatsDatastore(val env: Env) extends Datastore {
     env.datastores.configuration
       .readFullConfiguration()
       .fold(
-        err =>
+        _ =>
           Json.obj(
             "wasmo" -> isWasmPresent,
             "oidc" -> false
@@ -289,7 +289,7 @@ class StatsDatastore(val env: Env) extends Datastore {
     env.datastores.configuration
       .readFullConfiguration()
       .fold(
-        err => Json.obj(),
+        _ => Json.obj(),
         c =>
           Json.obj(
             "mailer" -> c.mailConfiguration.mailerType.toString,

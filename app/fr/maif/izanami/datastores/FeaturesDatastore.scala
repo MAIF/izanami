@@ -17,7 +17,6 @@ import fr.maif.izanami.models.features.*
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFuture
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import fr.maif.izanami.utils.syntax.implicits.BetterListEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -45,6 +44,9 @@ import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.reflect.ClassTag
+import fr.maif.izanami.utils.Done
+import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
+
 
 class FeaturesDatastore(val env: Env) extends Datastore {
   val extensionSchema = env.extensionsSchema
@@ -77,7 +79,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         ) yield (project, name, id)
       }
     }.map(ls =>
-      ls.groupMapReduce(t => (t._1, t._2))(t => t._3)((id1, id2) => id1)
+      ls.groupMapReduce(t => (t._1, t._2))(t => t._3)((id1, _) => id1)
     )
   }
 
@@ -1629,7 +1631,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
   def deleteLocalScript(
       tenant: String,
       name: String
-  ): Future[Either[IzanamiError, Unit]] = {
+  ): FutureEither[Done] = {
     Tenant.isTenantValid(tenant)
     env.postgresql
       .queryOne(
@@ -1637,12 +1639,12 @@ class FeaturesDatastore(val env: Env) extends Datastore {
          |DELETE FROM "${tenant}".wasm_script_configurations WHERE id=$$1
          |""".stripMargin,
         List(name)
-      ) { r => Some(()) }
-      .map(_ => Right(()))
+      ) { _ => Some(Done.done()) }
+      .map(_ => Right((Done.done())))
       .recover {
         case f: PgException if f.getSqlState == FOREIGN_KEY_VIOLATION =>
           Left(FeatureDependsOnThisScript())
-      }
+      }.toFEither
   }
 
   def readLocalScriptsWithAssociatedFeatures(

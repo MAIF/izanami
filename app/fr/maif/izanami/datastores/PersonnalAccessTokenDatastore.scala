@@ -32,10 +32,12 @@ import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
 import play.api.libs.json.Reads
 
-import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.UUID
 import scala.concurrent.Future
+import fr.maif.izanami.utils.Done
+import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 
 class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
   def findAccessTokenByIds(ids: Set[UUID]): Future[Map[UUID, String]] = {
@@ -221,7 +223,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
                           rightAsArray
                         ),
                         conn = Some(conn)
-                      ) { r => () }
+                      ) { _ => () }
                       .map(_ =>
                         Right(
                           ReadPersonnalAccessToken(
@@ -253,7 +255,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
                           globalRights.map(t => t.name).toArray
                         ),
                         conn = Some(conn)
-                      ) { r => () }
+                      ) { _ => () }
                       .map(_ =>
                         Right(
                           ReadPersonnalAccessToken(
@@ -336,7 +338,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
                           rightAsList.flatMap(_._2.map(_.name)).toArray
                         ),
                         conn = Some(conn)
-                      ) { r => () }
+                      ) { _ => () }
                       .map(_ => Right(token))
                   };
                   r <- if (globalRights.isEmpty) {
@@ -352,7 +354,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
                           globalRights.map(r => r.name).toArray
                         ),
                         conn = Some(conn)
-                      ) { r => () }
+                      ) { _ => () }
                       .map(_ => Right(token))
                   }
                 ) yield r
@@ -387,7 +389,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
   def deleteAcessToken(
       id: String,
       username: String
-  ): Future[Either[IzanamiError, Unit]] = {
+  ): FutureEither[Done] = {
     env.postgresql
       .queryOne(
         s"""
@@ -396,8 +398,9 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
          |RETURNING id
          |""".stripMargin,
         List(id, username)
-      ) { r => Some(()) }
+      ) { _ => Some((Done.done())) }
       .map(o => o.toRight(TokenDoesNotExist(id, username)))
+      .toFEither
   }
 
   def listUserTokens(user: String): Future[Seq[ReadPersonnalAccessToken]] = {

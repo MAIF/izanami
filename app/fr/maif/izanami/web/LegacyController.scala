@@ -27,7 +27,7 @@ class LegacyController(
         s"""
          |SELECT 1
          |""".stripMargin
-      ) { r =>
+      ) { _ =>
         {
           Some(true)
         }

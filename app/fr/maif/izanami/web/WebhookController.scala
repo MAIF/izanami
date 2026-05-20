@@ -58,12 +58,12 @@ class WebhookController(
                 })
                 .getOrElse(Right(webhook))
                 .fold(
-                  ex => {
+                  _ => {
                     Future.successful(BadRequest(
                       Json.obj("message" -> "Bad handlebar template")
                     ))
                   },
-                  wh => {
+                  _ => {
                     env.datastores.webhook.createWebhook(
                       tenant,
                       webhook,
@@ -98,10 +98,7 @@ class WebhookController(
     )).async { implicit request =>
       env.datastores.webhook
         .deleteWebhook(tenant, id)
-        .map {
-          case Left(err) => err.toHttpResponse
-          case Right(_)  => NoContent
-        }
+        .toResult(_  => NoContent)
     }
 
   def updateWebhook(tenant: String, id: String): Action[JsValue] =

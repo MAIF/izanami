@@ -20,7 +20,6 @@ import fr.maif.izanami.models.SimpleProject
 import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.ImportController
 import fr.maif.izanami.web.ImportController.Fail
 import fr.maif.izanami.web.ImportController.ImportConflictStrategy
 import fr.maif.izanami.web.ImportController.MergeOverwrite

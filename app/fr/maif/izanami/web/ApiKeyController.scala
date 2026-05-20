@@ -158,7 +158,7 @@ class ApiKeyController(
           .map(either =>
             either.fold(
               err => Results.Status(err.status)(Json.toJson(err)),
-              key => NoContent
+              _ => NoContent
             )
           )
 

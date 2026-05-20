@@ -295,7 +295,7 @@ object WasmUtils {
                 })
             } else {
               Try { Json.parse(rawResult) }.toEither.left
-                .map(ex => {
+                .map(_ => {
                   env.logger.error(
                     s"Failed to parse wasm result, result is $rawResult"
                   )

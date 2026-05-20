@@ -346,8 +346,7 @@ class Postgresql(env: Env) {
     therefore this method is "hand made" to manually begining and comitting transactions
    */
   def executeInTransactionAllowingSavepoint[T](
-      callback: (SqlConnection, () => Future[Done]) => Future[T],
-      silentFor: Throwable => Boolean = _ => false
+      callback: (SqlConnection, () => Future[Done]) => Future[T]
   ): Future[T] = {
     implicit val ec: ExecutionContext = env.executionContext
     pool.getConnection().scala.flatMap(conn => {
@@ -628,13 +627,12 @@ object pgimplicits {
 
   implicit class EnhancedRow(val row: Row) extends AnyVal {
     def optString(name: String): Option[String] =
-      opt(name, "String", (a, b) => a.getString(b))
+      opt(name, (a, b) => a.getString(b))
 
     // def optJValueArray(name: String): Option[Array[JsValue]] = opt(name, "String", (a, b) => a.getJsonObject(b))
 
     def opt[A](
         name: String,
-        typ: String,
         extractor: (Row, String) => A
     ): Option[A] = {
       Try(extractor(row, name)) match {
@@ -647,19 +645,19 @@ object pgimplicits {
     }
 
     def optStringArray(name: String): Option[Array[String]] =
-      opt(name, "String", (a, b) => a.getArrayOfStrings(b))
+      opt(name, (a, b) => a.getArrayOfStrings(b))
 
     def optUUID(name: String): Option[UUID] =
-      opt(name, "UUID", (a, b) => a.getUUID(b))
+      opt(name, (a, b) => a.getUUID(b))
 
     def optDouble(name: String): Option[Double] =
-      opt(name, "Double", (a, b) => a.getDouble(b).doubleValue())
+      opt(name, (a, b) => a.getDouble(b).doubleValue())
     def optInt(name: String): Option[Int] =
-      opt(name, "Integer", (a, b) => a.getDouble(b).intValue())
+      opt(name, (a, b) => a.getDouble(b).intValue())
     def optBoolean(name: String): Option[Boolean] =
-      opt(name, "Boolean", (a, b) => a.getBoolean(b))
+      opt(name, (a, b) => a.getBoolean(b))
     def optLong(name: String): Option[Long] =
-      opt(name, "Long", (a, b) => a.getLong(b).longValue())
+      opt(name, (a, b) => a.getLong(b).longValue())
 
     def optDateTime(name: String): Option[OffsetDateTime] = {
       optOffsetDatetime(name).map { d =>
@@ -670,16 +668,15 @@ object pgimplicits {
     }
 
     def optOffsetDatetime(name: String): Option[OffsetDateTime] =
-      opt(name, "OffsetDateTime", (a, b) => a.getOffsetDateTime(b))
+      opt(name, (a, b) => a.getOffsetDateTime(b))
 
     def optLocalDateTime(name: String): Option[LocalDateTime] = {
-      opt(name, "LocalDateTime", (a, b) => a.getLocalDateTime(b))
+      opt(name, (a, b) => a.getLocalDateTime(b))
     }
 
     def optJsObject(name: String): Option[JsObject] =
       opt(
         name,
-        "JsObject",
         (row, _) => {
           Try {
             Json.parse(row.getJsonObject(name).encode()).as[JsObject]
@@ -692,7 +689,6 @@ object pgimplicits {
     def optJsArray(name: String): Option[JsArray] =
       opt(
         name,
-        "JsArray",
         (row, _) => {
           Try {
             Json.parse(row.getJsonArray(name).encode()).as[JsArray]

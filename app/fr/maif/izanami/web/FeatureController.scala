@@ -17,7 +17,6 @@ import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import play.api.libs.json.*
 import play.api.libs.json.Format.GenericFormat
-import play.api.libs.json.Json.JsValueWrapper
 import play.api.mvc.*
 
 import java.time.Instant
@@ -501,7 +500,7 @@ class FeatureController(
                 request.authentication,
                 preserveProtectedContexts
               )
-              .toResult(r => {
+              .toResult(_ => {
                 NoContent
               })
           } else {

@@ -131,7 +131,7 @@ case class WasmManagerClient(client: WSClient, url: String)(implicit
   def tryUntil[T](op: () => Future[T], duration: Duration): Future[T] = {
     val start = System.currentTimeMillis()
 
-    def act(count: Int = 0): Future[T] = {
+    def act(count: Int): Future[T] = {
       if (
         Duration
           .ofMillis(System.currentTimeMillis() - start)
@@ -141,7 +141,7 @@ case class WasmManagerClient(client: WSClient, url: String)(implicit
           s"Failed attempted operation, tried ${count} times"
         )
       }
-      op().recoverWith(ex => {
+      op().recoverWith(_ => {
         Thread.sleep(1000L)
         act(count + 1)
       })

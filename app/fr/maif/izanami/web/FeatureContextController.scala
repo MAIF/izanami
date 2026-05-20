@@ -183,7 +183,7 @@ class FeatureContextController(
                 ).future
               } else {
                 datastore
-                  .deleteContext(tenant, project, context)
+                  .deleteContext(tenant, context)
                   .map {
                     case Left(err) => err.toHttpResponse
                     case Right(_)  => NoContent
@@ -390,10 +390,7 @@ class FeatureContextController(
                   )
                 ).future
               } else {
-                datastore.deleteGlobalFeatureContext(tenant, context).map {
-                  case Left(err) => err.toHttpResponse
-                  case Right(_)  => NoContent
-                }
+                datastore.deleteGlobalFeatureContext(tenant, context).toResult(_ => NoContent)
               }
             })
         }

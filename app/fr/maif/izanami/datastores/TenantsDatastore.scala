@@ -39,6 +39,7 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+import fr.maif.izanami.utils.Done
 
 class TenantsDatastore(val env: Env) extends Datastore {
   def deleteImportStatus(id: UUID): Future[Unit] = {
@@ -76,29 +77,29 @@ class TenantsDatastore(val env: Env) extends Datastore {
   def markImportAsSucceded(
       id: UUID,
       importSuccess: ImportSuccess
-  ): Future[Unit] = {
+  ): Future[Done] = {
     env.postgresql
       .queryOne(
         s"""
          |UPDATE izanami.pending_imports SET status='FINISHED', result=$$2 WHERE id=$$1
          |""".stripMargin,
         List(id, Json.toJson(importSuccess)(importSuccessWrites).vertxJsValue)
-      ) { r => Some(()) }
-      .map(_ => ())
+      ) { _ => Some(()) }
+      .map(_ => Done.done())
   }
 
   def markImportAsFailed(
       id: UUID,
       importFailure: ImportFailure
-  ): Future[Unit] = {
+  ): Future[Done] = {
     env.postgresql
       .queryOne(
         s"""
          |UPDATE izanami.pending_imports SET status='FAILED', result=$$2 WHERE id=$$1
          |""".stripMargin,
         List(id, Json.toJson(importFailure)(importFailureWrites).vertxJsValue)
-      ) { r => Some(()) }
-      .map(_ => ())
+      ) { _ => Some(()) }
+      .map(_ => Done.done())
   }
 
   def markImportAsStarted(): Future[Either[IzanamiError, UUID]] = {
@@ -201,7 +202,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
             createDBSchema()
               .map(_ => t)
               .left
-              .flatMap(err => {
+              .flatMap(_ => {
                 logger.error(
                   "Tenant creation failed, retrying (tenant failure could be caused by concurrent tenant creation"
                 )

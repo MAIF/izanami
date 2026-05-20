@@ -21,7 +21,6 @@ import play.api.mvc.Action
 import play.api.mvc.AnyContent
 import play.api.mvc.BaseController
 import play.api.mvc.ControllerComponents
-import play.api.mvc.Results.Ok
 
 import scala.concurrent.ExecutionContext
 

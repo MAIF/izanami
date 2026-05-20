@@ -11,7 +11,6 @@ import fr.maif.izanami.api.BaseAPISpec.TestUser
 import fr.maif.izanami.api.BaseAPISpec.TestWasmConfig
 import fr.maif.izanami.api.BaseAPISpec.enabledFeatureBase64
 import fr.maif.izanami.api.BaseAPISpec.importWithToken
-import org.scalatest.matchers.should.Matchers.should
 import org.awaitility.Awaitility.await
 import play.api.http.Status.ACCEPTED
 import play.api.http.Status.CREATED
@@ -1682,7 +1681,7 @@ class ImportApiSpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-      var response = situation.importAndWaitTermination(
+      situation.importAndWaitTermination(
         tenant = "testtenant",
         deduceProject = false,
         project = "fifou",
@@ -1692,7 +1691,7 @@ class ImportApiSpec extends BaseAPISpec {
         )
       )
 
-      response = situation.importAndWaitTermination(
+      situation.importAndWaitTermination(
         tenant = "testtenant",
         deduceProject = false,
         project = "fifou",

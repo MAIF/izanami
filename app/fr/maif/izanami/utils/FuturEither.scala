@@ -84,9 +84,7 @@ case class FutureEither[+A](value: Future[Either[IzanamiError, A]]) {
 }
 
 object FutureEither {
-  def from[A](value: Either[IzanamiError, A])(implicit
-      ec: ExecutionContext
-  ): FutureEither[A] = FutureEither(Future.successful(value))
+  def from[A](value: Either[IzanamiError, A]): FutureEither[A] = FutureEither(Future.successful(value))
   def success[A](value: A): FutureEither[A] = FutureEither(
     Future.successful(Right(value))
   )

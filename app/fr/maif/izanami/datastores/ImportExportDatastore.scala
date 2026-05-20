@@ -584,7 +584,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
             {
               rows.map(r => r.getString("feature"))
             }
-          }.map(updatedFeatureIds => {
+          }.map(_ => {
             UnitDBImportResult(updatedElements = featureIds)
           })
       })
@@ -1002,7 +1002,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
           conn = maybeConn
         ) { _ => Some(()) }
         .map(_ => ())
-        .recoverWith(ex => {
+        .recoverWith(_ => {
           // User right on tenant may fail if user does not exist
           Future.successful(())
         })

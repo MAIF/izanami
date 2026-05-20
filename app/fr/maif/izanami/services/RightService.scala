@@ -144,7 +144,7 @@ class RightService(
         Done.done()
       })
       .value
-      .map(e => Done.done())
+      .map(_ => Done.done())
 
   }
 
@@ -302,7 +302,7 @@ class RightService(
       tenant: String,
       diff: TenantRightDiff,
       maybeMaxRightsByRoles: Option[Map[String, MaxRights]],
-      conn: Option[SqlConnection] = None,
+      conn: Option[SqlConnection],
       force: Boolean = false,
       conflictStrategy: ImportConflictStrategy = Replace
   ): FutureEither[Done] = {
@@ -333,7 +333,7 @@ class RightService(
                   Left(
                     RightComplianceError(
                       s"User role doesn't allow him to have following rights on tenant ${tenant}:\n"
-                        .concat(compliance.toError(tenant).mkString("\n"))
+                        .concat(compliance.toError.mkString("\n"))
                     )
                   )
                 } else {
@@ -629,7 +629,7 @@ class RightService(
         .map(rights => {
           users.flatMap(user => {
             val maxPossibleRight =
-              rights.maxRightForProject(tenant, project, user.roles)
+              rights.maxRightForProject(tenant, user.roles)
             maxPossibleRight.toMaybeProjectRightLevel.map(maxRight => {
               if (shouldCheckMaxRight(user)) {
                 val rightAboveMaxRights =
@@ -665,7 +665,7 @@ class RightService(
         .map(rights => {
           users.flatMap(user => {
             val maxPossibleRight =
-              rights.maxRightForKey(tenant, key, user.roles)
+              rights.maxRightForKey(tenant, user.roles)
             maxPossibleRight.toMaybeRightLevel.map(maxRight => {
               if (shouldCheckMaxRight(user)) {
                 val rightAboveMaxRights =
@@ -703,7 +703,7 @@ class RightService(
         .map(rights => {
           users.flatMap(user => {
             val maxPossibleRight =
-              rights.maxRightForWebhook(tenant, webhook, user.roles)
+              rights.maxRightForWebhook(tenant, user.roles)
             maxPossibleRight.toMaybeRightLevel.map(maxRight => {
               if (shouldCheckMaxRight(user)) {
                 val rightAboveMaxRights =
@@ -1079,7 +1079,7 @@ case class TenantRightComplianceResult(
       keys.isEmpty &&
       webhooks.isEmpty
 
-  def toError(tenant: String): Seq[String] = {
+  def toError: Seq[String] = {
     val msgs = ArrayBuffer[String]()
     if (levelRight.isDefined) {
       msgs.addOne(
@@ -1183,7 +1183,7 @@ case class MaxRightComplianceResult(
     }
     tenants.foreach { (name, rights) =>
       {
-        val tenantErrors = rights.toError(name)
+        val tenantErrors = rights.toError
         if (tenantErrors.nonEmpty) {
           errors.addOne(
             s"User role doesn't allow him to have following rights on tenant ${name}:"
@@ -1234,7 +1234,6 @@ case class OIDCRights(rights: Map[String, CompleteRightsWithMaxRights]) {
 
   def maxRightForProject(
       tenant: String,
-      project: String,
       roles: Set[String]
   ): ProjectRightLevelIncludingNoRight = {
     (for (
@@ -1245,7 +1244,6 @@ case class OIDCRights(rights: Map[String, CompleteRightsWithMaxRights]) {
 
   def maxRightForKey(
       tenant: String,
-      key: String,
       roles: Set[String]
   ): RightLevelIncludingNoRight = {
     (for (
@@ -1256,7 +1254,6 @@ case class OIDCRights(rights: Map[String, CompleteRightsWithMaxRights]) {
 
   def maxRightForWebhook(
       tenant: String,
-      webhook: String,
       roles: Set[String]
   ): RightLevelIncludingNoRight = {
     (for (

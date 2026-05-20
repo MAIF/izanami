@@ -87,7 +87,7 @@ class WebhookListener(env: Env, eventService: EventService) {
   ): Unit = {
     tenantToListen.keySet.foldLeft(FutureEither.success(Done.done()))(
       (future, tenant) => {
-        future.transformWith(e => {
+        future.transformWith(_ => {
           datastore
             .findAbandoneddWebhooks(tenant)
             .fold(

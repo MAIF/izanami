@@ -669,7 +669,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       usernames: Set[String],
       tenant: String,
       rights: UpsertTenantRights,
-      importConflictStrategy: ImportConflictStrategy = Replace,
+      importConflictStrategy: ImportConflictStrategy,
       conn: SqlConnection
   ): FutureEither[Unit] = {
     require(Tenant.isTenantValid(tenant))
@@ -772,8 +772,9 @@ class UsersDatastore(val env: Env) extends Datastore {
            |DELETE FROM izanami.sessions s
            |WHERE s.username IN (SELECT username FROM users_to_logout)
            |""".stripMargin,
-            List(roles.toArray)
-          ) { r => Some(()) }
+            params = List(roles.toArray),
+            conn = Some(conn)
+          ) { _ => Some(()) }
           .mapToFEither()
           .map(_ => Done.done())
       }
@@ -813,7 +814,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def updateUserRoles(user: String, roles: Set[String], conn: Option[SqlConnection]): FutureEither[Done] = {
-    env.postgresql.queryOne(s"UPDATE izanami.users SET roles=$$1 WHERE username=$$2", params = List(JsArray(roles.map(JsString(_)).toIndexedSeq).vertxJsValue, user), conn= conn)(r => {
+    env.postgresql.queryOne(s"UPDATE izanami.users SET roles=$$1 WHERE username=$$2", params = List(JsArray(roles.map(JsString(_)).toIndexedSeq).vertxJsValue, user), conn= conn)(_ => {
       Some(Done.done())
     }).map(_ => Done.done())
     .mapToFEither
@@ -903,7 +904,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     )
   }
 
-  def deleteUser(username: String): Future[Unit] = {
+  def deleteUser(username: String): Future[Done] = {
     env.postgresql
       .queryOne(
         s"""
@@ -911,12 +912,12 @@ class UsersDatastore(val env: Env) extends Datastore {
          |WHERE username=$$1
          |""".stripMargin,
         List(username)
-      ) { row =>
+      ) { _ =>
         {
-          Some(())
+          Some(Done.done())
         }
       }
-      .map(o => o.getOrElse(()))
+      .map(o => o.getOrElse(Done.done()))
   }
 
   def hasRightFor(
@@ -1476,8 +1477,7 @@ class UsersDatastore(val env: Env) extends Datastore {
          |from izanami.users u
          |WHERE u.username=ANY($$1::TEXT[])
          |${roles
-          .map(rs => s"AND u.roles=ANY($$2::TEXT[])")
-          .getOrElse("")}""".stripMargin,
+          .fold("")(_ => s"AND u.roles=ANY($$2::TEXT[])")}""".stripMargin,
       roles
         .map(rs => List(usernames.toArray, rs.toArray))
         .getOrElse(List(usernames.toArray))
@@ -1788,7 +1788,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   def addUserRightsToTenant(
       tenant: String,
       users: Seq[(String, RightLevel)]
-  ): Future[Unit] = {
+  ): Future[Done] = {
     env.postgresql
       .queryOne(
         s"""
@@ -1801,8 +1801,8 @@ class UsersDatastore(val env: Env) extends Datastore {
           users.map(_._1).toArray,
           users.map(_._2.toString.toUpperCase).toArray
         )
-      ) { r => Some(()) }
-      .map(_ => ())
+      ) { _ => Some(Done.done()) }
+      .map(o => o.getOrElse(Done.done()))
   }
 
   def findUserWithRightForTenant(

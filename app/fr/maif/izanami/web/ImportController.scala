@@ -25,8 +25,6 @@ import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.Base64
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.Wasmo
 import org.apache.pekko.util.ByteString
 import play.api.libs.Files
-import play.api.libs.json.*
-import play.api.mvc.*
 
 import java.net.URI
 import java.time.Instant
@@ -46,6 +44,19 @@ import fr.maif.izanami.errors.UnknownImportType
 import fr.maif.izanami.errors.ImportFailureError
 import fr.maif.izanami.errors.MissingImportFile
 import fr.maif.izanami.errors.FailedToReadImportFile
+import play.api.libs.json.Reads
+import play.api.libs.json.Writes
+import play.api.libs.json.Json
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.JsError
+import play.api.mvc.ControllerComponents
+import play.api.mvc.BaseController
+import play.api.mvc.Action
+import play.api.mvc.AnyContent
+import play.api.mvc.MultipartFormData
+import play.api.libs.json.JsObject
+import play.api.mvc.Result
+import play.api.libs.json.JsString
 
 sealed trait ImportStatus
 case object ImportPending extends ImportStatus {
@@ -211,7 +222,6 @@ class ImportController(
       conflict: String,
       timezone: Option[String],
       deduceProject: Boolean,
-      create: Option[Boolean],
       project: Option[String],
       projectPartSize: Option[Int],
       inlineScript: Option[Boolean],
@@ -234,7 +244,6 @@ class ImportController(
               conflict,
               tz,
               deduceProject,
-              create,
               project,
               projectPartSize,
               inlineScript
@@ -552,7 +561,7 @@ class ImportController(
 
     val maybeProject = (json \ "project")
       .asOpt[String]
-      .filter(p => contextType == LocalContextType)
+      .filter(_ => contextType == LocalContextType)
 
     val isProtected = (json \ "protected").asOpt[Boolean].getOrElse(false)
 
@@ -574,7 +583,6 @@ class ImportController(
       conflict: String,
       timezone: String,
       deduceProject: Boolean,
-      create: Option[Boolean],
       project: Option[String],
       projectPartSize: Option[Int],
       inlineScript: Option[Boolean]
@@ -975,7 +983,7 @@ object ImportController {
       value: Try[Seq[Either[String, R]]]
   ): Either[Seq[String], Seq[R]] = {
     value.toEither.left
-      .map(t => Seq("Failed to read file"))
+      .map(_ => Seq("Failed to read file"))
       .flatMap(eithers => {
         eithers.foldLeft(Right(Seq()): Either[Seq[String], Seq[R]])(
           (either, next) => {
