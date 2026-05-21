@@ -38,7 +38,7 @@
     "react-select": "^5.10.1",
     "react-tooltip": "^5.28.0",
     "swagger-ui": "^5.20.1",
-    "uuid": "^11.1.0"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
