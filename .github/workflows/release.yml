@@ -35,12 +35,11 @@ jobs:
         run: sbt "set test in assembly := {}" clean assembly
       - name: release
         env:
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
-          PGP_SECRET: ${{ secrets.PGP_SECRET }}
+          MAVEN_REPO_URL: ${{ secrets.MAVEN_REPO_URL }}
+          MAVEN_REPO_HOST: ${{ secrets.MAVEN_REPO_HOST }}
+          MAVEN_REPO_PASSWORD: ${{ secrets.MAVEN_REPO_PASSWORD }}
+          MAVEN_REPO_USERNAME: ${{ secrets.MAVEN_REPO_USERNAME }}
         run: |
-          echo $PGP_SECRET | base64 --decode | gpg  --batch --import 2> /dev/null
           git checkout .
           git config --global user.email "izanami-release-bot@users.noreply.github.com"
           git config --global user.name "izanami-release-bot"
