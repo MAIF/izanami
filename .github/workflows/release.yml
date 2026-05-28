@@ -40,6 +40,8 @@ jobs:
           MAVEN_REPO_PASSWORD: ${{ secrets.MAVEN_REPO_PASSWORD }}
           MAVEN_REPO_USERNAME: ${{ secrets.MAVEN_REPO_USERNAME }}
         run: |
+          echo "::add-mask::${{ secrets.MAVEN_REPO_URL }}"
+          echo "::add-mask::${{ secrets.MAVEN_REPO_HOST }}"
           git checkout .
           git config --global user.email "izanami-release-bot@users.noreply.github.com"
           git config --global user.name "izanami-release-bot"
