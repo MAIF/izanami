@@ -15,6 +15,27 @@ import java.time.ZoneId
 
 class ExportAPISpec extends BaseAPISpec {
   "Export endpoint" should {
+    "Allow to export only webhooks" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+        )
+        .withPersonnalAccessToken(
+          TestPersonnalAccessToken(name = "foo", allRights = true)
+        )
+        .build()
+
+
+        situation.exportWithTokenName(
+        "tenant",
+        situation.user,
+        "foo",
+        allProjects = false,
+        allKeys = false
+      ).status mustBe OK
+    }
+
     "Allow to export with personnal access tokens with all rights if is global admin" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()

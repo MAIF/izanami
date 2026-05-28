@@ -9,7 +9,6 @@ import play.api.libs.json.Json
 import play.api.test.Helpers.await
 import play.api.libs.json.JsObject
 import play.api.libs.json.JsBoolean
-import play.api.libs.json.JsFalse
 import play.api.libs.json.JsTrue
 import play.api.libs.json.*
 

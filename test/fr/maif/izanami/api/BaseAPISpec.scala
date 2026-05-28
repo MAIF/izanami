@@ -1164,7 +1164,14 @@ object BaseAPISpec extends DefaultAwaitTimeout {
   def exportWithTokenSecret(
       tenant: String,
       user: String,
-      secret: String
+      secret: String,
+      allProjects: Boolean = true,
+      allKeys: Boolean = true,
+      allWebhooks: Boolean = true,
+      projects: Seq[String] = Seq(),
+      keys: Seq[String] = Seq(),
+      webhooks: Seq[String] = Seq(),
+      userRights: Boolean = false
   ): RequestResult = {
     val response = await(
       ws.url(s"${ADMIN_BASE_URL}/tenants/$tenant/_export")
@@ -1173,13 +1180,13 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         )
         .post(
           Json.obj(
-            "allProjects" -> true,
-            "allKeys" -> true,
-            "allWebhooks" -> true,
-            "userRights" -> false,
-            "webhooks" -> Seq[String](),
-            "projects" -> Seq[String](),
-            "keys" -> Seq[String]()
+            "allProjects" -> allProjects,
+            "allKeys" -> allKeys,
+            "allWebhooks" -> allWebhooks,
+            "userRights" -> userRights,
+            "webhooks" -> webhooks,
+            "projects" -> projects,
+            "keys" -> keys
           )
         )
     )
@@ -2914,10 +2921,28 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     def exportWithTokenName(
         tenant: String,
         user: String,
-        name: String
+        name: String,
+        allProjects: Boolean = true,
+        allKeys: Boolean = true,
+        allWebhooks: Boolean = true,
+        projects: Seq[String] = Seq(),
+        keys: Seq[String] = Seq(),
+        webhooks: Seq[String] = Seq(),
+        userRights: Boolean = false
     ): RequestResult = {
       val secret = findTokenSecret(user, name)
-      exportWithTokenSecret(tenant, user, secret)
+      exportWithTokenSecret(
+        tenant,
+        user,
+        secret,
+        allProjects = allProjects,
+        allKeys = allKeys,
+        allWebhooks = allWebhooks,
+        projects = projects,
+        keys = keys,
+        webhooks = webhooks,
+        userRights = userRights
+      )
     }
 
     def createTenant(

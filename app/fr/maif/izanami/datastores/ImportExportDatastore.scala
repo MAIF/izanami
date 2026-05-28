@@ -880,9 +880,9 @@ class ImportExportDatastore(val env: Env) extends Datastore {
          |), context_results AS (
          |    SELECT DISTINCT jsonb_build_object('_type', 'context', 'row', to_jsonb(c.*) - 'ctx_path') as result
          |    FROM "${tenant}".new_contexts c${projectFilter
-          .map(_ => """
+          .map(_ => s"""
          |    , overload_results ors
-         |    WHERE c.ctx_path = ors.context
+         |    WHERE "${extensionSchema}".ltree_eq(c.ctx_path, ors.context)
          |    AND c.project = ors.project""".stripMargin)
           .getOrElse("")}
          |), key_results AS (
