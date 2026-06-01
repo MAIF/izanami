@@ -64,7 +64,7 @@
     "terser": "^5.39.0",
     "typescript": "^5.8.2",
     "vite": "^6.2.3",
-    "vitest": "^4.0.8"
+    "vitest": "^4.1.0"
   },
   "overrides": {
     "@codemirror/state": "6.4.1"
