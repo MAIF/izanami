@@ -7,6 +7,30 @@ import {
   TUser,
 } from "./types";
 
+
+function normalizeContextName(context: string) {
+  if(context.startsWith("/")) {
+    return context.slice(1)
+  } else {
+    return context
+  }
+}
+
+export function clientUrlForContext(context: string, clientUrlByContexts: {[k: string]: string}, expositionUrl: string): string {
+  console.log("clientUrlByContexts", clientUrlByContexts)
+  let actualContext = normalizeContextName(context)
+
+  if(actualContext === "") {
+    return clientUrlByContexts?.[""] ?? expositionUrl;
+  }
+  
+  return Object.entries(clientUrlByContexts).filter(([context, url]) => {
+    const keep = actualContext.startsWith(normalizeContextName(context))
+    return keep
+  })
+    .toSorted(([context1, url1], [context2, key2]) => context2.length - context1.length).at(0)?.[1] ?? expositionUrl
+}
+
 /**
  * return all possible paths extracted from a context list
  * @param contexts context list

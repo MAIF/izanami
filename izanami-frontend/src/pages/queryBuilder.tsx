@@ -15,10 +15,12 @@ import { Loader } from "../components/Loader";
 import { AllContexts } from "../components/AllContextSelect";
 import { FeatureSelector } from "../components/FeatureSelector";
 import { ProjectSelector } from "../components/ProjectSelector";
+import { clientUrlForContext } from "../utils/contextUtils";
 
 export function QueryBuilder() {
   const { tenant } = useParams();
-  const { expositionUrl } = React.useContext(IzanamiContext);
+  const { expositionUrl, clientUrlByContexts } = React.useContext(IzanamiContext);
+
 
   const tagQuery = useQuery({
     queryKey: [tagsQueryKey(tenant!)],
@@ -41,7 +43,8 @@ export function QueryBuilder() {
   const [context, setContext] = React.useState<string>("");
   const [date, setDate] = React.useState<Date>(new Date());
   const [user, setUser] = React.useState<string>("");
-  const [baseUrl, setBaseUrl] = React.useState<string>(expositionUrl ?? "");
+  const initiallUrl = clientUrlForContext(context ?? "", clientUrlByContexts, expositionUrl ?? "");
+  const [baseUrl, setBaseUrl] = React.useState<{url: string, initial: boolean}>({url: initiallUrl, initial: true});
   const [parseError, setParseError] = React.useState<string>("");
   const [jsonDisplay, setJsonDisplay] = React.useState(false);
   const [tagDisplay, setTagDisplay] = React.useState(false);
@@ -76,7 +79,7 @@ export function QueryBuilder() {
   const callUrl = `${expositionUrl}/api/admin/tenants/${tenant}/features/_test${
     queryStr.length > 0 ? "?" + queryStr : ""
   }`;
-  const url = `${baseUrl}/api/v2/features${
+  const url = `${baseUrl.url}/api/v2/features${
     queryStr.length > 0 ? "?" + queryStr : ""
   }`;
 
@@ -155,7 +158,7 @@ export function QueryBuilder() {
                           setContext(context);
                           setSelectedProjects(projects);
                           setFeatures(features);
-                          setBaseUrl(baseUrl);
+                          setBaseUrl({url: baseUrl, initial: true});
                         }
                       }}
                     >
@@ -218,6 +221,10 @@ export function QueryBuilder() {
                     } else {
                       setContext(value);
                     }
+                    if(baseUrl.initial) {
+                      const baseUrlToUpdate = clientUrlForContext(value ?? "", clientUrlByContexts, expositionUrl ?? "")
+                      setBaseUrl({url: baseUrlToUpdate, initial: true})
+                    }
                   }}
                 />
               </label>
@@ -236,10 +243,10 @@ export function QueryBuilder() {
             <label className="col-sm">
               Base url
               <input
-                value={baseUrl}
+                value={baseUrl.url}
                 type="text"
                 className="form-control"
-                onChange={(e) => setBaseUrl(e.target.value)}
+                onChange={(e) => setBaseUrl({url: e.target.value, initial: false})}
               />
             </label>
           </div>

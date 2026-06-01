@@ -241,7 +241,46 @@ but `prod/mobile` and all its children won't.
 | Context allowlist          | IZANAMI_CLUSTER_CONTEXT_ALLOWLIST     | app.mode.context-allowlist      | null        |
 | Context blocklist          | IZANAMI_CLUSTER_CONTEXT_BLOCKLIST     | app.mode.context-blocklist      | []          |
 
+#### Worker exposition URL
 
+
+When using leader / worker mode, you must specify on which URL worker are exposed. This is used to display correct URLs
+in UI.
+
+Additionally you can specify which worker to use for each contexts, this is usefull when using allowlist & blocklist on contexts.
+
+Fot these two needs, you can specify url of worker associated with each context.
+
+When computing worker url to use for a given context, Izanami will try to find an exact match. If an exact match does not exist
+Izanami look for an url associated with a parent context, etc...
+
+If no url is found, url associated with default context if used. If this is not defined exposition url is used (i.e. leader URL).
+
+For instance for below configuration:
+
+```json
+{
+  "prod": "http://prod.com",
+  "dev": "http://dev.com",
+  "dev/subdev": "http://subdev.com",
+  "": "http://default.com",
+}
+```
+
+* URL `http://prod.com` will be used for `prod` and `prod/*` contexts (i.e. `prod/mobile`, `prod/whatever`, ...)
+* URL `http://dev.com` will be used for `dev` context
+* URL `http://subdev.com` will be used for `dev/subdev` context and `dev/subdev/*` contexts
+* URL `http://default.com` will be used for any other contexts
+
+To pass IZANAMI_WORKER_URL_BY_CONTEXTS through env variable, just wrap it in `'`:
+
+```sh
+IZANAMI_WORKER_URL_BY_CONTEXTS='{"prod": "http://prod.com","dev": "http://dev.com","dev/subdev": "http://subdev.com","": "http://default.com"}'
+```
+
+|                            | Environnement variable                | Program argument                | Default     |
+| -------------------------- | ------------------------------------- | ------------------------------- | ----------- |
+| Worker URL by context      | IZANAMI_WORKER_URL_BY_CONTEXTS        | worker-url-by-contexts          | \{\}          |
 
 
 ### Audit

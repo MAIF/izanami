@@ -83,3 +83,14 @@ Instantiating Izanami in `leader` mode will:
 In order to prevent accidental calls from one environnement to another, Izanami allows defining **blocklist** and **allowlist** on worker instances.
 
 Read [dedicated configuration section](/04-guides/12-configuration.mdx#worker-instances-context-allowlist--blocklist) to learn more about these blocklists and allowlists.
+
+
+## Configure exposition URL for Leader / Worker mode
+
+<Note>Worker exposition URLs are available from Izanami 2.25.0</Note>
+
+In leader/worker mode, [exposition URL](/04-guides/12-configuration.mdx#exposition-url) is not sufficient since UI and feature evaluation endpoints are exposed by different instances.
+
+[Exposition URL](/04-guides/12-configuration.mdx#exposition-url) must be used to indicate exposition URL of admin UI (leader instance).
+
+[Worker exposition URLs](/04-guides/12-configuration.mdx#worker-exposition-url) must be used to indicate exposition URL of worker, different worker url may be associated to different contexts.

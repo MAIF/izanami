@@ -850,6 +850,7 @@ export class App extends Component<any, AppState> {
       mode: Modes.dark,
       version: undefined,
       user: undefined,
+      clientUrlByContexts: {},
       setUser: (user: TUser) => {
         this.setState({ user: user });
         if (user.admin) {
@@ -993,8 +994,8 @@ export class App extends Component<any, AppState> {
           });
         });
       },
-      setExpositionUrl: (url) => {
-        this.setState({ expositionUrl: url });
+      setExpositionUrls: ({url, clientUrlByContexts}) => {
+        this.setState({ expositionUrl: url, clientUrlByContexts });
       },
       integrations: undefined,
     };
@@ -1012,7 +1013,7 @@ export class App extends Component<any, AppState> {
     if (!this.state.expositionUrl) {
       fetch("/api/admin/exposition")
         .then((response) => response.json())
-        .then(({ url }) => this.setState({ expositionUrl: url }));
+        .then(({ url, clientUrlByContexts }) => this.setState({ expositionUrl: url, clientUrlByContexts }));
     }
   }
 

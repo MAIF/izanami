@@ -18,9 +18,10 @@ export interface TIzanamiContext {
   mode: ModeValue;
   version?: string;
   expositionUrl?: string;
+  clientUrlByContexts: {[k: string]: string};
   user?: TUser;
   setUser: (user: TUser) => void;
-  setExpositionUrl: (url: string) => void;
+  setExpositionUrls: (urls: {url: string, clientUrlByContexts: {[k:string]: string}}) => void;
   logout: () => void;
   displayModal: (content: React.FC<{ close: () => void }>) => Promise<void>;
   askConfirmation: (
@@ -68,7 +69,8 @@ export const IzanamiContext = React.createContext<TIzanamiContext>({
     /* */
   },
   expositionUrl: undefined,
-  setExpositionUrl: () => {
+  clientUrlByContexts: {},
+  setExpositionUrls: () => {
     /* */
   },
   integrations: undefined,

@@ -49,6 +49,7 @@ import { constraints } from "@maif/react-forms";
 import { GlobalContextIcon } from "../utils/icons";
 import {
   analyzeUpdateImpact,
+  clientUrlForContext,
   extractContextsMatching,
   findContextWithOverloadsForFeature,
   findOverloadsForFeature,
@@ -582,10 +583,12 @@ function FeatureUrl(props: {
   });
   const [selectedContext, setSelectedContext] = useState(context);
 
-  const { expositionUrl } = React.useContext(IzanamiContext);
+  const { clientUrlByContexts, expositionUrl } = React.useContext(IzanamiContext);
+
+  const clientUrl = clientUrlForContext(selectedContext ?? "", clientUrlByContexts, expositionUrl ?? "<BASE-IZANAMI-URL>")
 
   const url = `${
-    expositionUrl ? expositionUrl : "<BASE-IZANAMI-URL>"
+    clientUrl
   }/api/v2/features/${feature.id}${
     selectedContext ? "?context=" + encodeURIComponent(selectedContext) : ""
   }`;
@@ -1809,10 +1812,7 @@ export function FeatureTable(props: {
       },
       action: (feature: TLightFeature) =>
         askConfirmation(
-          <FeatureUrl tenant={tenant!} feature={feature} />,
-          () => Promise.resolve(),
-          () => Promise.resolve(),
-          "Close",
+          <FeatureUrl tenant={tenant!} feature={feature} />
         ),
     },
   };

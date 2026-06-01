@@ -152,9 +152,11 @@ class ConfigurationController(
   }
 
   def readExpositionUrl(): Action[AnyContent] = Action { implicit request =>
-    val url = env.typedConfiguration.exposition.backend
+    val adminUrl = env.typedConfiguration.exposition.backend
       .getOrElse(env.expositionUrl)
-    Ok(Json.obj("url" -> url))
+    val clientUrlByContexts = env.typedConfiguration.cluster.workerUrlByContexts
+    
+    Ok(Json.obj("url" -> adminUrl, "clientUrlByContexts" -> clientUrlByContexts))
   }
 
   def availableIntegrations(): Action[AnyContent] = Action.async {
