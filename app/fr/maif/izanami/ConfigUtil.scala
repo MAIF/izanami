@@ -31,7 +31,7 @@ object ConfigUtil {
           value.unwrapped().asInstanceOf[String]
         ).asOpt[Map[
           String,
-          String
+          Map[String, String]
         ]].map(scalaMap => {
           scalaMap.asJava
         }).getOrElse(java.util.Map.of());

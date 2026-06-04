@@ -16,8 +16,7 @@ function normalizeContextName(context: string) {
   }
 }
 
-export function clientUrlForContext(context: string, clientUrlByContexts: {[k: string]: string}, expositionUrl: string): string {
-  console.log("clientUrlByContexts", clientUrlByContexts)
+export function clientUrlForContext(context: string, clientUrlByContexts: {[ctx: string]: string}, expositionUrl: string): string {
   let actualContext = normalizeContextName(context)
 
   if(actualContext === "") {
@@ -28,7 +27,14 @@ export function clientUrlForContext(context: string, clientUrlByContexts: {[k: s
     const keep = actualContext.startsWith(normalizeContextName(context))
     return keep
   })
-    .toSorted(([context1, url1], [context2, key2]) => context2.length - context1.length).at(0)?.[1] ?? expositionUrl
+    .toSorted(([context1, url1], [context2, key2]) => {
+      const partCount1 = context1.split("/").length
+      const partCount2 = context2.split("/").length
+      if(partCount1 !== partCount2) {
+        return partCount2 - partCount1;
+      }
+      return context2.length - context1.length
+    }).at(0)?.[1] ?? expositionUrl
 }
 
 /**

@@ -18,7 +18,7 @@ export interface TIzanamiContext {
   mode: ModeValue;
   version?: string;
   expositionUrl?: string;
-  clientUrlByContexts: {[k: string]: string};
+  clientUrlByContexts: {[tenant: string]: {[ctx: string]: string}};
   user?: TUser;
   setUser: (user: TUser) => void;
   setExpositionUrls: (urls: {url: string, clientUrlByContexts: {[k:string]: string}}) => void;

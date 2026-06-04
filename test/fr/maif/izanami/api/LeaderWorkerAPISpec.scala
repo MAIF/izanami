@@ -12,10 +12,27 @@ import play.api.http.Status.NOT_FOUND
 import play.api.http.Status.OK
 import play.api.test.Helpers.await
 import play.api.libs.json.Json
+import scala.jdk.CollectionConverters.*
 
 
 class LeaderWorkerAPISpec extends BaseAPISpec {
+  val workerUrlByContexts = Map(
+    "app.cluster.worker-url-by-contexts.foo.prod" -> "http://prod.com"
+  )
   "Leader mode" should {
+    "serve worker by context urls" in {
+
+      val testSitutation = TestSituationBuilder()
+        .withTenantNames("foo")
+        .withCustomConfiguration(Map("app.cluster.mode" -> "leader") ++ workerUrlByContexts)
+        .loggedInWithAdminRights()
+        .build()
+
+        val res = (testSitutation.fetchExposition().json.get \ "clientUrlByContexts").as[Map[String, Map[String, String]]]
+
+        res mustEqual Map("foo" -> Map("prod" -> "http://prod.com"))
+    }
+
     "allow to call admin endpoints" in {
       val testSitutation = TestSituationBuilder()
         .withTenants(
@@ -72,6 +89,17 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
   }
 
   "Worker mode" should {
+    "not serve worker by context urls" in {
+      var testSitutation = TestSituationBuilder()
+        .withTenantNames("foo")
+        .loggedInWithAdminRights()
+        .build()
+
+        val res = (testSitutation.fetchExposition().json.get \ "clientUrlByContexts").as[Map[String, Map[String, String]]]
+        testSitutation = testSitutation.restartServerWithConf(Map("app.cluster.mode" -> "worker") ++ workerUrlByContexts)
+
+        res mustBe empty
+    }
     "allow to call client endpoints" in {
       var testSitutation = TestSituationBuilder()
         .withTenants(
@@ -272,6 +300,18 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
   }
 
   "Standalone mode" should {
+    "not serve worker by context urls" in {
+
+      val testSitutation = TestSituationBuilder()
+        .withTenantNames("foo")
+        .withCustomConfiguration(Map("app.cluster.mode" -> "standalone") ++ workerUrlByContexts)
+        .loggedInWithAdminRights()
+        .build()
+
+        val res = (testSitutation.fetchExposition().json.get \ "clientUrlByContexts").as[Map[String, Map[String, String]]]
+
+        res mustBe empty
+    }
     "allow to call client endpoints" in {
       val testSitutation = TestSituationBuilder()
         .withTenants(

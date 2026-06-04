@@ -585,7 +585,7 @@ function FeatureUrl(props: {
 
   const { clientUrlByContexts, expositionUrl } = React.useContext(IzanamiContext);
 
-  const clientUrl = clientUrlForContext(selectedContext ?? "", clientUrlByContexts, expositionUrl ?? "<BASE-IZANAMI-URL>")
+  const clientUrl = clientUrlForContext(selectedContext ?? "", clientUrlByContexts?.[tenant] ?? {}, expositionUrl ?? "<BASE-IZANAMI-URL>")
 
   const url = `${
     clientUrl

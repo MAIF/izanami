@@ -43,7 +43,7 @@ export function QueryBuilder() {
   const [context, setContext] = React.useState<string>("");
   const [date, setDate] = React.useState<Date>(new Date());
   const [user, setUser] = React.useState<string>("");
-  const initiallUrl = clientUrlForContext(context ?? "", clientUrlByContexts, expositionUrl ?? "");
+  const initiallUrl = clientUrlForContext(context ?? "", clientUrlByContexts?.[tenant!] ?? {}, expositionUrl ?? "");
   const [baseUrl, setBaseUrl] = React.useState<{url: string, initial: boolean}>({url: initiallUrl, initial: true});
   const [parseError, setParseError] = React.useState<string>("");
   const [jsonDisplay, setJsonDisplay] = React.useState(false);
@@ -222,7 +222,7 @@ export function QueryBuilder() {
                       setContext(value);
                     }
                     if(baseUrl.initial) {
-                      const baseUrlToUpdate = clientUrlForContext(value ?? "", clientUrlByContexts, expositionUrl ?? "")
+                      const baseUrlToUpdate = clientUrlForContext(value ?? "", clientUrlByContexts?.[tenant!] ?? {}, expositionUrl ?? "")
                       setBaseUrl({url: baseUrlToUpdate, initial: true})
                     }
                   }}

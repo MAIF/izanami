@@ -1243,6 +1243,14 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       .get()
   }
 
+  def fetchExpositionAsync(
+      cookies: Seq[WSCookie] = Seq()
+  ): Future[WSResponse] = {
+    ws.url(s"${ADMIN_BASE_URL}/exposition")
+      .withCookies(cookies: _*)
+      .get()
+  }
+
   def updateConfiguration(
       mailerConfiguration: JsObject = Json.obj("mailer" -> "Console"),
       invitationMode: String = "Response",
@@ -3981,6 +3989,13 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     def fetchConfiguration(): RequestResult = {
       val response = await(
         BaseAPISpec.this.fetchConfigurationAsync(cookies)
+      )
+      RequestResult(response = response, status = response.status)
+    }
+
+    def fetchExposition(): RequestResult = {
+      val response = await(
+        BaseAPISpec.this.fetchExpositionAsync(cookies)
       )
       RequestResult(response = response, status = response.status)
     }

@@ -23,6 +23,7 @@ import play.api.mvc.BaseController
 import play.api.mvc.ControllerComponents
 
 import scala.concurrent.ExecutionContext
+import fr.maif.izanami.models.IzanamiMode
 
 class ConfigurationController(
     val controllerComponents: ControllerComponents,
@@ -154,7 +155,8 @@ class ConfigurationController(
   def readExpositionUrl(): Action[AnyContent] = Action { implicit request =>
     val adminUrl = env.typedConfiguration.exposition.backend
       .getOrElse(env.expositionUrl)
-    val clientUrlByContexts = env.typedConfiguration.cluster.workerUrlByContexts
+
+    val clientUrlByContexts = if(env.typedConfiguration.cluster.mode == IzanamiMode.Leader)  env.typedConfiguration.cluster.workerUrlByContexts else Map[String, Map[String, String]]()
     
     Ok(Json.obj("url" -> adminUrl, "clientUrlByContexts" -> clientUrlByContexts))
   }
