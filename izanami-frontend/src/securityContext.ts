@@ -21,7 +21,7 @@ export interface TIzanamiContext {
   clientUrlByContexts: {[tenant: string]: {[ctx: string]: string}};
   user?: TUser;
   setUser: (user: TUser) => void;
-  setExpositionUrls: (urls: {url: string, clientUrlByContexts: {[k:string]: string}}) => void;
+  setExpositionUrls: (urls: {url: string, clientUrlByContexts: {[tenant:string]: {[ctx: string]: string}}}) => void;
   logout: () => void;
   displayModal: (content: React.FC<{ close: () => void }>) => Promise<void>;
   askConfirmation: (
