@@ -4,9 +4,7 @@ import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckFailur
 import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckSuccess
 import fr.maif.izanami.datastores.SessionIdentification
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.MissingPersonalAccessToken
-import fr.maif.izanami.errors.NotEnoughRights
-import fr.maif.izanami.errors.UserNotFound
+import fr.maif.izanami.errors.*
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.events.EventAuthentication.BackOfficeAuthentication
 import fr.maif.izanami.events.EventAuthentication.RootAuthentication
@@ -44,6 +42,8 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.Try
+import fr.maif.izanami.utils.Done
+import fr.maif.izanami.errors.IzanamiError
 
 sealed trait UserInformation {
   def username: String
@@ -102,6 +102,7 @@ case class UserRequestWithCompleteRightForOneTenantTokenUser[A](
 
 case class UserNameRequest[A](request: Request[A], user: UserInformation)
     extends WrappedRequest[A](request)
+case class WorkerClientRequest[A](request: Request[A], tenant: String, clientId: String, clientSecret: String) extends WrappedRequest[A](request)
 case class ProjectIdUserNameRequest[A](
     request: Request[A],
     user: UserInformation,
@@ -760,60 +761,137 @@ class LeaderActionBuilderImpl(
     env.executionContext
 }
 
+case class ContextPermissions(
+    contextBlocklist: List[FeatureContextPath],
+    contextAllowlist: Option[Seq[FeatureContextPath]] = Option.empty,
+    contextBlocklistByTenant: Map[String, List[FeatureContextPath]] = Map(),
+    contextAllowlistByTenant: Map[String, List[FeatureContextPath]] = Map()
+) {
+  def isContextAllowedFor(
+      context: FeatureContextPath,
+      tenant: String
+  ): Either[Result, Done] = {
+    val blocklist = blocklistForTenant(tenant)
+    val maybeAllowlist = allowlistForTenant(tenant)
+
+    val containBlocklistedContext = blocklist.exists(blocklistedContext =>
+      blocklistedContext.isAscendantOf(context)
+    )
+
+    val isContextAllowedByAllowlist = maybeAllowlist.forall(ws => {
+      ws.exists(allowedContext => allowedContext.isAscendantOf(context))
+    })
+
+    if (containBlocklistedContext) {
+      Left(Results.BadRequest(
+        Json.obj(
+          "message" -> "Requested context isn't present in allowlist for this worker instance"
+        )
+      ))
+    } else if (!isContextAllowedByAllowlist) {
+      Left(Results.BadRequest(
+        Json.obj(
+          "message" -> "Requested context is blocklisted for this worker instance"
+        )
+      ))
+    } else {
+      Right(Done.done())
+    }
+
+  }
+
+  private def blocklistForTenant(tenant: String): Set[FeatureContextPath] = {
+    if (contextBlocklistByTenant.isEmpty) {
+      contextBlocklist.toSet
+    } else {
+      contextBlocklistByTenant.get(tenant).map(_.toSet).getOrElse(Set())
+    }
+  }
+
+  private def allowlistForTenant(tenant: String)
+      : Option[Set[FeatureContextPath]] = {
+    if (contextAllowlistByTenant.isEmpty) {
+      contextAllowlist.map(_.toSet)
+    } else {
+      contextAllowlistByTenant.get(tenant).map(_.toSet)
+    }
+  }
+}
+
 class WorkerActionBuilder(
     override val parser: BodyParser[AnyContent],
     override val env: Env
-) extends IzanamiActionBuilder[Request] {
+)(implicit
+    ec: ExecutionContext
+) extends IzanamiActionBuilder[WorkerClientRequest] {
   override def disabledOn: IzanamiMode = Leader
 
-  private val maybeBlockList = env.typedConfiguration.cluster.contextBlocklist
-  private val maybeAllowlist = env.typedConfiguration.cluster.contextAllowlist
+  private val clusteringConfig = env.typedConfiguration.cluster
 
   override def invokeBlockImpl[A](
       request: Request[A],
-      block: Request[A] => Future[Result]
+      block: WorkerClientRequest[A] => Future[Result]
   ): Future[Result] = {
-
-    if (actualMode == Standalone) {
-      block(request)
-    } else {
-      val context = request.queryString
-        .get("context")
-        .flatMap(s => s.headOption)
-        .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
-        .getOrElse(FeatureContextPath())
-
-      val containBlocklistedContext = maybeBlockList.exists(
-        blocklistedContext => blocklistedContext.isAscendantOf(context)
-      )
-
-      val isContextAllowedByAllowlist = maybeAllowlist.forall(ws => {
-        ws.exists(allowedContext => allowedContext.isAscendantOf(context))
+    val basicAuth: Option[(String, String)] = request.headers
+      .get("Authorization")
+      .map(header => header.split("Basic "))
+      .filter(splitted => splitted.length == 2)
+      .map(splitted => splitted(1))
+      .map(header => {
+        Base64.getDecoder.decode(header.getBytes)
       })
+      .map(bytes => new String(bytes))
+      .map(header => header.split(":"))
+      .filter(arr => arr.length == 2)
+      .map(arr => (arr(0), arr(1)))
 
-      block(request)
-        .map(r => {
-          if (r.header.status < 400) {
-            if (!isContextAllowedByAllowlist) {
-              Results.BadRequest(
-                Json.obj(
-                  "message" -> "Requested context isn't present in allowlist for this worker instance"
-                )
-              )
-            } else if (containBlocklistedContext) {
-              Results.BadRequest(
-                Json.obj(
-                  "message" -> "Requested context is blocklisted for this worker instance"
-                )
-              )
+    val customHeaders: Option[(String, String)] = for {
+      clientId <- request.headers.get("Izanami-Client-Id")
+      clientSecret <- request.headers.get("Izanami-Client-Secret")
+    } yield (clientId, clientSecret)
+
+    val authTuple: Either[IzanamiError, (String, String)] =
+      basicAuth.orElse(customHeaders).toRight(MissingKey)
+
+    val r:FutureEither[Future[Result]] = for (
+      authTuple <- FutureEither.from(authTuple);
+      clientId = authTuple._1;
+      tenant <- ApiKey
+        .extractTenant(clientId)
+        .map(t => FutureEither.success(t))
+        .getOrElse(env.datastores.apiKeys.findLegacyKeyTenant(clientId).map(
+          maybeTenant => maybeTenant.toRight(IncorrectKey)
+        ).toFEither)
+    ) yield {
+      if (actualMode == Standalone) {
+        block(WorkerClientRequest(request, tenant=tenant, clientId = clientId , clientSecret = authTuple._2))
+      } else {
+        val contextPermissions = ContextPermissions(
+          contextBlocklist=clusteringConfig.contextBlocklist,
+          contextAllowlist=clusteringConfig.contextAllowlist,
+          contextBlocklistByTenant=clusteringConfig.contextBlocklistByTenant,
+          contextAllowlistByTenant=clusteringConfig.contextAllowlistByTenant
+        )
+
+        val context = request.queryString
+          .get("context")
+          .flatMap(s => s.headOption)
+          .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
+          .getOrElse(FeatureContextPath())
+
+        block(WorkerClientRequest(request, tenant=tenant, clientId = clientId , clientSecret = authTuple._2))
+          .map(r => {
+            if (r.header.status < 400) {
+              // Context allowance is applied after response to avoid bruteforcing of allowed / denied context with an incorrect api key
+              contextPermissions.isContextAllowedFor(context, tenant).fold(err => err, _ => r)
             } else {
               r
             }
-          } else {
-            r
-          }
-        })(env.executionContext)
+          })
+      }
     }
+
+    r.toFutureResult(fr => fr)
   }
 
   override protected def executionContext: ExecutionContext =

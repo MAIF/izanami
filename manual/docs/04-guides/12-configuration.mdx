@@ -236,10 +236,32 @@ to be accessible. For instance if `prod` is allowlisted and `prod/mobile` is blo
 but `prod/mobile` and all its children won't.
 
 
-|                            | Environnement variable                | Program argument                | Default     |
-| -------------------------- | ------------------------------------- | ------------------------------- | ----------- |
-| Context allowlist          | IZANAMI_CLUSTER_CONTEXT_ALLOWLIST     | app.mode.context-allowlist      | null        |
-| Context blocklist          | IZANAMI_CLUSTER_CONTEXT_BLOCKLIST     | app.mode.context-blocklist      | []          |
+<Note>
+`Context allowlist` and `Context blocklist` are deprecated, it's now recommanded to use `Context allowlist by tenant` and `Context blocklist by tenant`.
+</Note>
+
+Example values:
+
+```json
+{
+  "mytenant": ["context1", "context2/subcontext"],
+  "anothertenant": ["contextfoo"]
+}
+```
+
+To value these through env variable, surround them with `'`.
+
+```sh
+IZANAMI_CLUSTER_CONTEXT_ALLOWLIST_BY_TENANT='{"mytenant": ["prod"]}'
+```
+
+|                             | Environnement variable                          | Program argument                             | Default     |
+| --------------------------- | ----------------------------------------------- | -------------------------------------------- | ----------- |
+| Context allowlist by tenant | IZANAMI_CLUSTER_CONTEXT_ALLOWLIST_BY_TENANT     | app.cluster.context-allowlist-by-tenant      | \{\}        |
+| Context blocklist by tenant | IZANAMI_CLUSTER_CONTEXT_BLOCKLIST_BY_TENANT     | app.cluster.context-blocklist-by-tenant      | \{\}        |
+| Context allowlist           | IZANAMI_CLUSTER_CONTEXT_ALLOWLIST               | app.cluster.context-allowlist                | null        |
+| Context blocklist           | IZANAMI_CLUSTER_CONTEXT_BLOCKLIST               | app.cluster.context-blocklist                | []          |
+
 
 #### Worker exposition URL
 
@@ -260,10 +282,12 @@ For instance for below configuration:
 
 ```json
 {
-  "prod": "http://prod.com",
-  "dev": "http://dev.com",
-  "dev/subdev": "http://subdev.com",
-  "": "http://default.com",
+  "mytenant": {
+    "prod": "http://prod.com",
+    "dev": "http://dev.com",
+    "dev/subdev": "http://subdev.com",
+    "": "http://default.com",
+  }
 }
 ```
 
@@ -275,7 +299,7 @@ For instance for below configuration:
 To pass IZANAMI_WORKER_URL_BY_CONTEXTS through env variable, just wrap it in `'`:
 
 ```sh
-IZANAMI_WORKER_URL_BY_CONTEXTS='{"prod": "http://prod.com","dev": "http://dev.com","dev/subdev": "http://subdev.com","": "http://default.com"}'
+IZANAMI_WORKER_URL_BY_CONTEXTS='{"mytenant": {"prod": "http://prod.com","dev": "http://dev.com","dev/subdev": "http://subdev.com","": "http://default.com"}}'
 ```
 
 |                            | Environnement variable                | Program argument                | Default     |

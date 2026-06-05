@@ -229,6 +229,73 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
       checkResponse.status mustBe OK
     }
 
+    "return 400 when caller request blacklisted context using by tenant blocklist" in {
+      var testSitutation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(TestApiKey(name = "my-key", admin = true))
+            .withProjects(
+              TestProject("project").withFeatures(TestFeature("f1"))
+            )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      testSitutation = testSitutation.restartServerWithConf(
+        Map(
+          "app.cluster.mode" -> "worker",
+          "app.cluster.context-blocklist-by-tenant" -> ConfigValueFactory.fromMap(java.util.Map.of("tenant",
+            java.util.List.of("prod", "protected")
+          )
+        )
+      ))
+
+      val featureId = testSitutation
+        .findFeatureId(tenant = "tenant", project = "project", feature = "f1")
+        .get
+
+      var checkResponse =
+        testSitutation.checkFeature(
+          featureId,
+          key = "my-key",
+          context = "prod"
+        );
+      checkResponse.status mustBe BAD_REQUEST
+
+      checkResponse = testSitutation.checkFeature(
+        featureId,
+        key = "my-key",
+        context = "protected"
+      )
+      checkResponse.status mustBe BAD_REQUEST
+
+      checkResponse = testSitutation.checkFeature(
+        featureId,
+        key = "my-key",
+        context = "prod/foo"
+      )
+      checkResponse.status mustBe BAD_REQUEST
+
+      checkResponse = testSitutation.checkFeature(
+        featureId,
+        key = "my-key",
+        context = "dev"
+      )
+      checkResponse.status mustBe OK
+
+      checkResponse = testSitutation.checkFeature(
+        featureId,
+        key = "my-key",
+        context = "dev/mobile"
+      )
+      checkResponse.status mustBe OK
+      checkResponse = testSitutation.checkFeature(
+        featureId,
+        key = "my-key"
+      )
+      checkResponse.status mustBe OK
+    }
+
     "allow only whitelisted contexts (and context-less calls) when whitelisted contexts are defined" in {
       var testSitutation = TestSituationBuilder()
         .withTenants(
@@ -247,6 +314,74 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
           "app.cluster.context-allowlist" -> ConfigValueFactory.fromIterable(
             java.util.List.of("prod", "protected")
           )
+        )
+      )
+
+      val featureId = testSitutation
+        .findFeatureId(tenant = "tenant", project = "project", feature = "f1")
+        .get
+
+      var checkResponse =
+        testSitutation.checkFeature(
+          featureId,
+          key = "my-key",
+          context = "prod"
+        );
+      checkResponse.status mustBe OK
+
+      checkResponse = testSitutation.checkFeature(
+        featureId,
+        key = "my-key",
+        context = "protected"
+      )
+      checkResponse.status mustBe OK
+
+      checkResponse = testSitutation.checkFeature(
+        featureId,
+        key = "my-key",
+        context = "prod/foo"
+      )
+      checkResponse.status mustBe OK
+
+      checkResponse = testSitutation.checkFeature(
+        featureId,
+        key = "my-key",
+        context = "dev"
+      )
+      checkResponse.status mustBe BAD_REQUEST
+
+      checkResponse = testSitutation.checkFeature(
+        featureId,
+        key = "my-key",
+        context = "dev/mobile"
+      )
+      checkResponse.status mustBe BAD_REQUEST
+
+      checkResponse = testSitutation.checkFeature(
+        featureId,
+        key = "my-key"
+      )
+      checkResponse.status mustBe BAD_REQUEST
+    }
+
+    "allow only whitelisted contexts (and context-less calls) when whitelisted contexts are defined using by tenant whitelist" in {
+      var testSitutation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(TestApiKey(name = "my-key", admin = true))
+            .withProjects(
+              TestProject("project").withFeatures(TestFeature("f1"))
+            )
+        )
+        .loggedInWithAdminRights()
+        .build()
+
+      testSitutation = testSitutation.restartServerWithConf(
+        Map(
+          "app.cluster.mode" -> "worker",
+          "app.cluster.context-allowlist-by-tenant" -> ConfigValueFactory.fromMap(java.util.Map.of("tenant",
+            java.util.List.of("prod", "protected")
+          ))
         )
       )
 

@@ -731,7 +731,7 @@ class FeatureService(env: Env) {
       futureFeaturesByProject.map {
         case Left(error) => Left(error)
         case Right(featuresByProjects) if featuresByProjects.isEmpty =>
-          Left(IncorrectKey())
+          Left(IncorrectKey)
         case Right(featuresByProjects) => {
           val strategies = featuresByProjects.toSeq.flatMap {
             case (_, features) => {
@@ -762,7 +762,7 @@ class FeatureService(env: Env) {
       futureFeaturesByProject.map {
         case Left(error) => Left(error)
         case Right(featuresByProjects) if featuresByProjects.isEmpty =>
-          Left(IncorrectKey())
+          Left(IncorrectKey)
         case Right(featuresByProjects) => {
           // TODO turn return type of findByRequestForKey to FeatureStrategies so that we don't have to use
           //  an empty context here

@@ -148,7 +148,9 @@ case class Cluster(
     mode: IzanamiMode,
     contextBlocklist: List[FeatureContextPath],
     contextAllowlist: Option[Seq[FeatureContextPath]],
-    workerUrlByContexts: Map[String, Map[String, String]]
+    workerUrlByContexts: Map[String, Map[String, String]],
+    contextBlocklistByTenant: Map[String, List[FeatureContextPath]],
+    contextAllowlistByTenant: Map[String, List[FeatureContextPath]],
 )
 
 case class Experimental(staleTracking: StaleTracking)

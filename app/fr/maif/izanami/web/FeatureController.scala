@@ -2,7 +2,6 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.FeatureNotFound
-import fr.maif.izanami.errors.IncorrectKey
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.Feature.*
@@ -20,15 +19,14 @@ import play.api.libs.json.Format.GenericFormat
 import play.api.mvc.*
 
 import java.time.Instant
-import java.util.Base64
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 class FeatureController(
     val env: Env,
     val controllerComponents: ControllerComponents,
-    val projectAuthAction: ProjectAuthActionFactory,
     val authenticatedAction: AuthenticatedAction,
+    val projectAuthAction: ProjectAuthActionFactory,
     val detailledRightForTenanFactory: DetailledRightForTenantFactory,
     val personnalAccessTokenDetailledRightForTenantFactory: PersonnalAccessTokenDetailledRightForTenantFactory,
     val personnalAccessTokenAuth: PersonnalAccessTokenFeatureAuthActionFactory,
@@ -191,71 +189,33 @@ class FeatureController(
       context: fr.maif.izanami.web.FeatureContextPath
   ): Action[AnyContent] = workerAction.async { implicit request =>
     {
+
       val maybeBody =
-        request.body.asJson.flatMap(jsValue => jsValue.asOpt[JsObject])
-      val basicAuth: Option[(String, String)] = request.headers
-        .get("Authorization")
-        .map(header => header.split("Basic "))
-        .filter(splitted => splitted.length == 2)
-        .map(splitted => splitted(1))
-        .map(header => {
-          Base64.getDecoder.decode(header.getBytes)
-        })
-        .map(bytes => new String(bytes))
-        .map(header => header.split(":"))
-        .filter(arr => arr.length == 2)
-        .map(arr => (arr(0), arr(1)))
-      val customHeaders: Option[(String, String)] = for {
-        clientId <- request.headers.get("Izanami-Client-Id")
-        clientSecret <- request.headers.get("Izanami-Client-Secret")
-      } yield (clientId, clientSecret)
-      val authTuple: Option[(String, String)] = basicAuth.orElse(customHeaders)
+        request.body.asJson.flatMap(jsValue => jsValue.asOpt[JsObject]);
 
-      authTuple match {
-        case Some((clientId, clientSecret)) => {
-          val futureTenant = ApiKey.extractTenant(clientId) match {
-            case None => env.datastores.apiKeys.findLegacyKeyTenant(clientId)
-            case s @ Some(_) => s.future
-          }
-
-          futureTenant
-            .flatMap {
-              case Some(tenant) =>
-                queryFeatures(
-                  conditions = false,
-                  RequestContext(
-                    tenant = tenant,
-                    user = user,
-                    context = context,
-                    data = maybeBody.getOrElse(Json.obj())
-                  ),
-                  FeatureRequest(
-                    features = Set(id),
-                    context = context.elements
-                  ),
-                  clientId,
-                  clientSecret,
-                  origin = FeatureCall.Sse // FIXME context is passed twice
-                ).map {
-                  case Left(err)   => err.toHttpResponse
-                  case Right(json) =>
-                    (json \ id)
-                      .asOpt[JsValue]
-                      .map(json => Ok(json))
-                      .getOrElse(NotFound)
-                }
-              case None =>
-                Unauthorized(
-                  Json.obj(
-                    "message" -> "Key does not authorize read for this feature"
-                  )
-                ).future
-            }
-        }
-        case None =>
-          Unauthorized(
-            Json.obj("message" -> "Missing or incorrect authorization headers")
-          ).future
+      request.body.asJson.flatMap(jsValue => jsValue.asOpt[JsObject])
+      queryFeatures(
+        conditions = false,
+        RequestContext(
+          tenant = request.tenant,
+          user = user,
+          context = context,
+          data = maybeBody.getOrElse(Json.obj())
+        ),
+        FeatureRequest(
+          features = Set(id),
+          context = context.elements
+        ),
+        request.clientId,
+        request.clientSecret,
+        origin = FeatureCall.Sse // FIXME context is passed twice
+      ).map {
+        case Left(err)   => err.toHttpResponse
+        case Right(json) =>
+          (json \ id)
+            .asOpt[JsValue]
+            .map(json => Ok(json))
+            .getOrElse(NotFound)
       }
     }
   }
@@ -327,63 +287,25 @@ class FeatureController(
   ): Action[AnyContent] = workerAction.async { implicit request =>
     {
       val maybeBody =
-        request.body.asJson.flatMap(jsValue => jsValue.asOpt[JsObject])
-      val basicAuth: Option[(String, String)] = request.headers
-        .get("Authorization")
-        .map(header => header.split("Basic "))
-        .filter(splitted => splitted.length == 2)
-        .map(splitted => splitted(1))
-        .map(header => {
-          Base64.getDecoder.decode(header.getBytes)
-        })
-        .map(bytes => new String(bytes))
-        .map(header => header.split(":"))
-        .filter(arr => arr.length == 2)
-        .map(arr => (arr(0), arr(1)))
-      val customHeaders: Option[(String, String)] = for {
-        clientId <- request.headers.get("Izanami-Client-Id")
-        clientSecret <- request.headers.get("Izanami-Client-Secret")
-      } yield (clientId, clientSecret)
+        request.body.asJson.flatMap(jsValue => jsValue.asOpt[JsObject]);
 
-      val authTuple: Option[(String, String)] = basicAuth.orElse(customHeaders)
-
-      authTuple match {
-        case None =>
-          Unauthorized(
-            Json.obj("message" -> "Missing or incorrect authorization headers")
-          ).future
-        case Some((clientId, clientSecret)) => {
-
-          val futureMaybeTenant = ApiKey
-            .extractTenant(clientId)
-            .map(t => Future.successful(Some(t)))
-            .getOrElse(env.datastores.apiKeys.findLegacyKeyTenant(clientId))
-
-          futureMaybeTenant
-            .flatMap {
-              case None         => Left(IncorrectKey()).future
-              case Some(tenant) =>
-                val requestContext = RequestContext(
-                  tenant = tenant,
-                  user = user,
-                  now = date.getOrElse(Instant.now()),
-                  context = FeatureContextPath(featureRequest.context),
-                  data = maybeBody.getOrElse(Json.obj())
-                )
-                queryFeatures(
-                  conditions,
-                  requestContext,
-                  featureRequest,
-                  clientId,
-                  clientSecret,
-                  FeatureCall.Http
-                )
-            }
-            .map {
-              case Left(err)    => err.toHttpResponse
-              case Right(value) => Ok(value)
-            }
-        }
+      val requestContext = RequestContext(
+        tenant = request.tenant,
+        user = user,
+        now = date.getOrElse(Instant.now()),
+        context = FeatureContextPath(featureRequest.context),
+        data = maybeBody.getOrElse(Json.obj())
+      )
+      queryFeatures(
+        conditions,
+        requestContext,
+        featureRequest,
+        request.clientId,
+        request.clientSecret,
+        FeatureCall.Http
+      ).map {
+        case Left(err)    => err.toHttpResponse
+        case Right(value) => Ok(value)
       }
     }
   }

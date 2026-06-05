@@ -11,15 +11,38 @@ import scala.util.Try
 
 object ConfigUtil {
   def fixIzanamiConfigIfNeeded(config: Config): Config = {
-    val confWithFixedSeqs = Seq(
+    var fixedConfig = Seq(
       "app.cluster.context-blocklist",
       "app.cluster.context-allowlist"
     ).foldLeft(config)((config, path) => {
       fixStringArrayifNeeded(config, path)
     })
 
-    fixMapIfNeeded(config = confWithFixedSeqs, path = "app.cluster.worker-url-by-contexts")
+    fixedConfig = fixMapIfNeeded(config = fixedConfig, path = "app.cluster.worker-url-by-contexts")
 
+    fixedConfig = fixContextAllowListOrBlockListBytenantIfNeeded(config = fixedConfig, path = "context-allowlist-by-tenant")
+    fixContextAllowListOrBlockListBytenantIfNeeded(config = fixedConfig, path = "context-blocklist-by-tenant")
+  }
+
+  def fixContextAllowListOrBlockListBytenantIfNeeded(config: Config, path: String): Config = {
+    Try {
+      val value = config.getValue(path);
+      
+      if (value.valueType() == ConfigValueType.STRING) {
+        val newValue = Json.parse(
+          value.unwrapped().asInstanceOf[String]
+        ).asOpt[Map[
+          String,
+          Seq[String]
+        ]].map(scalaMap => {
+          scalaMap.view.mapValues(seq => seq.asJava).toMap.asJava
+        }).getOrElse(java.util.Map.of());
+
+        config.withValue(path, ConfigValueFactory.fromMap(newValue))
+      } else {
+        config
+      }
+    }.getOrElse(config)
   }
 
   def fixMapIfNeeded(config: Config, path: String): Config = {

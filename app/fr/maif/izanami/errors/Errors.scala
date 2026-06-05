@@ -443,8 +443,10 @@ case class WasmResultParsingError(expected: String, found: JsValue)
         s"""Declared feature result type ($expected) does not match script result $found""",
       status = BAD_REQUEST
     )
-case class IncorrectKey()
+case object IncorrectKey
     extends IzanamiError(message = "Incorrect key provided", status = FORBIDDEN)
+case object MissingKey
+    extends IzanamiError(message = "Missing api key", status = UNAUTHORIZED)
 case class BadEventFormat(override val message: String = "Bad event format")
     extends IzanamiError(message, status = FORBIDDEN)
 case class WebhookCreationFailed(
