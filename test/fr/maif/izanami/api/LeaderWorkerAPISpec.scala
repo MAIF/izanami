@@ -12,12 +12,11 @@ import play.api.http.Status.NOT_FOUND
 import play.api.http.Status.OK
 import play.api.test.Helpers.await
 import play.api.libs.json.Json
-import scala.jdk.CollectionConverters.*
 
 
 class LeaderWorkerAPISpec extends BaseAPISpec {
   val workerUrlByContexts = Map(
-    "app.cluster.worker-url-by-contexts.foo.prod" -> "http://prod.com"
+    "app.cluster.worker-url-by-contexts-and-tenants.foo.prod" -> "http://prod.com"
   )
   "Leader mode" should {
     "serve worker by context urls" in {

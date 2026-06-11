@@ -24,6 +24,7 @@ import play.api.mvc.ControllerComponents
 
 import scala.concurrent.ExecutionContext
 import fr.maif.izanami.models.IzanamiMode
+import scala.concurrent.Future
 
 class ConfigurationController(
     val controllerComponents: ControllerComponents,
@@ -32,6 +33,7 @@ class ConfigurationController(
 )(implicit val env: Env)
     extends BaseController {
   implicit val ec: ExecutionContext = env.executionContext;
+  val logger = env.logger
 
   def readStats(): Action[AnyContent] = adminAuthAction.async {
     implicit request =>
@@ -152,13 +154,32 @@ class ConfigurationController(
         })
   }
 
-  def readExpositionUrl(): Action[AnyContent] = Action { implicit request =>
+  def readExpositionUrl(): Action[AnyContent] = Action.async { implicit request =>
     val adminUrl = env.typedConfiguration.exposition.backend
       .getOrElse(env.expositionUrl)
+    val clusterConfig = env.typedConfiguration.cluster
 
-    val clientUrlByContexts = if(env.typedConfiguration.cluster.mode == IzanamiMode.Leader)  env.typedConfiguration.cluster.workerUrlByContexts else Map[String, Map[String, String]]()
+    val futureClientUrlByContexts = if(clusterConfig.mode == IzanamiMode.Leader) {
+      if(clusterConfig.workerUrlByContextsAndTenants.isEmpty && clusterConfig.workerUrlByContexts.nonEmpty) {
+        logger.error("worker-url-by-contexts property is deprecated, use worker-url-by-contexts-and-tenants instead")
+        val r = env.datastores.tenants.readTenants().map(ts => {
+          ts.map(_.name).map(tenantName => (tenantName -> clusterConfig.workerUrlByContexts)).toMap
+        })
+
+        r
+      } else {
+        Future.successful(clusterConfig.workerUrlByContextsAndTenants)
+      }
+      
+    }  else {
+      Future.successful(Map[String, Map[String, String]]())
+    }
+
+    futureClientUrlByContexts.map(urls => {
+      Ok(Json.obj("url" -> adminUrl, "clientUrlByContexts" -> Json.toJson(urls)))
+    })
     
-    Ok(Json.obj("url" -> adminUrl, "clientUrlByContexts" -> clientUrlByContexts))
+    
   }
 
   def availableIntegrations(): Action[AnyContent] = Action.async {

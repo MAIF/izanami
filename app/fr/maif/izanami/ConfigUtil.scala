@@ -19,6 +19,7 @@ object ConfigUtil {
     })
 
     fixedConfig = fixMapIfNeeded(config = fixedConfig, path = "app.cluster.worker-url-by-contexts")
+    fixedConfig = fixNestedMapIfNeeded(config = fixedConfig, path = "app.cluster.worker-url-by-contexts-and-tenants")
 
     fixedConfig = fixContextAllowListOrBlockListBytenantIfNeeded(config = fixedConfig, path = "context-allowlist-by-tenant")
     fixContextAllowListOrBlockListBytenantIfNeeded(config = fixedConfig, path = "context-blocklist-by-tenant")
@@ -45,7 +46,29 @@ object ConfigUtil {
     }.getOrElse(config)
   }
 
+
   def fixMapIfNeeded(config: Config, path: String): Config = {
+    Try {
+      val value = config.getValue(path);
+      
+      if (value.valueType() == ConfigValueType.STRING) {
+        val newValue = Json.parse(
+          value.unwrapped().asInstanceOf[String]
+        ).asOpt[Map[
+          String,
+          String
+        ]].map(scalaMap => {
+          scalaMap.asJava
+        }).getOrElse(java.util.Map.of());
+
+        config.withValue(path, ConfigValueFactory.fromMap(newValue))
+      } else {
+        config
+      }
+    }.getOrElse(config)
+  }
+
+  def fixNestedMapIfNeeded(config: Config, path: String): Config = {
     Try {
       val value = config.getValue(path);
       

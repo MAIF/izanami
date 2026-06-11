@@ -296,15 +296,16 @@ For instance for below configuration:
 * URL `http://subdev.com` will be used for `dev/subdev` context and `dev/subdev/*` contexts
 * URL `http://default.com` will be used for any other contexts
 
-To pass IZANAMI_WORKER_URL_BY_CONTEXTS through env variable, just wrap it in `'`:
+To pass IZANAMI_WORKER_URL_BY_CONTEXTS_AND_TENANTS through env variable, just wrap it in `'`:
 
 ```sh
-IZANAMI_WORKER_URL_BY_CONTEXTS='{"mytenant": {"prod": "http://prod.com","dev": "http://dev.com","dev/subdev": "http://subdev.com","": "http://default.com"}}'
+IZANAMI_WORKER_URL_BY_CONTEXTS_AND_TENANTS='{"mytenant": {"prod": "http://prod.com","dev": "http://dev.com","dev/subdev": "http://subdev.com","": "http://default.com"}}'
 ```
 
-|                            | Environnement variable                | Program argument                | Default     |
-| -------------------------- | ------------------------------------- | ------------------------------- | ----------- |
-| Worker URL by context      | IZANAMI_WORKER_URL_BY_CONTEXTS        | worker-url-by-contexts          | \{\}          |
+|                                           | Environnement variable                            | Program argument                   | Default     |
+| ------------------------------------------| ------------------------------------------------- | ---------------------------------- | ----------- |
+| Worker URL by context (DEPRECATED)        | IZANAMI_WORKER_URL_BY_CONTEXTS                    | worker-url-by-contexts             | \{\}        |
+| Worker URL by context (tenant scoped)     | IZANAMI_WORKER_URL_BY_CONTEXTS_AND_TENANTS        | worker-url-by-contexts-and-tenants | \{\}        |
 
 
 ### Audit
