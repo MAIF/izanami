@@ -1,0 +1,38 @@
+version: "0.5"
+
+processes:
+  Containers: 
+    command: "mise run dev:containers"
+    readiness_probe:
+      http_get:
+        host: localhost
+        scheme: http
+        path: "/"
+        port: 5001
+      initial_delay_seconds: 2
+      period_seconds: 1
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 20
+  Backend:
+    command: "mise run dev:back"
+    is_tty: true
+    depends_on:
+      Containers:
+        condition: process_healthy
+    readiness_probe:
+      http_get:
+        host: 127.0.0.1
+        scheme: http
+        path: "/api/_health"
+        port: 9000
+      initial_delay_seconds: 5
+      period_seconds: 1
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 20
+  Frontend:
+    command: "mise run dev:front"
+    depends_on:
+      Backend:
+        condition: process_healthy

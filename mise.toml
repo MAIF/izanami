@@ -20,14 +20,15 @@ run = "docker-compose rm -f && docker-compose up"
 run = "docker-compose down && docker-compose rm -f"
 
 [tasks."dev:front"]
-depends = ["install-frontend"]
 dir = "izanami-frontend"
 run = "npm run dev"
 
 [tasks."dev:back"]
-depends = ["install-backend", "devcontainers"]
 run = "sbt -jvm-debug 5005 \"~run -Dconfig.resource=dev.conf\""
 raw=true
+
+[tasks.dev]
+run = "process-compose -f ./process-compose.yaml"
 
 [tasks.doc]
 dir = "manual"
