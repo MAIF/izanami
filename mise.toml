@@ -3,9 +3,15 @@ java = "temurin-21"
 sbt = "1.12"
 node = "24"
 
-[tasks.install]
+[tasks."install:front"]
 dir = "izanami-frontend"
 run = "npm install --force && npx playwright install chromium"
+
+[tasks."install:back"]
+run = "docker-compose pull && sbt compile"
+
+[tasks.install]
+run = [{task = "install:front"}, {task = "install:back"}]
 
 [tasks."dev:containers"]
 run = "docker-compose rm -f && docker-compose up"
