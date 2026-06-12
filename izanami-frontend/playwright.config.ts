@@ -107,7 +107,7 @@ export default defineConfig({
         name: "Containers"
     }, {
         command: `cd .. && sbt "run -Dconfig.resource=base-test.conf -Dlogger.file=./test/resources/logback.xml"`,
-        url: "http://127.0.0.1:9000",
+        url: "http://127.0.0.1:9000/api/_health",
         reuseExistingServer: false, // Test conf is different from dev conf
         stderr: "pipe",
         stdout: "pipe",
