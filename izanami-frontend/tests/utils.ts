@@ -67,7 +67,7 @@ const clearWasmo = async () => {
     .then((ids) => {
       return Promise.all(
         ids.map((id) => {
-          fetch(`http://localhost:5001/api/plugins/${id}`, {
+          return fetch(`http://localhost:5001/api/plugins/${id}`, {
             method: "DELETE",
           });
         }),
@@ -105,48 +105,52 @@ export const cleanup = async () => {
   });
   await client.connect();
 
-  const schemaData = await client.query(
-    "SELECT schema_name AS sch FROM information_schema.schemata",
-  );
+  try {
+    const schemaData = await client.query(
+      "SELECT schema_name AS sch FROM information_schema.schemata",
+    );
 
-  const schemas = schemaData.rows
-    .map((r) => r.sch)
-    .filter((s) => !SCHEMAS_TO_KEEP.includes(s)); // Hello world!
+    const schemas = schemaData.rows
+      .map((r) => r.sch)
+      .filter((s) => !SCHEMAS_TO_KEEP.includes(s)); // Hello world!
 
-  const promises: Promise<any>[] = schemas.map((s) =>
-    client.query(`DROP SCHEMA "${s}" CASCADE`).catch((err) => {
-      console.error(err);
-      return 1;
-    }),
-  );
-  promises.push(client.query("DELETE FROM izanami.tenants CASCADE"));
-  promises.push(
-    client.query("TRUNCATE TABLE izanami.users_tenants_rights CASCADE"),
-  );
-  promises.push(
-    client.query("TRUNCATE TABLE izanami.personnal_access_tokens CASCADE"),
-  );
-  promises.push(
-    client.query(
-      "DELETE FROM izanami.users WHERE username <> 'RESERVED_ADMIN_USER'",
-    ),
-  );
-  promises.push(client.query("TRUNCATE TABLE izanami.invitations CASCADE"));
-  promises.push(client.query("TRUNCATE TABLE izanami.sessions CASCADE"));
-  promises.push(client.query("TRUNCATE TABLE izanami.pending_imports CASCADE"));
-  promises.push(client.query("TRUNCATE TABLE izanami.key_tenant CASCADE"));
-  promises.push(
-    client.query("UPDATE izanami.mailers SET configuration='{}'::JSONB"),
-  );
-  promises.push(
-    client.query(
-      "UPDATE izanami.configuration SET mailer='CONSOLE', invitation_mode='RESPONSE', anonymous_reporting_date=NOW(), oidc_configuration=null",
-    ),
-  );
+    const promises: Promise<any>[] = schemas.map((s) =>
+      client.query(`DROP SCHEMA "${s}" CASCADE`).catch((err) => {
+        console.error(err);
+        return 1;
+      }),
+    );
+    promises.push(client.query("DELETE FROM izanami.tenants CASCADE"));
+    promises.push(
+      client.query("TRUNCATE TABLE izanami.users_tenants_rights CASCADE"),
+    );
+    promises.push(
+      client.query("TRUNCATE TABLE izanami.personnal_access_tokens CASCADE"),
+    );
+    promises.push(
+      client.query(
+        "DELETE FROM izanami.users WHERE username <> 'RESERVED_ADMIN_USER'",
+      ),
+    );
+    promises.push(client.query("TRUNCATE TABLE izanami.invitations CASCADE"));
+    promises.push(client.query("TRUNCATE TABLE izanami.sessions CASCADE"));
+    promises.push(
+      client.query("TRUNCATE TABLE izanami.pending_imports CASCADE"),
+    );
+    promises.push(client.query("TRUNCATE TABLE izanami.key_tenant CASCADE"));
+    promises.push(
+      client.query("UPDATE izanami.mailers SET configuration='{}'::JSONB"),
+    );
+    promises.push(
+      client.query(
+        "UPDATE izanami.configuration SET mailer='CONSOLE', invitation_mode='RESPONSE', anonymous_reporting_date=NOW(), oidc_configuration=null",
+      ),
+    );
 
-  await Promise.all(promises);
-
-  await client.end();
+    await Promise.all(promises);
+  } finally {
+    await client.end();
+  }
 };
 
 export const cleanupConfig = async () => {

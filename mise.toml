@@ -1,0 +1,38 @@
+[tools]
+java = "temurin-21"
+sbt = "1.12"
+node = "24"
+
+[tasks.install]
+dir = "izanami-frontend"
+run = "npm install --force && npx playwright install chromium"
+
+[tasks."dev:containers"]
+run = "docker-compose rm -f && docker-compose up"
+
+[tasks.clean]
+run = "docker-compose down && docker-compose rm -f"
+
+[tasks."dev:front"]
+depends = ["install-frontend"]
+dir = "izanami-frontend"
+run = "npm run dev"
+
+[tasks."dev:back"]
+depends = ["install-backend", "devcontainers"]
+run = "sbt -jvm-debug 5005 \"~run -Dconfig.resource=dev.conf\""
+raw=true
+
+[tasks.doc]
+dir = "manual"
+run = "npm start"
+
+[tasks."test:back"]
+run = "sbt \"testOnly *AllTests\""
+
+[tasks."test:front"]
+dir = "izanami-frontend"
+run = "npm test"
+
+[tasks.tests]
+run = [{task = "test:front"}, {task = "test:back"}]

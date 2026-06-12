@@ -43,7 +43,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.23.0",
-    "@playwright/test": "^1.51.1",
+    "@playwright/test": "^1.60.0",
     "@types/node": "^22.13.13",
     "@types/react-dom": "^19.0.4",
     "@types/swagger-ui": "^3.52.4",
@@ -63,6 +63,7 @@
     "sass": "^1.86.0",
     "terser": "^5.39.0",
     "typescript": "^5.8.2",
+    "undici": "^8.4.1",
     "vite": "^6.2.3",
     "vitest": "^4.0.8"
   },

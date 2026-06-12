@@ -16,13 +16,13 @@ export default defineConfig({
   testDir: "./tests",
   testIgnore: ["./tests/unit/**/*.spec.ts"],
   /* Run tests in files in parallel */
-  fullyParallel: true,
+  fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
-  retries: process.env.CI ? 3 :0,
+  retries: 3,
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: "html",
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -97,8 +97,47 @@ export default defineConfig({
         stderr: "pipe",
         stdout: "pipe",
       }
-    : undefined,
+    : [{
+        command: `cd .. && docker-compose up > /dev/null`,
+        url: "http://localhost:5001",
+        reuseExistingServer: !process.env.CI,
+        stderr: "pipe",
+        stdout: "pipe",
+        gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
+        name: "Containers"
+    }, {
+        command: `cd .. && sbt "run -Dconfig.resource=base-test.conf -Dlogger.file=./test/resources/logback.xml"`,
+        url: "http://127.0.0.1:9000",
+        reuseExistingServer: false, // Test conf is different from dev conf
+        stderr: "pipe",
+        stdout: "pipe",
+        name: "Backend"
+    }, {
+        command: `npm run dev`,
+        url: "http://localhost:3000",
+        reuseExistingServer: !process.env.CI,
+        stderr: "pipe",
+        stdout: "pipe",
+        name: "Frontend"
+    }],
 });
+
+/*
+[{
+        command: `cd .. && sbt "run -Dconfig.resource=base-test.conf"`,
+        url: "http://127.0.0.1:9000",
+        reuseExistingServer: true,
+        stderr: "pipe",
+        stdout: "pipe",
+    }, {
+        command: `npm run dev`,
+        url: "http://localhost:3000",
+        reuseExistingServer: true,
+        stderr: "pipe",
+        stdout: "pipe",
+    }]
+
+    */  
 
 /*
   npx playwright test

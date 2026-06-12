@@ -124,12 +124,10 @@ class ImportApiSpec extends BaseAPISpec {
       )
 
       res.status mustEqual BAD_REQUEST
-      println(s"RESULT ${res.json.get}")
 
       val failedElements = extractFailedElements(res.json.get)
 
       val featureAnomalies = failedElements("Feature")
-      println(s"FAILED ${featureAnomalies}")
 
       val projectAnomalies = failedElements("Project")
 
