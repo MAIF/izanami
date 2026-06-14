@@ -2,6 +2,7 @@
 java = "temurin-21"
 sbt = "1.12"
 node = "24"
+"github:F1bonacc1/process-compose" = "1"
 
 [tasks."install:front"]
 dir = "izanami-frontend"
