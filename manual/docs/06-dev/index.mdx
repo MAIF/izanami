@@ -4,24 +4,165 @@ title: Developing Izanami
 
 Here are some tips to help you get started with Izanami contribution.
 
-## Tools
 
-Here is what you'll need
-
-- git
-- SBT > 1.9.7
-- JDK >= 21
-- Node > 20
-- Docker / Colima / whatever allows you to run docker-compose
-
-## Clone remote repository
+## Cloning remote repository
 
 ```sh
 git clone git@github.com:MAIF/izanami.git
 cd izanami
 ```
 
-## Install deps
+## Using mise
+
+### Tools
+
+The easiest way to setup your dev environment is to use [mise](https://mise.jdx.dev/).
+
+You'll also need a docker environment (docker / podman / colima).
+
+
+### Setup up environment
+
+Once you installed mise, run below command to setup you dev environment:
+
+```sh
+mise install # Install needed dependencies (sbt, java, node, ...)
+mise run install # Install front & back dependencies, pull docker images
+```
+
+### Running the app
+
+To run Izanami, run below command
+
+```sh
+mise run dev
+```
+
+This will run frontend, backend and a bunch of docker containers (postgres, fake mail provider, fake oidc server, ...).
+
+This command display log nicely using [process-compose](https://github.com/F1bonacc1/process-compose),
+a nice TUI that allows seeing logs / state for each application component (back, front & containers).
+
+
+#### Running only containers
+
+To run only containers, use 
+
+```sh
+mise run dev:containers
+```
+
+
+#### Running only backend
+
+To run only containers, use 
+
+```sh
+mise run dev:back
+```
+``
+#### Running only frontend
+
+To run only containers, use 
+
+```sh
+mise run dev:front
+```
+
+### Running tests
+
+#### Backend
+
+To run backend tests, use
+
+```sh
+mise run test:back 
+```
+
+⚠️ Backend tests restart Izanami backend with misc configurations, therefore Izanami backend must not be started to run these tests.
+
+#### Frontend
+
+To run frontend tests, use
+
+```sh
+mise run test:front
+```
+
+⚠️ Frontend tests start backend with a test specific configuration, therefore Izanami backend must not be started to run these tests.
+
+
+#### Both
+
+Command
+
+```sh
+mise run tests
+```
+
+Runs frontend tests then backend tests.
+
+### Documentation
+
+To start documentation locally, run
+
+```sh
+mise run doc
+```
+
+### Packaging
+
+To package Izanami :
+
+```sh
+mise run package
+```
+
+To start packaged jar (you'll need docker container running, you can use `mise run dev:containers`).
+
+```sh
+mise run package:run
+```
+
+To build docker image (after packaging frontend and backends)
+
+```sh
+mise run docker:build
+```
+
+To test docker image (you'll need docker container running, you can use `mise run dev:containers`).
+
+```sh
+mise run docker:run
+```
+
+To build "test" docker image (docker image with embeded postgres)
+
+```sh
+docker:build-demo
+```
+
+### Clean up
+
+Docker containers may keep running even after command are terminated, to stop all container associated with Izanami run
+
+```sh
+mise run clean
+```
+
+
+## Without mise
+
+Here is what you'll need to run Izanami without mise
+
+- SBT > 1.9.7
+- JDK >= 21
+- Node > 20
+- Docker / Colima / Podman whatever allows you to run docker-compose
+
+
+
+### Install dependencies
 
 For backend
 
@@ -33,10 +174,18 @@ For frontend
 
 ```sh
 cd izanami-frontend
-npm install
+npm install --force
+npx playwright install chromium
 ```
 
-## Running project
+To pull images
+
+```sh
+docker-compose pull
+```
+
+
+### Running project
 
 First let's start some containers, `docker-compose.yml` contains everything that may be needed by Izanami (mock SMTP server, WASMO, simple OIDC provider, postgres database, ...).
 You may delete some of these elements to reduce consumed resources, however you need to keep the Postgres database.
@@ -64,9 +213,9 @@ npm run dev
 
 After eveyrhing is started, browse to [http://localhost:3000](http://localhost:3000) (login form may take some time to respon since compilation is started on first backend request).
 
-## Running tests
+### Running tests
 
-### Backend tests
+#### Backend tests
 
 To run backend tests, you will need to start Izanami and associated containers independently.
 
@@ -75,10 +224,10 @@ To do so, just start the backend and the docker containers with the above comman
 Once backend and containers are started, just run
 
 ```sh
-sbt test
+sbt "testOnly *AllTests"
 ```
 
-#### Experimental direct test execution
+#### Backend test without starting container
 
 Alternatively, you can run one test suite directly (without Izanami and containers running). The suite will start everything for you, however this is way slower than above method and still highly experimental.
 
@@ -92,19 +241,40 @@ TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 
 ### Frontend tests
 
-As for backend tests, you'll need backend and docker containers started to run frontend tests.
+As for backend tests, you'll docker containers started to run frontend tests.
+
+Izanami backend must be started using a specific configuration (this is needed for test that set up OIDC).
+
+```sh
+sbt "run -Dconfig.resource=base-test.conf -Dlogger.file=./test/resources/logback.xml"
+```
 
 You'll also need to start your frontend on localhost:3000 (using above commands).
 
 Once everything is running, just run
 
 ```sh
+cd izanami-frontend
 npm test
 ```
 
-You may need to let playwright install browsers before executing tests.
+To display playwright UI, use
 
-## Packaging
+```sh
+npm test -- --ui
+```
+
+### Serving documentation locally
+
+To run documentation, just install and start project in `manual` folder.
+
+```sh
+cd manual
+npm install
+npm start
+```
+
+### Packaging
 
 To package frontend :
 
@@ -119,10 +289,10 @@ To package backend (make sure to package frontend first) :
 sbt "set test in assembly := {}" clean assembly
 ```
 
-To start generated jar
+To start generated jar (you need running containers).
 
 ```sh
-java -Dconfig.resource=dev.conf -jar ./target/scala-2.13/izanami.jar
+java -Dconfig.resource=dev.conf -jar ./target/izanami.jar
 ```
 
 To build docker image (after packaging frontend and backends)
@@ -141,15 +311,4 @@ To build "test" docker image (docker image with embeded postgres)
 
 ```sh
 docker build -t izanami-test-standalone -f ./demo-docker-image/Dockerfile-pg-embeded .
-```
-
-
-## Running documentation locally
-
-To run documentation, just install and start project in `manual` folder.
-
-```sh
-cd manual
-npm i
-npm start
 ```

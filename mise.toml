@@ -44,3 +44,27 @@ run = "npm test"
 
 [tasks.tests]
 run = [{task = "test:front"}, {task = "test:back"}]
+
+
+[tasks."package:front"]
+dir = "izanami-frontend"
+run = "npm run build"
+
+[tasks."package:back"]
+run = "sbt \"set test in assembly := {}\" clean assembly"
+
+[tasks.package]
+run = [{task = "package:front"}, {task = "package:back"}]
+
+[tasks."package:run"]
+run = "java -Dconfig.resource=dev.conf -jar ./target/izanami.jar"
+
+[tasks."docker:build"]
+run = "docker build -t izanami ."
+
+[tasks."docker:run"]
+run = "docker run --env IZANAMI_PG_URI=postgresql://postgres:postgres@host.docker.internal:5432/postgres -p 9000:9000 izanami"
+
+[tasks."docker:build-demo"]
+run = "docker build -t izanami-test-standalone -f ./demo-docker-image/Dockerfile-pg-embeded ."
+
