@@ -14,6 +14,8 @@ processes:
       timeout_seconds: 5
       success_threshold: 1
       failure_threshold: 20
+    shutdown:
+      command: "mise run clean"
   Backend:
     command: "mise run dev:back"
     is_tty: true

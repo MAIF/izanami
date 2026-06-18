@@ -15,17 +15,17 @@ run = "docker-compose pull && sbt compile"
 run = [{task = "install:front"}, {task = "install:back"}]
 
 [tasks."dev:containers"]
-run = "docker-compose rm -f && docker-compose up"
+run = "docker-compose rm -f && docker-compose --ansi=always up"
 
 [tasks.clean]
 run = "docker-compose down && docker-compose rm -f"
 
 [tasks."dev:front"]
 dir = "izanami-frontend"
-run = "npm run dev"
+run = "FORCE_COLOR=1 npm run dev"
 
 [tasks."dev:back"]
-run = "sbt -jvm-debug 5005 \"~run -Dconfig.resource=dev.conf\""
+run = "sbt --color=true -jvm-debug 5005 \"~run -Dconfig.resource=dev.conf\""
 raw=true
 
 [tasks.dev]
