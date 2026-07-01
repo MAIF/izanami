@@ -12,6 +12,7 @@ import fr.maif.izanami.models.ApiKeyWithCompleteRights
 import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.web.UserInformation
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
@@ -20,12 +21,14 @@ import io.vertx.sqlclient.SqlConnection
 import java.util.UUID
 import scala.List
 import scala.concurrent.Future
+import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.utils.Done
 
 class ApiKeyDatastore(val env: Env) extends Datastore {
   def createApiKey(
       apiKey: ApiKey,
       user: UserInformation
-  ): Future[Either[IzanamiError, ApiKey]] = {
+  ): FutureEither[ApiKey] = {
     createApiKeys(
       apiKey.tenant,
       apiKeys = Seq(apiKey),
@@ -33,6 +36,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
       conn = None
     )
       .map(e => e.map(_.head).left.map(_.head))
+      .toFEither
   }
 
   def findLegacyKeyTenant(clientId: String): Future[Option[String]] = {
@@ -216,7 +220,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
   def deleteApiKey(
       tenant: String,
       name: String
-  ): Future[Either[IzanamiError, String]] = {
+  ): FutureEither[String] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
@@ -237,14 +241,14 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
               conn = Some(conn)
             ) { _ => Right(clientId) }
         }
-    })
+    }).toFEither
   }
 
   def updateApiKey(
       tenant: String,
       oldName: String,
       newKey: ApiKey
-  ): Future[Either[IzanamiError, Unit]] = {
+  ): FutureEither[Done] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
@@ -254,7 +258,7 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                |""".stripMargin,
           List(oldName),
           conn = Some(conn)
-        ) { _ => Right(()) }
+        ) { _ => Right(Done.done()) }
         .flatMap(_ => {
           env.postgresql
             .queryOne(
@@ -291,11 +295,11 @@ class ApiKeyDatastore(val env: Env) extends Datastore {
                      |""".stripMargin,
               List(newKey.name, newKey.projects.toArray),
               conn = Some(conn)
-            ) { _ => Right(()) }
+            ) { _ => Right(Done.done()) }
           }
-          case _ => Future.successful(Right(()))
+          case _ => Future.successful(Right(Done.done()))
         }
-    })
+    }).toFEither
   }
 
   def readAndCheckApiKey(

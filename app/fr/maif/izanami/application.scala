@@ -29,6 +29,9 @@ import router.Routes
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
+import fr.maif.izanami.services.APIKeyService
+import scala.concurrent.ExecutionContext
+import fr.maif.izanami.datastores.ApiKeyDatastore
 
 class IzanamiLoader extends ApplicationLoader {
   Logger("IzanamiLoader")
@@ -74,6 +77,8 @@ class IzanamiComponentsInstances(
     rawConfiguration = configuration
   )
 
+  implicit lazy val ec: ExecutionContext = env.executionContext
+
   lazy val rightService: RightService = env.rightService
   lazy val filters = new DefaultHttpFilters(httpFilters: _*)
   lazy val personnalAccessTokenTenantRightsActionFactory
@@ -118,7 +123,9 @@ class IzanamiComponentsInstances(
   lazy val leaderActionBuilder: LeaderActionBuilderImpl =
     wire[LeaderActionBuilderImpl]
 
+  val apiKeyDataStore: ApiKeyDatastore = env.datastores.apiKeys
   lazy val featureService: FeatureService = wire[FeatureService]
+  lazy val apiKeyService: APIKeyService = wire[APIKeyService]
   lazy val staleFeatureService: FeatureUsageService = wire[FeatureUsageService]
 
   lazy val featureController: FeatureController = wire[FeatureController]
