@@ -1,7 +1,5 @@
 package fr.maif.izanami.web
 
-import com.github.jknack.handlebars.Handlebars
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.models.LightWebhook
 import fr.maif.izanami.models.RightLevel
 import fr.maif.izanami.models.Webhook
@@ -21,60 +19,26 @@ import java.util.UUID
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Try
+import fr.maif.izanami.services.WebhookService
 
 class WebhookController(
     val controllerComponents: ControllerComponents,
     val tenantAuthAction: TenantAuthActionFactory,
-    val webhookAuthAction: WebhookAuthActionFactory
-)(implicit val env: Env)
+    val webhookAuthAction: WebhookAuthActionFactory,
+    val webhookService: WebhookService
+)(implicit val ec: ExecutionContext)
     extends BaseController {
-  implicit val executionContext: ExecutionContext = env.executionContext
   implicit val lightWebhookRead: Reads[LightWebhook] =
     LightWebhook.lightWebhookRead
   implicit val webhookWrite: Writes[Webhook] = Webhook.webhookWrite
-  private val handlebars = new Handlebars()
+  
   def createWebhook(tenant: String): Action[JsValue] =
     tenantAuthAction(tenant, RightLevel.Write).async(parse.json) {
       implicit request =>
         {
           LightWebhook.lightWebhookRead.reads(request.body) match {
-            case JsSuccess(l: LightWebhook, _)
-                if l.global && (l.features.nonEmpty || l.projects.nonEmpty) =>
-              BadRequest(Json.obj(
-                "message" -> "Webhook can't be global and specify features or projects"
-              )).future
-            case JsSuccess(l: LightWebhook, _)
-                if !l.global && l.features.isEmpty && l.projects.isEmpty =>
-              BadRequest(Json.obj(
-                "message" -> "Webhook must either be global or specify features or projects"
-              )).future
-            case JsSuccess(webhook, _) => {
-              webhook.bodyTemplate
-                .map(template => {
-                  Try {
-                    handlebars.compileInline(template)
-                    webhook
-                  }.toEither
-                })
-                .getOrElse(Right(webhook))
-                .fold(
-                  _ => {
-                    Future.successful(BadRequest(
-                      Json.obj("message" -> "Bad handlebar template")
-                    ))
-                  },
-                  _ => {
-                    env.datastores.webhook.createWebhook(
-                      tenant,
-                      webhook,
-                      request.user
-                    ).map {
-                      case Left(err) => err.toHttpResponse
-                      case Right(id) => Created(Json.obj("id" -> id))
-                    }
-                  }
-                )
-            }
+            case JsSuccess(l: LightWebhook, _) =>
+              webhookService.createWebhook(tenant = tenant, webhook = l, user = request.user).toResult(id => Created(Json.obj("id" -> id)))
             case JsError(errors) => Future.successful(
                 BadRequest(Json.obj("message" -> "Bad body format"))
               )
@@ -85,7 +49,7 @@ class WebhookController(
   def listWebhooks(tenant: String): Action[AnyContent] =
     tenantAuthAction(tenant, RightLevel.Read).async {
       implicit request =>
-        env.datastores.webhook.listWebhook(tenant, request.user.username).map(
+        webhookService.listWebhook(tenant, request.user.username).map(
           ws => Ok(Json.toJson(ws))
         )
     }
@@ -96,7 +60,7 @@ class WebhookController(
       webhook = id,
       minimumLevel = RightLevel.Admin
     )).async { implicit request =>
-      env.datastores.webhook
+      webhookService
         .deleteWebhook(tenant, id)
         .toResult(_  => NoContent)
     }
@@ -113,26 +77,7 @@ class WebhookController(
             uuid <- Try { UUID.fromString(id) }.toOption;
             webhook <- LightWebhook.lightWebhookRead.reads(request.body).asOpt
           ) yield {
-            if (
-              webhook.global && (webhook.features.nonEmpty || webhook.projects.nonEmpty)
-            ) {
-              BadRequest(Json.obj(
-                "message" -> "Webhook can't be global and specify features or projects"
-              )).future
-            } else if (
-              !webhook.global && webhook.projects.isEmpty && webhook.features.isEmpty
-            ) {
-              BadRequest(Json.obj(
-                "message" -> "Webhook must either be global or specify features or projects"
-              )).future
-            } else {
-              env.datastores.webhook
-                .updateWebhook(tenant, uuid, webhook)
-                .map {
-                  case Left(error) => error.toHttpResponse
-                  case Right(_)    => NoContent
-                }
-            }
+            webhookService.updateWebhook(tenant = tenant, webhook=webhook, id = uuid).toResult(_ => NoContent)
           }).getOrElse(BadRequest(Json.obj(
             "message" -> "Bad body request and / or bad uuid provided as id"
           )).future)

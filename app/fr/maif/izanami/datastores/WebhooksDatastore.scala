@@ -4,7 +4,6 @@ import fr.maif.izanami.datastores.webhookImplicits.WebhookRow
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.errors.WebhookCreationFailed
 import fr.maif.izanami.errors.WebhookDoesNotExists
 import fr.maif.izanami.events.EventService
@@ -149,7 +148,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
       tenant: String,
       id: UUID,
       webhook: LightWebhook
-  ): Future[Either[IzanamiError, Unit]] = {
+  ): FutureEither[Done] = {
     require(Tenant.isTenantValid(tenant))
     env.postgresql.executeInTransaction(conn => {
       env.postgresql
@@ -176,7 +175,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
              |""".stripMargin,
             List(id, webhook.features.toArray),
             conn = Some(conn)
-          ) { _ => Some(()) }
+          ) { _ => Some(Done.done()) }
         )
         .flatMap(_ =>
           env.postgresql.queryOne(
@@ -185,7 +184,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
              |""".stripMargin,
             List(id, webhook.projects.map(UUID.fromString).toArray),
             conn = Some(conn)
-          ) { _ => Some(()) }
+          ) { _ => Some(Done.done()) }
         )
         .flatMap(_ =>
           env.postgresql
@@ -217,13 +216,13 @@ class WebhooksDatastore(val env: Env) extends Datastore {
                 java.lang.Boolean.valueOf(webhook.global)
               ),
               conn = Some(conn)
-            ) { _ => Some(()) }
+            ) { _ => Some(Done.done()) }
             .map(_.toRight(WebhookDoesNotExists(id.toString)))
             .recover(env.postgresql.pgErrorPartialFunction.andThen(err =>
               Left(err)
             ))
         )
-    })
+    }).toFEither
   }
 
   def deleteWebhook(
@@ -368,7 +367,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
       tenant: String,
       webhook: LightWebhook,
       user: UserInformation
-  ): Future[Either[IzanamiError, String]] = {
+  ): FutureEither[String] = {
     Tenant.isTenantValid(tenant)
     env.postgresql.executeInTransaction(conn => {
       env.datastores.featureContext.env.postgresql
@@ -436,7 +435,7 @@ class WebhooksDatastore(val env: Env) extends Datastore {
               .map(_ => Right(id))
           case either => Future.successful(either)
         }
-    })
+    }).toFEither
   }
 }
 

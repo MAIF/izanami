@@ -32,6 +32,8 @@ import scala.concurrent.duration.DurationInt
 import fr.maif.izanami.services.APIKeyService
 import scala.concurrent.ExecutionContext
 import fr.maif.izanami.datastores.ApiKeyDatastore
+import fr.maif.izanami.datastores.WebhooksDatastore
+import fr.maif.izanami.services.WebhookService
 
 class IzanamiLoader extends ApplicationLoader {
   Logger("IzanamiLoader")
@@ -124,8 +126,10 @@ class IzanamiComponentsInstances(
     wire[LeaderActionBuilderImpl]
 
   val apiKeyDataStore: ApiKeyDatastore = env.datastores.apiKeys
+  val webhookDatastore: WebhooksDatastore = env.datastores.webhook
   lazy val featureService: FeatureService = wire[FeatureService]
   lazy val apiKeyService: APIKeyService = wire[APIKeyService]
+  lazy val webhookService: WebhookService = wire[WebhookService]
   lazy val staleFeatureService: FeatureUsageService = wire[FeatureUsageService]
 
   lazy val featureController: FeatureController = wire[FeatureController]
