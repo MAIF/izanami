@@ -3,7 +3,6 @@ package fr.maif.izanami.datastores
 import fr.maif.izanami.datastores.ImportExportDatastore.DBImportResult
 import fr.maif.izanami.datastores.ImportExportDatastore.TableMetadata
 import fr.maif.izanami.datastores.ImportExportDatastore.UnitDBImportResult
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.InternalServerError
 import fr.maif.izanami.errors.IzanamiError
@@ -47,17 +46,18 @@ import scala.concurrent.Future
 import fr.maif.izanami.errors.ImportFailureError
 import fr.maif.izanami.errors.PostgresErrorMapper
 import play.api.Logger
+import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.events.EventService
 
 
-class ImportExportDatastore(val env: Env) extends Datastore {
+class ImportExportDatastore(postgresql: Postgresql, extensionSchema: String, featureDatastore: FeaturesDatastore, eventService: EventService) extends Datastore {
   private val logger = Logger("izanami-import-export")
-  private val extensionSchema: String = env.extensionsSchema
 
   private def tableMetadata(
       tenant: String,
       table: String
   ): Future[Option[TableMetadata]] = {
-    env.postgresql.queryOne(
+    postgresql.queryOne(
       s"""
          |SELECT ccu.constraint_name as pk_constraint, array_agg(distinct cs.column_name) as table_columns
          |FROM pg_constraint co, information_schema.constraint_column_usage ccu, pg_namespace n, information_schema.columns cs
@@ -114,7 +114,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
             Left(InternalServerError(s"Failed to fetch metadata for one table"))
           )
         } else {
-          env.postgresql.executeInTransactionAllowingSavepoint(
+          postgresql.executeInTransactionAllowingSavepoint(
             (conn, rollback) => {
               s
                 .collect { case (Some(metadata), jsons, exportedType) =>
@@ -129,7 +129,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                     if (t._3 == FeatureType || t._3 == ProjectType) Some("id")
                     else None
                   agg.flatMap(data => {
-                    env.postgresql
+                    postgresql
                       .queryRaw(
                         s"SET CONSTRAINTS ALL DEFERRED",
                         List(),
@@ -138,7 +138,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                         _ => data
                       }
                   }).flatMap(data =>
-                    env.postgresql.queryRaw(
+                    postgresql.queryRaw(
                       s"SELECT set_config('search_path', $$1, true)",
                       List(s"$extensionSchema, $tenant, public"),
                       conn = Some(conn)
@@ -273,7 +273,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
 
                     Future
                       .sequence(result.createdProjects.map(projectId => {
-                        env.eventService.emitEvent(
+                        eventService.emitEvent(
                           tenant,
                           SourceProjectCreated(
                             tenant = tenant,
@@ -294,7 +294,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                                 .get(FeatureType)
                                 .exists(s => s.nonEmpty)
                             ) {
-                              env.postgresql
+                              postgresql
                                 .queryAll(
                                   s"""
                                    |SELECT id, name FROM "${tenant}".projects WHERE id=ANY($$1)
@@ -319,7 +319,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                           previousProjectNames.flatMap(ids => {
                             Future.sequence(
                               result.updatedProjects.map(projectId => {
-                                env.eventService.emitEvent(
+                                eventService.emitEvent(
                                   tenant,
                                   SourceProjectUpdated(
                                     tenant = tenant,
@@ -343,7 +343,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                         }
                       })
                       .flatMap(_ => {
-                        env.datastores.features
+                        featureDatastore
                           .findActivationStrategiesForFeatures(
                             tenant,
                             result.createdFeatures ++ result.updatedFeatures,
@@ -357,7 +357,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                                 strategiesByFeature
                                   .get(created)
                                   .map(strategies => {
-                                    env.eventService.emitEvent(
+                                    eventService.emitEvent(
                                       tenant,
                                       SourceFeatureCreated(
                                         id = created,
@@ -378,7 +378,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                           })
                           .flatMap(strategiesByFeature => {
                             if (result.updatedFeatures.nonEmpty) {
-                              env.datastores.features
+                              featureDatastore
                                 .findActivationStrategiesForFeatures(
                                   tenant,
                                   result.updatedFeatures
@@ -398,7 +398,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                                         strategiesByFeature
                                           .get(updated)
                                           .map(strategies => {
-                                            env.eventService.emitEvent(
+                                            eventService.emitEvent(
                                               tenant,
                                               SourceFeatureUpdated(
                                                 id = updated,
@@ -533,7 +533,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
         (project, name)
       })
     }).flatMap(projectAndNames => {
-      env.datastores.features.findFeatureIds(
+      featureDatastore.findFeatureIds(
         tenant = tenant,
         featureNameAndProjects = projectAndNames
       )
@@ -558,7 +558,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       conflictStrategyToUse == MergeOverwrite || conflictStrategyToUse == Replace
     ) {
 
-      env.postgresql.queryRaw(
+      postgresql.queryRaw(
         s"""
 |DELETE FROM "${tenant}".features_tags WHERE feature=ANY($$1)
 """.stripMargin,
@@ -575,7 +575,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
             |RETURNING feature
             |""".stripMargin;
 
-        env.postgresql
+        postgresql
           .queryRaw(
             query,
             List(vertxJsonArray),
@@ -678,10 +678,10 @@ class ImportExportDatastore(val env: Env) extends Datastore {
   ): Future[UnitDBImportResult] = {
     val vertxJsonArray = new JsonArray(Json.toJson(rows).toString())
 
-    env.postgresql.queryRaw("SAVEPOINT savepoint", conn = Some(conn)) { _ =>
+    postgresql.queryRaw("SAVEPOINT savepoint", conn = Some(conn)) { _ =>
       Done.done()
     }.flatMap(_ =>
-      env.postgresql
+      postgresql
         .queryRaw(
           globalQuery,
           List(vertxJsonArray),
@@ -716,19 +716,19 @@ class ImportExportDatastore(val env: Env) extends Datastore {
         .recoverWith {
           case _ => {
             logger.info("There has been import error, switching to unit mode")
-            rows.foldLeft(env.postgresql.queryRaw(
+            rows.foldLeft(postgresql.queryRaw(
               s"ROLLBACK TO SAVEPOINT savepoint",
               conn = Some(conn)
             ) { _ => UnitDBImportResult() })((facc, row) => {
               facc.flatMap(acc =>
-                env.postgresql.queryRaw(
+                postgresql.queryRaw(
                   "SAVEPOINT savepoint",
                   conn = Some(conn)
                 ) { _ =>
                   Done.done()
                 }
                   .flatMap(_ => {
-                    env.postgresql
+                    postgresql
                       .queryOne(
                         unitQuery,
                         params = List(row.vertxJsValue),
@@ -745,7 +745,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                             }
                         }
                       }.flatMap(r => {
-                        env.postgresql.queryRaw(
+                        postgresql.queryRaw(
                           "RELEASE SAVEPOINT savepoint",
                           conn = Some(conn)
                         ) {
@@ -760,7 +760,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
                           logger.info(
                             s"Insertion of this row failed in unit mode : ${row}"
                           )
-                          env.postgresql.queryRaw(
+                          postgresql.queryRaw(
                             "ROLLBACK TO SAVEPOINT savepoint",
                             conn = Some(conn)
                           ) { _ =>
@@ -848,7 +848,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
       case _                                         => None
     }
 
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       s"""
          |WITH project_results AS (
          |    SELECT DISTINCT p.name as pname, p.id, (jsonb_build_object('_type', 'project', 'row', to_jsonb(p.*)::jsonb)) as result
@@ -992,7 +992,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
     if (usernames.isEmpty) {
       Future.successful(())
     } else {
-      env.postgresql
+      postgresql
         .queryRaw(
           s"""
              |INSERT INTO izanami.users_tenants_rights (username, tenant, level) VALUES(unnest($$1::text[]), $$2, 'READ')

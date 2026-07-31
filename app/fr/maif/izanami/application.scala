@@ -3,7 +3,6 @@ package fr.maif.izanami
 import com.softwaremill.macwire.wire
 import controllers.Assets
 import controllers.AssetsComponents
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiHttpErrorHandler
 import fr.maif.izanami.services.FeatureService
 import fr.maif.izanami.services.FeatureUsageService
@@ -24,7 +23,6 @@ import play.filters.csp.CSPComponents
 import play.filters.csrf.CSRFFilter
 import play.filters.gzip.GzipFilterComponents
 import play.filters.https.RedirectHttpsComponents
-import router.Routes
 
 import scala.concurrent.Await
 import scala.concurrent.Future
@@ -39,6 +37,27 @@ import fr.maif.izanami.datastores.ProjectsDatastore
 import fr.maif.izanami.datastores.TagsDatastore
 import fr.maif.izanami.services.TenantService
 import fr.maif.izanami.services.TagService
+import org.apache.pekko.actor.ActorSystem
+import com.typesafe.config.ConfigFactory
+import fr.maif.izanami.datastores.FeaturesDatastore
+import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.datastores.FeatureCallsDatastore
+import fr.maif.izanami.datastores.FeatureContextDatastore
+import fr.maif.izanami.datastores.UsersDatastore
+import fr.maif.izanami.datastores.ConfigurationDatastore
+import fr.maif.izanami.datastores.StatsDatastore
+import fr.maif.izanami.datastores.ImportExportDatastore
+import fr.maif.izanami.datastores.SearchDatastore
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore
+import fr.maif.izanami.datastores.EventDatastore
+import fr.maif.izanami.events.EventService
+import fr.maif.izanami.jobs.WebhookListener
+import fr.maif.izanami.mail.Mails
+import fr.maif.izanami.security.JwtService
+import javax.crypto.spec.SecretKeySpec
+import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
+import io.otoroshi.wasm4s.scaladsl.WasmIntegration
+
 
 class IzanamiLoader extends ApplicationLoader {
   Logger("IzanamiLoader")
@@ -63,30 +82,92 @@ class IzanamiComponentsInstances(
     with RedirectHttpsComponents
     with GzipFilterComponents {
 
-  override lazy val httpFilters: Seq[EssentialFilter] =
+  override val httpFilters: Seq[EssentialFilter] =
     super.httpFilters.filter {
       case _: CSRFFilter => false
       case _             => false
     } :+ corsFilter :+ /*cspFilter :+ redirectHttpsFilter :*/ gzipFilter
-  override lazy val httpErrorHandler: HttpErrorHandler =
+  override val httpErrorHandler: HttpErrorHandler =
     wire[IzanamiHttpErrorHandler]
 
-  implicit lazy val typedConfig: IzanamiTypedConfiguration =
+  implicit val typedConfig: IzanamiTypedConfiguration =
     IzanamiTypedConfiguration.from(
       ConfigUtil.fixIzanamiConfigIfNeeded(configuration.underlying)
     )
 
-  implicit lazy val env: Env = new Env(
-    environment = environment,
-    Ws = wsClient,
-    typedConfiguration = typedConfig.app,
-    playConfiguration = typedConfig.play,
-    rawConfiguration = configuration
+  implicit val actorSystem = ActorSystem(
+    "app-actor-system",
+    ConfigFactory.empty
+  );
+  //implicit val ec: ExecutionContext = actorSystem.dispatcher
+
+  val expositionUrl: String = typedConfig.app.exposition.url
+    .map(_.toString)
+    .getOrElse(s"http://localhost:${typedConfig.play.server.http.port}")
+
+    val encryptionKey = new SecretKeySpec(
+    typedConfig.app.authentication.tokenBodySecret
+      .padTo(16, "0")
+      .mkString("")
+      .take(16)
+      .getBytes,
+    "AES"
+  )
+  val postgresql = Postgresql(typedConfig.app)
+
+  // Datastores
+  val tenantDatastore: TenantsDatastore = new TenantsDatastore(postgresql = postgresql, eventService = eventService)
+  val projectDatastore: ProjectsDatastore = new ProjectsDatastore(postgresql = postgresql, eventService = eventService)
+  val featureDatstore: FeaturesDatastore = new FeaturesDatastore(postgresql = postgresql,  extensionSchema = typedConfig.app.pg.extensionsSchema, projectDatastore = projectDatastore, tenantDatastore = tenantDatastore, featureContextDatastore = featureContextDatastore, eventService = eventService, wasmIntegration = wasmIntegration)
+  val featureCallDatastore: FeatureCallsDatastore = new FeatureCallsDatastore(postgresql = postgresql, tenantDatastore = tenantDatastore)
+  val tagDatastore: TagsDatastore = new TagsDatastore(postgresql = postgresql)
+  val apiKeyDatastore: ApiKeyDatastore = new ApiKeyDatastore(postgresql = postgresql)
+  val featureContextDatastore: FeatureContextDatastore = new FeatureContextDatastore(postgresql = postgresql,  extensionSchema = typedConfig.app.pg.extensionsSchema, featureDatastore=featureDatstore, eventService = eventService)
+  val userDatastore: UsersDatastore = new UsersDatastore(postgresql = postgresql)
+  val configurationDatastore: ConfigurationDatastore = new ConfigurationDatastore(postgresql = postgresql, tenantDatastore = tenantDatastore, eventService = eventService, maybeOidcConfig = typedConfig.app.openid)
+  val webhookDatastore: WebhooksDatastore = new WebhooksDatastore(postgresql = postgresql)
+  val statDatastore: StatsDatastore = new StatsDatastore(postgresql = postgresql, configurationDatastore = configurationDatastore)
+  val exportDatastore: ImportExportDatastore = new ImportExportDatastore(postgresql = postgresql,  extensionSchema = typedConfig.app.pg.extensionsSchema, featureDatastore = featureDatstore, eventService = eventService)
+  val searchDatastore: SearchDatastore = new SearchDatastore(postgresql = postgresql)
+  val personnalAccessTokenDatastore: PersonnalAccessTokenDatastore = new PersonnalAccessTokenDatastore(postgresql = postgresql)
+  val eventDatastore: EventDatastore = new EventDatastore(postgresql = postgresql, tenantDatastore = tenantDatastore)
+
+
+  // Misc
+  val eventService = new EventService(
+    featureService=featureService,
+    projectDatastore=projectDatastore,
+    postgresql=postgresql,
+    eventDatastore=eventDatastore
+  )
+  val webhookListener = new WebhookListener(
+    datastore = webhookDatastore,
+    eventService = eventService,
+    webhookRetryConfig = typedConfig.app.webhooks.retry,
+    tenantDatastore = tenantDatastore,
+    httpClient = wsClient
+  )
+  val mails = new Mails(configurationDatastore = configurationDatastore, httpClient = wsClient, expositionUrl = expositionUrl)
+  val jwtService = new JwtService(secret = typedConfig.app.authentication.secret, encryptionKey = encryptionKey,expositionUrl=expositionUrl)
+
+  val wasmIntegration: WasmIntegration = WasmIntegration(
+    new IzanamiWasmIntegrationContext(
+      configurationDatastore = configurationDatastore,
+      featureDatastore = featureDatstore,
+      wasmConfiguration = typedConfig.app.wasm,
+      httpClient = wsClient
+    )
+  )
+  val rightService = new RightService(
+    eventService = eventService,
+    usersDatastore = userDatastore,
+    configurationDatastore = configurationDatastore,
+    openidConfiguration = typedConfig.app.openid,
+    postgresql = postgresql
   )
 
-  implicit lazy val ec: ExecutionContext = env.executionContext
+ 
 
-  lazy val rightService: RightService = env.rightService
   lazy val filters = new DefaultHttpFilters(httpFilters: _*)
   lazy val personnalAccessTokenTenantRightsActionFactory
       : PersonnalAccessTokenTenantRightsActionFactory =
@@ -130,11 +211,6 @@ class IzanamiComponentsInstances(
   lazy val leaderActionBuilder: LeaderActionBuilderImpl =
     wire[LeaderActionBuilderImpl]
 
-  val apiKeyDataStore: ApiKeyDatastore = env.datastores.apiKeys
-  val webhookDatastore: WebhooksDatastore = env.datastores.webhook
-  val tenantDatastore: TenantsDatastore = env.datastores.tenants
-  val projectsDatastore: ProjectsDatastore = env.datastores.projects
-  val tagsDatastore: TagsDatastore = env.datastores.tags
   lazy val tagService: TagService = wire[TagService]
   lazy val tenantService: TenantService = wire[TenantService]
   lazy val featureService: FeatureService = wire[FeatureService]
@@ -175,20 +251,55 @@ class IzanamiComponentsInstances(
     applicationLifecycle.addStopHook { () =>
       {
         for {
-          _ <- env.onStop()
+          _ <- featureDatstore.onStop()
+          _ <- featureCallDatastore.onStop()
+          _ <- tenantDatastore.onStop()
+          _ <- projectDatastore.onStop()
+          _ <- tagDatastore.onStop()
+          _ <- apiKeyDatastore.onStop()
+          _ <- featureContextDatastore.onStop()
+          _ <- userDatastore.onStop()
+          _ <- configurationDatastore.onStop()
+          _ <- webhookDatastore.onStop()
+          _ <- statDatastore.onStop()
+          _ <- exportDatastore.onStop()
+          _ <- searchDatastore.onStop()
+          _ <- personnalAccessTokenDatastore.onStop()
+          _ <- eventDatastore.onStop()
+          _ <- postgresql.onStop()
           _ <- staleFeatureService.onStop()
+          _ <- wasmIntegration.startF()
         } yield ()
 
       }
     }
     for {
-      _ <- env.onStart()
+      tenants <- tenantDatastore.readTenants()
+      _ <- postgresql.onStart(tenants)
+      _ <- featureDatstore.onStart()
+      _ <- featureCallDatastore.onStart()
+      _ <- tenantDatastore.onStart()
+      _ <- projectDatastore.onStart()
+      _ <- tagDatastore.onStart()
+      _ <- apiKeyDatastore.onStart()
+      _ <- featureContextDatastore.onStart()
+      _ <- userDatastore.onStart()
+      _ <- configurationDatastore.onStart()
+      _ <- webhookDatastore.onStart()
+      _ <- statDatastore.onStart()
+      _ <- exportDatastore.onStart()
+      _ <- searchDatastore.onStart()
+      _ <- personnalAccessTokenDatastore.onStart()
+      _ <- eventDatastore.onStart()
       _ <- staleFeatureService.onStart()
+      _ <- wasmIntegration.stopF()
+      _ = rightService.onStop()
+      _ <- eventService.killAllSources(excludeIzanamiChannel = false)
     } yield ()
   }
 
   def corsFilter: CORSFilter = {
-    new CORSFilter(CORSConfig.fromConfiguration(env.rawConfiguration))
+    new CORSFilter(CORSConfig.fromConfiguration(configuration))
   }
 
   /*def redirectHttpsFilter: RedirectHttpsFilter = {

@@ -1,7 +1,6 @@
 package fr.maif.izanami.datastores
 
 import buildinfo.BuildInfo
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.security.IdGenerator
@@ -19,14 +18,15 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
+import fr.maif.izanami.env.Postgresql
 
-class StatsDatastore(val env: Env) extends Datastore {
+class StatsDatastore(postgresql: Postgresql, configurationDatastore: ConfigurationDatastore) extends Datastore {
   var anonymousReportingCancellation: Cancellable = Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {
     anonymousReportingCancellation =
       env.actorSystem.scheduler.scheduleAtFixedRate(0.minutes, 24.hours)(() =>
-        env.datastores.configuration
+        configurationDatastore
           .readFullConfiguration()
           .foreach(conf => {
             if (conf.anonymousReporting) {
@@ -51,9 +51,9 @@ class StatsDatastore(val env: Env) extends Datastore {
   }
 
   def retrieveStats(): Future[JsValue] = {
-    env.postgresql
+    postgresql
       .executeInTransaction(conn => {
-        env.postgresql
+        postgresql
           .queryAll(s"""
              |SELECT name FROM izanami.tenants
              |""".stripMargin) { r => r.optString("name") }
@@ -92,7 +92,7 @@ class StatsDatastore(val env: Env) extends Datastore {
 
   def retrieveRunInformations(): Future[JsObject] = {
     val now = Instant.now()
-    for (izanamiId <- env.datastores.configuration.readId())
+    for (izanamiId <- configurationDatastore.readId())
       yield Json.obj(
         "os" -> Json.obj(
           "name" -> System.getProperty("os.name"),
@@ -163,7 +163,7 @@ class StatsDatastore(val env: Env) extends Datastore {
       conn: SqlConnection
   ): Future[TenantStats] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
+    postgresql
       .queryRaw(
         s"""
          |select count(id), script_config is null as classical from "${tenant}".features group by classical
@@ -176,7 +176,7 @@ class StatsDatastore(val env: Env) extends Datastore {
       }
       .flatMap {
         case (classicalFeaturesCount, scriptFeaturesCount) => {
-          env.postgresql
+          postgresql
             .queryRaw(
               s"""
              |select count(*), script_config is null as classical from "${tenant}".feature_contexts_strategies group by classical
@@ -198,7 +198,7 @@ class StatsDatastore(val env: Env) extends Datastore {
         }
       }
       .flatMap(stats => {
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
              |select count(*) from "${tenant}".projects
@@ -209,7 +209,7 @@ class StatsDatastore(val env: Env) extends Datastore {
           .map(projectCount => stats.copy(projectCount = projectCount))
       })
       .flatMap(stats => {
-        env.postgresql
+        postgresql
           .queryRaw(
             s"""
            |select count(*), admin from "${tenant}".apikeys group by admin
@@ -221,7 +221,7 @@ class StatsDatastore(val env: Env) extends Datastore {
           }
       })
       .flatMap(stats => {
-        env.postgresql
+        postgresql
           .queryRaw(
             s"""
                |select count(*), admin from izanami.users group by admin
@@ -233,7 +233,7 @@ class StatsDatastore(val env: Env) extends Datastore {
           }
       })
       .flatMap(stats => {
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
                |select count(*) from "${tenant}".tags
@@ -266,8 +266,8 @@ class StatsDatastore(val env: Env) extends Datastore {
 
   def readIntegrationInformations(): Future[JsObject] = {
     val isWasmPresent =
-      env.datastores.configuration.readWasmConfiguration().isDefined
-    env.datastores.configuration
+      configurationDatastore.readWasmConfiguration().isDefined
+    configurationDatastore
       .readFullConfiguration()
       .fold(
         _ =>
@@ -286,7 +286,7 @@ class StatsDatastore(val env: Env) extends Datastore {
   }
 
   def readMailerType(): Future[JsObject] = {
-    env.datastores.configuration
+    configurationDatastore
       .readFullConfiguration()
       .fold(
         _ => Json.obj(),

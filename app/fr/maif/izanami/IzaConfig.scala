@@ -127,7 +127,7 @@ case class AppConf(
     sessions: Sessions,
     passwordResetRequests: PasswordResetRequests,
     search: Search,
-    feature: Feature,
+    feature: FeatureConfiguration,
     housekeeping: Housekeeping,
     cluster: Cluster
 )
@@ -158,8 +158,8 @@ case class Experimental(staleTracking: StaleTracking)
 case class StaleTracking(enabled: Boolean)
 case class Reporting(url: String)
 case class Audit(eventsHoursTtl: Int)
-case class Webhooks(retry: Retry)
-case class Retry(
+case class Webhooks(retry: WebhookRetry)
+case class WebhookRetry(
     count: Int,
     intialDelay: Long,
     maxDelay: Long,
@@ -268,7 +268,7 @@ case class Invitations(ttl: Int)
 case class Sessions(ttl: Int)
 case class PasswordResetRequests(ttl: Int)
 case class Search(similarityThreshold: Double)
-case class Feature(
+case class FeatureConfiguration(
     callRecords: CallRecords,
     staleHoursDelay: Long,
     forceLegacy: Boolean,

@@ -6,7 +6,6 @@ import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckFailur
 import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckResult
 import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckSuccess
 import fr.maif.izanami.datastores.PersonnalAccessTokenDatastoreImplicits.PersonnalAccessTokenRow
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.FOREIGN_KEY_VIOLATION
 import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
@@ -38,10 +37,11 @@ import scala.concurrent.Future
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
+import fr.maif.izanami.env.Postgresql
 
-class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
+class PersonnalAccessTokenDatastore(postgresql: Postgresql) extends Datastore {
   def findAccessTokenByIds(ids: Set[UUID]): Future[Map[UUID, String]] = {
-    env.postgresql
+    postgresql
       .queryAll(
         s"""
          |SELECT t.id, t.name
@@ -85,7 +85,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
   ): Future[Option[ReadPersonnalAccessToken]] = {
     extractTokenInformation(token).fold(Future.successful(Option.empty))(
       (id, secret) => {
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
              |SELECT
@@ -141,8 +141,8 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
       user: String,
       data: PersonnalAccessTokenCreationRequest
   ): Future[Either[IzanamiError, ReadPersonnalAccessToken]] = {
-    env.postgresql.executeInTransaction(conn => {
-      env.postgresql
+    postgresql.executeInTransaction(conn => {
+      postgresql
         .queryRaw(
           s"""
            |DELETE FROM izanami.personnal_access_token_rights
@@ -153,7 +153,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
           conn = Some(conn)
         ) { _ => () }
         .flatMap(_ => {
-          env.postgresql
+          postgresql
             .queryOne(
               s"""
                  |UPDATE izanami.personnal_access_tokens SET name = $$1, all_rights=$$2, expires_at = $$5, expiration_timezone = $$6
@@ -212,7 +212,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
                     val rightAsArray = rightAsList.flatMap { (_, rights) =>
                       rights.map(r => r.name)
                     }.toArray
-                    env.postgresql
+                    postgresql
                       .queryRaw(
                         s"""
                          |INSERT INTO izanami.personnal_access_token_rights (token, tenant, value) VALUES($$1, UNNEST($$2::TEXT[]), UNNEST($$3::izanami.TOKEN_RIGHT[])) RETURNING *
@@ -245,7 +245,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
                       )
                     )
                   } else {
-                    env.postgresql
+                    postgresql
                       .queryRaw(
                         s"""
                        |INSERT INTO izanami.personnal_access_token_rights (token, global_value) VALUES($$1, UNNEST($$2::izanami.GLOBAL_TOKEN_RIGHT[])) RETURNING *
@@ -276,7 +276,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
             Left(TokenWithThisNameAlreadyExists(data.name))
         }
         .recover(
-          env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          postgresql.pgErrorPartialFunction.andThen(err => Left(err))
         )
     })
   }
@@ -285,8 +285,8 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
       data: PersonnalAccessTokenCreationRequest
   ): Future[Either[IzanamiError, CompletePersonnalAccessToken]] = {
     val secret = token(64)
-    env.postgresql.executeInTransaction(conn => {
-      env.postgresql
+    postgresql.executeInTransaction(conn => {
+      postgresql
         .queryOne(
           s"""
              |INSERT INTO izanami.personnal_access_tokens (name, username, token, expires_at, expiration_timezone, all_rights) VALUES($$1, $$2, $$3, $$4, $$5, $$6) RETURNING *
@@ -325,7 +325,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
                   _ <- if (rightAsList.isEmpty) {
                     Future.successful(Right(token))
                   } else {
-                    env.postgresql
+                    postgresql
                       .queryRaw(
                         s"""
                            |INSERT INTO izanami.personnal_access_token_rights (token, tenant, value) VALUES($$1, UNNEST($$2::TEXT[]), UNNEST($$3::izanami.TOKEN_RIGHT[])) RETURNING *
@@ -344,7 +344,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
                   r <- if (globalRights.isEmpty) {
                     Future.successful(Right(token))
                   } else {
-                    env.postgresql
+                    postgresql
                       .queryRaw(
                         s"""
                            |INSERT INTO izanami.personnal_access_token_rights (token, global_value) VALUES($$1, UNNEST($$2::izanami.GLOBAL_TOKEN_RIGHT[])) RETURNING *
@@ -381,7 +381,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
             }))
         }
         .recover(
-          env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          postgresql.pgErrorPartialFunction.andThen(err => Left(err))
         )
     })
   }
@@ -390,7 +390,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
       id: String,
       username: String
   ): FutureEither[Done] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
          |DELETE FROM izanami.personnal_access_tokens
@@ -404,7 +404,7 @@ class PersonnalAccessTokenDatastore(val env: Env) extends Datastore {
   }
 
   def listUserTokens(user: String): Future[Seq[ReadPersonnalAccessToken]] = {
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       s"""
          |SELECT
          |  t.id,

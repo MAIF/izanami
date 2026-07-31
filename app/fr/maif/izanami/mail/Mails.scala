@@ -5,7 +5,6 @@ import com.mailjet.client.MailjetClient
 import com.mailjet.client.MailjetRequest
 import com.mailjet.client.resource.Emailv31
 import com.sun.mail.smtp.SMTPTransport
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.MailSendingError
 import fr.maif.izanami.errors.MissingMailProviderConfigurationError
 import fr.maif.izanami.mail.MailGunRegion.Europe
@@ -36,6 +35,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.jdk.FutureConverters.CompletionStageOps
 import scala.util.Using
+import fr.maif.izanami.datastores.ConfigurationDatastore
 
 case class Mail(
     subject: String,
@@ -106,12 +106,11 @@ case class MailGunMailProvider(configuration: MailGunConfiguration)
   val mailerType: MailerType = MailGun
 }
 
-class Mails(env: Env) {
-  private val mailFactory = new MailFactory(env)
-  private implicit val ec: ExecutionContext = env.executionContext
+class Mails(configurationDatastore: ConfigurationDatastore, httpClient: WSClient, expositionUrl: String)(implicit ec: ExecutionContext) {
+  private val mailFactory = new MailFactory(expositionUrl)
 
   def sendMail(mail: Mail): FutureEither[Unit] = {
-    env.datastores.configuration
+    configurationDatastore
       .readFullConfiguration()
       .flatMap(configuration => {
         configuration.mailConfiguration match {
@@ -133,7 +132,7 @@ class Mails(env: Env) {
               mail,
               mailConf,
               configuration.originEmail.get,
-              env.Ws
+              httpClient
             )
           case SMTPMailProvider(mailConf) =>
             SMTPMailService.sendMail(

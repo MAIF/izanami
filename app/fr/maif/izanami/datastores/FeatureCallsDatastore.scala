@@ -1,6 +1,5 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.FeatureCallAggregator.FeatureCallRange
@@ -17,8 +16,9 @@ import java.time.Instant
 import java.time.ZoneOffset
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationLong
+import fr.maif.izanami.env.Postgresql
 
-class FeatureCallsDatastore(val env: Env) extends Datastore {
+class FeatureCallsDatastore(postgresql: Postgresql, tenantDatastore: TenantsDatastore) extends Datastore {
   private val callRetentionDelayInHours: Long =
     env.typedConfiguration.feature.callRecords.callRetentionTimeInHours
   private var outDatedCallDeleteCancellation: Cancellable =
@@ -40,7 +40,7 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
   }
 
   def deleteOutDatedCalls(duration: Duration): Future[Unit] = {
-    env.datastores.tenants.readTenants().map(tenants => {
+    tenantDatastore.readTenants().map(tenants => {
       Future.sequence(tenants.map(tenant =>
         deleteOutDatedCallsForTenant(tenant.name, duration)
       ))
@@ -52,7 +52,7 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
       duration: Duration
   ): Future[Unit] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql.queryRaw(
+    postgresql.queryRaw(
       s"""
          |DELETE FROM "${tenant}".feature_calls WHERE EXTRACT(EPOCH FROM (NOW() - range_stop)) > $$1 returning feature
          |""".stripMargin,
@@ -67,7 +67,7 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
   ): Future[Unit] = {
     require(Tenant.isTenantValid(tenant))
     val callSeq = calls.toSeq
-    env.postgresql.queryRaw(
+    postgresql.queryRaw(
       s"""
          |INSERT INTO "${tenant}".feature_calls (feature, apikey, context, value, range_start, range_stop, count)
          |VALUES (
@@ -115,7 +115,7 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
       valuesSince: Instant
   ): Future[Either[IzanamiError, Map[String, FeatureUsage]]] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql
+    postgresql
       .queryAll(
         query = s"""
          |WITH distinct_values_by_feature AS (
@@ -159,6 +159,6 @@ class FeatureCallsDatastore(val env: Env) extends Datastore {
         }
       }
       .map(ls => Right(ls.toMap))
-      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+      .recover(postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
   }
 }

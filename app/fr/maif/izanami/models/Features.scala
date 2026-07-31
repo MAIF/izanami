@@ -283,41 +283,6 @@ sealed trait LightWeightFeature extends AbstractFeature {
 
   override def withEnabled(enable: Boolean): LightWeightFeature
 
-  def toCompleteFeature(
-      tenant: String,
-      env: Env
-  ): Future[Either[IzanamiError, CompleteFeature]] = {
-    this match {
-      case f: LightWeightWasmFeature => {
-        env.datastores.features
-          .readWasmScript(tenant, f.wasmConfigName)
-          .map {
-            case Some(wasmConfig) =>
-              Right(
-                CompleteWasmFeature(
-                  id = id,
-                  name = name,
-                  project = project,
-                  enabled = enabled,
-                  wasmConfig = wasmConfig,
-                  tags = tags,
-                  metadata = metadata,
-                  description = description,
-                  resultType = resultType
-                )
-              )
-            case None =>
-              Left(
-                InternalServerError(
-                  s"Failed to find wasm script config ${f.wasmConfigName}"
-                )
-              )
-          }(env.executionContext)
-      }
-      case feat: CompleteFeature => Right(feat).future
-    }
-  }
-
   def withStrategy(
       strategy: LightweightContextualStrategy
   ): LightWeightFeature = {
@@ -824,46 +789,6 @@ object Feature {
         }
       })
       .as[JsObject]
-  }
-
-  def processMultipleStrategyResult(
-      strategyByCtx: Map[String, LightWeightFeature],
-      requestContext: RequestContext,
-      conditions: Boolean,
-      env: Env
-  ): Future[Either[IzanamiError, JsObject]] = {
-    val context = requestContext.context.elements.mkString("_")
-    val strategyToUse = if (context.isBlank) {
-      strategyByCtx("")
-    } else {
-      strategyByCtx
-        .filter { case (ctx, f) => context.startsWith(ctx) }
-        .toSeq
-        .sortWith {
-          case ((c1, _), (c2, _)) if c1.length < c2.length => false
-          case _                                           => true
-        }
-        .headOption
-        .map(_._2)
-        .getOrElse(strategyByCtx(""))
-    }
-
-    val jsonStrategies = writeStrategiesForEvent(strategyByCtx)
-
-    strategyToUse
-      .toCompleteFeature(tenant = requestContext.tenant, env = env)
-      .flatMap {
-        case Left(value)          => Left(value).future
-        case Right(strategyToUse) => {
-          writeFeatureForCheck(strategyToUse, requestContext, env = env)
-            .map {
-              case Left(err)                 => Left(err)
-              case Right(json) if conditions =>
-                Right(json ++ Json.obj("conditions" -> jsonStrategies))
-              case Right(json) => Right(json)
-            }(env.executionContext)
-        }
-      }(env.executionContext)
   }
 
   def writeFeatureForCheck(

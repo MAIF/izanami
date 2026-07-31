@@ -14,7 +14,7 @@ import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import scala.util.Try
 
-class JwtService(env: Env) {
+class JwtService(secret: String, encryptionKey: SecretKeySpec, expositionUrl: String) {
   def generateToken(username: String, content: JsValue = null): String = {
     val secondsSinceEpoch = Instant.now().getEpochSecond
     var claim = JwtClaim(
@@ -23,25 +23,25 @@ class JwtService(env: Env) {
       expiration = Some(secondsSinceEpoch + 3600),
       notBefore = Some(secondsSinceEpoch - 60),
       issuedAt = Some(secondsSinceEpoch),
-      audience = Some(Set(env.expositionUrl))
+      audience = Some(Set(expositionUrl))
     )
     claim =
       Option(content).map(c => claim.withContent(c.toString())).getOrElse(claim)
     encrypt(
       JwtJson.encode(
         claim,
-        env.typedConfiguration.authentication.secret,
+        secret,
         JwtAlgorithm.HS256
       ),
-      env.encryptionKey
+      encryptionKey
     )
   }
 
   def parseJWT(token: String): Try[JwtClaim] =
     decodeJWT(
       token,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
+      secret,
+      encryptionKey
     )
 }
 

@@ -3,7 +3,6 @@ package fr.maif.izanami.datastores
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import fr.maif.izanami.datastores.tenantImplicits.TenantRow
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.FailedToCreateTenantSchema
@@ -42,10 +41,12 @@ import scala.util.Success
 import scala.util.Try
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.events.EventService
 
-class TenantsDatastore(val env: Env) extends Datastore {
+class TenantsDatastore(postgresql: Postgresql, eventService: EventService) extends Datastore {
   def deleteImportStatus(id: UUID): Future[Unit] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
          |DELETE FROM izanami.pending_imports WHERE id=$$1
@@ -56,7 +57,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
   }
 
   def readImportStatus(id: UUID): Future[Option[ImportState]] = {
-    env.postgresql.queryOne(
+    postgresql.queryOne(
       s"""
          |SELECT status, result FROM izanami.pending_imports WHERE id=$$1
          |""".stripMargin,
@@ -80,7 +81,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
       id: UUID,
       importSuccess: ImportSuccess
   ): Future[Done] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
          |UPDATE izanami.pending_imports SET status='FINISHED', result=$$2 WHERE id=$$1
@@ -94,7 +95,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
       id: UUID,
       importFailure: ImportFailure
   ): Future[Done] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
          |UPDATE izanami.pending_imports SET status='FAILED', result=$$2 WHERE id=$$1
@@ -105,7 +106,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
   }
 
   def markImportAsStarted(): Future[Either[IzanamiError, UUID]] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""INSERT INTO izanami.pending_imports DEFAULT VALUES RETURNING id""",
         List()
@@ -119,7 +120,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
   ): FutureEither[Tenant] = {
 
     def createDBSchema(): Either[IzanamiError, Unit] = {
-      val connectOptions = env.postgresql.connectOptions
+      val connectOptions = postgresql.connectOptions
       val config = new HikariConfig()
       config.setDriverClassName(classOf[org.postgresql.Driver].getName)
       config.setJdbcUrl(
@@ -166,8 +167,8 @@ class TenantsDatastore(val env: Env) extends Datastore {
       }
     }
 
-    env.postgresql.executeInTransaction(conn => {
-      env.postgresql
+    postgresql.executeInTransaction(conn => {
+      postgresql
         .queryOne(
           s"insert into izanami.tenants (name, description) values ($$1, $$2) returning *",
           List(tenantCreationRequest.name, tenantCreationRequest.description),
@@ -179,12 +180,12 @@ class TenantsDatastore(val env: Env) extends Datastore {
             Left(TenantAlreadyExists(tenantCreationRequest.name))
         }
         .recover(
-          env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          postgresql.pgErrorPartialFunction.andThen(err => Left(err))
         )
         .flatMap {
           case Left(value)  => Left(value).future
           case Right(value) =>
-            env.postgresql
+            postgresql
               .queryOne(
                 s"""
                | INSERT INTO izanami.users_tenants_rights(username, tenant, level) VALUES ($$1, $$2, $$3)
@@ -214,7 +215,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
               .left
               .map(err => {
                 Option(conn.transaction()).foreach(t => t.rollback())
-                env.postgresql.queryRaw(
+                postgresql.queryRaw(
                   s"""DROP SCHEMA IF EXISTS ${tenantCreationRequest.name} CASCADE"""
                 ) { _ => () }
                 err
@@ -224,7 +225,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
         .flatMap {
           case Left(value)       => Left(value).future
           case r @ Right(tenant) => {
-            env.eventService
+            eventService
               .emitGlobalEvent(
                 event = SourceTenantCreated(
                   tenant.name,
@@ -244,8 +245,8 @@ class TenantsDatastore(val env: Env) extends Datastore {
       name: String,
       updateRequest: TenantCreationRequest
   ): FutureEither[Done] = {
-    env.postgresql.executeInTransaction(conn => {
-      env.postgresql
+    postgresql.executeInTransaction(conn => {
+      postgresql
         .queryOne(
           s"""
            |UPDATE izanami.tenants SET description=$$1 WHERE name=$$2 RETURNING name
@@ -255,13 +256,13 @@ class TenantsDatastore(val env: Env) extends Datastore {
         ) { r => r.optString("name") }
         .map(o => o.toRight(TenantDoesNotExists(name)).map(_ => Done.done()))
         .recover(
-          env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          postgresql.pgErrorPartialFunction.andThen(err => Left(err))
         )
     }).toFEither
   }
 
   def readTenants(): Future[List[SimpleTenant]] = {
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       "SELECT name, description FROM izanami.tenants"
     ) { row => row.optSimpleTenant() }
   }
@@ -270,7 +271,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
     if (names.isEmpty) {
       Future.successful(List())
     } else {
-      env.postgresql.queryAll(
+      postgresql.queryAll(
         s"""
            |SELECT name, description
            |FROM izanami.tenants
@@ -282,7 +283,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
   }
 
   def readTenantByName(name: String): FutureEither[Tenant] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""SELECT t.name, t.description
          |FROM izanami.tenants t
@@ -299,8 +300,8 @@ class TenantsDatastore(val env: Env) extends Datastore {
       user: UserInformation
   ): FutureEither[Done] = {
 
-    env.postgresql.executeInTransaction(conn => {
-      env.postgresql
+    postgresql.executeInTransaction(conn => {
+      postgresql
         .queryOne(
           s"""DELETE FROM izanami.tenants WHERE name=$$1 RETURNING name""".stripMargin,
           List(name),
@@ -312,7 +313,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
         .flatMap {
           case l @ Left(value)        => Left(value).future
           case r @ Right(deletedName) =>
-            env.postgresql
+            postgresql
               .queryRaw(
                 s"""DROP SCHEMA "${deletedName}" CASCADE""",
                 conn = Some(conn)
@@ -320,7 +321,7 @@ class TenantsDatastore(val env: Env) extends Datastore {
               .map(_ => Right(Done.done()))
         }
         .flatMap(r => {
-          env.eventService
+          eventService
             .emitGlobalEvent(
               event = SourceTenantDeleted(
                 name,

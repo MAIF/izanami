@@ -1,6 +1,5 @@
 package fr.maif.izanami.models
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.features.ActivationCondition
 import fr.maif.izanami.models.features.BooleanActivationCondition
@@ -135,7 +134,6 @@ sealed trait LightweightContextualStrategy extends ContextualFeatureStrategy
 sealed trait CompleteContextualStrategy extends ContextualFeatureStrategy {
   def value(
       requestContext: RequestContext,
-      env: Env
   ): Future[Either[IzanamiError, JsValue]]
   def toLightWeightContextualStrategy: LightweightContextualStrategy = {
     this match {
@@ -170,7 +168,6 @@ case class ClassicalFeatureStrategy(
     with LightweightContextualStrategy {
   def value(
       requestContext: RequestContext,
-      env: Env
   ): Future[Either[IzanamiError, JsValue]] = {
     Future.successful(Right((enabled, resultDescriptor) match {
       case (false, r: BooleanResultDescriptor)         => JsFalse
@@ -201,7 +198,6 @@ case class CompleteWasmFeatureStrategy(
 ) extends CompleteContextualStrategy {
   def value(
       requestContext: RequestContext,
-      env: Env
   ): Future[Either[IzanamiError, JsValue]] = {
     if (!enabled) {
       Future { Right(null.asInstanceOf) }(env.executionContext)

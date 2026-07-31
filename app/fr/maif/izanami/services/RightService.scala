@@ -4,6 +4,7 @@ import fr.maif.izanami.RoleRightMode
 import fr.maif.izanami.RoleRightMode.Initial
 import fr.maif.izanami.RoleRightMode.Supervised
 import fr.maif.izanami.datastores.UserIdentification
+import fr.maif.izanami.datastores.ConfigurationDatastore
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.CantUpdateOIDCUser
 import fr.maif.izanami.errors.IzanamiError
@@ -75,6 +76,10 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import fr.maif.izanami.datastores.UsersDatastore
+import fr.maif.izanami.OpenId
+import fr.maif.izanami.env.Postgresql
+
 
 case class RightCheckConfirmation(
     user: User,
@@ -101,28 +106,27 @@ case class RightCheckConfirmation(
 case class EntityIdentifiers(name: String, id: UUID)
 
 class RightService(
-    private val env: Env,
-    private val eventService: EventService
-) {
+    private val eventService: EventService,
+    private val usersDatastore: UsersDatastore,
+    private val configurationDatastore: ConfigurationDatastore,
+    private val openidConfiguration: Option[OpenId],
+    private val postgresql: Postgresql // TODO this should not be in a service
+)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
   private val logger = Logger("izanami.right-service")
-  private implicit val executionContext: ExecutionContext = env.executionContext
-  private implicit val actorSystem: ActorSystem = env.actorSystem
   private var sourceKillSwitch: Option[SharedKillSwitch] = Option.empty
   private val currentOidcConfiguration
       : AtomicReference[Option[OAuth2Configuration]] = new AtomicReference(
     Option.empty
   )
-  private val usersDatastore = env.datastores.users
-
   def onStart(): Future[Done] = {
 
-    val initialOidcConfiguration = env.typedConfiguration.openid
+    val initialOidcConfiguration = openidConfiguration
       .flatMap(
         _.toIzanamiOAuth2Configuration
       )
       .map(conf => FutureEither.success(Some(conf)))
       .getOrElse(
-        env.datastores.configuration
+        configurationDatastore
           .readFullConfiguration()
           .map(_.oidcConfiguration)
       )
@@ -202,7 +206,7 @@ class RightService(
       conn: Option[SqlConnection]
   ): FutureEither[Option[MaxRightComplianceResult]] = {
     val roleFuture = if (user.roles != newRoles) {
-      env.datastores.users.updateUserRoles(user.username, newRoles, conn = conn)
+      usersDatastore.updateUserRoles(user.username, newRoles, conn = conn)
     } else {
       FutureEither.success(Done.done())
     }
@@ -225,7 +229,7 @@ class RightService(
             )
 
           if (!maxRightComplanceResult.isEmpty) {
-            env.datastores.users
+            usersDatastore
               .updateUserRights(
                 user.username,
                 maxRightComplanceResult.rightDiff(
@@ -391,7 +395,7 @@ class RightService(
   }
 
   def findUserWithCompleteRights(user: String): FutureEither[UserWithRights] = {
-    env.datastores.users
+    usersDatastore
       .findUserWithCompleteRights(user)
       .map(_.toRight(UserDoesNotExist(user)))
       .toFEither
@@ -483,7 +487,7 @@ class RightService(
               )
             }
             case o =>
-              env.postgresql.executeInOptionalTransaction(
+              postgresql.executeInOptionalTransaction(
                 conn,
                 conn => {
                   for (

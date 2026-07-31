@@ -2,7 +2,6 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
 import fr.maif.izanami.events.*
-import fr.maif.izanami.events.EventService.internalToExternalEvent
 import fr.maif.izanami.models.*
 import fr.maif.izanami.services.FeatureService
 import fr.maif.izanami.v1.V1FeatureEvents.createEvent
@@ -250,7 +249,7 @@ class EventController(
               case _ => false
             }
             .mapAsync(1)(e =>
-              internalToExternalEvent(
+              eventService.internalToExternalEvent(
                 e,
                 RequestContext(
                   tenant,

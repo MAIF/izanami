@@ -55,18 +55,26 @@ import play.api.libs.json.Writes
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import fr.maif.izanami.datastores.FeaturesDatastore
+import fr.maif.izanami.FeatureConfiguration
+import fr.maif.izanami.datastores.FeatureContextDatastore
+import fr.maif.izanami.datastores.TagsDatastore
 
-class FeatureService(env: Env) {
-  private val datastore = env.datastores.features
-  implicit val ec: ExecutionContext = env.executionContext
-
-  def isWasmAllowed: Boolean = env.typedConfiguration.feature.allowWasm
+class FeatureService(
+  private val datastore: FeaturesDatastore,
+  private val featureContextDatastore: FeatureContextDatastore,
+  private val tagDatastore: TagsDatastore,
+  private val configuration: FeatureConfiguration,
+  private val transactionProvider: PostgresTransactionProvider,// TODO use super class instead, but it's a huge refactoring
+  private val env: Env
+)(implicit ec: ExecutionContext) {
+  def isWasmAllowed: Boolean = configuration.allowWasm
 
   private def hasProtectedOverload(
       tenant: String,
       feature: FeatureWithOverloads
   ): FutureEither[Boolean] = {
-    env.datastores.featureContext
+    featureContextDatastore
       .readProtectedContexts(
         tenant = tenant,
         project = feature.project
@@ -79,6 +87,71 @@ class FeatureService(env: Env) {
       .mapToFEither
   }
 
+  // TODO this should be split in completion to Map[String, CompleteFeature] and a Write
+  def processMultipleStrategyResult(
+      strategyByCtx: Map[String, LightWeightFeature],
+      requestContext: RequestContext,
+      conditions: Boolean
+  ): FutureEither[JsObject] = {
+    val context = requestContext.context.elements.mkString("_")
+    val strategyToUse = if (context.isBlank) {
+      strategyByCtx("")
+    } else {
+      strategyByCtx
+        .filter { case (ctx, f) => context.startsWith(ctx) }
+        .toSeq
+        .sortWith {
+          case ((c1, _), (c2, _)) if c1.length < c2.length => false
+          case _                                           => true
+        }
+        .headOption
+        .map(_._2)
+        .getOrElse(strategyByCtx(""))
+    }
+
+    val jsonStrategies = Feature.writeStrategiesForEvent(strategyByCtx)
+
+    lightWeightToCompleteFeature(tenant = requestContext.tenant, strategyToUse)
+      .flatMap(strategyToUse =>
+        Feature.writeFeatureForCheck(strategyToUse, requestContext, env = env)
+          .map {
+            case Left(err)                 => Left(err)
+            case Right(json) if conditions =>
+              Right(json ++ Json.obj("conditions" -> jsonStrategies))
+            case Right(json) => Right(json)
+          }.toFEither
+      )
+  }
+
+
+  def lightWeightToCompleteFeature(tenant: String, f: LightWeightFeature): FutureEither[CompleteFeature] = {
+    f match {
+      case f: LightWeightWasmFeature => {
+        datastore
+          .readWasmScript(tenant, f.wasmConfigName)
+          .map(maybeWasm => maybeWasm.toRight(
+                InternalServerError(
+                  s"Failed to find wasm script config ${f.wasmConfigName}"
+                )
+              )).toFEither
+          .map((wasmConfig) =>
+                CompleteWasmFeature(
+                  id = f.id,
+                  name = f.name,
+                  project = f.project,
+                  enabled = f.enabled,
+                  wasmConfig = wasmConfig,
+                  tags = f.tags,
+                  metadata = f.metadata,
+                  description = f.description,
+                  resultType = f.resultType
+                )
+              )
+          }
+      case feat: CompleteFeature => FutureEither.success(feat)
+    }
+  }
+
   def createFeature(
       tenant: String,
       project: String,
@@ -89,20 +162,20 @@ class FeatureService(env: Env) {
       case f: CompleteWasmFeature if !isWasmAllowed =>
         FutureEither.failure(WasmFeatureNotAllowed)
       case f: AbstractFeature
-          if env.typedConfiguration.feature.forceLegacy && !f
+          if configuration.forceLegacy && !f
             .isInstanceOf[SingleConditionFeature] =>
         FutureEither.failure(ModernFeatureNotAllowed)
       case f: CompleteWasmFeature
           if f.resultType != BooleanResult && f.wasmConfig.opa =>
         FutureEither.failure(BadOPAReturnType)
       case feature => {
-        env.datastores.tags
+        tagDatastore
           .readTags(tenant, feature.tags).toFEither
           .flatMap(tags =>
             if (tags.size < feature.tags.size) {
               val tagsToCreate =
                 feature.tags.diff(tags.map(t => t.name).toSet)
-              env.datastores.tags.createTags(
+              tagDatastore.createTags(
                 tagsToCreate
                   .map(name => TagCreationRequest(name = name))
                   .toList,
@@ -113,10 +186,10 @@ class FeatureService(env: Env) {
             }
           )
           .flatMap(_ =>
-            env.datastores.features
+            datastore
               .create(tenant, project, feature, user).toFEither
               .flatMap(id => {
-                env.datastores.features
+                datastore
                   .findById(tenant, id).toFEither
                   .flatMap(maybeFeature =>
                     FutureEither.from(maybeFeature.toRight(FeatureNotFound(id)))
@@ -140,7 +213,7 @@ class FeatureService(env: Env) {
         patches.map(_.id).toSet
       )
       .flatMap(features => {
-        env.postgresql.executeInTransaction(conn => {
+        transactionProvider.executeInTransaction(conn => {
           patches.foldLeft(FutureEither.success(Done.done()))((acc, next) => {
             acc.flatMap(_ => {
               next match {
@@ -247,7 +320,7 @@ class FeatureService(env: Env) {
       userInformation: UserInformation
   ): FutureEither[Done] = {
     for (
-      context <- env.datastores.featureContext
+      context <- featureContextDatastore
         .readContext(tenant = tenant, path = contextPath)
         .map(o => o.toRight(FeatureContextDoesNotExist(contextPath.toUserPath)))
         .toFEither;
@@ -274,7 +347,7 @@ class FeatureService(env: Env) {
         )
         .map(maybeFeature => maybeFeature.toRight(FeatureNotFound(name)))
         .toFEither;
-      protectedContexts <- env.datastores.featureContext
+      protectedContexts <- featureContextDatastore
         .readProtectedContexts(
           tenant,
           project,
@@ -304,19 +377,15 @@ class FeatureService(env: Env) {
         val protectedContextToUpdate = computeRootContexts(
           impactedProtectedContexts
         );
-        env.postgresql.executeInTransaction(conn => {
+        transactionProvider.executeInTransaction(conn => {
           for (
-            oldStrategy <- oldFeature
-              .strategyFor(contextPath)
-              .toCompleteFeature(tenant, env)
-              .toFEither
-              .map(completeFeature =>
+            oldStrategy <- lightWeightToCompleteFeature(tenant, oldFeature.strategyFor(contextPath)).map(completeFeature =>
                 completeFeature.toCompleteContextualStrategy
               );
             _ <- protectedContextToUpdate
               .foldLeft(FutureEither.success(()))((res, ctx) => {
                 res.flatMap(_ =>
-                  env.datastores.featureContext
+                  featureContextDatastore
                     .updateFeatureStrategy(
                       tenant = tenant,
                       project = oldFeature.project,
@@ -332,7 +401,7 @@ class FeatureService(env: Env) {
                     .toFEither
                 )
               });
-            res <- env.datastores.featureContext
+            res <- featureContextDatastore
               .deleteFeatureStrategy(
                 tenant,
                 project,
@@ -347,7 +416,7 @@ class FeatureService(env: Env) {
 
       } else {
         // TODO handle preserveProtectedContexts
-        env.datastores.featureContext
+        featureContextDatastore
           .deleteFeatureStrategy(
             tenant,
             project,
@@ -365,7 +434,7 @@ class FeatureService(env: Env) {
       user: UserWithCompleteRightForOneTenant,
       contextPath: FeatureContextPath
   ): Future[Either[IzanamiError, Context]] = {
-    env.datastores.featureContext
+    featureContextDatastore
       .readContext(tenant, contextPath)
       .map(o => o.toRight(FeatureContextDoesNotExist(contextPath.toUserPath)))
       .map(e =>
@@ -399,7 +468,7 @@ class FeatureService(env: Env) {
       authentification: EventAuthentication,
       conn: Option[SqlConnection] = None
   ): FutureEither[Unit] = {
-    env.postgresql.executeInOptionalTransaction(
+    transactionProvider.executeInOptionalTransaction(
       conn,
       conn => {
         for (
@@ -494,11 +563,11 @@ class FeatureService(env: Env) {
       request: BaseFeatureUpdateRequest,
       conn: Option[SqlConnection] = None
   ): FutureEither[AbstractFeature] = {
-    env.postgresql.executeInOptionalTransaction(
+    transactionProvider.executeInOptionalTransaction(
       conn,
       conn => {
         for (
-          _ <- env.datastores.tags
+          _ <- tagDatastore
             .createTags(
               request.tags
                 .map(name => TagCreationRequest(name = name))
@@ -536,7 +605,7 @@ class FeatureService(env: Env) {
               .isInstanceOf[SingleConditionFeature] && !request.feature
               .isInstanceOf[
                 SingleConditionFeature
-              ] && env.typedConfiguration.feature.forceLegacy
+              ] && configuration.forceLegacy
           ) {
             FutureEither.failure(ModernFeaturesForbiddenByConfig)
           } else {
@@ -563,7 +632,7 @@ class FeatureService(env: Env) {
       maybeConn: Option[SqlConnection] = None
   ): FutureEither[Unit] = {
 
-    env.postgresql.executeInOptionalTransaction(
+    transactionProvider.executeInOptionalTransaction(
       maybeConn,
       conn => {
         for (
@@ -575,7 +644,7 @@ class FeatureService(env: Env) {
           _ <- validateFeature(
             request.strategy
           ).toFEither; // TODO replace by validation on Reads[AbstractFeature]
-          protectedContexts <- env.datastores.featureContext
+          protectedContexts <- featureContextDatastore
             .readProtectedContexts(
               request.tenant,
               request.project,
@@ -611,19 +680,14 @@ class FeatureService(env: Env) {
             request.preserveProtectedContexts && protectedContextToUpdate.nonEmpty
           ) {
             for (
-              oldStrategy <- oldFeature
-                .strategyFor(
-                  request.maybeContext.getOrElse(FeatureContextPath())
-                )
-                .toCompleteFeature(request.tenant, env)
-                .toFEither
-                .map(completeFeature =>
-                  completeFeature.toCompleteContextualStrategy
+              oldStrategy <- lightWeightToCompleteFeature(request.tenant,oldFeature.strategyFor(request.maybeContext.getOrElse(FeatureContextPath())))
+                              .map(completeFeature =>
+                                  completeFeature.toCompleteContextualStrategy
                 );
               res <- protectedContextToUpdate
                 .foldLeft(FutureEither.success(()))((res, ctx) => {
                   res.flatMap(_ =>
-                    env.datastores.featureContext
+                    featureContextDatastore
                       .updateFeatureStrategy(
                         tenant = request.tenant,
                         project = oldFeature.project,
@@ -654,7 +718,7 @@ class FeatureService(env: Env) {
                 .toFEither
                 .map(_ => ());
             case r: OverloadFeatureUpdateRequest =>
-              env.datastores.featureContext
+              featureContextDatastore
                 .updateFeatureStrategy(
                   request.tenant,
                   request.project,
@@ -827,7 +891,7 @@ class FeatureService(env: Env) {
         )
       }
       case (f: OverloadFeatureUpdateRequest, _, _) => {
-        env.datastores.featureContext
+        featureContextDatastore
           .readContext(f.tenant, f.context)
           .mapToFEither
           .flatMap {

@@ -3,7 +3,6 @@ package fr.maif.izanami.datastores
 import fr.maif.izanami.datastores.ConfigurationDatastore.parseDbMailer
 import fr.maif.izanami.datastores.ConfigurationDatastore.parseInvitationMode
 import fr.maif.izanami.datastores.configurationImplicits.MailerConfigurationRow
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.ConfigurationReadError
 import fr.maif.izanami.errors.InternalServerError
@@ -37,8 +36,11 @@ import play.api.libs.json.Writes
 import java.time.ZoneOffset
 import java.util.UUID
 import scala.concurrent.Future
+import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.OpenId
+import fr.maif.izanami.events.EventService
 
-class ConfigurationDatastore(val env: Env) extends Datastore {
+class ConfigurationDatastore(postgresql: Postgresql, tenantDatastore: TenantsDatastore, eventService: EventService, maybeOidcConfig: Option[OpenId]) extends Datastore {
 
   /** Updates OIDC rights roles to keep only existing stuff. This is used if
     * existing oidc configuration references non existing project / keys /
@@ -78,7 +80,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
     }
 
     val tenants: Set[String] = rights.values.flatMap(_.tenants.keySet).toSet
-    env.datastores.tenants
+    tenantDatastore
       .readTenants()
       .mapToFEither
       .flatMap(ts => {
@@ -95,17 +97,17 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
               require(Tenant.isTenantValid(t))
 
               (for (
-                existingProjects <- env.postgresql
+                existingProjects <- postgresql
                   .queryAll(
                     s"""SELECT name from "${t}".projects"""
                   ) { r => r.optString("name") }
                   .map(l => l.toSet);
-                existingKeys <- env.postgresql
+                existingKeys <- postgresql
                   .queryAll(
                     s"""SELECT name from "${t}".apikeys"""
                   ) { r => r.optString("name") }
                   .map(l => l.toSet);
-                existingWebhooks <- env.postgresql
+                existingWebhooks <- postgresql
                   .queryAll(
                     s"""SELECT name from "${t}".webhooks"""
                   ) { r => r.optString("name") }
@@ -137,8 +139,40 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
       })
   }
 
+  def isOIDCConfigurationEditable: Boolean = {
+    (for (
+      oidcConfig <- maybeOidcConfig;
+      _ <- oidcConfig.clientId;
+      _ <- oidcConfig.clientSecret;
+      _ <- oidcConfig.authorizeUrl;
+      _ <- oidcConfig.tokenUrl
+    ) yield false)
+      .getOrElse(true)
+  }
+
+  def oidcConfigurationMigration(): FutureEither[Option[FutureEither[FullIzanamiConfiguration]]] = {
+    readFullConfiguration()
+      .map(configuration => {
+        val maybeOauth =
+          maybeOidcConfig.flatMap(o => o.toIzanamiOAuth2Configuration)
+        maybeOauth.map(oauth => {
+          updateConfiguration(
+              configuration.copy(oidcConfiguration = Some(oauth)),
+              origin = TechnicalOrigin,
+              userInformation = IzanamiApplicationUserInformation
+            )
+            .map(res => {
+              logger.info(
+                "The OIDC configuration has been register in database from environments variables"
+              )
+              res
+            })
+        })
+      })
+  }
+
   def readId(): Future[UUID] = {
-    env.postgresql
+    postgresql
       .queryOne(s"""SELECT izanami_id FROM izanami.configuration""") { r =>
         r.optUUID("izanami_id")
       }
@@ -156,7 +190,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
   }
 
   def readFullConfiguration(): FutureEither[FullIzanamiConfiguration] = {
-    val res = env.postgresql
+    val res = postgresql
       .queryOne(s"""
            |SELECT c.mailer, c.invitation_mode, c.origin_email, c.anonymous_reporting, m.configuration, m.name, c.oidc_configuration, c.anonymous_reporting_date
            |FROM izanami.configuration c, izanami.mailers m
@@ -223,7 +257,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
       origin: EventOrigin,
       conn: Option[SqlConnection] = None
   ): FutureEither[FullIzanamiConfiguration] = {
-    env.postgresql.executeInOptionalTransaction(
+    postgresql.executeInOptionalTransaction(
       conn,
       conn => {
         for (
@@ -233,7 +267,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
             Some(conn)
           ).toFEither;
           updatedConfiguration <- {
-            env.postgresql
+            postgresql
               .queryOne(
                 s"""
                  |UPDATE izanami.configuration
@@ -295,11 +329,11 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
                 )
               )
               .recover(
-                env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+                postgresql.pgErrorPartialFunction.andThen(err => Left(err))
               )
           }.toFEither;
           _ <- if (updatedConfiguration != oldConfig) {
-            (env.eventService.emitGlobalEvent(
+            (eventService.emitGlobalEvent(
               SourceConfigurationUpdatedEvent(
                 user = userInformation.username,
                 origin = origin,
@@ -320,7 +354,7 @@ class ConfigurationDatastore(val env: Env) extends Datastore {
       mailProviderConfiguration: MailProviderConfiguration,
       conn: Option[SqlConnection]
   ): Future[Either[IzanamiError, MailProviderConfiguration]] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
            |UPDATE izanami.mailers

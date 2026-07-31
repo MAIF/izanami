@@ -9,7 +9,6 @@ import fr.maif.izanami.events.EventOrigin.eventOriginReads
 import fr.maif.izanami.events.EventService.IZANAMI_CHANNEL
 import fr.maif.izanami.events.EventService.sourceEventWrites
 import fr.maif.izanami.models.ConfigurationForExposition
-import fr.maif.izanami.models.Feature
 import fr.maif.izanami.models.Feature.lightweightFeatureRead
 import fr.maif.izanami.models.Feature.lightweightFeatureWrite
 import fr.maif.izanami.models.Feature.writeStrategiesForEvent
@@ -53,6 +52,10 @@ import java.util.UUID
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import fr.maif.izanami.events.EventService.lightSourceEventWrites
+import fr.maif.izanami.services.FeatureService
+import fr.maif.izanami.datastores.ProjectsDatastore
+import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.datastores.EventDatastore
 
 sealed trait EventOrigin
 
@@ -1277,15 +1280,30 @@ object EventService {
     )
   }
 
+  
+}
+
+class EventService(
+  featureService: FeatureService,
+  projectDatastore: ProjectsDatastore,
+  postgresql: Postgresql, // TODO this should be split in service / datastore to break postgresql dependency
+  eventDatastore: EventDatastore)(implicit ec: ExecutionContext, mat: Materializer) {
+  val logger: Logger = Logger("event-service")
+  val sourceMap: scala.collection.mutable.Map[String, SourceDescriptor] =
+    scala.collection.mutable.Map()
+
+  def emitGlobalEvent(event: SourceIzanamiEvent)(implicit
+      conn: SqlConnection
+  ): Future[Unit] = {
+    emitEvent(IZANAMI_CHANNEL, event)
+  }
+
   def internalToExternalEvent(
       event: IzanamiEvent,
       context: RequestContext,
-      conditions: Boolean,
-      env: Env
+      conditions: Boolean
   ): Future[Option[JsObject]] = {
-    val logger = env.logger
     val user = event.user
-    implicit val executionContext: ExecutionContext = env.executionContext
     event match {
       case fd: FeatureDeleted =>
         Future.successful(Some(deleteEventV2(
@@ -1299,13 +1317,13 @@ object EventService {
           case FeatureCreated(_, _, _, _, _, map, _, _, _)    => map
           case FeatureUpdated(_, _, _, _, _, map, _, _, _, _) => map
         }
-        Feature
+        featureService
           .processMultipleStrategyResult(
             maybeContextmap.get,
             context,
-            conditions,
-            env
+            conditions
           )
+          .value
           .map {
             case Left(error) => {
               logger.error(s"Failed to write feature : ${error.message}")
@@ -1333,20 +1351,6 @@ object EventService {
       case _ => Future.successful(None)
     }
   }
-}
-
-class EventService(env: Env) {
-  implicit val executionContext: ExecutionContext = env.executionContext
-  implicit val materializer: Materializer = env.materializer
-  val logger: Logger = env.logger
-  val sourceMap: scala.collection.mutable.Map[String, SourceDescriptor] =
-    scala.collection.mutable.Map()
-
-  def emitGlobalEvent(event: SourceIzanamiEvent)(implicit
-      conn: SqlConnection
-  ): Future[Unit] = {
-    emitEvent(IZANAMI_CHANNEL, event)
-  }
 
   def emitEvent(channel: String, event: SourceIzanamiEvent)(implicit
       conn: SqlConnection
@@ -1358,7 +1362,7 @@ class EventService(env: Env) {
 
     val futureEvt: Future[SourceIzanamiEvent] = event match {
       case event: SourceFeatureEvent =>
-        env.datastores.projects
+        projectDatastore
           .findProjectId(event.tenant, event.project, conn = Some(conn))
           .map(maybeId => maybeId.map(_.toString).orNull)
           .map(id => event.withProjectId(id))
@@ -1372,7 +1376,7 @@ class EventService(env: Env) {
         val lightJsonEvent = Json
           .toJson(evt)(lightSourceEventWrites)
           .as[JsObject] + ("emittedAt" -> JsString(now.toString))
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
                |WITH generated_id AS (
@@ -1408,7 +1412,7 @@ class EventService(env: Env) {
       .flatMap {
         case Some((id, jsonEvent)) => {
           val lightEvent = jsonEvent + ("eventId" -> JsNumber(id))
-          env.postgresql
+          postgresql
             .queryOne(
               s"""SELECT pg_notify($$1, $$2)""",
               List(channel, lightEvent.toString()),
@@ -1434,7 +1438,7 @@ class EventService(env: Env) {
         .run()
 
       lazy val subscriber = PgSubscriber
-        .subscriber(env.postgresql.vertx, env.postgresql.connectOptions)
+        .subscriber(postgresql.vertx, postgresql.connectOptions)
         .reconnectPolicy(retryCount => {
           Math.min(30_000, retryCount * 3_000)
         })
@@ -1452,7 +1456,7 @@ class EventService(env: Env) {
                 eventId.fold(
                   logger.error(s"Failed to read event id : $payload")
                 )(id => {
-                  env.datastores.events
+                  eventDatastore
                     .readEventFromDb(channel, id)
                     .map(e =>
                       e.fold(

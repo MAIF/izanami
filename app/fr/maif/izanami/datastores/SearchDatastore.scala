@@ -1,6 +1,5 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.utils.Datastore
@@ -9,7 +8,9 @@ import fr.maif.izanami.web.SearchController.SearchEntityType
 import play.api.libs.json.JsObject
 
 import scala.concurrent.Future
-class SearchDatastore(val env: Env) extends Datastore {
+import fr.maif.izanami.env.Postgresql
+
+class SearchDatastore(postgresql: Postgresql) extends Datastore {
   private val similarityThresholdParam =
     env.typedConfiguration.search.similarityThreshold
   def tenantSearch(
@@ -215,7 +216,7 @@ class SearchDatastore(val env: Env) extends Datastore {
     searchQuery.append(unionQueries.mkString(" UNION ALL "))
     searchQuery.append(" ORDER BY match_score DESC LIMIT 10")
 
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       searchQuery.toString(),
       List(query, username, tenant)
     ) { r =>

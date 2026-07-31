@@ -1,9 +1,9 @@
 package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.EventDatastore.AscOrder
+import fr.maif.izanami.datastores.TenantsDatastore
 import fr.maif.izanami.datastores.EventDatastore.FeatureEventRequest
 import fr.maif.izanami.datastores.EventDatastore.TenantEventRequest
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.EventNotFound
 import fr.maif.izanami.errors.FailedToReadEvent
@@ -20,8 +20,9 @@ import java.time.Instant
 import java.time.ZoneOffset
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationLong
+import fr.maif.izanami.env.Postgresql
 
-class EventDatastore(val env: Env) extends Datastore {
+class EventDatastore(postgresql: Postgresql, tenantDatastore: TenantsDatastore) extends Datastore {
   var eventCleanerCancellation: Cancellable = Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {
@@ -40,7 +41,7 @@ class EventDatastore(val env: Env) extends Datastore {
   }
 
   def deleteExpiredEvents(hours: Int): Future[Unit] = {
-    env.datastores.tenants.readTenants()
+    tenantDatastore.readTenants()
       .flatMap(tenants =>
         Future.sequence(tenants.map(t =>
           deleteExpiredEventsForTenant(t.name, hours)
@@ -51,7 +52,7 @@ class EventDatastore(val env: Env) extends Datastore {
 
   def deleteExpiredEventsForTenant(tenant: String, hours: Int): Future[Unit] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql.queryRaw(
+    postgresql.queryRaw(
       s"""
          |DELETE FROM "${tenant}".events WHERE EXTRACT(HOUR FROM NOW() - emitted_at) > $$1
          |""".stripMargin,
@@ -65,7 +66,7 @@ class EventDatastore(val env: Env) extends Datastore {
   ): Future[Either[IzanamiError, IzanamiEvent]] = {
     require(Tenant.isTenantValid(tenant))
     val global = tenant.equals(IZANAMI_CHANNEL)
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
            |SELECT event FROM ${
@@ -142,7 +143,7 @@ class EventDatastore(val env: Env) extends Datastore {
 
     val maybeFutureCount = if (request.total) {
       val (body, params) = queryBody(0)
-      env.postgresql.queryOne(
+      postgresql.queryOne(
         s"""
            |SELECT COUNT(*) as total
            |${body}
@@ -155,7 +156,7 @@ class EventDatastore(val env: Env) extends Datastore {
 
     val futureResult = {
       val (body, ps) = queryBody(request.cursor.map(_ => 2).getOrElse(1))
-      env.postgresql
+      postgresql
         .queryAll(
           s"""
              |SELECT e.event
@@ -242,7 +243,7 @@ class EventDatastore(val env: Env) extends Datastore {
 
     val maybeFutureCount = if (request.total) {
       val (body, params) = queryBody(1)
-      env.postgresql.queryOne(
+      postgresql.queryOne(
         s"""
            |SELECT COUNT(*) as total
            |${body}
@@ -255,7 +256,7 @@ class EventDatastore(val env: Env) extends Datastore {
 
     val futureResult = {
       val (body, ps) = queryBody(request.cursor.map(_ => 3).getOrElse(2))
-      env.postgresql
+      postgresql
         .queryAll(
           s"""
              |SELECT e.event

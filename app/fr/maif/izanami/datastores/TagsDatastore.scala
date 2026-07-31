@@ -1,7 +1,6 @@
 package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.tagImplicits.TagRow
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.InternalServerError
 import fr.maif.izanami.errors.IzanamiError
@@ -17,14 +16,15 @@ import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import scala.concurrent.Future
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.Done
+import fr.maif.izanami.env.Postgresql
 
-class TagsDatastore(val env: Env) extends Datastore {
+class TagsDatastore(postgresql: Postgresql) extends Datastore {
   def createTag(
       tagCreationRequest: TagCreationRequest,
       tenant: String
   ): FutureEither[Tag] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
+    postgresql
       .queryOne(
         s"""insert into "${tenant}".tags (name, description) values ($$1, $$2) returning *""",
         List(tagCreationRequest.name, tagCreationRequest.description)
@@ -32,7 +32,7 @@ class TagsDatastore(val env: Env) extends Datastore {
       .map {
         _.toRight(InternalServerError())
       }
-      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+      .recover(postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
       .recover { case ex =>
         logger.error("Failed to insert tag", ex)
         Left(InternalServerError())
@@ -48,7 +48,7 @@ class TagsDatastore(val env: Env) extends Datastore {
     if (tags.isEmpty) {
       Future.successful(Right(List()))
     } else {
-      env.postgresql
+      postgresql
         .queryAll(
           s"""insert into "${tenant}".tags (name, description) values (unnest($$1::text[]), unnest($$2::text[])) ON CONFLICT (name) DO NOTHING returning *""",
           List(tags.map(_.name).toArray, tags.map(_.description).toArray),
@@ -56,7 +56,7 @@ class TagsDatastore(val env: Env) extends Datastore {
         ) { row => row.optTag() }
         .map(ts => Right(ts))
         .recover(
-          env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          postgresql.pgErrorPartialFunction.andThen(err => Left(err))
         )
     }
   }
@@ -66,7 +66,7 @@ class TagsDatastore(val env: Env) extends Datastore {
       name: String
   ): FutureEither[Tag] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
+    postgresql
       .queryOne(
         s"""SELECT * FROM "${tenant}".tags WHERE name=$$1""",
         List(name)
@@ -80,7 +80,7 @@ class TagsDatastore(val env: Env) extends Datastore {
       name: String
   ): FutureEither[Done] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
+    postgresql
       .queryOne(
         s"""DELETE FROM "${tenant}".tags WHERE name=$$1 returning name, id""",
         List(name)
@@ -94,18 +94,18 @@ class TagsDatastore(val env: Env) extends Datastore {
       names: Set[String]
   ): Future[Either[IzanamiError, List[Tag]]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
+    postgresql
       .queryAll(
         s"""SELECT * FROM "${tenant}".tags WHERE name=ANY($$1)""",
         List(names.toArray)
       ) { row => row.optTag() }
       .map(ls => Right(ls))
-      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+      .recover(postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
   }
 
   def readTags(tenant: String): Future[List[Tag]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       s"""SELECT * FROM "${tenant}".tags ORDER BY name"""
     ) { row => row.optTag() }
   }
@@ -115,7 +115,7 @@ class TagsDatastore(val env: Env) extends Datastore {
       currentName: String
   ): FutureEither[Tag] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
+    postgresql
       .queryOne(
         s"""Update "${tenant}".tags set name=$$1, description=$$2  where name = $$3 returning *""",
         List(tag.name, tag.description, currentName)
@@ -123,7 +123,7 @@ class TagsDatastore(val env: Env) extends Datastore {
       .map {
         _.toRight(TagDoesNotExists(currentName))
       }
-      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+      .recover(postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
       .recover { case ex =>
         logger.error("Failed to update tag", ex)
         Left(InternalServerError())

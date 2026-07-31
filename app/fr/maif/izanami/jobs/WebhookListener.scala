@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.jknack.handlebars.Context
 import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.jackson.JsonNodeValueResolver
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.{WebhookCallError, TenantDoesNotExists}
 import fr.maif.izanami.events.*
 import fr.maif.izanami.models.LightWebhook
@@ -24,16 +23,21 @@ import scala.collection.concurrent.TrieMap
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.utils.syntax.implicits.BetterFuture
+import fr.maif.izanami.datastores.WebhooksDatastore
+import fr.maif.izanami.WebhookRetry
+import fr.maif.izanami.datastores.TenantsDatastore
+import play.api.libs.ws.WSClient
 
-class WebhookListener(env: Env, eventService: EventService) {
+class WebhookListener(
+  datastore: WebhooksDatastore,
+  eventService: EventService, 
+  webhookRetryConfig: WebhookRetry,
+  tenantDatastore: TenantsDatastore,
+  httpClient: WSClient)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
   private val handlebars = new Handlebars()
   private val mapper = new ObjectMapper()
   private val logger = Logger("izanami-webhooks")
-  private implicit val ec: ExecutionContext = env.executionContext
-  private implicit val actorSystem: ActorSystem = env.actorSystem
   private val tenantToListen: TrieMap[String, Unit] = TrieMap()
-  private val datastore = env.datastores.webhook
-  private val retryConfig = env.typedConfiguration.webhooks.retry
   private var handleFailHookCancel: Option[Cancellable] = Option.empty
 
   def onStop(): Future[Unit] = {
@@ -42,7 +46,7 @@ class WebhookListener(env: Env, eventService: EventService) {
   }
 
   def onStart(): Future[Unit] = {
-    env.datastores.tenants
+    tenantDatastore
       .readTenants()
       .map(tenants => {
         tenants.map(tenant => startListening(tenant.name))
@@ -54,9 +58,9 @@ class WebhookListener(env: Env, eventService: EventService) {
       .runForeach(handleGlobalEvent)
 
     handleFailHookCancel =
-      Some(env.actorSystem.scheduler.scheduleAtFixedRate(
+      Some(actorSystem.scheduler.scheduleAtFixedRate(
         0.minutes,
-        retryConfig.checkInterval.seconds
+        webhookRetryConfig.checkInterval.seconds
       )(() =>
         handleFailedHooks()
       ))
@@ -75,7 +79,7 @@ class WebhookListener(env: Env, eventService: EventService) {
   private def startListening(tenant: String): Unit = {
     logger.info(s"Initializing webhook event listener for tenant $tenant")
     tenantToListen.addOne(tenant -> ())
-    env.eventService
+    eventService
       .consume(tenant)
       .source
       .runForeach(evt => {
@@ -199,17 +203,17 @@ class WebhookListener(env: Env, eventService: EventService) {
   }
 
   private def computeNextCallTime(count: Int): Option[Instant] = {
-    if (count > retryConfig.count) {
+    if (count > webhookRetryConfig.count) {
       None
     } else {
       val theoricalDurationBeforeNextCall =
-        Math.round(retryConfig.intialDelay * 1000 * (Math.pow(
-          retryConfig.multiplier,
+        Math.round(webhookRetryConfig.intialDelay * 1000 * (Math.pow(
+          webhookRetryConfig.multiplier,
           count
         ))).milliseconds
       val duration = Math.min(
         theoricalDurationBeforeNextCall.toSeconds,
-        retryConfig.maxDelay
+        webhookRetryConfig.maxDelay
       )
       Some(Instant.now().plusSeconds(duration))
     }
@@ -271,15 +275,14 @@ class WebhookListener(env: Env, eventService: EventService) {
       webhook: LightWebhook,
       event: FeatureEvent
   ): Future[Option[JsValue]] = {
-    EventService.internalToExternalEvent(
+    eventService.internalToExternalEvent(
       event = event,
       context = RequestContext(
         tenant = tenant,
         user = webhook.user,
         context = FeatureContextPath(webhook.context.split("/").toSeq)
       ),
-      conditions = true, // TODO make this parametric
-      env = env
+      conditions = true // TODO make this parametric
     )
   }
 
@@ -293,7 +296,7 @@ class WebhookListener(env: Env, eventService: EventService) {
     } else {
       webhook.headers + ("Content-Type" -> "application/json")
     }
-    env.Ws
+    httpClient
       .url(webhook.url.toString)
       .withHttpHeaders(headers.toList: _*)
       .post(body)
