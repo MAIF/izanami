@@ -1,6 +1,5 @@
 package fr.maif.izanami.errors
 
-import fr.maif.izanami.env.Env
 import play.api.Logger
 import play.api.http.HttpErrorHandler
 import play.api.http.Status.INTERNAL_SERVER_ERROR
@@ -13,9 +12,7 @@ import java.security.SecureRandom
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-class IzanamiHttpErrorHandler(env: Env) extends HttpErrorHandler {
-
-  implicit val ec: ExecutionContext = env.executionContext
+class IzanamiHttpErrorHandler()(implicit ec: ExecutionContext) extends HttpErrorHandler {
 
   lazy val clientErrorLogger: Logger = Logger("izanami-client-error-handler")
   lazy val serverErrorLogger: Logger = Logger("izanami-server-error-handler")

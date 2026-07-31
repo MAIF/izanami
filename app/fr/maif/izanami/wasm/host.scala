@@ -1,6 +1,5 @@
 package fr.maif.izanami.wasm.host.scala
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.utils.RegexPool
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -29,8 +28,10 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
 import scala.annotation.nowarn
+import play.api.libs.ws.WSClient
+import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
 
-object HFunction {
+class HFunction(wasmIntegrationContext: IzanamiWasmIntegrationContext) {
   def defineContextualFunction(
       fname: String,
       config: WasmConfig
@@ -42,11 +43,10 @@ object HFunction {
           EnvUserData
       ) => Unit
   )(implicit
-      env: Env,
       ec: ExecutionContext,
       mat: Materializer
   ): HostFunction[EnvUserData] = {
-    val ev = EnvUserData(env.wasmIntegration.context, ec, mat, config)
+    val ev = EnvUserData(wasmIntegrationContext, ec, mat, config)
     defineFunction[EnvUserData](
       fname,
       ev.some,
@@ -140,11 +140,11 @@ object Status extends Enumeration {
       StatusUnimplemented = Value
 }
 
-object Logging {
+class Logging(hostFunction: HFunction) {
 
   val logger: Logger = Logger("izanami-wasm-logger")
 
-  def proxyLog(): HostFunction[EnvUserData] = HFunction.defineFunction(
+  def proxyLog(): HostFunction[EnvUserData] = hostFunction.defineFunction(
     "proxy_log",
     None,
     LibExtism.ExtismValType.I32,
@@ -168,10 +168,9 @@ object Logging {
     returns(0).v.i32 = Status.StatusOK.id
   }
 
-  def getFunctions(@nowarn config: WasmConfig)(implicit
-      @nowarn env: Env,
-      @nowarn executionContext: ExecutionContext,
-      @nowarn mat: Materializer
+  def getFunctions(config: WasmConfig)(implicit
+      executionContext: ExecutionContext,
+      mat: Materializer
   ): Seq[HostFunctionWithAuthorization] = {
     Seq(
       HostFunctionWithAuthorization(proxyLog(), _ => true)
@@ -179,15 +178,14 @@ object Logging {
   }
 }
 
-object HttpCall {
+class HttpCall(hostFunction: HFunction, httpClient: WSClient, wasmIntegrationContext: IzanamiWasmIntegrationContext) {
   def proxyHttpCall(
       config: WasmConfig
   )(implicit
-      env: Env,
       executionContext: ExecutionContext,
       mat: Materializer
   ): HostFunction[EnvUserData] = {
-    HFunction
+    hostFunction
       .defineContextualFunction("proxy_http_call", config) {
         (
             plugin: ExtismCurrentPlugin,
@@ -211,7 +209,7 @@ object HttpCall {
               RegexPool(h).matches(urlHost)
             )
             if (allowed) {
-              val builder = env.Ws
+              val builder = httpClient
                 .url(url)
                 .withMethod((context \ "method").asOpt[String].getOrElse("GET"))
                 .withHttpHeaders((context \ "headers").asOpt[Map[
@@ -291,7 +289,6 @@ object HttpCall {
   }
 
   def getFunctions(config: WasmConfig, @nowarn attrs: Option[TypedMap])(implicit
-      env: Env,
       executionContext: ExecutionContext,
       mat: Materializer
   ): Seq[HostFunctionWithAuthorization] = {
@@ -304,21 +301,18 @@ object HttpCall {
   }
 }
 
-object HostFunctions {
+class HostFunctions(httpCall: HttpCall) {
 
   def getFunctions(
       config: WasmConfig,
       @nowarn pluginId: String,
       attrs: Option[TypedMap]
   )(implicit
-      env: Env,
+      mat: Materializer,
       executionContext: ExecutionContext
   ): Array[HostFunction[_ <: HostUserData]] = {
-
-    implicit val mat = env.materializer
-
     val httpFunctions: Seq[HostFunctionWithAuthorization] =
-      HttpCall.getFunctions(config, attrs)
+      httpCall.getFunctions(config, attrs)
 
     val functions: Seq[HostFunctionWithAuthorization] = httpFunctions
 

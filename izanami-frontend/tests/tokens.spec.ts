@@ -39,8 +39,8 @@ test.describe("Personnal access token", () => {
         testTenant(tenantName).withProject(
           testProject("tokenProject")
             .withFeature(testFeature("f1"))
-            .withFeature(testFeature("f2"))
-        )
+            .withFeature(testFeature("f2")),
+        ),
       )
       .build(page);
 
@@ -69,7 +69,7 @@ test.describe("Personnal access token", () => {
     expect(body).toContain(`"name":"tokenProject"`);
 
     await expect(
-      page.getByRole("rowheader", { name: "test-token" })
+      page.getByRole("rowheader", { name: "test-token" }),
     ).toBeVisible();
 
     await clickAction(page, "Edit");
@@ -82,11 +82,11 @@ test.describe("Personnal access token", () => {
     await page.getByRole("button", { name: "Save" }).click();
 
     await expect(
-      page.getByRole("rowheader", { name: "test-token-no-rights" })
+      page.getByRole("rowheader", { name: "test-token-no-rights" }),
     ).toBeVisible();
 
     fetchRes = await exportRequest();
-    expect(fetchRes.status).toEqual(401);
+    expect(fetchRes.status).toEqual(403);
 
     await clickAction(page, "Edit");
     await page.getByLabel("Name*").fill("test-token-with-rights");
@@ -99,7 +99,7 @@ test.describe("Personnal access token", () => {
     await page.getByRole("button", { name: "Save" }).click();
 
     await expect(
-      page.getByRole("rowheader", { name: "test-token-with-rights" })
+      page.getByRole("rowheader", { name: "test-token-with-rights" }),
     ).toBeVisible();
 
     fetchRes = await exportRequest();
@@ -113,7 +113,7 @@ test.describe("Personnal access token", () => {
     await page.getByRole("button", { name: "Save" }).click();
 
     await expect(
-      page.getByRole("rowheader", { name: "test-token2" })
+      page.getByRole("rowheader", { name: "test-token2" }),
     ).toBeVisible();
     await expect(page.getByRole("cell", { name: "01/01/1999" })).toBeVisible();
 
@@ -136,7 +136,7 @@ test.describe("Personnal access token", () => {
     await clickAction(page, "Delete");
     await page.getByLabel("Confirm").click();
     await expect(
-      page.getByRole("rowheader", { name: "test-token2" })
+      page.getByRole("rowheader", { name: "test-token2" }),
     ).toBeHidden();
 
     fetchRes = await exportRequest();

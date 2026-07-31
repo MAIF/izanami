@@ -1214,7 +1214,7 @@ class ImportApiSpec extends BaseAPISpec {
 
       val res =
         importWithToken("testtenant", situation.user, secret, data = data)
-      res.status mustBe UNAUTHORIZED
+      res.status mustBe FORBIDDEN
     }
 
     "prevent to import features if user is not tenant admin" in {

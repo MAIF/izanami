@@ -1,6 +1,5 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.utils.Datastore
@@ -9,9 +8,9 @@ import fr.maif.izanami.web.SearchController.SearchEntityType
 import play.api.libs.json.JsObject
 
 import scala.concurrent.Future
-class SearchDatastore(val env: Env) extends Datastore {
-  private val similarityThresholdParam =
-    env.typedConfiguration.search.similarityThreshold
+import fr.maif.izanami.env.Postgresql
+
+class SearchDatastore(postgresql: =>Postgresql, similarityThreshold: Double, extensionsSchema: String) extends Datastore {
   def tenantSearch(
       tenant: String,
       username: String,
@@ -20,7 +19,6 @@ class SearchDatastore(val env: Env) extends Datastore {
   ): Future[List[(String, JsObject, Double)]] = {
     Tenant.isTenantValid(tenant)
     val searchQuery = new StringBuilder()
-    val extensionsSchema = env.extensionsSchema
     searchQuery.append("WITH ")
 
     var scoredQueries = List[String]()
@@ -54,7 +52,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
       SELECT row_to_json(p.*) as json, GREATEST(p.name_score, p.description_score) AS match_score, 'project' as _type, $$3 as tenant
       FROM scored_projects p
-      WHERE p.name_score > $similarityThresholdParam OR p.description_score > $similarityThresholdParam OR p.id::text = '$query'"""
+      WHERE p.name_score > $similarityThreshold OR p.description_score > $similarityThreshold OR p.id::text = '$query'"""
     }
 
     if (filter.isEmpty || filter.contains(Some(SearchEntityObject.Feature))) {
@@ -75,7 +73,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
         SELECT row_to_json(f.*) as json, GREATEST(f.name_score, f.description_score) AS match_score, 'feature' as _type, $$3 as tenant
         FROM scored_features f
-        WHERE f.name_score > $similarityThresholdParam OR f.description_score > $similarityThresholdParam OR f.id::text = '$query'"""
+        WHERE f.name_score > $similarityThreshold OR f.description_score > $similarityThreshold OR f.id::text = '$query'"""
     }
 
     if (filter.isEmpty || filter.contains(Some(SearchEntityObject.Key))) {
@@ -100,7 +98,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
          SELECT row_to_json(k.*) as json, GREATEST(k.name_score, k.description_score) AS match_score, 'key' as _type, $$3 as tenant
          FROM scored_keys k
-         WHERE k.name_score > $similarityThresholdParam OR k.description_score > $similarityThresholdParam"""
+         WHERE k.name_score > $similarityThreshold OR k.description_score > $similarityThreshold"""
     }
 
     if (filter.isEmpty || filter.contains(Some(SearchEntityObject.Tag))) {
@@ -122,7 +120,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
       SELECT row_to_json(t.*) as json, GREATEST(t.name_score, t.description_score) AS match_score, 'tag' as _type, $$3 as tenant
       FROM scored_tags t
-      WHERE t.name_score > $similarityThresholdParam OR t.description_score > $similarityThresholdParam"""
+      WHERE t.name_score > $similarityThreshold OR t.description_score > $similarityThreshold"""
     }
 
     if (filter.isEmpty || filter.contains(Some(SearchEntityObject.Script))) {
@@ -142,7 +140,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
         SELECT row_to_json(s.*) as json, s.name_score AS match_score, 'script' as _type, $$3 as tenant
         FROM scored_scripts s
-        WHERE s.name_score > $similarityThresholdParam"""
+        WHERE s.name_score > $similarityThreshold"""
     }
     if (
       filter.isEmpty || filter.contains(Some(SearchEntityObject.GlobalContext))
@@ -163,7 +161,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
          SELECT row_to_json(gc.*) as json, gc.name_score AS match_score, 'global_context' as _type, $$3 as tenant
          FROM scored_global_contexts gc
-         WHERE gc.name_score > $similarityThresholdParam """
+         WHERE gc.name_score > $similarityThreshold """
     }
     if (
       filter.isEmpty || filter.contains(Some(SearchEntityObject.LocalContext))
@@ -185,7 +183,7 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
           SELECT row_to_json(lc.*) as json, lc.name_score AS match_score, 'local_context' as _type, $$3 as tenant
           FROM scored_local_contexts lc
-          WHERE lc.name_score > $similarityThresholdParam """
+          WHERE lc.name_score > $similarityThreshold """
     }
     if (filter.isEmpty || filter.contains(Some(SearchEntityObject.Webhook))) {
       scoredQueries :+=
@@ -208,14 +206,14 @@ class SearchDatastore(val env: Env) extends Datastore {
       unionQueries :+= s"""
          SELECT row_to_json(w.*) as json, GREATEST(w.name_score, w.description_score) AS match_score, 'webhook' as _type, $$3 as tenant
          FROM scored_webhooks w
-         WHERE w.name_score > $similarityThresholdParam OR w.description_score > $similarityThresholdParam"""
+         WHERE w.name_score > $similarityThreshold OR w.description_score > $similarityThreshold"""
     }
 
     searchQuery.append(scoredQueries.mkString(","))
     searchQuery.append(unionQueries.mkString(" UNION ALL "))
     searchQuery.append(" ORDER BY match_score DESC LIMIT 10")
 
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       searchQuery.toString(),
       List(query, username, tenant)
     ) { r =>

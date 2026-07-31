@@ -16,8 +16,8 @@ import scala.concurrent.ExecutionContext
 import fr.maif.izanami.errors.ApiKeyDoesNotExist
 
 class APIKeyService(
-    datastore: ApiKeyDatastore,
-    rightService: RightService
+    datastore: =>ApiKeyDatastore,
+    rightService: =>RightService
 )(implicit ec: ExecutionContext) {
 
   def createAPIKey(

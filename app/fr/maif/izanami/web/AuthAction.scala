@@ -1,9 +1,6 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckFailure
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckSuccess
 import fr.maif.izanami.datastores.SessionIdentification
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.events.EventAuthentication.BackOfficeAuthentication
@@ -14,36 +11,30 @@ import fr.maif.izanami.models.IzanamiMode.Leader
 import fr.maif.izanami.models.IzanamiMode.Standalone
 import fr.maif.izanami.models.IzanamiMode.Worker
 import fr.maif.izanami.security.JwtService.decodeJWT
-import fr.maif.izanami.services.ProjectIdIdentification
-import fr.maif.izanami.services.ProjectIdentification
-import fr.maif.izanami.services.ProjectNameIdentification
-import fr.maif.izanami.services.RightService
-import fr.maif.izanami.services.WebhookIdIdentification
+import fr.maif.izanami.services.{FeatureService, ProjectIdIdentification, ProjectIdentification, ProjectNameIdentification, RightService, WebhookIdIdentification}
 import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterFuture
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.AuthAction.extractAndCheckPersonnalAccessToken
-import fr.maif.izanami.web.AuthAction.extractClaims
 import pdi.jwt.JwtClaim
 import play.api.libs.json.*
 import play.api.mvc.*
 import play.api.mvc.Results.BadRequest
 import play.api.mvc.Results.Forbidden
 import play.api.mvc.Results.Unauthorized
+import fr.maif.izanami.services.{AuthService, DecryptionStuff}
+import fr.maif.izanami.Cluster
 
 import java.time.Duration
 import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import javax.crypto.spec.SecretKeySpec
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.Try
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.datastores.ApiKeyDatastore
 
 sealed trait UserInformation {
   def username: String
@@ -102,12 +93,7 @@ case class UserRequestWithCompleteRightForOneTenantTokenUser[A](
 
 case class UserNameRequest[A](request: Request[A], user: UserInformation)
     extends WrappedRequest[A](request)
-case class WorkerClientRequest[A](
-    request: Request[A],
-    tenant: String,
-    clientId: String,
-    clientSecret: String
-) extends WrappedRequest[A](request)
+case class WorkerClientRequest[A](request: Request[A], tenant: String, clientId: String, clientSecret: String) extends WrappedRequest[A](request)
 case class ProjectIdUserNameRequest[A](
     request: Request[A],
     user: UserInformation,
@@ -122,7 +108,7 @@ case class HookAndUserNameRequest[A](
 case class SessionIdRequest[A](request: Request[A], sessionId: String)
     extends WrappedRequest[A](request)
 
-class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
+class ClientApiKeyAction(apiKeyDatastore: ApiKeyDatastore, bodyParser: BodyParser[AnyContent])(implicit
     ec: ExecutionContext
 ) extends ActionBuilder[ClientKeyRequest, AnyContent] {
   override def parser: BodyParser[AnyContent] = bodyParser
@@ -135,7 +121,7 @@ class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
       for (
         clientId <- request.headers.get("Izanami-Client-Id");
         clientSecret <- request.headers.get("Izanami-Client-Secret")
-      ) yield env.datastores.apiKeys.readAndCheckApiKey(clientId, clientSecret)
+      ) yield apiKeyDatastore.readAndCheckApiKey(clientId, clientSecret)
 
     maybeFutureKey
       .map(futureKey =>
@@ -157,589 +143,327 @@ class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
   override protected def executionContext: ExecutionContext = ec
 }
 
-class PersonnalAccessTokenTenantRightsAction(
-    bodyParser: BodyParser[AnyContent],
-    override val env: Env,
-    operation: GlobalTokenRight
-)(implicit
-    ec: ExecutionContext
-) extends LeaderActionBuilder[UserRequestWithTenantRights] {
-  override def parser: BodyParser[AnyContent] = bodyParser
+case class TestRequest[A, U](
+ request: Request[A],
+ authentication: EventAuthentication,
+ user: U,
+ token: Option[ReadPersonnalAccessToken] = None
+) extends WrappedRequest[A](request)
 
+abstract class TokenOrCookieAuthenticatedAction[U](implicit ec: ExecutionContext) extends LeaderActionBuilder[[A] =>> TestRequest[A, U]] {
+  def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[U]]
+  def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[U]]
+  def authService: AuthService
   override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserRequestWithTenantRights[A] => Future[Result]
-  ): Future[Result] = {
-    def maybeTokenAuth: Future[Either[Result, (UserWithTenantRights, UUID)]] = {
-      extractAndCheckPersonnalAccessToken(
-        request,
-        env,
-        token => token.hasRight(operation)
-      )
-        .flatMap {
-          case Some((username, token)) =>
-            env.datastores.users
-              .findUser(username)
-              .map {
-                case Some(value) => Right((value, token.id))
-                case None        =>
-                  Left(
-                    Unauthorized(Json.obj("message" -> "Invalid access token"))
-                  )
-              }
-          case None =>
-            Future.successful(
-              Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
+   request: Request[A],
+   block: TestRequest[A, U] => Future[Result]
+   ): Future[Result] = {
+    AuthAction.extractCookieSubject(request, authService.decryptionStuff) match {
+      case InvalidCookie => {
+        Future.successful(InvalidCookie.toResponse)
+      }
+      case CookieSubject(subject) => {
+        isCookieAllowed(subject).flatMap {
+          case CookieInvalid(err) => Future.successful(err.toHttpResponse)
+          case CookieValid(user) => block(
+            TestRequest(
+              request = request,
+              user = user,
+              authentication = BackOfficeAuthentication
             )
-        }
-    }
-
-    def maybeCookieAuth
-        : Future[Option[Either[Result, UserWithTenantRights]]] = {
-      extractClaims(
-        request,
-        env.typedConfiguration.authentication.secret,
-        env.encryptionKey
-      )
-        .flatMap(claims => claims.subject)
-        .fold(Future.successful(None))(subject => {
-          env.datastores.users
-            .findSessionWithTenantRights(subject)
-            .map {
-              case None =>
-                Some(
-                  Left(
-                    Unauthorized(
-                      Json.obj("message" -> "User is not connected")
-                    )
-                  )
-                )
-              case Some(user) => Some(Right(user))
-            }
-        })
-    }
-
-    maybeCookieAuth.flatMap {
-      case Some(Right(user)) =>
-        block(
-          UserRequestWithTenantRights(
-            request = request,
-            user = user,
-            authentication = BackOfficeAuthentication
           )
-        )
-      case Some(Left(result)) => Future.successful(result)
-      case None               =>
-        maybeTokenAuth.flatMap {
-          case Right((user, tokenId)) =>
-            block(
-              UserRequestWithTenantRights(
-                request = request,
-                user = user,
-                authentication = TokenAuthentication(tokenId)
-              )
-            )
-          case Left(result) => Future.successful(result)
         }
+      }
+      case NoCookie => {
+        AuthAction.extractToken(request = request, authService = authService).flatMap {
+          case NoToken => {
+            Future.successful(Unauthorized)
+          }
+          case InvalidToken => {
+            Future.successful(InvalidToken.toResponse)
+          }
+          case ExtractedToken(token) => {
+            isTokenAllowed(token).flatMap {
+              case TokenValid(user) => block(
+                TestRequest(
+                  request = request,
+                  user = user,
+                  authentication = TokenAuthentication(token.id),
+                  token = Some(token)
+                )
+              )
+              case TokenInvalid(err) => Future.successful(err.toHttpResponse)
+            }
+          }
+        }
+      }
     }
   }
+}
 
+abstract class CookieAuthenticatedAction[U](implicit ec: ExecutionContext) extends LeaderActionBuilder[[A] =>> TestRequest[A, U]] {
+  def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[U]]
+  def authService: AuthService
+  override def invokeBlockImpl[A](
+                                   request: Request[A],
+                                   block: TestRequest[A, U] => Future[Result]
+                                 ): Future[Result] = {
+    AuthAction.extractCookieSubject(request, authService.decryptionStuff) match {
+      case InvalidCookie => Future.successful(InvalidCookie.toResponse)
+      case CookieSubject(subject) => {
+        isCookieAllowed(subject).flatMap {
+          case CookieInvalid(err) => Future.successful(err.toHttpResponse)
+          case CookieValid(user) => block(
+            TestRequest(
+              request = request,
+              user = user,
+              authentication = BackOfficeAuthentication
+            )
+          )
+        }
+      }
+      case NoCookie => Future.successful(Unauthorized)
+    }
+  }
+}
+
+sealed trait CookieValidationResult[+A]
+case class CookieValid[A](user: A) extends CookieValidationResult[A]
+case class CookieInvalid(cause: IzanamiError) extends CookieValidationResult
+
+sealed trait TokenValidationResult[+A]
+case class TokenValid[A](user: A) extends TokenValidationResult[A]
+case class TokenInvalid(cause: IzanamiError) extends TokenValidationResult[Nothing]
+
+
+class PersonnalAccessTokenTenantRightsAction(
+    bodyParser: BodyParser[AnyContent],
+    operation: GlobalTokenRight,
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
+)(implicit
+    ec: ExecutionContext
+) extends TokenOrCookieAuthenticatedAction[UserWithTenantRights] {
+  override def parser: BodyParser[AnyContent] = bodyParser
   override protected def executionContext: ExecutionContext = ec
+  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[UserWithTenantRights]] = {
+    authService.findUser(token.username).map {
+      case Some(value) => TokenValid(value)
+      case None => TokenInvalid(UserDoesNotExist(token.username))
+    }
+  }
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[UserWithTenantRights]] = {
+    authService.findSessionWithTenantRights(cookieSubject).map {
+      case Some(value) => CookieValid(value)
+      case None => CookieInvalid(SessionNotFound(cookieSubject))
+    }
+  }
 }
 
 class TenantRightsAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
-) extends LeaderActionBuilder[UserRequestWithTenantRights] {
+) extends CookieAuthenticatedAction[UserWithTenantRights] {
   override def parser: BodyParser[AnyContent] = bodyParser
-
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserRequestWithTenantRights[A] => Future[Result]
-  ): Future[Result] = {
-    extractClaims(
-      request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
-    )
-      .flatMap(claims => claims.subject)
-      .fold(Future.successful(Unauthorized("")))(subject => {
-        env.datastores.users
-          .findSessionWithTenantRights(subject)
-          .flatMap {
-            case None =>
-              Unauthorized(
-                Json.obj("message" -> "User is not connected")
-              ).future
-            case Some(user) =>
-              block(
-                UserRequestWithTenantRights(
-                  request,
-                  user,
-                  BackOfficeAuthentication
-                )
-              )
-          }
-      })
-  }
-
   override protected def executionContext: ExecutionContext = ec
+
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[UserWithTenantRights]] = {
+    authService
+      .findSessionWithTenantRights(cookieSubject).map {
+        case Some(user) => CookieValid(user)
+        case None => CookieInvalid(SessionNotFound(cookieSubject))
+      }
+  }
 }
 
 class DetailledAuthAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
-) extends LeaderActionBuilder[UserRequestWithCompleteRights] {
+) extends CookieAuthenticatedAction[UserWithRights] {
   override def parser: BodyParser[AnyContent] = bodyParser
-
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserRequestWithCompleteRights[A] => Future[Result]
-  ): Future[Result] = {
-    extractClaims(
-      request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
-    )
-      .flatMap(claims => claims.subject)
-      .fold(
-        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
-      )(subject => {
-        env.datastores.users
-          .findSessionWithCompleteRights(subject)
-          .flatMap {
-            case None       => UserNotFound(subject).toHttpResponse.future
-            case Some(user) =>
-              block(
-                UserRequestWithCompleteRights(
-                  request,
-                  user,
-                  BackOfficeAuthentication
-                )
-              )
-          }
-      })
-  }
-
   override protected def executionContext: ExecutionContext = ec
+
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[UserWithRights]] = {
+    authService
+      .findSessionWithCompleteRights(cookieSubject).map {
+        case Some(user) => CookieValid(user)
+        case None => CookieInvalid(SessionNotFound(cookieSubject))
+      }
+  }
 }
 
 class AdminAuthAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
-) extends LeaderActionBuilder[UserNameRequest] {
-
+) extends CookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
-
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserNameRequest[A] => Future[Result]
-  ): Future[Result] = {
-    extractClaims(
-      request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
-    )
-      .flatMap(claims => claims.subject)
-      .fold(
-        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
-      )(subject => {
-        env.datastores.users
-          .findAdminSession(subject)
-          .flatMap {
-            case Some(username) =>
-              block(
-                UserNameRequest(
-                  request = request,
-                  StandardUserInformation(
-                    username = username,
-                    authentication = BackOfficeAuthentication
-                  )
-                )
-              )
-            case None =>
-              Future.successful(
-                Forbidden(Json.obj("message" -> "User is not connected"))
-              )
-          }
-      })
-  }
-
   override protected def executionContext: ExecutionContext = ec
+
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+    authService.checkAdminSession(cookieSubject).fold(err => {
+      CookieInvalid(err)
+    }, username => CookieValid(username))
+  }
 }
 
 class AuthenticatedAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
-) extends LeaderActionBuilder[UserNameRequest] {
-
+) extends CookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
-
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserNameRequest[A] => Future[Result]
-  ): Future[Result] = {
-    extractClaims(
-      request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
-    )
-      .flatMap(claims => claims.subject)
-      .fold(
-        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
-      )(sessionId =>
-        env.datastores.users.findSession(sessionId).flatMap {
-          case Some(username) =>
-            block(
-              UserNameRequest(
-                request = request,
-                StandardUserInformation(
-                  username = username,
-                  authentication = BackOfficeAuthentication
-                )
-              )
-            )
-          case None =>
-            Future.successful(
-              Unauthorized(Json.obj("message" -> "User is not connected"))
-            )
-        }
-      )
-  }
-
   override protected def executionContext: ExecutionContext = ec
+
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+    authService.findSession(cookieSubject).map {
+      case Some(value) => CookieValid(value)
+      case None => CookieInvalid(SessionNotFound(cookieSubject))
+    }
+  }
 }
 
 class AuthenticatedSessionAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
-) extends LeaderActionBuilder[SessionIdRequest] {
-
+) extends CookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
-
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: SessionIdRequest[A] => Future[Result]
-  ): Future[Result] = {
-    extractClaims(
-      request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
-    )
-      .flatMap(claims => claims.subject)
-      .fold(
-        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
-      )(sessionId =>
-        block(SessionIdRequest(request = request, sessionId = sessionId))
-      )
-  }
-
   override protected def executionContext: ExecutionContext = ec
+
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+    Future.successful(CookieValid(cookieSubject))
+  }
 }
 
 class PersonnalAccessTokenDetailledRightForTenantAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     tenant: String,
-    requiredTokenRight: Option[TenantTokenRights]
+    requiredTokenRight: Option[TenantTokenRights],
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
-) extends LeaderActionBuilder[UserRequestWithCompleteRightForOneTenant] {
+) extends TokenOrCookieAuthenticatedAction[UserWithCompleteRightForOneTenant] {
 
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserRequestWithCompleteRightForOneTenant[A] => Future[Result]
-  ): Future[Result] = {
+  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[UserWithCompleteRightForOneTenant]] = {
+    val hasRights = requiredTokenRight.forall(r =>
+      token.hasTenantRight(tenant = tenant, right = r)
+    )
 
-    def maybeTokenAuth: Future[Either[
-      Result,
-      (ReadPersonnalAccessToken, UserWithCompleteRightForOneTenant)
-    ]] = {
-      extractAndCheckPersonnalAccessToken(
-        request,
-        env,
-        token =>
-          requiredTokenRight.forall(r =>
-            token.hasTenantRight(tenant = tenant, right = r)
-          )
-      )
-        .flatMap {
-          case Some((username, tokenId)) =>
-            env.datastores.users
-              .findUserWithRightForTenant(
-                username = username,
-                tenant = tenant
-              )
-              .map {
-                case Right(user) => Right((tokenId, user))
-                case Left(err)   =>
-                  Left(Unauthorized(Json.obj("message" -> err.message)))
-              }
-          case None =>
-            Future.successful(
-              Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
-            )
-        }
-    }
-
-    def maybeCookieAuth
-        : Future[Option[Either[Result, UserWithCompleteRightForOneTenant]]] = {
-      extractClaims(
-        request,
-        env.typedConfiguration.authentication.secret,
-        env.encryptionKey
-      )
-        .flatMap(claims => claims.subject)
-        .fold(
-          Future
-            .successful(
-              None
-            )
-        )(subject => {
-          env.datastores.users
-            .findSessionWithRightForTenant(
-              session = subject,
-              tenant = tenant
-            )
-            .map {
-              case Right(user) => Some(Right(user))
-              case Left(err)   =>
-                Some(
-                  Left(
-                    Forbidden(
-                      Json.obj(
-                        "message" -> "User does not have enough rights for this operation"
-                      )
-                    )
-                  )
-                )
-            }
-        })
-    }
-
-    maybeCookieAuth.flatMap {
-      case Some(Right(user)) =>
-        block(
-          UserRequestWithCompleteRightForOneTenantRealUser(
-            request = request,
-            user = user,
-            authentication = BackOfficeAuthentication
-          )
-        )
-      case Some(Left(result)) => Future.successful(result)
-      case None               =>
-        maybeTokenAuth.flatMap {
-          case Right((token, user)) =>
-            block(
-              UserRequestWithCompleteRightForOneTenantTokenUser(
-                request = request,
-                user = user,
-                authentication = TokenAuthentication(token.id),
-                token = token
-              )
-            )
-          case Left(result) => Future.successful(result)
-        }
+    if(hasRights) {
+      authService.findUserWithRightForTenant(
+        username = token.username,
+        tenant = tenant
+      ).value.map {
+        case Left(err) => TokenInvalid(err)
+        case Right(None) => TokenInvalid(NotEnoughRights())
+        case Right(Some(value)) => TokenValid(value)
+      }
+    } else {
+      Future.successful(TokenInvalid(NotEnoughRights()))
     }
   }
 
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[UserWithCompleteRightForOneTenant]] = {
+    authService.findSessionWithRightForTenant(cookieSubject, tenant).fold(err => CookieInvalid(err), u => CookieValid(u))
+  }
   override protected def executionContext: ExecutionContext = ec
 }
 
 class DetailledRightForTenantAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
-    tenant: String
+    tenant: String,
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
-) extends LeaderActionBuilder[UserRequestWithCompleteRightForOneTenant] {
+) extends CookieAuthenticatedAction[UserWithCompleteRightForOneTenant] {
 
   override def parser: BodyParser[AnyContent] = bodyParser
-
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserRequestWithCompleteRightForOneTenant[A] => Future[Result]
-  ): Future[Result] = {
-    extractClaims(
-      request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
-    )
-      .flatMap(claims => claims.subject)
-      .fold(
-        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
-      )(subject => {
-        env.datastores.users
-          .findSessionWithRightForTenant(subject, tenant)
-          .flatMap {
-            case Left(err)   => err.toHttpResponse.toFuture
-            case Right(user) =>
-              block(
-                UserRequestWithCompleteRightForOneTenantRealUser(
-                  request = request,
-                  user = user,
-                  authentication = BackOfficeAuthentication
-                )
-              )
-          }
-      })
-  }
-
   override protected def executionContext: ExecutionContext = ec
+
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[UserWithCompleteRightForOneTenant]] = {
+    authService
+      .findSessionWithRightForTenant(cookieSubject, tenant).fold(err => CookieInvalid(err), u => CookieValid(u))
+  }
 }
 
 class PersonnalAccessTokenProjectAuthAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     tenant: String,
     project: String,
     minimumLevel: ProjectRightLevel,
-    operation: TenantTokenRights
+    operation: TenantTokenRights,
+    override val authService: AuthService,
+    rightService: RightService, // TODO authService & rightService should be merged ?
+    override val clusteringConfig: Cluster,
 )(implicit
     ec: ExecutionContext
-) extends LeaderActionBuilder[UserNameRequest] {
+) extends TokenOrCookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
+  override protected def executionContext: ExecutionContext = ec
 
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserNameRequest[A] => Future[Result]
-  ): Future[Result] = {
-
-    def maybeTokenAuth: Future[Either[Result, UserInformation]] = {
-      extractAndCheckPersonnalAccessToken(
-        request,
-        env,
-        token => token.hasTenantRight(tenant = tenant, right = operation)
-      )
-        .flatMap {
-          case Some((username, token)) =>
-            env.datastores.users
-              .findCompleteRightsFromTenant(
-                username = username,
-                tenants = Set(tenant)
-              )
-              .map {
-                case Some(user)
-                    if user.hasRightForProject(
-                      tenant = tenant,
-                      project = project,
-                      rightLevel = minimumLevel
-                    ) =>
-                  Right(
-                    StandardUserInformation(
-                      username = username,
-                      TokenAuthentication(tokenId = token.id)
-                    )
-                  )
-                case Some(user) =>
-                  Left(
-                    Forbidden(
-                      Json.obj(
-                        "message" -> "User does not have enough rights for this operation"
-                      )
-                    )
-                  )
-                case None =>
-                  Left(Unauthorized(Json.obj("message" -> "User not found")))
-              }
-          case None =>
-            Future.successful(
-              Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
-            )
-        }
-    }
-
-    def maybeCookieAuth: Future[Option[Either[Result, String]]] = {
-      extractClaims(
-        request,
-        env.typedConfiguration.authentication.secret,
-        env.encryptionKey
-      )
-        .flatMap(claims => claims.subject)
-        .fold(
-          Future
-            .successful(
-              None
-            )
-        )(subject => {
-          env.rightService
-            .hasRightForProject(
-              user = SessionIdentification(subject),
-              tenant = tenant,
-              project = ProjectNameIdentification(project),
-              level = minimumLevel
-            )
-            .value
-            .map {
-              case Right(Some(username)) => Some(Right(username))
-              case _                     =>
-                Some(
-                  Left(
-                    Forbidden(
-                      Json.obj(
-                        "message" -> "User does not have enough rights for this operation"
-                      )
-                    )
-                  )
-                )
-            }
-        })
-    }
-
-    maybeCookieAuth.flatMap {
-
-      case Some(Right(username)) =>
-        block(
-          UserNameRequest(
-            request = request,
-            StandardUserInformation(
-              username = username,
-              authentication = BackOfficeAuthentication
-            )
-          )
-        )
-      case Some(Left(result)) => Future.successful(result)
-      case None               =>
-        maybeTokenAuth.flatMap {
-          case Right(userInformation) =>
-            block(UserNameRequest(request = request, userInformation))
-          case Left(result) => Future.successful(result)
-        }
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+    rightService.hasRightForProject(
+      user = SessionIdentification(cookieSubject),
+      tenant = tenant,
+      project = ProjectNameIdentification(project),
+      level = minimumLevel
+    ).value.map {
+      case Right(Some(username)) => CookieValid(username)
+      case Right(None) => CookieInvalid(NotEnoughRights())
+      case Left(err) => CookieInvalid(err)
     }
   }
 
-  override protected def executionContext: ExecutionContext = ec
+  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[String]] = {
+    authService
+      .findCompleteRightsFromTenant(
+        username = token.username,
+        tenants = Set(tenant)
+      ).map {
+        case Some(user) if user.hasRightForProject(
+          tenant = tenant,
+          project = project,
+          rightLevel = minimumLevel
+        ) => TokenValid(user.username)
+        case Some(user) => TokenInvalid(NotEnoughRights())
+        case None => TokenInvalid(UserDoesNotExist(token.username))
+      }
+  }
 }
 
-trait IzanamiActionBuilder[R[_] <: Request[_]]
+trait IzanamiActionBuilder[R[X] <: Request[X]]
     extends ActionBuilder[R, AnyContent] {
+  def clusteringConfig: Cluster
   def disabledOn: IzanamiMode
-  def env: Env
+  def clusterMode: IzanamiMode = clusteringConfig.mode
   def invokeBlockImpl[A](
       request: Request[A],
       block: R[A] => Future[Result]
   ): Future[Result]
-
-  protected val actualMode = env.typedConfiguration.cluster.mode
 
   override def invokeBlock[A](
       request: Request[A],
       block: R[A] => Future[Result]
   ): Future[Result] = {
 
-    if (actualMode == disabledOn) {
+    if (clusterMode == disabledOn) {
       Future.successful(Results.NotFound("Page not found"))
     } else {
       invokeBlockImpl(request, block)
@@ -747,23 +471,20 @@ trait IzanamiActionBuilder[R[_] <: Request[_]]
   }
 }
 
-trait LeaderActionBuilder[R[_] <: Request[_]] extends IzanamiActionBuilder[R] {
+trait LeaderActionBuilder[R[X] <: Request[X]] extends IzanamiActionBuilder[R] {
   override def disabledOn: IzanamiMode = Worker
 }
 
 class LeaderActionBuilderImpl(
     override val parser: BodyParser[AnyContent],
-    override val env: Env
-) extends LeaderActionBuilder[Request] {
+    override val clusteringConfig: Cluster
+)(implicit override val executionContext: ExecutionContext) extends LeaderActionBuilder[Request] {
   override def disabledOn: IzanamiMode = Worker
 
   override def invokeBlockImpl[A](
       request: Request[A],
       block: Request[A] => Future[Result]
   ): Future[Result] = block(request)
-
-  override protected def executionContext: ExecutionContext =
-    env.executionContext
 }
 
 case class ContextPermissions(
@@ -824,14 +545,13 @@ case class ContextPermissions(
 }
 
 class WorkerActionBuilder(
-    override val parser: BodyParser[AnyContent],
-    override val env: Env
+    val clusteringConfig: Cluster,
+    val apiKeyDatastore: ApiKeyDatastore,
+    override val parser: BodyParser[AnyContent]
 )(implicit
-    ec: ExecutionContext
+    override val executionContext: ExecutionContext
 ) extends IzanamiActionBuilder[WorkerClientRequest] {
   override def disabledOn: IzanamiMode = Leader
-
-  private val clusteringConfig = env.typedConfiguration.cluster
 
   override def invokeBlockImpl[A](
       request: Request[A],
@@ -846,7 +566,7 @@ class WorkerActionBuilder(
         Base64.getDecoder.decode(header.getBytes)
       })
       .map(bytes => new String(bytes))
-      .map(header => header.split(":"))
+      .map(header => header.split(":", 2))
       .filter(arr => arr.length == 2)
       .map(arr => (arr(0), arr(1)))
 
@@ -858,29 +578,24 @@ class WorkerActionBuilder(
     val authTuple: Either[IzanamiError, (String, String)] =
       basicAuth.orElse(customHeaders).toRight(MissingKey)
 
-    val r: FutureEither[Future[Result]] = for (
+    val r:FutureEither[Future[Result]] = for (
       authTuple <- FutureEither.from(authTuple);
       clientId = authTuple._1;
       tenant <- ApiKey
         .extractTenant(clientId)
         .map(t => FutureEither.success(t))
-        .getOrElse(env.datastores.apiKeys.findLegacyKeyTenant(clientId).map(
+        .getOrElse(apiKeyDatastore.findLegacyKeyTenant(clientId).map(
           maybeTenant => maybeTenant.toRight(IncorrectKey)
         ).toFEither)
     ) yield {
-      if (actualMode == Standalone) {
-        block(WorkerClientRequest(
-          request,
-          tenant = tenant,
-          clientId = clientId,
-          clientSecret = authTuple._2
-        ))
+      if (clusterMode == Standalone) {
+        block(WorkerClientRequest(request, tenant=tenant, clientId = clientId , clientSecret = authTuple._2))
       } else {
         val contextPermissions = ContextPermissions(
-          contextBlocklist = clusteringConfig.contextBlocklist,
-          contextAllowlist = clusteringConfig.contextAllowlist,
-          contextBlocklistByTenant = clusteringConfig.contextBlocklistByTenant,
-          contextAllowlistByTenant = clusteringConfig.contextAllowlistByTenant
+          contextBlocklist=clusteringConfig.contextBlocklist,
+          contextAllowlist=clusteringConfig.contextAllowlist,
+          contextBlocklistByTenant=clusteringConfig.contextBlocklistByTenant,
+          contextAllowlistByTenant=clusteringConfig.contextAllowlistByTenant
         )
 
         val context = request.queryString
@@ -889,19 +604,11 @@ class WorkerActionBuilder(
           .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
           .getOrElse(FeatureContextPath())
 
-        block(WorkerClientRequest(
-          request,
-          tenant = tenant,
-          clientId = clientId,
-          clientSecret = authTuple._2
-        ))
+        block(WorkerClientRequest(request, tenant=tenant, clientId = clientId , clientSecret = authTuple._2))
           .map(r => {
             if (r.header.status < 400) {
               // Context allowance is applied after response to avoid bruteforcing of allowed / denied context with an incorrect api key
-              contextPermissions.isContextAllowedFor(
-                context,
-                tenant
-              ).fold(err => err, _ => r)
+              contextPermissions.isContextAllowedFor(context, tenant).fold(err => err, _ => r)
             } else {
               r
             }
@@ -911,539 +618,196 @@ class WorkerActionBuilder(
 
     r.toFutureResult(fr => fr)
   }
-
-  override protected def executionContext: ExecutionContext =
-    env.executionContext
 }
 
 class PersonnalAccessTokenFeatureAuthAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     tenant: String,
     featureId: String,
     minimumLevel: ProjectRightLevel,
-    operation: TenantTokenRights
+    operation: TenantTokenRights,
+    featureService: FeatureService,
+    override val authService: AuthService,
+    rightService: RightService,
+    override val clusteringConfig: Cluster
 )(implicit
-    ec: ExecutionContext
-) extends LeaderActionBuilder[UserRequestWithCompleteRightForOneTenant] {
+    override val executionContext: ExecutionContext
+) extends TokenOrCookieAuthenticatedAction[UserWithCompleteRightForOneTenant] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserRequestWithCompleteRightForOneTenant[A] => Future[Result]
-  ): Future[Result] = {
-
-    def maybeTokenAuth: FutureEither[
-      (
-          UserWithCompleteRightForOneTenant,
-          EventAuthentication,
-          ReadPersonnalAccessToken
-      )
-    ] = {
-      extractAndCheckPersonnalAccessToken(
-        request,
-        env,
-        token => token.hasTenantRight(tenant = tenant, right = operation)
-      ).mapToFEither
-        .flatMap {
-          case Some((username, token)) =>
-            for (
-              user <- env.datastores.users
-                .findUserWithRightForTenant(
-                  username = username,
-                  tenant = tenant
-                )
-                .toFEither;
-              projectByFeatures <- env.datastores.features.findFeaturesProjects(
-                tenant = tenant,
-                featureIds = Set(featureId)
-              );
-              project = projectByFeatures(featureId);
-              res <- if (
-                user.hasRightForProject(
-                  project = project,
-                  level = minimumLevel
-                )
-              ) {
-                FutureEither.success(
-                  (user, TokenAuthentication(tokenId = token.id), token)
-                )
-              } else {
-                FutureEither.failure(
-                  NotEnoughRights(
-                    "User associated with this token does not have enough rights"
-                  )
-                )
-              }
-            ) yield {
-              res
-            }
-          case None =>
-            FutureEither.failure(
-              MissingPersonalAccessToken
-            )
-        }
-    }
-
-    def maybeCookieAuth
-        : FutureEither[Option[UserWithCompleteRightForOneTenant]] = {
-      extractClaims(
-        request,
-        env.typedConfiguration.authentication.secret,
-        env.encryptionKey
-      )
-        .flatMap(claims => claims.subject) match {
-        case Some(subject) => {
-          for (
-            projectByfeature <- env.datastores.features.findFeaturesProjects(
-              tenant = tenant,
-              featureIds = Set(featureId)
-            );
-            project = projectByfeature(featureId);
-            user <- env.datastores.users
-              .findSessionWithRightForTenant(
-                session = subject,
-                tenant = tenant
-              )
-              .toFEither
-          ) yield {
-            Some(user)
-          }
-        }
-        case None => FutureEither.success(None)
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[UserWithCompleteRightForOneTenant]] = {
+    (for(
+      user <- authService.findSessionWithRightForTenant(
+        session = cookieSubject,
+        tenant = tenant
+      );
+      projectByfeature <- featureService.findFeaturesProjects(tenant = tenant, featureIds = Set(featureId));
+      projectName <- FutureEither.from(projectByfeature.get(featureId).toRight(FeatureDoesNotExist(featureId)))
+    ) yield {
+      if(user.hasRightForProject(projectName = projectName, level = minimumLevel)) {
+        CookieValid(user)
+      } else {
+        CookieInvalid(NotEnoughRights())
       }
-    }
-
-    maybeCookieAuth.value.flatMap {
-      case Right(Some(user)) =>
-        block(
-          UserRequestWithCompleteRightForOneTenantRealUser(
-            request = request,
-            user = user,
-            authentication = BackOfficeAuthentication
-          )
-        )
-      case Left(result) => Future.successful(result.toHttpResponse)
-      case Right(None)  =>
-        maybeTokenAuth.value.flatMap {
-          case Right((user, authentication, token)) =>
-            block(
-              UserRequestWithCompleteRightForOneTenantTokenUser(
-                request = request,
-                user = user,
-                authentication = authentication,
-                token = token
-              )
-            )
-          case Left(result) => Future.successful(result.toHttpResponse)
-        }
-    }
+    }).fold(err => CookieInvalid(err), cookieValid => cookieValid)
   }
 
-  override protected def executionContext: ExecutionContext = ec
+  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[UserWithCompleteRightForOneTenant]] = {
+    if(!token.hasTenantRight(tenant = tenant, right = operation)) {
+      Future.successful(TokenInvalid(NotEnoughRights()))
+    } else {
+      (for (
+        projectByfeature <- featureService.findFeaturesProjects(tenant = tenant, featureIds = Set(featureId));
+        projectName <- FutureEither.from(projectByfeature.get(featureId).toRight(FeatureDoesNotExist(featureId)));
+        user <- authService.findUserWithRightForTenant(username = token.username, tenant = tenant).flatMap(o => FutureEither.from(o.toRight(NotEnoughRights)))
+      ) yield {
+        if(user.hasRightForProject(projectName = projectName, level = minimumLevel)) {
+          TokenValid(user)
+        } else {
+          TokenInvalid(NotEnoughRights())
+        }
+      }).fold(err => TokenInvalid(err), r => r)
+    }
+  }
 }
 
 class PersonnalAccessTokenKeyAuthAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     tenant: String,
     key: String,
     minimumLevel: RightLevel,
-    operation: TenantTokenRights
+    operation: TenantTokenRights,
+    override val authService: AuthService,
+    rightService: RightService,
+    override val clusteringConfig: Cluster
 )(implicit
-    ec: ExecutionContext
-) extends LeaderActionBuilder[UserNameRequest] {
+    override val executionContext: ExecutionContext
+) extends TokenOrCookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserNameRequest[A] => Future[Result]
-  ): Future[Result] = {
-
-    def maybeTokenAuth: Future[Either[Result, UserInformation]] = {
-      extractAndCheckPersonnalAccessToken(
-        request,
-        env,
-        token => token.hasTenantRight(tenant = tenant, right = operation)
-      )
-        .flatMap {
-          case Some((username, token)) =>
-            env.datastores.users
-              .findCompleteRightsFromTenant(
-                username = username,
-                tenants = Set(tenant)
-              )
-              .map {
-                case Some(user)
-                    if user.hasRightForKey(
-                      tenant = tenant,
-                      key = key,
-                      rightLevel = minimumLevel
-                    ) =>
-                  Right(
-                    StandardUserInformation(
-                      username = username,
-                      TokenAuthentication(tokenId = token.id)
-                    )
-                  )
-                case Some(user) =>
-                  Left(
-                    Forbidden(
-                      Json.obj(
-                        "message" -> "User does not have enough rights for this operation"
-                      )
-                    )
-                  )
-                case None =>
-                  Left(Unauthorized(Json.obj("message" -> "User not found")))
-              }
-          case None =>
-            Future.successful(
-              Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
-            )
-        }
-    }
-
-    def maybeCookieAuth: Future[Option[Either[Result, String]]] = {
-      extractClaims(
-        request,
-        env.typedConfiguration.authentication.secret,
-        env.encryptionKey
-      )
-        .flatMap(claims => claims.subject) match {
-        case Some(subject) => {
-          env.rightService
-            .hasRightForKey(
-              user = SessionIdentification(subject),
-              tenant = tenant,
-              key = key,
-              level = minimumLevel
-            )
-            .value
-            .map {
-              case Right(Some(username)) => Some(Right(username))
-              case _                     =>
-                Some(
-                  Left(
-                    Forbidden(
-                      Json.obj(
-                        "message" -> "User does not have enough rights for this operation"
-                      )
-                    )
-                  )
-                )
-            }
-        }
-        case None => Future.successful(None)
+  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[String]] = {
+      if(token.hasTenantRight(tenant = tenant, right = operation)) {
+          authService.findCompleteRightsFromTenant(
+            username = token.username,
+            tenants = Set(tenant)
+          ).map {
+            case Some(user) if(user.hasRightForKey(
+                tenant = tenant,
+                key = key,
+                rightLevel = minimumLevel
+              )) => TokenValid(user.username)
+            case Some(user) => TokenInvalid(NotEnoughRights())
+            case None => TokenInvalid(UserDoesNotExist(token.username))
+          }
+      } else {
+        Future.successful(TokenInvalid(NotEnoughRights()))
       }
-    }
-
-    maybeCookieAuth.flatMap {
-      case Some(Right(username)) =>
-        block(
-          UserNameRequest(
-            request = request,
-            StandardUserInformation(
-              username = username,
-              authentication = BackOfficeAuthentication
-            )
-          )
-        )
-      case Some(Left(result)) => Future.successful(result)
-      case None               =>
-        maybeTokenAuth.flatMap {
-          case Right(userInformation) =>
-            block(UserNameRequest(request = request, userInformation))
-          case Left(result) => Future.successful(result)
-        }
-    }
   }
 
-  override protected def executionContext: ExecutionContext = ec
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+    rightService.hasRightForKey(user = SessionIdentification(cookieSubject), tenant = tenant, key = key, level = minimumLevel).value.map {
+      case Right(Some(username)) => CookieValid(username)
+      case Right(None) => CookieInvalid(NotEnoughRights())
+      case Left(err) => CookieInvalid(err)
+    }
+  }
 }
 
 class PersonnalAccessTokenTenantAuthAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     tenant: String,
     minimumLevel: RightLevel,
-    operation: TenantTokenRights
+    operation: TenantTokenRights,
+    override val authService: AuthService,
+    rightService: RightService,
+    override val clusteringConfig: Cluster
 )(implicit
-    ec: ExecutionContext
-) extends LeaderActionBuilder[UserNameRequest] {
+    override val executionContext: ExecutionContext
+) extends TokenOrCookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserNameRequest[A] => Future[Result]
-  ): Future[Result] = {
-
-    def maybeTokenAuth: Future[Either[Result, UserInformation]] = {
-      extractAndCheckPersonnalAccessToken(
-        request,
-        env,
-        token => token.hasTenantRight(tenant = tenant, right = operation)
-      )
-        .flatMap {
-          case Some((username, token)) =>
-            env.datastores.users
-              .findUser(username)
-              .map {
-                case Some(user)
-                    if user.admin || user.tenantRights
-                      .get(tenant)
-                      .exists(r =>
-                        RightLevel
-                          .superiorOrEqualLevels(minimumLevel)
-                          .contains(r)
-                      ) =>
-                  Right(
-                    StandardUserInformation(
-                      username = username,
-                      TokenAuthentication(tokenId = token.id)
-                    )
-                  )
-                case Some(user) =>
-                  Left(
-                    Forbidden(
-                      Json.obj(
-                        "message" -> "User does not have enough rights for this operation"
-                      )
-                    )
-                  )
-                case None =>
-                  Left(Unauthorized(Json.obj("message" -> "User not found")))
-              }
-          case None =>
-            Future.successful(
-              Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
-            )
-        }
-    }
-
-    def maybeCookieAuth: Future[Option[Either[Result, String]]] = {
-      extractClaims(
-        request,
-        env.typedConfiguration.authentication.secret,
-        env.encryptionKey
-      )
-        .flatMap(claims => claims.subject)
-        .fold(
-          Future
-            .successful(
-              None
-            )
-        )(subject => {
-          env.rightService
-            .hasRightFor(
-              userIdentification = SessionIdentification(subject),
-              tenant = tenant,
-              tenantLevel = minimumLevel
-            )
-            .map {
-              case Some(res) => Some(Right(res.user.username))
-              case None      =>
-                Some(
-                  Left(
-                    Forbidden(
-                      Json.obj(
-                        "message" -> "User does not have enough rights for this operation"
-                      )
-                    )
-                  )
-                )
-            }
-        })
-    }
-
-    maybeCookieAuth.flatMap {
-      case Some(Right(username)) =>
-        block(
-          UserNameRequest(
-            request = request,
-            StandardUserInformation(
-              username = username,
-              authentication = BackOfficeAuthentication
-            )
-          )
-        )
-      case Some(Left(result)) => Future.successful(result)
-      case None               =>
-        maybeTokenAuth.flatMap {
-          case Right(userInformation) =>
-            block(UserNameRequest(request = request, userInformation))
-          case Left(result) => Future.successful(result)
-        }
+  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[String]] = {
+    if(token.hasTenantRight(tenant = tenant, right = operation)) {
+      authService.findUser(token.username).map {
+        case Some(user) if (user.admin || user.tenantRights
+          .get(tenant)
+          .exists(r =>
+            RightLevel
+              .superiorOrEqualLevels(minimumLevel)
+              .contains(r)
+          )) => TokenValid(user.username)
+        case Some(user) => TokenInvalid(NotEnoughRights())
+        case None => TokenInvalid(UserDoesNotExist(token.username))
+      }
+    } else {
+      Future.successful(TokenInvalid(NotEnoughRights()))
     }
   }
 
-  override protected def executionContext: ExecutionContext = ec
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+    rightService
+      .hasRightFor(
+        userIdentification = SessionIdentification(cookieSubject),
+        tenant = tenant,
+        tenantLevel = minimumLevel
+      ).map {
+        case Some(value) => CookieValid(value.user.username)
+        case None => CookieInvalid(NotEnoughRights())
+      }
+  }
 }
 
 class PersonnalAccessTokenAdminAuthAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
-    operation: GlobalTokenRight
-)(implicit
-    ec: ExecutionContext
-) extends LeaderActionBuilder[UserNameRequest] {
+    operation: GlobalTokenRight,
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
+)(implicit override val executionContext: ExecutionContext
+) extends TokenOrCookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserNameRequest[A] => Future[Result]
-  ): Future[Result] = {
-
-    def maybeTokenAuth: Future[Either[Result, UserInformation]] = {
-      extractAndCheckPersonnalAccessToken(
-        request,
-        env,
-        token => token.hasRight(operation)
-      )
-        .flatMap {
-          case Some((username, token)) =>
-            env.datastores.users
-              .findUser(username)
-              .map {
-                case Some(user) if user.admin =>
-                  Right(
-                    StandardUserInformation(
-                      username = username,
-                      TokenAuthentication(tokenId = token.id)
-                    )
-                  )
-                case Some(user) =>
-                  Left(
-                    Forbidden(
-                      Json.obj(
-                        "message" -> "User does not have enough rights for this operation"
-                      )
-                    )
-                  )
-                case None =>
-                  Left(Unauthorized(Json.obj("message" -> "User not found")))
-              }
-          case None =>
-            Future.successful(
-              Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
-            )
-        }
-    }
-
-    def maybeCookieAuth: Future[Option[Either[Result, String]]] = {
-      extractClaims(
-        request,
-        env.typedConfiguration.authentication.secret,
-        env.encryptionKey
-      )
-        .flatMap(claims => claims.subject)
-        .fold(
-          Future
-            .successful(
-              None
-            )
-        )(subject => {
-          env.datastores.users
-            .findAdminSession(subject)
-            .map {
-              case Some(username) => Some(Right(username))
-              case None           =>
-                Some(
-                  Left(
-                    Forbidden(
-                      Json.obj(
-                        "message" -> "User does not have enough rights for this operation"
-                      )
-                    )
-                  )
-                )
-            }
-        })
-    }
-
-    maybeCookieAuth.flatMap {
-      case Some(Right(username)) =>
-        block(
-          UserNameRequest(
-            request = request,
-            StandardUserInformation(
-              username = username,
-              authentication = BackOfficeAuthentication
-            )
-          )
-        )
-      case Some(Left(result)) => Future.successful(result)
-      case None               =>
-        maybeTokenAuth.flatMap {
-          case Right(userInformation) =>
-            block(UserNameRequest(request = request, userInformation))
-          case Left(result) => Future.successful(result)
-        }
+  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[String]] = {
+    authService.findUser(token.username).map {
+      case Some(user) if user.admin => TokenValid(token.username)
+      case Some(user) => TokenInvalid(NotEnoughRights())
+      case None => TokenInvalid(UserDoesNotExist(token.username))
     }
   }
 
-  override protected def executionContext: ExecutionContext = ec
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+    authService.checkAdminSession(cookieSubject).fold(err => CookieInvalid(err), username => CookieValid(username))
+  }
 }
 
 class TenantAuthAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     tenant: String,
-    minimumLevel: RightLevel
+    minimumLevel: RightLevel,
+    override val authService: AuthService,
+    rightService: RightService,
+    override val clusteringConfig: Cluster
 )(implicit
-    ec: ExecutionContext
-) extends LeaderActionBuilder[UserNameRequest] {
-
+    override val executionContext: ExecutionContext
+) extends CookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserNameRequest[A] => Future[Result]
-  ): Future[Result] = {
-    extractClaims(
-      request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
-    )
-      .flatMap(claims => claims.subject)
-      .fold(
-        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
-      )(subject => {
-        env.rightService
-          .hasRightFor(
-            tenant = tenant,
-            userIdentification = SessionIdentification(subject),
-            tenantLevel = minimumLevel
-          )
-          .flatMap {
-            case Some(res) =>
-              block(
-                UserNameRequest(
-                  request = request,
-                  StandardUserInformation(
-                    username = res.user.username,
-                    authentication = BackOfficeAuthentication
-                  )
-                )
-              )
-            case None =>
-              Future.successful(
-                Forbidden(
-                  Json.obj(
-                    "message" -> "User does not have enough rights for this operation"
-                  )
-                )
-              )
-          }
-      })
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+    rightService
+      .hasRightFor(
+        tenant = tenant,
+        userIdentification = SessionIdentification(cookieSubject),
+        tenantLevel = minimumLevel
+      ).map {
+        case Some(confirmation) => CookieValid(confirmation.user.username)
+        case None => CookieInvalid(NotEnoughRights()) // FIXME we can't differentiate between invalid cookie & valid cookie with not enough rights here
+      }
   }
-
-  override protected def executionContext: ExecutionContext = ec
 }
 
 class ValidatePasswordAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env
+    authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserNameRequest] {
@@ -1471,7 +835,7 @@ class ValidatePasswordAction(
             }
             userRequest match {
               case Some(user) =>
-                env.datastores.users.isUserValid(user, password).flatMap {
+                authService.isUserValid(user, password).flatMap {
                   case Some(_) =>
                     block(
                       UserNameRequest(
@@ -1511,203 +875,106 @@ type ProjectId = String
 
 class ProjectAuthAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     tenant: String,
     project: ProjectIdentification,
-    minimumLevel: ProjectRightLevel
-)(implicit ec: ExecutionContext)
-    extends LeaderActionBuilder[ProjectIdUserNameRequest] {
-
+    minimumLevel: ProjectRightLevel,
+    override val authService: AuthService,
+    rightService: RightService,
+    override val clusteringConfig: Cluster
+)(implicit override val executionContext: ExecutionContext)
+    extends CookieAuthenticatedAction[(ProjectIdentification, String)] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: ProjectIdUserNameRequest[A] => Future[Result]
-  ): Future[Result] = {
-    extractClaims(
-      request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
-    )
-      .flatMap(claims => claims.subject)
-      .fold(
-        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
-      )(subject => {
-        env.rightService
-          .hasRightForProject(
-            user = SessionIdentification(subject),
-            tenant,
-            project,
-            minimumLevel
-          )
-          .value
-          .flatMap(authorized =>
-            authorized.fold(
-              err =>
-                Future.successful(Results.Status(err.status)(Json.toJson(err))),
-              {
-                case Some(username) =>
-                  block(
-                    ProjectIdUserNameRequest(
-                      request = request,
-                      user = StandardUserInformation(
-                        username = username,
-                        authentication = BackOfficeAuthentication
-                      ),
-                      project = project
-                    )
-                  )
-                case None =>
-                  Future
-                    .successful(
-                      Forbidden(
-                        Json.obj(
-                          "message" -> "User does not have enough rights for this operation"
-                        )
-                      )
-                    )
-              }
-            )
-          )
-      })
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[(ProjectIdentification, String)]] = {
+    rightService
+      .hasRightForProject(
+        user = SessionIdentification(cookieSubject),
+        tenant,
+        project,
+        minimumLevel
+      ).value
+      .map {
+        case Right(Some(username)) => CookieValid((project, username))
+        case _ => CookieInvalid(NotEnoughRights())
+      }
   }
-
-  override protected def executionContext: ExecutionContext = ec
 }
 
+type WebhookName = String
 class WebhookAuthAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     tenant: String,
     webhook: String,
     minimumLevel: RightLevel,
-    rightService: RightService
-)(implicit ec: ExecutionContext)
-    extends LeaderActionBuilder[HookAndUserNameRequest] {
+    rightService: RightService,
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
+)(implicit override val executionContext: ExecutionContext)
+    extends CookieAuthenticatedAction[(WebhookName, String)] {
 
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: HookAndUserNameRequest[A] => Future[Result]
-  ): Future[Result] = {
-    extractClaims(
-      request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
-    ).flatMap(claims => claims.subject)
-      .fold(
-        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
-      )(subject => {
-        Try {
-          UUID.fromString(webhook)
-        }.fold(
-          _ => {
-            Future
-              .successful(
-                BadRequest(Json.obj("message" -> "Webhook id must be an UUID"))
-              )
-          },
-          webhookId =>
-            rightService
-              .hasRightForWebhook(
-                SessionIdentification(subject),
-                tenant,
-                WebhookIdIdentification(webhookId),
-                minimumLevel
-              )
-              .flatMap {
-                case Some((username, webhookIdentifiers)) =>
-                  block(
-                    HookAndUserNameRequest(
-                      request = request,
-                      user = StandardUserInformation(
-                        username = username,
-                        authentication = BackOfficeAuthentication
-                      ),
-                      hookName = webhookIdentifiers.name
-                    )
-                  ).mapToFEither
-                case None =>
-                  FutureEither.failure(NotEnoughRights())
-              }
-              .toResult(res => res)
-        )
-      })
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[(WebhookName, String)]] = {
+    Try {
+      UUID.fromString(webhook)
+    }.fold(_ => {
+      Future.successful(CookieInvalid(GenericBadRequest("Invalid cookie subject")))
+    },
+    webhookId => rightService
+      .hasRightForWebhook(
+        SessionIdentification(cookieSubject),
+        tenant,
+        WebhookIdIdentification(webhookId),
+        minimumLevel
+      ).value.map {
+        case Right(Some((username, webhookIdentifier))) => CookieValid(webhookIdentifier.name, username)
+        case Right(None) => CookieInvalid(NotEnoughRights())
+        case Left(err) => CookieInvalid(err)
+      }
+    )
   }
-
-  override protected def executionContext: ExecutionContext = ec
 }
 
 class KeyAuthAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     tenant: String,
     key: String,
-    minimumLevel: RightLevel
-)(implicit ec: ExecutionContext)
-    extends LeaderActionBuilder[UserNameRequest] {
-
+    minimumLevel: RightLevel,
+    override val authService: AuthService,
+    rightService: RightService,
+    override val clusteringConfig: Cluster
+)(implicit override val executionContext: ExecutionContext)
+    extends CookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def invokeBlockImpl[A](
-      request: Request[A],
-      block: UserNameRequest[A] => Future[Result]
-  ): Future[Result] = {
-    extractClaims(
-      request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
-    )
-      .flatMap(claims => claims.subject)
-      .fold(
-        Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
-      )(subject => {
-        env.rightService
-          .hasRightForKey(
-            user = SessionIdentification(subject),
-            tenant,
-            key,
-            minimumLevel
-          )
-          .toFutureResult {
-            case Some(username) =>
-              block(
-                UserNameRequest(
-                  request = request,
-                  user = StandardUserInformation(
-                    username = username,
-                    authentication = BackOfficeAuthentication
-                  )
-                )
-              )
-            case None =>
-              Future
-                .successful(
-                  Forbidden(
-                    Json.obj(
-                      "message" -> "User does not have enough rights for this operation"
-                    )
-                  )
-                )
-          }
-      })
+  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+    rightService
+      .hasRightForKey(
+        user = SessionIdentification(cookieSubject),
+        tenant,
+        key,
+        minimumLevel
+      ).value.map {
+        case Right(Some(username)) => CookieValid(username)
+        case Right(None) => CookieInvalid(NotEnoughRights())
+        case Left(err) => CookieInvalid(err)
+      }
   }
-
-  override protected def executionContext: ExecutionContext = ec
 }
 
 class DetailledRightForTenantFactory(
     bodyParser: BodyParser[AnyContent],
-    env: Env
+    authService: AuthService,
+    clusteringConfig: Cluster
 )(implicit ec: ExecutionContext) {
   def apply(tenant: String): DetailledRightForTenantAction =
-    new DetailledRightForTenantAction(bodyParser, env, tenant)
+    new DetailledRightForTenantAction(bodyParser, tenant = tenant, authService = authService, clusteringConfig = clusteringConfig)
 }
 
 class PersonnalAccessTokenDetailledRightForTenantFactory(
     bodyParser: BodyParser[AnyContent],
-    env: Env
+    authService: AuthService,
+    clusteringConfig: Cluster
 )(implicit ec: ExecutionContext) {
   def apply(
       tenant: String,
@@ -1715,9 +982,10 @@ class PersonnalAccessTokenDetailledRightForTenantFactory(
   ): PersonnalAccessTokenDetailledRightForTenantAction = {
     new PersonnalAccessTokenDetailledRightForTenantAction(
       bodyParser,
-      env,
       tenant,
-      Some(requiredTokenRight)
+      Some(requiredTokenRight),
+      authService,
+      clusteringConfig
     )
   }
 
@@ -1726,16 +994,18 @@ class PersonnalAccessTokenDetailledRightForTenantFactory(
   ): PersonnalAccessTokenDetailledRightForTenantAction = {
     new PersonnalAccessTokenDetailledRightForTenantAction(
       bodyParser,
-      env,
       tenant,
-      None
+      None,
+      authService,
+      clusteringConfig
     )
   }
 }
 
 class PersonnalAccessTokenTenantRightsActionFactory(
     bodyParser: BodyParser[AnyContent],
-    env: Env
+    authService: =>AuthService,
+    clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1744,12 +1014,13 @@ class PersonnalAccessTokenTenantRightsActionFactory(
   ): PersonnalAccessTokenTenantRightsAction =
     new PersonnalAccessTokenTenantRightsAction(
       bodyParser,
-      env,
-      globalTokenRight
+      globalTokenRight,
+      authService,
+      clusteringConfig
     )
 }
 
-class KeyAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
+class KeyAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService, clusteringConfig: Cluster)(
     implicit ec: ExecutionContext
 ) {
   def apply(
@@ -1757,13 +1028,14 @@ class KeyAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
       key: String,
       minimumLevel: RightLevel
   ): KeyAuthAction =
-    new KeyAuthAction(bodyParser, env, tenant, key, minimumLevel)
+    new KeyAuthAction(bodyParser, tenant, key, minimumLevel, authService = authService, rightService = rightService, clusteringConfig = clusteringConfig)
 }
 
 class WebhookAuthActionFactory(
     bodyParser: BodyParser[AnyContent],
     rightService: RightService,
-    env: Env
+    authService: AuthService,
+    clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1774,15 +1046,16 @@ class WebhookAuthActionFactory(
   ): WebhookAuthAction =
     new WebhookAuthAction(
       bodyParser,
-      env,
       tenant,
       webhook,
       minimumLevel,
-      rightService
+      rightService,
+      authService,
+      clusteringConfig = clusteringConfig
     )
 }
 
-class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
+class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: =>AuthService, rightService: =>RightService, clusteringConfig: Cluster)(
     implicit ec: ExecutionContext
 ) {
   def apply(
@@ -1792,16 +1065,20 @@ class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
   ): ProjectAuthAction =
     new ProjectAuthAction(
       bodyParser,
-      env,
       tenant,
       ProjectNameIdentification(project),
-      minimumLevel
+      minimumLevel,
+      authService = authService,
+      rightService = rightService,
+      clusteringConfig = clusteringConfig
     )
 }
 
 class ProjectAuthActionByIdFactory(
     bodyParser: BodyParser[AnyContent],
-    env: Env
+    authService: =>AuthService,
+    rightService: =>RightService,
+    clusteringConfig: Cluster
 )(implicit ec: ExecutionContext) {
   def apply(
       tenant: String,
@@ -1810,23 +1087,26 @@ class ProjectAuthActionByIdFactory(
   ): ProjectAuthAction =
     new ProjectAuthAction(
       bodyParser,
-      env,
       tenant,
       ProjectIdIdentification(project),
-      minimumLevel
+      minimumLevel,
+      authService = authService,
+      rightService = rightService,
+      clusteringConfig = clusteringConfig
     )
 }
 
-class TenantAuthActionFactory(bodyParser: BodyParser[AnyContent], env: Env)(
+class TenantAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: =>AuthService, rightService: =>RightService, clusteringConfig: Cluster)(
     implicit ec: ExecutionContext
 ) {
   def apply(tenant: String, minimumLevel: RightLevel): TenantAuthAction =
-    new TenantAuthAction(bodyParser, env, tenant, minimumLevel)
+    new TenantAuthAction(bodyParser, tenant, minimumLevel, authService = authService, rightService = rightService, clusteringConfig = clusteringConfig)
 }
 
 class PersonnalAccessTokenAdminAuthActionFactory(
     bodyParser: BodyParser[AnyContent],
-    env: Env
+    authService: AuthService,
+    clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1835,14 +1115,17 @@ class PersonnalAccessTokenAdminAuthActionFactory(
   ): PersonnalAccessTokenAdminAuthAction =
     new PersonnalAccessTokenAdminAuthAction(
       bodyParser,
-      env,
-      operation
+      operation,
+      authService = authService,
+      clusteringConfig = clusteringConfig
     )
 }
 
 class PersonnalAccessTokenTenantAuthActionFactory(
     bodyParser: BodyParser[AnyContent],
-    env: Env
+    authService: AuthService,
+    rightService: RightService,
+    clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1853,16 +1136,17 @@ class PersonnalAccessTokenTenantAuthActionFactory(
   ): PersonnalAccessTokenTenantAuthAction =
     new PersonnalAccessTokenTenantAuthAction(
       bodyParser,
-      env,
       tenant,
       minimumLevel,
-      operation
+      operation,
+      authService = authService,
+      rightService = rightService,
+      clusteringConfig = clusteringConfig
     )
 }
 
 class PersonnalAccessTokenFeatureAuthActionFactory(
-    bodyParser: BodyParser[AnyContent],
-    env: Env
+    bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService, featureService: FeatureService, clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1874,17 +1158,22 @@ class PersonnalAccessTokenFeatureAuthActionFactory(
   ): PersonnalAccessTokenFeatureAuthAction =
     new PersonnalAccessTokenFeatureAuthAction(
       bodyParser,
-      env,
       tenant,
       featureId,
       minimumLevel,
-      operation
+      operation,
+      authService = authService,
+      rightService = rightService,
+      featureService = featureService,
+      clusteringConfig = clusteringConfig
     )
 }
 
 class PersonnalAccessTokenProjectAuthActionFactory(
     bodyParser: BodyParser[AnyContent],
-    env: Env
+    authService: AuthService,
+    rightService: RightService,
+    clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1896,17 +1185,21 @@ class PersonnalAccessTokenProjectAuthActionFactory(
   ): PersonnalAccessTokenProjectAuthAction =
     new PersonnalAccessTokenProjectAuthAction(
       bodyParser,
-      env,
       tenant,
       project,
       minimumLevel,
-      operation
+      operation,
+      authService = authService,
+      rightService = rightService,
+      clusteringConfig = clusteringConfig
     )
 }
 
 class PersonnalAccessTokenKeyAuthActionFactory(
     bodyParser: BodyParser[AnyContent],
-    env: Env
+    authService: AuthService,
+    rightService: RightService,
+    clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1918,16 +1211,22 @@ class PersonnalAccessTokenKeyAuthActionFactory(
   ): PersonnalAccessTokenKeyAuthAction =
     new PersonnalAccessTokenKeyAuthAction(
       bodyParser,
-      env,
       tenant,
       key,
       minimumLevel,
-      operation
+      operation,
+      authService = authService,
+      rightService = rightService,
+      clusteringConfig = clusteringConfig
     )
 }
 
 object AuthAction {
   private val TIMER = Executors.newSingleThreadScheduledExecutor()
+
+  def maybeAuthHeader(req: Request[_]): Option[String] = {
+    req.headers.get("Authorization")
+  }
 
   def delayResponse(
       result: Result,
@@ -1944,42 +1243,58 @@ object AuthAction {
 
   def extractClaims[A](
       request: Request[A],
-      secret: String,
-      bodySecretKey: SecretKeySpec
+      decryptionStuff: DecryptionStuff
   ): Option[JwtClaim] = {
     request.cookies
       .get("token")
       .map(cookie => cookie.value)
-      .map(token => decodeJWT(token, secret, bodySecretKey))
+      .map(token => decodeJWT(token, decryptionStuff.tokenSecret, decryptionStuff.encryptionKey))
       .flatMap(maybeClaim => maybeClaim.toOption)
   }
 
-  def extractAndCheckPersonnalAccessToken[A](
-      request: Request[A],
-      env: Env,
-      checker: ReadPersonnalAccessToken => Boolean
-  ): Future[Option[(String, ReadPersonnalAccessToken)]] = {
-    request.headers
-      .get("Authorization")
-      .map(header => header.split("Basic "))
-      .filter(splitted => splitted.length == 2)
-      .map(splitted => splitted(1))
-      .map(header => {
-        Base64.getDecoder.decode(header.getBytes)
-      })
-      .map(bytes => new String(bytes))
-      .map(header => header.split(":"))
-      .filter(arr => arr.length == 2) match {
-      case Some(Array(username, token, _*)) => {
-        env.datastores.personnalAccessToken
-          .checkAccessToken(username, token, checker)
-          .map {
-            case TokenCheckSuccess(token) => Some(username, token)
-            case TokenCheckFailure        => None
-          }(env.executionContext)
-
+  def extractToken[A](
+    request:Request[_],
+    authService: AuthService
+  )(implicit ec: ExecutionContext): Future[TokenExtractionResult] = {
+    (
+      for(
+        tokenHeader <- request.headers.get("Authorization").toRight(NoToken);
+        _ <- if(!tokenHeader.toUpperCase.startsWith("BASIC ")) Left(InvalidToken) else Right(());
+        base64Header = tokenHeader.replaceFirst("(?i)Basic ", "");
+        decodedBytes <- Try { Base64.getDecoder.decode(base64Header.getBytes)}.toEither.left.map(_ => InvalidToken);
+        decodedString = new String(decodedBytes);
+        splittedValue = decodedString.split(":", 2);
+        _ <- if(splittedValue.size != 2) Left(InvalidToken) else Right(())
+      ) yield {
+        authService.checkPersonalAccessToken(username = splittedValue(0), token = splittedValue(1)).map(_.fold(InvalidToken)(t => ExtractedToken(t)))
       }
-      case _ => Future.successful(None)
-    }
+    ).fold(r => Future.successful(r), t => t)
+  }
+
+  def extractCookieSubject[A](
+    request:Request[_],
+    decryptionStuff: DecryptionStuff
+  ): CookieSubjectExtractionResult = {
+    (for(
+      token <- request.cookies.get("token").map(cookie => cookie.value).toRight(NoCookie);
+      claims <- decodeJWT(token, decryptionStuff.tokenSecret, decryptionStuff.encryptionKey).toOption.toRight(InvalidCookie);
+      subject <- claims.subject.toRight(InvalidCookie)
+    ) yield {
+      CookieSubject(subject)
+    }).fold(v => v, v=> v)
   }
 }
+
+sealed trait TokenExtractionResult
+case object NoToken extends TokenExtractionResult
+case object InvalidToken extends TokenExtractionResult {
+  def toResponse: Result = Unauthorized
+}
+case class ExtractedToken(token: ReadPersonnalAccessToken) extends TokenExtractionResult
+
+sealed trait CookieSubjectExtractionResult
+case object NoCookie extends CookieSubjectExtractionResult
+case object InvalidCookie extends CookieSubjectExtractionResult {
+  def toResponse: Result = Unauthorized
+}
+case class CookieSubject(subject: String) extends CookieSubjectExtractionResult

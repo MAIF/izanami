@@ -7,6 +7,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFuture
+import scala.util.Try
 
 case class FutureEither[+A](value: Future[Either[IzanamiError, A]]) {
   def flatMap[B](
@@ -70,19 +71,13 @@ case class FutureEither[+A](value: Future[Either[IzanamiError, A]]) {
       case Right(v)  => valueMapper(v)
     })
   }
-  def transform[R](t: (curr: Either[IzanamiError, A]) => Either[
-    IzanamiError,
-    R
-  ])(implicit
+  def transform[R](t: (curr: Either[IzanamiError, A]) => Either[IzanamiError, R])(implicit
       ec: ExecutionContext
   ) = {
     value.map(e => t(e)).toFEither
   }
 
-  def transformWith[R](t: (curr: Either[
-    IzanamiError,
-    A
-  ]) => FutureEither[R])(implicit
+  def transformWith[R](t: (curr: Either[IzanamiError, A]) => FutureEither[R])(implicit
       ec: ExecutionContext
   ) = {
     value.map(e => t(e)).mapToFEither.flatMap(f => f)
@@ -90,8 +85,8 @@ case class FutureEither[+A](value: Future[Either[IzanamiError, A]]) {
 }
 
 object FutureEither {
-  def from[A](value: Either[IzanamiError, A]): FutureEither[A] =
-    FutureEither(Future.successful(value))
+  def from[A](value: Try[A], error: IzanamiError): FutureEither[A] = value.fold(_ => FutureEither.failure(error), v => FutureEither.success(v))
+  def from[A](value: Either[IzanamiError, A]): FutureEither[A] = FutureEither(Future.successful(value))
   def success[A](value: A): FutureEither[A] = FutureEither(
     Future.successful(Right(value))
   )

@@ -2980,7 +2980,7 @@ class FeatureAPISpec extends BaseAPISpec {
     }
 
     "return 404 for missing feature" in {
-      val situation = TestSituationBuilder().loggedInWithAdminRights().build()
+      val situation = TestSituationBuilder().loggedInWithAdminRights().withTenants(TestTenant("foo")).build()
       val deleteResponse = situation.deleteFeature(
         id = "d398cb04-1476-4b32-ae9b-8bb4d5f9f3a5",
         tenant = "foo"
