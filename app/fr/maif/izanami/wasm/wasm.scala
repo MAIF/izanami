@@ -1,6 +1,5 @@
 package fr.maif.izanami.wasm
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.errors.WasmError
 import fr.maif.izanami.errors.WasmResultParsingError
@@ -15,6 +14,7 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+import play.api.Logger
 
 case class WasmAuthorizations(
     httpAccess: Boolean = false
@@ -237,20 +237,21 @@ object WasmConfig {
 }
 
 object WasmUtils {
+  val logger = Logger("wasm-utils")
   def handle[R](
       config: WasmConfig,
       requestContext: RequestContext,
-      expectedType: ResultType
+      expectedType: ResultType,
+      wasmIntegration: WasmIntegration
   )(implicit
-      ec: ExecutionContext,
-      env: Env
+      ec: ExecutionContext
   ): Future[Either[IzanamiError, JsValue]] = {
     val context = (requestContext.wasmJson.as[JsObject] ++ Json.obj(
       "id" -> requestContext.user,
       "context" -> requestContext.data,
       "executionContext" -> requestContext.context.elements
     )).stringify
-    env.wasmIntegration.withPooledVm(config) { vm =>
+    wasmIntegration.withPooledVm(config) { vm =>
       if (config.opa) {
         vm.callOpa("execute", context).map {
           case Left(err) =>
@@ -261,7 +262,7 @@ object WasmUtils {
             val response = Json.parse(rawResult)
             val result = response.asOpt[JsArray].getOrElse(Json.arr())
             (result.value.head \ "result").asOpt[JsValue].toRight {
-              env.logger.error(
+              logger.error(
                 s"Failed to parse wasm result (OPA), result is $result"
               )
               WasmError()
@@ -280,7 +281,7 @@ object WasmUtils {
               (response \ "active")
                 .asOpt[JsValue]
                 .toRight {
-                  env.logger.error(
+                  logger.error(
                     s"Failed to parse wasm result, result is $response"
                   )
                   WasmError()
@@ -296,7 +297,7 @@ object WasmUtils {
             } else {
               Try { Json.parse(rawResult) }.toEither.left
                 .map(_ => {
-                  env.logger.error(
+                  logger.error(
                     s"Failed to parse wasm result, result is $rawResult"
                   )
                   WasmError()

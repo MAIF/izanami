@@ -5,7 +5,6 @@ import fr.maif.izanami.RoleRightMode.Initial
 import fr.maif.izanami.RoleRightMode.Supervised
 import fr.maif.izanami.datastores.UserIdentification
 import fr.maif.izanami.datastores.ConfigurationDatastore
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.CantUpdateOIDCUser
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.errors.RightComplianceError

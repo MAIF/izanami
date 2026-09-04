@@ -23,8 +23,9 @@ import scala.concurrent.Future
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.env.Postgresql
+import scala.concurrent.ExecutionContext
 
-class ApiKeyDatastore(postgresql: Postgresql) extends Datastore {
+class ApiKeyDatastore(postgresql: Postgresql)(implicit val ec: ExecutionContext) extends Datastore {
   def createApiKey(
       apiKey: ApiKey,
       user: UserInformation

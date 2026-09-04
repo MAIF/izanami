@@ -13,9 +13,12 @@ import fr.maif.izanami.wasm.WasmConfig
 import fr.maif.izanami.wasm.WasmUtils
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.*
+import io.otoroshi.wasm4s.scaladsl.WasmIntegration
+
 
 import scala.concurrent.Future
 import scala.util.matching.Regex
+import scala.concurrent.ExecutionContext
 
 sealed trait ContextHolder {
   def context: Context
@@ -194,17 +197,17 @@ case class CompleteWasmFeatureStrategy(
     enabled: Boolean,
     wasmConfig: WasmConfig,
     feature: String,
-    resultType: ResultType
-) extends CompleteContextualStrategy {
+    resultType: ResultType   
+)extends CompleteContextualStrategy {
   def value(
       requestContext: RequestContext,
-  ): Future[Either[IzanamiError, JsValue]] = {
+      wasmIntegration: WasmIntegration
+  )(implicit executionContext: ExecutionContext) : Future[Either[IzanamiError, JsValue]] = {
     if (!enabled) {
-      Future { Right(null.asInstanceOf) }(env.executionContext)
+      Future { Right(null.asInstanceOf) }(executionContext)
     } else {
-      WasmUtils.handle(wasmConfig, requestContext, resultType)(
-        env.executionContext,
-        env
+      WasmUtils.handle(wasmConfig, requestContext, resultType, wasmIntegration)(
+        executionContext
       )
     }
   }

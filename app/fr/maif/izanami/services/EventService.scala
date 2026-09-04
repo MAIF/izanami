@@ -1,6 +1,5 @@
 package fr.maif.izanami.events
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.env.pgimplicits.VertxFutureEnhancer
 import fr.maif.izanami.events.EventAuthentication.eventAuthenticationReads
@@ -45,6 +44,7 @@ import play.api.libs.json.JsValue
 import play.api.libs.json.Json
 import play.api.libs.json.Reads
 import play.api.libs.json.Writes
+import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -1287,7 +1287,10 @@ class EventService(
   featureService: FeatureService,
   projectDatastore: ProjectsDatastore,
   postgresql: Postgresql, // TODO this should be split in service / datastore to break postgresql dependency
-  eventDatastore: EventDatastore)(implicit ec: ExecutionContext, mat: Materializer) {
+  eventDatastore: EventDatastore,
+  wasmIntegration: WasmIntegration,
+  wasmAllowed: Boolean
+  )(implicit ec: ExecutionContext, mat: Materializer) {
   val logger: Logger = Logger("event-service")
   val sourceMap: scala.collection.mutable.Map[String, SourceDescriptor] =
     scala.collection.mutable.Map()
@@ -1321,7 +1324,9 @@ class EventService(
           .processMultipleStrategyResult(
             maybeContextmap.get,
             context,
-            conditions
+            conditions,
+            wasmIntegration,
+            wasmAllowed: Boolean
           )
           .value
           .map {

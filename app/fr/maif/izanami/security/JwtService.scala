@@ -1,6 +1,5 @@
 package fr.maif.izanami.security
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.security.JwtService.decodeJWT
 import fr.maif.izanami.security.JwtService.encrypt
 import pdi.jwt.JwtAlgorithm

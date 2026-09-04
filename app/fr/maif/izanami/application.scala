@@ -124,21 +124,31 @@ class IzanamiComponentsInstances(
   val apiKeyDatastore: ApiKeyDatastore = new ApiKeyDatastore(postgresql = postgresql)
   val featureContextDatastore: FeatureContextDatastore = new FeatureContextDatastore(postgresql = postgresql,  extensionSchema = typedConfig.app.pg.extensionsSchema, featureDatastore=featureDatstore, eventService = eventService)
   val userDatastore: UsersDatastore = new UsersDatastore(postgresql = postgresql)
-  val configurationDatastore: ConfigurationDatastore = new ConfigurationDatastore(postgresql = postgresql, tenantDatastore = tenantDatastore, eventService = eventService, maybeOidcConfig = typedConfig.app.openid)
+  val configurationDatastore: ConfigurationDatastore = new ConfigurationDatastore(postgresql = postgresql, tenantDatastore = tenantDatastore, eventService = eventService, maybeOidcConfig = typedConfig.app.openid, wasmoConf = typedConfig.app.wasmo)
   val webhookDatastore: WebhooksDatastore = new WebhooksDatastore(postgresql = postgresql)
   val statDatastore: StatsDatastore = new StatsDatastore(postgresql = postgresql, configurationDatastore = configurationDatastore)
   val exportDatastore: ImportExportDatastore = new ImportExportDatastore(postgresql = postgresql,  extensionSchema = typedConfig.app.pg.extensionsSchema, featureDatastore = featureDatstore, eventService = eventService)
   val searchDatastore: SearchDatastore = new SearchDatastore(postgresql = postgresql)
   val personnalAccessTokenDatastore: PersonnalAccessTokenDatastore = new PersonnalAccessTokenDatastore(postgresql = postgresql)
-  val eventDatastore: EventDatastore = new EventDatastore(postgresql = postgresql, tenantDatastore = tenantDatastore)
+  val eventDatastore: EventDatastore = new EventDatastore(postgresql = postgresql, tenantDatastore = tenantDatastore, eventsHoursTtl = typedConfig.app.audit.eventsHoursTtl, houseKeepingStartDelayInSeconds = typedConfig.app.housekeeping.startDelayInSeconds, houseKeepingIntervalInSeconds = typedConfig.app.housekeeping.intervalInSeconds, actorSystem = actorSystem)
 
 
   // Misc
+  val wasmIntegration: WasmIntegration = WasmIntegration(
+    new IzanamiWasmIntegrationContext(
+      configurationDatastore = configurationDatastore,
+      featureDatastore = featureDatstore,
+      wasmConfiguration = typedConfig.app.wasm,
+      httpClient = wsClient
+    )
+  )
   val eventService = new EventService(
     featureService=featureService,
     projectDatastore=projectDatastore,
     postgresql=postgresql,
-    eventDatastore=eventDatastore
+    eventDatastore=eventDatastore,
+    wasmIntegration=wasmIntegration,
+    wasmAllowed = typedConfig.app.feature.allowWasm
   )
   val webhookListener = new WebhookListener(
     datastore = webhookDatastore,
@@ -150,14 +160,7 @@ class IzanamiComponentsInstances(
   val mails = new Mails(configurationDatastore = configurationDatastore, httpClient = wsClient, expositionUrl = expositionUrl)
   val jwtService = new JwtService(secret = typedConfig.app.authentication.secret, encryptionKey = encryptionKey,expositionUrl=expositionUrl)
 
-  val wasmIntegration: WasmIntegration = WasmIntegration(
-    new IzanamiWasmIntegrationContext(
-      configurationDatastore = configurationDatastore,
-      featureDatastore = featureDatstore,
-      wasmConfiguration = typedConfig.app.wasm,
-      httpClient = wsClient
-    )
-  )
+  
   val rightService = new RightService(
     eventService = eventService,
     usersDatastore = userDatastore,

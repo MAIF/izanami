@@ -1,6 +1,5 @@
 package fr.maif.izanami.services
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
@@ -12,17 +11,17 @@ import java.time.Instant
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationLong
+import fr.maif.izanami.datastores.FeatureCallsDatastore
+import org.apache.pekko.actor.ActorSystem
 
-class FeatureUsageService(env: Env) {
 
-  private implicit val executionContext: ExecutionContext = env.executionContext
-  private val featureCalls = env.datastores.featureCalls
-  private val staleDelay =
-    Duration.ofHours(env.typedConfiguration.feature.staleHoursDelay)
-  private val isStatusTrackingActive: Boolean =
-    env.typedConfiguration.experimental.staleTracking.enabled
-  private val callRegistrationIntervalInSeconds: Long =
-    env.typedConfiguration.feature.callRecords.callRegisterIntervalInSeconds
+class FeatureUsageService(
+  private val featureCalls: FeatureCallsDatastore,
+  private val staleDelay: Duration,
+  private val isStatusTrackingActive: Boolean,
+  private val callRegistrationIntervalInSeconds: Long,
+  private val actorSystem: ActorSystem,
+  implicit private val ec: ExecutionContext) {
   private val callAggregator: FeatureCallAggregator = FeatureCallAggregator()
   private var callAggregationRegisterCancellation: Cancellable =
     Cancellable.alreadyCancelled
@@ -30,7 +29,7 @@ class FeatureUsageService(env: Env) {
 
   def onStart(): Future[Unit] = {
     callAggregationRegisterCancellation =
-      env.actorSystem.scheduler.scheduleAtFixedRate(
+      actorSystem.scheduler.scheduleAtFixedRate(
         callRegistrationIntervalInSeconds.seconds,
         callRegistrationIntervalInSeconds.seconds
       )(() => {

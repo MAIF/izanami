@@ -1,6 +1,5 @@
 package fr.maif.izanami.services
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.BadOPAReturnType
 import fr.maif.izanami.errors.FeatureContextDoesNotExist
 import fr.maif.izanami.errors.FeatureDoesNotExist
@@ -52,6 +51,8 @@ import play.api.libs.json.JsValue
 import play.api.libs.json.Json
 import play.api.libs.json.Json.JsValueWrapper
 import play.api.libs.json.Writes
+import io.otoroshi.wasm4s.scaladsl.WasmIntegration
+
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -66,7 +67,7 @@ class FeatureService(
   private val tagDatastore: TagsDatastore,
   private val configuration: FeatureConfiguration,
   private val transactionProvider: PostgresTransactionProvider,// TODO use super class instead, but it's a huge refactoring
-  private val env: Env
+  private val wasmIntegration: WasmIntegration
 )(implicit ec: ExecutionContext) {
   def isWasmAllowed: Boolean = configuration.allowWasm
 
@@ -91,7 +92,9 @@ class FeatureService(
   def processMultipleStrategyResult(
       strategyByCtx: Map[String, LightWeightFeature],
       requestContext: RequestContext,
-      conditions: Boolean
+      conditions: Boolean,
+      wasmIntegration: WasmIntegration,
+      wasmAllowed: Boolean
   ): FutureEither[JsObject] = {
     val context = requestContext.context.elements.mkString("_")
     val strategyToUse = if (context.isBlank) {
@@ -113,7 +116,7 @@ class FeatureService(
 
     lightWeightToCompleteFeature(tenant = requestContext.tenant, strategyToUse)
       .flatMap(strategyToUse =>
-        Feature.writeFeatureForCheck(strategyToUse, requestContext, env = env)
+        Feature.writeFeatureForCheck(strategyToUse, requestContext, wasmIntegration, wasmAllowed)
           .map {
             case Left(err)                 => Left(err)
             case Right(json) if conditions =>
@@ -770,7 +773,7 @@ class FeatureService(
     )
     features.flatMap {
       case Left(error) => Left(error).future
-      case Right(f)    => evaluate(f, requestContext, env)
+      case Right(f)    => evaluate(f, requestContext)
     }
 
   }
@@ -841,11 +844,10 @@ class FeatureService(
 
   private def evaluate(
       features: Seq[FeatureStrategies],
-      requestContext: RequestContext,
-      env: Env
+      requestContext: RequestContext
   ): Future[Either[IzanamiError, Seq[EvaluatedCompleteFeature]]] = {
     val evaluatedFeatures =
-      Future.sequence(features.map(f => f.evaluate(requestContext, env)))
+      Future.sequence(features.map(f => f.evaluate(requestContext, wasmIntegration, configuration.allowWasm)))
     evaluatedFeatures.map(Helpers.sequence(_))
   }
 

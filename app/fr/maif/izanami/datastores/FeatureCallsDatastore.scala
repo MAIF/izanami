@@ -17,19 +17,19 @@ import java.time.ZoneOffset
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationLong
 import fr.maif.izanami.env.Postgresql
+import org.apache.pekko.actor.ActorSystem
+import scala.concurrent.ExecutionContext
 
-class FeatureCallsDatastore(postgresql: Postgresql, tenantDatastore: TenantsDatastore) extends Datastore {
-  private val callRetentionDelayInHours: Long =
-    env.typedConfiguration.feature.callRecords.callRetentionTimeInHours
+class FeatureCallsDatastore(postgresql: Postgresql, tenantDatastore: TenantsDatastore, callRetentionTimeInHours: Long, houseKeepingStartDelayInSeconds: Long, houseKeepingIntervalInSeconds: Long, extensionsSchema: String, actorSystem: ActorSystem)(implicit val ec: ExecutionContext) extends Datastore {
   private var outDatedCallDeleteCancellation: Cancellable =
     Cancellable.alreadyCancelled
   override def onStart(): Future[Unit] = {
     outDatedCallDeleteCancellation =
-      env.actorSystem.scheduler.scheduleAtFixedRate(
-        env.houseKeepingStartDelayInSeconds.seconds,
-        env.houseKeepingIntervalInSeconds.seconds
+      actorSystem.scheduler.scheduleAtFixedRate(
+        houseKeepingStartDelayInSeconds.seconds,
+        houseKeepingIntervalInSeconds.seconds
       )(() => {
-        deleteOutDatedCalls(Duration.ofHours(callRetentionDelayInHours))
+        deleteOutDatedCalls(Duration.ofHours(callRetentionTimeInHours))
       })
     Future.successful(())
   }
@@ -73,7 +73,7 @@ class FeatureCallsDatastore(postgresql: Postgresql, tenantDatastore: TenantsData
          |VALUES (
          |  UNNEST($$1::TEXT[]),
          |  UNNEST($$2::TEXT[]),
-         |  "${env.extensionsSchema}".text2ltree(UNNEST($$3::TEXT[])),
+         |  "${extensionsSchema}".text2ltree(UNNEST($$3::TEXT[])),
          |  UNNEST($$4::JSONB[]),
          |  UNNEST($$5::timestamptz[]),
          |  UNNEST($$6::timestamptz[]),

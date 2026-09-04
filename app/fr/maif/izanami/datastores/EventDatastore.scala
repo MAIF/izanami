@@ -21,16 +21,26 @@ import java.time.ZoneOffset
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationLong
 import fr.maif.izanami.env.Postgresql
+import org.apache.pekko.actor.ActorSystem
+import java.time.Duration
+import scala.concurrent.ExecutionContext
 
-class EventDatastore(postgresql: Postgresql, tenantDatastore: TenantsDatastore) extends Datastore {
+class EventDatastore(
+  postgresql: Postgresql,
+  tenantDatastore: TenantsDatastore,
+  eventsHoursTtl: Int,
+  houseKeepingStartDelayInSeconds: Long,
+  houseKeepingIntervalInSeconds: Long,
+  actorSystem: ActorSystem
+)(implicit val ec: ExecutionContext) extends Datastore {
   var eventCleanerCancellation: Cancellable = Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {
-    eventCleanerCancellation = env.actorSystem.scheduler.scheduleAtFixedRate(
-      env.houseKeepingStartDelayInSeconds.seconds,
-      env.houseKeepingIntervalInSeconds.seconds
+    eventCleanerCancellation = actorSystem.scheduler.scheduleAtFixedRate(
+      houseKeepingStartDelayInSeconds.seconds,
+      houseKeepingIntervalInSeconds.seconds
     )(() => {
-      deleteExpiredEvents(env.typedConfiguration.audit.eventsHoursTtl)
+      deleteExpiredEvents(eventsHoursTtl)
     })
     Future.successful(())
   }

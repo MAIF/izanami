@@ -32,6 +32,7 @@ import play.api.libs.json.JsNull
 import play.api.libs.json.Json
 import play.api.libs.json.Reads
 import play.api.libs.json.Writes
+import fr.maif.izanami.Wasmo
 
 import java.time.ZoneOffset
 import java.util.UUID
@@ -39,8 +40,9 @@ import scala.concurrent.Future
 import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.OpenId
 import fr.maif.izanami.events.EventService
+import scala.concurrent.ExecutionContext
 
-class ConfigurationDatastore(postgresql: Postgresql, tenantDatastore: TenantsDatastore, eventService: EventService, maybeOidcConfig: Option[OpenId]) extends Datastore {
+class ConfigurationDatastore(postgresql: Postgresql, tenantDatastore: TenantsDatastore, eventService: EventService, maybeOidcConfig: Option[OpenId], wasmoConf: Wasmo)(implicit val ec: ExecutionContext) extends Datastore {
 
   /** Updates OIDC rights roles to keep only existing stuff. This is used if
     * existing oidc configuration references non existing project / keys /
@@ -181,7 +183,6 @@ class ConfigurationDatastore(postgresql: Postgresql, tenantDatastore: TenantsDat
   }
 
   def readWasmConfiguration(): Option[WasmoSettings] = {
-    val wasmoConf = env.typedConfiguration.wasmo;
     for (
       url <- wasmoConf.url;
       clientId <- wasmoConf.clientId;
