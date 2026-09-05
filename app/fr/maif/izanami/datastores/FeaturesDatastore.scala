@@ -48,6 +48,7 @@ import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.events.EventService
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
+import scala.concurrent.ExecutionContext
 
 class FeaturesDatastore(
   postgresql: Postgresql,
@@ -57,7 +58,7 @@ class FeaturesDatastore(
   featureContextDatastore: FeatureContextDatastore,
   eventService: EventService,
   wasmIntegration: WasmIntegration
-) extends Datastore {
+)(implicit val ec: ExecutionContext) extends Datastore {
   private type ProjectName = String
   private type FeatureName = String
   private type FeatureId = String
@@ -1743,7 +1744,7 @@ class FeaturesDatastore(
           .flatMap(either => {
             // TODO this should be elsewhere
             wasmConfig.source
-              .getWasm()(wasmIntegration.context, env.executionContext)
+              .getWasm()(wasmIntegration.context, ec)
               .map(_ => either)
           })
     }
@@ -1811,7 +1812,7 @@ class FeaturesDatastore(
               .find(w => w.name == id)
               .get
               .source
-              .getWasm()(wasmIntegration.context, env.executionContext)
+              .getWasm()(wasmIntegration.context, ec)
           )
           Right(ids.concat(localScriptIds))
         })

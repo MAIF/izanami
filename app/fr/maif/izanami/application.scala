@@ -119,7 +119,7 @@ class IzanamiComponentsInstances(
   val tenantDatastore: TenantsDatastore = new TenantsDatastore(postgresql = postgresql, eventService = eventService)
   val projectDatastore: ProjectsDatastore = new ProjectsDatastore(postgresql = postgresql, eventService = eventService)
   val featureDatstore: FeaturesDatastore = new FeaturesDatastore(postgresql = postgresql,  extensionSchema = typedConfig.app.pg.extensionsSchema, projectDatastore = projectDatastore, tenantDatastore = tenantDatastore, featureContextDatastore = featureContextDatastore, eventService = eventService, wasmIntegration = wasmIntegration)
-  val featureCallDatastore: FeatureCallsDatastore = new FeatureCallsDatastore(postgresql = postgresql, tenantDatastore = tenantDatastore)
+  val featureCallDatastore: FeatureCallsDatastore = new FeatureCallsDatastore(postgresql = postgresql, tenantDatastore = tenantDatastore, callRetentionTimeInHours = typedConfig.app.feature.callRecords.callRetentionTimeInHours,houseKeepingStartDelayInSeconds = typedConfig.app.housekeeping.startDelayInSeconds,houseKeepingIntervalInSeconds = typedConfig.app.housekeeping.startDelayInSeconds, extensionsSchema = typedConfig.app.pg.extensionsSchema, actorSystem = actorSystem)
   val tagDatastore: TagsDatastore = new TagsDatastore(postgresql = postgresql)
   val apiKeyDatastore: ApiKeyDatastore = new ApiKeyDatastore(postgresql = postgresql)
   val featureContextDatastore: FeatureContextDatastore = new FeatureContextDatastore(postgresql = postgresql,  extensionSchema = typedConfig.app.pg.extensionsSchema, featureDatastore=featureDatstore, eventService = eventService)
@@ -128,9 +128,9 @@ class IzanamiComponentsInstances(
   val webhookDatastore: WebhooksDatastore = new WebhooksDatastore(postgresql = postgresql)
   val statDatastore: StatsDatastore = new StatsDatastore(postgresql = postgresql, configurationDatastore = configurationDatastore)
   val exportDatastore: ImportExportDatastore = new ImportExportDatastore(postgresql = postgresql,  extensionSchema = typedConfig.app.pg.extensionsSchema, featureDatastore = featureDatstore, eventService = eventService)
-  val searchDatastore: SearchDatastore = new SearchDatastore(postgresql = postgresql)
+  val searchDatastore: SearchDatastore = new SearchDatastore(postgresql = postgresql, similarityThreshold =  typedConfig.app.search.similarityThreshold, extensionsSchema = typedConfig.app.pg.extensionsSchema)
   val personnalAccessTokenDatastore: PersonnalAccessTokenDatastore = new PersonnalAccessTokenDatastore(postgresql = postgresql)
-  val eventDatastore: EventDatastore = new EventDatastore(postgresql = postgresql, tenantDatastore = tenantDatastore, eventsHoursTtl = typedConfig.app.audit.eventsHoursTtl, houseKeepingStartDelayInSeconds = typedConfig.app.housekeeping.startDelayInSeconds, houseKeepingIntervalInSeconds = typedConfig.app.housekeeping.intervalInSeconds, actorSystem = actorSystem)
+  val eventDatastore: EventDatastore = new EventDatastore(postgresql = postgresql, tenantDatastore = tenantDatastore, eventsHoursTtl = typedConfig.app.audit.eventsHoursTtl, houseKeepingStartDelayInSeconds = typedConfig.app.housekeeping.startDelayInSeconds, houseKeepingIntervalInSeconds = typedConfig.app.housekeeping.startDelayInSeconds, actorSystem = actorSystem)
 
 
   // Misc

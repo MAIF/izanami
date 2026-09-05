@@ -36,8 +36,9 @@ import java.util.regex.Pattern
 import scala.concurrent.Future
 import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.events.EventService
+import scala.concurrent.ExecutionContext
 
-class ProjectsDatastore(postgresql: Postgresql, eventService: EventService) extends Datastore {
+class ProjectsDatastore(postgresql: Postgresql, eventService: EventService)(implicit val ec: ExecutionContext) extends Datastore {
 
   def findProjectId(
       tenant: String,
