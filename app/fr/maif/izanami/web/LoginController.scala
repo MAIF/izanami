@@ -513,7 +513,7 @@ class LoginController(
           Base64.getDecoder.decode(header.getBytes)
         })
         .map(bytes => new String(bytes))
-        .map(header => header.split(":"))
+        .map(header => header.split(":", 2))
         .filter(arr => arr.length == 2) match {
         case Some(Array(username, password, _*)) =>
           env.datastores.users.isUserValid(username, password).flatMap {

@@ -3,7 +3,6 @@ package fr.maif.izanami.web
 import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckFailure
 import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckSuccess
 import fr.maif.izanami.datastores.SessionIdentification
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.events.EventAuthentication.BackOfficeAuthentication
@@ -44,6 +43,7 @@ import scala.concurrent.Promise
 import scala.util.Try
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.datastores.ApiKeyDatastore
 
 sealed trait UserInformation {
   def username: String
@@ -117,7 +117,7 @@ case class HookAndUserNameRequest[A](
 case class SessionIdRequest[A](request: Request[A], sessionId: String)
     extends WrappedRequest[A](request)
 
-class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
+class ClientApiKeyAction(apiKeyDatastore: ApiKeyDatastore, bodyParser: BodyParser[AnyContent])(implicit
     ec: ExecutionContext
 ) extends ActionBuilder[ClientKeyRequest, AnyContent] {
   override def parser: BodyParser[AnyContent] = bodyParser
@@ -130,7 +130,7 @@ class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
       for (
         clientId <- request.headers.get("Izanami-Client-Id");
         clientSecret <- request.headers.get("Izanami-Client-Secret")
-      ) yield env.datastores.apiKeys.readAndCheckApiKey(clientId, clientSecret)
+      ) yield apiKeyDatastore.readAndCheckApiKey(clientId, clientSecret)
 
     maybeFutureKey
       .map(futureKey =>
@@ -138,7 +138,7 @@ class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
           eitherKey.fold(
             _ =>
               Future.successful(
-                Unauthorized(Json.obj("message" -> "Invalid key"))
+                Unauthorized(Json.obj("message" -> "Invalid key"))  
               ),
             key => block(ClientKeyRequest(request, key))
           )
@@ -154,7 +154,6 @@ class ClientApiKeyAction(bodyParser: BodyParser[AnyContent], env: Env)(implicit
 
 class PersonnalAccessTokenTenantRightsAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     operation: GlobalTokenRight
 )(implicit
     ec: ExecutionContext
@@ -243,8 +242,7 @@ class PersonnalAccessTokenTenantRightsAction(
 }
 
 class TenantRightsAction(
-    bodyParser: BodyParser[AnyContent],
-    override val env: Env
+    bodyParser: BodyParser[AnyContent]
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserRequestWithTenantRights] {
@@ -284,8 +282,7 @@ class TenantRightsAction(
 }
 
 class DetailledAuthAction(
-    bodyParser: BodyParser[AnyContent],
-    override val env: Env
+    bodyParser: BodyParser[AnyContent]
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserRequestWithCompleteRights] {
@@ -324,8 +321,7 @@ class DetailledAuthAction(
 }
 
 class AdminAuthAction(
-    bodyParser: BodyParser[AnyContent],
-    override val env: Env
+    bodyParser: BodyParser[AnyContent]
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserNameRequest] {
@@ -370,8 +366,7 @@ class AdminAuthAction(
 }
 
 class AuthenticatedAction(
-    bodyParser: BodyParser[AnyContent],
-    override val env: Env
+    bodyParser: BodyParser[AnyContent]
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserNameRequest] {
@@ -414,8 +409,7 @@ class AuthenticatedAction(
 }
 
 class AuthenticatedSessionAction(
-    bodyParser: BodyParser[AnyContent],
-    override val env: Env
+    bodyParser: BodyParser[AnyContent]
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[SessionIdRequest] {
@@ -444,7 +438,6 @@ class AuthenticatedSessionAction(
 
 class PersonnalAccessTokenDetailledRightForTenantAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     tenant: String,
     requiredTokenRight: Option[TenantTokenRights]
 )(implicit
@@ -555,7 +548,6 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
 
 class DetailledRightForTenantAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     tenant: String
 )(implicit
     ec: ExecutionContext
@@ -597,7 +589,6 @@ class DetailledRightForTenantAction(
 
 class PersonnalAccessTokenProjectAuthAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     tenant: String,
     project: String,
     minimumLevel: ProjectRightLevel,
@@ -721,20 +712,18 @@ class PersonnalAccessTokenProjectAuthAction(
 trait IzanamiActionBuilder[R[_] <: Request[_]]
     extends ActionBuilder[R, AnyContent] {
   def disabledOn: IzanamiMode
-  def env: Env
+  def clusterMode: IzanamiMode
   def invokeBlockImpl[A](
       request: Request[A],
       block: R[A] => Future[Result]
   ): Future[Result]
-
-  protected val actualMode = env.typedConfiguration.cluster.mode
 
   override def invokeBlock[A](
       request: Request[A],
       block: R[A] => Future[Result]
   ): Future[Result] = {
 
-    if (actualMode == disabledOn) {
+    if (clusterMode == disabledOn) {
       Future.successful(Results.NotFound("Page not found"))
     } else {
       invokeBlockImpl(request, block)
@@ -841,7 +830,7 @@ class WorkerActionBuilder(
         Base64.getDecoder.decode(header.getBytes)
       })
       .map(bytes => new String(bytes))
-      .map(header => header.split(":"))
+      .map(header => header.split(":", 2))
       .filter(arr => arr.length == 2)
       .map(arr => (arr(0), arr(1)))
 
@@ -1938,7 +1927,6 @@ object AuthAction {
 
   def extractAndCheckPersonnalAccessToken[A](
       request: Request[A],
-      env: Env,
       checker: ReadPersonnalAccessToken => Boolean
   ): Future[Option[(String, ReadPersonnalAccessToken)]] = {
     request.headers
@@ -1950,7 +1938,7 @@ object AuthAction {
         Base64.getDecoder.decode(header.getBytes)
       })
       .map(bytes => new String(bytes))
-      .map(header => header.split(":"))
+      .map(header => header.split(":", 2))
       .filter(arr => arr.length == 2) match {
       case Some(Array(username, token, _*)) => {
         env.datastores.personnalAccessToken

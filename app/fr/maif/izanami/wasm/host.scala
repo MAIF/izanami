@@ -1,6 +1,5 @@
 package fr.maif.izanami.wasm.host.scala
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.utils.RegexPool
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -170,10 +169,9 @@ object Logging {
     returns(0).v.i32 = Status.StatusOK.id
   }
 
-  def getFunctions(@nowarn config: WasmConfig)(implicit
-      @nowarn env: Env,
-      @nowarn executionContext: ExecutionContext,
-      @nowarn mat: Materializer
+  def getFunctions(config: WasmConfig)(implicit
+      executionContext: ExecutionContext,
+      mat: Materializer
   ): Seq[HostFunctionWithAuthorization] = {
     Seq(
       HostFunctionWithAuthorization(proxyLog(), _ => true)

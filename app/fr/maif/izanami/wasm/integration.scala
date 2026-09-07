@@ -1,6 +1,5 @@
 package fr.maif.izanami.wasm
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.host.scala.HostFunctions
 import io.otoroshi.wasm4s.scaladsl.CacheableWasmScript

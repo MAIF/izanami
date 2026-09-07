@@ -613,6 +613,14 @@ case object MissingPersonalAccessToken extends IzanamiError(
       message = "Access token is missing in query",
       status = BAD_REQUEST
     )
+case object BadFormatPersonalAccessToken extends IzanamiError(
+      message = "Personal access token header has incorrect format",
+      status = BAD_REQUEST
+    )
+case object InvalidpersonalAccessToken extends IzanamiError(
+  message = "This personal access token either doesn't exist or don't have right for this operation",
+  status = BAD_REQUEST 
+)
 case class ErrorAggregator(errors: Seq[IzanamiError])
     extends IzanamiError(
       message = errors.map(err => err.message).mkString("\n"),
