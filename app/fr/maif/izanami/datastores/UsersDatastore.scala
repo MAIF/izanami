@@ -32,8 +32,17 @@ import scala.concurrent.duration.DurationLong
 import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
+import scala.concurrent.ExecutionContext
+import org.apache.pekko.actor.ActorSystem
 
-class UsersDatastore(postgresql: Postgresql) extends Datastore {
+class UsersDatastore(
+  postgresql: Postgresql,
+  houseKeepingStartDelayInSeconds: Long,
+  houseKeepingIntervalInSeconds: Long,
+  sessionsTtl: Integer,
+  invitationsTtl: Integer,
+  passwordResetRequestsTtl: Integer, 
+  actorSystem: ActorSystem)(implicit val ec: ExecutionContext) extends Datastore {
   var sessionExpirationCancellation: Cancellable = Cancellable.alreadyCancelled
   var invitationExpirationCancellation: Cancellable =
     Cancellable.alreadyCancelled
@@ -41,23 +50,23 @@ class UsersDatastore(postgresql: Postgresql) extends Datastore {
     Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {
-    sessionExpirationCancellation = env.actorSystem.scheduler
+    sessionExpirationCancellation = actorSystem.scheduler
       .scheduleAtFixedRate(
-        env.houseKeepingStartDelayInSeconds.seconds,
-        env.houseKeepingIntervalInSeconds.seconds
-      )(() => deleteExpiredSessions(env.typedConfiguration.sessions.ttl))
-    invitationExpirationCancellation = env.actorSystem.scheduler
+        houseKeepingStartDelayInSeconds.seconds,
+        houseKeepingIntervalInSeconds.seconds
+      )(() => deleteExpiredSessions(sessionsTtl))
+    invitationExpirationCancellation = actorSystem.scheduler
       .scheduleAtFixedRate(
-        env.houseKeepingStartDelayInSeconds.seconds,
-        env.houseKeepingIntervalInSeconds.seconds
-      )(() => deleteExpiredInvitations(env.typedConfiguration.invitations.ttl))
-    passwordResetRequestCancellation = env.actorSystem.scheduler
+        houseKeepingStartDelayInSeconds.seconds,
+        houseKeepingIntervalInSeconds.seconds
+      )(() => deleteExpiredInvitations(invitationsTtl))
+    passwordResetRequestCancellation = actorSystem.scheduler
       .scheduleAtFixedRate(
-        env.houseKeepingStartDelayInSeconds.seconds,
-        env.houseKeepingIntervalInSeconds.seconds
+        houseKeepingStartDelayInSeconds.seconds,
+        houseKeepingIntervalInSeconds.seconds
       )(() =>
         deleteExpiredPasswordResetRequests(
-          env.typedConfiguration.passwordResetRequests.ttl
+          passwordResetRequestsTtl
         )
       )
     Future.successful(())

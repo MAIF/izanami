@@ -19,13 +19,17 @@ import java.time.format.DateTimeFormatter
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import fr.maif.izanami.env.Postgresql
+import scala.concurrent.ExecutionContext
+import org.apache.pekko.actor.ActorSystem
+import play.api.libs.ws.WSClient
 
-class StatsDatastore(postgresql: Postgresql, configurationDatastore: ConfigurationDatastore) extends Datastore {
+// TODO this should be split between service & datastore
+class StatsDatastore(postgresql: Postgresql, configurationDatastore: ConfigurationDatastore, httpClient: WSClient, reportingUrl: String, containerized: Boolean, actorSystem: ActorSystem)(implicit val ec: ExecutionContext)  extends Datastore {
   var anonymousReportingCancellation: Cancellable = Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {
     anonymousReportingCancellation =
-      env.actorSystem.scheduler.scheduleAtFixedRate(0.minutes, 24.hours)(() =>
+      actorSystem.scheduler.scheduleAtFixedRate(0.minutes, 24.hours)(() =>
         configurationDatastore
           .readFullConfiguration()
           .foreach(conf => {
@@ -45,7 +49,7 @@ class StatsDatastore(postgresql: Postgresql, configurationDatastore: Configurati
   def sendAnonymousReporting(): Future[Unit] = {
     retrieveStats()
       .flatMap(json => {
-        env.Ws.url(env.typedConfiguration.reporting.url.toString).post(json)
+        httpClient.url(reportingUrl).post(json)
       })
       .map(_ => ())
   }
@@ -88,7 +92,7 @@ class StatsDatastore(postgresql: Postgresql, configurationDatastore: Configurati
       })
   }
 
-  def isContainerized: Boolean = env.typedConfiguration.containerized
+  def isContainerized: Boolean = containerized
 
   def retrieveRunInformations(): Future[JsObject] = {
     val now = Instant.now()

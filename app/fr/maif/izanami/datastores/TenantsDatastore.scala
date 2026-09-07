@@ -43,8 +43,11 @@ import fr.maif.izanami.utils.Done
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.events.EventService
+import scala.concurrent.ExecutionContext
+import play.api.Logger
 
-class TenantsDatastore(postgresql: Postgresql, eventService: EventService) extends Datastore {
+class TenantsDatastore(postgresql: Postgresql, eventService: EventService, extensionsSchema: String)(implicit val ec: ExecutionContext) extends Datastore {
+  private val logger = Logger("tenants")
   def deleteImportStatus(id: UUID): Future[Unit] = {
     postgresql
       .queryOne(
@@ -144,7 +147,7 @@ class TenantsDatastore(postgresql: Postgresql, eventService: EventService) exten
           .placeholders(
             java.util.Map.of(
               "extensions_schema",
-              env.extensionsSchema,
+              extensionsSchema,
               "schema",
               tenantCreationRequest.name
             )
@@ -157,7 +160,7 @@ class TenantsDatastore(postgresql: Postgresql, eventService: EventService) exten
 
       result match {
         case Failure(e) => {
-          env.logger.error(
+          logger.error(
             "Failed to create new tenant schema. This is either an issue with your database or Izanami SQL scripts. Cause is ",
             e
           )
