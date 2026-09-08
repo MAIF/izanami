@@ -22,7 +22,6 @@ import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFuture
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.AuthAction.extractAndCheckPersonnalAccessToken
 import fr.maif.izanami.web.AuthAction.extractClaims
 import pdi.jwt.JwtClaim
 import play.api.libs.json.*
@@ -30,6 +29,7 @@ import play.api.mvc.*
 import play.api.mvc.Results.BadRequest
 import play.api.mvc.Results.Forbidden
 import play.api.mvc.Results.Unauthorized
+import fr.maif.izanami.services.AuthService
 
 import java.time.Duration
 import java.util.Base64
@@ -1016,11 +1016,11 @@ class PersonnalAccessTokenFeatureAuthAction(
 
 class PersonnalAccessTokenKeyAuthAction(
     bodyParser: BodyParser[AnyContent],
-    override val env: Env,
     tenant: String,
     key: String,
     minimumLevel: RightLevel,
-    operation: TenantTokenRights
+    operation: TenantTokenRights,
+    authService: AuthService
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserNameRequest] {
@@ -1032,12 +1032,15 @@ class PersonnalAccessTokenKeyAuthAction(
   ): Future[Result] = {
 
     def maybeTokenAuth: Future[Either[Result, UserInformation]] = {
-      extractAndCheckPersonnalAccessToken(
-        request,
-        env,
+      authService.extractAndCheckPersonnalAccessToken(
+        request.headers.get("Authorization").getOrElse(""),
         token => token.hasTenantRight(tenant = tenant, right = operation)
-      )
-        .flatMap {
+      ).map(tuple => {
+        val username = tuple._1
+        val token = tuple._2
+        
+      })
+        /*.flatMap {
           case Some((username, token)) =>
             env.datastores.users
               .findCompleteRightsFromTenant(
@@ -1072,7 +1075,7 @@ class PersonnalAccessTokenKeyAuthAction(
             Future.successful(
               Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
             )
-        }
+        }*/
     }
 
     def maybeCookieAuth: Future[Option[Either[Result, String]]] = {
@@ -1876,8 +1879,7 @@ class PersonnalAccessTokenProjectAuthActionFactory(
 }
 
 class PersonnalAccessTokenKeyAuthActionFactory(
-    bodyParser: BodyParser[AnyContent],
-    env: Env
+    bodyParser: BodyParser[AnyContent]
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1889,7 +1891,6 @@ class PersonnalAccessTokenKeyAuthActionFactory(
   ): PersonnalAccessTokenKeyAuthAction =
     new PersonnalAccessTokenKeyAuthAction(
       bodyParser,
-      env,
       tenant,
       key,
       minimumLevel,
@@ -1923,33 +1924,5 @@ object AuthAction {
       .map(cookie => cookie.value)
       .map(token => decodeJWT(token, secret, bodySecretKey))
       .flatMap(maybeClaim => maybeClaim.toOption)
-  }
-
-  def extractAndCheckPersonnalAccessToken[A](
-      request: Request[A],
-      checker: ReadPersonnalAccessToken => Boolean
-  ): Future[Option[(String, ReadPersonnalAccessToken)]] = {
-    request.headers
-      .get("Authorization")
-      .map(header => header.split("Basic "))
-      .filter(splitted => splitted.length == 2)
-      .map(splitted => splitted(1))
-      .map(header => {
-        Base64.getDecoder.decode(header.getBytes)
-      })
-      .map(bytes => new String(bytes))
-      .map(header => header.split(":", 2))
-      .filter(arr => arr.length == 2) match {
-      case Some(Array(username, token, _*)) => {
-        env.datastores.personnalAccessToken
-          .checkAccessToken(username, token, checker)
-          .map {
-            case TokenCheckSuccess(token) => Some(username, token)
-            case TokenCheckFailure        => None
-          }(env.executionContext)
-
-      }
-      case _ => Future.successful(None)
-    }
   }
 }
