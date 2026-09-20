@@ -44,6 +44,7 @@ import scala.util.Try
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.datastores.ApiKeyDatastore
+import fr.maif.izanami.web.AuthAction.maybeAuthHeader
 
 sealed trait UserInformation {
   def username: String
@@ -138,7 +139,7 @@ class ClientApiKeyAction(apiKeyDatastore: ApiKeyDatastore, bodyParser: BodyParse
           eitherKey.fold(
             _ =>
               Future.successful(
-                Unauthorized(Json.obj("message" -> "Invalid key"))  
+                Unauthorized(Json.obj("message" -> "Invalid key"))
               ),
             key => block(ClientKeyRequest(request, key))
           )
@@ -154,7 +155,8 @@ class ClientApiKeyAction(apiKeyDatastore: ApiKeyDatastore, bodyParser: BodyParse
 
 class PersonnalAccessTokenTenantRightsAction(
     bodyParser: BodyParser[AnyContent],
-    operation: GlobalTokenRight
+    operation: GlobalTokenRight,
+    authService: AuthService
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserRequestWithTenantRights] {
@@ -164,56 +166,7 @@ class PersonnalAccessTokenTenantRightsAction(
       request: Request[A],
       block: UserRequestWithTenantRights[A] => Future[Result]
   ): Future[Result] = {
-    def maybeTokenAuth: Future[Either[Result, (UserWithTenantRights, UUID)]] = {
-      extractAndCheckPersonnalAccessToken(
-        request,
-        env,
-        token => token.hasRight(operation)
-      )
-        .flatMap {
-          case Some((username, token)) =>
-            env.datastores.users
-              .findUser(username)
-              .map {
-                case Some(value) => Right((value, token.id))
-                case None        =>
-                  Left(
-                    Unauthorized(Json.obj("message" -> "Invalid access token"))
-                  )
-              }
-          case None =>
-            Future.successful(
-              Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
-            )
-        }
-    }
-
-    def maybeCookieAuth
-        : Future[Option[Either[Result, UserWithTenantRights]]] = {
-      extractClaims(
-        request,
-        env.typedConfiguration.authentication.secret,
-        env.encryptionKey
-      )
-        .flatMap(claims => claims.subject)
-        .fold(Future.successful(None))(subject => {
-          env.datastores.users
-            .findSessionWithTenantRights(subject)
-            .map {
-              case None =>
-                Some(
-                  Left(
-                    Unauthorized(
-                      Json.obj("message" -> "User is not connected")
-                    )
-                  )
-                )
-              case Some(user) => Some(Right(user))
-            }
-        })
-    }
-
-    maybeCookieAuth.flatMap {
+    AuthAction.maybeCookieAuth(request, authService).flatMap {
       case Some(Right(user)) =>
         block(
           UserRequestWithTenantRights(
@@ -224,16 +177,17 @@ class PersonnalAccessTokenTenantRightsAction(
         )
       case Some(Left(result)) => Future.successful(result)
       case None               =>
-        maybeTokenAuth.flatMap {
-          case Right((user, tokenId)) =>
-            block(
-              UserRequestWithTenantRights(
-                request = request,
-                user = user,
-                authentication = TokenAuthentication(tokenId)
-              )
+        AuthAction.maybeTokenAuth(request, operation, authService).value
+        .flatMap {
+          case Left(error) => Future.successful(error.toHttpResponse)
+          case Right(None) => Future.successful(Unauthorized)
+          case Right(Some((user, tokenId))) => block(
+            UserRequestWithTenantRights(
+              request = request,
+              user = user,
+              authentication = TokenAuthentication(tokenId)
             )
-          case Left(result) => Future.successful(result)
+          )
         }
     }
   }
@@ -1038,7 +992,7 @@ class PersonnalAccessTokenKeyAuthAction(
       ).map(tuple => {
         val username = tuple._1
         val token = tuple._2
-        
+
       })
         /*.flatMap {
           case Some((username, token)) =>
@@ -1901,6 +1855,10 @@ class PersonnalAccessTokenKeyAuthActionFactory(
 object AuthAction {
   private val TIMER = Executors.newSingleThreadScheduledExecutor()
 
+  def maybeAuthHeader(req: Request[_]): Option[String] = {
+    req.headers.get("Authorization")
+  }
+
   def delayResponse(
       result: Result,
       duration: Duration = Duration.ofSeconds(3)
@@ -1924,5 +1882,48 @@ object AuthAction {
       .map(cookie => cookie.value)
       .map(token => decodeJWT(token, secret, bodySecretKey))
       .flatMap(maybeClaim => maybeClaim.toOption)
+  }
+
+  def maybeTokenAuth(request:Request[_], operation: GlobalTokenRight, authService: AuthService)(implicit ec: ExecutionContext): FutureEither[Option[(UserWithTenantRights, UUID)]] = {
+    maybeAuthHeader(request).map(headerValue => {
+      authService.extractAndCheckPersonnalAccessToken(
+        headerValue = headerValue,
+        checker = token => token.hasRight(operation)
+      )
+        .flatMap { (username, token) =>
+            authService
+              .findUser(username)
+              .mapToFEither
+              .flatMap {
+                case Some(value) => FutureEither.success(Some(value, token.id))
+                case None        => FutureEither.failure(InvalidpersonalAccessToken)
+              }
+        }
+    }).getOrElse(FutureEither.success(Option.empty))
+  }
+
+  def maybeCookieAuth(request:Request[_], authService: AuthService)(implicit ec: ExecutionContext)
+      : Future[Option[Either[Result, UserWithTenantRights]]] = {
+    extractClaims(
+      request,
+      authService.tokenSecret,
+      authService.encryptionKey
+    )
+      .flatMap(claims => claims.subject)
+      .fold(Future.successful(None))(subject => {
+        authService
+          .findSessionWithTenantRights(subject)
+          .map {
+            case None =>
+              Some(
+                Left(
+                  Unauthorized(
+                    Json.obj("message" -> "User is not connected")
+                  )
+                )
+              )
+            case Some(user) => Some(Right(user))
+          }
+      })
   }
 }
