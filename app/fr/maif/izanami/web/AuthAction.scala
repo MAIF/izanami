@@ -177,15 +177,15 @@ class PersonnalAccessTokenTenantRightsAction(
         )
       case Some(Left(result)) => Future.successful(result)
       case None               =>
-        AuthAction.maybeTokenAuth(request, operation, authService, username => authService.findUser(username).mapToFEither).value
+        AuthAction.maybeTokenAuth(request, token => token.hasRight(operation), authService, username => authService.findUser(username).mapToFEither).value
         .flatMap {
           case Left(error) => Future.successful(error.toHttpResponse)
           case Right(None) => Future.successful(Unauthorized)
-          case Right(Some((user, tokenId))) => block(
+          case Right(Some((user, token))) => block(
             UserRequestWithTenantRights(
               request = request,
               user = user,
-              authentication = TokenAuthentication(tokenId)
+              authentication = TokenAuthentication(token.id)
             )
           )
         }
@@ -485,8 +485,11 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
         )
       case Some(Left(result)) => Future.successful(result)
       case None               =>
-        maybeTokenAuth.flatMap {
-          case Right((token, user)) =>
+        AuthAction.maybeTokenAuth(request, authService = authService, checker = token => requiredTokenRight.forall(r => token.hasTenantRight(tenant = tenant, right = r)), userReader = username => authService.findUserWithRightForTenant(
+          username = username,
+          tenant = tenant
+        )).toFutureResult {
+          case Some((user, token)) =>
             block(
               UserRequestWithCompleteRightForOneTenantTokenUser(
                 request = request,
@@ -495,7 +498,7 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
                 token = token
               )
             )
-          case Left(result) => Future.successful(result)
+          case None => Future.successful(Unauthorized)
         }
     }
   }
@@ -1886,16 +1889,16 @@ object AuthAction {
       .flatMap(maybeClaim => maybeClaim.toOption)
   }
 
-  def maybeTokenAuth[A](request:Request[_], operation: GlobalTokenRight, authService: AuthService, userReader: String => FutureEither[Option[A]])(implicit ec: ExecutionContext): FutureEither[Option[(A, UUID)]] = {
+  def maybeTokenAuth[A](request:Request[_], checker: ReadPersonnalAccessToken => Boolean, authService: AuthService, userReader: String => FutureEither[Option[A]])(implicit ec: ExecutionContext): FutureEither[Option[(A, ReadPersonnalAccessToken)]] = {
     maybeAuthHeader(request).map(headerValue => {
       authService.extractAndCheckPersonnalAccessToken(
         headerValue = headerValue,
-        checker = token => token.hasRight(operation)
+        checker = checker
       )
         .flatMap { (username, token) =>
               userReader(username)
               .flatMap {
-                case Some(value) => FutureEither.success(Some(value, token.id))
+                case Some(value) => FutureEither.success(Some(value, token))
                 case None        => FutureEither.failure(InvalidpersonalAccessToken)
               }
         }

@@ -11,6 +11,7 @@ import fr.maif.izanami.utils.Done
 import scala.concurrent.ExecutionContext
 import scala.util.Try
 import javax.crypto.spec.SecretKeySpec
+import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 
 
 
@@ -72,6 +73,14 @@ class AuthService(
       tenant: String
   ): Future[Option[UserWithCompleteRightForOneTenant]] = {
     userDatastore.findSessionWithRightForTenant(session, tenant).map(_.toOption)
+  }
+
+  def findUserWithRightForTenant(
+      username: String,
+      tenant: String
+  ): FutureEither[Option[UserWithCompleteRightForOneTenant]] = {
+    userDatastore.findUserWithRightForTenant(username = username, tenant = tenant).toFEither
+      .map(u => Some(u))
   }
 }
 
