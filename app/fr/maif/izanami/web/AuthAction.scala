@@ -30,6 +30,7 @@ import play.api.mvc.Results.BadRequest
 import play.api.mvc.Results.Forbidden
 import play.api.mvc.Results.Unauthorized
 import fr.maif.izanami.services.{AuthService, DecryptionStuff}
+import fr.maif.izanami.Cluster
 
 import java.time.Duration
 import java.util.Base64
@@ -45,6 +46,7 @@ import fr.maif.izanami.utils.Done
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.datastores.ApiKeyDatastore
 import fr.maif.izanami.web.AuthAction.maybeAuthHeader
+import org.apache.pekko.actor.ProviderSelection.Cluster
 
 sealed trait UserInformation {
   def username: String
@@ -508,7 +510,8 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
 
 class DetailledRightForTenantAction(
     bodyParser: BodyParser[AnyContent],
-    tenant: String
+    tenant: String,
+    authService: AuthService
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserRequestWithCompleteRightForOneTenant] {
@@ -521,18 +524,17 @@ class DetailledRightForTenantAction(
   ): Future[Result] = {
     extractClaims(
       request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
+      authService.decryptionStuff
     )
       .flatMap(claims => claims.subject)
       .fold(
         Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
       )(subject => {
-        env.datastores.users
+        authService
           .findSessionWithRightForTenant(subject, tenant)
           .flatMap {
-            case Left(err)   => err.toHttpResponse.toFuture
-            case Right(user) =>
+            case None  => Future.successful(Unauthorized)
+            case Some(user) =>
               block(
                 UserRequestWithCompleteRightForOneTenantRealUser(
                   request = request,
@@ -552,7 +554,9 @@ class PersonnalAccessTokenProjectAuthAction(
     tenant: String,
     project: String,
     minimumLevel: ProjectRightLevel,
-    operation: TenantTokenRights
+    operation: TenantTokenRights,
+    authService: AuthService,
+    rightService: RightService // TODO authService & rightService should be merged ?
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserNameRequest] {
@@ -562,35 +566,59 @@ class PersonnalAccessTokenProjectAuthAction(
       request: Request[A],
       block: UserNameRequest[A] => Future[Result]
   ): Future[Result] = {
-
-    def maybeTokenAuth: Future[Either[Result, UserInformation]] = {
-      extractAndCheckPersonnalAccessToken(
-        request,
-        env,
-        token => token.hasTenantRight(tenant = tenant, right = operation)
-      )
-        .flatMap {
-          case Some((username, token)) =>
-            env.datastores.users
+    AuthAction.maybeCookieAuth(
+      request,
+      authService.decryptionStuff,
+      session => Future.successful(Some(session))
+    ).flatMap {
+      case Some(Right(session)) => {
+        rightService.hasRightForProject(
+          user = SessionIdentification(session),
+          tenant = tenant,
+          project = ProjectNameIdentification(project),
+          level = minimumLevel
+        ).toFutureResult{
+          case Some(username) => block(
+            UserNameRequest(
+              request = request,
+              StandardUserInformation(
+                username = username,
+                authentication = BackOfficeAuthentication
+              )
+            )
+          )
+          case None => Future.successful(Unauthorized)
+        }
+      }
+      case Some(Left(result)) => Future.successful(result)
+      case None               =>
+        AuthAction.maybeTokenAuth(
+          request = request,
+          checker = token => token.hasTenantRight(tenant = tenant, right = operation),
+          authService = authService,
+          userReader = user => FutureEither.success(Some(user))
+        ).toFutureResult {
+          case Some((username, token)) => {
+            authService
               .findCompleteRightsFromTenant(
                 username = username,
                 tenants = Set(tenant)
               )
-              .map {
+              .flatMap {
                 case Some(user)
                     if user.hasRightForProject(
                       tenant = tenant,
                       project = project,
                       rightLevel = minimumLevel
-                    ) =>
-                  Right(
-                    StandardUserInformation(
-                      username = username,
-                      TokenAuthentication(tokenId = token.id)
-                    )
-                  )
+                    ) => {
+                      val userInformation = StandardUserInformation(
+                          username = username,
+                          TokenAuthentication(tokenId = token.id)
+                        )
+                      block(UserNameRequest(request = request, userInformation))
+                    }
                 case Some(user) =>
-                  Left(
+                  Future.successful(
                     Forbidden(
                       Json.obj(
                         "message" -> "User does not have enough rights for this operation"
@@ -598,70 +626,10 @@ class PersonnalAccessTokenProjectAuthAction(
                     )
                   )
                 case None =>
-                  Left(Unauthorized(Json.obj("message" -> "User not found")))
+                  Future.successful(Unauthorized(Json.obj("message" -> "User not found")))
               }
-          case None =>
-            Future.successful(
-              Left(Unauthorized(Json.obj("message" -> "Invalid access token")))
-            )
-        }
-    }
-
-    def maybeCookieAuth: Future[Option[Either[Result, String]]] = {
-      extractClaims(
-        request,
-        env.typedConfiguration.authentication.secret,
-        env.encryptionKey
-      )
-        .flatMap(claims => claims.subject)
-        .fold(
-          Future
-            .successful(
-              None
-            )
-        )(subject => {
-          env.rightService
-            .hasRightForProject(
-              user = SessionIdentification(subject),
-              tenant = tenant,
-              project = ProjectNameIdentification(project),
-              level = minimumLevel
-            )
-            .value
-            .map {
-              case Right(Some(username)) => Some(Right(username))
-              case _                     =>
-                Some(
-                  Left(
-                    Forbidden(
-                      Json.obj(
-                        "message" -> "User does not have enough rights for this operation"
-                      )
-                    )
-                  )
-                )
-            }
-        })
-    }
-
-    maybeCookieAuth.flatMap {
-
-      case Some(Right(username)) =>
-        block(
-          UserNameRequest(
-            request = request,
-            StandardUserInformation(
-              username = username,
-              authentication = BackOfficeAuthentication
-            )
-          )
-        )
-      case Some(Left(result)) => Future.successful(result)
-      case None               =>
-        maybeTokenAuth.flatMap {
-          case Right(userInformation) =>
-            block(UserNameRequest(request = request, userInformation))
-          case Left(result) => Future.successful(result)
+          }
+          case None => Future.successful(Unauthorized)
         }
     }
   }
@@ -671,8 +639,9 @@ class PersonnalAccessTokenProjectAuthAction(
 
 trait IzanamiActionBuilder[R[_] <: Request[_]]
     extends ActionBuilder[R, AnyContent] {
+  def clusteringConfig: Cluster
   def disabledOn: IzanamiMode
-  def clusterMode: IzanamiMode
+  def clusterMode: IzanamiMode = clusteringConfig.mode
   def invokeBlockImpl[A](
       request: Request[A],
       block: R[A] => Future[Result]
@@ -696,18 +665,14 @@ trait LeaderActionBuilder[R[_] <: Request[_]] extends IzanamiActionBuilder[R] {
 }
 
 class LeaderActionBuilderImpl(
-    override val parser: BodyParser[AnyContent],
-    override val env: Env
-) extends LeaderActionBuilder[Request] {
+    override val parser: BodyParser[AnyContent]
+)(implicit val ec: ExecutionContext) extends LeaderActionBuilder[Request] {
   override def disabledOn: IzanamiMode = Worker
 
   override def invokeBlockImpl[A](
       request: Request[A],
       block: Request[A] => Future[Result]
   ): Future[Result] = block(request)
-
-  override protected def executionContext: ExecutionContext =
-    env.executionContext
 }
 
 case class ContextPermissions(
@@ -768,14 +733,13 @@ case class ContextPermissions(
 }
 
 class WorkerActionBuilder(
-    override val parser: BodyParser[AnyContent],
-    override val env: Env
+    val clusteringConfig: Cluster,
+    val apiKeyDatastore: ApiKeyDatastore,
+    override val parser: BodyParser[AnyContent]
 )(implicit
     ec: ExecutionContext
 ) extends IzanamiActionBuilder[WorkerClientRequest] {
   override def disabledOn: IzanamiMode = Leader
-
-  private val clusteringConfig = env.typedConfiguration.cluster
 
   override def invokeBlockImpl[A](
       request: Request[A],
@@ -808,11 +772,11 @@ class WorkerActionBuilder(
       tenant <- ApiKey
         .extractTenant(clientId)
         .map(t => FutureEither.success(t))
-        .getOrElse(env.datastores.apiKeys.findLegacyKeyTenant(clientId).map(
+        .getOrElse(apiKeyDatastore.findLegacyKeyTenant(clientId).map(
           maybeTenant => maybeTenant.toRight(IncorrectKey)
         ).toFEither)
     ) yield {
-      if (actualMode == Standalone) {
+      if (clusterMode == Standalone) {
         block(WorkerClientRequest(request, tenant=tenant, clientId = clientId , clientSecret = authTuple._2))
       } else {
         val contextPermissions = ContextPermissions(
@@ -842,9 +806,6 @@ class WorkerActionBuilder(
 
     r.toFutureResult(fr => fr)
   }
-
-  override protected def executionContext: ExecutionContext =
-    env.executionContext
 }
 
 class PersonnalAccessTokenFeatureAuthAction(
@@ -1889,7 +1850,12 @@ object AuthAction {
       .flatMap(maybeClaim => maybeClaim.toOption)
   }
 
-  def maybeTokenAuth[A](request:Request[_], checker: ReadPersonnalAccessToken => Boolean, authService: AuthService, userReader: String => FutureEither[Option[A]])(implicit ec: ExecutionContext): FutureEither[Option[(A, ReadPersonnalAccessToken)]] = {
+  def maybeTokenAuth[A](
+    request:Request[_],
+    checker: ReadPersonnalAccessToken => Boolean,
+    authService: AuthService,
+    userReader: String => FutureEither[Option[A]]
+  )(implicit ec: ExecutionContext): FutureEither[Option[(A, ReadPersonnalAccessToken)]] = {
     maybeAuthHeader(request).map(headerValue => {
       authService.extractAndCheckPersonnalAccessToken(
         headerValue = headerValue,

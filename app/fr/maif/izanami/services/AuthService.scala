@@ -82,6 +82,12 @@ class AuthService(
     userDatastore.findUserWithRightForTenant(username = username, tenant = tenant).toFEither
       .map(u => Some(u))
   }
+
+  def findCompleteRightsFromTenant(
+      username: String,
+      tenants: Set[String]
+  ): Future[Option[UserWithRights]] =
+    userDatastore.findCompleteRightsFromTenant(username = username, tenants = tenants)
 }
 
 case class DecryptionStuff(tokenSecret: String, encryptionKey: SecretKeySpec)
