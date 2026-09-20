@@ -29,7 +29,7 @@ import play.api.mvc.*
 import play.api.mvc.Results.BadRequest
 import play.api.mvc.Results.Forbidden
 import play.api.mvc.Results.Unauthorized
-import fr.maif.izanami.services.AuthService
+import fr.maif.izanami.services.{AuthService, DecryptionStuff}
 
 import java.time.Duration
 import java.util.Base64
@@ -166,7 +166,7 @@ class PersonnalAccessTokenTenantRightsAction(
       request: Request[A],
       block: UserRequestWithTenantRights[A] => Future[Result]
   ): Future[Result] = {
-    AuthAction.maybeCookieAuth(request, authService).flatMap {
+    AuthAction.maybeCookieAuth(request, authService.decryptionStuff, authService.findSessionWithTenantRights).flatMap {
       case Some(Right(user)) =>
         block(
           UserRequestWithTenantRights(
@@ -177,7 +177,7 @@ class PersonnalAccessTokenTenantRightsAction(
         )
       case Some(Left(result)) => Future.successful(result)
       case None               =>
-        AuthAction.maybeTokenAuth(request, operation, authService).value
+        AuthAction.maybeTokenAuth(request, operation, authService, username => authService.findUser(username).mapToFEither).value
         .flatMap {
           case Left(error) => Future.successful(error.toHttpResponse)
           case Right(None) => Future.successful(Unauthorized)
@@ -196,7 +196,8 @@ class PersonnalAccessTokenTenantRightsAction(
 }
 
 class TenantRightsAction(
-    bodyParser: BodyParser[AnyContent]
+    bodyParser: BodyParser[AnyContent],
+    authService: AuthService
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserRequestWithTenantRights] {
@@ -208,12 +209,11 @@ class TenantRightsAction(
   ): Future[Result] = {
     extractClaims(
       request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
+      authService.decryptionStuff
     )
       .flatMap(claims => claims.subject)
       .fold(Future.successful(Unauthorized("")))(subject => {
-        env.datastores.users
+        authService
           .findSessionWithTenantRights(subject)
           .flatMap {
             case None =>
@@ -236,7 +236,8 @@ class TenantRightsAction(
 }
 
 class DetailledAuthAction(
-    bodyParser: BodyParser[AnyContent]
+    bodyParser: BodyParser[AnyContent],
+    authService: AuthService
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserRequestWithCompleteRights] {
@@ -248,14 +249,13 @@ class DetailledAuthAction(
   ): Future[Result] = {
     extractClaims(
       request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
+      authService.decryptionStuff
     )
       .flatMap(claims => claims.subject)
       .fold(
         Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
       )(subject => {
-        env.datastores.users
+        authService
           .findSessionWithCompleteRights(subject)
           .flatMap {
             case None       => UserNotFound(subject).toHttpResponse.future
@@ -275,7 +275,8 @@ class DetailledAuthAction(
 }
 
 class AdminAuthAction(
-    bodyParser: BodyParser[AnyContent]
+    bodyParser: BodyParser[AnyContent],
+    authService: AuthService
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserNameRequest] {
@@ -288,14 +289,13 @@ class AdminAuthAction(
   ): Future[Result] = {
     extractClaims(
       request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
+      authService.decryptionStuff
     )
       .flatMap(claims => claims.subject)
       .fold(
         Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
       )(subject => {
-        env.datastores.users
+        authService
           .findAdminSession(subject)
           .flatMap {
             case Some(username) =>
@@ -320,7 +320,8 @@ class AdminAuthAction(
 }
 
 class AuthenticatedAction(
-    bodyParser: BodyParser[AnyContent]
+    bodyParser: BodyParser[AnyContent],
+    authService: AuthService
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserNameRequest] {
@@ -333,14 +334,13 @@ class AuthenticatedAction(
   ): Future[Result] = {
     extractClaims(
       request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
+      authService.decryptionStuff
     )
       .flatMap(claims => claims.subject)
       .fold(
         Future.successful(Unauthorized(Json.obj("message" -> "Invalid token")))
       )(sessionId =>
-        env.datastores.users.findSession(sessionId).flatMap {
+        authService.findSession(sessionId).flatMap {
           case Some(username) =>
             block(
               UserNameRequest(
@@ -363,7 +363,8 @@ class AuthenticatedAction(
 }
 
 class AuthenticatedSessionAction(
-    bodyParser: BodyParser[AnyContent]
+    bodyParser: BodyParser[AnyContent],
+    authService: AuthService
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[SessionIdRequest] {
@@ -376,8 +377,7 @@ class AuthenticatedSessionAction(
   ): Future[Result] = {
     extractClaims(
       request,
-      env.typedConfiguration.authentication.secret,
-      env.encryptionKey
+      authService.decryptionStuff
     )
       .flatMap(claims => claims.subject)
       .fold(
@@ -393,7 +393,8 @@ class AuthenticatedSessionAction(
 class PersonnalAccessTokenDetailledRightForTenantAction(
     bodyParser: BodyParser[AnyContent],
     tenant: String,
-    requiredTokenRight: Option[TenantTokenRights]
+    requiredTokenRight: Option[TenantTokenRights],
+    authService: AuthService
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserRequestWithCompleteRightForOneTenant] {
@@ -404,11 +405,12 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
       request: Request[A],
       block: UserRequestWithCompleteRightForOneTenant[A] => Future[Result]
   ): Future[Result] = {
-
+    /*
     def maybeTokenAuth: Future[Either[
       Result,
       (ReadPersonnalAccessToken, UserWithCompleteRightForOneTenant)
     ]] = {
+
       extractAndCheckPersonnalAccessToken(
         request,
         env,
@@ -470,8 +472,9 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
             }
         })
     }
+    */
 
-    maybeCookieAuth.flatMap {
+    AuthAction.maybeCookieAuth(request, authService.decryptionStuff, s => authService.findSessionWithRightForTenant(s, tenant)).flatMap {
       case Some(Right(user)) =>
         block(
           UserRequestWithCompleteRightForOneTenantRealUser(
@@ -1874,26 +1877,23 @@ object AuthAction {
 
   def extractClaims[A](
       request: Request[A],
-      secret: String,
-      bodySecretKey: SecretKeySpec
+      decryptionStuff: DecryptionStuff
   ): Option[JwtClaim] = {
     request.cookies
       .get("token")
       .map(cookie => cookie.value)
-      .map(token => decodeJWT(token, secret, bodySecretKey))
+      .map(token => decodeJWT(token, decryptionStuff.tokenSecret, decryptionStuff.encryptionKey))
       .flatMap(maybeClaim => maybeClaim.toOption)
   }
 
-  def maybeTokenAuth(request:Request[_], operation: GlobalTokenRight, authService: AuthService)(implicit ec: ExecutionContext): FutureEither[Option[(UserWithTenantRights, UUID)]] = {
+  def maybeTokenAuth[A](request:Request[_], operation: GlobalTokenRight, authService: AuthService, userReader: String => FutureEither[Option[A]])(implicit ec: ExecutionContext): FutureEither[Option[(A, UUID)]] = {
     maybeAuthHeader(request).map(headerValue => {
       authService.extractAndCheckPersonnalAccessToken(
         headerValue = headerValue,
         checker = token => token.hasRight(operation)
       )
         .flatMap { (username, token) =>
-            authService
-              .findUser(username)
-              .mapToFEither
+              userReader(username)
               .flatMap {
                 case Some(value) => FutureEither.success(Some(value, token.id))
                 case None        => FutureEither.failure(InvalidpersonalAccessToken)
@@ -1902,17 +1902,19 @@ object AuthAction {
     }).getOrElse(FutureEither.success(Option.empty))
   }
 
-  def maybeCookieAuth(request:Request[_], authService: AuthService)(implicit ec: ExecutionContext)
-      : Future[Option[Either[Result, UserWithTenantRights]]] = {
+  def maybeCookieAuth[A](
+    request:Request[_],
+    decryptionStuff: DecryptionStuff,
+    userReader: String => Future[Option[A]]
+  )(implicit ec: ExecutionContext)
+      : Future[Option[Either[Result, A]]] = {
     extractClaims(
       request,
-      authService.tokenSecret,
-      authService.encryptionKey
+      decryptionStuff
     )
       .flatMap(claims => claims.subject)
       .fold(Future.successful(None))(subject => {
-        authService
-          .findSessionWithTenantRights(subject)
+        userReader(subject)
           .map {
             case None =>
               Some(

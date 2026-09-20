@@ -1,6 +1,6 @@
 package fr.maif.izanami.services
 
-import fr.maif.izanami.models.{UserWithTenantRights, ReadPersonnalAccessToken}
+import fr.maif.izanami.models.{UserWithTenantRights, UserWithRights, ReadPersonnalAccessToken, UserWithCompleteRightForOneTenant}
 import fr.maif.izanami.datastores.{PersonnalAccessTokenDatastore, UsersDatastore}
 import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{TokenCheckSuccess, TokenCheckFailure}
 import scala.concurrent.Future
@@ -15,11 +15,13 @@ import javax.crypto.spec.SecretKeySpec
 
 
 class AuthService(
-  val personalAccessTokenDatastore: PersonnalAccessTokenDatastore,
-  val userDatastore: UsersDatastore,
-  val tokenSecret: String,
-  val encryptionKey: SecretKeySpec
+  private val personalAccessTokenDatastore: PersonnalAccessTokenDatastore,
+  private val userDatastore: UsersDatastore,
+  private val tokenSecret: String,
+  private val encryptionKey: SecretKeySpec
 )(implicit val ec: ExecutionContext) {
+  val decryptionStuff = DecryptionStuff(tokenSecret, encryptionKey)
+
   def extractAndCheckPersonnalAccessToken(
       headerValue: String,
       checker: ReadPersonnalAccessToken => Boolean
@@ -51,4 +53,26 @@ class AuthService(
   ): Future[Option[UserWithTenantRights]] = {
     userDatastore.findSessionWithTenantRights(session)
   }
+
+  def findSessionWithCompleteRights(
+      session: String
+  ): Future[Option[UserWithRights]] = {
+    userDatastore.findSessionWithCompleteRights(session)
+  }
+  def findAdminSession(session: String): Future[Option[String]] = {
+    userDatastore.findAdminSession(session)
+  }
+
+  def findSession(session: String): Future[Option[String]] = {
+    userDatastore.findSession(session)
+  }
+
+  def findSessionWithRightForTenant(
+      session: String,
+      tenant: String
+  ): Future[Option[UserWithCompleteRightForOneTenant]] = {
+    userDatastore.findSessionWithRightForTenant(session, tenant).map(_.toOption)
+  }
 }
+
+case class DecryptionStuff(tokenSecret: String, encryptionKey: SecretKeySpec)
