@@ -23,7 +23,9 @@ class AuthService(
 )(implicit val ec: ExecutionContext) {
   val decryptionStuff = DecryptionStuff(tokenSecret, encryptionKey)
 
-  def extractAndCheckPersonnalAccessToken(
+
+  def checkPersonalAccessToken(username: String, token: String): Future[Option[ReadPersonnalAccessToken]] = personalAccessTokenDatastore.readAccessToken(username = username, token = tokenId)
+  /*def extractAndCheckPersonnalAccessToken(
       headerValue: String,
       checker: ReadPersonnalAccessToken => Boolean
   ): FutureEither[(String, ReadPersonnalAccessToken)] = {
@@ -43,7 +45,7 @@ class AuthService(
         case TokenCheckFailure        => FutureEither.failure(InvalidpersonalAccessToken)
       }
     ) yield res
-  }
+  }*/
 
   def findUser(username: String): Future[Option[UserWithTenantRights]] = {
     userDatastore.findUser(username)

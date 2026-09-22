@@ -61,7 +61,48 @@ class PersonnalAccessTokenDatastore(postgresql: Postgresql)(implicit val ec: Exe
       .map(l => l.toMap)
   }
 
-  def checkAccessToken(
+  def readAccessToken(username: String, token: String): Future[Option[ReadPersonnalAccessToken]] = {
+    extractTokenInformation(token).fold(Future.successful(Option.empty))(
+      (id, secret) => {
+        postgresql
+          .queryOne(
+            s"""
+               |SELECT
+               |  t.id,
+               |  t.username,
+               |  t.name,
+               |  t.created_at,
+               |  t.expires_at,
+               |  t.expiration_timezone,
+               |  t.all_rights,
+               |  t.token,
+               |  COALESCE(json_agg(json_build_object('tenant', tr.tenant, 'right', tr.value)) FILTER (WHERE tr.token IS NOT NULL AND tr.value IS NOT NULL), '[]') AS rights,
+               |  COALESCE(json_agg(tr.global_value) FILTER (WHERE tr.token IS NOT NULL AND tr.global_value IS NOT NULL), '[]') AS global_rights
+               |FROM izanami.personnal_access_tokens t
+               |LEFT OUTER JOIN izanami.personnal_access_token_rights tr ON tr.token = t.id
+               |WHERE t.username = $$1 AND t.id = $$2
+               |GROUP BY t.id
+               |""".stripMargin,
+            List(username, id)
+          ) { r =>
+            for (
+              tokenSecret <- r.optString("token");
+              token <- r.optToken
+            ) yield (tokenSecret, token)
+          }
+          .map {
+            case Some((tokenSecret, token))
+              if (!token.isExpired) && bcryptCheck(
+                secret,
+                tokenSecret
+              ) => Some(token)
+            case _ => None
+          }
+      }
+    )
+  }
+  // FIXME remove
+  /*def checkAccessToken(
       username: String,
       token: String,
       checker: ReadPersonnalAccessToken => Boolean
@@ -75,7 +116,7 @@ class PersonnalAccessTokenDatastore(postgresql: Postgresql)(implicit val ec: Exe
         case Some(value) => TokenCheckSuccess(value)
         case None        => TokenCheckFailure
       }
-  }
+  }*/
 
   type TokenSecret = String
   type TokenId = UUID

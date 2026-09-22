@@ -911,6 +911,13 @@ class FeatureService(
       case _ => FutureEither.success(())
     }
   }
+
+  def findFeaturesProjects(
+      tenant: String,
+      featureIds: Set[String]
+  ): FutureEither[Map[String, String]] = {
+    datastore.findFeaturesProjects(tenant = tenant, featureIds = featureIds)
+  }
 }
 
 object FeatureService {
