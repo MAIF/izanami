@@ -366,7 +366,7 @@ class FeatureService(
       _ <- if (
         impactedProtectedContexts.nonEmpty && !preserveProtectedContexts && !user
           .hasRightForProject(
-            project = project,
+            projectName = project,
             level = ProjectRightLevel.Admin
           ) && LightWeightFeature.hasStrategyChanged(
           oldFeature.strategyFor(contextPath),
