@@ -47,6 +47,10 @@ class AuthService(
     ) yield res
   }*/
 
+  def isUserValid(username: String, password: String): Future[Option[User]] = {
+    userDatastore.isUserValid(username = username, password = password)
+  }
+
   def findUser(username: String): Future[Option[UserWithTenantRights]] = {
     userDatastore.findUser(username)
   }
