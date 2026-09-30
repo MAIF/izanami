@@ -5,10 +5,11 @@ import com.github.jknack.handlebars.Context
 import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.jackson.JsonNodeValueResolver
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.{WebhookCallError, TenantDoesNotExists}
+import fr.maif.izanami.errors.{TenantDoesNotExists, WebhookCallError}
 import fr.maif.izanami.events.*
 import fr.maif.izanami.models.LightWebhook
 import fr.maif.izanami.models.RequestContext
+import fr.maif.izanami.services.WebhookService
 import fr.maif.izanami.web.FeatureContextPath
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.Cancellable
@@ -20,13 +21,17 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.*
 import play.api.Logger
+
 import scala.collection.concurrent.TrieMap
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.utils.syntax.implicits.BetterFuture
 
-class WebhookListener(env: Env, eventService: EventService) {
-  private val handlebars = new Handlebars()
+class WebhookListener(
+    env: Env,
+    eventService: EventService,
+    webhookService: WebhookService
+) {
   private val mapper = new ObjectMapper()
   private val logger = Logger("izanami-webhooks")
   private implicit val ec: ExecutionContext = env.executionContext
@@ -120,7 +125,7 @@ class WebhookListener(env: Env, eventService: EventService) {
                     }
                   })
                 })
-                
+
               }
             ).flatten.mapToFEither
         })
@@ -141,13 +146,17 @@ class WebhookListener(env: Env, eventService: EventService) {
           .map(json => {
             hook.bodyTemplate
               .map(bodyTemplate => {
-                val template = handlebars.compileInline(bodyTemplate)
-                val jacksonJson = mapper.readTree(json.toString())
-                val context = Context
-                  .newBuilder(jacksonJson)
-                  .resolver(JsonNodeValueResolver.INSTANCE)
-                  .build()
-                template.apply(context)
+                val result =
+                  webhookService.executeHandlebars(bodyTemplate, json.toString)
+                result.fold(
+                  error => {
+                    logger.error(
+                      s"Failed to execute handlebar template : ${error.message}"
+                    )
+                    json.toString()
+                  },
+                  res => res
+                )
               })
               .getOrElse(json.toString())
           })

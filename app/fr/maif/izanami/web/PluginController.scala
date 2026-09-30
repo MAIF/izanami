@@ -61,7 +61,9 @@ class PluginController(
   def deleteScript(tenant: String, script: String): Action[AnyContent] =
     authAction(tenant, RightLevel.Write).async {
       implicit request =>
-        env.datastores.features.deleteLocalScript(tenant, script).toResult(_ => NoContent)
+        env.datastores.features.deleteLocalScript(tenant, script).toResult(_ =>
+          NoContent
+        )
     }
 
   def updateScript(tenant: String, script: String): Action[JsValue] =

@@ -18,17 +18,32 @@ object ConfigUtil {
       fixStringArrayifNeeded(config, path)
     })
 
-    fixedConfig = fixMapIfNeeded(config = fixedConfig, path = "app.cluster.worker-url-by-contexts")
-    fixedConfig = fixNestedMapIfNeeded(config = fixedConfig, path = "app.cluster.worker-url-by-contexts-and-tenants")
+    fixedConfig = fixMapIfNeeded(
+      config = fixedConfig,
+      path = "app.cluster.worker-url-by-contexts"
+    )
+    fixedConfig = fixNestedMapIfNeeded(
+      config = fixedConfig,
+      path = "app.cluster.worker-url-by-contexts-and-tenants"
+    )
 
-    fixedConfig = fixContextAllowListOrBlockListBytenantIfNeeded(config = fixedConfig, path = "context-allowlist-by-tenant")
-    fixContextAllowListOrBlockListBytenantIfNeeded(config = fixedConfig, path = "context-blocklist-by-tenant")
+    fixedConfig = fixContextAllowListOrBlockListBytenantIfNeeded(
+      config = fixedConfig,
+      path = "context-allowlist-by-tenant"
+    )
+    fixContextAllowListOrBlockListBytenantIfNeeded(
+      config = fixedConfig,
+      path = "context-blocklist-by-tenant"
+    )
   }
 
-  def fixContextAllowListOrBlockListBytenantIfNeeded(config: Config, path: String): Config = {
+  def fixContextAllowListOrBlockListBytenantIfNeeded(
+      config: Config,
+      path: String
+  ): Config = {
     Try {
       val value = config.getValue(path);
-      
+
       if (value.valueType() == ConfigValueType.STRING) {
         val newValue = Json.parse(
           value.unwrapped().asInstanceOf[String]
@@ -46,11 +61,10 @@ object ConfigUtil {
     }.getOrElse(config)
   }
 
-
   def fixMapIfNeeded(config: Config, path: String): Config = {
     Try {
       val value = config.getValue(path);
-      
+
       if (value.valueType() == ConfigValueType.STRING) {
         val newValue = Json.parse(
           value.unwrapped().asInstanceOf[String]
@@ -71,7 +85,7 @@ object ConfigUtil {
   def fixNestedMapIfNeeded(config: Config, path: String): Config = {
     Try {
       val value = config.getValue(path);
-      
+
       if (value.valueType() == ConfigValueType.STRING) {
         val newValue = Json.parse(
           value.unwrapped().asInstanceOf[String]

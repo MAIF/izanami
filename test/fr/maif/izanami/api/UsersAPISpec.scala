@@ -262,8 +262,10 @@ class UsersAPISpec extends BaseAPISpec {
       situation = situation.loggedAsAdmin()
 
       val result = situation.fetchUser("Sam Tailor").json.get;
-      
-      (result \ "roles").as[Seq[String]] must contain theSameElementsAs Seq("admin")
+
+      (result \ "roles").as[Seq[String]] must contain theSameElementsAs Seq(
+        "admin"
+      )
     }
 
     "Retrieve user and right information if requester is admin" in {

@@ -30,6 +30,7 @@ import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import fr.maif.izanami.services.APIKeyService
+
 import scala.concurrent.ExecutionContext
 import fr.maif.izanami.datastores.ApiKeyDatastore
 import fr.maif.izanami.datastores.WebhooksDatastore
@@ -37,6 +38,7 @@ import fr.maif.izanami.services.WebhookService
 import fr.maif.izanami.datastores.TenantsDatastore
 import fr.maif.izanami.datastores.ProjectsDatastore
 import fr.maif.izanami.datastores.TagsDatastore
+import fr.maif.izanami.jobs.WebhookListener
 import fr.maif.izanami.services.TenantService
 import fr.maif.izanami.services.TagService
 
@@ -164,6 +166,9 @@ class IzanamiComponentsInstances(
   lazy val personnalAccessTokenController: PersonnalAccessTokenController =
     wire[PersonnalAccessTokenController]
 
+  lazy val webhookListener =
+    new WebhookListener(env, env.eventService, webhookService = webhookService)
+
   override lazy val assets: Assets = wire[Assets]
   lazy val router: Router = {
     // add the prefix string in local scope for the Routes constructor
@@ -177,6 +182,7 @@ class IzanamiComponentsInstances(
         for {
           _ <- env.onStop()
           _ <- staleFeatureService.onStop()
+          _ <- webhookListener.onStop()
         } yield ()
 
       }
@@ -184,6 +190,7 @@ class IzanamiComponentsInstances(
     for {
       _ <- env.onStart()
       _ <- staleFeatureService.onStart()
+      _ <- webhookListener.onStart()
     } yield ()
   }
 

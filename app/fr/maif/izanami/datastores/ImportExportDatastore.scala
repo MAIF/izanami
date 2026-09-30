@@ -48,7 +48,6 @@ import fr.maif.izanami.errors.ImportFailureError
 import fr.maif.izanami.errors.PostgresErrorMapper
 import play.api.Logger
 
-
 class ImportExportDatastore(val env: Env) extends Datastore {
   private val logger = Logger("izanami-import-export")
   private val extensionSchema: String = env.extensionsSchema
@@ -689,7 +688,7 @@ class ImportExportDatastore(val env: Env) extends Datastore {
           silentFor = e => {
             logger.debug("Import errors:", e)
             true
-          },
+          }
         ) { rows =>
           {
 

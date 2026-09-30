@@ -26,8 +26,7 @@ class ExportAPISpec extends BaseAPISpec {
         )
         .build()
 
-
-        situation.exportWithTokenName(
+      situation.exportWithTokenName(
         "tenant",
         situation.user,
         "foo",

@@ -18,7 +18,11 @@ import fr.maif.izanami.datastores.TagsDatastore
 import fr.maif.izanami.utils.syntax.implicits.BetterFuture
 import scala.concurrent.ExecutionContext
 
-class TenantService(datastore: TenantsDatastore, projectDatastore: ProjectsDatastore, tagDatastore: TagsDatastore)(implicit ec:ExecutionContext) {
+class TenantService(
+    datastore: TenantsDatastore,
+    projectDatastore: ProjectsDatastore,
+    tagDatastore: TagsDatastore
+)(implicit ec: ExecutionContext) {
   def updateTenant(
       name: String,
       updateRequest: TenantCreationRequest
@@ -75,22 +79,22 @@ class TenantService(datastore: TenantsDatastore, projectDatastore: ProjectsDatas
   def readTenant(name: String, user: UserInformation)
       : FutureEither[SimpleTenantWithProjectAndTags] = {
     datastore.readTenantByName(name)
-    .flatMap(tenant => {
-            for (
-              projects <- projectDatastore.readTenantProjectForUser(
-                  tenant.name,
-                  user.username
-                ).mapToFEither;
-              tags <- tagDatastore.readTags(tenant.name).mapToFEither
-            ) yield {
-                SimpleTenantWithProjectAndTags(
-                  name = tenant.name,
-                  projects = projects,
-                  description = tenant.description,
-                  tags = tags
-                )
-              }
-          })
+      .flatMap(tenant => {
+        for (
+          projects <- projectDatastore.readTenantProjectForUser(
+            tenant.name,
+            user.username
+          ).mapToFEither;
+          tags <- tagDatastore.readTags(tenant.name).mapToFEither
+        ) yield {
+          SimpleTenantWithProjectAndTags(
+            name = tenant.name,
+            projects = projects,
+            description = tenant.description,
+            tags = tags
+          )
+        }
+      })
   }
 
 }

@@ -30,7 +30,9 @@ class TagController(
           case JsError(e) =>
             BadRequest(Json.obj("message" -> "bad body format")).future
           case JsSuccess(tag, _) => {
-            tagService.createTag(tag, tenant).toResult(tag => Created(Json.toJson(tag)))
+            tagService.createTag(tag, tenant).toResult(tag =>
+              Created(Json.toJson(tag))
+            )
           }
         }
     }
@@ -68,7 +70,7 @@ class TagController(
             BadRequest(Json.obj("message" -> "bad body format")).future
           case JsSuccess(tag, _) => {
             tagService.updateTag(tag, tenant, currentName)
-            .toResult(_ => NoContent)
+              .toResult(_ => NoContent)
           }
         }
     }

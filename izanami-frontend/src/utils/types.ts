@@ -1,12 +1,18 @@
 import { isArray } from "lodash";
 
+export type HandleBarResult = { result: string } | { error: string };
 
 export type ImportError = {
   message?: string;
-  details?: ImportErrorDetails
-}
+  details?: ImportErrorDetails;
+};
 
-export type ImportErrorDetails = {[itempType: string]: {order: number, failures: {row: string, error: string}[] }}
+export type ImportErrorDetails = {
+  [itempType: string]: {
+    order: number;
+    failures: { row: string; error: string }[];
+  };
+};
 
 export interface Option {
   value: string;

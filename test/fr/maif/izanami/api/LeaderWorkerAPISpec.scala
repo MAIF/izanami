@@ -13,7 +13,6 @@ import play.api.http.Status.OK
 import play.api.test.Helpers.await
 import play.api.libs.json.Json
 
-
 class LeaderWorkerAPISpec extends BaseAPISpec {
   val workerUrlByContexts = Map(
     "app.cluster.worker-url-by-contexts-and-tenants.foo.prod" -> "http://prod.com"
@@ -23,13 +22,18 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
 
       val testSitutation = TestSituationBuilder()
         .withTenantNames("foo")
-        .withCustomConfiguration(Map("app.cluster.mode" -> "leader") ++ workerUrlByContexts)
+        .withCustomConfiguration(Map(
+          "app.cluster.mode" -> "leader"
+        ) ++ workerUrlByContexts)
         .loggedInWithAdminRights()
         .build()
 
-        val res = (testSitutation.fetchExposition().json.get \ "clientUrlByContexts").as[Map[String, Map[String, String]]]
+      val res =
+        (testSitutation.fetchExposition().json.get \ "clientUrlByContexts").as[
+          Map[String, Map[String, String]]
+        ]
 
-        res mustEqual Map("foo" -> Map("prod" -> "http://prod.com"))
+      res mustEqual Map("foo" -> Map("prod" -> "http://prod.com"))
     }
 
     "allow to call admin endpoints" in {
@@ -80,8 +84,8 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
         .build()
       val response = await(ws.url("http://localhost:9000/login").get());
       // In some cases the frontend is not build (for instance in CI, and we must rely on play response)
-      response.status must (equal (OK) or equal (NOT_FOUND))
-      if(response.status == NOT_FOUND) {
+      response.status must (equal(OK) or equal(NOT_FOUND))
+      if (response.status == NOT_FOUND) {
         ((Json.parse(response.body)) \ "message").as[String] mustEqual "Resource not found by Assets controller"
       }
     }
@@ -94,10 +98,15 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
 
-        val res = (testSitutation.fetchExposition().json.get \ "clientUrlByContexts").as[Map[String, Map[String, String]]]
-        testSitutation = testSitutation.restartServerWithConf(Map("app.cluster.mode" -> "worker") ++ workerUrlByContexts)
+      val res =
+        (testSitutation.fetchExposition().json.get \ "clientUrlByContexts").as[
+          Map[String, Map[String, String]]
+        ]
+      testSitutation = testSitutation.restartServerWithConf(
+        Map("app.cluster.mode" -> "worker") ++ workerUrlByContexts
+      )
 
-        res mustBe empty
+      res mustBe empty
     }
     "allow to call client endpoints" in {
       var testSitutation = TestSituationBuilder()
@@ -243,11 +252,14 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
       testSitutation = testSitutation.restartServerWithConf(
         Map(
           "app.cluster.mode" -> "worker",
-          "app.cluster.context-blocklist-by-tenant" -> ConfigValueFactory.fromMap(java.util.Map.of("tenant",
-            java.util.List.of("prod", "protected")
+          "app.cluster.context-blocklist-by-tenant" -> ConfigValueFactory.fromMap(
+            java.util.Map.of(
+              "tenant",
+              java.util.List.of("prod", "protected")
+            )
           )
         )
-      ))
+      )
 
       val featureId = testSitutation
         .findFeatureId(tenant = "tenant", project = "project", feature = "f1")
@@ -378,9 +390,12 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
       testSitutation = testSitutation.restartServerWithConf(
         Map(
           "app.cluster.mode" -> "worker",
-          "app.cluster.context-allowlist-by-tenant" -> ConfigValueFactory.fromMap(java.util.Map.of("tenant",
-            java.util.List.of("prod", "protected")
-          ))
+          "app.cluster.context-allowlist-by-tenant" -> ConfigValueFactory.fromMap(
+            java.util.Map.of(
+              "tenant",
+              java.util.List.of("prod", "protected")
+            )
+          )
         )
       )
 
@@ -438,13 +453,18 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
 
       val testSitutation = TestSituationBuilder()
         .withTenantNames("foo")
-        .withCustomConfiguration(Map("app.cluster.mode" -> "standalone") ++ workerUrlByContexts)
+        .withCustomConfiguration(Map(
+          "app.cluster.mode" -> "standalone"
+        ) ++ workerUrlByContexts)
         .loggedInWithAdminRights()
         .build()
 
-        val res = (testSitutation.fetchExposition().json.get \ "clientUrlByContexts").as[Map[String, Map[String, String]]]
+      val res =
+        (testSitutation.fetchExposition().json.get \ "clientUrlByContexts").as[
+          Map[String, Map[String, String]]
+        ]
 
-        res mustBe empty
+      res mustBe empty
     }
     "allow to call client endpoints" in {
       val testSitutation = TestSituationBuilder()
@@ -493,13 +513,13 @@ class LeaderWorkerAPISpec extends BaseAPISpec {
         .loggedInWithAdminRights()
         .build()
       val response = await(ws.url("http://localhost:9000/").get());
-      
+
       // In some cases the frontend is not build (for instance in CI, and we must rely on play response)
-      response.status must (equal (OK) or equal (NOT_FOUND))
-      if(response.status == NOT_FOUND) {
+      response.status must (equal(OK) or equal(NOT_FOUND))
+      if (response.status == NOT_FOUND) {
         ((Json.parse(response.body)) \ "message").as[String] mustEqual "Resource not found by Assets controller"
       }
-    
+
     }
 
     "should not take blacklist into account" in {

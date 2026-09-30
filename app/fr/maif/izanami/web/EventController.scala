@@ -38,8 +38,10 @@ import scala.util.Success
 import fr.maif.izanami.web.ProjectController.parseStringSet
 import fr.maif.izanami.datastores.EventDatastore.TenantEventRequest
 import fr.maif.izanami.datastores.EventDatastore.parseSortOrder
+
 import scala.util.Try
 import fr.maif.izanami.datastores.EventDatastore.AscOrder
+import fr.maif.izanami.jobs.WebhookListener
 import play.api.libs.json.JsNumber
 import play.api.libs.json.JsNull
 
@@ -48,6 +50,7 @@ class EventController(
     val clientKeyAction: ClientApiKeyAction,
     val adminAuthAction: AdminAuthAction,
     val tenantAuthAction: TenantAuthActionFactory,
+    val webhookListener: WebhookListener,
     featureService: FeatureService
 )(implicit
     val env: Env
@@ -354,7 +357,7 @@ class EventController(
     Future
       .sequence(
         Seq(
-          env.webhookListener.onStop(),
+          webhookListener.onStop(),
           env.eventService.killAllSources(excludeIzanamiChannel = true)
         )
       )

@@ -125,7 +125,9 @@ class Postgresql(env: Env) {
                 }
               }
 
-              if (!pemKeyCertOptions.getCertPaths().isEmpty() || !pemKeyCertOptions.getCertValues().isEmpty()) {
+              if (
+                !pemKeyCertOptions.getCertPaths().isEmpty() || !pemKeyCertOptions.getCertValues().isEmpty()
+              ) {
                 sslOptions.setKeyCertOptions(pemKeyCertOptions)
               }
 

@@ -1861,4 +1861,77 @@ class WebhookAPISpec extends BaseAPISpec {
       response.status mustBe FORBIDDEN
     }
   }
+  "handlebar test endpoint" should {
+    def parseSuccessResult(response: RequestResult): Option[JsObject] = {
+      for (
+        stringRes <- (response.json.get \ "result").asOpt[String];
+        objectRes <- Json.parse(stringRes).asOpt[JsObject]
+      ) yield objectRes
+    }
+
+    def parseFailureResult(response: RequestResult): Option[String] =
+      (response.json.get \ "error").asOpt[String]
+
+    "respond with completed template" in {
+      val situation = TestSituationBuilder().loggedInWithAdminRights().build();
+
+      val response = situation.testHandlebars(
+        template = "{\"result\": {{foo.bar}} }",
+        payload = "{\"foo\": {\"bar\": 22}}"
+      )
+      response.status mustEqual OK
+      val jsonResult = parseSuccessResult(response).get
+      val res = (jsonResult \ "result").as[Int]
+      res mustEqual 22
+    }
+
+    "respond with an error if template is incorrect" in {
+      val situation = TestSituationBuilder().loggedInWithAdminRights().build();
+      val response = situation.testHandlebars(
+        template = "{ \"result\": {{foo.bar} }",
+        payload = "{\"foo\": {\"bar\": 22}}"
+      )
+      response.status mustEqual OK
+      val error = parseFailureResult(response).get
+      error must include("Invalid handlebar template")
+    }
+
+    "handle eq helper correctly" in {
+      val situation = TestSituationBuilder().loggedInWithAdminRights().build();
+      val response = situation.testHandlebars(
+        template =
+          "{ \"result\": {{#if (eq active true) }} \"{{foo.bar}}\" {{else}} \"inactive\" {{/if}} }",
+        payload = "{\"foo\": {\"bar\": \"baz\"}, \"active\": true }"
+      )
+      response.status mustEqual OK
+      val jsonResult = parseSuccessResult(response).get
+      val res = (jsonResult \ "result").as[String]
+      res mustEqual "baz"
+    }
+
+    "handle neq helper correctly" in {
+      val situation = TestSituationBuilder().loggedInWithAdminRights().build();
+      val response = situation.testHandlebars(
+        template =
+          "{ \"result\": {{#if (neq active true) }} \"{{foo.bar}}\" {{else}} \"inactive\" {{/if}} }",
+        payload = "{\"foo\": {\"bar\": \"baz\"}, \"active\": true }"
+      )
+      response.status mustEqual OK
+      val jsonResult = parseSuccessResult(response).get
+      val res = (jsonResult \ "result").as[String]
+      res mustEqual "inactive"
+    }
+
+    "handle unknown helper correctly" in {
+      val situation = TestSituationBuilder().loggedInWithAdminRights().build();
+      val response = situation.testHandlebars(
+        template =
+          "{ \"result\": {{#if (beq active true) }} \"{{foo.bar}}\" {{else}} \"inactive\" {{/if}} }",
+        payload = "{\"foo\": {\"bar\": \"baz\"}, \"active\": true }"
+      )
+      response.status mustEqual OK
+      val error = parseFailureResult(response).get
+      error must include("could not find helper:")
+    }
+  }
 }

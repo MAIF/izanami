@@ -137,9 +137,12 @@ class WebhooksDatastore(val env: Env) extends Datastore {
         ) yield (webhook, izanamiEvent, count)
       }.map(v => FutureEither.success(v))
       .recover {
-        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS => FutureEither.failure(TenantDoesNotExists(tenant))
+        case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
+          FutureEither.failure(TenantDoesNotExists(tenant))
         case e => {
-          FutureEither.failure(InternalServerError("Something went wrong while searching abandonned hooks"))
+          FutureEither.failure(InternalServerError(
+            "Something went wrong while searching abandonned hooks"
+          ))
         }
       }.mapToFEither.flatMap(f => f)
   }

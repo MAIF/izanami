@@ -390,7 +390,9 @@ class FeatureContextController(
                   )
                 ).future
               } else {
-                datastore.deleteGlobalFeatureContext(tenant, context).toResult(_ => NoContent)
+                datastore.deleteGlobalFeatureContext(tenant, context).toResult(
+                  _ => NoContent
+                )
               }
             })
         }

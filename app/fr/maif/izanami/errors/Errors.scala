@@ -516,7 +516,10 @@ case class ImportFailureError(
       val errorValue = next._2.map((error, row) =>
         Json.obj("row" -> row, "error" -> error.message, "order" -> order)
       )
-      json + (errorEntry -> Json.obj("order" -> order, "failures" -> Json.toJson(errorValue)))
+      json + (errorEntry -> Json.obj(
+        "order" -> order,
+        "failures" -> Json.toJson(errorValue)
+      ))
     })
 
     Results.Status(BAD_REQUEST)(Json.obj(
@@ -709,9 +712,9 @@ case object AssociatedWebhookDoesNotExist extends IzanamiError(
       status = BAD_REQUEST
     )
 case object AssociatedApiKeyDoesNotExist extends IzanamiError(
-  message = "API key does not exist",
-  status = BAD_REQUEST
-)
+      message = "API key does not exist",
+      status = BAD_REQUEST
+    )
 case object UserAlreadyHaveRightsForThisKey
     extends IzanamiError(
       message = "User already have right for this key",
@@ -725,6 +728,18 @@ case object UserAlreadyHaveRightsForThisWebhook
 case object UserAlreadyHaveRightsForThisProject
     extends IzanamiError(
       message = "User already have right for this project",
+      status = BAD_REQUEST
+    )
+case class InvalidHandlebarTemplate(cause: String) extends IzanamiError(
+      message = s"Invalid handlebar template: ${cause}",
+      status = BAD_REQUEST
+    )
+case class InvalidJson(cause: String) extends IzanamiError(
+      message = s"Invalid JSON provided : ${cause}",
+      status = BAD_REQUEST
+    )
+case class FailedToApplyTemplate(cause: String) extends IzanamiError(
+      message = s"Failed to apply handlebar template : ${cause}",
       status = BAD_REQUEST
     )
 case class MissingValueFor(field: String)

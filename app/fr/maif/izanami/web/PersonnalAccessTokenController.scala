@@ -207,7 +207,9 @@ class PersonnalAccessTokenController(
           )
         )
       } else {
-        env.datastores.personnalAccessToken.deleteAcessToken(id, user).toResult(_ => NoContent)
+        env.datastores.personnalAccessToken.deleteAcessToken(id, user).toResult(
+          _ => NoContent
+        )
       }
     }
 

@@ -98,7 +98,7 @@ case object IzanamiTypedConfiguration {
     given ConfigReader[FeatureContextPath] = f => {
       f.asString.map(s => FeatureContextPath.fromUserString(s))
     }
-    
+
     given ConfigReader[IzanamiTypedConfiguration] =
       deriveReader[IzanamiTypedConfiguration]
 
@@ -151,7 +151,7 @@ case class Cluster(
     workerUrlByContexts: Map[String, String],
     workerUrlByContextsAndTenants: Map[String, Map[String, String]],
     contextBlocklistByTenant: Map[String, List[FeatureContextPath]],
-    contextAllowlistByTenant: Map[String, List[FeatureContextPath]],
+    contextAllowlistByTenant: Map[String, List[FeatureContextPath]]
 )
 
 case class Experimental(staleTracking: StaleTracking)

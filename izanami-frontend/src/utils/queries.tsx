@@ -34,6 +34,7 @@ import {
   TProjectLevel,
   TokenGlobalRight,
   ImportError,
+  HandleBarResult,
 } from "./types";
 import { isArray } from "lodash";
 import toast from "react-hot-toast";
@@ -1467,6 +1468,21 @@ export function changeProtectionStatusForGlobalContext(
     fetch(`/api/admin/tenants/${tenant}/contexts${path}`, {
       method: "PUT",
       body: JSON.stringify({ protected: isProtected }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }),
+  );
+}
+
+export function testHandlebarTemplate(
+  template: string,
+  payload: string,
+): Promise<HandleBarResult> {
+  return handleFetchJsonResponse(
+    fetch("/api/admin/_handlebars", {
+      method: "POST",
+      body: JSON.stringify({ template, payload }),
       headers: {
         "Content-Type": "application/json",
       },

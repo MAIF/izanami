@@ -1,20 +1,62 @@
 package fr.maif.izanami.services
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.github.jknack.handlebars.helper.{
+  BlockHelper,
+  ConditionalHelpers,
+  UnlessHelper
+}
+import com.github.jknack.handlebars.jackson.JsonNodeValueResolver
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.models.LightWebhook
-import fr.maif.izanami.errors.GenericBadRequest
+import fr.maif.izanami.errors.{
+  FailedToApplyTemplate,
+  GenericBadRequest,
+  InvalidHandlebarTemplate,
+  InvalidJson,
+  IzanamiError
+}
+
 import scala.util.Try
 import fr.maif.izanami.datastores.WebhooksDatastore
 import fr.maif.izanami.web.UserInformation
-import com.github.jknack.handlebars.Handlebars
+import com.github.jknack.handlebars.{Context, Handlebars, Helper, Options}
 import fr.maif.izanami.models.Webhook
+
 import scala.concurrent.Future
 import fr.maif.izanami.utils.Done
+
 import java.util.UUID
-import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.services.WebhookService.checkWebhook
 
 class WebhookService(datastore: WebhooksDatastore) {
+  private val handlebars = new Handlebars()
+  handlebars.registerHelper("eq", ConditionalHelpers.eq)
+  handlebars.registerHelper("neq", ConditionalHelpers.neq)
+  handlebars.registerHelper(UnlessHelper.NAME, UnlessHelper.INSTANCE)
+  handlebars.registerHelper("block", BlockHelper.INSTANCE)
+  private val mapper = new ObjectMapper()
+
+  def executeHandlebars(
+      template: String,
+      json: String
+  ): Either[IzanamiError, String] = {
+    for (
+      compiledTemplate <- Try {
+        handlebars.compileInline(template)
+      }.toEither.left.map(ex => InvalidHandlebarTemplate(ex.getMessage));
+      jacksonJson <- Try { mapper.readTree(json) }.toEither.left.map(ex =>
+        InvalidJson(ex.getMessage)
+      );
+      context = Context.newBuilder(jacksonJson).resolver(
+        JsonNodeValueResolver.INSTANCE
+      ).build();
+      result <- Try { compiledTemplate.apply(context) }.toEither.left.map(ex =>
+        FailedToApplyTemplate(ex.getMessage)
+      )
+    ) yield result
+  }
+
   def createWebhook(
       tenant: String,
       webhook: LightWebhook,

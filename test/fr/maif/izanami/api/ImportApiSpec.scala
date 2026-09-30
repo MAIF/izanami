@@ -45,11 +45,12 @@ class ImportApiSpec extends BaseAPISpec {
         ImportedRow
     )]])(details => {
       details.value.map((importedType, typeInfo) => {
-        val failedArray = (typeInfo \ "failures").as[JsArray].value.map(json => {
-          val error = (json \ "error").as[ImportErrorMessage];
-          val row = (json \ "row").as[ImportedRow];
-          (error, row)
-        }).toSeq;
+        val failedArray =
+          (typeInfo \ "failures").as[JsArray].value.map(json => {
+            val error = (json \ "error").as[ImportErrorMessage];
+            val row = (json \ "row").as[ImportedRow];
+            (error, row)
+          }).toSeq;
         (importedType, failedArray)
       }).toMap
     })

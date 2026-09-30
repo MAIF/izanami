@@ -507,7 +507,7 @@ function WebHookCreationForm(props: {
                     try {
                       new URL(value);
                       return value.startsWith("http");
-                    } catch (err) {
+                    } catch {
                       return false;
                     }
                   },
@@ -692,22 +692,6 @@ function WebHookCreationForm(props: {
             },
             bodyTemplate: {
               deps: ["bodyOverloadedActive"],
-              constraints: [
-                constraints.test(
-                  "handlebars",
-                  "Should be a valid handlebar template",
-                  (value) => {
-                    try {
-                      const template = Handlebars.compile(value);
-                      template({});
-                      return true;
-                    } catch (e) {
-                      console.error(e);
-                      return false;
-                    }
-                  },
-                ),
-              ],
               visible: ({ rawValues: { bodyOverloadedActive } }) =>
                 bodyOverloadedActive,
               label: () => {

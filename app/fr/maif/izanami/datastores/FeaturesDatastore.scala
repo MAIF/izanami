@@ -47,7 +47,6 @@ import scala.reflect.ClassTag
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 
-
 class FeaturesDatastore(val env: Env) extends Datastore {
   val extensionSchema = env.extensionsSchema
 

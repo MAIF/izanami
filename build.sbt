@@ -170,8 +170,8 @@ releaseProcess := Seq[ReleaseStep](
   commitReleaseVersion, // : ReleaseStep, performs the initial git checks
   tagRelease, // : ReleaseStep
   publishArtifacts, // : ReleaseStep, checks whether `publishTo` is properly set up
-  //releaseStepCommand("publishSigned"),
-  //releaseStepCommand("sonatypeBundleRelease"),
+  // releaseStepCommand("publishSigned"),
+  // releaseStepCommand("sonatypeBundleRelease"),
   setNextVersion, // : ReleaseStep
   commitNextVersion, // : ReleaseStep
   pushChanges // : ReleaseStep, also checks that an upstream branch is properly configured
@@ -179,5 +179,13 @@ releaseProcess := Seq[ReleaseStep](
 
 //ThisBuild / sonatypeCredentialHost := sonatype01
 //publishTo := sonatypePublishToBundle.value
-publishTo := Some("MAIF public nexus" at sys.env.getOrElse("MAVEN_REPO_URL", "local-build-no-nexus-url"))
-credentials += Credentials("Sonatype Nexus Repository Manager", sys.env.getOrElse("MAVEN_REPO_HOST", "local-build-no-nexus-url"), sys.env.getOrElse("MAVEN_REPO_USERNAME", "local-build-no-username"), sys.env.getOrElse("MAVEN_REPO_PASSWORD", "local-build-no-password"))
+publishTo := Some("MAIF public nexus" at sys.env.getOrElse(
+  "MAVEN_REPO_URL",
+  "local-build-no-nexus-url"
+))
+credentials += Credentials(
+  "Sonatype Nexus Repository Manager",
+  sys.env.getOrElse("MAVEN_REPO_HOST", "local-build-no-nexus-url"),
+  sys.env.getOrElse("MAVEN_REPO_USERNAME", "local-build-no-username"),
+  sys.env.getOrElse("MAVEN_REPO_PASSWORD", "local-build-no-password")
+)

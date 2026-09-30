@@ -6,6 +6,9 @@ import { json } from "@codemirror/lang-json";
 import { customStyles } from "../styles/reactSelect";
 import Handlebars from "handlebars";
 import { Tooltip } from "./Tooltip";
+import { testHandlebarTemplate } from "../utils/queries";
+import { HandleBarResult } from "../utils/types";
+import { lintGutter, linter, Diagnostic, forceLinting } from "@codemirror/lint"
 
 export function WebhookTransformationEditor(props: {
   value: string;
@@ -13,7 +16,7 @@ export function WebhookTransformationEditor(props: {
 }) {
   const { value, onChange } = props;
   const [template, setTemplate] = useState(value ?? "");
-  const [result, setResult] = useState<undefined | string>(undefined);
+  const [result, setResult] = useState<HandleBarResult | undefined>(undefined);
   const [event, setEvent] = useState(events.get("FEATURE_UPDATED"));
   return (
     <>
@@ -44,6 +47,7 @@ export function WebhookTransformationEditor(props: {
           }}
         >
           <Editor
+            errors={(result && "error" in result) ? [backendErrorToDiagnostic({ error: result.error, template: value })] : []}
             value={value}
             onChange={(t) => {
               setResult(undefined);
@@ -54,17 +58,30 @@ export function WebhookTransformationEditor(props: {
         </div>
       </div>
       <div className="mt-2">
-        {result ? (
+        {result && "result" in result ? (
           <>
             <label htmlFor="body-transform-result">Result</label>
             <CodeMirror
-              value={result}
+              value={result.result}
               height="300px"
               readOnly={true}
               theme="dark"
               id="body-transform-result"
             />
           </>
+        ) : result && "error" in result ? (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "stretch",
+              marginTop: "8px",
+              flexDirection: "column",
+            }}
+            className="error-message"
+          >
+          An error occured while applying handlebar template, see editor above for details
+          </div>
         ) : (
           <div
             style={{
@@ -85,9 +102,11 @@ export function WebhookTransformationEditor(props: {
               marginLeft: "2%",
             }}
             onClick={() => {
-              const compiled = Handlebars.compile(template);
-              const json = JSON.parse(event);
-              setResult(compiled(json));
+              testHandlebarTemplate(template, event)
+                .then((result) => {
+                  setResult(result);
+                })
+                .catch(() => setResult({ error: "Une erreur s'est produite" }));
             }}
           >
             Test the template
@@ -98,7 +117,18 @@ export function WebhookTransformationEditor(props: {
   );
 }
 
-function Editor(props: { value: string; onChange: (v: string) => void }) {
+const BACKEND_ERROR_REGEX = /^Invalid handlebar template: inline@[0-9a-z]+\:(?<row>[0-9]+)\:(?<col>[0-9a-z]+)\:(?<msg>.*)$/s;
+function backendErrorToDiagnostic({ error, template }: { error: string, template: string }): Diagnostic {
+  const result = BACKEND_ERROR_REGEX.exec(error);
+  const groups = result?.groups || {};
+  const row = Number(groups.row!);
+  const col = Number(groups.col!);
+  const msg = groups.msg!;
+  const previousRowsCharCount = template.split("\n").slice(0, row - 1).join("\n").length + 1
+  return { from: previousRowsCharCount + col, to: previousRowsCharCount + 1 + col, severity: "error", message: msg };
+}
+
+function Editor(props: { value: string; onChange: (v: string) => void, errors?: Diagnostic[] }) {
   const { value, onChange } = props;
 
   return (
@@ -118,9 +148,12 @@ function Editor(props: { value: string; onChange: (v: string) => void }) {
         id="handlebar-editor"
         value={value}
         height="450px"
-        extensions={[handlebarsLanguage]}
-        onChange={onChange}
+        extensions={[handlebarsLanguage, lintGutter(), linter(view => {
+          return props.errors || []
+        })]}
+        onChange={(v) => onChange(v)}
         theme="dark"
+
       />
     </>
   );

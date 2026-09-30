@@ -12,14 +12,17 @@ class TagService(private val datastore: TagsDatastore) {
       tagCreationRequest: TagCreationRequest,
       tenant: String
   ): FutureEither[Tag] = {
-    datastore.createTag(tagCreationRequest = tagCreationRequest, tenant = tenant)
+    datastore.createTag(
+      tagCreationRequest = tagCreationRequest,
+      tenant = tenant
+    )
   }
 
   def deleteTag(
       tenant: String,
       name: String
   ): FutureEither[Done] = {
-    datastore.deleteTag(tenant = tenant , name = name)
+    datastore.deleteTag(tenant = tenant, name = name)
   }
 
   def readTag(

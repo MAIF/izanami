@@ -102,7 +102,12 @@ case class UserRequestWithCompleteRightForOneTenantTokenUser[A](
 
 case class UserNameRequest[A](request: Request[A], user: UserInformation)
     extends WrappedRequest[A](request)
-case class WorkerClientRequest[A](request: Request[A], tenant: String, clientId: String, clientSecret: String) extends WrappedRequest[A](request)
+case class WorkerClientRequest[A](
+    request: Request[A],
+    tenant: String,
+    clientId: String,
+    clientSecret: String
+) extends WrappedRequest[A](request)
 case class ProjectIdUserNameRequest[A](
     request: Request[A],
     user: UserInformation,
@@ -853,7 +858,7 @@ class WorkerActionBuilder(
     val authTuple: Either[IzanamiError, (String, String)] =
       basicAuth.orElse(customHeaders).toRight(MissingKey)
 
-    val r:FutureEither[Future[Result]] = for (
+    val r: FutureEither[Future[Result]] = for (
       authTuple <- FutureEither.from(authTuple);
       clientId = authTuple._1;
       tenant <- ApiKey
@@ -864,13 +869,18 @@ class WorkerActionBuilder(
         ).toFEither)
     ) yield {
       if (actualMode == Standalone) {
-        block(WorkerClientRequest(request, tenant=tenant, clientId = clientId , clientSecret = authTuple._2))
+        block(WorkerClientRequest(
+          request,
+          tenant = tenant,
+          clientId = clientId,
+          clientSecret = authTuple._2
+        ))
       } else {
         val contextPermissions = ContextPermissions(
-          contextBlocklist=clusteringConfig.contextBlocklist,
-          contextAllowlist=clusteringConfig.contextAllowlist,
-          contextBlocklistByTenant=clusteringConfig.contextBlocklistByTenant,
-          contextAllowlistByTenant=clusteringConfig.contextAllowlistByTenant
+          contextBlocklist = clusteringConfig.contextBlocklist,
+          contextAllowlist = clusteringConfig.contextAllowlist,
+          contextBlocklistByTenant = clusteringConfig.contextBlocklistByTenant,
+          contextAllowlistByTenant = clusteringConfig.contextAllowlistByTenant
         )
 
         val context = request.queryString
@@ -879,11 +889,19 @@ class WorkerActionBuilder(
           .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
           .getOrElse(FeatureContextPath())
 
-        block(WorkerClientRequest(request, tenant=tenant, clientId = clientId , clientSecret = authTuple._2))
+        block(WorkerClientRequest(
+          request,
+          tenant = tenant,
+          clientId = clientId,
+          clientSecret = authTuple._2
+        ))
           .map(r => {
             if (r.header.status < 400) {
               // Context allowance is applied after response to avoid bruteforcing of allowed / denied context with an incorrect api key
-              contextPermissions.isContextAllowedFor(context, tenant).fold(err => err, _ => r)
+              contextPermissions.isContextAllowedFor(
+                context,
+                tenant
+              ).fold(err => err, _ => r)
             } else {
               r
             }

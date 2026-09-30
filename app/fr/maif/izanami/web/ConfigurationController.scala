@@ -154,33 +154,43 @@ class ConfigurationController(
         })
   }
 
-  def readExpositionUrl(): Action[AnyContent] = Action.async { implicit request =>
-    val adminUrl = env.typedConfiguration.exposition.backend
-      .getOrElse(env.expositionUrl)
-    val clusterConfig = env.typedConfiguration.cluster
+  def readExpositionUrl(): Action[AnyContent] =
+    Action.async { implicit request =>
+      val adminUrl = env.typedConfiguration.exposition.backend
+        .getOrElse(env.expositionUrl)
+      val clusterConfig = env.typedConfiguration.cluster
 
-    val futureClientUrlByContexts = if(clusterConfig.mode == IzanamiMode.Leader) {
-      if(clusterConfig.workerUrlByContextsAndTenants.isEmpty && clusterConfig.workerUrlByContexts.nonEmpty) {
-        logger.error("worker-url-by-contexts property is deprecated, use worker-url-by-contexts-and-tenants instead")
-        val r = env.datastores.tenants.readTenants().map(ts => {
-          ts.map(_.name).map(tenantName => (tenantName -> clusterConfig.workerUrlByContexts)).toMap
-        })
+      val futureClientUrlByContexts =
+        if (clusterConfig.mode == IzanamiMode.Leader) {
+          if (
+            clusterConfig.workerUrlByContextsAndTenants.isEmpty && clusterConfig.workerUrlByContexts.nonEmpty
+          ) {
+            logger.error(
+              "worker-url-by-contexts property is deprecated, use worker-url-by-contexts-and-tenants instead"
+            )
+            val r = env.datastores.tenants.readTenants().map(ts => {
+              ts.map(_.name).map(tenantName =>
+                (tenantName -> clusterConfig.workerUrlByContexts)
+              ).toMap
+            })
 
-        r
-      } else {
-        Future.successful(clusterConfig.workerUrlByContextsAndTenants)
-      }
-      
-    }  else {
-      Future.successful(Map[String, Map[String, String]]())
+            r
+          } else {
+            Future.successful(clusterConfig.workerUrlByContextsAndTenants)
+          }
+
+        } else {
+          Future.successful(Map[String, Map[String, String]]())
+        }
+
+      futureClientUrlByContexts.map(urls => {
+        Ok(Json.obj(
+          "url" -> adminUrl,
+          "clientUrlByContexts" -> Json.toJson(urls)
+        ))
+      })
+
     }
-
-    futureClientUrlByContexts.map(urls => {
-      Ok(Json.obj("url" -> adminUrl, "clientUrlByContexts" -> Json.toJson(urls)))
-    })
-    
-    
-  }
 
   def availableIntegrations(): Action[AnyContent] = Action.async {
     implicit request =>

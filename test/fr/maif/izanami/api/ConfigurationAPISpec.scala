@@ -502,7 +502,7 @@ class ConfigurationAPISpec extends BaseAPISpec {
       |  }
       |}""".stripMargin).as[JsObject]
 
-      var res = situation.updateConfigurationWithCallback(_ => { json})
+      var res = situation.updateConfigurationWithCallback(_ => { json })
       res.status mustEqual NO_CONTENT
       res = situation.updateConfigurationWithCallback(json => {
         // json.update((__ \ 'key3).json.put(JsString("value3"))

@@ -583,6 +583,16 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     }
   }
 
+  def testHandlebars(
+      template: String,
+      payload: String,
+      cookies: Seq[WSCookie] = Seq()
+  ): Future[WSResponse] = {
+    ws.url(s"${ADMIN_BASE_URL}/_handlebars")
+      .withCookies(cookies: _*)
+      .post(Json.obj("template" -> template, "payload" -> payload))
+  }
+
   def createWebhook(
       tenant: String,
       webhook: TestWebhook,
@@ -2749,6 +2759,20 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       )
     }
 
+    def testHandlebars(template: String, payload: String): RequestResult = {
+      val response = await(
+        BaseAPISpec.this.testHandlebars(
+          template = template,
+          payload = payload,
+          cookies = cookies
+        )
+      )
+
+      RequestResult(
+        response = response,
+        status = response.status
+      )
+    }
     def createWebhook(tenant: String, webhook: TestWebhook): RequestResult = {
       val response = await(
         BaseAPISpec.this.createWebhook(tenant, webhook, cookies)

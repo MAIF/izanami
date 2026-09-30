@@ -108,7 +108,6 @@ class Env(
   val eventService = new EventService(this)
   val postgresql = new Postgresql(this)
   val datastores = new Datastores(this)
-  val webhookListener = new WebhookListener(this, eventService)
   val mails = new Mails(this)
   val jwtService = new JwtService(this)
 
@@ -140,7 +139,6 @@ class Env(
       _ <- datastores.onStart()
       _ <- jobs.onStart()
       _ <- wasmIntegration.startF()
-      _ <- webhookListener.onStart()
       _ <- oidcConfigurationMigration().value
       _ <- rightService.onStart()
     } yield ()
