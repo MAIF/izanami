@@ -314,9 +314,9 @@ class FeatureController(
     conditions: Boolean,
     date: Option[Instant],
     context: Option[String]
-  ): Action[AnyContent] = workerAction.async { implicit request => {
+  ): Action[JsValue] = workerAction.async(parse.json) { implicit request => {
     val parsedContext = context.map(ctx => ctx.split("/").toSeq).getOrElse(Seq())
-    val maybeParsedBody = request.body.asJson.flatMap(jsValue => BatchFeatureRequest.reads(jsValue, parsedContext).asOpt);
+    val maybeParsedBody = BatchFeatureRequest.reads(request.body, parsedContext).asOpt;
     maybeParsedBody.fold(Future.successful(BadBodyFormat().toHttpResponse))(req => {
       val requestContext = RequestContext(
         tenant = request.tenant,

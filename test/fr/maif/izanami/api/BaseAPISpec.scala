@@ -100,6 +100,8 @@ import scala.util.Try
 import fr.maif.izanami.utils.Done
 import org.slf4j.LoggerFactory
 import fr.maif.izanami.api.BaseAPISpec.logger
+import org.apache.pekko.http.scaladsl.model.HttpMethods.POST
+import org.apache.pekko.http.scaladsl.model.{ContentTypes, HttpEntity}
 
 case class StubServer(
     server: WireMockServer,
@@ -2659,6 +2661,58 @@ object BaseAPISpec extends DefaultAwaitTimeout {
               )}&features=${features.mkString(
                 ","
               )}&conditions=${conditions}&refreshInterval=${refreshInterval.toSeconds}&keepAliveInterval=${keepAliveInterval.toSeconds}"""
+          ),
+          send,
+          initialLastEventId = Some("2"),
+          retryDelay = 1.second
+        )
+
+      val (killswitch, source) = eventSource
+        .throttle(
+          elements = 1,
+          per = 200.milliseconds,
+          maximumBurst = 1,
+          ThrottleMode.Shaping
+        )
+        .viaMat(KillSwitches.single)(Keep.right)
+        .toMat(Sink.foreach((evt: ServerSentEvent) => {
+          if (!response.isCompleted) {
+            response.success(Done.done())
+          }
+          logger.info(s"RECEIVED $evt")
+          consumer(evt)
+        }))(Keep.both)
+        .run()
+      eventKillSwitch = killswitch
+
+      await(response.future)
+    }
+
+
+    def listenEventsWithBodyRequest(
+                      key: String,
+                      features: Seq[String],
+                      projects: Seq[String],
+                      consumer: ServerSentEvent => Unit,
+                      user: String = "",
+                      conditions: Boolean = true,
+                      refreshInterval: Duration = Duration.ofSeconds(0L),
+                      keepAliveInterval: Duration = Duration.ofSeconds(25L)
+                    ): Done = {
+      val response = Promise[Done]()
+      shouldCleanUpEvents = true
+      val send: HttpRequest => Future[HttpResponse] = request => {
+        val r = request.withHeaders((keyHeaders(key) + ("Content-type" -> "application/json")+ ("Accept" -> "text/event-stream")).map { case (name, value) =>
+          RawHeader(name, value)
+        }.toSeq).withMethod(POST)
+          .withEntity(HttpEntity(ContentTypes.`application/json`, Json.obj("request" -> Json.obj("features" -> features, "projects" -> projects)).toString()))
+        Http().singleRequest(r)
+      }
+
+      val eventSource: Source[ServerSentEvent, NotUsed] =
+        EventSource(
+          uri = Uri(
+            s"""$BASE_URL/v2/_batch-features-events?user=${user}&conditions=${conditions}&refreshInterval=${refreshInterval.toSeconds}&keepAliveInterval=${keepAliveInterval.toSeconds}"""
           ),
           send,
           initialLastEventId = Some("2"),

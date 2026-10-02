@@ -41,6 +41,7 @@ import fr.maif.izanami.datastores.EventDatastore.parseSortOrder
 
 import scala.util.Try
 import fr.maif.izanami.datastores.EventDatastore.AscOrder
+import fr.maif.izanami.errors.BadBodyFormat
 import fr.maif.izanami.jobs.WebhookListener
 import play.api.libs.json.JsNumber
 import play.api.libs.json.JsNull
@@ -217,6 +218,105 @@ class EventController(
         () => keepAliveEvent()
       )
 
+  def newBatchEvents(
+                 user: String,
+                 conditions: Boolean,
+                 refreshInterval: Int,
+                 keepAliveInterval: Int,
+                 context: Option[String]
+               ): Action[JsValue] =
+    clientKeyAction.async(parse.json) { request =>
+      implicit val nameExtractor: EventNameExtractor[JsObject] =
+        EventNameExtractor[JsObject](event => Some((event \ "type").as[String]))
+
+      val parsedContext = context.map(ctx => ctx.split("/").toSeq).getOrElse(Seq())
+      val maybeParsedBody = BatchFeatureRequest.reads(request.body, parsedContext).asOpt;
+      maybeParsedBody.fold(Future.successful(BadBodyFormat().toHttpResponse))(req => {
+          val key = request.key
+          val tenant = key.tenant
+          val clientRequest = req.featureRequest
+          val maybeBody = req.scriptPayload
+
+          val source = eventService.consume(tenant)
+          env.datastores.projects
+            .readProjectsById(tenant, clientRequest.projects)
+            .map(m => m.values.map(p => p.name).toSet)
+            .map(allowedProjects => {
+              val resultSource = source.source
+                .filter {
+                  case event: FeatureEvent => {
+                    key.admin || key.projects.exists(ap => ap.name == event.project)
+                  }
+                  case _ => false
+                }
+                .filter {
+                  case event: FeatureEvent => {
+                    // TODO handle tag
+                    allowedProjects.contains(event.project) ||
+                      clientRequest.features.contains(event.id)
+                  }
+                  case _ => false
+                }
+                .mapAsync(1)(e =>
+                  internalToExternalEvent(
+                    e,
+                    RequestContext(
+                      tenant,
+                      user,
+                      FeatureContextPath(elements = clientRequest.context)
+                    ),
+                    conditions,
+                    env
+                  )
+                )
+                .filter(_.isDefined)
+                .map(_.get)
+
+              val refreshProvider = () => {
+                val res = evaluateFeatures(
+                  tenant,
+                  user,
+                  conditions,
+                  clientRequest,
+                  request,
+                  Some(maybeBody)
+                )
+
+                res
+              }
+              val refreshSource = if (refreshInterval > 0) {
+                Source
+                  .tick(refreshInterval.seconds, refreshInterval.seconds, 1)
+                  .mapAsync(1)(_ => refreshProvider())
+              } else {
+                Source.empty
+              }
+
+              val s =
+                Source
+                  .future(refreshProvider())
+                  .concat(
+                    Source.combine(resultSource, refreshSource)(
+                      Merge(_)
+                    )
+                  ) via keepAliveV2(
+                  keepAliveInterval.seconds
+                ) via EventSource.flow via source.killswitch.flow
+              Ok.chunked(
+                s.watchTermination()((_, future) =>
+                  future.onComplete {
+                    case Failure(exception) =>
+                      logger.error("Event source failed", exception)
+                    case Success(foo) => {
+                      logger.debug("Event source closed")
+                    }
+                  }
+                )
+              ).as(ContentTypes.EVENT_STREAM)
+            })
+        })
+    }
+
   def newEvents(
       user: String,
       conditions: Boolean,
@@ -323,7 +423,7 @@ class EventController(
       user: String,
       conditions: Boolean,
       featureRequest: FeatureRequest,
-      request: ClientKeyRequest[AnyContent],
+      request: ClientKeyRequest[?],
       maybeBody: Option[JsObject]
   ): Future[JsObject] = {
     val requestContext = RequestContext(
