@@ -130,6 +130,7 @@ POST          /api/admin/tenants/:tenant/_export                                
 
 
 # Client application endpoints
+POST          /api/v2/_batch-features-read                                                         fr.maif.izanami.web.FeatureController.evaluateBodyFeaturesForContext(user: String ?= "", conditions: Boolean ?= false, date: Option[java.time.Instant], context: Option[String])
 GET           /api/v2/features/:id                                                                 fr.maif.izanami.web.FeatureController.checkFeatureForContext(id: String, user: String ?= "", context: fr.maif.izanami.web.FeatureContextPath)
 POST          /api/v2/features/:id                                                                 fr.maif.izanami.web.FeatureController.checkFeatureForContext(id: String, user: String ?= "", context: fr.maif.izanami.web.FeatureContextPath)
 GET           /api/v2/features                                                                     fr.maif.izanami.web.FeatureController.evaluateFeaturesForContext(user: String ?= "", conditions: Boolean ?= false, date: Option[java.time.Instant], featureRequest: fr.maif.izanami.models.FeatureRequest)

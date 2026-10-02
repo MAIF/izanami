@@ -1,8 +1,7 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.env.Env
-import fr.maif.izanami.errors.FeatureNotFound
-import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.{BadBodyFormat, FeatureNotFound, IzanamiError}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.Feature.*
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
@@ -309,6 +308,36 @@ class FeatureController(
       }
     }
   }
+
+  def evaluateBodyFeaturesForContext(
+    user: String,
+    conditions: Boolean,
+    date: Option[Instant],
+    context: Option[String]
+  ): Action[AnyContent] = workerAction.async { implicit request => {
+    val parsedContext = context.map(ctx => ctx.split("/").toSeq).getOrElse(Seq())
+    val maybeParsedBody = request.body.asJson.flatMap(jsValue => BatchFeatureRequest.reads(jsValue, parsedContext).asOpt);
+    maybeParsedBody.fold(Future.successful(BadBodyFormat().toHttpResponse))(req => {
+      val requestContext = RequestContext(
+        tenant = request.tenant,
+        user = user,
+        now = date.getOrElse(Instant.now()),
+        context = FeatureContextPath(req.featureRequest.context),
+        data = req.scriptPayload
+      )
+      queryFeatures(
+        conditions,
+        requestContext,
+        req.featureRequest,
+        request.clientId,
+        request.clientSecret,
+        FeatureCall.Http
+      ).map {
+        case Left(err) => err.toHttpResponse
+        case Right(value) => Ok(value)
+      }
+    })
+  }}
 
   def testFeaturesForContext(
       tenant: String,

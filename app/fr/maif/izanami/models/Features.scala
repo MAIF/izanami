@@ -721,6 +721,41 @@ object FeatureTagRequest {
     }
 }
 
+
+case class BatchFeatureRequest(
+  featureRequest: FeatureRequest,
+  scriptPayload: JsObject
+)
+
+
+object BatchFeatureRequest {
+  private def toUUIDSeq(v: JsLookupResult): Option[Seq[UUID]] = {
+    v.asOpt[JsValue].fold(Some(Seq()))(json => {
+      json.asOpt[Seq[UUID]]
+    })
+  }
+
+  def reads(json: JsValue, context: Seq[String]): JsResult[BatchFeatureRequest] = {
+    val maybeRequest = for(
+      request <- (json \ "request").asOpt[JsObject];
+      featureJson = (request \ "features").asOpt[JsValue];
+      features <- featureJson.fold(Some(Seq[String]()))(json => json.asOpt[Seq[String]]);
+      projectJson = (request \ "projects").asOpt[JsValue];
+      projects <- projectJson.fold(Some(Seq[String]()))(json => json.asOpt[Seq[String]]);
+      oneTagIn <- toUUIDSeq(request \ "oneTagIn");
+      allTagsIn <- toUUIDSeq(request \ "allTagsIn");
+      noTagIn <- toUUIDSeq(request \ "noTagIn")
+    ) yield {
+      FeatureRequest(projects = projects.toSet, features = features.toSet, oneTagIn = oneTagIn.toSet, allTagsIn = allTagsIn.toSet, noTagIn = noTagIn.toSet, context = context)
+    }
+
+    maybeRequest.fold(JsError("Invalid request body"))(req => {
+      val scriptPayload = (json \ "payload").asOpt[JsObject].getOrElse(Json.obj())
+      JsSuccess(BatchFeatureRequest(featureRequest = req, scriptPayload = scriptPayload))
+    })
+  }
+}
+
 case class FeatureRequest(
     projects: Set[String] = Set(),
     features: Set[String] = Set(),

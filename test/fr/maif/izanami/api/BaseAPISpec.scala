@@ -1110,6 +1110,34 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     RequestResult(response = response, status = response.status)
   }
 
+
+  def checkFeaturesWithBody(
+                     projects: Seq[String],
+                     headers: Map[String, String] = Map(),
+                     oneTagIn: Seq[String] = Seq(),
+                     allTagsIn: Seq[String] = Seq(),
+                     noTagIn: Seq[String] = Seq(),
+                     user: String = null,
+                     contextPath: String = null,
+                     features: Seq[String] = Seq(),
+                     conditions: Boolean = false
+                   ): RequestResult = {
+    val response = await(
+      ws.url(
+          s"""${BASE_URL}/v2/_batch-features-read?conditions=${conditions}${
+            Option(user)
+              .map(u => s"&user=${u}")
+              .getOrElse("")
+          }${
+            if (contextPath != null) s"&context=${contextPath}"
+            else ""
+          }"""
+        ).withHttpHeaders(headers.toList: _*)
+        .post(Json.obj("request" -> Json.obj("features" -> features, "projects" -> projects, "oneTagIn" -> oneTagIn, "allTagsIn" -> allTagsIn, "noTagIn" -> noTagIn)))
+    )
+    RequestResult(response = response, status = response.status)
+  }
+
   def createAPIKey(
       tenant: String,
       name: String,
@@ -3634,6 +3662,30 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         conditions: Boolean = false
     ): RequestResult = {
       BaseAPISpec.this.checkFeatures(
+        headers = keyHeaders(key),
+        projects = projects,
+        oneTagIn = oneTagIn,
+        allTagsIn = allTagsIn,
+        noTagIn = noTagIn,
+        user = user,
+        contextPath = contextPath,
+        features = features,
+        conditions = conditions
+      )
+    }
+
+    def checkFeaturesWithBody(
+       key: String,
+       projects: Seq[String] = Seq(),
+       oneTagIn: Seq[String] = Seq(),
+       allTagsIn: Seq[String] = Seq(),
+       noTagIn: Seq[String] = Seq(),
+       user: String = null,
+       contextPath: String = null,
+       features: Seq[String] = Seq(),
+       conditions: Boolean = false
+     ): RequestResult = {
+      BaseAPISpec.this.checkFeaturesWithBody(
         headers = keyHeaders(key),
         projects = projects,
         oneTagIn = oneTagIn,

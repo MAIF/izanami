@@ -2134,4 +2134,1087 @@ class FeatureClientAPISpec extends BaseAPISpec {
     }
   }
 
+  "Feature check multi-features endpoint (POST)" should {
+    "return active user feature if user is in list" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("my-tenant")
+            .withProjects(
+              TestProject("my-project")
+                .withFeatures(
+                  TestFeature(
+                    name = "test-feature",
+                    enabled = true,
+                    conditions = Set(
+                      TestCondition(rule = TestUserListRule(Set("my-user")))
+                    )
+                  )
+                )
+            )
+            .withApiKeys(
+              TestApiKey(name = "my-key", projects = Seq("my-project"))
+            )
+        )
+        .build()
+
+      val result = testSituation.checkFeaturesWithBody(
+        projects =
+          Seq(testSituation.findProjectId("my-tenant", "my-project").get),
+        key = "my-key",
+        user = "my-user"
+      )
+      println(s"STATUS : ${result.status}")
+      println(s"BODY : ${result.json}")
+      (result.json.get \\ "active")
+        .map(v => v.as[Boolean])
+        .head mustBe true
+    }
+
+    "reject request with no key" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("my-tenant")
+            .withProjects(
+              TestProject("my-project").withFeatures(TestFeature("F1"))
+            )
+            .withProjects(
+              TestProject("my-project2").withFeatures(TestFeature("F21"))
+            )
+            .withProjects(
+              TestProject("my-project3").withFeatures(TestFeature("F31"))
+            )
+        )
+        .build()
+
+      val result = checkFeaturesWithBody(
+        projects = Seq(situation.findProjectId("my-tenant", "my-project").get)
+      )
+
+      result.status mustBe UNAUTHORIZED
+    }
+
+    "reject request with incorrect client secret" in {
+      val testData = TestSituationBuilder()
+        .withTenants(
+          TestTenant("my-tenant")
+            .withProjects(
+              TestProject("my-project").withFeatures(TestFeature("F1"))
+            )
+            .withApiKeys(
+              TestApiKey(name = "my-key", projects = Seq("my-project"))
+            )
+        )
+        .build()
+
+      val result = checkFeaturesWithBody(
+        headers =
+          testData.keyHeaders("my-key") + ("Izanami-Client-Secret" -> "aaaa"),
+        projects = Seq(testData.findProjectId("my-tenant", "my-project").get)
+      )
+
+      result.status mustBe FORBIDDEN
+    }
+
+    "reject request with incorrect clientid" in {
+      val testData = TestSituationBuilder()
+        .withTenants(
+          TestTenant("my-tenant")
+            .withProjects(
+              TestProject("my-project").withFeatures(TestFeature("F1"))
+            )
+            .withApiKeys(
+              TestApiKey(name = "my-key", projects = Seq("my-project"))
+            )
+        )
+        .build()
+
+      val result = checkFeaturesWithBody(
+        projects = Seq(testData.findProjectId("my-tenant", "my-project").get),
+        headers =
+          testData.keyHeaders("my-key") + ("Izanami-Client-Id" -> "aaaa")
+      )
+
+      result.status mustBe FORBIDDEN
+    }
+
+    "reject request with incorrect clientid and clientsecret" in {
+      val testData = TestSituationBuilder()
+        .withTenants(
+          TestTenant("my-tenant")
+            .withProjects(
+              TestProject("my-project").withFeatures(TestFeature("F1"))
+            )
+            .withApiKeys(
+              TestApiKey(name = "my-key", projects = Seq("my-project"))
+            )
+        )
+        .build()
+
+      val result = checkFeaturesWithBody(
+        projects = Seq(testData.findProjectId("my-tenant", "my-project").get),
+        headers = testData.keyHeaders(
+          "my-key"
+        ) + ("Izanami-Client-Id" -> "aaaa") + ("Izanami-Client-Secret" -> "aaaa")
+      )
+
+      result.status mustBe FORBIDDEN
+    }
+
+    "reject request on unauthorized project" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("my-tenant")
+            .withProjects(
+              TestProject("my-project").withFeatures(TestFeature("F1"))
+            )
+            .withApiKeys(TestApiKey(name = "my-key", projects = Seq()))
+        )
+        .build()
+
+      val result = testSituation.checkFeaturesWithBody(
+        key = "my-key",
+        projects =
+          Seq(testSituation.findProjectId("my-tenant", "my-project").get)
+      )
+
+      result.status mustBe FORBIDDEN
+    }
+
+    "should allow to search feature request on unauthorized project but with an admin key" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("my-tenant")
+            .withProjects(
+              TestProject("my-project").withFeatures(TestFeature("F1"))
+            )
+            .withApiKeys(
+              TestApiKey(name = "my-key", projects = Seq(), admin = true)
+            )
+        )
+        .build()
+
+      val result = testSituation.checkFeaturesWithBody(
+        key = "my-key",
+        projects =
+          Seq(testSituation.findProjectId("my-tenant", "my-project").get)
+      )
+
+      result.status mustBe OK
+    }
+
+    "should allow to search features from given project" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("my-tenant")
+            .withProjects(
+              TestProject("my-project").withFeatureNames("F1", "F2")
+            )
+            .withProjects(
+              TestProject("my-project2").withFeatures(TestFeature("F21"))
+            )
+            .withProjects(
+              TestProject("my-project3").withFeatures(TestFeature("F31"))
+            )
+            .withApiKeys(
+              TestApiKey(
+                name = "my-key",
+                projects = Seq("my-project", "my-project2")
+              )
+            )
+        )
+        .build()
+
+      val result = testSituation.checkFeaturesWithBody(
+        key = "my-key",
+        projects =
+          Seq(testSituation.findProjectId("my-tenant", "my-project").get)
+      )
+
+      result.status mustBe OK
+      result.json.get
+        .as[Map[String, JsObject]]
+        .values
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq(
+        "F1",
+        "F2"
+      )
+    }
+
+    "should allow to search features with at least one tag in given list" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("my-tenant")
+            .withTagNames("my-tag", "my-tag2", "my-tag3")
+            .withProjects(
+              TestProject("my-project")
+                .withFeatures(
+                  TestFeature("F1", tags = Seq("my-tag")),
+                  TestFeature("F2", tags = Seq("my-tag2")),
+                  TestFeature("F3", tags = Seq("my-tag3")),
+                  TestFeature("F4", tags = Seq("my-tag", "my-tag2", "my-tag3")),
+                  TestFeature("F5")
+                )
+            )
+            .withApiKeys(
+              TestApiKey(name = "my-key", projects = Seq("my-project"))
+            )
+        )
+        .build();
+
+      val result =
+        testSituation.checkFeaturesWithBody(
+          projects =
+            Seq(testSituation.findProjectId("my-tenant", "my-project").get),
+          key = "my-key",
+          oneTagIn = Seq(
+            testSituation.findTagId("my-tenant", "my-tag").get,
+            testSituation.findTagId("my-tenant", "my-tag2").get
+          )
+        )
+
+      result.status mustBe OK
+      (result.json.get
+        .as[Map[String, JsObject]])
+        .values
+        .map(v => (v \ "name").as[String]) must contain theSameElementsAs Seq(
+        "F1",
+        "F2",
+        "F4"
+      )
+    }
+
+    "should allow to search features with all tags in given list" in {
+      val testSituation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("my-tenant")
+            .withTagNames("my-tag", "my-tag2", "my-tag3")
+            .withProjects(
+              TestProject("my-project")
+                .withFeatures(
+                  TestFeature("F1", tags = Seq("my-tag")),
+                  TestFeature("F2", tags = Seq("my-tag2")),
+                  TestFeature("F3", tags = Seq("my-tag2", "my-tag3")),
+                  TestFeature("F4", tags = Seq("my-tag2", "my-tag3", "my-tag")),
+                  TestFeature("F5", tags = Seq("my-tag2", "my-tag3", "my-tag")),
+                  TestFeature("F6")
+                )
+            )
+            .withApiKeys(TestApiKey("my-key", projects = Seq("my-project")))
+        )
+        .build();
+
+      val result =
+        testSituation.checkFeaturesWithBody(
+          projects =
+            Seq(testSituation.findProjectId("my-tenant", "my-project").get),
+          allTagsIn = Seq(
+            testSituation.findTagId("my-tenant", "my-tag").get,
+            testSituation.findTagId("my-tenant", "my-tag2").get
+          ),
+          key = "my-key"
+        )
+
+      result.status mustBe OK
+      (result.json.get
+        .as[Map[String, JsObject]])
+        .values
+        .map(v => (v \ "name").as[String]) must contain theSameElementsAs Seq(
+        "F4",
+        "F5"
+      )
+    }
+
+    "should return overridden activation status if context is specified" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withContextNames("context")
+                .withFeatures(TestFeature("F1", enabled = false))
+            )
+            .withAllRightsKey("key")
+        )
+        .build()
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F1",
+        true
+      )
+      val result = situation.checkFeaturesWithBody(
+        key = "key",
+        projects = Seq(situation.findProjectId("tenant", "project").get),
+        contextPath = "context"
+      )
+
+      (result.json.get \\ "active")
+        .map(v => v.as[Boolean])
+        .head mustBe true
+    }
+
+    "should return overridden activation status if specified in subcontext" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withContexts(
+                  TestFeatureContext("context")
+                    .withSubContextNames("subcontext")
+                )
+                .withFeatures(TestFeature("F1", enabled = false))
+            )
+            .withAllRightsKey("key")
+        )
+        .build()
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context/subcontext",
+        "F1",
+        true
+      )
+      val result = situation.checkFeaturesWithBody(
+        key = "key",
+        projects = Seq(situation.findProjectId("tenant", "project").get),
+        contextPath = "context/subcontext"
+      )
+
+      (result.json.get \\ "active")
+        .map(v => v.as[Boolean])
+        .head mustBe true
+    }
+
+    "should return overridden activation status if specified in parent context" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withContexts(
+                  TestFeatureContext("context")
+                    .withSubContextNames("subcontext")
+                )
+                .withFeatures(TestFeature("F1", enabled = false))
+            )
+            .withAllRightsKey("key")
+        )
+        .build()
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F1",
+        true
+      )
+      val result = situation.checkFeaturesWithBody(
+        key = "key",
+        projects = Seq(situation.findProjectId("tenant", "project").get),
+        contextPath = "context/subcontext"
+      )
+
+      (result.json.get \\ "active")
+        .map(v => v.as[Boolean])
+        .head mustBe true
+    }
+
+    "return all features for given project" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(TestApiKey("key", projects = Seq("project")))
+            .withProjects(
+              TestProject("project")
+                .withFeatureNames(
+                  "F1",
+                  "F2",
+                  "F3"
+                )
+            )
+        )
+        .build()
+
+      val response = situation.checkFeaturesWithBody(
+        key = "key",
+        projects = Seq(situation.findProjectId("tenant", "project").get)
+      )
+
+      response.json.get
+        .as[Map[String, JsObject]]
+        .values
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq("F1", "F2", "F3")
+
+    }
+    "return all features for given projects" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("project", "project2"))
+            )
+            .withProjects(
+              TestProject("project")
+                .withFeatureNames(
+                  "F1",
+                  "F2",
+                  "F3"
+                ),
+              TestProject("project2")
+                .withFeatureNames(
+                  "F21",
+                  "F22",
+                  "F23"
+                )
+            )
+        )
+        .build()
+
+      val response = situation.checkFeaturesWithBody(
+        key = "key",
+        projects = Seq("project", "project2").map(p =>
+          situation.findProjectId("tenant", p).get
+        )
+      )
+      response.json.get
+        .as[Map[String, JsObject]]
+        .values
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq(
+        "F1",
+        "F2",
+        "F3",
+        "F21",
+        "F22",
+        "F23"
+      )
+    }
+    "return all features for given projects filtered by all tags in" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("project", "project2"))
+            )
+            .withTagNames("t1", "t2", "t3")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature("F1", tags = Seq("t1")),
+                  TestFeature("F2", tags = Seq("t1", "t2", "t3")),
+                  TestFeature("F3", tags = Seq("t1", "t2"))
+                ),
+              TestProject("project2")
+                .withFeatures(
+                  TestFeature("F21"),
+                  TestFeature("F22", tags = Seq("t1", "t3")),
+                  TestFeature("F23", tags = Seq("t1", "t2"))
+                )
+            )
+        )
+        .build()
+
+      val response = situation.checkFeaturesWithBody(
+        key = "key",
+        projects = Seq("project", "project2").map(p =>
+          situation.findProjectId("tenant", p).get
+        ),
+        allTagsIn =
+          Seq("t1", "t2").map(t => situation.findTagId("tenant", t).get)
+      )
+      response.json.get
+        .as[Map[String, JsObject]]
+        .values
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq("F2", "F3", "F23")
+    }
+    "return all features for given projects filtered by no tag in" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("project", "project2"))
+            )
+            .withTagNames("t1", "t2", "t3")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature("F1", tags = Seq("t1")),
+                  TestFeature("F2", tags = Seq("t1", "t2", "t3")),
+                  TestFeature("F3", tags = Seq("t3"))
+                ),
+              TestProject("project2")
+                .withFeatures(
+                  TestFeature("F21"),
+                  TestFeature("F22", tags = Seq("t1", "t3")),
+                  TestFeature("F23", tags = Seq("t1", "t2"))
+                )
+            )
+        )
+        .build()
+
+      val response = situation.checkFeaturesWithBody(
+        key = "key",
+        projects = Seq("project", "project2").map(p =>
+          situation.findProjectId("tenant", p).get
+        ),
+        noTagIn = Seq("t1", "t2").map(t => situation.findTagId("tenant", t).get)
+      )
+      response.json.get
+        .as[Map[String, JsObject]]
+        .values
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq("F21", "F3")
+    }
+    "return all features for given projects filtered by one tag in" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("project", "project2"))
+            )
+            .withTagNames("t1", "t2", "t3")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature("F1", tags = Seq("t1")),
+                  TestFeature("F2", tags = Seq("t1", "t2", "t3")),
+                  TestFeature("F3", tags = Seq("t3"))
+                ),
+              TestProject("project2")
+                .withFeatures(
+                  TestFeature("F21"),
+                  TestFeature("F22", tags = Seq("t2")),
+                  TestFeature("F23", tags = Seq("t1", "t2"))
+                )
+            )
+        )
+        .build()
+
+      val response = situation.checkFeaturesWithBody(
+        key = "key",
+        projects = Seq("project", "project2").map(p =>
+          situation.findProjectId("tenant", p).get
+        ),
+        oneTagIn =
+          Seq("t1", "t3").map(t => situation.findTagId("tenant", t).get)
+      )
+      response.json.get
+        .as[Map[String, JsObject]]
+        .values
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq("F1", "F2", "F3", "F23")
+    }
+    "return specified features" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("project", "project2"))
+            )
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature("F1"),
+                  TestFeature("F2"),
+                  TestFeature("F3")
+                ),
+              TestProject("project2")
+                .withFeatures(
+                  TestFeature("F21"),
+                  TestFeature("F22"),
+                  TestFeature("F23")
+                )
+            )
+        )
+        .build()
+
+      val response = situation.checkFeaturesWithBody(
+        key = "key",
+        features = Seq(
+          situation.findFeatureId("tenant", "project", "F1").get,
+          situation.findFeatureId("tenant", "project", "F3").get,
+          situation.findFeatureId("tenant", "project2", "F21").get
+        )
+      )
+      response.json.get
+        .as[Map[String, JsObject]]
+        .values
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq("F1", "F3", "F21")
+    }
+    "not filter specified features with given tags" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("project", "project2"))
+            )
+            .withTagNames("t1", "t2")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature("F1", tags = Seq("t1")),
+                  TestFeature("F2", tags = Seq("t2")),
+                  TestFeature("F3", tags = Seq("t1", "t2"))
+                ),
+              TestProject("project2")
+                .withFeatures(
+                  TestFeature("F21"),
+                  TestFeature("F22", tags = Seq("t2")),
+                  TestFeature("F23", tags = Seq("t1", "t2"))
+                )
+            )
+        )
+        .build()
+
+      val response = situation.checkFeaturesWithBody(
+        key = "key",
+        features = Seq(
+          situation.findFeatureId("tenant", "project", "F1").get,
+          situation.findFeatureId("tenant", "project", "F3").get,
+          situation.findFeatureId("tenant", "project2", "F21").get
+        ),
+        noTagIn = Seq("t1", "t2").map(t => situation.findTagId("tenant", t).get)
+      )
+      response.json.get
+        .as[Map[String, JsObject]]
+        .values
+        .map(obj =>
+          (obj \ "name").as[String]
+        ) must contain theSameElementsAs Seq("F1", "F3", "F21")
+    }
+    "return correct activation for resulting feature" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(TestApiKey("key", projects = Seq("project")))
+            .withTagNames("t1", "t2")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature(
+                    "F1",
+                    conditions = Set(
+                      TestCondition(period =
+                        TestDateTimePeriod(
+                          begin = LocalDateTime.now().minusDays(1),
+                          end = LocalDateTime.now().plusDays(3)
+                        )
+                      )
+                    )
+                  ),
+                  TestFeature(
+                    "F2",
+                    conditions = Set(
+                      TestCondition(period =
+                        TestDateTimePeriod(
+                          begin = LocalDateTime.now().plusDays(1),
+                          end = LocalDateTime.now().plusDays(3)
+                        )
+                      )
+                    )
+                  ),
+                  TestFeature(
+                    "F3",
+                    wasmConfig = TestWasmConfig(
+                      name = "wasmScript",
+                      source = Json.obj(
+                        "kind" -> "Base64",
+                        "path" -> enabledFeatureBase64,
+                        "opts" -> Json.obj()
+                      )
+                    )
+                  )
+                )
+            )
+        )
+        .build()
+
+      val result = situation.checkFeaturesWithBody(
+        "key",
+        projects = Seq(situation.findProjectId("tenant", "project").get)
+      )
+
+      result.json.get
+        .as[Map[String, JsObject]]
+        .values
+        .map(obj =>
+          ((obj \ "name").as[String], (obj \ "active").as[Boolean])
+        ) must contain theSameElementsAs Seq(
+        ("F1", true),
+        ("F2", false),
+        ("F3", true)
+      )
+    }
+    "return correct activation for resulting feature with overload and context" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(TestApiKey("key", projects = Seq("project")))
+            .withTagNames("t1", "t2")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature(
+                    "F1",
+                    conditions = Set(
+                      TestCondition(period =
+                        TestDateTimePeriod(
+                          begin = LocalDateTime.now().minusDays(1),
+                          end = LocalDateTime.now().plusDays(3)
+                        )
+                      )
+                    )
+                  ),
+                  TestFeature(
+                    "F2",
+                    conditions = Set(
+                      TestCondition(period =
+                        TestDateTimePeriod(
+                          begin = LocalDateTime.now().plusDays(1),
+                          end = LocalDateTime.now().plusDays(3)
+                        )
+                      )
+                    )
+                  ),
+                  TestFeature(
+                    "F3"
+                  )
+                )
+                .withContexts(TestFeatureContext("context"))
+            )
+        )
+        .build()
+
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F1",
+        enabled = true,
+        wasmConfig = TestWasmConfig(
+          name = "wasmScript",
+          source = Json.obj(
+            "kind" -> "Base64",
+            "path" -> disabledFeatureBase64,
+            "opts" -> Json.obj()
+          )
+        )
+      )
+
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F2",
+        enabled = true,
+        conditions = Set(
+          TestCondition(period =
+            TestDateTimePeriod(
+              begin = LocalDateTime.now().minusDays(1),
+              end = LocalDateTime.now().plusDays(3)
+            )
+          )
+        )
+      )
+
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "context",
+        "F3",
+        enabled = false
+      )
+
+      val result = situation.checkFeaturesWithBody(
+        key = "key",
+        projects = Seq(situation.findProjectId("tenant", "project").get),
+        contextPath = "context"
+      )
+
+      result.json.get
+        .as[Map[String, JsObject]]
+        .values
+        .map(obj =>
+          ((obj \ "name").as[String], (obj \ "active").as[Boolean])
+        ) must contain theSameElementsAs Seq(
+        ("F1", false),
+        ("F2", true),
+        ("F3", false)
+      )
+    }
+    "return correct activation for resulting feature with multiple subcontexts" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(TestApiKey("key", projects = Seq("project")))
+            .withTagNames("t1", "t2")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature(
+                    "F1",
+                    enabled = false
+                  )
+                )
+            )
+            .withGlobalContext(TestFeatureContext("global"))
+        )
+        .build()
+
+      situation.createContext("tenant", "project", "local", "global")
+
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "global",
+        "F1",
+        enabled = true,
+        wasmConfig = TestWasmConfig(
+          name = "wasmScript",
+          source = Json.obj(
+            "kind" -> "Base64",
+            "path" -> disabledFeatureBase64,
+            "opts" -> Json.obj()
+          )
+        )
+      )
+
+      situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "global/local",
+        "F1",
+        enabled = true
+      )
+
+      val result = situation.checkFeaturesWithBody(
+        key = "key",
+        projects = Seq(situation.findProjectId("tenant", "project").get),
+        contextPath = "global/local"
+      )
+
+      result.json.get
+        .as[Map[String, JsObject]]
+        .values
+        .map(obj =>
+          ((obj \ "name").as[String], (obj \ "active").as[Boolean])
+        ) must contain theSameElementsAs Seq(
+        ("F1", true)
+      )
+    }
+
+    "return correct activation for resulting feature width provided user" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(TestApiKey("key", projects = Seq("project")))
+            .withTagNames("t1", "t2")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature(
+                    "F1",
+                    enabled = true,
+                    conditions = Set(
+                      TestCondition(
+                        rule = TestUserListRule(users = Set("foo"))
+                      )
+                    )
+                  ),
+                  TestFeature(
+                    "F2",
+                    enabled = true,
+                    conditions = Set(
+                      TestCondition(
+                        rule = TestUserListRule(users = Set("bar"))
+                      )
+                    )
+                  )
+                )
+            )
+        )
+        .build()
+
+      val result = situation.checkFeaturesWithBody(
+        key = "key",
+        projects = Seq(situation.findProjectId("tenant", "project").get),
+        user = "foo"
+      )
+
+      result.json.get
+        .as[Map[String, JsObject]]
+        .values
+        .map(obj =>
+          ((obj \ "name").as[String], (obj \ "active").as[Boolean])
+        ) must contain theSameElementsAs Seq(
+        ("F1", true),
+        ("F2", false)
+      )
+    }
+
+    "return feature conditions if asked" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(TestApiKey("mykey", admin = true))
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature(
+                    "foo",
+                    enabled = true,
+                    conditions = Set(
+                      TestCondition(rule = TestPercentageRule(percentage = 75))
+                    )
+                  ),
+                  TestFeature(
+                    "bar",
+                    enabled = false,
+                    conditions = Set(
+                      TestCondition(
+                        rule = TestUserListRule(users = Set("user1", "user2")),
+                        period = TestDateTimePeriod(days =
+                          TestDayPeriod(days =
+                            Set(DayOfWeek.MONDAY, DayOfWeek.TUESDAY)
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+                .withContexts(
+                  TestFeatureContext(
+                    name = "dev",
+                    overloads = Seq(
+                      TestFeature(
+                        "foo",
+                        enabled = true,
+                        conditions = Set(
+                          TestCondition(rule =
+                            TestPercentageRule(percentage = 80)
+                          )
+                        )
+                      )
+                    ),
+                    subContext = Set(
+                      TestFeatureContext(
+                        name = "bar",
+                        overloads = Seq(
+                          TestFeature(
+                            "foo",
+                            enabled = true,
+                            conditions = Set(
+                              TestCondition(rule =
+                                TestPercentageRule(percentage = 90)
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+            )
+        )
+        .build()
+
+      val fooId = situation.findFeatureId("tenant", "project", "foo").get
+      val barId = situation.findFeatureId("tenant", "project", "bar").get
+
+      val response = situation.checkFeaturesWithBody(
+        key = "mykey",
+        conditions = true,
+        features = Seq(fooId, barId)
+      )
+      val json = response.json.get
+
+      (json \ fooId \ "conditions" \ "" \ "conditions" \ 0 \ "rule" \ "percentage")
+        .as[Int] mustEqual 75
+      (json \ fooId \ "conditions" \ "dev" \ "conditions" \ 0 \ "rule" \ "percentage")
+        .as[Int] mustEqual 80
+      (json \ fooId \ "conditions" \ "dev/bar" \ "conditions" \ 0 \ "rule" \ "percentage")
+        .as[Int] mustEqual 90
+      (json \ barId \ "conditions" \ "" \ "conditions" \ 0 \ "rule" \ "users")
+        .as[Seq[String]] must contain theSameElementsAs Seq("user1", "user2")
+      (json \ barId \ "conditions" \ "" \ "conditions" \ 0 \ "period" \ "activationDays" \ "days")
+        .as[Seq[String]] must contain theSameElementsAs Seq("MONDAY", "TUESDAY")
+    }
+
+    "return correct subcontext value even when condition parameter present" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(TestApiKey("mykey", admin = true))
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature(
+                    "foo",
+                    enabled = true,
+                    resultType = "number",
+                    value = "0.1"
+                  )
+                )
+                .withContexts(
+                  TestFeatureContext(
+                    name = "A",
+                    overloads = Seq(
+                      TestFeature(
+                        "foo",
+                        enabled = true,
+                        resultType = "number",
+                        value = "0.2"
+                      )
+                    ),
+                    subContext = Set(
+                      TestFeatureContext(
+                        name = "B",
+                        overloads = Seq(
+                          TestFeature(
+                            "foo",
+                            enabled = true,
+                            resultType = "number",
+                            value = "0.3"
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+            )
+        )
+        .build()
+
+      val fooId = situation.findFeatureId("tenant", "project", "foo").get
+
+      val response = situation.checkFeaturesWithBody(
+        key = "mykey",
+        conditions = true,
+        features = Seq(fooId),
+        contextPath = "A/B"
+      )
+      val json = response.json.get
+
+      (json \ fooId \ "active").as[Double] mustEqual 0.3
+    }
+  }
+
 }
