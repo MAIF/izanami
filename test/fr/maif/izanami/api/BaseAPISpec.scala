@@ -1126,7 +1126,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                    ): RequestResult = {
     val response = await(
       ws.url(
-          s"""${BASE_URL}/v2/_batch-features-read?conditions=${conditions}${
+          s"""${BASE_URL}/v2/_features?conditions=${conditions}${
             Option(user)
               .map(u => s"&user=${u}")
               .getOrElse("")
@@ -2712,7 +2712,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       val eventSource: Source[ServerSentEvent, NotUsed] =
         EventSource(
           uri = Uri(
-            s"""$BASE_URL/v2/_batch-features-events?user=${user}&conditions=${conditions}&refreshInterval=${refreshInterval.toSeconds}&keepAliveInterval=${keepAliveInterval.toSeconds}"""
+            s"""$BASE_URL/v2/_features?user=${user}&conditions=${conditions}&refreshInterval=${refreshInterval.toSeconds}&keepAliveInterval=${keepAliveInterval.toSeconds}"""
           ),
           send,
           initialLastEventId = Some("2"),

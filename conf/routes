@@ -130,13 +130,13 @@ POST          /api/admin/tenants/:tenant/_export                                
 
 
 # Client application endpoints
-POST          /api/v2/_batch-features-read                                                         fr.maif.izanami.web.FeatureController.evaluateBodyFeaturesForContext(user: String ?= "", conditions: Boolean ?= false, date: Option[java.time.Instant], context: Option[String])
+POST          /api/v2/_features                                                                     fr.maif.izanami.web.FeatureController.evaluateBodyFeaturesForContext(user: String ?= "", conditions: Boolean ?= false, date: Option[java.time.Instant], context: Option[String])
 GET           /api/v2/features/:id                                                                 fr.maif.izanami.web.FeatureController.checkFeatureForContext(id: String, user: String ?= "", context: fr.maif.izanami.web.FeatureContextPath)
 POST          /api/v2/features/:id                                                                 fr.maif.izanami.web.FeatureController.checkFeatureForContext(id: String, user: String ?= "", context: fr.maif.izanami.web.FeatureContextPath)
 GET           /api/v2/features                                                                     fr.maif.izanami.web.FeatureController.evaluateFeaturesForContext(user: String ?= "", conditions: Boolean ?= false, date: Option[java.time.Instant], featureRequest: fr.maif.izanami.models.FeatureRequest)
 POST          /api/v2/features                                                                     fr.maif.izanami.web.FeatureController.evaluateFeaturesForContext(user: String ?= "", conditions: Boolean ?= false, date: Option[java.time.Instant], featureRequest: fr.maif.izanami.models.FeatureRequest)
 GET           /api/v2/events                                                                       fr.maif.izanami.web.EventController.newEvents(user: String ?= "*", conditions: Boolean ?= false, refreshInterval: Int ?= 0, keepAliveInterval: Int ?= 25, featureRequest: fr.maif.izanami.models.FeatureRequest)
-POST          /api/v2/_batch-features-events                                                       fr.maif.izanami.web.EventController.newBatchEvents(user: String ?= "*", conditions: Boolean ?= false, refreshInterval: Int ?= 0, keepAliveInterval: Int ?= 25, context: Option[String])
+POST          /api/v2/_events                                                                      fr.maif.izanami.web.EventController.newBatchEvents(user: String ?= "*", conditions: Boolean ?= false, refreshInterval: Int ?= 0, keepAliveInterval: Int ?= 25, context: Option[String])
 POST          /api/v2/events                                                                       fr.maif.izanami.web.EventController.newEvents(user: String ?= "*", conditions: Boolean ?= false, refreshInterval: Int ?= 0, keepAliveInterval: Int ?= 25, featureRequest: fr.maif.izanami.models.FeatureRequest)
 
 # V1 compatibility endpoints
