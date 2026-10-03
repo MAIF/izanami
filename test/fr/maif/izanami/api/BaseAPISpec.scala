@@ -2712,7 +2712,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       val eventSource: Source[ServerSentEvent, NotUsed] =
         EventSource(
           uri = Uri(
-            s"""$BASE_URL/v2/_features?user=${user}&conditions=${conditions}&refreshInterval=${refreshInterval.toSeconds}&keepAliveInterval=${keepAliveInterval.toSeconds}"""
+            s"""$BASE_URL/v2/_events?user=${user}&conditions=${conditions}&refreshInterval=${refreshInterval.toSeconds}&keepAliveInterval=${keepAliveInterval.toSeconds}"""
           ),
           send,
           initialLastEventId = Some("2"),
