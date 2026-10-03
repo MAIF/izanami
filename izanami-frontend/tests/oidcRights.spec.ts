@@ -11,11 +11,12 @@ test.beforeEach(async () => {
 });
 
 function setupOIDCConfiguration(cookie: string, rightByRoles?: object) {
+  const now = new Date();
   const payload = {
     invitationMode: "Response",
     originEmail: null,
     anonymousReporting: false,
-    anonymousReportingLastAsked: "2026-03-10T13:27:22.402Z",
+    anonymousReportingLastAsked: now.toISOString(),
     oidcConfiguration: {
       enabled: true,
       clientId: "foo",
