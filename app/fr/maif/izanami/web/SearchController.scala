@@ -20,10 +20,10 @@ import scala.concurrent.Future
 
 class SearchController(
     val controllerComponents: ControllerComponents,
-    val simpleAuthAction: AuthenticatedAction,
-    val tenantRightAction: TenantRightsAction,
-    searchDatastore: SearchDatastore, // FIXME use dedicated services instead of datastores
-    featureContextDatastore: FeatureContextDatastore
+    simpleAuthAction: =>AuthenticatedAction,
+    tenantRightAction: =>TenantRightsAction,
+    searchDatastore: =>SearchDatastore, // FIXME use dedicated services instead of datastores
+    featureContextDatastore: =>FeatureContextDatastore
 )(implicit val ec: ExecutionContext) extends BaseController {
 
   def search(query: String, filter: List[String]): Action[AnyContent] =

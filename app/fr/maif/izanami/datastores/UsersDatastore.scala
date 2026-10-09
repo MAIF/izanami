@@ -36,7 +36,7 @@ import scala.concurrent.ExecutionContext
 import org.apache.pekko.actor.ActorSystem
 
 class UsersDatastore(
-  postgresql: Postgresql,
+  postgresql: =>Postgresql,
   houseKeepingStartDelayInSeconds: Long,
   houseKeepingIntervalInSeconds: Long,
   sessionsTtl: Integer,

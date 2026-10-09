@@ -1284,11 +1284,11 @@ object EventService {
 }
 
 class EventService(
-  featureService: FeatureService,
-  projectDatastore: ProjectsDatastore,
-  postgresql: Postgresql, // TODO this should be split in service / datastore to break postgresql dependency
-  eventDatastore: EventDatastore,
-  wasmIntegration: WasmIntegration,
+  featureService: =>FeatureService,
+  projectDatastore: =>ProjectsDatastore,
+  postgresql: =>Postgresql, // TODO this should be split in service / datastore to break postgresql dependency
+  eventDatastore: =>EventDatastore,
+  wasmIntegration: =>WasmIntegration,
   wasmAllowed: Boolean
   )(implicit ec: ExecutionContext, mat: Materializer) {
   val logger: Logger = Logger("event-service")

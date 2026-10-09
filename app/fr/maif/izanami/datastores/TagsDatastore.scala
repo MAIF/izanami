@@ -19,7 +19,7 @@ import fr.maif.izanami.utils.Done
 import fr.maif.izanami.env.Postgresql
 import scala.concurrent.ExecutionContext
 
-class TagsDatastore(postgresql: Postgresql)(implicit val ec: ExecutionContext) extends Datastore {
+class TagsDatastore(postgresql: =>Postgresql)(implicit val ec: ExecutionContext) extends Datastore {
   def createTag(
       tagCreationRequest: TagCreationRequest,
       tenant: String

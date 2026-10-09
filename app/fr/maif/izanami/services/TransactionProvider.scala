@@ -40,7 +40,7 @@ sealed trait TransactionProvider[Tx] {
 }
 
 
-class PostgresTransactionProvider(private val pool: Pool)(implicit ec: ExecutionContext) extends TransactionProvider[SqlConnection] {
+class PostgresTransactionProvider(pool: =>Pool)(implicit ec: ExecutionContext) extends TransactionProvider[SqlConnection] {
   override def executeInTransaction[Res](callback: SqlConnection => Future[Res]): Future[Res] = {
     var future: io.vertx.core.Future[Res] = io.vertx.core.Future.succeededFuture()
     pool

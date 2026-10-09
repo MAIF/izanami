@@ -22,9 +22,8 @@ import scala.util.Try
 
 class PersonnalAccessTokenController(
     val controllerComponents: ControllerComponents,
-    val authAction: AuthenticatedAction,
-    val tenantRightAction: TenantRightsAction,
-    val detailledAuthAction: DetailledAuthAction,
+    tenantRightAction: =>TenantRightsAction,
+    detailledAuthAction: =>DetailledAuthAction,
     personalAccessTokenDatastore: PersonnalAccessTokenDatastore // FIXME use a service instead
 )(implicit val ec: ExecutionContext) extends BaseController {
 

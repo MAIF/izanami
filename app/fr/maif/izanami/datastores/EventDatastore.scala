@@ -26,8 +26,8 @@ import java.time.Duration
 import scala.concurrent.ExecutionContext
 
 class EventDatastore(
-  postgresql: Postgresql,
-  tenantDatastore: TenantsDatastore,
+  postgresql: =>Postgresql,
+  tenantDatastore: =>TenantsDatastore,
   eventsHoursTtl: Int,
   houseKeepingStartDelayInSeconds: Long,
   houseKeepingIntervalInSeconds: Long,

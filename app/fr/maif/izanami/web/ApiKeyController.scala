@@ -5,7 +5,6 @@ import play.api.libs.json.Json
 import play.api.mvc.*
 
 import scala.concurrent.ExecutionContext
-import fr.maif.izanami.services.RightService
 import fr.maif.izanami.services.APIKeyService
 import fr.maif.izanami.models.RightLevel
 import fr.maif.izanami.models.ApiKey
@@ -16,12 +15,11 @@ import fr.maif.izanami.utils.FutureEither
 
 class ApiKeyController(
     val controllerComponents: ControllerComponents,
-    val tenantAuthAction: TenantAuthActionFactory,
-    val keyAuthAction: KeyAuthActionFactory,
-    val tokenAuthAction: PersonnalAccessTokenKeyAuthActionFactory,
-    val pacTenantAuthAction: PersonnalAccessTokenTenantAuthActionFactory,
-    val rightService: RightService,
-    val apiKeyService: APIKeyService
+    tenantAuthAction: =>TenantAuthActionFactory,
+    keyAuthAction: =>KeyAuthActionFactory,
+    tokenAuthAction: =>PersonnalAccessTokenKeyAuthActionFactory,
+    pacTenantAuthAction: =>PersonnalAccessTokenTenantAuthActionFactory,
+    apiKeyService: =>APIKeyService
 )(implicit val ec: ExecutionContext)
     extends BaseController {
 

@@ -26,21 +26,21 @@ import scala.util.Try
 
 class UserController(
     val controllerComponents: ControllerComponents,
-    val authAction: AuthenticatedAction,
-    val adminAction: AdminAuthAction,
-    val detailledAuthAction: DetailledAuthAction,
-    val tenantRightsAction: TenantRightsAction,
-    val tenantRightFilterAction: TenantAuthActionFactory,
-    val projectAuthAction: ProjectAuthActionFactory,
-    val webhookAuthAction: WebhookAuthActionFactory,
-    val keyAuthAction: KeyAuthActionFactory,
-    val rightService: RightService,
-    val jwtService: JwtService,
-    val mails: Mails,
-    private val transactionProvider: PostgresTransactionProvider,
+    authAction: =>AuthenticatedAction,
+    adminAction: =>AdminAuthAction,
+    detailledAuthAction: =>DetailledAuthAction,
+    tenantRightsAction: =>TenantRightsAction,
+    tenantRightFilterAction: =>TenantAuthActionFactory,
+    projectAuthAction: =>ProjectAuthActionFactory,
+    webhookAuthAction: =>WebhookAuthActionFactory,
+    keyAuthAction: =>KeyAuthActionFactory,
+    rightService: =>RightService,
+    jwtService: =>JwtService,
+    mails: =>Mails,
+    transactionProvider: =>PostgresTransactionProvider,
     // FIXME below datastore(s) should be replaced by services
-    val configurationDatastore: ConfigurationDatastore,
-    val usersDatastore: UsersDatastore,
+    configurationDatastore: =>ConfigurationDatastore,
+    usersDatastore: =>UsersDatastore
 )(implicit val ec: ExecutionContext) extends BaseController {
   def sendInvitation(): Action[JsValue] = tenantRightsAction.async(parse.json) {
     implicit request =>

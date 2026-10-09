@@ -29,10 +29,10 @@ import fr.maif.izanami.datastores.TenantsDatastore
 import play.api.libs.ws.WSClient
 
 class WebhookListener(
-  datastore: WebhooksDatastore,
-  eventService: EventService, 
+  datastore: =>WebhooksDatastore,
+  eventService: =>EventService, 
   webhookRetryConfig: WebhookRetry,
-  tenantDatastore: TenantsDatastore,
+  tenantDatastore: =>TenantsDatastore,
   httpClient: WSClient)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
   private val handlebars = new Handlebars()
   private val mapper = new ObjectMapper()

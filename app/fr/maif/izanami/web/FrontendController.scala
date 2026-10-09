@@ -11,7 +11,7 @@ import scala.concurrent.ExecutionContext
 class FrontendController(
     val assets: Assets,
     val controllerComponents: ControllerComponents,
-    leaderAction: LeaderActionBuilderImpl
+    leaderAction: =>LeaderActionBuilderImpl
 ) extends BaseController {
 
   def headers: List[(String, String)] = List(

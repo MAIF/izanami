@@ -18,10 +18,10 @@ import scala.concurrent.Future
 
 class LegacyController(
     val controllerComponents: ControllerComponents,
-    val clientKeyAction: ClientApiKeyAction,
-    featuresDatastore: FeaturesDatastore, // FIXME
-    postgresql: Postgresql, // FIXME use a new dedicated HealthService for this
-    featureService: FeatureService
+    clientKeyAction: =>ClientApiKeyAction,
+    featuresDatastore: =>FeaturesDatastore, // FIXME
+    postgresql: =>Postgresql, // FIXME use a new dedicated HealthService for this
+    featureService: =>FeatureService
 )(implicit val ec: ExecutionContext) extends BaseController {
 
   def healthcheck(): Action[AnyContent] = Action.async {

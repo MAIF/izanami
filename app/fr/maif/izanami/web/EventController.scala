@@ -47,15 +47,15 @@ import play.api.libs.json.JsNull
 
 class EventController(
     val controllerComponents: ControllerComponents,
-    val clientKeyAction: ClientApiKeyAction,
-    val adminAuthAction: AdminAuthAction,
-    val tenantAuthAction: TenantAuthActionFactory,
-    featureService: FeatureService,
-    webhookListener: WebhookListener,
-    eventService: EventService,
-    eventDatastore: EventDatastore, // FIXME use service instead
-    projectsDatastore: ProjectsDatastore,
-    personalAccessTokenDatastore: PersonnalAccessTokenDatastore
+    clientKeyAction: =>ClientApiKeyAction,
+    adminAuthAction: =>AdminAuthAction,
+    tenantAuthAction: =>TenantAuthActionFactory,
+    featureService: =>FeatureService,
+    webhookListener: =>WebhookListener,
+    eventService: =>EventService,
+    eventDatastore: =>EventDatastore, // FIXME use service instead
+    projectsDatastore: =>ProjectsDatastore,
+    personalAccessTokenDatastore: =>PersonnalAccessTokenDatastore
 )(implicit val ec: ExecutionContext, val materializer: Materializer) extends BaseController {
   val logger = Logger("EventController")
   // FIXME create dedicated object instead

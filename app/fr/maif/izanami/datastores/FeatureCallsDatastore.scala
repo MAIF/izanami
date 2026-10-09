@@ -20,7 +20,7 @@ import fr.maif.izanami.env.Postgresql
 import org.apache.pekko.actor.ActorSystem
 import scala.concurrent.ExecutionContext
 
-class FeatureCallsDatastore(postgresql: Postgresql, tenantDatastore: TenantsDatastore, callRetentionTimeInHours: Long, houseKeepingStartDelayInSeconds: Long, houseKeepingIntervalInSeconds: Long, extensionsSchema: String, actorSystem: ActorSystem)(implicit val ec: ExecutionContext) extends Datastore {
+class FeatureCallsDatastore(postgresql: =>Postgresql, tenantDatastore: =>TenantsDatastore, callRetentionTimeInHours: Long, houseKeepingStartDelayInSeconds: Long, houseKeepingIntervalInSeconds: Long, extensionsSchema: String, actorSystem: ActorSystem)(implicit val ec: ExecutionContext) extends Datastore {
   private var outDatedCallDeleteCancellation: Cancellable =
     Cancellable.alreadyCancelled
   override def onStart(): Future[Unit] = {

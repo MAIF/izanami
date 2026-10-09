@@ -32,13 +32,13 @@ import scala.concurrent.duration.DurationInt
 
 class LoginController(
     val controllerComponents: ControllerComponents,
-    val rightService: RightService,
-    sessionAuthAction: AuthenticatedSessionAction,
-    wsClient: WSClient,
-    jwtService: JwtService,
-    configurationDatastore: ConfigurationDatastore,
-    usersDatastore: UsersDatastore,
-    postgresTransactionProvider: PostgresTransactionProvider,
+    rightService: =>RightService,
+    sessionAuthAction: =>AuthenticatedSessionAction,
+    wsClient: =>WSClient,
+    jwtService: =>JwtService,
+    configurationDatastore: =>ConfigurationDatastore,
+    usersDatastore: =>UsersDatastore,
+    postgresTransactionProvider: =>PostgresTransactionProvider,
     openIdConfiguration: Option[OpenId],
     sessions: Sessions
 )(implicit val ec: ExecutionContext) extends BaseController {

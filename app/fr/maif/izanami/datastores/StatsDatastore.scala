@@ -24,7 +24,7 @@ import org.apache.pekko.actor.ActorSystem
 import play.api.libs.ws.WSClient
 
 // TODO this should be split between service & datastore
-class StatsDatastore(postgresql: Postgresql, configurationDatastore: ConfigurationDatastore, httpClient: WSClient, reportingUrl: String, containerized: Boolean, actorSystem: ActorSystem)(implicit val ec: ExecutionContext)  extends Datastore {
+class StatsDatastore(postgresql: =>Postgresql, configurationDatastore: =>ConfigurationDatastore, httpClient: WSClient, reportingUrl: String, containerized: Boolean, actorSystem: ActorSystem)(implicit val ec: ExecutionContext)  extends Datastore {
   var anonymousReportingCancellation: Cancellable = Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {

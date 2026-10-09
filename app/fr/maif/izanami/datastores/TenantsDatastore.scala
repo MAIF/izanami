@@ -46,7 +46,7 @@ import fr.maif.izanami.events.EventService
 import scala.concurrent.ExecutionContext
 import play.api.Logger
 
-class TenantsDatastore(postgresql: Postgresql, eventService: EventService, extensionsSchema: String)(implicit val ec: ExecutionContext) extends Datastore {
+class TenantsDatastore(postgresql: => Postgresql, eventService: => EventService, extensionsSchema: String)(implicit val ec: ExecutionContext) extends Datastore {
   private val logger = Logger("tenants")
   def deleteImportStatus(id: UUID): Future[Unit] = {
     postgresql

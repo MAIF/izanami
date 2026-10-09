@@ -32,7 +32,7 @@ import org.apache.pekko.Done
 import fr.maif.izanami.events.EventService
 import scala.concurrent.ExecutionContext
 
-class FeatureContextDatastore(postgresql: Postgresql, extensionSchema: String, featureDatastore: FeaturesDatastore, eventService: EventService)(implicit val ec: ExecutionContext) extends Datastore {
+class FeatureContextDatastore(postgresql: =>Postgresql, extensionSchema: String, featureDatastore: =>FeaturesDatastore, eventService: =>EventService)(implicit val ec: ExecutionContext) extends Datastore {
   def readProtectedContexts(
       tenant: String,
       project: String,

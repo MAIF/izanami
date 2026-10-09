@@ -184,16 +184,15 @@ object ImportState {
 
 class ImportController(
                         val controllerComponents: ControllerComponents,
-                        val tenantAuthAction: TenantAuthActionFactory,
-                        val wasmManagerClient: WasmManagerClient,
-                        val maybeTokenAuthAction: PersonnalAccessTokenTenantAuthActionFactory,
-                        val featureService: FeatureService,
-                        tenantsDatastore: TenantsDatastore,
-                        importDatastore: ImportExportDatastore,
-                        transactionProvider: PostgresTransactionProvider,
-                        apiKeyDatastore: ApiKeyDatastore,
-                        usersDatastore: UsersDatastore,
-                        featuresDatastore: FeaturesDatastore
+                        wasmManagerClient: =>WasmManagerClient,
+                        maybeTokenAuthAction: =>PersonnalAccessTokenTenantAuthActionFactory,
+                        featureService: =>FeatureService,
+                        tenantsDatastore: =>TenantsDatastore,
+                        importDatastore: =>ImportExportDatastore,
+                        transactionProvider: =>PostgresTransactionProvider,
+                        apiKeyDatastore: =>ApiKeyDatastore,
+                        usersDatastore: =>UsersDatastore,
+                        featuresDatastore: =>FeaturesDatastore
 )(implicit val ec: ExecutionContext) extends BaseController {
   
   def deleteImportStatus(tenant: String, id: String): Action[AnyContent] =

@@ -42,7 +42,7 @@ import fr.maif.izanami.OpenId
 import fr.maif.izanami.events.EventService
 import scala.concurrent.ExecutionContext
 
-class ConfigurationDatastore(postgresql: Postgresql, tenantDatastore: TenantsDatastore, eventService: EventService, maybeOidcConfig: Option[OpenId], wasmoConf: Wasmo)(implicit val ec: ExecutionContext) extends Datastore {
+class ConfigurationDatastore(postgresql: =>Postgresql, tenantDatastore: =>TenantsDatastore, eventService: =>EventService, maybeOidcConfig: Option[OpenId], wasmoConf: =>Wasmo)(implicit val ec: ExecutionContext) extends Datastore {
 
   /** Updates OIDC rights roles to keep only existing stuff. This is used if
     * existing oidc configuration references non existing project / keys /

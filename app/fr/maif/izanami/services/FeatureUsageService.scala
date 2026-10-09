@@ -16,11 +16,11 @@ import org.apache.pekko.actor.ActorSystem
 
 
 class FeatureUsageService(
-  private val featureCalls: FeatureCallsDatastore,
-  private val staleDelay: Duration,
-  private val isStatusTrackingActive: Boolean,
-  private val callRegistrationIntervalInSeconds: Long,
-  private val actorSystem: ActorSystem,
+  featureCalls: =>FeatureCallsDatastore,
+  staleDelay: Duration,
+  isStatusTrackingActive: Boolean,
+  callRegistrationIntervalInSeconds: Long,
+  actorSystem: ActorSystem,
   implicit private val ec: ExecutionContext) {
   private val callAggregator: FeatureCallAggregator = FeatureCallAggregator()
   private var callAggregationRegisterCancellation: Cancellable =

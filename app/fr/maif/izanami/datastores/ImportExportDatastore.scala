@@ -51,7 +51,7 @@ import fr.maif.izanami.events.EventService
 import scala.concurrent.ExecutionContext
 
 
-class ImportExportDatastore(postgresql: Postgresql, extensionSchema: String, featureDatastore: FeaturesDatastore, eventService: EventService)(implicit val ec: ExecutionContext) extends Datastore {
+class ImportExportDatastore(postgresql: =>Postgresql, extensionSchema: String, featureDatastore: =>FeaturesDatastore, eventService: =>EventService)(implicit val ec: ExecutionContext) extends Datastore {
   private val logger = Logger("izanami-import-export")
 
   private def tableMetadata(

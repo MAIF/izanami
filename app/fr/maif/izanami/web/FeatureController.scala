@@ -26,16 +26,16 @@ import scala.concurrent.Future
 
 class FeatureController(
     val controllerComponents: ControllerComponents,
-    val authenticatedAction: AuthenticatedAction,
-    val projectAuthAction: ProjectAuthActionFactory,
-    val detailledRightForTenanFactory: DetailledRightForTenantFactory,
-    val personnalAccessTokenDetailledRightForTenantFactory: PersonnalAccessTokenDetailledRightForTenantFactory,
-    val personnalAccessTokenAuth: PersonnalAccessTokenFeatureAuthActionFactory,
-    featureService: FeatureService,
-    featureUsageService: FeatureUsageService,
-    workerAction: WorkerActionBuilder,
-    featuresDatastore: FeaturesDatastore, // FIXME remove to use service instead,
-    featureContextDatastore: FeatureContextDatastore // FIXME remove to use service instead,
+    authenticatedAction: =>AuthenticatedAction,
+    projectAuthAction: =>ProjectAuthActionFactory,
+    detailledRightForTenanFactory: =>DetailledRightForTenantFactory,
+    personnalAccessTokenDetailledRightForTenantFactory: =>PersonnalAccessTokenDetailledRightForTenantFactory,
+    personnalAccessTokenAuth: =>PersonnalAccessTokenFeatureAuthActionFactory,
+    featureService: =>FeatureService,
+    featureUsageService: =>FeatureUsageService,
+    workerAction: =>WorkerActionBuilder,
+    featuresDatastore: =>FeaturesDatastore, // FIXME remove to use service instead,
+    featureContextDatastore: =>FeatureContextDatastore // FIXME remove to use service instead,
 )(implicit val ec: ExecutionContext) extends BaseController {
 
   def testFeature(

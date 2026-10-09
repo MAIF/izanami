@@ -7,7 +7,7 @@ import fr.maif.izanami.models.TagCreationRequest
 import fr.maif.izanami.utils.Done
 import scala.concurrent.Future
 
-class TagService(private val datastore: TagsDatastore) {
+class TagService(datastore: =>TagsDatastore) {
   def createTag(
       tagCreationRequest: TagCreationRequest,
       tenant: String

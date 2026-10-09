@@ -23,9 +23,9 @@ import fr.maif.izanami.services.WebhookService
 
 class WebhookController(
     val controllerComponents: ControllerComponents,
-    val tenantAuthAction: TenantAuthActionFactory,
-    val webhookAuthAction: WebhookAuthActionFactory,
-    val webhookService: WebhookService
+    tenantAuthAction: =>TenantAuthActionFactory,
+    webhookAuthAction: =>WebhookAuthActionFactory,
+    webhookService: =>WebhookService
 )(implicit val ec: ExecutionContext)
     extends BaseController {
   implicit val lightWebhookRead: Reads[LightWebhook] =

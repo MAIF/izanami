@@ -63,12 +63,12 @@ import fr.maif.izanami.models.Feature.writeFeatureInLegacyFormat
 import fr.maif.izanami.wasm.WasmRelatedStuff
 
 class FeatureService(
-  private val datastore: FeaturesDatastore,
-  private val featureContextDatastore: FeatureContextDatastore,
-  private val tagDatastore: TagsDatastore,
-  private val configuration: FeatureConfiguration,
-  private val transactionProvider: PostgresTransactionProvider,// TODO use super class instead, but it's a huge refactoring
-  private val wasmRelatedStuff: WasmRelatedStuff
+  datastore: =>FeaturesDatastore,
+  featureContextDatastore: =>FeatureContextDatastore,
+  tagDatastore: =>TagsDatastore,
+  configuration: FeatureConfiguration,
+  transactionProvider: =>PostgresTransactionProvider,// TODO use super class instead, but it's a huge refactoring
+  wasmRelatedStuff: =>WasmRelatedStuff
 )(implicit ec: ExecutionContext) {
   private def hasProtectedOverload(
       tenant: String,

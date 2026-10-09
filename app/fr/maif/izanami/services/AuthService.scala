@@ -11,17 +11,16 @@ import fr.maif.izanami.errors.{BadFormatPersonalAccessToken, InvalidpersonalAcce
 import fr.maif.izanami.utils.Done
 
 import scala.concurrent.ExecutionContext
-import scala.util.Try
 import javax.crypto.spec.SecretKeySpec
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 
 
 
 class AuthService(
-  private val personalAccessTokenDatastore: PersonnalAccessTokenDatastore,
-  private val userDatastore: UsersDatastore,
-  private val tokenSecret: String,
-  private val encryptionKey: SecretKeySpec
+  personalAccessTokenDatastore: =>PersonnalAccessTokenDatastore,
+  userDatastore: =>UsersDatastore,
+  tokenSecret: String,
+  encryptionKey: SecretKeySpec
 )(implicit val ec: ExecutionContext) {
   val decryptionStuff = DecryptionStuff(tokenSecret, encryptionKey)
 

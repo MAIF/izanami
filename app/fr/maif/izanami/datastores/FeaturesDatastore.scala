@@ -51,13 +51,13 @@ import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 import scala.concurrent.ExecutionContext
 
 class FeaturesDatastore(
-  postgresql: Postgresql,
+  postgresql: =>Postgresql,
   extensionSchema: String,
-  projectDatastore: ProjectsDatastore,
-  tenantDatastore: TenantsDatastore,
-  featureContextDatastore: FeatureContextDatastore,
-  eventService: EventService,
-  wasmIntegration: WasmIntegration
+  projectDatastore: =>ProjectsDatastore,
+  tenantDatastore: =>TenantsDatastore,
+  featureContextDatastore: =>FeatureContextDatastore,
+  eventService: =>EventService,
+  wasmIntegration: =>WasmIntegration
 )(implicit val ec: ExecutionContext) extends Datastore {
   private type ProjectName = String
   private type FeatureName = String

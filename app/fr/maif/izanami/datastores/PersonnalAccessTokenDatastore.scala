@@ -40,7 +40,7 @@ import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.env.Postgresql
 import scala.concurrent.ExecutionContext
 
-class PersonnalAccessTokenDatastore(postgresql: Postgresql)(implicit val ec: ExecutionContext) extends Datastore {
+class PersonnalAccessTokenDatastore(postgresql: =>Postgresql)(implicit val ec: ExecutionContext) extends Datastore {
   def findAccessTokenByIds(ids: Set[UUID]): Future[Map[UUID, String]] = {
     postgresql
       .queryAll(

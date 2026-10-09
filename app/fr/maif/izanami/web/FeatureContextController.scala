@@ -14,11 +14,11 @@ import scala.concurrent.Future
 
 class FeatureContextController(
     val controllerComponents: ControllerComponents,
-    val authAction: ProjectAuthActionFactory,
-    val tenantAuthAction: TenantAuthActionFactory,
-    val detailledRightForTenantFactory: DetailledRightForTenantFactory,
-    val featureService: FeatureService,
-    val datastore: FeatureContextDatastore
+    authAction: =>ProjectAuthActionFactory,
+    tenantAuthAction: =>TenantAuthActionFactory,
+    detailledRightForTenantFactory: =>DetailledRightForTenantFactory,
+    featureService: =>FeatureService,
+    datastore: =>FeatureContextDatastore
 )(implicit val ec: ExecutionContext)
     extends BaseController {
 

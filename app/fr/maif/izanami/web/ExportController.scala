@@ -15,8 +15,8 @@ import scala.concurrent.Future
 
 class ExportController(
     val controllerComponents: ControllerComponents,
-    val authAction: PersonnalAccessTokenTenantAuthActionFactory,
-    exportDatastore: ImportExportDatastore
+    authAction: =>PersonnalAccessTokenTenantAuthActionFactory,
+    exportDatastore: =>ImportExportDatastore
 )(implicit val ec: ExecutionContext) extends BaseController {
 
   def exportTenantData(tenant: String): Action[JsValue] =

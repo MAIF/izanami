@@ -1008,7 +1008,7 @@ class PersonnalAccessTokenDetailledRightForTenantFactory(
 
 class PersonnalAccessTokenTenantRightsActionFactory(
     bodyParser: BodyParser[AnyContent],
-    authService: AuthService,
+    authService: =>AuthService,
     clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
@@ -1059,7 +1059,7 @@ class WebhookAuthActionFactory(
     )
 }
 
-class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService, clusteringConfig: Cluster)(
+class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: =>AuthService, rightService: =>RightService, clusteringConfig: Cluster)(
     implicit ec: ExecutionContext
 ) {
   def apply(
@@ -1080,8 +1080,8 @@ class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: 
 
 class ProjectAuthActionByIdFactory(
     bodyParser: BodyParser[AnyContent],
-    authService: AuthService,
-    rightService: RightService,
+    authService: =>AuthService,
+    rightService: =>RightService,
     clusteringConfig: Cluster
 )(implicit ec: ExecutionContext) {
   def apply(
@@ -1100,7 +1100,7 @@ class ProjectAuthActionByIdFactory(
     )
 }
 
-class TenantAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService, clusteringConfig: Cluster)(
+class TenantAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: =>AuthService, rightService: =>RightService, clusteringConfig: Cluster)(
     implicit ec: ExecutionContext
 ) {
   def apply(tenant: String, minimumLevel: RightLevel): TenantAuthAction =

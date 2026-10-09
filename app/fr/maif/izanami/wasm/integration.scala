@@ -23,8 +23,8 @@ import fr.maif.izanami.Wasm
 import play.api.libs.ws.WSClient
 
 class IzanamiWasmIntegrationContext(
-  configurationDatastore: ConfigurationDatastore,
-  featureDatastore: FeaturesDatastore,
+  configurationDatastore: =>ConfigurationDatastore,
+  featureDatastore: =>FeaturesDatastore,
   wasmConfiguration: Wasm,
   httpClient: WSClient
   )(implicit override val executionContext: ExecutionContext, override val materializer: Materializer) extends WasmIntegrationContext {

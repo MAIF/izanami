@@ -15,11 +15,11 @@ case class FixedProject(name: String) extends ProjectChoiceStrategy
 
 class TenantController(
     val controllerComponents: ControllerComponents,
-    private val tenantAuthAction: TenantAuthActionFactory,
-    private val personnalAccessTokenAuthAction: PersonnalAccessTokenAdminAuthActionFactory,
-    private val personnalAccessTokenTenantAuthAction: PersonnalAccessTokenTenantAuthActionFactory,
-    private val personnalAccessTokenTenantRightsAuthAction: PersonnalAccessTokenTenantRightsActionFactory,
-    private val tenantService: TenantService
+    tenantAuthAction: =>TenantAuthActionFactory,
+    personnalAccessTokenAuthAction: =>PersonnalAccessTokenAdminAuthActionFactory,
+    personnalAccessTokenTenantAuthAction: =>PersonnalAccessTokenTenantAuthActionFactory,
+    personnalAccessTokenTenantRightsAuthAction: =>PersonnalAccessTokenTenantRightsActionFactory,
+    tenantService: =>TenantService
 )(implicit ec: ExecutionContext) extends BaseController {
 
   def updateTenant(name: String): Action[JsValue] =

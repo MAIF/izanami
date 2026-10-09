@@ -35,16 +35,15 @@ import scala.util.Try
 
 class ProjectController(
     val controllerComponents: ControllerComponents,
-    val tenantAuthAction: TenantAuthActionFactory,
-    val projectAuthAction: ProjectAuthActionFactory,
-    val projectAuthActionById: ProjectAuthActionByIdFactory,
-    val detailledRightForTenanFactory: DetailledRightForTenantFactory,
-    val personnalAccessTokenDetailledRightForTenantFactory: PersonnalAccessTokenDetailledRightForTenantFactory,
-    val featureUsageService: FeatureUsageService,
-    val personnalAccessTokenAuthAction: PersonnalAccessTokenProjectAuthActionFactory,
-    val eventDatastore: EventDatastore, // FIXME use service instead
-    val projectsDatastore: ProjectsDatastore,  // FIXME use service instead
-    val personnalAccessTokenDatastore: PersonnalAccessTokenDatastore  // FIXME use service instead
+    tenantAuthAction: =>TenantAuthActionFactory,
+    projectAuthAction: =>ProjectAuthActionFactory,
+    projectAuthActionById: =>ProjectAuthActionByIdFactory,
+    personnalAccessTokenDetailledRightForTenantFactory: =>PersonnalAccessTokenDetailledRightForTenantFactory,
+    featureUsageService: =>FeatureUsageService,
+    personnalAccessTokenAuthAction: =>PersonnalAccessTokenProjectAuthActionFactory,
+    eventDatastore: =>EventDatastore, // FIXME use service instead
+    projectsDatastore: =>ProjectsDatastore,  // FIXME use service instead
+    personnalAccessTokenDatastore: =>PersonnalAccessTokenDatastore  // FIXME use service instead
 )(implicit val ec: ExecutionContext) extends BaseController {
 
   def readEventsForProject(

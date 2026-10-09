@@ -18,7 +18,7 @@ import fr.maif.izanami.datastores.TagsDatastore
 import fr.maif.izanami.utils.syntax.implicits.BetterFuture
 import scala.concurrent.ExecutionContext
 
-class TenantService(datastore: TenantsDatastore, projectDatastore: ProjectsDatastore, tagDatastore: TagsDatastore)(implicit ec:ExecutionContext) {
+class TenantService(datastore: =>TenantsDatastore, projectDatastore: =>ProjectsDatastore, tagDatastore: =>TagsDatastore)(implicit ec:ExecutionContext) {
   def updateTenant(
       name: String,
       updateRequest: TenantCreationRequest

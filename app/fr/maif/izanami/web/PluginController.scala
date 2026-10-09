@@ -19,12 +19,12 @@ import scala.util.Try
 
 class PluginController(
     val controllerComponents: ControllerComponents,
-    val authAction: TenantAuthActionFactory,
-    val adminAuthAction: AdminAuthAction,
-    featuresDatastore: FeaturesDatastore,
-    configurationDatastore: ConfigurationDatastore,
-    wsClient: WSClient,
-    wasmIntegration: WasmIntegration
+    authAction: =>TenantAuthActionFactory,
+    adminAuthAction: =>AdminAuthAction,
+    featuresDatastore: =>FeaturesDatastore,
+    configurationDatastore: =>ConfigurationDatastore,
+    wsClient: =>WSClient,
+    wasmIntegration: =>WasmIntegration
 )(implicit val ec: ExecutionContext) extends BaseController {
   private val logger = Logger("PlutinController")
 

@@ -33,7 +33,7 @@ import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
 import scala.concurrent.ExecutionContext
 
-class WebhooksDatastore(postgresql: Postgresql)(implicit val ec: ExecutionContext) extends Datastore {
+class WebhooksDatastore(postgresql: =>Postgresql)(implicit val ec: ExecutionContext) extends Datastore {
 
   def createWebhookCall(
       tenant: String,

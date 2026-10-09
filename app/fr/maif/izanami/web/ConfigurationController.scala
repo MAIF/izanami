@@ -30,15 +30,14 @@ import scala.concurrent.Future
 
 class ConfigurationController(
     val controllerComponents: ControllerComponents,
-    val adminAuthAction: AdminAuthAction,
-    val featureService: FeatureService,
-    val statsDatastore: StatsDatastore,
-    configurationDatastore: ConfigurationDatastore,
-    tenantsDatastore: TenantsDatastore,
-    transactionProvider: PostgresTransactionProvider,
-    usersDatastore: UsersDatastore,
+    adminAuthAction: =>AdminAuthAction,
+    featureService: =>FeatureService,
+    statsDatastore: =>StatsDatastore,
+    configurationDatastore: =>ConfigurationDatastore,
+    tenantsDatastore: =>TenantsDatastore,
+    transactionProvider: =>PostgresTransactionProvider,
+    usersDatastore: =>UsersDatastore,
     cluster: Cluster,
-    exposition: Exposition,
     featureConfiguration: FeatureConfiguration,
     expossitionUrls: ExpositionUrls
 )(implicit val ec: ExecutionContext)

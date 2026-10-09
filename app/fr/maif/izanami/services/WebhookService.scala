@@ -14,7 +14,7 @@ import java.util.UUID
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.services.WebhookService.checkWebhook
 
-class WebhookService(datastore: WebhooksDatastore) {
+class WebhookService(datastore: =>WebhooksDatastore) {
   def createWebhook(
       tenant: String,
       webhook: LightWebhook,
