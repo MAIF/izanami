@@ -1,12 +1,13 @@
 package fr.maif.izanami.web
 
+import fr.maif.izanami.datastores.{ApiKeyDatastore, FeaturesDatastore, ImportExportDatastore, TenantsDatastore, UsersDatastore}
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.ConflictField.*
 import fr.maif.izanami.models.ExportedType.parseExportedType
 import fr.maif.izanami.models.features.BooleanResult
 import fr.maif.izanami.models.features.BooleanResultDescriptor
-import fr.maif.izanami.services.FeatureService
+import fr.maif.izanami.services.{FeatureService, PostgresTransactionProvider}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.JavaScript
 import fr.maif.izanami.v1.OldFeature
@@ -182,20 +183,24 @@ object ImportState {
 }
 
 class ImportController(
-    val controllerComponents: ControllerComponents,
-    val tenantAuthAction: TenantAuthActionFactory,
-    val wasmManagerClient: WasmManagerClient,
-    val maybeTokenAuthAction: PersonnalAccessTokenTenantAuthActionFactory,
-    val featureService: FeatureService
-) extends BaseController {
-
-  implicit val ec: ExecutionContext = env.executionContext;
-
+                        val controllerComponents: ControllerComponents,
+                        val tenantAuthAction: TenantAuthActionFactory,
+                        val wasmManagerClient: WasmManagerClient,
+                        val maybeTokenAuthAction: PersonnalAccessTokenTenantAuthActionFactory,
+                        val featureService: FeatureService,
+                        tenantsDatastore: TenantsDatastore,
+                        importDatastore: ImportExportDatastore,
+                        transactionProvider: PostgresTransactionProvider,
+                        apiKeyDatastore: ApiKeyDatastore,
+                        usersDatastore: UsersDatastore,
+                        featuresDatastore: FeaturesDatastore
+)(implicit val ec: ExecutionContext) extends BaseController {
+  
   def deleteImportStatus(tenant: String, id: String): Action[AnyContent] =
     maybeTokenAuthAction(tenant, RightLevel.Admin, Import).async {
       implicit request =>
         {
-          env.datastores.tenants
+          tenantsDatastore
             .deleteImportStatus(UUID.fromString(id))
             .map(_ => NoContent)
         }
@@ -205,7 +210,7 @@ class ImportController(
     maybeTokenAuthAction(tenant, RightLevel.Admin, Import).async {
       implicit request =>
         {
-          env.datastores.tenants.readImportStatus(UUID.fromString(id)).map {
+          tenantsDatastore.readImportStatus(UUID.fromString(id)).map {
             case Some(importResult) =>
               Ok(Json.toJson(importResult)(importResultWrites))
             case None =>
@@ -305,7 +310,7 @@ class ImportController(
   }
 
   def importV2Data(
-      request: UserNameRequest[MultipartFormData[Files.TemporaryFile]],
+      request: TestRequest[MultipartFormData[Files.TemporaryFile], String],
       tenant: String,
       conflictStrategy: ConflictStrategy
   ): Future[Result] = {
@@ -328,7 +333,7 @@ class ImportController(
           )
         )
 
-        if (!errors.isEmpty) {
+        if (errors.nonEmpty) {
           Left(ImportFailureError(Map("Unknown" -> errors.toSeq.map(
             (json, error) => (error, json)
           ))))
@@ -345,8 +350,8 @@ class ImportController(
       val fixedData = fixImportDataIfNeeded(tenant, parsedRows)
       fixedData match {
         case (messages, data) => {
-          env.datastores.exportDatastore
-            .importTenantData(tenant, data, conflictStrategy, request.user)
+          importDatastore
+            .importTenantData(tenant, data, conflictStrategy, StandardUserInformation(username=request.user, authentication = request.authentication))
             .map {
               case Right(_) =>
                 Ok(Json.obj("messages" -> Json.toJson(messages)))
@@ -576,7 +581,7 @@ class ImportController(
   }
 
   def importV1Data(
-      request: TestRequest[MultipartFormData[Files.TemporaryFile], _],
+      request: TestRequest[MultipartFormData[Files.TemporaryFile], String],
       tenant: String,
       conflict: String,
       timezone: String,
@@ -787,7 +792,7 @@ class ImportController(
                 MigrationData(features, users, keys, scripts, excludedScripts)
               )
             ) => {
-          env.postgresql.executeInTransaction(conn => {
+          transactionProvider.executeInTransaction(conn => {
             scripts
               .foldLeft(
                 Future.successful[
@@ -832,22 +837,22 @@ class ImportController(
                     case f => f
                   }
 
-                  env.datastores.features
+                  featuresDatastore
                     .createFeaturesAndProjects(
                       tenant,
                       featureWithCorrectPath,
                       conflictStrategy,
-                      user = request.user,
+                      user = StandardUserInformation(username=request.user, authentication = request.authentication),
                       conn = Some(conn)
                     )
                     .flatMap {
                       case Left(errors) => Left(errors).future
                       case Right(_)     =>
-                        env.datastores.apiKeys
+                        apiKeyDatastore
                           .createApiKeys(
                             tenant,
                             keys,
-                            request.user,
+                            StandardUserInformation(username=request.user, authentication=request.authentication),
                             conn.some
                           )
                     }
@@ -855,7 +860,7 @@ class ImportController(
                       case Left(err) =>
                         ImportFailure(id, err.map(err => err.message)).future
                       case Right(_) =>
-                        env.datastores.users
+                        usersDatastore
                           .createUserWithConn(users, conn, conflictStrategy)
                           .map {
                             case Left(error) =>
@@ -883,7 +888,7 @@ class ImportController(
     if (request.body.files.isEmpty) {
       Future.successful(BadRequest(Json.obj("message" -> "No files provided")))
     } else {
-      env.datastores.tenants
+      tenantsDatastore
         .markImportAsStarted()
         .map {
           case Left(err) => err.toHttpResponse
@@ -899,12 +904,12 @@ class ImportController(
                         keys,
                         incompatibleScripts
                       ) =>
-                    env.datastores.tenants.markImportAsSucceded(id, s)
+                    tenantsDatastore.markImportAsSucceded(id, s)
                   case f @ ImportFailure(id, errors) =>
-                    env.datastores.tenants.markImportAsFailed(id, f)
+                    tenantsDatastore.markImportAsFailed(id, f)
                 }
                 .recover(t => {
-                  env.datastores.tenants.markImportAsFailed(
+                  tenantsDatastore.markImportAsFailed(
                     id,
                     ImportFailure(id, Seq(t.getMessage))
                   )

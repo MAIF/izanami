@@ -1,6 +1,6 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.env.Env
+import fr.maif.izanami.datastores.{FeatureContextDatastore, SearchDatastore}
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.errors.SearchFilterError
 import fr.maif.izanami.errors.SearchQueryError
@@ -19,16 +19,16 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 class SearchController(
-    val env: Env,
     val controllerComponents: ControllerComponents,
     val simpleAuthAction: AuthenticatedAction,
-    val tenantRightAction: TenantRightsAction
-) extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext
+    val tenantRightAction: TenantRightsAction,
+    searchDatastore: SearchDatastore, // FIXME use dedicated services instead of datastores
+    featureContextDatastore: FeatureContextDatastore
+)(implicit val ec: ExecutionContext) extends BaseController {
 
   def search(query: String, filter: List[String]): Action[AnyContent] =
     tenantRightAction.async {
-      implicit request: UserRequestWithTenantRights[AnyContent] =>
+      implicit request =>
         {
           checkSearchParams(query, filter).flatMap {
             case Left(error) => error.toHttpResponse.future
@@ -38,7 +38,7 @@ class SearchController(
                 .sequence(
                   tenants
                     .map(tenant =>
-                      env.datastores.search
+                      searchDatastore
                         .tenantSearch(
                           tenant,
                           request.user.username,
@@ -93,7 +93,7 @@ class SearchController(
       checkSearchParams(query, filter).flatMap {
         case Left(error) => error.toHttpResponse.future
         case Right(_)    =>
-          env.datastores.search
+          searchDatastore
             .tenantSearch(
               tenant,
               request.user.username,
@@ -182,7 +182,7 @@ class SearchController(
       case "global_context" | "local_context" => {
         val hasProject = (rowJson \ "project").asOpt[String]
         (rowJson \ "parent").asOpt[String].map(parent => {
-          env.datastores.featureContext.findParents(tenant, parent)
+          featureContextDatastore.findParents(tenant, parent)
             .map(contexts => {
               createContextPath(contexts, hasProject = hasProject)
             })

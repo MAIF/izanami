@@ -37,7 +37,7 @@ class ApiKeyController(
             apiKeyService.createAPIKey(
               tenant = tenant,
               key = key,
-              user = request.user
+              user = StandardUserInformation(username=request.user, authentication = request.authentication)
             )
           })
           .toResult(key => Created(Json.toJson(key)))
@@ -45,7 +45,7 @@ class ApiKeyController(
 
   def updateApiKey(tenant: String, name: String): Action[JsValue] =
     keyAuthAction(tenant, name, RightLevel.Write).async(parse.json) {
-      implicit request: UserNameRequest[JsValue] =>
+      implicit request =>
         FutureEither.from(ApiKey
           .read(request.body, tenant)
           .asEither
@@ -56,7 +56,7 @@ class ApiKeyController(
               tenant = tenant,
               oldName = name,
               newKey = key,
-              user = request.user
+              user = StandardUserInformation(username = request.user, authentication = request.authentication)
             )
           })
           .toResult(_ => {
@@ -67,14 +67,14 @@ class ApiKeyController(
 
   def readApiKey(tenant: String): Action[AnyContent] =
     pacTenantAuthAction(tenant, RightLevel.Read, ReadTenantKeys).async {
-      implicit request: UserNameRequest[AnyContent] =>
+      implicit request  =>
         apiKeyService
-          .readVisibleAPIKeysForUser(tenant, request.user.username)
+          .readVisibleAPIKeysForUser(tenant, request.user)
           .map(keys => Ok(Json.toJson(keys)))
     }
 
   def deleteApiKey(tenant: String, name: String): Action[AnyContent] =
-    (tokenAuthAction(tenant, name, RightLevel.Admin, DeleteKey)).async {
+    tokenAuthAction(tenant, name, RightLevel.Admin, DeleteKey).async {
       implicit request =>
         apiKeyService
           .deleteApiKey(tenant, name)

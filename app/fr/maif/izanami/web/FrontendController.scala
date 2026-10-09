@@ -1,18 +1,18 @@
 package fr.maif.izanami.web
 
 import controllers.Assets
-import fr.maif.izanami.env.Env
 import play.api.mvc.Action
 import play.api.mvc.AnyContent
 import play.api.mvc.BaseController
 import play.api.mvc.ControllerComponents
 
+import scala.concurrent.ExecutionContext
+
 class FrontendController(
     val assets: Assets,
     val controllerComponents: ControllerComponents,
     leaderAction: LeaderActionBuilderImpl
-)(implicit val env: Env)
-    extends BaseController {
+) extends BaseController {
 
   def headers: List[(String, String)] = List(
     "Access-Control-Allow-Origin" -> "*",

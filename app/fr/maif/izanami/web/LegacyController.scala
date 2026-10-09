@@ -1,8 +1,11 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.env.Env
+import fr.maif.izanami.datastores.FeaturesDatastore
+import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.models.Feature
 import fr.maif.izanami.models.RequestContext
+import fr.maif.izanami.services.FeatureService
+import fr.maif.izanami.utils.FutureEither
 import play.api.libs.json.JsObject
 import play.api.libs.json.Json
 import play.api.mvc.Action
@@ -15,14 +18,14 @@ import scala.concurrent.Future
 
 class LegacyController(
     val controllerComponents: ControllerComponents,
-    val clientKeyAction: ClientApiKeyAction
-)(implicit
-    val env: Env
-) extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext
+    val clientKeyAction: ClientApiKeyAction,
+    featuresDatastore: FeaturesDatastore, // FIXME
+    postgresql: Postgresql, // FIXME use a new dedicated HealthService for this
+    featureService: FeatureService
+)(implicit val ec: ExecutionContext) extends BaseController {
 
   def healthcheck(): Action[AnyContent] = Action.async {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
          |SELECT 1
@@ -57,7 +60,7 @@ class LegacyController(
         } else {
           RequestContext(tenant = request.key.tenant, user = "")
         }
-        env.datastores.features
+        featuresDatastore
           .findByIdForKeyWithoutCheck(
             request.key.tenant,
             pattern,
@@ -66,11 +69,10 @@ class LegacyController(
           .flatMap {
             case Left(value)          => Future.successful(value.toHttpResponse)
             case Right(Some(feature)) =>
-              Feature.writeFeatureForCheckInLegacyFormat(
+              featureService.writeFeatureForCheckInLegacyFormat(
                 feature,
-                ctx,
-                env
-              ).map {
+                ctx
+              ).value.map {
                 case Right(Some(jsValue)) => Ok(jsValue)
                 case Right(None)          =>
                   BadRequest(Json.obj(
@@ -90,59 +92,50 @@ class LegacyController(
       page: Int,
       pageSize: Int
   ): Action[AnyContent] = clientKeyAction.async {
-    implicit request =>
-      {
-        val ctx = if (request.hasBody) {
-          val maybeObject =
-            request.body.asJson.flatMap(js => js.asOpt[JsObject])
-          val maybeId = maybeObject.flatMap(json => (json \ "id").asOpt[String])
+    implicit request => {
+      val ctx = if (request.hasBody) {
+        val maybeObject =
+          request.body.asJson.flatMap(js => js.asOpt[JsObject])
+        val maybeId = maybeObject.flatMap(json => (json \ "id").asOpt[String])
 
-          RequestContext(
-            tenant = request.key.tenant,
-            user = maybeId.getOrElse(""),
-            data = maybeObject.getOrElse(Json.obj())
-          )
-        } else {
-          RequestContext(tenant = request.key.tenant, user = "")
-        }
-        env.datastores.features
-          .findFeatureMatching(
-            request.key.tenant,
-            pattern,
-            request.key.clientId,
-            count = pageSize,
-            page = page
-          )
-          .flatMap { case (totalCount, features) =>
-            Future
-              .sequence(features.map(feature =>
-                Feature.writeFeatureForCheckInLegacyFormat(feature, ctx, env)
-              ))
-              .map(eitherMaybeJsons => {
-                eitherMaybeJsons.map {
-                  case Left(error) => Json.obj("error" -> error.message)
-                  case Right(None) =>
-                    Json.obj("error" -> "This feature is not a legacy feature")
-                  case Right(Some(json)) => json
-                }
-              })
-              .map(res => (totalCount, res))
-          }
-          .map {
-            case (totalCount, jsonResult) => {
-              Json.obj(
-                "results" -> jsonResult,
-                "metadata" -> Json.obj(
-                  "count" -> totalCount,
-                  "page" -> page,
-                  "pageSize" -> pageSize,
-                  "nbPages" -> Math.ceil(totalCount.toFloat / pageSize)
-                )
-              )
-            }
-          }
-          .map(jsonResult => Ok(Json.toJson(jsonResult)))
+        RequestContext(
+          tenant = request.key.tenant,
+          user = maybeId.getOrElse(""),
+          data = maybeObject.getOrElse(Json.obj())
+        )
+      } else {
+        RequestContext(tenant = request.key.tenant, user = "")
       }
+      featuresDatastore
+        .findFeatureMatching(
+          request.key.tenant,
+          pattern,
+          request.key.clientId,
+          count = pageSize,
+          page = page
+        )
+        .flatMap { case (totalCount, features) =>
+          features.foldLeft(Future.successful(Seq()): Future[Seq[JsObject]])((futureResultList, feature) => {
+            futureResultList.flatMap(resultList => {
+              featureService.writeFeatureForCheckInLegacyFormat(feature, ctx).value.map {
+                case Left(error) => Json.obj("error" -> error.message)
+                case Right(None) =>
+                  Json.obj("error" -> "This feature is not a legacy feature")
+                case Right(Some(json)) => json
+              }.map(jsObject => resultList.appended(jsObject))
+            })
+          }).map(jsons => {
+            Json.obj(
+              "results" -> jsons,
+              "metadata" -> Json.obj(
+                "count" -> totalCount,
+                "page" -> page,
+                "pageSize" -> pageSize,
+                "nbPages" -> Math.ceil(totalCount.toFloat / pageSize)
+              )
+            )
+          }).map(jsonResult => Ok(Json.toJson(jsonResult)))
+        }
+    }
   }
-
 }

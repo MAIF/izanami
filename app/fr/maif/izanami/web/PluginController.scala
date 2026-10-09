@@ -1,13 +1,15 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.env.Env
+import fr.maif.izanami.datastores.{ConfigurationDatastore, FeaturesDatastore}
 import fr.maif.izanami.models.RightLevel
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.WasmConfig
 import fr.maif.izanami.wasm.WasmConfigWithFeatures
-import io.otoroshi.wasm4s.scaladsl.WasmoSettings
+import io.otoroshi.wasm4s.scaladsl.{WasmIntegration, WasmoSettings}
+import play.api.Logger
 import play.api.libs.json.JsValue
 import play.api.libs.json.Json
+import play.api.libs.ws.WSClient
 import play.api.mvc.*
 
 import scala.concurrent.ExecutionContext
@@ -16,18 +18,21 @@ import scala.util.Success
 import scala.util.Try
 
 class PluginController(
-    val env: Env,
     val controllerComponents: ControllerComponents,
     val authAction: TenantAuthActionFactory,
-    val adminAuthAction: AdminAuthAction
-) extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext;
+    val adminAuthAction: AdminAuthAction,
+    featuresDatastore: FeaturesDatastore,
+    configurationDatastore: ConfigurationDatastore,
+    wsClient: WSClient,
+    wasmIntegration: WasmIntegration
+)(implicit val ec: ExecutionContext) extends BaseController {
+  private val logger = Logger("PlutinController")
 
   // TODO authenticate
   def localScripts(tenant: String, features: Boolean): Action[AnyContent] =
     Action.async { implicit request =>
       if (features) {
-        env.datastores.features
+        featuresDatastore
           .readLocalScriptsWithAssociatedFeatures(tenant)
           .map(configs =>
             Ok(Json.toJson(configs.map(w =>
@@ -37,7 +42,7 @@ class PluginController(
             )))
           )
       } else {
-        env.datastores.features
+        featuresDatastore
           .readLocalScripts(tenant)
           .map(configs =>
             Ok(Json.toJson(configs.map(w => Json.toJson(w)(WasmConfig.format))))
@@ -47,7 +52,7 @@ class PluginController(
 
   def readScript(tenant: String, script: String): Action[AnyContent] =
     authAction(tenant, RightLevel.Read).async { implicit request =>
-      env.datastores.features
+      featuresDatastore
         .readWasmScript(tenant, script)
         .map(maybeConfig =>
           maybeConfig.fold(
@@ -61,14 +66,14 @@ class PluginController(
   def deleteScript(tenant: String, script: String): Action[AnyContent] =
     authAction(tenant, RightLevel.Write).async {
       implicit request =>
-        env.datastores.features.deleteLocalScript(tenant, script).toResult(_ => NoContent)
+        featuresDatastore.deleteLocalScript(tenant, script).toResult(_ => NoContent)
     }
 
   def updateScript(tenant: String, script: String): Action[JsValue] =
     authAction(tenant, RightLevel.Write).async(parse.json) { implicit request =>
       request.body.asOpt[WasmConfig](WasmConfig.format) match {
         case Some(value) =>
-          env.datastores.features.updateWasmScript(tenant, script, value).map(
+          featuresDatastore.updateWasmScript(tenant, script, value).map(
             _ => NoContent
           )
         case None => BadRequest(Json.obj("message" -> "Bad body format")).future
@@ -77,13 +82,13 @@ class PluginController(
 
   // TODO basic authentication
   def wasmFiles(): Action[AnyContent] = Action.async { implicit request =>
-    env.datastores.configuration
+    configurationDatastore
       .readWasmConfiguration() match {
       case Some(settings @ WasmoSettings(url, _, _, pluginsFilter, _, _)) =>
         Try {
           val userHeader =
             io.otoroshi.wasm4s.scaladsl.ApikeyHelper.generate(settings)
-          env.Ws
+          wsClient
             .url(s"$url/plugins")
             .withFollowRedirects(false)
             .withHttpHeaders(
@@ -100,12 +105,12 @@ class PluginController(
               }
             })
             .recover { case e: Throwable =>
-              env.logger.error(s"Failed to retrieve wasm scripts", e)
+              logger.error(s"Failed to retrieve wasm scripts", e)
               Ok(Json.arr())
             }
         } match {
           case Failure(err) => {
-            env.logger.error(s"Failed to retrieve wasm scripts", err)
+            logger.error(s"Failed to retrieve wasm scripts", err)
             Ok(Json.arr()).future
           }
           case Success(v) => v
@@ -122,7 +127,7 @@ class PluginController(
 
   def clearWasmCache(): Action[AnyContent] = adminAuthAction.async {
     implicit request =>
-      env.wasmIntegration.context.wasmScriptCache.clear().future.map(_ =>
+      wasmIntegration.context.wasmScriptCache.clear().future.map(_ =>
         NoContent
       )
   }

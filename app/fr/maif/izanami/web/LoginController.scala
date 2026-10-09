@@ -1,16 +1,15 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.env.Env
+import fr.maif.izanami.{OpenId, Sessions}
+import fr.maif.izanami.datastores.{ConfigurationDatastore, UsersDatastore}
 import fr.maif.izanami.errors.FailedToReadTokenClaims
 import fr.maif.izanami.errors.MissingOIDCConfigurationError
 import fr.maif.izanami.errors.RightComplianceError
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
 import fr.maif.izanami.models.User.userRightsWrites
-import fr.maif.izanami.services.CompleteRights
-import fr.maif.izanami.services.MaxRightComplianceResult
-import fr.maif.izanami.services.MaxRights
-import fr.maif.izanami.services.RightService
+import fr.maif.izanami.security.JwtService
+import fr.maif.izanami.services.{CompleteRights, MaxRightComplianceResult, MaxRights, PostgresTransactionProvider, RightService}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -20,7 +19,7 @@ import pdi.jwt.JwtOptions
 import play.api.Logger
 import play.api.libs.json.*
 import play.api.libs.ws.DefaultBodyWritables.writeableOf_urlEncodedSimpleForm
-import play.api.libs.ws.WSAuthScheme
+import play.api.libs.ws.{WSAuthScheme, WSClient}
 import play.api.mvc.*
 import play.api.mvc.Cookie.SameSite
 
@@ -32,16 +31,21 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 class LoginController(
-    val env: Env,
     val controllerComponents: ControllerComponents,
     val rightService: RightService,
-    sessionAuthAction: AuthenticatedSessionAction
-) extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext
+    sessionAuthAction: AuthenticatedSessionAction,
+    wsClient: WSClient,
+    jwtService: JwtService,
+    configurationDatastore: ConfigurationDatastore,
+    usersDatastore: UsersDatastore,
+    postgresTransactionProvider: PostgresTransactionProvider,
+    openIdConfiguration: Option[OpenId],
+    sessions: Sessions
+)(implicit val ec: ExecutionContext) extends BaseController {
   private val logger = Logger("izanami.login")
 
   def openIdConnect: Action[AnyContent] = Action.async { implicit request =>
-    env.datastores.configuration
+    configurationDatastore
       .readFullConfiguration()
       .value
       .map(e => e.toOption.flatMap(_.oidcConfiguration))
@@ -117,7 +121,7 @@ class LoginController(
           .flatMap(json => (json \ "code").get.asOpt[String])
           .asFuture;
         oauth2ConfigurationOpt <-
-          env.datastores.configuration
+          configurationDatastore
             .readFullConfiguration()
             .value
             .map(_.toOption.flatMap(_.oidcConfiguration))
@@ -146,7 +150,7 @@ class LoginController(
           } else {
             val oauth2Configuration = oauth2ConfigurationOpt.get
 
-            var builder = env.Ws
+            var builder = wsClient
               .url(oauth2Configuration.tokenUrl)
               .withHttpHeaders(
                 ("content-type", "application/x-www-form-urlencoded")
@@ -253,7 +257,7 @@ class LoginController(
                           .asOpt[String]
                       )
                         yield {
-                          env.datastores.users
+                          usersDatastore
                             .findUserWithCompleteRights(username)
                             .flatMap(maybeUser => {
                               def createOrUpdateUser(
@@ -266,15 +270,15 @@ class LoginController(
                                 maxRightsByRoles.map(mr =>
                                   CompleteRights.maxRightsToApply(roles, mr)
                                 )
-                                env.postgresql
-                                  .executeInTransactionF(conn =>
+                                postgresTransactionProvider
+                                  .executeInTransaction(conn =>
                                     maybeUser
                                       .fold {
                                         val rights =
                                           rightService.generateRightForNewUser(
                                             roles
                                           )
-                                        env.datastores.users
+                                        usersDatastore
                                           .createUser(
                                             User(
                                               username,
@@ -305,7 +309,7 @@ class LoginController(
                                   )
                               }
                               val rightByRolesFromEnvIfAny =
-                                env.typedConfiguration.openid
+                                openIdConfiguration
                                   .flatMap(_.toIzanamiOAuth2Configuration)
                                   .flatMap(_.userRightsByRoles)
                                   .orElse(oauth2Configuration.userRightsByRoles)
@@ -319,7 +323,7 @@ class LoginController(
                                   }
                                   case Left(err)
                                       if (rightByRolesFromEnvIfAny.isDefined) => {
-                                    env.datastores.configuration
+                                    configurationDatastore
                                       .updateOIDCRightByRolesIfNeeded(
                                         rightByRolesFromEnvIfAny.get
                                       )
@@ -348,7 +352,7 @@ class LoginController(
                     )
                     .flatMap {
                       case Right((username, maybeRightCompliance)) => {
-                        env.datastores.users
+                        usersDatastore
                           .createSession(username)
                           .map(id => Right((id, maybeRightCompliance)))
                       }
@@ -358,7 +362,7 @@ class LoginController(
                       maybeId
                         .map((id, maybeRightCompliance) => {
                           (
-                            env.jwtService.generateToken(id),
+                            jwtService.generateToken(id),
                             maybeRightCompliance
                           )
                         })
@@ -442,7 +446,7 @@ class LoginController(
       request.body.asJson.flatMap(body => (body \ "url").asOpt[String]) match {
         case None => BadRequest(Json.obj("error" -> "missing field")).future
         case Some(url) =>
-          env.Ws
+          wsClient
             .url(url)
             .withRequestTimeout(10.seconds)
             .get()
@@ -466,7 +470,7 @@ class LoginController(
                     authorizeUrl = authorizeUrl.getOrElse(""),
                     scopes = scope,
                     pkce = None,
-                    callbackUrl = s"${env.expositionUrl}/login",
+                    callbackUrl = s"${jwtService.expositionUrl}/login", // FIXME we should not rely on other class internals
                     method = OAuth2BASICMethod,
                     enabled = true,
                     userRightsByRoles = None,
@@ -487,8 +491,8 @@ class LoginController(
 
   def logout(): Action[AnyContent] = sessionAuthAction.async {
     implicit request =>
-      env.datastores.users
-        .deleteSession(request.sessionId)
+      usersDatastore
+        .deleteSession(request.user)
         .map(_ => {
           NoContent.withCookies(
             Cookie(
@@ -516,7 +520,7 @@ class LoginController(
         .map(header => header.split(":", 2))
         .filter(arr => arr.length == 2) match {
         case Some(Array(username, password, _*)) =>
-          env.datastores.users.isUserValid(username, password).flatMap {
+          usersDatastore.isUserValid(username, password).flatMap {
             case None =>
               delayResponse(
                 Forbidden(Json.obj("message" -> "Incorrect credentials"))
@@ -525,13 +529,13 @@ class LoginController(
               for {
                 _ <-
                   if (user.legacy)
-                    env.datastores.users.updateLegacyUser(username, password)
+                    usersDatastore.updateLegacyUser(username, password)
                   else Future.successful(())
-                sessionId <- env.datastores.users.createSession(user.username)
-                token <- env.jwtService.generateToken(sessionId).future
+                sessionId <- usersDatastore.createSession(user.username)
+                token <- jwtService.generateToken(sessionId).future
                 response <-
                   if (rights)
-                    env.datastores.users
+                    usersDatastore
                       .findUserWithCompleteRights(user.username)
                       .map {
                         case Some(user) =>
@@ -548,7 +552,7 @@ class LoginController(
                   value = token,
                   httpOnly = false,
                   sameSite = Some(SameSite.Strict),
-                  maxAge = Some(env.typedConfiguration.sessions.ttl - 120)
+                  maxAge = Some(sessions.ttl - 120)
                 )
               )
           }

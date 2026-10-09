@@ -4,9 +4,7 @@ import com.softwaremill.macwire.wire
 import controllers.Assets
 import controllers.AssetsComponents
 import fr.maif.izanami.errors.IzanamiHttpErrorHandler
-import fr.maif.izanami.services.FeatureService
-import fr.maif.izanami.services.FeatureUsageService
-import fr.maif.izanami.services.RightService
+import fr.maif.izanami.services.{APIKeyService, AuthService, FeatureService, FeatureUsageService, PostgresTransactionProvider, RightService, TagService, TenantService, WebhookService}
 import fr.maif.izanami.v1.WasmManagerClient
 import fr.maif.izanami.web.*
 import play.api.*
@@ -27,16 +25,12 @@ import play.filters.https.RedirectHttpsComponents
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
-import fr.maif.izanami.services.APIKeyService
 import scala.concurrent.ExecutionContext
 import fr.maif.izanami.datastores.ApiKeyDatastore
 import fr.maif.izanami.datastores.WebhooksDatastore
-import fr.maif.izanami.services.WebhookService
 import fr.maif.izanami.datastores.TenantsDatastore
 import fr.maif.izanami.datastores.ProjectsDatastore
 import fr.maif.izanami.datastores.TagsDatastore
-import fr.maif.izanami.services.TenantService
-import fr.maif.izanami.services.TagService
 import org.apache.pekko.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import fr.maif.izanami.datastores.FeaturesDatastore
@@ -54,10 +48,16 @@ import fr.maif.izanami.events.EventService
 import fr.maif.izanami.jobs.WebhookListener
 import fr.maif.izanami.mail.Mails
 import fr.maif.izanami.security.JwtService
+
 import javax.crypto.spec.SecretKeySpec
 import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
+import router.Routes
 
+import java.time.Duration
+
+
+case class ExpositionUrls(expositionUrl: String, backendUrl: Option[String])
 
 class IzanamiLoader extends ApplicationLoader {
   Logger("IzanamiLoader")
@@ -87,7 +87,7 @@ class IzanamiComponentsInstances(
       case _: CSRFFilter => false
       case _             => false
     } :+ corsFilter :+ /*cspFilter :+ redirectHttpsFilter :*/ gzipFilter
-  override val httpErrorHandler: HttpErrorHandler =
+  override lazy val httpErrorHandler: HttpErrorHandler =
     wire[IzanamiHttpErrorHandler]
 
   implicit val typedConfig: IzanamiTypedConfiguration =
@@ -95,15 +95,15 @@ class IzanamiComponentsInstances(
       ConfigUtil.fixIzanamiConfigIfNeeded(configuration.underlying)
     )
 
-  implicit val actorSystem = ActorSystem(
+  override implicit lazy val actorSystem: ActorSystem = ActorSystem(
     "app-actor-system",
     ConfigFactory.empty
   );
   //implicit val ec: ExecutionContext = actorSystem.dispatcher
 
   val expositionUrl: String = typedConfig.app.exposition.url
-    .map(_.toString)
     .getOrElse(s"http://localhost:${typedConfig.play.server.http.port}")
+  val exposition = ExpositionUrls(expositionUrl=expositionUrl, backendUrl=typedConfig.app.exposition.url)
 
     val encryptionKey = new SecretKeySpec(
     typedConfig.app.authentication.tokenBodySecret
@@ -131,6 +131,7 @@ class IzanamiComponentsInstances(
   val searchDatastore: SearchDatastore = new SearchDatastore(postgresql = postgresql, similarityThreshold =  typedConfig.app.search.similarityThreshold, extensionsSchema = typedConfig.app.pg.extensionsSchema)
   val personnalAccessTokenDatastore: PersonnalAccessTokenDatastore = new PersonnalAccessTokenDatastore(postgresql = postgresql)
   val eventDatastore: EventDatastore = new EventDatastore(postgresql = postgresql, tenantDatastore = tenantDatastore, eventsHoursTtl = typedConfig.app.audit.eventsHoursTtl, houseKeepingStartDelayInSeconds = typedConfig.app.housekeeping.startDelayInSeconds, houseKeepingIntervalInSeconds = typedConfig.app.housekeeping.startDelayInSeconds, actorSystem = actorSystem)
+  val transactionProvider: PostgresTransactionProvider = new PostgresTransactionProvider(pool = postgresql.pool)
 
 
   // Misc
@@ -169,6 +170,10 @@ class IzanamiComponentsInstances(
     postgresql = postgresql
   )
 
+  val AuthService = new AuthService(personalAccessTokenDatastore = personnalAccessTokenDatastore, userDatastore = userDatastore, tokenSecret = typedConfig.app.authentication.secret, encryptionKey = encryptionKey)
+  val cluster: Cluster = typedConfig.app.cluster
+  val featureConfiguration: FeatureConfiguration = typedConfig.app.feature
+  val expositionConfig: Exposition = typedConfig.app.exposition
  
 
   lazy val filters = new DefaultHttpFilters(httpFilters: _*)
@@ -219,7 +224,7 @@ class IzanamiComponentsInstances(
   lazy val featureService: FeatureService = wire[FeatureService]
   lazy val apiKeyService: APIKeyService = wire[APIKeyService]
   lazy val webhookService: WebhookService = wire[WebhookService]
-  lazy val staleFeatureService: FeatureUsageService = wire[FeatureUsageService]
+  lazy val staleFeatureService: FeatureUsageService = new FeatureUsageService(featureCalls = featureCallDatastore, staleDelay = Duration.ofHours(typedConfig.app.feature.staleHoursDelay), isStatusTrackingActive = typedConfig.app.experimental.staleTracking.enabled, callRegistrationIntervalInSeconds = typedConfig.app.feature.callRecords.callRegisterIntervalInSeconds, actorSystem = actorSystem, ec = executionContext)
 
   lazy val featureController: FeatureController = wire[FeatureController]
   lazy val tenantController: TenantController = wire[TenantController]
@@ -229,7 +234,7 @@ class IzanamiComponentsInstances(
   lazy val featureContextController: FeatureContextController =
     wire[FeatureContextController]
   lazy val userController: UserController = wire[UserController]
-  lazy val loginController: LoginController = wire[LoginController]
+  lazy val loginController: LoginController = new LoginController(controllerComponents = controllerComponents, rightService = rightService, sessionAuthAction = sessionAuthAction, wsClient = wsClient, jwtService = jwtService, configurationDatastore = configurationDatastore, usersDatastore = userDatastore, postgresTransactionProvider = transactionProvider, openIdConfiguration = typedConfig.app.openid, sessions = typedConfig.app.sessions)
   lazy val configurationController: ConfigurationController =
     wire[ConfigurationController]
   lazy val pluginController: PluginController = wire[PluginController]
@@ -246,7 +251,6 @@ class IzanamiComponentsInstances(
   override lazy val assets: Assets = wire[Assets]
   lazy val router: Router = {
     // add the prefix string in local scope for the Routes constructor
-
     wire[Routes]
   }
 

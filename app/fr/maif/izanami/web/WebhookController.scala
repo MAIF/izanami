@@ -38,7 +38,7 @@ class WebhookController(
         {
           LightWebhook.lightWebhookRead.reads(request.body) match {
             case JsSuccess(l: LightWebhook, _) =>
-              webhookService.createWebhook(tenant = tenant, webhook = l, user = request.user).toResult(id => Created(Json.obj("id" -> id)))
+              webhookService.createWebhook(tenant = tenant, webhook = l, user = StandardUserInformation(username=request.user, authentication = request.authentication)).toResult(id => Created(Json.obj("id" -> id)))
             case JsError(errors) => Future.successful(
                 BadRequest(Json.obj("message" -> "Bad body format"))
               )
@@ -49,7 +49,7 @@ class WebhookController(
   def listWebhooks(tenant: String): Action[AnyContent] =
     tenantAuthAction(tenant, RightLevel.Read).async {
       implicit request =>
-        webhookService.listWebhook(tenant, request.user.username).map(
+        webhookService.listWebhook(tenant, request.user).map(
           ws => Ok(Json.toJson(ws))
         )
     }

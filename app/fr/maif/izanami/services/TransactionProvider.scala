@@ -8,11 +8,11 @@ import io.vertx.sqlclient.SqlConnection
 import io.vertx.sqlclient.Pool
 import fr.maif.izanami.env.pgimplicits.ScalaFutureEnhancer
 import fr.maif.izanami.env.pgimplicits.VertxFutureEnhancer
+import fr.maif.izanami.errors.IzanamiError
+
 import scala.concurrent.ExecutionContext
 
 sealed trait TransactionProvider[Tx] {
-  def logger: Logger
-  
   def executeInTransaction[Res](
       callback: Tx => Future[Res],
   ): Future[Res];
@@ -40,7 +40,7 @@ sealed trait TransactionProvider[Tx] {
 }
 
 
-class PostgresTransactionProvider(private val pool: Pool, override val logger: Logger)(implicit ec: ExecutionContext) extends TransactionProvider[SqlConnection] {
+class PostgresTransactionProvider(private val pool: Pool)(implicit ec: ExecutionContext) extends TransactionProvider[SqlConnection] {
   override def executeInTransaction[Res](callback: SqlConnection => Future[Res]): Future[Res] = {
     var future: io.vertx.core.Future[Res] = io.vertx.core.Future.succeededFuture()
     pool
@@ -50,6 +50,4 @@ class PostgresTransactionProvider(private val pool: Pool, override val logger: L
       })
       .scala // Bubble up query error instead of TransactionRollbackException that does not carry much information
   }
-
-
 }

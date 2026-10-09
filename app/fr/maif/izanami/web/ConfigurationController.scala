@@ -1,7 +1,8 @@
 package fr.maif.izanami.web
 
 import buildinfo.BuildInfo
-import fr.maif.izanami.env.Env
+import fr.maif.izanami.{Cluster, Exposition, ExpositionUrls, FeatureConfiguration}
+import fr.maif.izanami.datastores.{ConfigurationDatastore, StatsDatastore, TenantsDatastore, UsersDatastore}
 import fr.maif.izanami.errors.BadBodyFormat
 import fr.maif.izanami.errors.CantUpdateOIDCCOnfiguration
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
@@ -10,8 +11,7 @@ import fr.maif.izanami.mail.MailJetMailProvider
 import fr.maif.izanami.mail.SMTPMailProvider
 import fr.maif.izanami.models.FullIzanamiConfiguration
 import fr.maif.izanami.models.IzanamiConfiguration
-import fr.maif.izanami.services.FeatureService
-import fr.maif.izanami.services.MaxRights
+import fr.maif.izanami.services.{FeatureService, MaxRights, PostgresTransactionProvider}
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -24,21 +24,31 @@ import play.api.mvc.ControllerComponents
 
 import scala.concurrent.ExecutionContext
 import fr.maif.izanami.models.IzanamiMode
+import play.api.Logger
+
 import scala.concurrent.Future
 
 class ConfigurationController(
     val controllerComponents: ControllerComponents,
     val adminAuthAction: AdminAuthAction,
-    val featureService: FeatureService
-)(implicit val env: Env)
+    val featureService: FeatureService,
+    val statsDatastore: StatsDatastore,
+    configurationDatastore: ConfigurationDatastore,
+    tenantsDatastore: TenantsDatastore,
+    transactionProvider: PostgresTransactionProvider,
+    usersDatastore: UsersDatastore,
+    cluster: Cluster,
+    exposition: Exposition,
+    featureConfiguration: FeatureConfiguration,
+    expossitionUrls: ExpositionUrls
+)(implicit val ec: ExecutionContext)
     extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext;
-  val logger = env.logger
+  val logger = Logger("ConfigurationController")
 
   def readStats(): Action[AnyContent] = adminAuthAction.async {
     implicit request =>
       {
-        env.datastores.stats.retrieveStats().map(Ok(_))
+        statsDatastore.retrieveStats().map(Ok(_))
       }
   }
 
@@ -51,7 +61,7 @@ class ConfigurationController(
           case JsError(_) => BadBodyFormat().toHttpResponse.future
           case JsSuccess(configurationFromBody, _path) => {
             val futureConfiguration =
-              env.datastores.configuration.readFullConfiguration()
+              configurationDatastore.readFullConfiguration()
             futureConfiguration
               .flatMap(oldConfiguration => {
                 val mailerConfigurationWithSecrets = (
@@ -104,13 +114,12 @@ class ConfigurationController(
                     .flatMap(_.maxRightsByRoles)
                 )
 
-                if (hasOidcPartChanged && !env.isOIDCConfigurationEditable) {
+                if (hasOidcPartChanged && !configurationDatastore.isOIDCConfigurationEditable) {
                   FutureEither.failure(CantUpdateOIDCCOnfiguration)
                 } else {
-                  env.postgresql.executeInTransaction(conn => {
-
+                  transactionProvider.executeInTransaction(conn => {
                     (if (rolesToUpdate.nonEmpty) {
-                       env.datastores.users
+                       usersDatastore
                          .logoutConnectedUsersWithRoleIn(
                            rolesToUpdate,
                            conn = Some(conn)
@@ -118,10 +127,10 @@ class ConfigurationController(
                      } else {
                        FutureEither.success(Done.done())
                      }).flatMap(_ => {
-                      env.datastores.configuration
+                      configurationDatastore
                         .updateConfiguration(
                           inputConfigurationWithSecret,
-                          userInformation = request.user,
+                          userInformation = StandardUserInformation(username=request.user, authentication = request.authentication),
                           origin = NormalOrigin,
                           conn = Some(conn)
                         )
@@ -136,10 +145,10 @@ class ConfigurationController(
     }
 
   def readConfiguration(): Action[AnyContent] = adminAuthAction.async {
-    implicit request: UserNameRequest[AnyContent] =>
-      val preventOAuthModification = JsBoolean(!env.isOIDCConfigurationEditable)
+    implicit request =>
+      val preventOAuthModification = JsBoolean(!configurationDatastore.isOIDCConfigurationEditable)
 
-      env.datastores.configuration
+      configurationDatastore
         .readFullConfiguration()
         .toResult(configuration => {
           val json = Json
@@ -155,14 +164,14 @@ class ConfigurationController(
   }
 
   def readExpositionUrl(): Action[AnyContent] = Action.async { implicit request =>
-    val adminUrl = env.typedConfiguration.exposition.backend
-      .getOrElse(env.expositionUrl)
-    val clusterConfig = env.typedConfiguration.cluster
+    val adminUrl = expossitionUrls.backendUrl
+      .getOrElse(expossitionUrls.expositionUrl)
+    val clusterConfig = cluster
 
     val futureClientUrlByContexts = if(clusterConfig.mode == IzanamiMode.Leader) {
       if(clusterConfig.workerUrlByContextsAndTenants.isEmpty && clusterConfig.workerUrlByContexts.nonEmpty) {
         logger.error("worker-url-by-contexts property is deprecated, use worker-url-by-contexts-and-tenants instead")
-        val r = env.datastores.tenants.readTenants().map(ts => {
+        val r = tenantsDatastore.readTenants().map(ts => {
           ts.map(_.name).map(tenantName => (tenantName -> clusterConfig.workerUrlByContexts)).toMap
         })
 
@@ -185,15 +194,15 @@ class ConfigurationController(
   def availableIntegrations(): Action[AnyContent] = Action.async {
     implicit request =>
       val isWasmPresent =
-        env.datastores.configuration.readWasmConfiguration().isDefined
-      env.datastores.configuration
+        configurationDatastore.readWasmConfiguration().isDefined
+      configurationDatastore
         .readFullConfiguration()
         .toResult(c => {
           Ok(
             Json.obj(
               "wasmo" -> isWasmPresent,
               "oidc" -> c.oidcConfiguration.exists(_.enabled),
-              "forceLegacy" -> env.typedConfiguration.feature.forceLegacy,
+              "forceLegacy" -> featureConfiguration.forceLegacy,
               "wasmAllowed" -> featureService.isWasmAllowed
             )
           )

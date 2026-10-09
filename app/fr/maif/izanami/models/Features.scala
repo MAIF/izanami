@@ -399,8 +399,9 @@ case class SingleConditionFeature(
   }
 
   override def value(
-      requestContext: RequestContext
-  ): Future[Either[IzanamiError, JsValue]] = {
+      requestContext: RequestContext,
+      wasmIntegration: WasmIntegration
+  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
     val res = if (enabled) condition.active(requestContext, id) else false
     Future.successful(Right(JsBoolean(res)))
   }
@@ -431,8 +432,9 @@ case class Feature(
   override def withEnabled(enabled: Boolean): Feature = copy(enabled = enabled)
 
   override def value(
-      requestContext: RequestContext
-  ): Future[Either[IzanamiError, JsValue]] = {
+      requestContext: RequestContext,
+      wasmIntegration: WasmIntegration
+  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
     Future.successful(Right((enabled, resultDescriptor) match {
       case (false, r: BooleanResultDescriptor)         => JsFalse
       case (false, _)                                  => JsNull

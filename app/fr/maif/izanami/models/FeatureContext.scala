@@ -137,7 +137,8 @@ sealed trait LightweightContextualStrategy extends ContextualFeatureStrategy
 sealed trait CompleteContextualStrategy extends ContextualFeatureStrategy {
   def value(
       requestContext: RequestContext,
-  ): Future[Either[IzanamiError, JsValue]]
+      wasmIntegration: WasmIntegration
+  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]]
   def toLightWeightContextualStrategy: LightweightContextualStrategy = {
     this match {
       case f: ClassicalFeatureStrategy => f
@@ -169,9 +170,10 @@ case class ClassicalFeatureStrategy(
     resultDescriptor: ResultDescriptor
 ) extends CompleteContextualStrategy
     with LightweightContextualStrategy {
-  def value(
+  override def value(
       requestContext: RequestContext,
-  ): Future[Either[IzanamiError, JsValue]] = {
+      wasmIntegration: WasmIntegration
+  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
     Future.successful(Right((enabled, resultDescriptor) match {
       case (false, r: BooleanResultDescriptor)         => JsFalse
       case (false, _)                                  => JsNull
@@ -199,7 +201,7 @@ case class CompleteWasmFeatureStrategy(
     feature: String,
     resultType: ResultType   
 )extends CompleteContextualStrategy {
-  def value(
+  override def value(
       requestContext: RequestContext,
       wasmIntegration: WasmIntegration
   )(implicit executionContext: ExecutionContext) : Future[Either[IzanamiError, JsValue]] = {

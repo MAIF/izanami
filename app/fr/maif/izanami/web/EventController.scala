@@ -1,6 +1,6 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.env.Env
+import fr.maif.izanami.datastores.{EventDatastore, PersonnalAccessTokenDatastore, ProjectsDatastore}
 import fr.maif.izanami.events.*
 import fr.maif.izanami.models.*
 import fr.maif.izanami.services.FeatureService
@@ -37,8 +37,11 @@ import scala.util.Success
 import fr.maif.izanami.web.ProjectController.parseStringSet
 import fr.maif.izanami.datastores.EventDatastore.TenantEventRequest
 import fr.maif.izanami.datastores.EventDatastore.parseSortOrder
+
 import scala.util.Try
 import fr.maif.izanami.datastores.EventDatastore.AscOrder
+import fr.maif.izanami.jobs.WebhookListener
+import play.api.Logger
 import play.api.libs.json.JsNumber
 import play.api.libs.json.JsNull
 
@@ -47,15 +50,14 @@ class EventController(
     val clientKeyAction: ClientApiKeyAction,
     val adminAuthAction: AdminAuthAction,
     val tenantAuthAction: TenantAuthActionFactory,
-    featureService: FeatureService
-)(implicit
-    val env: Env
-) extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext;
-  implicit val materializer: Materializer = env.materializer
-  val eventService: EventService = env.eventService
-
-  val logger = env.logger
+    featureService: FeatureService,
+    webhookListener: WebhookListener,
+    eventService: EventService,
+    eventDatastore: EventDatastore, // FIXME use service instead
+    projectsDatastore: ProjectsDatastore,
+    personalAccessTokenDatastore: PersonnalAccessTokenDatastore
+)(implicit val ec: ExecutionContext, val materializer: Materializer) extends BaseController {
+  val logger = Logger("EventController")
   // FIXME create dedicated object instead
   private implicit val nameExtractor: EventNameExtractor[JsObject] =
     EventNameExtractor[JsObject](_ => None) // Some(event.`type`))
@@ -117,7 +119,7 @@ class EventController(
   ): Action[AnyContent] = tenantAuthAction(tenant, RightLevel.Read).async {
     implicit request =>
       val unknownIdsAsSet = parseStringSet(unknownIds)
-      env.datastores.events
+      eventDatastore
         .listEventsForTenant(
           tenant,
           TenantEventRequest(
@@ -146,7 +148,7 @@ class EventController(
               }
               .toSet
 
-            env.datastores.personnalAccessToken
+            personalAccessTokenDatastore
               .findAccessTokenByIds(tokenIds)
               .map(tokenNamesByIds => {
                 (
@@ -229,7 +231,7 @@ class EventController(
         request.body.asJson.flatMap(jsValue => jsValue.asOpt[JsObject])
 
       val source = eventService.consume(tenant)
-      env.datastores.projects
+      projectsDatastore
         .readProjectsById(tenant, clientRequest.projects)
         .map(m => m.values.map(p => p.name).toSet)
         .map(allowedProjects => {
@@ -256,8 +258,7 @@ class EventController(
                   user,
                   FeatureContextPath(elements = clientRequest.context)
                 ),
-                conditions,
-                env
+                conditions
               )
             )
             .filter(_.isDefined)
@@ -353,8 +354,8 @@ class EventController(
     Future
       .sequence(
         Seq(
-          env.webhookListener.onStop(),
-          env.eventService.killAllSources(excludeIzanamiChannel = true)
+          webhookListener.onStop(),
+          eventService.killAllSources(excludeIzanamiChannel = true)
         )
       )
       .map(_ => NoContent)

@@ -1,9 +1,9 @@
 package fr.maif.izanami.web
 
+import fr.maif.izanami.datastores.{EventDatastore, PersonnalAccessTokenDatastore, ProjectsDatastore}
 import fr.maif.izanami.datastores.EventDatastore.AscOrder
 import fr.maif.izanami.datastores.EventDatastore.FeatureEventRequest
 import fr.maif.izanami.datastores.EventDatastore.parseSortOrder
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.ProjectDoesNotExists
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.events.EventAuthentication.RootAuthentication
@@ -34,7 +34,6 @@ import scala.concurrent.ExecutionContext
 import scala.util.Try
 
 class ProjectController(
-    val env: Env,
     val controllerComponents: ControllerComponents,
     val tenantAuthAction: TenantAuthActionFactory,
     val projectAuthAction: ProjectAuthActionFactory,
@@ -42,9 +41,11 @@ class ProjectController(
     val detailledRightForTenanFactory: DetailledRightForTenantFactory,
     val personnalAccessTokenDetailledRightForTenantFactory: PersonnalAccessTokenDetailledRightForTenantFactory,
     val featureUsageService: FeatureUsageService,
-    val personnalAccessTokenAuthAction: PersonnalAccessTokenProjectAuthActionFactory
-) extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext;
+    val personnalAccessTokenAuthAction: PersonnalAccessTokenProjectAuthActionFactory,
+    val eventDatastore: EventDatastore, // FIXME use service instead
+    val projectsDatastore: ProjectsDatastore,  // FIXME use service instead
+    val personnalAccessTokenDatastore: PersonnalAccessTokenDatastore  // FIXME use service instead
+)(implicit val ec: ExecutionContext) extends BaseController {
 
   def readEventsForProject(
       tenant: String,
@@ -61,7 +62,7 @@ class ProjectController(
   ): Action[AnyContent] =
     projectAuthAction(tenant, project, ProjectRightLevel.Read).async {
       implicit request =>
-        env.datastores.events
+        eventDatastore
           .listEventsForProject(
             tenant,
             project,
@@ -90,7 +91,7 @@ class ProjectController(
                 }
                 .toSet
 
-              env.datastores.personnalAccessToken
+              personnalAccessTokenDatastore
                 .findAccessTokenByIds(tokenIds)
                 .map(tokenNamesByIds => {
                   (
@@ -136,8 +137,8 @@ class ProjectController(
           case JsError(e) =>
             BadRequest(Json.obj("message" -> "bad body format")).future
           case JsSuccess(project, _) => {
-            env.datastores.projects
-              .createProject(tenant, project, request.user)
+            projectsDatastore
+              .createProject(tenant, project, StandardUserInformation(username = request.user, authentication = request.authentication))
               .map(maybeProject =>
                 maybeProject.fold(
                   err => Results.Status(err.status)(Json.toJson(err)),
@@ -156,11 +157,11 @@ class ProjectController(
     ).async(parse.json) { implicit request =>
       Project.projectReads.reads(request.body) match {
         case JsSuccess(updatedProject, _) =>
-          env.datastores.projects.updateProject(
+          projectsDatastore.updateProject(
             tenant,
             project,
             updatedProject,
-            request.user
+            StandardUserInformation(username = request.user._2, authentication = request.authentication)
           ).map {
             case Left(value) => value.toHttpResponse
             case Right(_)    => NoContent
@@ -180,14 +181,14 @@ class ProjectController(
           right.level == RightLevel.Admin
         )
         if (request.user.admin || isTenantAdmin) {
-          env.datastores.projects
+          projectsDatastore
             .readProjects(tenant)
             .map(projects => Ok(Json.toJson(projects)))
         } else {
           val filter = request.user.tenantRight
             .map(tr => tr.projects.keys.toSet)
             .getOrElse(Set())
-          env.datastores.projects
+          projectsDatastore
             .readProjectsFiltered(tenant, filter)
             .map(projects => Ok(Json.toJson(projects)))
         }
@@ -201,7 +202,7 @@ class ProjectController(
       ProjectRightLevel.Read,
       ReadProject
     ).async { implicit request =>
-      env.datastores.projects
+      projectsDatastore
         .readProject(tenant, project)
         .flatMap(maybeProject => {
           maybeProject.fold(
@@ -232,7 +233,7 @@ class ProjectController(
     projectAuthActionById(tenant, id, ProjectRightLevel.Read).async {
       implicit request =>
         val projectId = id
-        env.datastores.projects
+        projectsDatastore
           .readProjectsById(tenant, Set(projectId))
           .map(projectMap => {
             projectMap
@@ -250,8 +251,8 @@ class ProjectController(
       ProjectRightLevel.Admin,
       DeleteProject
     ).async { implicit request =>
-      env.datastores.projects
-        .deleteProject(tenant, project, request.user)
+      projectsDatastore
+        .deleteProject(tenant, project, StandardUserInformation(username = request.user, authentication = request.authentication))
         .map {
           case Left(err)    => err.toHttpResponse
           case Right(value) => NoContent

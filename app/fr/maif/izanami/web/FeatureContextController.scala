@@ -1,6 +1,6 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.env.Env
+import fr.maif.izanami.datastores.FeatureContextDatastore
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.models.*
 import fr.maif.izanami.requests.OverloadFeatureUpdateRequest
@@ -17,11 +17,10 @@ class FeatureContextController(
     val authAction: ProjectAuthActionFactory,
     val tenantAuthAction: TenantAuthActionFactory,
     val detailledRightForTenantFactory: DetailledRightForTenantFactory,
-    val featureService: FeatureService
-)(implicit val env: Env)
+    val featureService: FeatureService,
+    val datastore: FeatureContextDatastore
+)(implicit val ec: ExecutionContext)
     extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext
-  val datastore = env.datastores.featureContext
 
   def createFeatureContext(tenant: String, project: String): Action[JsValue] =
     createSubContext(tenant, project, FeatureContextPath(Seq()))
@@ -148,7 +147,7 @@ class FeatureContextController(
           name = name,
           contextPath = context,
           user = request.user,
-          userInformation = request.userInformation,
+          userInformation = StandardUserInformation(username = request.user.username, authentication = request.authentication), // FIXME this should be done in Request class
           preserveProtectedContexts = preserveProtectedContexts
         )
           .toResult(_ => NoContent)

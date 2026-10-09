@@ -157,7 +157,7 @@ case class TestRequest[A, U](
  user: U
 ) extends WrappedRequest[A](request)
 
-abstract class TokenOrCookieAuthenticatedAction[U](implicit ec: ExecutionContext) extends LeaderActionBuilder[_] {
+abstract class TokenOrCookieAuthenticatedAction[U](implicit ec: ExecutionContext) extends LeaderActionBuilder[[A] =>> TestRequest[A, U]] {
   def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[U]]
   def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[U]]
   def authService: AuthService
@@ -201,7 +201,7 @@ abstract class TokenOrCookieAuthenticatedAction[U](implicit ec: ExecutionContext
   }
 }
 
-class CookieAuthenticatedAction[U](implicit ec: ExecutionContext) extends LeaderActionBuilder[_] {
+class CookieAuthenticatedAction[U](implicit ec: ExecutionContext) extends LeaderActionBuilder[[A] =>> TestRequest[A, U]] {
   def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[U]]
   def authService: AuthService
   override def invokeBlockImpl[A](
@@ -445,7 +445,7 @@ class PersonnalAccessTokenProjectAuthAction(
   }
 }
 
-trait IzanamiActionBuilder[R[_] <: Request[_]]
+trait IzanamiActionBuilder[R[X] <: Request[X]]
     extends ActionBuilder[R, AnyContent] {
   def clusteringConfig: Cluster
   def disabledOn: IzanamiMode
@@ -468,7 +468,7 @@ trait IzanamiActionBuilder[R[_] <: Request[_]]
   }
 }
 
-trait LeaderActionBuilder[R[_] <: Request[_]] extends IzanamiActionBuilder[R] {
+trait LeaderActionBuilder[R[X] <: Request[X]] extends IzanamiActionBuilder[R] {
   override def disabledOn: IzanamiMode = Worker
 }
 
@@ -1171,7 +1171,9 @@ class PersonnalAccessTokenProjectAuthActionFactory(
 }
 
 class PersonnalAccessTokenKeyAuthActionFactory(
-    bodyParser: BodyParser[AnyContent]
+    bodyParser: BodyParser[AnyContent],
+    authService: AuthService,
+    rightService: RightService
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1179,9 +1181,7 @@ class PersonnalAccessTokenKeyAuthActionFactory(
       tenant: String,
       key: String,
       minimumLevel: RightLevel,
-      operation: TenantTokenRights,
-      authService: AuthService,
-      rightService: RightService
+      operation: TenantTokenRights
   ): PersonnalAccessTokenKeyAuthAction =
     new PersonnalAccessTokenKeyAuthAction(
       bodyParser,

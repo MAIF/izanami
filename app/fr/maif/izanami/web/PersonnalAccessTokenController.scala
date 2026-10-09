@@ -1,6 +1,6 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.env.Env
+import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore
 import fr.maif.izanami.models.AllRights
 import fr.maif.izanami.models.LimitedRights
 import fr.maif.izanami.models.PersonnalAccessToken.completePersonnalAccessTokenWrites
@@ -21,13 +21,12 @@ import scala.concurrent.Future
 import scala.util.Try
 
 class PersonnalAccessTokenController(
-    val env: Env,
     val controllerComponents: ControllerComponents,
     val authAction: AuthenticatedAction,
     val tenantRightAction: TenantRightsAction,
-    val detailledAuthAction: DetailledAuthAction
-) extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext
+    val detailledAuthAction: DetailledAuthAction,
+    personalAccessTokenDatastore: PersonnalAccessTokenDatastore // FIXME use a service instead
+)(implicit val ec: ExecutionContext) extends BaseController {
 
   def readTokens(user: String): Action[AnyContent] = tenantRightAction.async {
     implicit request =>
@@ -41,7 +40,7 @@ class PersonnalAccessTokenController(
             )
           )
         } else {
-          env.datastores.personnalAccessToken
+          personalAccessTokenDatastore
             .listUserTokens(user)
             .map(tokens =>
               Ok(Json.toJson(tokens)(Writes.seq(consultationTokenWrites)))
@@ -114,7 +113,7 @@ class PersonnalAccessTokenController(
                     )
                   )
                 } else {
-                  env.datastores.personnalAccessToken
+                  personalAccessTokenDatastore
                     .updateAccessToken(id = maybeId.get, user = user, data = t)
                     .map {
                       case Right(token) =>
@@ -182,7 +181,7 @@ class PersonnalAccessTokenController(
                   )
                 )
               } else {
-                env.datastores.personnalAccessToken.createAcessToken(t).map {
+                personalAccessTokenDatastore.createAcessToken(t).map {
                   case Right(token) =>
                     Created(
                       Json.toJson(token)(completePersonnalAccessTokenWrites)
@@ -207,7 +206,7 @@ class PersonnalAccessTokenController(
           )
         )
       } else {
-        env.datastores.personnalAccessToken.deleteAcessToken(id, user).toResult(_ => NoContent)
+        personalAccessTokenDatastore.deleteAcessToken(id, user).toResult(_ => NoContent)
       }
     }
 

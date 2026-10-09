@@ -106,7 +106,7 @@ case class MailGunMailProvider(configuration: MailGunConfiguration)
   val mailerType: MailerType = MailGun
 }
 
-class Mails(configurationDatastore: ConfigurationDatastore, httpClient: WSClient, expositionUrl: String)(implicit ec: ExecutionContext) {
+class Mails(configurationDatastore: ConfigurationDatastore, httpClient: WSClient, val expositionUrl: String)(implicit ec: ExecutionContext) {
   private val mailFactory = new MailFactory(expositionUrl)
 
   def sendMail(mail: Mail): FutureEither[Unit] = {

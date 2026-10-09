@@ -1,6 +1,6 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.env.Env
+import fr.maif.izanami.datastores.ImportExportDatastore
 import fr.maif.izanami.models.Export
 import fr.maif.izanami.models.Feature.lightweightFeatureWrite
 import fr.maif.izanami.models.LightWeightFeature
@@ -14,11 +14,10 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 class ExportController(
-    val env: Env,
     val controllerComponents: ControllerComponents,
-    val authAction: PersonnalAccessTokenTenantAuthActionFactory
-) extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext
+    val authAction: PersonnalAccessTokenTenantAuthActionFactory,
+    exportDatastore: ImportExportDatastore
+)(implicit val ec: ExecutionContext) extends BaseController {
 
   def exportTenantData(tenant: String): Action[JsValue] =
     authAction(tenant, RightLevel.Admin, Export).async(parse.json) {
@@ -28,7 +27,7 @@ class ExportController(
             .reads(request.body)
             .asEither
             .map(req => {
-              env.datastores.exportDatastore.exportTenantData(tenant, req)
+              exportDatastore.exportTenantData(tenant, req)
             })
             .fold(
               _ =>

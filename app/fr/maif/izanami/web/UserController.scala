@@ -1,13 +1,15 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.env.Env
+import fr.maif.izanami.datastores.{ConfigurationDatastore, UsersDatastore}
 import fr.maif.izanami.errors.BadBodyFormat
 import fr.maif.izanami.errors.EmailAlreadyUsed
+import fr.maif.izanami.mail.Mails
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.RightLevel.Read
 import fr.maif.izanami.models.Rights.*
 import fr.maif.izanami.models.User.*
-import fr.maif.izanami.services.RightService
+import fr.maif.izanami.security.JwtService
+import fr.maif.izanami.services.{PostgresTransactionProvider, RightService}
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -23,7 +25,6 @@ import scala.concurrent.Future
 import scala.util.Try
 
 class UserController(
-    val env: Env,
     val controllerComponents: ControllerComponents,
     val authAction: AuthenticatedAction,
     val adminAction: AdminAuthAction,
@@ -33,30 +34,34 @@ class UserController(
     val projectAuthAction: ProjectAuthActionFactory,
     val webhookAuthAction: WebhookAuthActionFactory,
     val keyAuthAction: KeyAuthActionFactory,
-    val rightService: RightService
-) extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext;
-
+    val rightService: RightService,
+    val jwtService: JwtService,
+    val mails: Mails,
+    private val transactionProvider: PostgresTransactionProvider,
+    // FIXME below datastore(s) should be replaced by services
+    val configurationDatastore: ConfigurationDatastore,
+    val usersDatastore: UsersDatastore,
+)(implicit val ec: ExecutionContext) extends BaseController {
   def sendInvitation(): Action[JsValue] = tenantRightsAction.async(parse.json) {
     implicit request =>
       {
         def handleInvitation(email: String, id: String) = {
-          val token = env.jwtService.generateToken(
+          val token = jwtService.generateToken(
             id,
             Json.obj("invitation" -> id)
           )
 
-          env.datastores.configuration
+          configurationDatastore
             .readFullConfiguration()
             .flatMapF(conf => {
               if (conf.invitationMode == InvitationMode.Response) {
                 Created(
                   Json.obj(
-                    "invitationUrl" -> s"""${env.expositionUrl}/invitation?token=${token}"""
+                    "invitationUrl" -> s"""${mails.expositionUrl}/invitation?token=${token}"""
                   )
                 ).future
               } else if (conf.invitationMode == InvitationMode.Mail) {
-                env.mails
+                mails
                   .sendInvitationMail(email, token)
                   .toResult(_ => NoContent)
               } else {
@@ -72,7 +77,7 @@ class UserController(
           .fold(
             _ => Future.successful(Left(BadRequest("Invalid Payload"))),
             invitation =>
-              env.datastores.users
+              usersDatastore
                 .findUserByMail(invitation.email)
                 .map(maybeUser =>
                   maybeUser
@@ -96,7 +101,7 @@ class UserController(
             e.fold(
               r => r.future,
               invitation =>
-                env.datastores.users
+                usersDatastore
                   .createInvitation(
                     invitation.email,
                     invitation.admin,
@@ -146,11 +151,11 @@ class UserController(
         // TODO make special action that check password ?
         User.userUpdateReads.reads(request.body) match {
           case JsSuccess(updateRequest, _) => {
-            env.datastores.users
+            usersDatastore
               .isUserValid(user, updateRequest.password)
               .flatMap {
                 case Some(user) => {
-                  env.datastores.users
+                  usersDatastore
                     .updateUserInformation(user.username, updateRequest)
                     .map {
                       case Left(err) => err.toHttpResponse
@@ -174,7 +179,8 @@ class UserController(
       user: String
   ): Action[JsValue] =
     webhookAuthAction(tenant, webhook, RightLevel.Admin).async(parse.json) {
-      implicit request =>
+      implicit request => {
+        val hookName = request.user._1
         request.body
           .asOpt[JsObject]
           .fold(BadBodyFormat().toHttpResponse.future) {
@@ -184,7 +190,7 @@ class UserController(
                   user,
                   tenant,
                   UpsertTenantRights(removedWebhookRights =
-                    Set(request.hookName)
+                    Set(hookName)
                   )
                 )
                 .toResult(_ => NoContent)
@@ -194,16 +200,16 @@ class UserController(
                 case None        => BadBodyFormat().toHttpResponse.future
                 case Some(level) => {
                   val baseDiff = UpsertTenantRights(
-                    removedWebhookRights = Set(request.hookName),
+                    removedWebhookRights = Set(hookName),
                     addedWebhookRights = Set(
                       UnscopedFlattenWebhookRight(
-                        name = request.hookName,
+                        name = hookName,
                         level = level
                       )
                     )
                   )
 
-                  env.datastores.users.findUser(user).flatMap {
+                  usersDatastore.findUser(user).flatMap {
                     case Some(userWithTenantRights) => {
                       val tenantRightDiff = userWithTenantRights.tenantRights
                         .get(tenant)
@@ -239,6 +245,7 @@ class UserController(
               }
             }
           }
+      }
     }
 
   def updateUserRightsForKey(
@@ -269,7 +276,7 @@ class UserController(
                       Set(UnscopedFlattenKeyRight(name = name, level = level))
                   )
 
-                  env.datastores.users.findUser(user).flatMap {
+                  usersDatastore.findUser(user).flatMap {
                     case Some(userWithTenantRights) => {
                       val tenantRightDiff = userWithTenantRights.tenantRights
                         .get(tenant)
@@ -329,7 +336,7 @@ class UserController(
           } else {
             val newLevel = (obj \ "level").as[ProjectRightLevel]
 
-            env.datastores.users.findUser(user).flatMap {
+            usersDatastore.findUser(user).flatMap {
               case Some(userWithTenantRights) =>
                 {
                   userWithTenantRights.tenantRights.get(tenant) match {
@@ -403,7 +410,7 @@ class UserController(
             User.tenantRightReads.reads(request.body) match {
               case JsError(_) => Left(BadBodyFormat().toHttpResponse).future
               case JsSuccess(value, _) => {
-                env.datastores.users.findUserWithCompleteRights(user).map {
+                usersDatastore.findUserWithCompleteRights(user).map {
                   case Some(user) => {
                     val currentRights: TenantRight =
                       user.rights.tenants.getOrElse(tenant, TenantRight(null))
@@ -485,11 +492,11 @@ class UserController(
         // TODO check password during update
         User.userPasswordUpdateReads.reads(request.body) match {
           case JsSuccess(updateRequest, _) => {
-            env.datastores.users
+            usersDatastore
               .isUserValid(user, updateRequest.oldPassword)
               .flatMap {
                 case Some(user) => {
-                  env.datastores.users
+                  usersDatastore
                     .updateUserPassword(user.username, updateRequest.password)
                     .map {
                       case Left(err)    => err.toHttpResponse
@@ -513,19 +520,19 @@ class UserController(
         .asOpt[String]
         .filter(Constraints.emailAddress.apply(_) == Valid)
         .map(email => {
-          env.datastores.users
+          usersDatastore
             .findUserByMail(email)
             .filter(_.forall(_.userType == INTERNAL))
             .flatMap {
               case Some(user) => {
-                env.datastores.users
+                usersDatastore
                   .savePasswordResetRequest(user.username)
                   .flatMap(id => {
-                    val token = env.jwtService.generateToken(
+                    val token = jwtService.generateToken(
                       id,
                       Json.obj("reset" -> id)
                     )
-                    env.mails
+                    mails
                       .sendPasswordResetEmail(email, token)
                       .toResult(_ => NoContent)
                   })
@@ -547,14 +554,14 @@ class UserController(
             .asOpt[String]
             .filter(name => PASSWORD_REGEXP.pattern.matcher(name).matches());
           token <- (request.body \ "token").asOpt[String];
-          parsedToken <- env.jwtService.parseJWT(token).toOption;
+          parsedToken <- jwtService.parseJWT(token).toOption;
           content <- Option(parsedToken.content);
           jsonContent <- Try {
             Json.parse(content)
           }.toOption;
           invitation <- (jsonContent \ "invitation").asOpt[String]
         ) yield {
-          env.datastores.users.readInvitation(invitation).flatMap {
+          usersDatastore.readInvitation(invitation).flatMap {
             case Some(invitation) => {
               val user = UserWithRights(
                 username = username,
@@ -565,12 +572,12 @@ class UserController(
                 userType = INTERNAL,
                 roles = Set()
               )
-              env.datastores.users
+              usersDatastore
                 .createUser(user)
                 .flatMap(eitherUser => {
                   eitherUser
                     .map(user => {
-                      env.datastores.users.deleteInvitation(invitation.id).map {
+                      usersDatastore.deleteInvitation(invitation.id).map {
                         _.map(_ => user)
                           .toRight(fr.maif.izanami.errors.InternalServerError())
                       }
@@ -590,7 +597,7 @@ class UserController(
   }
 
   def readUsers(): Action[AnyContent] = authAction.async { implicit request =>
-    env.rightService
+    rightService
       .findVisibleUsers(request.user.username)
       .map(users => {
         Ok(Json.toJson(users))
@@ -601,7 +608,7 @@ class UserController(
     authAction.async { implicit request =>
       var effectiveCount: Integer = Objects.requireNonNullElse(count, 10)
       if (effectiveCount > 100) effectiveCount = 100
-      env.datastores.users
+      usersDatastore
         .searchUsers(query, effectiveCount)
         .map(usernames => Ok(Json.toJson(usernames)))
     }
@@ -626,7 +633,7 @@ class UserController(
         ) match {
         case Some(seq) => {
           val userByLevel = seq.groupMap(_._2)(_._1)
-          env.postgresql.executeInTransaction(conn => {
+          transactionProvider.executeInTransaction(conn => {
             userByLevel
               .foldLeft(
                 FutureEither.success(Done.done())
@@ -676,7 +683,7 @@ class UserController(
           ) match {
           case Some(seq) => {
             val userByLevel = seq.groupMap(_._2)(_._1)
-            env.postgresql.executeInTransaction(conn => {
+            transactionProvider.executeInTransaction(conn => {
               userByLevel
                 .foldLeft(
                   FutureEither.success(Done.done())
@@ -730,7 +737,7 @@ class UserController(
   def readUsersForTenant(tenant: String): Action[AnyContent] =
     tenantRightFilterAction(tenant, RightLevel.Admin).async {
       implicit request =>
-        env.rightService
+        rightService
           .findUsersForTenant(tenant)
           .map(users => Ok(Json.toJson(users)))
     }
@@ -738,7 +745,7 @@ class UserController(
   def readUsersForProject(tenant: String, project: String): Action[AnyContent] =
     projectAuthAction(tenant, project, ProjectRightLevel.Admin).async {
       implicit request =>
-        env.rightService
+        rightService
           .findUsersForProject(tenant, project)
           .map(users => Ok(Json.toJson(users)))
     }
@@ -749,7 +756,7 @@ class UserController(
       webhook = id,
       minimumLevel = RightLevel.Admin
     ).async { implicit request =>
-      env.rightService
+      rightService
         .findUsersForWebhook(tenant, id)
         .map(ws => Ok(Json.toJson(ws)))
     }
@@ -758,7 +765,7 @@ class UserController(
   def readUsersForKey(tenant: String, name: String): Action[AnyContent] = {
     keyAuthAction(tenant = tenant, key = name, minimumLevel = RightLevel.Admin)
       .async { implicit request =>
-        env.rightService
+        rightService
           .findUsersForKey(tenant, name)
           .map(ws => Ok(Json.toJson(ws)))
       }
@@ -766,17 +773,17 @@ class UserController(
 
   def deleteUser(user: String): Action[AnyContent] = adminAction.async {
     implicit request =>
-      if (request.user.username.equals(user)) {
+      if (request.user.equals(user)) {
         Future.successful(
           BadRequest(Json.obj("message" -> "User can't delete itself !"))
         )
       } else {
-        env.datastores.users.deleteUser(user).map(_ => NoContent)
+        usersDatastore.deleteUser(user).map(_ => NoContent)
       }
   }
 
   def readRights(): Action[AnyContent] = authAction.async { implicit request =>
-    env.datastores.users
+    usersDatastore
       .findUserWithCompleteRights(request.user.username)
       .map {
         case Some(user) => Ok(Json.toJson(user)(User.userRightsWrites))
@@ -792,21 +799,21 @@ class UserController(
             .asOpt[String]
             .filter(name => PASSWORD_REGEXP.pattern.matcher(name).matches());
           token <- (request.body \ "token").asOpt[String];
-          parsedToken <- env.jwtService.parseJWT(token).toOption;
+          parsedToken <- jwtService.parseJWT(token).toOption;
           content <- Option(parsedToken.content);
           jsonContent <- Try {
             Json.parse(content)
           }.toOption;
           reset <- (jsonContent \ "reset").asOpt[String]
         ) yield {
-          env.datastores.users
+          usersDatastore
             .findPasswordResetRequest(reset)
             .flatMap {
               case Some(username) => {
-                env.datastores.users
+                usersDatastore
                   .updateUserPassword(username, password)
                   .flatMap(_ =>
-                    env.datastores.users.deletePasswordResetRequest(reset)
+                    usersDatastore.deletePasswordResetRequest(reset)
                   )
                   .map(_ => NoContent)
               }

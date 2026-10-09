@@ -53,13 +53,13 @@ import play.api.libs.json.Json.JsValueWrapper
 import play.api.libs.json.Writes
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import fr.maif.izanami.datastores.FeaturesDatastore
 import fr.maif.izanami.FeatureConfiguration
 import fr.maif.izanami.datastores.FeatureContextDatastore
 import fr.maif.izanami.datastores.TagsDatastore
+import fr.maif.izanami.models.Feature.writeFeatureInLegacyFormat
 
 class FeatureService(
   private val datastore: FeaturesDatastore,
@@ -841,6 +841,14 @@ class FeatureService(
       }
     }
   }
+  
+  def evaluateStrategy(strategy: CompleteContextualStrategy, requestContext: RequestContext): Future[Either[IzanamiError, JsValue]] = {
+    strategy
+      .value(
+        requestContext,
+        wasmIntegration
+      )
+  }
 
   private def evaluate(
       features: Seq[FeatureStrategies],
@@ -932,6 +940,21 @@ class FeatureService(
           )
         })
       }).toFEither
+  }
+
+  def writeFeatureForCheckInLegacyFormat(feature: CompleteFeature, context: RequestContext): FutureEither[Option[JsObject]] = {
+    feature
+      .value(context, wasmIntegration, isWasmAllowed)
+      .map {
+        case Left(error) => Left(error)
+        case Right(active) =>
+          Right(
+            Some(
+              writeFeatureInLegacyFormat(feature) ++ Json
+                .obj("active" -> active)
+            )
+          )
+      }.toFEither
   }
 }
 

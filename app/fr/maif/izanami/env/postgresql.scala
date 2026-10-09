@@ -162,7 +162,7 @@ class Postgresql(appConfig: AppConf)(implicit ec: ExecutionContext) {
     .applyOnWithOpt(pgConfiguration.idleTimeout)((p, v) => p.setIdleTimeout(v))
     .applyOnWithOpt(pgConfiguration.maxLifetime)((p, v) => p.setMaxLifetime(v))
   // private lazy val pool = PgPool.pool(connectOptions, poolOptions)
-  private lazy val pool = PgBuilder.pool().`with`(
+  lazy val pool = PgBuilder.pool().`with`(
     poolOptions
   ).`with`(netOptions).connectingTo(connectOptions).using(vertx).build();
   val pgConfiguration = appConfig.pg
@@ -304,19 +304,6 @@ class Postgresql(appConfig: AppConf)(implicit ec: ExecutionContext) {
 
   def onStop(): Future[Unit] = {
     pool.close().scala.map(_ => ())
-  }
-
-  def updateSearchPath(
-      searchPath: String,
-      conn: SqlConnection
-  ): Future[Unit] = {
-    conn
-      .preparedQuery(
-        f"SELECT set_config('search_path', $$1, true)"
-      )
-      .execute(io.vertx.sqlclient.Tuple.of(searchPath))
-      .mapEmpty()
-      .scala
   }
 
   def executeInTransaction[T](callback: SqlConnection => FutureEither[T])
