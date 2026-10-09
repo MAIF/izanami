@@ -10,8 +10,7 @@ import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldFeature
 import fr.maif.izanami.v1.OldFeature.oldFeatureReads
 import fr.maif.izanami.v1.OldGlobalScriptFeature
-import fr.maif.izanami.wasm.WasmConfig
-import fr.maif.izanami.wasm.WasmUtils
+import fr.maif.izanami.wasm.{WasmConfig, WasmRelatedStuff, WasmUtils}
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.Logger
 import play.api.libs.json.*
@@ -108,9 +107,8 @@ case class RequestContext(
 sealed trait CompleteFeature extends AbstractFeature {
   def value(
       requestContext: RequestContext,
-      wasmIntegration: WasmIntegration,
-      wasmAllowed: Boolean
-  ): Future[Either[IzanamiError, JsValue]]
+      wasmRelatedStuff: WasmRelatedStuff
+  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]]
 
   override def withProject(project: String): CompleteFeature
 
@@ -400,7 +398,7 @@ case class SingleConditionFeature(
 
   override def value(
       requestContext: RequestContext,
-      wasmIntegration: WasmIntegration
+      wasmRelatedStuff: WasmRelatedStuff
   )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
     val res = if (enabled) condition.active(requestContext, id) else false
     Future.successful(Right(JsBoolean(res)))
@@ -433,7 +431,7 @@ case class Feature(
 
   override def value(
       requestContext: RequestContext,
-      wasmIntegration: WasmIntegration
+      wasmRelatedStuff: WasmRelatedStuff
   )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
     Future.successful(Right((enabled, resultDescriptor) match {
       case (false, r: BooleanResultDescriptor)         => JsFalse
@@ -534,11 +532,10 @@ case class CompleteWasmFeature(
 
   override def value(
       requestContext: RequestContext,
-      wasmIntegration: WasmIntegration,
-      wasmAllowed: Boolean
+      wasmRelatedStuff: WasmRelatedStuff
   )(implicit ec: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
 
-    (wasmAllowed, enabled, resultType) match {
+    (wasmRelatedStuff.isWasmAllowed, enabled, resultType) match {
       case (false, true, BooleanResult) => {
         logger.warn(
           s"Evaluation result of wasm feature ${name} (id ${id}, context ${requestContext.context.toUserPath}) was changed to false, since this izanami instance doesn't allow wasm features"
@@ -554,7 +551,7 @@ case class CompleteWasmFeature(
       case (_, false, BooleanResult) => Future.successful(Right(JsFalse))
       case (_, false, _)             => Future.successful(Right(JsNull))
       case (_, true, _)              =>
-        WasmUtils.handle(wasmConfig, requestContext, resultType, wasmIntegration)(ec)
+        WasmUtils.handle(wasmConfig, requestContext, resultType, wasmRelatedStuff.wasmIntegration)(ec)
     }
   }
 
@@ -795,12 +792,10 @@ object Feature {
   def writeFeatureForCheck(
       feature: CompleteFeature,
       context: RequestContext,
-      // FIXME factorize these two in a single class
-      wasmIntegration: WasmIntegration,
-      wasmAllowed: Boolean
+      wasmRelatedStuff: WasmRelatedStuff
   )(implicit ec: ExecutionContext): Future[Either[IzanamiError, JsObject]] = {
     feature
-      .value(context, wasmIntegration, wasmAllowed)
+      .value(context, wasmRelatedStuff)
       .map(either => {
         either.map(active => {
           Json.obj(
@@ -815,11 +810,10 @@ object Feature {
   def writeFeatureForCheckInLegacyFormat(
       feature: CompleteFeature,
       context: RequestContext,
-      wasmIntegration: WasmIntegration,
-      wasmAllowed: Boolean
+      wasmRelatedStuff: WasmRelatedStuff
   )(implicit ec: ExecutionContext): Future[Either[IzanamiError, Option[JsObject]]] = {
     feature
-      .value(context, wasmIntegration, wasmAllowed)
+      .value(context, wasmRelatedStuff)
       .map {
         case Left(error)   => Left(error)
         case Right(active) =>

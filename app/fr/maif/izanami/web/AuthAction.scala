@@ -150,11 +150,11 @@ class ClientApiKeyAction(apiKeyDatastore: ApiKeyDatastore, bodyParser: BodyParse
   override protected def executionContext: ExecutionContext = ec
 }
 
-
 case class TestRequest[A, U](
  request: Request[A],
  authentication: EventAuthentication,
- user: U
+ user: U,
+ token: Option[ReadPersonnalAccessToken] = None
 ) extends WrappedRequest[A](request)
 
 abstract class TokenOrCookieAuthenticatedAction[U](implicit ec: ExecutionContext) extends LeaderActionBuilder[[A] =>> TestRequest[A, U]] {
@@ -189,7 +189,8 @@ abstract class TokenOrCookieAuthenticatedAction[U](implicit ec: ExecutionContext
                 TestRequest(
                   request = request,
                   user = user,
-                  authentication = TokenAuthentication(token.id)
+                  authentication = TokenAuthentication(token.id),
+                  token = Some(token)
                 )
               )
               case TokenInvalid => Future.successful(Unauthorized)
@@ -201,7 +202,7 @@ abstract class TokenOrCookieAuthenticatedAction[U](implicit ec: ExecutionContext
   }
 }
 
-class CookieAuthenticatedAction[U](implicit ec: ExecutionContext) extends LeaderActionBuilder[[A] =>> TestRequest[A, U]] {
+abstract class CookieAuthenticatedAction[U](implicit ec: ExecutionContext) extends LeaderActionBuilder[[A] =>> TestRequest[A, U]] {
   def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[U]]
   def authService: AuthService
   override def invokeBlockImpl[A](
@@ -239,7 +240,8 @@ case object TokenInvalid extends TokenValidationResult[Nothing]
 class PersonnalAccessTokenTenantRightsAction(
     bodyParser: BodyParser[AnyContent],
     operation: GlobalTokenRight,
-    authService: AuthService
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) extends TokenOrCookieAuthenticatedAction[UserWithTenantRights] {
@@ -261,7 +263,8 @@ class PersonnalAccessTokenTenantRightsAction(
 
 class TenantRightsAction(
     bodyParser: BodyParser[AnyContent],
-    authService: AuthService
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) extends CookieAuthenticatedAction[UserWithTenantRights] {
@@ -279,7 +282,8 @@ class TenantRightsAction(
 
 class DetailledAuthAction(
     bodyParser: BodyParser[AnyContent],
-    authService: AuthService
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) extends CookieAuthenticatedAction[UserWithRights] {
@@ -297,7 +301,8 @@ class DetailledAuthAction(
 
 class AdminAuthAction(
     bodyParser: BodyParser[AnyContent],
-    authService: AuthService
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) extends CookieAuthenticatedAction[String] {
@@ -315,10 +320,11 @@ class AdminAuthAction(
 
 class AuthenticatedAction(
     bodyParser: BodyParser[AnyContent],
-    authService: AuthService
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
-) extends LeaderActionBuilder[UserNameRequest] {
+) extends CookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
   override protected def executionContext: ExecutionContext = ec
 
@@ -332,7 +338,8 @@ class AuthenticatedAction(
 
 class AuthenticatedSessionAction(
     bodyParser: BodyParser[AnyContent],
-    authService: AuthService
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) extends CookieAuthenticatedAction[String] {
@@ -348,7 +355,8 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
     bodyParser: BodyParser[AnyContent],
     tenant: String,
     requiredTokenRight: Option[TenantTokenRights],
-    authService: AuthService
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) extends TokenOrCookieAuthenticatedAction[UserWithCompleteRightForOneTenant] {
@@ -386,7 +394,8 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
 class DetailledRightForTenantAction(
     bodyParser: BodyParser[AnyContent],
     tenant: String,
-    authService: AuthService
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) extends CookieAuthenticatedAction[UserWithCompleteRightForOneTenant] {
@@ -409,8 +418,9 @@ class PersonnalAccessTokenProjectAuthAction(
     project: String,
     minimumLevel: ProjectRightLevel,
     operation: TenantTokenRights,
-    authService: AuthService,
-    rightService: RightService // TODO authService & rightService should be merged ?
+    override val authService: AuthService,
+    rightService: RightService, // TODO authService & rightService should be merged ?
+    override val clusteringConfig: Cluster,
 )(implicit
     ec: ExecutionContext
 ) extends TokenOrCookieAuthenticatedAction[String] {
@@ -473,8 +483,9 @@ trait LeaderActionBuilder[R[X] <: Request[X]] extends IzanamiActionBuilder[R] {
 }
 
 class LeaderActionBuilderImpl(
-    override val parser: BodyParser[AnyContent]
-)(implicit val ec: ExecutionContext) extends LeaderActionBuilder[Request] {
+    override val parser: BodyParser[AnyContent],
+    override val clusteringConfig: Cluster
+)(implicit override val executionContext: ExecutionContext) extends LeaderActionBuilder[Request] {
   override def disabledOn: IzanamiMode = Worker
 
   override def invokeBlockImpl[A](
@@ -545,7 +556,7 @@ class WorkerActionBuilder(
     val apiKeyDatastore: ApiKeyDatastore,
     override val parser: BodyParser[AnyContent]
 )(implicit
-    ec: ExecutionContext
+    override val executionContext: ExecutionContext
 ) extends IzanamiActionBuilder[WorkerClientRequest] {
   override def disabledOn: IzanamiMode = Leader
 
@@ -623,13 +634,13 @@ class PersonnalAccessTokenFeatureAuthAction(
     minimumLevel: ProjectRightLevel,
     operation: TenantTokenRights,
     featureService: FeatureService,
-    authService: AuthService,
-    rightService: RightService
+    override val authService: AuthService,
+    rightService: RightService,
+    override val clusteringConfig: Cluster
 )(implicit
-    ec: ExecutionContext
+    override val executionContext: ExecutionContext
 ) extends TokenOrCookieAuthenticatedAction[UserWithCompleteRightForOneTenant] {
   override def parser: BodyParser[AnyContent] = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[UserWithCompleteRightForOneTenant]] = {
     (for(
@@ -673,13 +684,13 @@ class PersonnalAccessTokenKeyAuthAction(
     key: String,
     minimumLevel: RightLevel,
     operation: TenantTokenRights,
-    authService: AuthService,
-    rightService: RightService
+    override val authService: AuthService,
+    rightService: RightService,
+    override val clusteringConfig: Cluster
 )(implicit
-    ec: ExecutionContext
+    override val executionContext: ExecutionContext
 ) extends TokenOrCookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[String]] = {
       if(token.hasTenantRight(tenant = tenant, right = operation)) {
@@ -712,13 +723,13 @@ class PersonnalAccessTokenTenantAuthAction(
     tenant: String,
     minimumLevel: RightLevel,
     operation: TenantTokenRights,
-    authService: AuthService,
-    rightService: RightService
+    override val authService: AuthService,
+    rightService: RightService,
+    override val clusteringConfig: Cluster
 )(implicit
-    ec: ExecutionContext
+    override val executionContext: ExecutionContext
 ) extends TokenOrCookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[String]] = {
     if(token.hasTenantRight(tenant = tenant, right = operation)) {
@@ -753,12 +764,11 @@ class PersonnalAccessTokenTenantAuthAction(
 class PersonnalAccessTokenAdminAuthAction(
     bodyParser: BodyParser[AnyContent],
     operation: GlobalTokenRight,
-    authService: AuthService
-)(implicit
-    ec: ExecutionContext
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
+)(implicit override val executionContext: ExecutionContext
 ) extends TokenOrCookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[String]] = {
     authService.findUser(token.username).map {
@@ -779,13 +789,13 @@ class TenantAuthAction(
     bodyParser: BodyParser[AnyContent],
     tenant: String,
     minimumLevel: RightLevel,
-    authService: AuthService,
-    rightService: RightService
+    override val authService: AuthService,
+    rightService: RightService,
+    override val clusteringConfig: Cluster
 )(implicit
-    ec: ExecutionContext
+    override val executionContext: ExecutionContext
 ) extends CookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
     rightService
@@ -802,7 +812,8 @@ class TenantAuthAction(
 
 class ValidatePasswordAction(
     bodyParser: BodyParser[AnyContent],
-    override val authService: AuthService
+    authService: AuthService,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) extends LeaderActionBuilder[UserNameRequest] {
@@ -874,10 +885,10 @@ class ProjectAuthAction(
     project: ProjectIdentification,
     minimumLevel: ProjectRightLevel,
     override val authService: AuthService,
-    override val rightService: RightService
-)(implicit ec: ExecutionContext)
-    extends CookieAuthenticatedAction[(ProjectId, String)] {
-  override protected def executionContext: ExecutionContext = ec
+    rightService: RightService,
+    override val clusteringConfig: Cluster
+)(implicit override val executionContext: ExecutionContext)
+    extends CookieAuthenticatedAction[(ProjectIdentification, String)] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
   override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[(ProjectIdentification, String)]] = {
@@ -902,12 +913,12 @@ class WebhookAuthAction(
     webhook: String,
     minimumLevel: RightLevel,
     rightService: RightService,
-    authService: AuthService
-)(implicit ec: ExecutionContext)
+    override val authService: AuthService,
+    override val clusteringConfig: Cluster
+)(implicit override val executionContext: ExecutionContext)
     extends CookieAuthenticatedAction[(WebhookName, String)] {
 
   override def parser: BodyParser[AnyContent] = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[(WebhookName, String)]] = {
     Try {
@@ -934,12 +945,12 @@ class KeyAuthAction(
     tenant: String,
     key: String,
     minimumLevel: RightLevel,
-    authService: AuthService,
-    rightService: RightService
-)(implicit ec: ExecutionContext)
+    override val authService: AuthService,
+    rightService: RightService,
+    override val clusteringConfig: Cluster
+)(implicit override val executionContext: ExecutionContext)
     extends CookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
-  override protected def executionContext: ExecutionContext = ec
 
   override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
     rightService
@@ -957,15 +968,17 @@ class KeyAuthAction(
 
 class DetailledRightForTenantFactory(
     bodyParser: BodyParser[AnyContent],
-    authService: AuthService
+    authService: AuthService,
+    clusteringConfig: Cluster
 )(implicit ec: ExecutionContext) {
   def apply(tenant: String): DetailledRightForTenantAction =
-    new DetailledRightForTenantAction(bodyParser, tenant = tenant, authService = authService)
+    new DetailledRightForTenantAction(bodyParser, tenant = tenant, authService = authService, clusteringConfig = clusteringConfig)
 }
 
 class PersonnalAccessTokenDetailledRightForTenantFactory(
     bodyParser: BodyParser[AnyContent],
-    authService: AuthService
+    authService: AuthService,
+    clusteringConfig: Cluster
 )(implicit ec: ExecutionContext) {
   def apply(
       tenant: String,
@@ -975,7 +988,8 @@ class PersonnalAccessTokenDetailledRightForTenantFactory(
       bodyParser,
       tenant,
       Some(requiredTokenRight),
-      authService
+      authService,
+      clusteringConfig
     )
   }
 
@@ -986,14 +1000,16 @@ class PersonnalAccessTokenDetailledRightForTenantFactory(
       bodyParser,
       tenant,
       None,
-      authService
+      authService,
+      clusteringConfig
     )
   }
 }
 
 class PersonnalAccessTokenTenantRightsActionFactory(
     bodyParser: BodyParser[AnyContent],
-    authService: AuthService
+    authService: AuthService,
+    clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1003,11 +1019,12 @@ class PersonnalAccessTokenTenantRightsActionFactory(
     new PersonnalAccessTokenTenantRightsAction(
       bodyParser,
       globalTokenRight,
-      authService
+      authService,
+      clusteringConfig
     )
 }
 
-class KeyAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService)(
+class KeyAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService, clusteringConfig: Cluster)(
     implicit ec: ExecutionContext
 ) {
   def apply(
@@ -1015,13 +1032,14 @@ class KeyAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: Auth
       key: String,
       minimumLevel: RightLevel
   ): KeyAuthAction =
-    new KeyAuthAction(bodyParser, tenant, key, minimumLevel, authService = authService, rightService = rightService)
+    new KeyAuthAction(bodyParser, tenant, key, minimumLevel, authService = authService, rightService = rightService, clusteringConfig = clusteringConfig)
 }
 
 class WebhookAuthActionFactory(
     bodyParser: BodyParser[AnyContent],
     rightService: RightService,
-    authService: AuthService
+    authService: AuthService,
+    clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1036,11 +1054,12 @@ class WebhookAuthActionFactory(
       webhook,
       minimumLevel,
       rightService,
-      authService
+      authService,
+      clusteringConfig = clusteringConfig
     )
 }
 
-class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService)(
+class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService, clusteringConfig: Cluster)(
     implicit ec: ExecutionContext
 ) {
   def apply(
@@ -1054,14 +1073,16 @@ class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: 
       ProjectNameIdentification(project),
       minimumLevel,
       authService = authService,
-      rightService = rightService
+      rightService = rightService,
+      clusteringConfig = clusteringConfig
     )
 }
 
 class ProjectAuthActionByIdFactory(
     bodyParser: BodyParser[AnyContent],
     authService: AuthService,
-    rightService: RightService
+    rightService: RightService,
+    clusteringConfig: Cluster
 )(implicit ec: ExecutionContext) {
   def apply(
       tenant: String,
@@ -1074,20 +1095,22 @@ class ProjectAuthActionByIdFactory(
       ProjectIdIdentification(project),
       minimumLevel,
       authService = authService,
-      rightService = rightService
+      rightService = rightService,
+      clusteringConfig = clusteringConfig
     )
 }
 
-class TenantAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService)(
+class TenantAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService, clusteringConfig: Cluster)(
     implicit ec: ExecutionContext
 ) {
   def apply(tenant: String, minimumLevel: RightLevel): TenantAuthAction =
-    new TenantAuthAction(bodyParser, tenant, minimumLevel, authService = authService, rightService = rightService)
+    new TenantAuthAction(bodyParser, tenant, minimumLevel, authService = authService, rightService = rightService, clusteringConfig = clusteringConfig)
 }
 
 class PersonnalAccessTokenAdminAuthActionFactory(
     bodyParser: BodyParser[AnyContent],
-    authService: AuthService
+    authService: AuthService,
+    clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1097,14 +1120,16 @@ class PersonnalAccessTokenAdminAuthActionFactory(
     new PersonnalAccessTokenAdminAuthAction(
       bodyParser,
       operation,
-      authService = authService
+      authService = authService,
+      clusteringConfig = clusteringConfig
     )
 }
 
 class PersonnalAccessTokenTenantAuthActionFactory(
     bodyParser: BodyParser[AnyContent],
     authService: AuthService,
-    rightService: RightService
+    rightService: RightService,
+    clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1119,12 +1144,13 @@ class PersonnalAccessTokenTenantAuthActionFactory(
       minimumLevel,
       operation,
       authService = authService,
-      rightService = rightService
+      rightService = rightService,
+      clusteringConfig = clusteringConfig
     )
 }
 
 class PersonnalAccessTokenFeatureAuthActionFactory(
-    bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService, featureService: FeatureService
+    bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService, featureService: FeatureService, clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1142,14 +1168,16 @@ class PersonnalAccessTokenFeatureAuthActionFactory(
       operation,
       authService = authService,
       rightService = rightService,
-      featureService = featureService
+      featureService = featureService,
+      clusteringConfig = clusteringConfig
     )
 }
 
 class PersonnalAccessTokenProjectAuthActionFactory(
     bodyParser: BodyParser[AnyContent],
     authService: AuthService,
-    rightService: RightService
+    rightService: RightService,
+    clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1166,14 +1194,16 @@ class PersonnalAccessTokenProjectAuthActionFactory(
       minimumLevel,
       operation,
       authService = authService,
-      rightService = rightService
+      rightService = rightService,
+      clusteringConfig = clusteringConfig
     )
 }
 
 class PersonnalAccessTokenKeyAuthActionFactory(
     bodyParser: BodyParser[AnyContent],
     authService: AuthService,
-    rightService: RightService
+    rightService: RightService,
+    clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1190,7 +1220,8 @@ class PersonnalAccessTokenKeyAuthActionFactory(
       minimumLevel,
       operation,
       authService = authService,
-      rightService = rightService
+      rightService = rightService,
+      clusteringConfig = clusteringConfig
     )
 }
 

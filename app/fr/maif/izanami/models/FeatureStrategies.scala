@@ -1,6 +1,7 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.wasm.WasmRelatedStuff
 import play.api.libs.json.JsValue
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 
@@ -11,8 +12,7 @@ case class FeatureStrategies(strategies: Map[String, CompleteFeature]) {
 
   def evaluate(
       requestContext: RequestContext,
-      wasmIntegration: WasmIntegration,
-      wasmAllowed: Boolean
+      wasmRelatedStuff: WasmRelatedStuff
   )(implicit ec: ExecutionContext): Future[Either[IzanamiError, EvaluatedCompleteFeature]] = {
     val context = requestContext.contextAsString
     val strategyToUse = if (context.isBlank) {
@@ -29,7 +29,7 @@ case class FeatureStrategies(strategies: Map[String, CompleteFeature]) {
         .map(_._2)
         .getOrElse(strategies(""))
     }
-    strategyToUse.value(requestContext, wasmIntegration, wasmAllowed).map(either =>
+    strategyToUse.value(requestContext, wasmRelatedStuff).map(either =>
       either.map(v => EvaluatedCompleteFeature(this, v))
     )(ec)
   }

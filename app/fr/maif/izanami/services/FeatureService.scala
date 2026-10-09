@@ -60,6 +60,7 @@ import fr.maif.izanami.FeatureConfiguration
 import fr.maif.izanami.datastores.FeatureContextDatastore
 import fr.maif.izanami.datastores.TagsDatastore
 import fr.maif.izanami.models.Feature.writeFeatureInLegacyFormat
+import fr.maif.izanami.wasm.WasmRelatedStuff
 
 class FeatureService(
   private val datastore: FeaturesDatastore,
@@ -67,10 +68,8 @@ class FeatureService(
   private val tagDatastore: TagsDatastore,
   private val configuration: FeatureConfiguration,
   private val transactionProvider: PostgresTransactionProvider,// TODO use super class instead, but it's a huge refactoring
-  private val wasmIntegration: WasmIntegration
+  private val wasmRelatedStuff: WasmRelatedStuff
 )(implicit ec: ExecutionContext) {
-  def isWasmAllowed: Boolean = configuration.allowWasm
-
   private def hasProtectedOverload(
       tenant: String,
       feature: FeatureWithOverloads
@@ -88,6 +87,8 @@ class FeatureService(
       .mapToFEither
   }
 
+  def isWasmAllowed = wasmRelatedStuff.isWasmAllowed
+  
   // TODO this should be split in completion to Map[String, CompleteFeature] and a Write
   def processMultipleStrategyResult(
       strategyByCtx: Map[String, LightWeightFeature],
@@ -116,7 +117,7 @@ class FeatureService(
 
     lightWeightToCompleteFeature(tenant = requestContext.tenant, strategyToUse)
       .flatMap(strategyToUse =>
-        Feature.writeFeatureForCheck(strategyToUse, requestContext, wasmIntegration, wasmAllowed)
+        Feature.writeFeatureForCheck(strategyToUse, requestContext, wasmRelatedStuff)
           .map {
             case Left(err)                 => Left(err)
             case Right(json) if conditions =>
@@ -162,7 +163,7 @@ class FeatureService(
       user: UserInformation
   ): FutureEither[CompleteFeature] = {
     feature match {
-      case f: CompleteWasmFeature if !isWasmAllowed =>
+      case f: CompleteWasmFeature if !wasmRelatedStuff.isWasmAllowed =>
         FutureEither.failure(WasmFeatureNotAllowed)
       case f: AbstractFeature
           if configuration.forceLegacy && !f
@@ -640,7 +641,7 @@ class FeatureService(
       conn => {
         for (
           _ <- request.strategy match {
-            case _: CompleteWasmFeatureStrategy if !isWasmAllowed =>
+            case _: CompleteWasmFeatureStrategy if !wasmRelatedStuff.isWasmAllowed =>
               FutureEither.failure(WasmFeatureNotAllowed)
             case _ => FutureEither.success(Done.done())
           };
@@ -846,7 +847,7 @@ class FeatureService(
     strategy
       .value(
         requestContext,
-        wasmIntegration
+        wasmRelatedStuff
       )
   }
 
@@ -855,7 +856,7 @@ class FeatureService(
       requestContext: RequestContext
   ): Future[Either[IzanamiError, Seq[EvaluatedCompleteFeature]]] = {
     val evaluatedFeatures =
-      Future.sequence(features.map(f => f.evaluate(requestContext, wasmIntegration, configuration.allowWasm)))
+      Future.sequence(features.map(f => f.evaluate(requestContext, wasmRelatedStuff)))
     evaluatedFeatures.map(Helpers.sequence(_))
   }
 
@@ -930,7 +931,7 @@ class FeatureService(
   // FIXME avoid returning JsObject to return dedicated writtable type
   def writeFeatureForCheck(feature: CompleteFeature, context: RequestContext): FutureEither[JsObject] = {
     feature
-      .value(context, wasmIntegration, isWasmAllowed)
+      .value(context, wasmRelatedStuff)
       .map(either => {
         either.map(active => {
           Json.obj(
@@ -944,7 +945,7 @@ class FeatureService(
 
   def writeFeatureForCheckInLegacyFormat(feature: CompleteFeature, context: RequestContext): FutureEither[Option[JsObject]] = {
     feature
-      .value(context, wasmIntegration, isWasmAllowed)
+      .value(context, wasmRelatedStuff)
       .map {
         case Left(error) => Left(error)
         case Right(active) =>

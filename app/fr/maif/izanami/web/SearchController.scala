@@ -89,14 +89,14 @@ class SearchController(
       query: String,
       filter: List[String]
   ): Action[AnyContent] = simpleAuthAction.async {
-    implicit request: UserNameRequest[AnyContent] =>
+    implicit request =>
       checkSearchParams(query, filter).flatMap {
         case Left(error) => error.toHttpResponse.future
         case Right(_)    =>
           searchDatastore
             .tenantSearch(
               tenant,
-              request.user.username,
+              request.user,
               query,
               filter.map(item => SearchEntityObject.parseSearchEntityType(item))
             )

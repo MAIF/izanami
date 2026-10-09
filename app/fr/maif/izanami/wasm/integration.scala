@@ -27,7 +27,7 @@ class IzanamiWasmIntegrationContext(
   featureDatastore: FeaturesDatastore,
   wasmConfiguration: Wasm,
   httpClient: WSClient
-  )(implicit ec: ExecutionContext, mat: Materializer) extends WasmIntegrationContext {
+  )(implicit override val executionContext: ExecutionContext, override val materializer: Materializer) extends WasmIntegrationContext {
   val logger: Logger = Logger("izanami-wasm")
   val selfRefreshingPools: Boolean = false
   val wasmCacheTtl: Long = wasmConfiguration.cache.ttl

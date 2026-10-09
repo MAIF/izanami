@@ -50,7 +50,7 @@ import fr.maif.izanami.mail.Mails
 import fr.maif.izanami.security.JwtService
 
 import javax.crypto.spec.SecretKeySpec
-import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
+import fr.maif.izanami.wasm.{IzanamiWasmIntegrationContext, WasmRelatedStuff}
 import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 import router.Routes
 
@@ -169,7 +169,9 @@ class IzanamiComponentsInstances(
     openidConfiguration = typedConfig.app.openid,
     postgresql = postgresql
   )
-
+  
+  val wasmRelatedStuff: WasmRelatedStuff = WasmRelatedStuff(wasmIntegration = wasmIntegration, isWasmAllowed = typedConfig.app.feature.allowWasm)
+  
   val AuthService = new AuthService(personalAccessTokenDatastore = personnalAccessTokenDatastore, userDatastore = userDatastore, tokenSecret = typedConfig.app.authentication.secret, encryptionKey = encryptionKey)
   val cluster: Cluster = typedConfig.app.cluster
   val featureConfiguration: FeatureConfiguration = typedConfig.app.feature

@@ -141,7 +141,7 @@ class UserController(
 
   def updateUser(user: String): Action[JsValue] = authAction.async(parse.json) {
     implicit request =>
-      if (!request.user.username.equalsIgnoreCase(user)) {
+      if (!request.user.equalsIgnoreCase(user)) {
         Forbidden(
           Json.obj(
             "message" -> "Modification of other users information is not allowed"
@@ -484,7 +484,7 @@ class UserController(
 
   def updateUserPassword(user: String): Action[JsValue] =
     authAction.async(parse.json) { implicit request =>
-      if (!request.user.username.equalsIgnoreCase(user)) {
+      if (!request.user.equalsIgnoreCase(user)) {
         Forbidden(
           "Modification of other users information is not allowed"
         ).future
@@ -598,7 +598,7 @@ class UserController(
 
   def readUsers(): Action[AnyContent] = authAction.async { implicit request =>
     rightService
-      .findVisibleUsers(request.user.username)
+      .findVisibleUsers(request.user)
       .map(users => {
         Ok(Json.toJson(users))
       })
@@ -784,7 +784,7 @@ class UserController(
 
   def readRights(): Action[AnyContent] = authAction.async { implicit request =>
     usersDatastore
-      .findUserWithCompleteRights(request.user.username)
+      .findUserWithCompleteRights(request.user)
       .map {
         case Some(user) => Ok(Json.toJson(user)(User.userRightsWrites))
         case None => NotFound(Json.obj("message" -> "User does not exist"))

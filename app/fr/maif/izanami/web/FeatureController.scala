@@ -3,6 +3,7 @@ package fr.maif.izanami.web
 import fr.maif.izanami.datastores.{FeatureContextDatastore, FeaturesDatastore}
 import fr.maif.izanami.errors.FeatureNotFound
 import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.events.EventAuthentication.{BackOfficeAuthentication, TokenAuthentication}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.Feature.*
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
@@ -308,7 +309,7 @@ class FeatureController(
         tenant,
         featureRequest,
         contexts = FeatureContextPath(featureRequest.context),
-        request.user.username
+        request.user
       )
 
     futureFeaturesByProject.flatMap(featuresByProjects => {
@@ -380,11 +381,10 @@ class FeatureController(
             }
           )
           val hasRights = neededRights.forall(right => {
-            request match {
-              case r: UserRequestWithCompleteRightForOneTenantRealUser[_] =>
-                true
-              case r: UserRequestWithCompleteRightForOneTenantTokenUser[_] =>
-                r.token.hasTenantRight(tenant = tenant, right = right)
+            request.authentication match {
+              case TokenAuthentication(tokenId) =>
+                request.token.exists(t => t.hasTenantRight(tenant = tenant, right = right))
+              case _ => true
             }
           })
 
