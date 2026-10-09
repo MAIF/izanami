@@ -1,6 +1,6 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.env.Env
+import fr.maif.izanami.datastores.FeaturesDatastore
 import fr.maif.izanami.errors.FeatureNotFound
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.*
@@ -23,7 +23,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 class FeatureController(
-    val env: Env,
     val controllerComponents: ControllerComponents,
     val authenticatedAction: AuthenticatedAction,
     val projectAuthAction: ProjectAuthActionFactory,
@@ -32,9 +31,9 @@ class FeatureController(
     val personnalAccessTokenAuth: PersonnalAccessTokenFeatureAuthActionFactory,
     featureService: FeatureService,
     featureUsageService: FeatureUsageService,
-    workerAction: WorkerActionBuilder
-) extends BaseController {
-  implicit val ec: ExecutionContext = env.executionContext
+    workerAction: WorkerActionBuilder,
+    featuresDatastore: FeaturesDatastore // FIXME remove to use service instead
+)(implicit val ec: ExecutionContext) extends BaseController {
 
   def testFeature(
       tenant: String,
@@ -69,7 +68,7 @@ class FeatureController(
                 )
               case f => f
             }
-            Feature
+            featureService
               .writeFeatureForCheck(
                 featureToEval,
                 RequestContext(
@@ -79,15 +78,10 @@ class FeatureController(
                   data = (request.body \ "payload")
                     .asOpt[JsObject]
                     .getOrElse(Json.obj())
-                ),
-                env
+                )
               )
-              .map {
-                case Left(value) => value.toHttpResponse
-                case Right(json) => Ok(json)
-              }
+              .toResult(json => Ok(json))
           }
-
         }
       }
     }
@@ -112,7 +106,7 @@ class FeatureController(
         lazy val data: JsObject = Option(request.body)
           .flatMap(json => json.asOpt[JsObject])
           .getOrElse(JsObject.empty)
-        env.datastores.features
+        featuresDatastore
           .findById(
             tenant,
             id
@@ -263,7 +257,7 @@ class FeatureController(
 
   def searchFeatures(tenant: String, tag: String): Action[AnyContent] =
     detailledRightForTenanFactory(tenant).async { implicit request =>
-      env.datastores.features
+      featuresDatastore
         .searchFeature(tenant, if (tag.isBlank) Set() else Set(tag))
         .flatMap(features => {
           featureUsageService.determineStaleStatus(tenant, features).map {
@@ -317,7 +311,7 @@ class FeatureController(
       featureRequest: FeatureRequest
   ): Action[AnyContent] = authenticatedAction.async { implicit request =>
     val futureFeaturesByProject =
-      env.datastores.features.findByRequestV2(
+      featuresDatastore.findByRequestV2(
         tenant,
         featureRequest,
         contexts = FeatureContextPath(featureRequest.context),

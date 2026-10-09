@@ -918,6 +918,21 @@ class FeatureService(
   ): FutureEither[Map[String, String]] = {
     datastore.findFeaturesProjects(tenant = tenant, featureIds = featureIds)
   }
+  
+  // FIXME avoid returning JsObject to return dedicated writtable type
+  def writeFeatureForCheck(feature: CompleteFeature, context: RequestContext): FutureEither[JsObject] = {
+    feature
+      .value(context, wasmIntegration, isWasmAllowed)
+      .map(either => {
+        either.map(active => {
+          Json.obj(
+            "name" -> feature.name,
+            "active" -> active,
+            "project" -> feature.project
+          )
+        })
+      }).toFEither
+  }
 }
 
 object FeatureService {

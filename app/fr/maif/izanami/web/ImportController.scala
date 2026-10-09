@@ -1,6 +1,5 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.ConflictField.*
@@ -183,7 +182,6 @@ object ImportState {
 }
 
 class ImportController(
-    val env: Env,
     val controllerComponents: ControllerComponents,
     val tenantAuthAction: TenantAuthActionFactory,
     val wasmManagerClient: WasmManagerClient,
@@ -578,7 +576,7 @@ class ImportController(
   }
 
   def importV1Data(
-      request: UserNameRequest[MultipartFormData[Files.TemporaryFile]],
+      request: TestRequest[MultipartFormData[Files.TemporaryFile], _],
       tenant: String,
       conflict: String,
       timezone: String,
