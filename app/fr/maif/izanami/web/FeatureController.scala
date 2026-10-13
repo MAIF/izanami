@@ -1,18 +1,18 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.datastores.{FeatureContextDatastore, FeaturesDatastore}
-import fr.maif.izanami.errors.{BadBodyFormat, FeatureNotFound, IzanamiError}
+import fr.maif.izanami.errors.{BadBodyFormat, FeatureDoesNotExist, FeatureNotFound, IzanamiError}
 import fr.maif.izanami.events.EventAuthentication.{BackOfficeAuthentication, TokenAuthentication}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.Feature.*
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
 import fr.maif.izanami.models.LightWeightFeatureWithUsageInformation.writeLightWeightFeatureWithUsageInformation
-import fr.maif.izanami.models.ProjectRightLevel.Write
+import fr.maif.izanami.models.ProjectRightLevel.{Read, Write}
 import fr.maif.izanami.models.features.*
 import fr.maif.izanami.requests.BaseFeatureUpdateRequest
 import fr.maif.izanami.services.FeatureService
 import fr.maif.izanami.services.FeatureUsageService
-import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.utils.{Done, FutureEither}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import play.api.libs.json.*
@@ -102,71 +102,57 @@ class FeatureController(
       id: String,
       user: String,
       date: Instant
-    ): Action[JsValue] = authenticatedAction.async(parse.json) {
+    ): Action[JsValue] = detailledRightForTenanFactory(tenant).async(parse.json) {
     implicit request =>
       {
         lazy val data: JsObject = Option(request.body)
           .flatMap(json => json.asOpt[JsObject])
           .getOrElse(JsObject.empty)
-        featuresDatastore
-          .findById(
-            tenant,
-            id
-          )
-          .flatMap(eitherFeature => {
-            eitherFeature.fold(
-              err => Future(Results.Status(err.status)(Json.toJson(err))),
-              maybeFeature => {
-                maybeFeature
-                  .map(feature =>
-                    featureContextDatastore
-                      .readStrategyForContext(tenant, context, feature)
-                      .flatMap {
-                        case Some(strategy) => {
-                          featureService.evaluateStrategy(strategy, RequestContext(
-                            tenant = tenant,
-                            user,
-                            context = context,
-                            now = date,
-                            data = data
-                          ))
-                            .map {
-                              case Left(value)   => value.toHttpResponse
-                              case Right(active) =>
-                                Ok(
-                                  Json.obj(
-                                    "active" -> active,
-                                    "project" -> feature.project,
-                                    "name" -> feature.name
-                                  )
-                                )
-                            }
-                        }
-                        case None =>
-                          featureService
-                            .writeFeatureForCheck(
-                              feature,
-                              RequestContext(
-                                tenant = tenant,
-                                user = user,
-                                now = date,
-                                context = context,
-                                data = data
-                              )
-                            ).toResult(json => Ok(json))
-                      }
-                  )
-                  .getOrElse(
-                    Future(
-                      NotFound(
-                        Json.obj("message" -> s"Feature $id does not exist")
+        val maybeFeature = for(
+          feature <- featureService.findById(tenant = tenant, id = id);
+          f <- feature.fold(FutureEither.failure(FeatureDoesNotExist(id)): FutureEither[CompleteFeature]) {
+            case f if request.user.hasRightForProject(f.project, Read) => FutureEither.success(f);
+            case _ => FutureEither.failure(FeatureDoesNotExist(id)): FutureEither[CompleteFeature]
+          }
+        ) yield f;
+        maybeFeature.toFutureResult(f => {
+          featureContextDatastore
+            .readStrategyForContext(tenant, context, f)
+            .flatMap {
+              case Some(strategy) => {
+                featureService.evaluateStrategy(strategy, RequestContext(
+                    tenant = tenant,
+                    user,
+                    context = context,
+                    now = date,
+                    data = data
+                  ))
+                  .map {
+                    case Left(value) => value.toHttpResponse
+                    case Right(active) =>
+                      Ok(
+                        Json.obj(
+                          "active" -> active,
+                          "project" -> f.project,
+                          "name" -> f.name
+                        )
                       )
-                    )
-                  )
+                  }
               }
-            )
-          })
-
+              case None =>
+                featureService
+                  .writeFeatureForCheck(
+                    f,
+                    RequestContext(
+                      tenant = tenant,
+                      user = user,
+                      now = date,
+                      context = context,
+                      data = data
+                    )
+                  ).toResult(json => Ok(json))
+            }
+        })
       }
   }
 

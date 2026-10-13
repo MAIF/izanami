@@ -87,7 +87,13 @@ class FeatureService(
       .mapToFEither
   }
 
-  def isWasmAllowed = wasmRelatedStuff.isWasmAllowed
+  def findById(
+                tenant: String,
+                id: String,
+                conn: Option[SqlConnection] = None
+              ): FutureEither[Option[CompleteFeature]] = datastore.findById(tenant = tenant, id = id, conn = conn).toFEither
+
+  def isWasmAllowed: Boolean = wasmRelatedStuff.isWasmAllowed
   
   // TODO this should be split in completion to Map[String, CompleteFeature] and a Write
   def processMultipleStrategyResult(
