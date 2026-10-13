@@ -350,18 +350,20 @@ function LegacyFeatureForm(props: {
                 )}
               />
             </label>
-            <label className="mt-3">
+            <div className="mt-3"></div>
+            <label htmlFor="legacy.feature.enabling">
               Enabled
               <Tooltip id="legacy-enabled">
                 Whether feature is enabled or disabled. The disabled feature is
                 an inactive event if its conditions match.
               </Tooltip>
-              <input
+            </label>
+            <input
+                id="legacy.feature.enabling"
                 type="checkbox"
                 className="izanami-checkbox"
                 {...register("enabled")}
               />
-            </label>
             <label className="mt-3">
               Description
               <input
@@ -1040,18 +1042,21 @@ export function V2FeatureForm(props: {
               />
               <ErrorDisplay error={errors.name} />
             </label>
-            <label className="mt-3">
-              Enabled
-              <Tooltip id="modern-enabled">
-                Whether feature is enabled or disabled. The disabled feature is
-                an inactive event if its conditions match.
-              </Tooltip>
+            <div className="mt-3">
+              <label className="mt-3" htmlFor="feature.enabling">
+                Enabled
+                <Tooltip id="modern-enabled">
+                  Whether feature is enabled or disabled. The disabled feature is
+                  an inactive event if its conditions match.
+                </Tooltip>
+              </label>
               <input
+                id="feature.enabling"
                 type="checkbox"
                 className="izanami-checkbox"
                 {...register("enabled")}
-              />
-            </label>
+                />
+            </div>
             {canDisplayId && (
               <>
                 <div className="mt-3">
