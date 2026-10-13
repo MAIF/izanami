@@ -1658,7 +1658,7 @@ class FeaturesDatastore(
   def readLocalScriptsWithAssociatedFeatures(
       tenant: String
   ): Future[Seq[WasmConfigWithFeatures]] = {
-    Tenant.isTenantValid(tenant)
+    require(Tenant.isTenantValid(tenant))
     postgresql.queryAll(
       s"""
          |SELECT c.config, json_agg(json_build_object('id', features.id, 'name', features.name, 'project', features.project)) as features

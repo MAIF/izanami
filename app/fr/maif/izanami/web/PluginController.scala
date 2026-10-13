@@ -2,6 +2,7 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.datastores.{ConfigurationDatastore, FeaturesDatastore}
 import fr.maif.izanami.models.RightLevel
+import fr.maif.izanami.models.RightLevel.Read
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.WasmConfig
 import fr.maif.izanami.wasm.WasmConfigWithFeatures
@@ -24,13 +25,13 @@ class PluginController(
     featuresDatastore: =>FeaturesDatastore,
     configurationDatastore: =>ConfigurationDatastore,
     wsClient: =>WSClient,
-    wasmIntegration: =>WasmIntegration
+    wasmIntegration: =>WasmIntegration,
+    simpleAuthAction: =>AuthenticatedAction
 )(implicit val ec: ExecutionContext) extends BaseController {
   private val logger = Logger("PlutinController")
 
-  // TODO authenticate
   def localScripts(tenant: String, features: Boolean): Action[AnyContent] =
-    Action.async { implicit request =>
+    authAction(tenant, Read).async { implicit request =>
       if (features) {
         featuresDatastore
           .readLocalScriptsWithAssociatedFeatures(tenant)
@@ -80,8 +81,7 @@ class PluginController(
       }
     }
 
-  // TODO basic authentication
-  def wasmFiles(): Action[AnyContent] = Action.async { implicit request =>
+  def wasmFiles(): Action[AnyContent] = simpleAuthAction.async { implicit request =>
     configurationDatastore
       .readWasmConfiguration() match {
       case Some(settings @ WasmoSettings(url, _, _, pluginsFilter, _, _)) =>
