@@ -102,7 +102,7 @@ class FeatureController(
       id: String,
       user: String,
       date: Instant
-  ): Action[JsValue] = authenticatedAction.async(parse.json) {
+    ): Action[JsValue] = authenticatedAction.async(parse.json) {
     implicit request =>
       {
         lazy val data: JsObject = Option(request.body)

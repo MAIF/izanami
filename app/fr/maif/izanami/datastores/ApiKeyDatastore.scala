@@ -187,11 +187,11 @@ class ApiKeyDatastore(postgresql: =>Postgresql)(implicit val ec: ExecutionContex
          |LEFT JOIN "${tenant}".apikeys_projects ap
          |ON ap.apikey = a.name
          |WHERE EXISTS (SELECT u.username FROM izanami.users u WHERE u.username=$$1 AND u.admin=TRUE)
-         |OR EXISTS(SELECT * FROM izanami.users_tenants_rights utr WHERE utr.username=$$1 AND (utr.level='ADMIN' OR utr.default_key_right IS NOT NULL))
+         |OR EXISTS(SELECT * FROM izanami.users_tenants_rights utr WHERE utr.username=$$1 AND utr.tenant=$$2 AND (utr.level='ADMIN' OR utr.default_key_right IS NOT NULL))
          |OR a.name=ANY(SELECT akr.apikey FROM "${tenant}".users_keys_rights akr WHERE akr.username=$$1)
          |GROUP BY a.name
          |""".stripMargin,
-      List(username)
+      List(username, tenant)
     ) { r => r.optApiKeyWithSubObjects(tenant) }
   }
 
