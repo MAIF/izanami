@@ -1,7 +1,6 @@
 package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.FeatureContextDatastore.FeatureContextRow
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.env.PostgresqlErrors.FOREIGN_KEY_VIOLATION
 import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
@@ -30,11 +29,10 @@ import scala.concurrent.Future
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import org.apache.pekko.Done
+import fr.maif.izanami.events.EventService
+import scala.concurrent.ExecutionContext
 
-class FeatureContextDatastore(val env: Env) extends Datastore {
-  private val postgresql: Postgresql = env.postgresql
-  private val extensionSchema = env.extensionsSchema
-
+class FeatureContextDatastore(postgresql: =>Postgresql, extensionSchema: String, featureDatastore: =>FeaturesDatastore, eventService: =>EventService)(implicit val ec: ExecutionContext) extends Datastore {
   def readProtectedContexts(
       tenant: String,
       project: String,
@@ -378,10 +376,10 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       conn: Option[SqlConnection] = None
   ): Future[Either[IzanamiError, Unit]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql.executeInOptionalTransaction(
+    postgresql.executeInOptionalTransaction(
       conn,
       conn => {
-        env.datastores.features
+        featureDatastore
           .findActivationStrategiesForFeatureByName(tenant, feature, project)
           .map(o => o.toRight(InternalServerError()))
           .flatMap {
@@ -416,7 +414,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                 .flatMap {
                   case Left(err)  => Left(err).future
                   case Right(fid) => {
-                    env.eventService
+                    eventService
                       .emitEvent(
                         channel = tenant,
                         event = SourceFeatureUpdated(
@@ -449,7 +447,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
       conn: Option[SqlConnection] = None
   ): Future[Either[IzanamiError, Unit]] = {
     Tenant.isTenantValid(tenant)
-    env.datastores.features
+    featureDatastore
       .findActivationStrategiesForFeatureByName(tenant, feature, project)
       .map(o => o.toRight(FeatureDoesNotExist(feature)))
       .flatMap {
@@ -534,7 +532,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                   (f match {
                     case f: CompleteWasmFeatureStrategy
                         if f.wasmConfig.source.kind != WasmSourceKind.Local =>
-                      env.datastores.features.createWasmScriptIfNeeded(
+                      featureDatastore.createWasmScriptIfNeeded(
                         tenant,
                         f.wasmConfig,
                         Some(conn)
@@ -567,7 +565,7 @@ class FeatureContextDatastore(val env: Env) extends Datastore {
                 }
               }).flatMap {
                 case Right(fid) =>
-                  env.eventService
+                  eventService
                     .emitEvent(
                       channel = tenant,
                       event = SourceFeatureUpdated(

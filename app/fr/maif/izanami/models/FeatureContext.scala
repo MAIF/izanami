@@ -1,6 +1,5 @@
 package fr.maif.izanami.models
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.features.ActivationCondition
 import fr.maif.izanami.models.features.BooleanActivationCondition
@@ -10,13 +9,14 @@ import fr.maif.izanami.models.features.ResultDescriptor
 import fr.maif.izanami.models.features.ResultType
 import fr.maif.izanami.models.features.ValuedResultDescriptor
 import fr.maif.izanami.models.features.ValuedResultType
-import fr.maif.izanami.wasm.WasmConfig
-import fr.maif.izanami.wasm.WasmUtils
+import fr.maif.izanami.wasm.{WasmConfig, WasmRelatedStuff, WasmUtils}
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.*
+import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 
 import scala.concurrent.Future
 import scala.util.matching.Regex
+import scala.concurrent.ExecutionContext
 
 sealed trait ContextHolder {
   def context: Context
@@ -135,8 +135,8 @@ sealed trait LightweightContextualStrategy extends ContextualFeatureStrategy
 sealed trait CompleteContextualStrategy extends ContextualFeatureStrategy {
   def value(
       requestContext: RequestContext,
-      env: Env
-  ): Future[Either[IzanamiError, JsValue]]
+      wasmRelatedStuff: WasmRelatedStuff
+  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]]
   def toLightWeightContextualStrategy: LightweightContextualStrategy = {
     this match {
       case f: ClassicalFeatureStrategy => f
@@ -168,10 +168,10 @@ case class ClassicalFeatureStrategy(
     resultDescriptor: ResultDescriptor
 ) extends CompleteContextualStrategy
     with LightweightContextualStrategy {
-  def value(
+  override def value(
       requestContext: RequestContext,
-      env: Env
-  ): Future[Either[IzanamiError, JsValue]] = {
+      wasmRelatedStuff: WasmRelatedStuff
+  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
     Future.successful(Right((enabled, resultDescriptor) match {
       case (false, r: BooleanResultDescriptor)         => JsFalse
       case (false, _)                                  => JsNull
@@ -197,18 +197,17 @@ case class CompleteWasmFeatureStrategy(
     enabled: Boolean,
     wasmConfig: WasmConfig,
     feature: String,
-    resultType: ResultType
-) extends CompleteContextualStrategy {
-  def value(
+    resultType: ResultType   
+)extends CompleteContextualStrategy {
+  override def value(
       requestContext: RequestContext,
-      env: Env
-  ): Future[Either[IzanamiError, JsValue]] = {
+      wasmRelatedStuff: WasmRelatedStuff
+  )(implicit executionContext: ExecutionContext) : Future[Either[IzanamiError, JsValue]] = {
     if (!enabled) {
-      Future { Right(null.asInstanceOf) }(env.executionContext)
+      Future { Right(null.asInstanceOf) }(executionContext)
     } else {
-      WasmUtils.handle(wasmConfig, requestContext, resultType)(
-        env.executionContext,
-        env
+      WasmUtils.handle(wasmConfig, requestContext, resultType, wasmRelatedStuff.wasmIntegration)(
+        executionContext
       )
     }
   }

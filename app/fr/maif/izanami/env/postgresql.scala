@@ -43,8 +43,11 @@ import fr.maif.izanami.utils.Done
 import java.util.concurrent.atomic.AtomicBoolean
 import io.vertx.core.net.NetClientOptions
 import io.vertx.core.net.ClientSSLOptions
+import fr.maif.izanami.IzanamiTypedConfiguration
+import fr.maif.izanami.AppConf
+import fr.maif.izanami.models.SimpleTenant
 
-class Postgresql(env: Env) {
+class Postgresql(appConfig: AppConf)(implicit ec: ExecutionContext) {
 
   import pgimplicits.*
 
@@ -161,23 +164,27 @@ class Postgresql(env: Env) {
     .applyOnWithOpt(pgConfiguration.idleTimeout)((p, v) => p.setIdleTimeout(v))
     .applyOnWithOpt(pgConfiguration.maxLifetime)((p, v) => p.setMaxLifetime(v))
   // private lazy val pool = PgPool.pool(connectOptions, poolOptions)
-  private lazy val pool = PgBuilder.pool().`with`(
+  lazy val pool = PgBuilder.pool().`with`(
     poolOptions
   ).`with`(netOptions).connectingTo(connectOptions).using(vertx).build();
-  val pgConfiguration = env.typedConfiguration.pg
+  val pgConfiguration = appConfig.pg
   val sslConfiguration = pgConfiguration.ssl
   def pgErrorPartialFunction: PartialFunction[Throwable, IzanamiError] = {
     case f: PgException if f.getConstraint() != null =>
       PostgresErrorMapper.constraintNameToIzanamiError(f.getConstraint)
-    case _ => InternalServerError("An unexpected error occured")
+    case _ => {
+      InternalServerError("An unexpected error occured")
+    }
   }
   private val logger = Logger("izanami")
 
-  def onStart(): Future[Unit] = {
-    updateSchema()
+  // TODO find a better solution, passing tenant here is needed for decoupling this
+  // class from datastores
+  def onStart(tenants: List[SimpleTenant]): Future[Unit] = {
+    updateSchema(tenants)
   }
 
-  def updateSchema(): Future[Unit] = {
+  def updateSchema(tenants: List[SimpleTenant]): Future[Unit] = {
     val config = new HikariConfig()
     config.setDriverClassName(classOf[org.postgresql.Driver].getName)
     config.setJdbcUrl(
@@ -225,7 +232,7 @@ class Postgresql(env: Env) {
 
     val migrationResult = flyway.migrate()
     if (migrationResult.initialSchemaVersion == null) {
-      val isPasswordProvided = env.typedConfiguration.admin.password.isDefined
+      val isPasswordProvided = appConfig.admin.password.isDefined
       if (!isPasswordProvided) {
         logger.warn(
           s"No password provided in app.admin.password env variable. Therefore password ${password} has been automatically generated for RESERVED_ADMIN_USER account"
@@ -233,11 +240,11 @@ class Postgresql(env: Env) {
       }
     }
 
-    env.datastores.tenants
-      .readTenants()
-      .map(tenants => {
-        tenants.foreach(tenant => {
-          val flyway =
+    
+
+    tenants.foldLeft(Try.apply(Done.done()))((t, tenant) => {
+      t.flatMap(_ => {
+        val flyway =
             Flyway.configure
               .dataSource(dataSource)
               .locations(
@@ -251,66 +258,56 @@ class Postgresql(env: Env) {
               .placeholders(
                 java.util.Map.of(
                   "extensions_schema",
-                  env.extensionsSchema,
+                  appConfig.pg.extensionsSchema,
                   "schema",
                   tenant.name
                 )
               )
               .load()
+
+
           Try {
             flyway.migrate()
-          } match {
-            case Failure(e: FlywayValidateException) => {
+            Done.done()
+          }.recoverWith{
+            case e: FlywayValidateException => {
               val validationResult = flyway.validateWithResult()
               if (
                 validationResult.invalidMigrations.asScala.map(v =>
                   v.version
                 ).contains("2")
               ) {
-                env.logger.info(
+                logger.info(
                   s"""Izanami needs to repair flyway migration for tenant ${tenant.name} since extension schema is now configurable. Starting repair..."""
                 )
                 flyway.repair()
-                env.logger.info(
+                logger.info(
                   s"""Repair worked, restarting migration for ${tenant.name}"""
                 )
-                flyway.migrate()
+                Try{flyway.migrate()
+                Done.done()}
               } else {
                 throw e
               }
             }
-            case Failure(e) => throw e
-            case Success(_) => ()
           }
-        })
-      })(env.executionContext)
-      .andThen(_ => dataSource.close())(env.executionContext)
+      })
+    }).fold(_ => dataSource.close(), _ => dataSource.close())
+
+    Future.successful(Done.done())
   }
 
   def defaultPassword: String = {
-    val maybeUserProvidedPassword = env.typedConfiguration.admin.password
+    val maybeUserProvidedPassword = appConfig.admin.password
     maybeUserProvidedPassword.getOrElse(IdGenerator.token(24))
   }
 
   def defaultUser: String = {
-    env.typedConfiguration.admin.username
+    appConfig.admin.username
   }
 
   def onStop(): Future[Unit] = {
-    pool.close().scala.map(_ => ())(env.executionContext)
-  }
-
-  def updateSearchPath(
-      searchPath: String,
-      conn: SqlConnection
-  ): Future[Unit] = {
-    conn
-      .preparedQuery(
-        f"SELECT set_config('search_path', $$1, true)"
-      )
-      .execute(io.vertx.sqlclient.Tuple.of(searchPath))
-      .mapEmpty()
-      .scala
+    pool.close().scala.map(_ => ())
   }
 
   def executeInTransaction[T](callback: SqlConnection => FutureEither[T])
@@ -339,7 +336,7 @@ class Postgresql(env: Env) {
     maybeTransaction.fold {
       executeInTransaction(callback = callback)
     }(conn => {
-      callback(conn).vertx(env.executionContext).scala
+      callback(conn).vertx.scala
     })
   }
 
@@ -350,17 +347,16 @@ class Postgresql(env: Env) {
   def executeInTransactionAllowingSavepoint[T](
       callback: (SqlConnection, () => Future[Done]) => Future[T]
   ): Future[T] = {
-    implicit val ec: ExecutionContext = env.executionContext
     pool.getConnection().scala.flatMap(conn => {
       val rollbacked = AtomicBoolean(false)
-      env.postgresql.queryRaw("BEGIN", conn = Some(conn)) { _ => () }
+      queryRaw("BEGIN", conn = Some(conn)) { _ => () }
         .flatMap(_ => {
           callback(
             conn,
             () => {
               if (!rollbacked.get()) {
                 rollbacked.set(true)
-                env.postgresql.queryRaw("ROLLBACK", conn = Some(conn)) { _ =>
+                queryRaw("ROLLBACK", conn = Some(conn)) { _ =>
                   Done.done()
                 }
               } else {
@@ -370,13 +366,13 @@ class Postgresql(env: Env) {
               }
             }
           ).flatMap(t => {
-            env.postgresql.queryRaw("COMMIT", conn = Some(conn)) { _ =>
+            queryRaw("COMMIT", conn = Some(conn)) { _ =>
               ()
             }.map(_ => t)
           }).recoverWith {
             case err => {
               if (!rollbacked.get()) {
-                env.postgresql.queryRaw("ROLLBACK", conn = Some(conn)) { _ =>
+                queryRaw("ROLLBACK", conn = Some(conn)) { _ =>
                   ()
                 }.flatMap(_ => {
                   Future.failed(err)
@@ -401,7 +397,7 @@ class Postgresql(env: Env) {
     var future: io.vertx.core.Future[T] = io.vertx.core.Future.succeededFuture()
     pool
       .withTransaction(conn => {
-        future = callback(conn).vertx(env.executionContext)
+        future = callback(conn).vertx
         future
       })
       .recover(err => {
@@ -421,7 +417,7 @@ class Postgresql(env: Env) {
       io.vertx.core.Future.succeededFuture()
     pool
       .withTransaction(conn => {
-        future = callback(conn).value.vertx(env.executionContext)
+        future = callback(conn).value.vertx
         future
       })
       .recover(err => {
@@ -482,7 +478,7 @@ class Postgresql(env: Env) {
         r.asInstanceOf[AnyRef]
       }
     })
-    if (debug) env.logger.info(s"""query: "$query", params: "${castedParams.map(
+    if (debug) logger.info(s"""query: "$query", params: "${castedParams.map(
         _.toString
       ).mkString(", ")}"""")
     val isRead = query.toLowerCase().trim.startsWith("select")
@@ -526,7 +522,7 @@ class Postgresql(env: Env) {
         case Success(value) => FastFuture.successful(value)
         case Failure(e)     => FastFuture.failed(e)
       }
-    }(env.executionContext)
+    }
       .andThen {
         case Failure(e: DbConnectionFailure) => logger.error(e.message)
         case Failure(e) if !silentFor(e)     => {
@@ -547,7 +543,7 @@ class Postgresql(env: Env) {
             e
           )
         }
-      }(env.executionContext)
+      }
   }
 
   def queryOne[A](

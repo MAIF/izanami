@@ -1,18 +1,16 @@
 package fr.maif.izanami.mail
 
-import fr.maif.izanami.env.Env
 
-class MailFactory(env: Env) {
+class MailFactory(expositionUrl: String) {
   def invitationEmail(target: String, token: String): Mail = {
-    val baseUrl = env.expositionUrl
-    val completeUrl = s"${baseUrl}/invitation?token=${token}"
+    val completeUrl = s"${expositionUrl}/invitation?token=${token}"
     Mail(
       subject = "You've been invited to Izanami",
       targetMail = target,
       textContent =
         s"""
            |You've been invited to Izanami.
-           |Click on this link to finalize your account creation : ${baseUrl}?invitation=${token}
+           |Click on this link to finalize your account creation : ${completeUrl}
            |
            |If you don't know what it's about, you can safely ignore this mail.
            |""".stripMargin,
@@ -27,8 +25,7 @@ class MailFactory(env: Env) {
   }
 
   def passwordResetEmail(target: String, token: String): Mail = {
-    val baseUrl = env.expositionUrl
-    val completeUrl = s"${baseUrl}/password/_reset?token=${token}"
+    val completeUrl = s"${expositionUrl}/password/_reset?token=${token}"
     Mail(
       subject = "Izanami password reset",
       targetMail = target,

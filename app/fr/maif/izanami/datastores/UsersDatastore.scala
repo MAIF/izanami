@@ -5,9 +5,6 @@ import fr.maif.izanami.datastores.userImplicits.dbUserTypeToUserType
 import fr.maif.izanami.datastores.userImplicits.projectRightRead
 import fr.maif.izanami.datastores.userImplicits.rightRead
 import fr.maif.izanami.datastores.userImplicits.webhookRightRead
-import fr.maif.izanami.env.Env
-import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
-import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.models.*
@@ -18,9 +15,7 @@ import fr.maif.izanami.services.*
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterFuture
-import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterFutureEither, BetterJsValue, BetterSyntax}
 import fr.maif.izanami.web.ImportController.*
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
@@ -32,8 +27,21 @@ import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationLong
+import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
+import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
 
-class UsersDatastore(val env: Env) extends Datastore {
+import scala.concurrent.ExecutionContext
+import org.apache.pekko.actor.ActorSystem
+
+class UsersDatastore(
+  postgresql: =>Postgresql,
+  houseKeepingStartDelayInSeconds: Long,
+  houseKeepingIntervalInSeconds: Long,
+  sessionsTtl: Integer,
+  invitationsTtl: Integer,
+  passwordResetRequestsTtl: Integer, 
+  actorSystem: ActorSystem)(implicit val ec: ExecutionContext) extends Datastore {
   var sessionExpirationCancellation: Cancellable = Cancellable.alreadyCancelled
   var invitationExpirationCancellation: Cancellable =
     Cancellable.alreadyCancelled
@@ -41,23 +49,23 @@ class UsersDatastore(val env: Env) extends Datastore {
     Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {
-    sessionExpirationCancellation = env.actorSystem.scheduler
+    sessionExpirationCancellation = actorSystem.scheduler
       .scheduleAtFixedRate(
-        env.houseKeepingStartDelayInSeconds.seconds,
-        env.houseKeepingIntervalInSeconds.seconds
-      )(() => deleteExpiredSessions(env.typedConfiguration.sessions.ttl))
-    invitationExpirationCancellation = env.actorSystem.scheduler
+        houseKeepingStartDelayInSeconds.seconds,
+        houseKeepingIntervalInSeconds.seconds
+      )(() => deleteExpiredSessions(sessionsTtl))
+    invitationExpirationCancellation = actorSystem.scheduler
       .scheduleAtFixedRate(
-        env.houseKeepingStartDelayInSeconds.seconds,
-        env.houseKeepingIntervalInSeconds.seconds
-      )(() => deleteExpiredInvitations(env.typedConfiguration.invitations.ttl))
-    passwordResetRequestCancellation = env.actorSystem.scheduler
+        houseKeepingStartDelayInSeconds.seconds,
+        houseKeepingIntervalInSeconds.seconds
+      )(() => deleteExpiredInvitations(invitationsTtl))
+    passwordResetRequestCancellation = actorSystem.scheduler
       .scheduleAtFixedRate(
-        env.houseKeepingStartDelayInSeconds.seconds,
-        env.houseKeepingIntervalInSeconds.seconds
+        houseKeepingStartDelayInSeconds.seconds,
+        houseKeepingIntervalInSeconds.seconds
       )(() =>
         deleteExpiredPasswordResetRequests(
-          env.typedConfiguration.passwordResetRequests.ttl
+          passwordResetRequestsTtl
         )
       )
     Future.successful(())
@@ -71,7 +79,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def createSession(username: String): Future[String] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"INSERT INTO izanami.sessions(username) VALUES ($$1) RETURNING id",
         List(username)
@@ -86,7 +94,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def deleteSession(sessionId: String): Future[Option[String]] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"DELETE FROM izanami.sessions WHERE id=$$1 RETURNING id",
         List(sessionId)
@@ -97,7 +105,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def deleteExpiredSessions(sessiontTtlInSeconds: Integer): Future[Integer] = {
-    env.postgresql
+    postgresql
       .queryAll(
         s"DELETE FROM izanami.sessions WHERE EXTRACT(EPOCH FROM (NOW() - creation)) > $$1 returning id",
         List(sessiontTtlInSeconds)
@@ -110,7 +118,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   def deleteExpiredInvitations(
       invitationsTtlInSeconds: Integer
   ): Future[Integer] = {
-    env.postgresql
+    postgresql
       .queryAll(
         s"DELETE FROM izanami.invitations WHERE EXTRACT(EPOCH FROM (NOW() - creation)) > $$1 returning id",
         List(invitationsTtlInSeconds)
@@ -123,7 +131,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   def deleteExpiredPasswordResetRequests(
       ttlInSeconds: Integer
   ): Future[Integer] = {
-    env.postgresql
+    postgresql
       .queryAll(
         s"DELETE FROM izanami.password_reset WHERE EXTRACT(EPOCH FROM (NOW() - creation)) > $$1 returning id",
         List(ttlInSeconds)
@@ -138,7 +146,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       admin: Boolean,
       conn: Option[SqlConnection] = None
   ): Future[Unit] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""UPDATE izanami.users SET admin=$$1 WHERE username=any($$2::TEXT[]) RETURNING username""",
         List(java.lang.Boolean.valueOf(admin), usernames.toArray),
@@ -151,7 +159,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       name: String,
       updateRequest: UserInformationUpdateRequest
   ): Future[Either[IzanamiError, Unit]] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""UPDATE izanami.users SET username=$$1, email=$$2, default_tenant=$$4 WHERE username=$$3 RETURNING username""",
         List(
@@ -166,14 +174,14 @@ class UsersDatastore(val env: Env) extends Datastore {
         case f: PgException if f.getSqlState == UNIQUE_VIOLATION =>
           Left(UserAlreadyExist(updateRequest.name, updateRequest.email))
       }
-      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+      .recover(postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
   }
 
   def updateLegacyUser(
       name: String,
       password: String
   ): Future[Either[IzanamiError, Unit]] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""UPDATE izanami.users SET password=$$1, legacy=false WHERE username=$$2 RETURNING username""",
         List(HashUtils.bcryptHash(password), name)
@@ -185,7 +193,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       name: String,
       password: String
   ): Future[Either[IzanamiError, Unit]] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""UPDATE izanami.users SET password=$$1 WHERE username=$$2 RETURNING username""",
         List(HashUtils.bcryptHash(password), name)
@@ -217,7 +225,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     require(Tenant.isTenantValid(tenant))
     for (
       _ <- FutureEither(
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
            |DELETE FROM izanami.users_tenants_rights
@@ -230,11 +238,11 @@ class UsersDatastore(val env: Env) extends Datastore {
           ) { _ => Some(()) }
           .map(_ => Right(()))
           .recover(
-            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+            postgresql.pgErrorPartialFunction.andThen(err => Left(err))
           )
       );
       _ <- FutureEither(
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
              |DELETE FROM "${tenant}".users_projects_rights
@@ -246,11 +254,11 @@ class UsersDatastore(val env: Env) extends Datastore {
           ) { _ => Some(()) }
           .map(_ => Right(()))
           .recover(
-            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+            postgresql.pgErrorPartialFunction.andThen(err => Left(err))
           )
       );
       _ <- FutureEither(
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
              |DELETE FROM "${tenant}".users_keys_rights
@@ -262,11 +270,11 @@ class UsersDatastore(val env: Env) extends Datastore {
           ) { _ => Some(()) }
           .map(_ => Right(()))
           .recover(
-            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+            postgresql.pgErrorPartialFunction.andThen(err => Left(err))
           )
       );
       res <- FutureEither(
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
              |DELETE FROM "${tenant}".users_webhooks_rights
@@ -278,7 +286,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           ) { _ => Some(()) }
           .map(_ => Right(()))
           .recover(
-            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+            postgresql.pgErrorPartialFunction.andThen(err => Left(err))
           )
       )
     ) yield res
@@ -294,7 +302,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       FutureEither.success(())
     } else {
       FutureEither(
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
              |DELETE FROM "${tenant}".users_projects_rights
@@ -307,7 +315,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           ) { _ => Some(()) }
           .map(_ => Right(()))
           .recover(
-            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+            postgresql.pgErrorPartialFunction.andThen(err => Left(err))
           )
       )
     }
@@ -323,7 +331,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       FutureEither.success(())
     } else {
       FutureEither(
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
              |DELETE FROM "${tenant}".users_keys_rights
@@ -336,7 +344,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           ) { _ => Some(()) }
           .map(_ => Right(()))
           .recover(
-            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+            postgresql.pgErrorPartialFunction.andThen(err => Left(err))
           )
       )
     }
@@ -352,7 +360,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       FutureEither.success(())
     } else {
       FutureEither(
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
              |DELETE FROM "${tenant}".users_webhooks_rights
@@ -365,7 +373,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           ) { _ => Some(()) }
           .map(_ => Right(()))
           .recover(
-            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+            postgresql.pgErrorPartialFunction.andThen(err => Left(err))
           )
       )
     }
@@ -468,7 +476,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     }
 
     FutureEither(
-      env.postgresql
+      postgresql
         .queryOne(
           s"""
              |INSERT INTO izanami.users_tenants_rights(username, tenant, level $fieldPart)
@@ -499,7 +507,7 @@ class UsersDatastore(val env: Env) extends Datastore {
         ) { _ => Some(()) }
         .map(_ => Right(()))
         .recover(
-          env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+          postgresql.pgErrorPartialFunction.andThen(err => Left(err))
         )
     )
   }
@@ -519,7 +527,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           usernames.map(username => (username, right))
         )
       FutureEither(
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
                |INSERT INTO "${tenant}".users_projects_rights(username, project, level)
@@ -552,7 +560,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           ) { _ => Some(()) }
           .map(_ => Right(()))
           .recover(
-            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+            postgresql.pgErrorPartialFunction.andThen(err => Left(err))
           )
       )
     }
@@ -573,7 +581,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           usernames.map(username => (username, right))
         )
       FutureEither(
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
                |INSERT INTO "${tenant}".users_keys_rights(username,apikey, level)
@@ -605,7 +613,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           ) { _ => Some(()) }
           .map(_ => Right(()))
           .recover(
-            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+            postgresql.pgErrorPartialFunction.andThen(err => Left(err))
           )
       )
     }
@@ -627,7 +635,7 @@ class UsersDatastore(val env: Env) extends Datastore {
         )
 
       FutureEither(
-        env.postgresql
+        postgresql
           .queryOne(
             s"""
                |INSERT INTO "${tenant}".users_webhooks_rights(username, webhook, level)
@@ -659,7 +667,7 @@ class UsersDatastore(val env: Env) extends Datastore {
           ) { _ => Some(()) }
           .map(_ => Right(()))
           .recover(
-            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+            postgresql.pgErrorPartialFunction.andThen(err => Left(err))
           )
       )
     }
@@ -734,7 +742,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       conn: Option[SqlConnection] = None,
       importConflictStrategy: ImportConflictStrategy = Replace
   ): Future[Either[IzanamiError, Unit]] = {
-    env.postgresql.executeInOptionalTransaction(
+    postgresql.executeInOptionalTransaction(
       conn,
       conn =>
         diff match {
@@ -758,10 +766,10 @@ class UsersDatastore(val env: Env) extends Datastore {
       roles: Set[String],
       conn: Option[SqlConnection] = Option.empty
   ): FutureEither[Done] = {
-    env.postgresql.executeInOptionalTransaction(
+    postgresql.executeInOptionalTransaction(
       conn,
       conn => {
-        env.postgresql
+        postgresql
           .queryAll(
             s"""
            |WITH users_to_logout AS (
@@ -786,12 +794,12 @@ class UsersDatastore(val env: Env) extends Datastore {
       rightDiff: RightDiff,
       conn: Option[SqlConnection] = Option.empty
   ): Future[Either[IzanamiError, Unit]] = {
-    env.postgresql.executeInOptionalTransaction(
+    postgresql.executeInOptionalTransaction(
       conn,
       conn => {
         rightDiff.admin
           .fold(Future.successful(Right(())))(admin => {
-            env.datastores.users.updateUsersAdminStatus(
+            updateUsersAdminStatus(
               Set(name),
               admin,
               conn = Some(conn)
@@ -813,20 +821,11 @@ class UsersDatastore(val env: Env) extends Datastore {
 
   }
 
-  def updateUserRoles(
-      user: String,
-      roles: Set[String],
-      conn: Option[SqlConnection]
-  ): FutureEither[Done] = {
-    env.postgresql.queryOne(
-      s"UPDATE izanami.users SET roles=$$1 WHERE username=$$2",
-      params =
-        List(JsArray(roles.map(JsString(_)).toIndexedSeq).vertxJsValue, user),
-      conn = conn
-    )(_ => {
+  def updateUserRoles(user: String, roles: Set[String], conn: Option[SqlConnection]): FutureEither[Done] = {
+    postgresql.queryOne(s"UPDATE izanami.users SET roles=$$1 WHERE username=$$2", params = List(JsArray(roles.map(JsString(_)).toIndexedSeq).vertxJsValue, user), conn= conn)(_ => {
       Some(Done.done())
     }).map(_ => Done.done())
-      .mapToFEither
+    .mapToFEither
   }
 
   def createUserWithConn(
@@ -838,7 +837,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       Future.successful(Right(()))
     } else {
       val eventualErrorOrUnit: Future[Either[IzanamiError, Unit]] =
-        env.postgresql
+        postgresql
           .queryRaw(
             s"""INSERT INTO izanami.users (username, password, admin, email, user_type, legacy, roles)
              |values (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::BOOLEAN[]), unnest($$4::TEXT[]), unnest($$5::izanami.user_type[]), unnest($$6::BOOLEAN[]), unnest($$7::JSONB[])) ${importConflictStrategy match {
@@ -871,7 +870,7 @@ class UsersDatastore(val env: Env) extends Datastore {
             conn = Some(conn)
           ) { _ => Right(()) }
           .recover(
-            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+            postgresql.pgErrorPartialFunction.andThen(err => Left(err))
           )
           .flatMap {
             case Left(err) => Future.successful(Left(err))
@@ -905,7 +904,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       user: UserWithRights,
       conn: Option[SqlConnection] = None
   ): Future[Either[IzanamiError, Unit]] = {
-    env.postgresql.executeInOptionalTransaction(
+    postgresql.executeInOptionalTransaction(
       conn,
       conn => {
         createUserWithConn(Seq(user), conn)
@@ -914,7 +913,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def deleteUser(username: String): Future[Done] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
          |DELETE FROM izanami.users
@@ -1067,7 +1066,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       case SessionIdentification(sessionId) => "WHERE s.id=$1::UUID"
     }
 
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
            |SELECT utr.level, u.username, u.email, u.user_type, u.admin, u.default_tenant, u.roles, utr.default_project_right, utr.default_key_right, json_build_object(
@@ -1234,22 +1233,29 @@ class UsersDatastore(val env: Env) extends Datastore {
       }
   }
 
-  def findAdminSession(session: String): Future[Option[String]] = {
-    env.postgresql
+  def checkAdminSession(session: String): FutureEither[String] = {
+    postgresql
       .queryOne(
         s"""
-           |SELECT u.username
+           |SELECT u.username, u.admin
            |FROM izanami.users u, izanami.sessions s
            |WHERE u.username = s.username
            |AND s.id = $$1
-           |AND u.admin = true
            |""".stripMargin,
         List(session)
-      ) { row => row.optString("username") }
+      ) { row => {
+        for(
+          admin <- row.optBoolean("admin");
+          username <- row.optString("username")
+        ) yield {
+          if(admin) Right(username) else Left(NotEnoughRights())
+        }
+      } }.map(o => o.getOrElse(Left(SessionNotFound(session))))
+      .toFEither
   }
 
   def findSession(session: String): Future[Option[String]] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
            |SELECT u.username
@@ -1262,7 +1268,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def isAdmin(username: String): Future[Boolean] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
            |SELECT u.username
@@ -1281,7 +1287,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       rights: Rights,
       inviter: String
   ): Future[Either[IzanamiError, String]] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
            |INSERT INTO izanami.invitations(email, admin, rights, inviter) values ($$1, $$2, $$3::jsonb, $$4)
@@ -1300,11 +1306,11 @@ class UsersDatastore(val env: Env) extends Datastore {
         Some(row.getUUID("id").toString)
       }
       .map(o => o.toRight(InternalServerError()))
-      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+      .recover(postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
   }
 
   def deleteInvitation(id: String): Future[Option[Unit]] = {
-    env.postgresql.queryOne(
+    postgresql.queryOne(
       s"""
          |DELETE FROM izanami.invitations WHERE id=$$1::UUID RETURNING id
          |""".stripMargin,
@@ -1315,7 +1321,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def readInvitation(id: String): Future[Option[UserInvitation]] = {
-    env.postgresql.queryOne(
+    postgresql.queryOne(
       s"""
          |SELECT id, email, admin, rights from izanami.invitations where id=$$1
          |""".stripMargin,
@@ -1340,7 +1346,7 @@ class UsersDatastore(val env: Env) extends Datastore {
 
   def isUserValid(username: String, password: String): Future[Option[User]] = {
     // TODO handle lecgacy users & test it !
-    env.postgresql
+    postgresql
       .queryOne(
         s"""SELECT username, password, admin, email, user_type, legacy, roles FROM izanami.users WHERE username=$$1""",
         List(username)
@@ -1367,7 +1373,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   def findSessionWithTenantRights(
       session: String
   ): Future[Option[UserWithTenantRights]] = {
-    env.postgresql.queryOne(
+    postgresql.queryOne(
       s"""
          |SELECT u.username, u.admin, u.email, u.default_tenant, u.user_type, u.roles,
          |  coalesce((
@@ -1417,7 +1423,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def savePasswordResetRequest(username: String): Future[String] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
          |INSERT into izanami.password_reset(username)
@@ -1439,7 +1445,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def findPasswordResetRequest(id: String): Future[Option[String]] = {
-    env.postgresql.queryOne(
+    postgresql.queryOne(
       s"""
         |SELECT username FROM izanami.password_reset WHERE id=$$1
         |""".stripMargin,
@@ -1448,7 +1454,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def deletePasswordResetRequest(id: String): Future[Unit] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
         |DELETE FROM izanami.password_reset WHERE id=$$1
@@ -1459,7 +1465,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def findUserByMail(email: String): Future[Option[User]] = {
-    env.postgresql.queryOne(
+    postgresql.queryOne(
       s"""
          |SELECT username, email, user_type, admin, default_tenant, roles FROM izanami.users WHERE email=$$1
          |""".stripMargin,
@@ -1475,7 +1481,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       usernames: Set[String],
       roles: Option[Set[String]] = None
   ): Future[Seq[UserWithTenantRights]] = {
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       s"""
          |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant, u.roles,
          |  coalesce((
@@ -1495,7 +1501,7 @@ class UsersDatastore(val env: Env) extends Datastore {
 
   def searchUsers(search: String, count: Integer): Future[Seq[String]] = {
     // TODO better matching algorithm
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       s"""
          |SELECT username
          |FROM izanami.users
@@ -1508,7 +1514,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   }
 
   def findVisibleUsers(username: String): Future[Set[UserWithTenantRights]] = {
-    env.postgresql
+    postgresql
       .queryAll(
         s"""
          |WITH rights AS (
@@ -1548,7 +1554,7 @@ class UsersDatastore(val env: Env) extends Datastore {
   def findUsersForTenant(
       tenant: String
   ): Future[List[UserWithSingleLevelRight]] = {
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       s"""
          |SELECT u.username, u.email, u.admin, u.user_type, u.default_tenant, r.level, u.roles
          |FROM izanami.users u
@@ -1568,7 +1574,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       webhook: String
   ): Future[List[SingleItemScopedUser]] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       s"""
          |SELECT
          |    wr.level as level,
@@ -1610,7 +1616,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       project: String
   ): Future[List[ProjectScopedUser]] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       s"""
          |SELECT u.username, u.email, u.admin, u.user_type, u.default_tenant, u.roles, r.level, tr.level as tenant_right, tr.default_project_right
          |FROM izanami.users u
@@ -1642,7 +1648,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       key: String
   ): Future[List[SingleItemScopedUser]] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       s"""
          |SELECT
          |    kr.level as level,
@@ -1718,7 +1724,7 @@ class UsersDatastore(val env: Env) extends Datastore {
     Future
       .sequence(
         tenants.map(tenant => {
-          env.postgresql
+          postgresql
             .queryAll(
               s"""
                  |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant, u.roles, json_build_object(
@@ -1798,7 +1804,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       tenant: String,
       users: Seq[(String, RightLevel)]
   ): Future[Done] = {
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
          |INSERT INTO izanami.users_tenants_rights (tenant, username, level)
@@ -1819,7 +1825,7 @@ class UsersDatastore(val env: Env) extends Datastore {
       tenant: String
   ): Future[Either[IzanamiError, UserWithCompleteRightForOneTenant]] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
            |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant, u.roles,
@@ -1878,9 +1884,9 @@ class UsersDatastore(val env: Env) extends Datastore {
   def findSessionWithRightForTenant(
       session: String,
       tenant: String
-  ): Future[Either[IzanamiError, UserWithCompleteRightForOneTenant]] = {
+  ): FutureEither[UserWithCompleteRightForOneTenant] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
          |SELECT u.username, u.admin, u.email, u.user_type, u.default_tenant, u.roles,
@@ -1933,7 +1939,7 @@ class UsersDatastore(val env: Env) extends Datastore {
         case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
           Left(TenantDoesNotExists(tenant))
         case _ => Left(InternalServerError())
-      }
+      }.toFEither
   }
 }
 

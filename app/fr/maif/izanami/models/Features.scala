@@ -1,6 +1,5 @@
 package fr.maif.izanami.models
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.InternalServerError
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.Feature.lightweightFeatureWrite
@@ -11,12 +10,13 @@ import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldFeature
 import fr.maif.izanami.v1.OldFeature.oldFeatureReads
 import fr.maif.izanami.v1.OldGlobalScriptFeature
-import fr.maif.izanami.wasm.WasmConfig
-import fr.maif.izanami.wasm.WasmUtils
+import fr.maif.izanami.wasm.{WasmConfig, WasmRelatedStuff, WasmUtils}
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.Logger
 import play.api.libs.json.*
 import play.api.mvc.QueryStringBindable
+import fr.maif.izanami.datastores.FeaturesDatastore
+import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 
 import java.time.*
 import java.time.format.DateTimeFormatter
@@ -107,8 +107,8 @@ case class RequestContext(
 sealed trait CompleteFeature extends AbstractFeature {
   def value(
       requestContext: RequestContext,
-      env: Env
-  ): Future[Either[IzanamiError, JsValue]]
+      wasmRelatedStuff: WasmRelatedStuff
+  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]]
 
   override def withProject(project: String): CompleteFeature
 
@@ -283,41 +283,6 @@ sealed trait LightWeightFeature extends AbstractFeature {
 
   override def withEnabled(enable: Boolean): LightWeightFeature
 
-  def toCompleteFeature(
-      tenant: String,
-      env: Env
-  ): Future[Either[IzanamiError, CompleteFeature]] = {
-    this match {
-      case f: LightWeightWasmFeature => {
-        env.datastores.features
-          .readWasmScript(tenant, f.wasmConfigName)
-          .map {
-            case Some(wasmConfig) =>
-              Right(
-                CompleteWasmFeature(
-                  id = id,
-                  name = name,
-                  project = project,
-                  enabled = enabled,
-                  wasmConfig = wasmConfig,
-                  tags = tags,
-                  metadata = metadata,
-                  description = description,
-                  resultType = resultType
-                )
-              )
-            case None =>
-              Left(
-                InternalServerError(
-                  s"Failed to find wasm script config ${f.wasmConfigName}"
-                )
-              )
-          }(env.executionContext)
-      }
-      case feat: CompleteFeature => Right(feat).future
-    }
-  }
-
   def withStrategy(
       strategy: LightweightContextualStrategy
   ): LightWeightFeature = {
@@ -433,8 +398,8 @@ case class SingleConditionFeature(
 
   override def value(
       requestContext: RequestContext,
-      env: Env
-  ): Future[Either[IzanamiError, JsValue]] = {
+      wasmRelatedStuff: WasmRelatedStuff
+  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
     val res = if (enabled) condition.active(requestContext, id) else false
     Future.successful(Right(JsBoolean(res)))
   }
@@ -466,8 +431,8 @@ case class Feature(
 
   override def value(
       requestContext: RequestContext,
-      env: Env
-  ): Future[Either[IzanamiError, JsValue]] = {
+      wasmRelatedStuff: WasmRelatedStuff
+  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
     Future.successful(Right((enabled, resultDescriptor) match {
       case (false, r: BooleanResultDescriptor)         => JsFalse
       case (false, _)                                  => JsNull
@@ -514,9 +479,9 @@ case class LightWeightWasmFeature(
 
   def toCompleteWasmFeature(
       tenant: String,
-      env: Env
-  ): Future[Either[IzanamiError, CompleteWasmFeature]] = {
-    env.datastores.features
+      featureDatastore: FeaturesDatastore
+  )(implicit ec: ExecutionContext): Future[Either[IzanamiError, CompleteWasmFeature]] = {
+    featureDatastore
       .readWasmScript(tenant, wasmConfigName)
       .map {
         case Some(wasmConfig) =>
@@ -535,7 +500,7 @@ case class LightWeightWasmFeature(
           )
         case None =>
           Left(InternalServerError(s"Wasm script $wasmConfigName not found"))
-      }(env.executionContext)
+      }(ec)
   }
 
   override def withProject(project: String): LightWeightWasmFeature =
@@ -567,12 +532,10 @@ case class CompleteWasmFeature(
 
   override def value(
       requestContext: RequestContext,
-      env: Env
-  ): Future[Either[IzanamiError, JsValue]] = {
-    implicit val ec: ExecutionContext = env.executionContext
-    val isWasmAllowed = env.typedConfiguration.feature.allowWasm
+      wasmRelatedStuff: WasmRelatedStuff
+  )(implicit ec: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
 
-    (isWasmAllowed, enabled, resultType) match {
+    (wasmRelatedStuff.isWasmAllowed, enabled, resultType) match {
       case (false, true, BooleanResult) => {
         logger.warn(
           s"Evaluation result of wasm feature ${name} (id ${id}, context ${requestContext.context.toUserPath}) was changed to false, since this izanami instance doesn't allow wasm features"
@@ -588,7 +551,7 @@ case class CompleteWasmFeature(
       case (_, false, BooleanResult) => Future.successful(Right(JsFalse))
       case (_, false, _)             => Future.successful(Right(JsNull))
       case (_, true, _)              =>
-        WasmUtils.handle(wasmConfig, requestContext, resultType)(ec, env)
+        WasmUtils.handle(wasmConfig, requestContext, resultType, wasmRelatedStuff.wasmIntegration)(ec)
     }
   }
 
@@ -861,53 +824,13 @@ object Feature {
       .as[JsObject]
   }
 
-  def processMultipleStrategyResult(
-      strategyByCtx: Map[String, LightWeightFeature],
-      requestContext: RequestContext,
-      conditions: Boolean,
-      env: Env
-  ): Future[Either[IzanamiError, JsObject]] = {
-    val context = requestContext.context.elements.mkString("_")
-    val strategyToUse = if (context.isBlank) {
-      strategyByCtx("")
-    } else {
-      strategyByCtx
-        .filter { case (ctx, f) => context.startsWith(ctx) }
-        .toSeq
-        .sortWith {
-          case ((c1, _), (c2, _)) if c1.length < c2.length => false
-          case _                                           => true
-        }
-        .headOption
-        .map(_._2)
-        .getOrElse(strategyByCtx(""))
-    }
-
-    val jsonStrategies = writeStrategiesForEvent(strategyByCtx)
-
-    strategyToUse
-      .toCompleteFeature(tenant = requestContext.tenant, env = env)
-      .flatMap {
-        case Left(value)          => Left(value).future
-        case Right(strategyToUse) => {
-          writeFeatureForCheck(strategyToUse, requestContext, env = env)
-            .map {
-              case Left(err)                 => Left(err)
-              case Right(json) if conditions =>
-                Right(json ++ Json.obj("conditions" -> jsonStrategies))
-              case Right(json) => Right(json)
-            }(env.executionContext)
-        }
-      }(env.executionContext)
-  }
-
   def writeFeatureForCheck(
       feature: CompleteFeature,
       context: RequestContext,
-      env: Env
-  ): Future[Either[IzanamiError, JsObject]] = {
+      wasmRelatedStuff: WasmRelatedStuff
+  )(implicit ec: ExecutionContext): Future[Either[IzanamiError, JsObject]] = {
     feature
-      .value(context, env)
+      .value(context, wasmRelatedStuff)
       .map(either => {
         either.map(active => {
           Json.obj(
@@ -916,16 +839,16 @@ object Feature {
             "project" -> feature.project
           )
         })
-      })(env.executionContext)
+      })(ec)
   }
 
   def writeFeatureForCheckInLegacyFormat(
       feature: CompleteFeature,
       context: RequestContext,
-      env: Env
-  ): Future[Either[IzanamiError, Option[JsObject]]] = {
+      wasmRelatedStuff: WasmRelatedStuff
+  )(implicit ec: ExecutionContext): Future[Either[IzanamiError, Option[JsObject]]] = {
     feature
-      .value(context, env)
+      .value(context, wasmRelatedStuff)
       .map {
         case Left(error)   => Left(error)
         case Right(active) =>
@@ -935,7 +858,7 @@ object Feature {
                 .obj("active" -> active)
             )
           )
-      }(env.executionContext)
+      }(ec)
   }
 
   def writeFeatureInLegacyFormat(feature: AbstractFeature): JsObject = {

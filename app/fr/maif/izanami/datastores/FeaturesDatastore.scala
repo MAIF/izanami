@@ -1,7 +1,6 @@
 package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.featureImplicits.FeatureRow
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.env.PostgresqlErrors.FOREIGN_KEY_VIOLATION
 import fr.maif.izanami.env.PostgresqlErrors.NOT_NULL_VIOLATION
 import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
@@ -46,10 +45,20 @@ import scala.concurrent.Future
 import scala.reflect.ClassTag
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
+import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.events.EventService
+import io.otoroshi.wasm4s.scaladsl.WasmIntegration
+import scala.concurrent.ExecutionContext
 
-class FeaturesDatastore(val env: Env) extends Datastore {
-  val extensionSchema = env.extensionsSchema
-
+class FeaturesDatastore(
+  postgresql: =>Postgresql,
+  extensionSchema: String,
+  projectDatastore: =>ProjectsDatastore,
+  tenantDatastore: =>TenantsDatastore,
+  featureContextDatastore: =>FeatureContextDatastore,
+  eventService: =>EventService,
+  wasmIntegration: =>WasmIntegration
+)(implicit val ec: ExecutionContext) extends Datastore {
   private type ProjectName = String
   private type FeatureName = String
   private type FeatureId = String
@@ -58,7 +67,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       featureNameAndProjects: Set[(ProjectName, FeatureName)]
   ): Future[Map[(ProjectName, FeatureName), FeatureId]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       s"""
     |SELECT f.id, f.name, f.project
     |FROM "${tenant}".features f
@@ -88,7 +97,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       project: String
   ): Future[Option[FeatureWithOverloads]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
+    postgresql
       .queryOne(
         s"""SELECT f.id FROM "${tenant}".features f where project=$$1 AND name=$$2""",
         List(project, name)
@@ -106,7 +115,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       id: String
   ): Future[Option[FeatureWithOverloads]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql.queryRaw(
+    postgresql.queryRaw(
       s"""SELECT
          |    f.id,
          |    f.name,
@@ -282,7 +291,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       conn: Option[SqlConnection] = None
   ): Future[Map[String, FeatureWithOverloads]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
+    postgresql
       .queryAll(
         s"""SELECT
          |    f.id,
@@ -453,7 +462,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       page: Int
   ): Future[(Int, Seq[CompleteFeature])] = {
     Tenant.isTenantValid(tenant)
-    val countQuery = env.postgresql.queryOne(
+    val countQuery = postgresql.queryOne(
       s"""
          |select count(f.id) as count
          |from "${tenant}".features f
@@ -466,7 +475,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       List(clientId, pattern.replaceAll("\\*", "%"))
     ) { r => r.optInt("count") }
 
-    val dataQuery = env.postgresql.queryAll(
+    val dataQuery = postgresql.queryAll(
       s"""select f.*, s.config AS wasm, COALESCE(json_agg(ft.tag) FILTER (WHERE ft.tag IS NOT NULL), '[]') AS tags
          |from "${tenant}".features f
          |left join "${tenant}".features_tags ft
@@ -511,7 +520,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       if (needContexts) List(clientId, id, context.toDBPath)
       else List(clientId, id)
 
-    env.postgresql
+    postgresql
       .queryAll(
         s"""
          |SELECT
@@ -591,7 +600,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
   ): Future[Seq[LightWeightFeature]] = {
     require(Tenant.isTenantValid(tenant))
     val hasTags = tags.nonEmpty
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
          |select COALESCE(
@@ -632,7 +641,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       path: String
   ): Future[Option[WasmConfig]] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
          |SELECT config
@@ -649,7 +658,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       featureIds: Set[String]
   ): FutureEither[Map[String, String]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
+    postgresql
       .queryAll(
         s"""
          |SELECT DISTINCT id, project FROM "${tenant}".features WHERE id=ANY($$1)
@@ -678,7 +687,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       conn: Option[SqlConnection] = None
   ): FutureEither[Option[LightWeightFeature]] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql
+    postgresql
       .queryOne(
         s"""select f.*, f.script_config as config, COALESCE(json_agg(ft.tag) FILTER (WHERE ft.tag IS NOT NULL), '[]') AS tags
            |from "${tenant}".features f
@@ -698,7 +707,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       conn: Option[SqlConnection] = None
   ): FutureEither[Map[String, CompleteFeature]] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql
+    postgresql
       .queryAll(
         s"""select f.*, s.config AS wasm, COALESCE(json_agg(ft.tag) FILTER (WHERE ft.tag IS NOT NULL), '[]') AS tags
            |from "${tenant}".features f
@@ -726,7 +735,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       conn: Option[SqlConnection] = None
   ): Future[Either[IzanamiError, Option[CompleteFeature]]] = {
     require(Tenant.isTenantValid(tenant))
-    env.postgresql
+    postgresql
       .queryOne(
         s"""select f.*, s.config AS wasm, COALESCE(json_agg(ft.tag) FILTER (WHERE ft.tag IS NOT NULL), '[]') AS tags
          |from "${tenant}".features f
@@ -753,7 +762,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       clientId: String
   ): Future[Either[IzanamiError, Option[CompleteFeature]]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
+    postgresql
       .queryOne(
         s"""select (ap.project IS NOT NULL OR k.admin=TRUE) AS authorized, f.*, s.config AS wasm, COALESCE(json_agg(ft.tag) FILTER (WHERE ft.tag IS NOT NULL), '[]') AS tags
            |from "${tenant}".features f
@@ -826,7 +835,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         )
       }
 
-      env.postgresql
+      postgresql
         .queryAll(
           s"""
              |SELECT
@@ -1014,7 +1023,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       user: String
   ): Future[Map[ProjectId, Seq[CompleteFeature]]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
+    postgresql
       .queryAll(
         s"""
          |WITH filtered_features AS (
@@ -1172,7 +1181,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       def callback(
           conn: SqlConnection
       ): Future[Either[List[IzanamiError], Unit]] = {
-        env.datastores.projects
+        projectDatastore
           .createProjects(
             tenant,
             features.map(_.project).toSet,
@@ -1188,7 +1197,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
 
       conn
         .map(callback)
-        .getOrElse(env.postgresql.executeInTransaction(conn => callback(conn)))
+        .getOrElse(postgresql.executeInTransaction(conn => callback(conn)))
     }
   }
 
@@ -1213,7 +1222,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
             Array[String]
         )
     ): Future[Either[InternalServerError, List[(String, String)]]] = {
-      env.postgresql
+      postgresql
         .queryAll(
           s"""INSERT INTO "${tenant}".features (id, name, project, enabled, conditions, metadata, description, result_type, value)
                |VALUES (unnest($$1::text[]), unnest($$2::text[]), unnest($$3::text[]), unnest($$4::boolean[]), unnest($$5::jsonb[]), unnest($$6::jsonb[]), unnest($$7::text[]), unnest($$8::"${tenant}".RESULT_TYPE[]), unnest($$9::text[]))
@@ -1513,7 +1522,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
               List(
                 insertFeatures(modernFeatureParams),
                 insertLegacyFeatures(legacyFeatureParams),
-                env.postgresql
+                postgresql
                   .queryAll(
                     s"""INSERT INTO "${tenant}".features (id, name, project, enabled, script_config, metadata, description, result_type)
                    |VALUES (unnest($$1::TEXT[]), unnest($$2::TEXT[]), unnest($$3::TEXT[]), unnest($$4::BOOLEAN[]), unnest($$5::TEXT[]), unnest($$6::JSONB[]), unnest($$7::TEXT[]), unnest($$8::"${tenant}".RESULT_TYPE[]))
@@ -1558,7 +1567,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           Future
             .sequence(
               features.map(f =>
-                env.eventService.emitEvent(
+                eventService.emitEvent(
                   channel = tenant,
                   event = SourceFeatureCreated(
                     id = f.id,
@@ -1583,7 +1592,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       feature: CompleteFeature,
       user: UserInformation
   ): Future[Either[IzanamiError, String]] = {
-    env.postgresql.executeInTransaction(implicit conn =>
+    postgresql.executeInTransaction(implicit conn =>
       doCreate(tenant, project, feature, conn, user)
     )
   }
@@ -1619,7 +1628,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
 
   def readLocalScripts(tenant: String): Future[Seq[WasmConfig]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       s"""
          |SELECT config FROM "${tenant}".wasm_script_configurations
          |""".stripMargin,
@@ -1632,7 +1641,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       name: String
   ): FutureEither[Done] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
+    postgresql
       .queryOne(
         s"""
          |DELETE FROM "${tenant}".wasm_script_configurations WHERE id=$$1
@@ -1650,7 +1659,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       tenant: String
   ): Future[Seq[WasmConfigWithFeatures]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql.queryAll(
+    postgresql.queryAll(
       s"""
          |SELECT c.config, json_agg(json_build_object('id', features.id, 'name', features.name, 'project', features.project)) as features
          |FROM "${tenant}".wasm_script_configurations c
@@ -1689,11 +1698,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
   }
 
   def readAllLocalScripts(): Future[Seq[WasmConfig]] = {
-    env.datastores.tenants
+    tenantDatastore
       .readTenants()
       .flatMap(tenants => {
         Future.sequence(tenants.map(tenant => {
-          env.postgresql.queryAll(
+          postgresql.queryAll(
             s"""
                |SELECT config FROM "${tenant.name}".wasm_script_configurations
                |""".stripMargin,
@@ -1715,7 +1724,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         throw new RuntimeException("Unknown wasm script")
       case WasmSourceKind.Local => Right(wasmConfig.source.path).future
       case _                    =>
-        env.postgresql
+        postgresql
           .queryOne(
             s"""INSERT INTO "${tenant}".wasm_script_configurations (id, config) VALUES ($$1,$$2) RETURNING id""",
             List(
@@ -1730,12 +1739,12 @@ class FeaturesDatastore(val env: Env) extends Datastore {
               Left(WasmScriptAlreadyExists(wasmConfig.source.path))
           }
           .recover(
-            env.postgresql.pgErrorPartialFunction.andThen(err => Left(err))
+            postgresql.pgErrorPartialFunction.andThen(err => Left(err))
           )
           .flatMap(either => {
             // TODO this should be elsewhere
             wasmConfig.source
-              .getWasm()(env.wasmIntegration.context, env.executionContext)
+              .getWasm()(wasmIntegration.context, ec)
               .map(_ => either)
           })
     }
@@ -1746,7 +1755,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       name: String
   ): Future[Option[WasmConfig]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql.queryOne(
+    postgresql.queryOne(
       s"""
          |SELECT config
          |FROM "${tenant}".wasm_script_configurations
@@ -1779,7 +1788,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         .filter(w => w.source.kind == WasmSourceKind.Local)
         .map(w => w.name)
 
-      env.postgresql
+      postgresql
         .queryRaw(
           s"""
          |INSERT INTO "${tenant}".wasm_script_configurations(id, config)
@@ -1803,7 +1812,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
               .find(w => w.name == id)
               .get
               .source
-              .getWasm()(env.wasmIntegration.context, env.executionContext)
+              .getWasm()(wasmIntegration.context, ec)
           )
           Right(ids.concat(localScriptIds))
         })
@@ -1820,7 +1829,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       wasmConfig: WasmConfig
   ): Future[Unit] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql
+    postgresql
       .queryOne(
         s"""UPDATE "${tenant}".wasm_script_configurations SET id=$$1, config=$$2 WHERE id=$$3 RETURNING id""",
         List(
@@ -1924,7 +1933,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         )
     }
 
-    env.postgresql
+    postgresql
       .queryOne(
         request,
         params,
@@ -1937,11 +1946,11 @@ class FeaturesDatastore(val env: Env) extends Datastore {
         case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
           Left(TenantDoesNotExists(tenant))
       }
-      .recover(env.postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+      .recover(postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
       .flatMap {
         case Left(error) => Future.successful(Left(error))
         case Right(id)   =>
-          env.eventService
+          eventService
             .emitEvent(
               channel = tenant,
               event = SourceFeatureCreated(
@@ -1975,7 +1984,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       // returning a string for some contexts and a boolean in others
       val maybeDeleteFuture =
         if (oldFeature.baseFeature.resultType != feature.resultType) {
-          env.datastores.featureContext.deleteFeatureStrategies(
+          featureContextDatastore.deleteFeatureStrategies(
             tenant,
             feature.project,
             feature.name,
@@ -2076,7 +2085,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           case Right(_)  =>
             // delete overload in potential old project, this cover the case where a feature
             // is transfered from one project to another.
-            env.postgresql
+            postgresql
               .queryRaw(
                 s"""
                  |DELETE FROM "${tenant}".feature_contexts_strategies fc USING "${tenant}".features f, "${tenant}".new_contexts c
@@ -2091,7 +2100,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                 conn = Some(conn)
               ) { _ => Some(()) }
               .flatMap(_ =>
-                env.postgresql
+                postgresql
                   .queryOne(
                     request,
                     params,
@@ -2104,14 +2113,14 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                       Left(MissingFeatureFields())
                   }
                   .recover(
-                    env.postgresql.pgErrorPartialFunction
+                    postgresql.pgErrorPartialFunction
                       .andThen(err => Left(err))
                   )
                   .flatMap(either => {
                     either.fold(
                       err => Future.successful(Left(err)),
                       id => {
-                        env.postgresql
+                        postgresql
                           .queryOne(
                             s"""delete from "${tenant}".features_tags where feature=$$1""",
                             List(id),
@@ -2136,7 +2145,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
                       .hasSameActivationStrategy(
                         feature
                       ) || oldFeature.project != feature.project =>
-                  env.eventService
+                  eventService
                     .emitEvent(
                       channel = tenant,
                       event = SourceFeatureUpdated(
@@ -2166,7 +2175,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           conn match {
             case Some(c) => act(c, oldFeature)
             case None    =>
-              env.postgresql.executeInTransaction(c => act(c, oldFeature))
+              postgresql.executeInTransaction(c => act(c, oldFeature))
           }
         }
       }
@@ -2182,7 +2191,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
     if (tags.isEmpty) {
       Future.successful(Right(()))
     } else {
-      env.postgresql
+      postgresql
         .queryOne(
           s"""
              |INSERT INTO "${tenant}".features_tags (feature, tag)
@@ -2210,10 +2219,10 @@ class FeaturesDatastore(val env: Env) extends Datastore {
       conn: Option[SqlConnection] = None
   ): Future[Either[IzanamiError, String]] = {
     Tenant.isTenantValid(tenant)
-    env.postgresql.executeInOptionalTransaction(
+    postgresql.executeInOptionalTransaction(
       conn,
       conn =>
-        env.postgresql
+        postgresql
           .queryOne(
             s"""DELETE FROM "${tenant}".features WHERE id=$$1 returning id, project, name""",
             List(id),
@@ -2235,7 +2244,7 @@ class FeaturesDatastore(val env: Env) extends Datastore {
           .flatMap {
             case l @ Left(err)              => Future.successful(Left(err))
             case Right((id, project, name)) =>
-              env.eventService
+              eventService
                 .emitEvent(
                   channel = tenant,
                   event = SourceFeatureDeleted(

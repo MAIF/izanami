@@ -208,7 +208,7 @@ class ExportAPISpec extends BaseAPISpec {
         "tenant",
         situation.user,
         secret
-      ).status mustBe UNAUTHORIZED
+      ).status mustBe FORBIDDEN
     }
   }
 

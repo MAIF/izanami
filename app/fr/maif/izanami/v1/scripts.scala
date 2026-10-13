@@ -1,6 +1,5 @@
 package fr.maif.izanami.v1
 
-import fr.maif.izanami.env.Env
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.errors.NoWasmManagerConfigured
 import fr.maif.izanami.v1.OldScripts.generateNewScriptContent
@@ -18,10 +17,10 @@ import play.api.libs.ws.WSClient
 import java.time.Duration
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import fr.maif.izanami.datastores.ConfigurationDatastore
 
-class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
-  implicit val logger: Logger = env.logger
-  val httpClient: WSClient = env.Ws
+class WasmManagerClient(configurationDatastore: ConfigurationDatastore, httpClient: WSClient)(implicit ec: ExecutionContext) {
+  val logger: Logger = Logger("wasm-manager")
 
   def transferLegacyJsScript(
       name: String,
@@ -41,8 +40,9 @@ class WasmManagerClient(env: Env)(implicit ec: ExecutionContext) {
     }
   }
 
+  // TODO move this in ConfigurationDatastore directly ???
   def wasmoConfiguration: Option[WasmoSettings] =
-    env.datastores.configuration.readWasmConfiguration()
+    configurationDatastore.readWasmConfiguration()
 
   def createScript(
       name: String,
