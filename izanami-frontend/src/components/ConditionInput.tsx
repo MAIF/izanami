@@ -258,7 +258,8 @@ function ConditionInput(props: { index: number }) {
         <legend>
           <h5>Time rule</h5>
         </legend>
-        <label>
+        <div>
+        <label htmlFor={`${`conditions.${index}.timeRule`}`}>
           Active only on specific periods
           <Tooltip id="specific-period">
             Check this to add time activation rules for your feature.
@@ -266,7 +267,9 @@ function ConditionInput(props: { index: number }) {
             Both time rule and user rule must be active to activate this
             condition.
           </Tooltip>
-          <input
+        </label>
+        <input
+            id={`${`conditions.${index}.timeRule`}`}
             type="checkbox"
             className="izanami-checkbox"
             checked={specificPeriods}
@@ -297,7 +300,7 @@ function ConditionInput(props: { index: number }) {
               setSpecificPeriods(e.target.checked);
             }}
           />
-        </label>
+        </div>
         {specificPeriods && <Period index={index} />}
       </fieldset>
       <fieldset style={{ border: "none" }} className="mt-3">
