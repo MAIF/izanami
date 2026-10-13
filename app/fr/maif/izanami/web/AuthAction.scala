@@ -248,7 +248,7 @@ class PersonnalAccessTokenTenantRightsAction(
   override protected def executionContext: ExecutionContext = ec
   override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[UserWithTenantRights]] = {
     authService.findUser(token.username).map {
-      case Some(value) => TokenValid(value)
+      case Some(value) if token.hasRight(operation) => TokenValid(value)
       case None => TokenInvalid(UserDoesNotExist(token.username))
     }
   }
@@ -441,7 +441,7 @@ class PersonnalAccessTokenProjectAuthAction(
           tenant = tenant,
           project = project,
           rightLevel = minimumLevel
-        ) => TokenValid(user.username)
+        ) && token.hasTenantRight(tenant = tenant, right = operation) => TokenValid(user.username)
         case Some(user) => TokenInvalid(NotEnoughRights())
         case None => TokenInvalid(UserDoesNotExist(token.username))
       }
@@ -768,7 +768,7 @@ class PersonnalAccessTokenAdminAuthAction(
 
   override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[String]] = {
     authService.findUser(token.username).map {
-      case Some(user) if user.admin => TokenValid(token.username)
+      case Some(user) if user.admin && token.hasRight(operation) => TokenValid(token.username)
       case Some(user) => TokenInvalid(NotEnoughRights())
       case None => TokenInvalid(UserDoesNotExist(token.username))
     }
