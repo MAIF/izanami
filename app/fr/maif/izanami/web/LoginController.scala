@@ -5,11 +5,12 @@ import fr.maif.izanami.datastores.{ConfigurationDatastore, UsersDatastore}
 import fr.maif.izanami.errors.FailedToReadTokenClaims
 import fr.maif.izanami.errors.MissingOIDCConfigurationError
 import fr.maif.izanami.errors.RightComplianceError
+import fr.maif.izanami.errors.{IzanamiError, OIDCIdentityConflict, UserNotFound}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
 import fr.maif.izanami.models.User.userRightsWrites
 import fr.maif.izanami.security.JwtService
-import fr.maif.izanami.services.{CompleteRights, MaxRightComplianceResult, MaxRights, PostgresTransactionProvider, RightService}
+import fr.maif.izanami.services.{MaxRightComplianceResult, PostgresTransactionProvider, RightService}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -242,9 +243,9 @@ class LoginController(
                           s"Failed to read json claims from ${claims}"
                         )
                       }
-                      maybeJsonClaims
+                      maybeJsonClaims.map(json => (claims, json))
                     })
-                    .flatMap(json => {
+                    .flatMap { (claims, json) =>
                       val roles =
                         extractRoles(json, oauth2Configuration.roleClaim)
                           .getOrElse(Set())
@@ -253,100 +254,23 @@ class LoginController(
                       )
 
                       for (
+                        issuer <- claims.issuer.filter(_.nonEmpty);
+                        subject <- claims.subject.filter(_.nonEmpty);
                         username <- (json \ oauth2Configuration.nameField)
                           .asOpt[String];
                         email <- (json \ oauth2Configuration.emailField)
                           .asOpt[String]
                       )
                         yield {
-                          usersDatastore
-                            .findUserWithCompleteRights(username)
-                            .flatMap(maybeUser => {
-                              def createOrUpdateUser(
-                                  maxRightsByRoles: Option[
-                                    Map[String, MaxRights]
-                                  ]
-                              ): FutureEither[
-                                Option[MaxRightComplianceResult]
-                              ] = {
-                                maxRightsByRoles.map(mr =>
-                                  CompleteRights.maxRightsToApply(roles, mr)
-                                )
-                                postgresTransactionProvider
-                                  .executeInTransaction(conn =>
-                                    maybeUser
-                                      .fold {
-                                        val rights =
-                                          rightService.generateRightForNewUser(
-                                            roles
-                                          )
-                                        usersDatastore
-                                          .createUser(
-                                            User(
-                                              username,
-                                              email = email,
-                                              userType = OIDC,
-                                              admin = rights.admin,
-                                              roles = roles
-                                            )
-                                              .withRights(
-                                                Rights(rights.tenants)
-                                              ),
-                                            conn = Some(conn)
-                                          )
-                                          .toFEither
-                                          .map(_ => {
-                                            val r: Option[
-                                              MaxRightComplianceResult
-                                            ] = Option.empty
-                                            r
-                                          })
-                                      }(user =>
-                                        rightService.updateUserRightsAndRolesIfNeeded(
-                                          user,
-                                          roles,
-                                          Some(conn)
-                                        )
-                                      )
-                                  )
-                              }
-                              val rightByRolesFromEnvIfAny =
-                                openIdConfiguration
-                                  .flatMap(_.toIzanamiOAuth2Configuration)
-                                  .flatMap(_.userRightsByRoles)
-                                  .orElse(oauth2Configuration.userRightsByRoles)
-
-                              createOrUpdateUser(
-                                oauth2Configuration.maxRightsByRoles
-                              ).value
-                                .flatMap {
-                                  case Left(err: RightComplianceError) => {
-                                    Future.successful(Left(err))
-                                  }
-                                  case Left(err)
-                                      if (rightByRolesFromEnvIfAny.isDefined) => {
-                                    configurationDatastore
-                                      .updateOIDCRightByRolesIfNeeded(
-                                        rightByRolesFromEnvIfAny.get
-                                      )
-                                      .flatMap(_ =>
-                                        createOrUpdateUser(
-                                          oauth2Configuration.maxRightsByRoles
-                                        )
-                                      ).value
-                                  }
-                                  case Left(err) => Future.successful(Left(err))
-                                  case Right(value) =>
-                                    Future.successful(Right(value))
-                                }
-                            })
-                            .map(either =>
-                              either.map(maybeRightCompliance =>
-                                (username, maybeRightCompliance)
-                              )
-                            )
+                          authenticateOidcUser(
+                            OidcIdentity(issuer, subject),
+                            username,
+                            email,
+                            roles,
+                            oauth2Configuration
+                          )
                         }
-                    })
+                    }
                     .getOrElse(
                       Future(
                         Left(FailedToReadTokenClaims)
@@ -412,6 +336,65 @@ class LoginController(
         }
     }.flatten
     // .getOrElse(Future(InternalServerError(Json.obj("message" -> "Failed to read token claims"))))
+  }
+
+  private def authenticateOidcUser(
+      identity: OidcIdentity,
+      proposedUsername: String,
+      email: String,
+      roles: Set[String],
+      configuration: OAuth2Configuration
+  ): Future[Either[IzanamiError, (String, Option[MaxRightComplianceResult])]] = {
+    def createOrUpdateUser(): FutureEither[(String, Option[MaxRightComplianceResult])] = {
+      // TransactionProvider does not roll back Left values: fail the Future
+      // so a rejected login also rolls back its identity binding and rights.
+      postgresTransactionProvider.executeInTransaction { conn =>
+        val result = usersDatastore
+          .resolveOidcUser(identity, proposedUsername, conn)
+          .flatMap {
+            case Some(username) =>
+              FutureEither.success(usersDatastore.findUserWithCompleteRights(username, conn = Some(conn)))
+                .flatMap(user => FutureEither.from(user.toRight(UserNotFound(username))))
+                .flatMap(user => rightService.updateUserRightsAndRolesIfNeeded(user, roles, Some(conn)))
+                .map(compliance => (username, compliance))
+            case None =>
+              val rights = rightService.generateRightForNewUser(roles)
+              usersDatastore.createUser(
+                User(
+                  proposedUsername,
+                  email = email,
+                  userType = OIDC,
+                  admin = rights.admin,
+                  roles = roles
+                ).withRights(Rights(rights.tenants)),
+                conn = Some(conn)
+              ).toFEither
+                .flatMap(_ => usersDatastore.bindOidcIdentity(proposedUsername, identity, conn))
+                .map(_ => (proposedUsername, Option.empty[MaxRightComplianceResult]))
+          }
+        result.value.flatMap {
+          case Left(err) => Future.failed(err)
+          case Right(value) => Future.successful(value)
+        }
+      }.map(value => Right[IzanamiError, (String, Option[MaxRightComplianceResult])](value))
+        .recover { case err: IzanamiError => Left(err) }
+        .toFEither
+    }
+
+    val rightByRolesFromEnvIfAny = openIdConfiguration
+      .flatMap(_.toIzanamiOAuth2Configuration)
+      .flatMap(_.userRightsByRoles)
+      .orElse(configuration.userRightsByRoles)
+
+    createOrUpdateUser().value.flatMap {
+      case Left(err: RightComplianceError) => Future.successful(Left(err))
+      case Left(OIDCIdentityConflict) => Future.successful(Left(OIDCIdentityConflict))
+      case Left(_) if rightByRolesFromEnvIfAny.isDefined =>
+        configurationDatastore
+          .updateOIDCRightByRolesIfNeeded(rightByRolesFromEnvIfAny.get)
+          .flatMap(_ => createOrUpdateUser()).value
+      case result => Future.successful(result)
+    }
   }
 
   private def extractRoles(

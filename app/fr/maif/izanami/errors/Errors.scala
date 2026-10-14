@@ -590,6 +590,10 @@ case object CantUpdateOIDCCOnfiguration
         "OIDC configuration can't be updated while it is set in env variables.",
       status = BAD_REQUEST
     )
+case object OIDCIdentityConflict extends IzanamiError(
+      message = "OIDC identity cannot be associated with this user",
+      status = FORBIDDEN
+    )
 case object FailedToReadTokenClaims extends IzanamiError(
       message = "Failed to read token claims",
       status = INTERNAL_SERVER_ERROR

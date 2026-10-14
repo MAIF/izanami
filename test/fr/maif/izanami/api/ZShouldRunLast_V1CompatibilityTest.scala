@@ -10,6 +10,7 @@ import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
 import fr.maif.izanami.api.BaseAPISpec.TestTenant
 import fr.maif.izanami.api.BaseAPISpec.TestUserListRule
 import fr.maif.izanami.api.BaseAPISpec.system
+import fr.maif.izanami.api.BaseAPISpec.executor
 import izanami.ClientConfig
 import izanami.Crash
 import izanami.Strategy
@@ -17,21 +18,26 @@ import izanami.commons.IzanamiException
 import izanami.javadsl.IzanamiClient
 import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.http.scaladsl.model.Uri
+import org.apache.pekko.http.scaladsl.model.HttpResponse
 import org.apache.pekko.http.scaladsl.model.headers.RawHeader
 import org.apache.pekko.stream.connectors.sse.scaladsl.EventSource
+import org.apache.pekko.stream.KillSwitches
+import org.apache.pekko.stream.scaladsl.{Keep, Sink}
 import org.awaitility.Awaitility.await
 import org.reactivecouchbase.json.Json
 import org.reactivecouchbase.json.Syntax
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import play.api.http.Status.{OK, UNAUTHORIZED}
+import play.api.http.Status.{NO_CONTENT, OK, UNAUTHORIZED}
 import play.api.libs.json.*
+import play.api.test.Helpers.{await => awaitResult}
 
-import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import scala.collection.mutable.ArrayBuffer
+import java.util.concurrent.ConcurrentLinkedQueue
+import scala.concurrent.Promise
+import scala.jdk.CollectionConverters.*
 
 /** This test name starts with a "Z" to ensure that it runs last, since legacy
   * Izanami Client can't be stopped easily and trigger memory & http connection
@@ -1482,55 +1488,65 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val msgs = ArrayBuffer[Any]()
-      EventSource(
+      val msgs = new ConcurrentLinkedQueue[JsValue]()
+      val connected = Promise[HttpResponse]()
+      val (killswitch, completed) = EventSource(
         uri = Uri(s"$BASE_URL/events"),
         send = { req =>
           Http().singleRequest(req.withHeaders(req.headers ++ Seq(
             RawHeader("Izanami-Client-Id", clientId),
             RawHeader("Izanami-Client-Secret", clientSecret)
-          )))
+          ))).map { response =>
+            connected.trySuccess(response)
+            response
+          }
         },
         initialLastEventId = None,
         retryDelay = 2.seconds
       )
         .map(sse => play.api.libs.json.Json.parse(sse.data))
         .filter(json =>
-          (json \ "type").asOpt[String].forall(str => str == "FEATURE_UPDATED")
+          (json \ "type").asOpt[String].contains("FEATURE_UPDATED")
         )
         .map(json => {
-          msgs.addOne(json)
+          msgs.add(json)
           json
         })
+        .viaMat(KillSwitches.single)(Keep.right)
+        .toMat(Sink.ignore)(Keep.both)
         .run()
 
-      Thread.sleep(5000)
+      try {
+        awaitResult(connected.future).status.intValue mustBe OK
 
-      situation.patchFeatures(
-        "tenant",
-        Seq(
-          TestFeaturePatch(
-            op = "replace",
-            path = s"/project:foo:bar/enabled",
-            value = JsBoolean(false)
-          ),
-          TestFeaturePatch(
-            op = "replace",
-            path = s"/project:foo:baz/enabled",
-            value = JsBoolean(false)
-          ),
-          TestFeaturePatch(
-            op = "replace",
-            path = s"/project1:baz:bar/enabled",
-            value = JsBoolean(false)
+        val response = situation.patchFeatures(
+          "tenant",
+          Seq(
+            TestFeaturePatch(
+              op = "replace",
+              path = s"/project:foo:bar/enabled",
+              value = JsBoolean(false)
+            ),
+            TestFeaturePatch(
+              op = "replace",
+              path = s"/project:foo:baz/enabled",
+              value = JsBoolean(false)
+            ),
+            TestFeaturePatch(
+              op = "replace",
+              path = s"/project1:baz:bar/enabled",
+              value = JsBoolean(false)
+            )
           )
         )
-      )
 
-      await.pollDelay(Duration.ofSeconds(3)) until { () =>
-        {
-          msgs.size == 2
-        }
+        response.status mustBe NO_CONTENT
+        await until { () => msgs.size() == 2 }
+        msgs.asScala.map(json => (json \ "key").as[String]).toSet mustBe
+          Set("project:foo:bar", "project:foo:baz")
+      } finally {
+        killswitch.shutdown()
+        awaitResult(completed)
       }
     }
 
@@ -1556,55 +1572,65 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val msgs = ArrayBuffer[Any]()
-      EventSource(
+      val msgs = new ConcurrentLinkedQueue[JsValue]()
+      val connected = Promise[HttpResponse]()
+      val (killswitch, completed) = EventSource(
         uri = Uri(s"$BASE_URL/events"),
         send = { req =>
           Http().singleRequest(req.withHeaders(req.headers ++ Seq(
             RawHeader("Izanami-Client-Id", clientId),
             RawHeader("Izanami-Client-Secret", clientSecret)
-          )))
+          ))).map { response =>
+            connected.trySuccess(response)
+            response
+          }
         },
         initialLastEventId = None,
         retryDelay = 2.seconds
       )
         .map(sse => play.api.libs.json.Json.parse(sse.data))
         .filter(json =>
-          (json \ "type").asOpt[String].forall(str => str == "FEATURE_UPDATED")
+          (json \ "type").asOpt[String].contains("FEATURE_UPDATED")
         )
         .map(json => {
-          msgs.addOne(json)
+          msgs.add(json)
           json
         })
+        .viaMat(KillSwitches.single)(Keep.right)
+        .toMat(Sink.ignore)(Keep.both)
         .run()
 
-      Thread.sleep(5000)
+      try {
+        awaitResult(connected.future).status.intValue mustBe OK
 
-      situation.patchFeatures(
-        "tenant",
-        Seq(
-          TestFeaturePatch(
-            op = "replace",
-            path = s"/project:foo:bar/enabled",
-            value = JsBoolean(false)
-          ),
-          TestFeaturePatch(
-            op = "replace",
-            path = s"/project:foo:baz/enabled",
-            value = JsBoolean(false)
-          ),
-          TestFeaturePatch(
-            op = "replace",
-            path = s"/project1:baz:bar/enabled",
-            value = JsBoolean(false)
+        val response = situation.patchFeatures(
+          "tenant",
+          Seq(
+            TestFeaturePatch(
+              op = "replace",
+              path = s"/project:foo:bar/enabled",
+              value = JsBoolean(false)
+            ),
+            TestFeaturePatch(
+              op = "replace",
+              path = s"/project:foo:baz/enabled",
+              value = JsBoolean(false)
+            ),
+            TestFeaturePatch(
+              op = "replace",
+              path = s"/project1:baz:bar/enabled",
+              value = JsBoolean(false)
+            )
           )
         )
-      )
 
-      await.pollDelay(Duration.ofSeconds(3)) until { () =>
-        {
-          msgs.size == 3
-        }
+        response.status mustBe NO_CONTENT
+        await until { () => msgs.size() == 3 }
+        msgs.asScala.map(json => (json \ "key").as[String]).toSet mustBe
+          Set("project:foo:bar", "project:foo:baz", "project1:baz:bar")
+      } finally {
+        killswitch.shutdown()
+        awaitResult(completed)
       }
     }
 
@@ -1632,65 +1658,75 @@ class ZShouldRunLast_V1CompatibilityTest extends BaseAPISpec {
         )
       )
 
-      val msgs = ArrayBuffer[Any]()
-      EventSource(
+      val msgs = new ConcurrentLinkedQueue[JsValue]()
+      val connected = Promise[HttpResponse]()
+      val (killswitch, completed) = EventSource(
         uri = Uri(s"$BASE_URL/events?pattern=project:*"),
         send = { req =>
           Http().singleRequest(req.withHeaders(req.headers ++ Seq(
             RawHeader("Izanami-Client-Id", clientId),
             RawHeader("Izanami-Client-Secret", clientSecret)
-          )))
+          ))).map { response =>
+            connected.trySuccess(response)
+            response
+          }
         },
         initialLastEventId = None,
         retryDelay = 2.seconds
       )
         .map(sse => play.api.libs.json.Json.parse(sse.data))
         .filter(json =>
-          (json \ "type").asOpt[String].forall(str => str == "FEATURE_UPDATED")
+          (json \ "type").asOpt[String].contains("FEATURE_UPDATED")
         )
         .map(json => {
-          msgs.addOne(json)
+          msgs.add(json)
           json
         })
+        .viaMat(KillSwitches.single)(Keep.right)
+        .toMat(Sink.ignore)(Keep.both)
         .run()
 
-      Thread.sleep(5000)
+      try {
+        awaitResult(connected.future).status.intValue mustBe OK
 
-      situation.patchFeatures(
-        "tenant",
-        Seq(
-          TestFeaturePatch(
-            op = "replace",
-            path = s"/project:foo:bar/enabled",
-            value = JsBoolean(false)
-          ),
-          TestFeaturePatch(
-            op = "replace",
-            path = s"/project:baz:bar/enabled",
-            value = JsBoolean(false)
-          ),
-          TestFeaturePatch(
-            op = "replace",
-            path = s"/project:fifou:buzz/enabled",
-            value = JsBoolean(false)
-          ),
-          TestFeaturePatch(
-            op = "replace",
-            path = s"/another:foo:bar/enabled",
-            value = JsBoolean(false)
-          ),
-          TestFeaturePatch(
-            op = "replace",
-            path = s"/another:baz:bar/enabled",
-            value = JsBoolean(false)
+        val response = situation.patchFeatures(
+          "tenant",
+          Seq(
+            TestFeaturePatch(
+              op = "replace",
+              path = s"/project:foo:bar/enabled",
+              value = JsBoolean(false)
+            ),
+            TestFeaturePatch(
+              op = "replace",
+              path = s"/project:baz:bar/enabled",
+              value = JsBoolean(false)
+            ),
+            TestFeaturePatch(
+              op = "replace",
+              path = s"/project:fifou:buzz/enabled",
+              value = JsBoolean(false)
+            ),
+            TestFeaturePatch(
+              op = "replace",
+              path = s"/another:foo:bar/enabled",
+              value = JsBoolean(false)
+            ),
+            TestFeaturePatch(
+              op = "replace",
+              path = s"/another:baz:bar/enabled",
+              value = JsBoolean(false)
+            )
           )
         )
-      )
 
-      await.pollDelay(Duration.ofSeconds(1)) until { () =>
-        {
-          msgs.size == 3
-        }
+        response.status mustBe NO_CONTENT
+        await until { () => msgs.size() == 3 }
+        msgs.asScala.map(json => (json \ "key").as[String]).toSet mustBe
+          Set("project:foo:bar", "project:baz:bar", "project:fifou:buzz")
+      } finally {
+        killswitch.shutdown()
+        awaitResult(completed)
       }
     }
   }
