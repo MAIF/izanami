@@ -447,7 +447,7 @@ class RightService(
       force: Boolean = false
   ): FutureEither[Done] = {
     usersDatastore
-      .findUserWithCompleteRights(name)
+      .findUserWithCompleteRights(name, conn = conn)
       .mapToFEither
       .flatMap {
         case Some(user) if !canUpdateRightsForUser(user) && !force =>

@@ -78,6 +78,63 @@ class UsersDatastore(
     Future.successful(())
   }
 
+  /** Resolve the stable identity first. Only unlinked OIDC accounts can be
+    * claimed by name, for progressive migration of existing accounts.
+    * The caller must keep the transaction open until a new user is created
+    * and linked. Concurrent conflicts are rejected by database constraints
+    * or by the conditional identity binding, without explicit locks.
+    */
+  def resolveOidcUser(
+      identity: OidcIdentity,
+      proposedUsername: String,
+      conn: SqlConnection
+  ): FutureEither[Option[String]] = {
+    FutureEither.success(postgresql.queryOne(
+        "SELECT username FROM izanami.users WHERE oidc_issuer=$1 AND oidc_subject=$2",
+        List(identity.issuer, identity.subject),
+        conn = Some(conn)
+      )(_.optString("username")))
+      .flatMap {
+        case Some(username) => FutureEither.success(Some(username))
+        case None =>
+          FutureEither.success(postgresql.queryOne(
+              "SELECT user_type, oidc_issuer, oidc_subject FROM izanami.users WHERE username=$1",
+              List(proposedUsername),
+              conn = Some(conn)
+            ) { row =>
+              row.optString("user_type").map(userType =>
+                (userType, row.optString("oidc_issuer"), row.optString("oidc_subject"))
+              )
+            })
+            .flatMap {
+              case None => FutureEither.success(None)
+              case Some(("OIDC", None, None)) =>
+                bindOidcIdentity(proposedUsername, identity, conn).map(_ => Some(proposedUsername))
+              case Some(("OIDC", Some(issuer), Some(subject)))
+                  if issuer == identity.issuer && subject == identity.subject =>
+                FutureEither.success(Some(proposedUsername))
+              case _ => FutureEither.failure(OIDCIdentityConflict)
+            }
+      }
+  }
+
+  def bindOidcIdentity(
+      username: String,
+      identity: OidcIdentity,
+      conn: SqlConnection
+  ): FutureEither[Unit] = {
+    postgresql.queryOne(
+      """UPDATE izanami.users SET oidc_issuer=$2, oidc_subject=$3
+        |WHERE username=$1 AND user_type='OIDC'
+        |AND oidc_issuer IS NULL AND oidc_subject IS NULL
+        |RETURNING username""".stripMargin,
+      List(username, identity.issuer, identity.subject),
+      conn = Some(conn)
+    )(_.optString("username"))
+      .map(_.map(_ => ()).toRight(OIDCIdentityConflict))
+      .toFEither
+  }
+
   def createSession(username: String): Future[String] = {
     postgresql
       .queryOne(
@@ -1473,13 +1530,14 @@ class UsersDatastore(
     ) { r => r.optUser() }
   }
 
-  def findUser(username: String): Future[Option[UserWithTenantRights]] = {
-    findUsers(Set(username)).map(_.headOption)
+  def findUser(username: String, conn: Option[SqlConnection] = None): Future[Option[UserWithTenantRights]] = {
+    findUsers(Set(username), conn = conn).map(_.headOption)
   }
 
   def findUsers(
       usernames: Set[String],
-      roles: Option[Set[String]] = None
+      roles: Option[Set[String]] = None,
+      conn: Option[SqlConnection] = None
   ): Future[Seq[UserWithTenantRights]] = {
     postgresql.queryAll(
       s"""
@@ -1495,7 +1553,8 @@ class UsersDatastore(
           .fold("")(_ => s"AND u.roles=ANY($$2::TEXT[])")}""".stripMargin,
       roles
         .map(rs => List(usernames.toArray, rs.toArray))
-        .getOrElse(List(usernames.toArray))
+        .getOrElse(List(usernames.toArray)),
+      conn = conn
     ) { row => row.optUserWithTenantRights() }
   }
 
@@ -1710,15 +1769,17 @@ class UsersDatastore(
   // FIXME add right reduction when max rights
   def findCompleteRightsFromTenant(
       username: String,
-      tenants: Set[String]
+      tenants: Set[String],
+      conn: Option[SqlConnection] = None
   ): Future[Option[UserWithRights]] =
-    findCompleteRightsFromTenantForUsers(Set(username), tenants).map(m =>
+    findCompleteRightsFromTenantForUsers(Set(username), tenants, conn = conn).map(m =>
       m.get(username)
     )
 
   def findCompleteRightsFromTenantForUsers(
       users: Set[String],
-      tenants: Set[String]
+      tenants: Set[String],
+      conn: Option[SqlConnection] = None
   ): Future[Map[String, UserWithRights]] = {
     require(tenants.forall(Tenant.isTenantValid))
     Future
@@ -1740,7 +1801,8 @@ class UsersDatastore(
                  |left join izanami.users_tenants_rights utr on (utr.username = u.username AND utr.tenant=$$2)
                  |WHERE u.username=ANY($$1::TEXT[]);
                  |""".stripMargin,
-              List(users.toArray, tenant)
+              List(users.toArray, tenant),
+              conn = conn
             ) { row => row.optUserWithRights() }
             .map(fuser => fuser.map(u => (tenant, u.username, u)))
         })
@@ -1787,13 +1849,14 @@ class UsersDatastore(
   }
 
   def findUserWithCompleteRights(
-      username: String
+      username: String,
+      conn: Option[SqlConnection] = None
   ): Future[Option[UserWithRights]] = {
     // FIXME reduce rights with maxRights if needed
-    findUser(username).flatMap {
+    findUser(username, conn = conn).flatMap {
       case Some(user) if user.tenantRights.nonEmpty => {
         val tenants = user.tenantRights.keys.toSet
-        findCompleteRightsFromTenant(username, tenants)
+        findCompleteRightsFromTenant(username, tenants, conn = conn)
       }
       case Some(user) => Some(user.withRights(Rights.EMPTY)).future
       case _          => Future.successful(None)
