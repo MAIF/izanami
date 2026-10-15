@@ -54,7 +54,7 @@ test.describe("Global settings page should", () => {
       .getByRole("textbox", { name: "URL of the OIDC config" })
       .fill("http://localhost:9001/.well-known/openid-configuration");
     await page.getByRole("button", { name: "Fetch configuration" }).click();
-    await page.getByRole("textbox", { name: "Client ID" }).fill("foo");
+    await page.getByRole("textbox", { name: "Client ID", exact: true }).fill("foo");
     await page.getByRole("textbox", { name: "Client Secret" }).fill("bar");
     await page.getByRole("textbox", { name: "Name field name" }).click();
     await page
@@ -197,7 +197,7 @@ test.describe("Global settings page should", () => {
     await expect(
       page.getByRole("heading", { name: "Get from OIDC config" }),
     ).not.toBeVisible();
-    await page.getByRole("textbox", { name: "Client ID" }).fill("foo");
+    await page.getByRole("textbox", { name: "Client ID", exact: true }).fill("foo");
     await page.getByRole("textbox", { name: "Client Secret" }).fill("bar");
     await page
       .getByRole("textbox", { name: "Scopes" })

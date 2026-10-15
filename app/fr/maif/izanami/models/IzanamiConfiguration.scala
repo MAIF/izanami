@@ -51,7 +51,10 @@ case class OAuth2Configuration(
     callbackUrl: String,
     userRightsByRoles: Option[Map[String, CompleteRightsWithMaxRights]] = None,
     roleClaim: Option[String],
-    roleRightMode: Option[RoleRightMode]
+    roleRightMode: Option[RoleRightMode],
+    issuer: Option[String] = None,
+    audience: Option[String] = None,
+    jwksUrl: Option[String] = None
 ) {
   def maxRightsByRoles: Option[Map[String, MaxRights]] = {
     userRightsByRoles.map(rightByRoles =>
@@ -106,7 +109,10 @@ object OAuth2Configuration {
         "pkce" -> o.pkce.map(_.asJson).getOrElse(JsNull).as[JsValue],
         "nameField" -> o.nameField,
         "emailField" -> o.emailField,
-        "callbackUrl" -> o.callbackUrl
+        "callbackUrl" -> o.callbackUrl,
+        "issuer" -> o.issuer,
+        "audience" -> o.audience,
+        "jwksUrl" -> o.jwksUrl
       )
       .applyOnWithOpt(o.userRightsByRoles)((json, rightByRoles) =>
         json + ("userRightsByRoles" -> Json.toJson(rightByRoles)(
@@ -155,7 +161,10 @@ object OAuth2Configuration {
             userRightsByRoles = userRightsByRoles,
             roleClaim = (json \ "roleClaim").asOpt[String],
             roleRightMode =
-              (json \ "roleRightMode").asOpt[RoleRightMode](RoleRightMode.reads)
+              (json \ "roleRightMode").asOpt[RoleRightMode](RoleRightMode.reads),
+            issuer = (json \ "issuer").asOpt[String].filter(_.nonEmpty),
+            audience = (json \ "audience").asOpt[String].filter(_.nonEmpty),
+            jwksUrl = (json \ "jwksUrl").asOpt[String].filter(_.nonEmpty)
           )
         }
 

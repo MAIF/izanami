@@ -643,7 +643,7 @@ function OIDCForm() {
   const fetchConfig = ({ oidcUrl }: { oidcUrl: string }) => {
     return fetchOpenIdConnectConfiguration(oidcUrl)
       .then((result) => {
-        const { method, authorizeUrl, callbackUrl, scopes, tokenUrl } =
+        const { method, authorizeUrl, callbackUrl, scopes, tokenUrl, issuer, jwksUrl } =
           result as any;
 
         setValue("oidcConfiguration.authorizeUrl", authorizeUrl);
@@ -651,6 +651,8 @@ function OIDCForm() {
         setValue("oidcConfiguration.scopes", scopes);
         setValue("oidcConfiguration.tokenUrl", tokenUrl);
         setValue("oidcConfiguration.method", method);
+        setValue("oidcConfiguration.issuer", issuer);
+        setValue("oidcConfiguration.jwksUrl", jwksUrl);
 
         setOIDCModal({ visible: false });
       })
@@ -868,6 +870,33 @@ function OIDCForm() {
                         errors={errors}
                         name="oidcConfiguration.authorizeUrl"
                       />
+                    </div>
+                    <div className="row mt-3">
+                      <label>
+                        Expected issuer (optional)
+                        <input type="text" className="form-control" {...register("oidcConfiguration.issuer")} />
+                      </label>
+                      <small className="text-warning">
+                        Leaving this field empty disables ID token issuer validation.
+                      </small>
+                    </div>
+                    <div className="row mt-3">
+                      <label>
+                        Expected audience (optional, usually your client ID)
+                        <input type="text" className="form-control" {...register("oidcConfiguration.audience")} />
+                      </label>
+                      <small className="text-warning">
+                        Leaving this field empty disables ID token audience validation.
+                      </small>
+                    </div>
+                    <div className="row mt-3">
+                      <label>
+                        JWKS URL (optional)
+                        <input type="text" className="form-control" {...register("oidcConfiguration.jwksUrl")} />
+                      </label>
+                      <small className="text-warning">
+                        Leaving this field empty disables ID token signature verification.
+                      </small>
                     </div>
                     <div className="row mt-3">
                       <label>

@@ -53,7 +53,10 @@ class UsersDatastore(
       .scheduleAtFixedRate(
         houseKeepingStartDelayInSeconds.seconds,
         houseKeepingIntervalInSeconds.seconds
-      )(() => deleteExpiredSessions(sessionsTtl))
+      )(() => {
+        deleteExpiredSessions(sessionsTtl)
+        postgresql.queryRaw("DELETE FROM izanami.oidc_login_attempts WHERE creation < NOW() - INTERVAL '5 minutes'") { _ => () }
+      })
     invitationExpirationCancellation = actorSystem.scheduler
       .scheduleAtFixedRate(
         houseKeepingStartDelayInSeconds.seconds,
@@ -133,6 +136,24 @@ class UsersDatastore(
     )(_.optString("username"))
       .map(_.map(_ => ()).toRight(OIDCIdentityConflict))
       .toFEither
+  }
+
+  def createOidcLoginAttempt(state: String, attempt: OidcLoginAttempt): Future[Unit] = {
+    postgresql.queryRaw(
+      "INSERT INTO izanami.oidc_login_attempts (state, nonce, verifier) VALUES ($1, $2, $3)",
+      List(state, attempt.nonce, attempt.verifier.orNull)
+    ) { _ => () }
+  }
+
+  def consumeOidcLoginAttempt(state: String): Future[Option[OidcLoginAttempt]] = {
+    postgresql.queryOne(
+      """DELETE FROM izanami.oidc_login_attempts
+        |WHERE state=$1 AND creation >= NOW() - INTERVAL '5 minutes'
+        |RETURNING nonce, verifier""".stripMargin,
+      List(state)
+    ) { row =>
+      row.optString("nonce").map(nonce => OidcLoginAttempt(nonce, row.optString("verifier")))
+    }
   }
 
   def createSession(username: String): Future[String] = {

@@ -109,6 +109,9 @@ Izanami allows to set up an external openid provider.
 | Client secret  | IZANAMI_OPENID_CLIENT_SECRET  | app.openid.client-secret  |                                    |
 | Authorize URL  | IZANAMI_OPENID_AUTHORIZE_URL  | app.openid.authorize-url  |                                    |
 | Token URL      | IZANAMI_OPENID_TOKEN_URL      | app.openid.token-url      |                                    |
+| Expected issuer | IZANAMI_OPENID_ISSUER | app.openid.issuer | Optional; absent disables issuer validation with a warning |
+| Expected audience | IZANAMI_OPENID_AUDIENCE | app.openid.audience | Optional; usually the client ID; absent disables audience validation with a warning |
+| JWKS URL | IZANAMI_OPENID_JWKS_URL | app.openid.jwks-url | Optional; absent disables signature verification with a warning |
 | Redirect URL   | IZANAMI_OPENID_REDIRECT_URL   | app.openid.redirect-url   | <>`${app.exposition.url}/login`</> |
 | Scopes         | IZANAMI_OPENID_SCOPES         | app.openid.scopes         | <>`openid email profile`</>        |
 | Email field    | IZANAMI_OPENID_EMAIL_FIELD    | app.openid.email-field    | <>`email`</>                       |

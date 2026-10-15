@@ -13,6 +13,8 @@ import fr.maif.izanami.api.ImportApiSpec
 import fr.maif.izanami.api.LeaderWorkerAPISpec
 import fr.maif.izanami.api.LoginAPISpec
 import fr.maif.izanami.api.OIDCRightSpec
+import fr.maif.izanami.api.OIDCIdentityAPISpec
+import fr.maif.izanami.datastores.OIDCIdentityPersistenceSpec
 import fr.maif.izanami.api.PersonalAccessTokenAPISpec
 import fr.maif.izanami.api.PluginAPISpec
 import fr.maif.izanami.api.ProjectAPISpec
@@ -42,6 +44,8 @@ class AllTests extends Suites(
       new ImportApiSpec,
       new LeaderWorkerAPISpec,
       new LoginAPISpec,
+      new OIDCIdentityAPISpec,
+      new OIDCIdentityPersistenceSpec,
       new OIDCRightSpec,
       new PersonalAccessTokenAPISpec,
       new PluginAPISpec,
