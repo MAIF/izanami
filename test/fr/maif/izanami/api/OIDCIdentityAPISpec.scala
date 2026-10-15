@@ -5,6 +5,7 @@ import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import fr.maif.izanami.api.BaseAPISpec.*
 import pdi.jwt.{JwtAlgorithm, JwtClaim, JwtJson}
+import pdi.jwt.algorithms.JwtAsymmetricAlgorithm
 import play.api.http.Status.*
 import play.api.libs.json.*
 import play.api.libs.ws.{WSResponse, writeableOf_JsValue}
@@ -12,6 +13,9 @@ import play.api.test.Helpers.await
 
 import java.time.Instant
 import java.util.UUID
+import java.util.Base64
+import java.security.{KeyPairGenerator, PrivateKey}
+import java.security.interfaces.RSAPublicKey
 import scala.concurrent.Future
 
 class OIDCIdentityAPISpec extends BaseAPISpec {
@@ -51,32 +55,68 @@ class OIDCIdentityAPISpec extends BaseAPISpec {
     "app.openid.right-by-roles.admin.admin" -> "true"
   )
 
-  /** Stub the provider's ID token response for a unique authorization code,
-    * then submit that code to Izanami's real OIDC callback endpoint.
-    * This tests login processing, not the authorization redirect or PKCE flow.
+  private lazy val signingKeyPair = {
+    val generator = KeyPairGenerator.getInstance("RSA")
+    generator.initialize(2048)
+    generator.generateKeyPair()
+  }
+  private lazy val jwks = {
+    val publicKey = signingKeyPair.getPublic.asInstanceOf[RSAPublicKey]
+    Json.obj("keys" -> Json.arr(Json.obj(
+      "kid" -> "test-key", "kty" -> "RSA", "use" -> "sig", "alg" -> "RS256",
+      "n" -> Base64.getUrlEncoder.withoutPadding().encodeToString(publicKey.getModulus.toByteArray.dropWhile(_ == 0)),
+      "e" -> Base64.getUrlEncoder.withoutPadding().encodeToString(publicKey.getPublicExponent.toByteArray)
+    )))
+  }
+  private lazy val validatedOidcConfiguration = oidcConfiguration ++ Map(
+    "app.openid.issuer" -> issuer,
+    "app.openid.audience" -> "foo",
+    "app.openid.jwks-url" -> s"http://localhost:${provider.port()}/jwks"
+  )
+
+  /** Start a browser-bound login, stub the provider's ID token response for a
+    * unique authorization code, then submit that code and state to Izanami.
+    * The provider's interactive authorization page is not simulated here.
     */
   private def loginWithMockedOidcIdentity(
       name: String,
       subject: Option[String] = Some("subject-1"),
       tokenIssuer: Option[String] = Some(issuer),
       roles: Set[String] = Set(),
-      email: String = "oidc@example.test"
+      email: String = "oidc@example.test",
+      tokenClaims: JsObject = Json.obj(),
+      signingKey: Option[PrivateKey] = None,
+      kid: String = "test-key",
+      callbackState: Option[String] = None,
+      includeSession: Boolean = true,
+      signingAlgorithm: JwtAsymmetricAlgorithm = JwtAlgorithm.RS256
   ): Future[WSResponse] = {
+    val start = await(ws.url(s"$ADMIN_BASE_URL/openid-connect").withFollowRedirects(false).get())
+    val parameters = org.apache.pekko.http.scaladsl.model.Uri(start.header("Location").get).query()
+    val state = parameters.get("state").get
+    val nonce = parameters.get("nonce").get
     val code = UUID.randomUUID().toString
     val now = Instant.now().getEpochSecond
     val claim = JwtClaim(
-      content = Json.obj("name" -> name, "email" -> email, "roles" -> roles).toString(),
+      content = Json.obj("name" -> name, "email" -> email, "roles" -> roles, "nonce" -> nonce).toString(),
       issuer = tokenIssuer,
       subject = subject,
+      audience = Some(Set("foo")),
       issuedAt = Some(now),
       expiration = Some(now + 300)
     )
+    val claims = Json.parse(claim.toJson).as[JsObject] ++ tokenClaims
+    val token = signingKey.fold(JwtJson.encode(claims.toString, "test-signing-key", JwtAlgorithm.HS256)) { key =>
+      JwtJson.encode(Json.obj("alg" -> signingAlgorithm.name, "kid" -> kid).toString, claims.toString, key, signingAlgorithm)
+    }
     provider.stubFor(post(urlEqualTo("/token"))
       .withRequestBody(containing(s"code=$code"))
       .willReturn(aResponse()
         .withHeader("Content-Type", "application/json")
-        .withBody(Json.obj("id_token" -> JwtJson.encode(claim, "test-signing-key", JwtAlgorithm.HS256)).toString())))
-    ws.url(s"$ADMIN_BASE_URL/openid-connect-callback").post(Json.obj("code" -> code))
+        .withBody(Json.obj("id_token" -> token).toString())))
+    ws.url(s"$ADMIN_BASE_URL/openid-connect-callback")
+      .withCookies((if (includeSession) start.cookies.toArray else Array.empty[play.api.libs.ws.WSCookie]): _*)
+      .post(Json.obj("code" -> code, "state" -> callbackState.getOrElse(state)))
   }
 
   private def createUnlinkedOidcUser(username: String): WSResponse = {
@@ -398,6 +438,328 @@ class OIDCIdentityAPISpec extends BaseAPISpec {
       acceptedRights.status mustBe OK
       (acceptedRights.json.get \ "username").as[String] mustBe "legacy-user"
       await(loginWithMockedOidcIdentity("legacy-user", subject = Some("rejected-subject"))).status mustBe FORBIDDEN
+    }
+  }
+
+  "OIDC validation" should {
+    "keep legacy configuration working and warn about missing token validation settings" in {
+      TestSituationBuilder().withCustomConfiguration(oidcConfiguration).build()
+      val logger = org.slf4j.LoggerFactory.getLogger("izanami.oidc.validation").asInstanceOf[ch.qos.logback.classic.Logger]
+      val appender = new ch.qos.logback.core.read.ListAppender[ch.qos.logback.classic.spi.ILoggingEvent]()
+      val oldLevel = logger.getLevel
+      appender.start()
+      logger.setLevel(ch.qos.logback.classic.Level.WARN)
+      logger.addAppender(appender)
+      try {
+        val response = await(loginWithMockedOidcIdentity("legacy-login", tokenClaims = Json.obj("aud" -> "other-app")))
+        response.status mustBe NO_CONTENT
+        import scala.jdk.CollectionConverters.*
+        appender.list.asScala.exists(event => event.getFormattedMessage.contains("OIDC compatibility mode") &&
+          event.getFormattedMessage.contains("issuer") && event.getFormattedMessage.contains("audience") &&
+          event.getFormattedMessage.contains("signature verification")) mustBe true
+      } finally {
+        logger.detachAppender(appender)
+        logger.setLevel(oldLevel)
+        appender.stop()
+      }
+    }
+
+    "validate a signed token and cache the trusted JWKS" in {
+      val situation = TestSituationBuilder().withCustomConfiguration(validatedOidcConfiguration).build()
+      provider.stubFor(get(urlEqualTo("/jwks")).willReturn(okJson(jwks.toString)))
+      val first = await(loginWithMockedOidcIdentity("signed-user", signingKey = Some(signingKeyPair.getPrivate)))
+      first.status mustBe NO_CONTENT
+      val rights = situation.copy(cookies = first.cookies.toSeq).fetchUserRights()
+      rights.status mustBe OK
+      (rights.json.get \ "username").as[String] mustBe "signed-user"
+      await(loginWithMockedOidcIdentity("renamed-user", signingKey = Some(signingKeyPair.getPrivate))).status mustBe NO_CONTENT
+      provider.verify(1, getRequestedFor(urlEqualTo("/jwks")))
+    }
+
+    "select typed JWKS signing keys without accepting incompatible or ambiguous keys" in {
+      val rsaKey = (jwks \ "keys").as[Seq[JsObject]].head
+      val cases = Seq(
+        (Json.arr(rsaKey - "alg"), NO_CONTENT),
+        (Json.arr(
+          Json.obj("kty" -> "oct", "kid" -> "symmetric-key"),
+          Json.obj("kty" -> "EC", "crv" -> "unsupported"),
+          Json.obj("kty" -> "RSA", "kid" -> "malformed-key"),
+          Json.obj("kty" -> "RSA", "use" -> "enc"),
+          Json.obj("kty" -> "RSA", "key_ops" -> Json.arr("encrypt")),
+          rsaKey ++ Json.obj("key_ops" -> Json.arr("verify"))
+        ), NO_CONTENT),
+        (Json.arr(rsaKey, rsaKey), UNAUTHORIZED),
+        (Json.arr(rsaKey ++ Json.obj("alg" -> "RS512")), UNAUTHORIZED),
+        (Json.arr(rsaKey ++ Json.obj("use" -> "enc")), UNAUTHORIZED),
+        (Json.arr(rsaKey ++ Json.obj("key_ops" -> Json.arr("encrypt"))), UNAUTHORIZED),
+        (Json.arr(rsaKey ++ Json.obj("n" -> "AQAB")), UNAUTHORIZED)
+      )
+      cases.foreach { (keys, expectedStatus) =>
+        TestSituationBuilder().withCustomConfiguration(validatedOidcConfiguration).build()
+        provider.stubFor(get(urlEqualTo("/jwks")).willReturn(okJson(Json.obj("keys" -> keys).toString)))
+        val response = await(loginWithMockedOidcIdentity("typed-key-user", signingKey = Some(signingKeyPair.getPrivate)))
+        response.status mustBe expectedStatus
+        if (expectedStatus == UNAUTHORIZED) {
+          response.cookies.find(_.name == "token") mustBe None
+        }
+      }
+    }
+
+    "reject invalid signatures and unsupported algorithms without falling back" in {
+      val admin = TestSituationBuilder().withCustomConfiguration(validatedOidcConfiguration)
+        .loggedInWithAdminRights().build()
+      provider.stubFor(get(urlEqualTo("/jwks")).willReturn(okJson(jwks.toString)))
+      val generator = KeyPairGenerator.getInstance("RSA")
+      generator.initialize(2048)
+      val attackerKey = generator.generateKeyPair().getPrivate
+      Seq(None, Some(attackerKey)).foreach { key =>
+        val response = await(loginWithMockedOidcIdentity("attacker", roles = Set("admin"), signingKey = key))
+        response.status mustBe UNAUTHORIZED
+        response.cookies.find(_.name == "token") mustBe None
+      }
+      val users = admin.fetchUsers()
+      users.status mustBe OK
+      users.json.get.as[Seq[JsValue]].map(json => (json \ "username").as[String]) mustBe Seq(ALL_RIGHTS_USERNAME)
+    }
+
+    "verify ECDSA tokens using the matching JWKS curve" in {
+      TestSituationBuilder().withCustomConfiguration(validatedOidcConfiguration).build()
+      val generator = KeyPairGenerator.getInstance("EC")
+      generator.initialize(new java.security.spec.ECGenParameterSpec("secp256r1"))
+      val keyPair = generator.generateKeyPair()
+      val publicKey = keyPair.getPublic.asInstanceOf[java.security.interfaces.ECPublicKey]
+      val ecJwks = Json.obj("keys" -> Json.arr(Json.obj(
+        "kid" -> "ec-key", "kty" -> "EC", "crv" -> "P-256", "alg" -> "ES256", "use" -> "sig",
+        "x" -> Base64.getUrlEncoder.withoutPadding().encodeToString(
+          (Array.fill[Byte](32)(0) ++ publicKey.getW.getAffineX.toByteArray).takeRight(32)),
+        "y" -> Base64.getUrlEncoder.withoutPadding().encodeToString(
+          (Array.fill[Byte](32)(0) ++ publicKey.getW.getAffineY.toByteArray).takeRight(32))
+      )))
+      provider.stubFor(get(urlEqualTo("/jwks")).willReturn(okJson(ecJwks.toString)))
+      await(loginWithMockedOidcIdentity("ec-user", signingKey = Some(keyPair.getPrivate), kid = "ec-key",
+        signingAlgorithm = JwtAlgorithm.ES256)).status mustBe NO_CONTENT
+    }
+
+    "reject invalid identity audience nonce and timestamps before creating a user" in {
+      val admin = TestSituationBuilder().withCustomConfiguration(validatedOidcConfiguration)
+        .loggedInWithAdminRights().build()
+      provider.stubFor(get(urlEqualTo("/jwks")).willReturn(okJson(jwks.toString)))
+      val now = Instant.now().getEpochSecond
+      val invalidClaims = Seq(
+        Json.obj("iss" -> "https://other.example.test"),
+        Json.obj("aud" -> "other-app"),
+        Json.obj("aud" -> Json.arr("foo", "other-app")),
+        Json.obj("aud" -> Json.arr("foo", "other-app"), "azp" -> "other-app"),
+        Json.obj("azp" -> "other-app"),
+        Json.obj("azp" -> 42),
+        Json.obj("nonce" -> "wrong-nonce"),
+        Json.obj("nonce" -> JsNull),
+        Json.obj("exp" -> (now - 30)),
+        Json.obj("exp" -> JsNull),
+        Json.obj("iat" -> JsNull),
+        Json.obj("iat" -> (now + 120)),
+        Json.obj("nbf" -> (now + 120))
+      )
+      invalidClaims.foreach { claims =>
+        val response = await(loginWithMockedOidcIdentity("invalid-user", signingKey = Some(signingKeyPair.getPrivate),
+          tokenClaims = claims, roles = Set("admin")))
+        response.status mustBe UNAUTHORIZED
+        response.cookies.find(_.name == "token") mustBe None
+      }
+      val users = admin.fetchUsers()
+      users.status mustBe OK
+      users.json.get.as[Seq[JsValue]].map(json => (json \ "username").as[String]) mustBe Seq(ALL_RIGHTS_USERNAME)
+      await(loginWithMockedOidcIdentity("valid-user", signingKey = Some(signingKeyPair.getPrivate),
+        tokenClaims = Json.obj("aud" -> Json.arr("foo", "other-app"), "azp" -> "foo"))).status mustBe NO_CONTENT
+    }
+
+    "enforce configured issuer and audience even when JWKS is absent" in {
+      TestSituationBuilder().withCustomConfiguration(oidcConfiguration ++ Map(
+        "app.openid.issuer" -> issuer, "app.openid.audience" -> "foo"
+      )).build()
+      await(loginWithMockedOidcIdentity("wrong-issuer", tokenIssuer = Some("https://other.example.test"))).status mustBe UNAUTHORIZED
+      await(loginWithMockedOidcIdentity("wrong-audience", tokenClaims = Json.obj("aud" -> "other-app"))).status mustBe UNAUTHORIZED
+      await(loginWithMockedOidcIdentity("valid-user")).status mustBe NO_CONTENT
+    }
+
+    "verify signatures even when issuer and audience are not configured" in {
+      TestSituationBuilder().withCustomConfiguration(oidcConfiguration ++ Map(
+        "app.openid.jwks-url" -> s"http://localhost:${provider.port()}/jwks"
+      )).build()
+      provider.stubFor(get(urlEqualTo("/jwks")).willReturn(okJson(jwks.toString)))
+      await(loginWithMockedOidcIdentity("unsigned-user")).status mustBe UNAUTHORIZED
+      await(loginWithMockedOidcIdentity("signed-user", signingKey = Some(signingKeyPair.getPrivate),
+        tokenIssuer = Some("https://another.example.test"), tokenClaims = Json.obj("aud" -> "other-app"))).status mustBe NO_CONTENT
+    }
+
+    "reject unavailable malformed and redirected JWKS without accepting an unverified token" in {
+      TestSituationBuilder().withCustomConfiguration(validatedOidcConfiguration).build()
+      Seq(aResponse().withStatus(503), okJson("{}"), aResponse().withStatus(302)
+        .withHeader("Location", s"http://localhost:${provider.port()}/other-jwks")).foreach { response =>
+        provider.stubFor(get(urlEqualTo("/jwks")).willReturn(response))
+        await(loginWithMockedOidcIdentity("invalid-user", signingKey = Some(signingKeyPair.getPrivate))).status mustBe UNAUTHORIZED
+      }
+      provider.verify(0, getRequestedFor(urlEqualTo("/other-jwks")))
+    }
+
+    "refresh JWKS for key rotation and throttle refresh for unknown keys" in {
+      TestSituationBuilder().withCustomConfiguration(validatedOidcConfiguration).build()
+      provider.stubFor(get(urlEqualTo("/jwks")).willReturn(okJson(jwks.toString)))
+      await(loginWithMockedOidcIdentity("signed-user", signingKey = Some(signingKeyPair.getPrivate))).status mustBe NO_CONTENT
+      val generator = KeyPairGenerator.getInstance("RSA")
+      generator.initialize(2048)
+      val rotatedKeyPair = generator.generateKeyPair()
+      val publicKey = rotatedKeyPair.getPublic.asInstanceOf[RSAPublicKey]
+      val rotatedJwks = Json.obj("keys" -> Json.arr(Json.obj(
+        "kid" -> "rotated-key", "kty" -> "RSA", "use" -> "sig", "alg" -> "RS256",
+        "n" -> Base64.getUrlEncoder.withoutPadding().encodeToString(publicKey.getModulus.toByteArray.dropWhile(_ == 0)),
+        "e" -> Base64.getUrlEncoder.withoutPadding().encodeToString(publicKey.getPublicExponent.toByteArray)
+      )))
+      provider.stubFor(get(urlEqualTo("/jwks")).willReturn(okJson(rotatedJwks.toString)))
+      await(loginWithMockedOidcIdentity("signed-user", signingKey = Some(rotatedKeyPair.getPrivate), kid = "rotated-key")).status mustBe NO_CONTENT
+      Seq("unknown-key-1", "unknown-key-2").foreach { kid =>
+        await(loginWithMockedOidcIdentity("invalid-user", signingKey = Some(rotatedKeyPair.getPrivate), kid = kid)).status mustBe UNAUTHORIZED
+      }
+      provider.verify(2, getRequestedFor(urlEqualTo("/jwks")))
+    }
+
+    "keep cached signing keys usable when retrieving an unknown key fails" in {
+      val situation = TestSituationBuilder().withCustomConfiguration(validatedOidcConfiguration).build()
+      provider.stubFor(get(urlEqualTo("/jwks")).willReturn(okJson(jwks.toString)))
+      await(loginWithMockedOidcIdentity("signed-user", signingKey = Some(signingKeyPair.getPrivate))).status mustBe NO_CONTENT
+
+      provider.stubFor(get(urlEqualTo("/jwks")).willReturn(aResponse().withStatus(503)))
+      val rejected = await(loginWithMockedOidcIdentity("signed-user", signingKey = Some(signingKeyPair.getPrivate), kid = "unknown-key"))
+      rejected.status mustBe UNAUTHORIZED
+      rejected.cookies.find(_.name == "token") mustBe None
+
+      val accepted = await(loginWithMockedOidcIdentity("signed-user", signingKey = Some(signingKeyPair.getPrivate)))
+      accepted.status mustBe NO_CONTENT
+      val rights = situation.copy(cookies = accepted.cookies.toSeq).fetchUserRights()
+      rights.status mustBe OK
+      (rights.json.get \ "username").as[String] mustBe "signed-user"
+
+      await(loginWithMockedOidcIdentity("signed-user", signingKey = Some(signingKeyPair.getPrivate), kid = "other-unknown-key")).status mustBe UNAUTHORIZED
+      provider.verify(2, getRequestedFor(urlEqualTo("/jwks")))
+    }
+
+    "expire preserved signing keys at the original deadline after failed refreshes" in {
+      val admin = TestSituationBuilder().withCustomConfiguration(validatedOidcConfiguration)
+        .loggedInWithAdminRights().build()
+      val settings = admin.fetchConfiguration()
+      settings.status mustBe OK
+      val configuration = (settings.json.get \ "oidcConfiguration")
+        .as[fr.maif.izanami.models.OAuth2Configuration](fr.maif.izanami.models.OAuth2Configuration._fmt)
+      // Advance only the cache clock: no SQL, sleeps or five-minute test wait.
+      val nanos = new java.util.concurrent.atomic.AtomicLong(0L)
+      val validator = new fr.maif.izanami.security.OidcTokenValidator(ws, ticker = () => nanos.get())
+      val now = Instant.now().getEpochSecond
+      val claim = JwtClaim(content = Json.obj("nonce" -> "test-nonce").toString,
+        issuer = Some(issuer), subject = Some("subject-1"), audience = Some(Set("foo")),
+        issuedAt = Some(now), expiration = Some(now + 300))
+      val token = JwtJson.encode(Json.obj("alg" -> "RS256", "kid" -> "test-key").toString,
+        claim.toJson, signingKeyPair.getPrivate, JwtAlgorithm.RS256)
+      val unknownKeyToken = JwtJson.encode(Json.obj("alg" -> "RS256", "kid" -> "unknown-key").toString,
+        claim.toJson, signingKeyPair.getPrivate, JwtAlgorithm.RS256)
+
+      provider.stubFor(get(urlEqualTo("/jwks")).willReturn(okJson(jwks.toString)))
+      await(validator.validate(token, configuration, "test-nonce")).isRight mustBe true
+      nanos.set(java.util.concurrent.TimeUnit.MINUTES.toNanos(4))
+
+      Seq(aResponse().withStatus(503), okJson("{}")).foreach { failure =>
+        provider.stubFor(get(urlEqualTo("/jwks")).willReturn(failure))
+        await(validator.validate(unknownKeyToken, configuration, "test-nonce")).isLeft mustBe true
+        await(validator.validate(token, configuration, "test-nonce")).isRight mustBe true
+        nanos.addAndGet(java.util.concurrent.TimeUnit.SECONDS.toNanos(31))
+      }
+      provider.verify(3, getRequestedFor(urlEqualTo("/jwks")))
+
+      await(validator.validate(token, configuration, "test-nonce")).isLeft mustBe true
+      provider.verify(4, getRequestedFor(urlEqualTo("/jwks")))
+    }
+
+    "reject callbacks without a matching browser state before contacting the token endpoint" in {
+      TestSituationBuilder().withCustomConfiguration(oidcConfiguration).build()
+      await(ws.url(s"$ADMIN_BASE_URL/openid-connect-callback").post(Json.obj("code" -> "code"))).status mustBe UNAUTHORIZED
+      await(loginWithMockedOidcIdentity("invalid-user", callbackState = Some("wrong-state"))).status mustBe UNAUTHORIZED
+      await(loginWithMockedOidcIdentity("invalid-user", includeSession = false)).status mustBe UNAUTHORIZED
+      provider.verify(0, postRequestedFor(urlEqualTo("/token")))
+    }
+
+    "consume state once even if the caller replays the original session cookie" in {
+      TestSituationBuilder().withCustomConfiguration(oidcConfiguration).build()
+      val start = await(ws.url(s"$ADMIN_BASE_URL/openid-connect").withFollowRedirects(false).get())
+      val parameters = org.apache.pekko.http.scaladsl.model.Uri(start.header("Location").get).query()
+      val now = Instant.now().getEpochSecond
+      val claim = JwtClaim(content = Json.obj("name" -> "replay-user", "email" -> "replay@example.test",
+        "nonce" -> parameters.get("nonce").get).toString(), issuer = Some(issuer), subject = Some("replay-subject"),
+        issuedAt = Some(now), expiration = Some(now + 300))
+      provider.stubFor(post(urlEqualTo("/token")).willReturn(okJson(Json.obj(
+        "id_token" -> JwtJson.encode(claim, "test-key", JwtAlgorithm.HS256)).toString())))
+      val body = Json.obj("code" -> "replay-code", "state" -> parameters.get("state").get)
+      val request = ws.url(s"$ADMIN_BASE_URL/openid-connect-callback").withCookies(start.cookies.toArray: _*)
+      val first = await(request.post(body))
+      first.status mustBe NO_CONTENT
+      first.cookies.find(_.name == "PLAY_SESSION").forall(_.value.isEmpty) mustBe true
+      await(request.post(body)).status mustBe UNAUTHORIZED
+      provider.verify(1, postRequestedFor(urlEqualTo("/token")))
+    }
+
+    "use the current OIDC configuration and preserve PKCE checks after configuration changes" in {
+      Seq(false, true).foreach { enablePkce =>
+        val admin = TestSituationBuilder().loggedInWithAdminRights().build()
+        val configuration = Json.obj(
+          "enabled" -> true,
+          "method" -> "BASIC",
+          "clientId" -> "foo",
+          "clientSecret" -> "bar",
+          "authorizeUrl" -> s"http://localhost:${provider.port()}/authorize",
+          "tokenUrl" -> s"http://localhost:${provider.port()}/token",
+          "callbackUrl" -> "http://localhost:9000/login",
+          "nameField" -> "name",
+          "emailField" -> "email",
+          "scopes" -> "openid email profile",
+          "pkce" -> Json.obj("enabled" -> false, "algorithm" -> "S256")
+        )
+        admin.updateConfiguration(oidcConfiguration = configuration).status mustBe NO_CONTENT
+        val start = await(ws.url(s"$ADMIN_BASE_URL/openid-connect").withFollowRedirects(false).get())
+        start.status mustBe SEE_OTHER
+        val parameters = org.apache.pekko.http.scaladsl.model.Uri(start.header("Location").get).query()
+        val updated = configuration ++ Json.obj(
+          "clientSecret" -> "new-secret",
+          "pkce" -> Json.obj("enabled" -> enablePkce, "algorithm" -> "S256")
+        )
+        admin.updateConfiguration(oidcConfiguration = updated).status mustBe NO_CONTENT
+        provider.resetAll()
+        val now = Instant.now().getEpochSecond
+        val claim = JwtClaim(
+          content = Json.obj("name" -> "configuration-user", "email" -> "configuration@example.test",
+            "nonce" -> parameters.get("nonce").get).toString,
+          issuer = Some(issuer), subject = Some("configuration-subject"),
+          issuedAt = Some(now), expiration = Some(now + 300)
+        )
+        provider.stubFor(post(urlEqualTo("/token"))
+          .withBasicAuth("foo", "new-secret")
+          .willReturn(okJson(Json.obj("id_token" -> JwtJson.encode(claim, "test-key", JwtAlgorithm.HS256)).toString)))
+        val response = await(ws.url(s"$ADMIN_BASE_URL/openid-connect-callback")
+          .withCookies(start.cookies.toArray: _*)
+          .post(Json.obj("code" -> "configuration-code", "state" -> parameters.get("state").get)))
+        response.status mustBe (if (enablePkce) UNAUTHORIZED else NO_CONTENT)
+        provider.verify(if (enablePkce) 0 else 1, postRequestedFor(urlEqualTo("/token")))
+        if (enablePkce) {
+          response.cookies.find(_.name == "token") mustBe None
+        } else {
+          val rights = admin.copy(cookies = response.cookies.toSeq).fetchUserRights()
+          rights.status mustBe OK
+          (rights.json.get \ "username").as[String] mustBe "configuration-user"
+        }
+      }
+    }
+
+    "send the PKCE verifier generated for the browser login attempt" in {
+      TestSituationBuilder().withCustomConfiguration(oidcConfiguration + ("app.openid.pkce.enabled" -> "true")).build()
+      await(loginWithMockedOidcIdentity("pkce-user")).status mustBe NO_CONTENT
+      provider.verify(1, postRequestedFor(urlEqualTo("/token")).withRequestBody(matching(".*code_verifier=[A-Za-z0-9_-]+.*")))
     }
   }
 }

@@ -886,6 +886,9 @@ export interface OIDCSettings {
   clientId: string;
   clientSecret: string;
   tokenUrl: string;
+  issuer?: string;
+  audience?: string;
+  jwksUrl?: string;
   authorizeUrl: string;
   loginUrl: string;
   scopes: string;

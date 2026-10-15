@@ -590,6 +590,14 @@ case object CantUpdateOIDCCOnfiguration
         "OIDC configuration can't be updated while it is set in env variables.",
       status = BAD_REQUEST
     )
+case object InvalidOIDCLogin extends IzanamiError(
+      message = "Invalid or expired OIDC login attempt",
+      status = UNAUTHORIZED
+    )
+case object InvalidOIDCToken extends IzanamiError(
+      message = "Invalid OIDC ID token",
+      status = UNAUTHORIZED
+    )
 case object OIDCIdentityConflict extends IzanamiError(
       message = "OIDC identity cannot be associated with this user",
       status = FORBIDDEN

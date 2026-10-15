@@ -14,3 +14,12 @@ ALTER TABLE izanami.users
         )
     ),
     ADD CONSTRAINT users_oidc_identity_unique UNIQUE (oidc_issuer, oidc_subject);
+
+CREATE TABLE izanami.oidc_login_attempts (
+    state TEXT PRIMARY KEY,
+    nonce TEXT NOT NULL,
+    verifier TEXT,
+    creation TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX oidc_login_attempts_creation_idx ON izanami.oidc_login_attempts (creation);

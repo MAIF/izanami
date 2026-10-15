@@ -187,7 +187,10 @@ case class OpenId(
     pkce: OpenIdPkce,
     rightByRoles: Option[Map[String, RoleRights]],
     roleClaim: Option[String],
-    roleRightMode: Option[RoleRightMode]
+    roleRightMode: Option[RoleRightMode],
+    issuer: Option[String] = scala.None,
+    audience: Option[String] = scala.None,
+    jwksUrl: Option[String] = scala.None
 ) {
   def toIzanamiOAuth2Configuration: Option[OAuth2Configuration] = {
     for (
@@ -221,7 +224,10 @@ case class OpenId(
         userRightsByRoles =
           rightByRoles.map(r => r.view.mapValues(v => v.toRights).toMap),
         roleClaim = roleClaim,
-        roleRightMode = roleRightMode
+        roleRightMode = roleRightMode,
+        issuer = issuer.filter(_.nonEmpty),
+        audience = audience.filter(_.nonEmpty),
+        jwksUrl = jwksUrl.filter(_.nonEmpty)
       )
     }
   }

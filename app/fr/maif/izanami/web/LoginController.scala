@@ -2,7 +2,6 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.{OpenId, Sessions}
 import fr.maif.izanami.datastores.{ConfigurationDatastore, UsersDatastore}
-import fr.maif.izanami.errors.FailedToReadTokenClaims
 import fr.maif.izanami.errors.MissingOIDCConfigurationError
 import fr.maif.izanami.errors.RightComplianceError
 import fr.maif.izanami.errors.{IzanamiError, OIDCIdentityConflict, UserNotFound}
@@ -10,13 +9,13 @@ import fr.maif.izanami.models.*
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
 import fr.maif.izanami.models.User.userRightsWrites
 import fr.maif.izanami.security.JwtService
+import fr.maif.izanami.security.OidcTokenValidator
+import fr.maif.izanami.errors.{InvalidOIDCLogin, InvalidOIDCToken}
 import fr.maif.izanami.services.{MaxRightComplianceResult, PostgresTransactionProvider, RightService}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.AuthAction.delayResponse
-import pdi.jwt.JwtJson
-import pdi.jwt.JwtOptions
 import play.api.Logger
 import play.api.libs.json.*
 import play.api.libs.ws.DefaultBodyWritables.writeableOf_urlEncodedSimpleForm
@@ -44,6 +43,7 @@ class LoginController(
     sessions: Sessions
 )(implicit val ec: ExecutionContext) extends BaseController {
   private val logger = Logger("izanami.login")
+  private val tokenValidator = new OidcTokenValidator(wsClient)
 
   def openIdConnect: Action[AnyContent] = Action.async { implicit request => {
     configurationDatastore
@@ -52,13 +52,13 @@ class LoginController(
       .map(e => {
         e.toOption.flatMap(_.oidcConfiguration)
       })
-      .map {
-        case None => MissingOIDCConfigurationError().toHttpResponse
+      .flatMap {
+        case None => MissingOIDCConfigurationError().toHttpResponse.future
         case Some(
               oAuth2Configuration
             ) => {
           if (!oAuth2Configuration.enabled) {
-            BadRequest(Json.obj("message" -> "Something wrong happened"))
+            BadRequest(Json.obj("message" -> "Something wrong happened")).future
           } else {
             val hasOpenIdInScope =
               oAuth2Configuration.scopes
@@ -66,23 +66,26 @@ class LoginController(
                 .toSet
                 .exists(s => s.equalsIgnoreCase("openid"))
             val actualScope =
-              (if (!hasOpenIdInScope) oAuth2Configuration.scopes + " openid"
-               else oAuth2Configuration.scopes).replace(" ", "%20")
-
-            if (oAuth2Configuration.pkce.exists(_.enabled)) {
-              val (codeVerifier, codeChallenge, codeChallengeMethod) =
-                generatePKCECodes(oAuth2Configuration.pkce.get.algorithm.some)
-
-              Redirect(
-                s"${oAuth2Configuration.authorizeUrl}?scope=$actualScope&client_id=${oAuth2Configuration.clientId}&response_type=code&redirect_uri=${oAuth2Configuration.callbackUrl}&code_challenge=$codeChallenge&code_challenge_method=$codeChallengeMethod"
-              ).addingToSession(
-                "code_verifier" -> codeVerifier
-              )
-            } else {
-              Redirect(
-                s"${oAuth2Configuration.authorizeUrl}?scope=$actualScope&client_id=${oAuth2Configuration.clientId}&response_type=code&redirect_uri=${oAuth2Configuration.callbackUrl}"
-              )
-            }
+              if (!hasOpenIdInScope) oAuth2Configuration.scopes + " openid"
+              else oAuth2Configuration.scopes
+            val state = randomOidcValue()
+            val nonce = randomOidcValue()
+            val pkce = oAuth2Configuration.pkce.filter(_.enabled)
+              .map(p => generatePKCECodes(Some(p.algorithm)))
+            val parameters = Map(
+              "scope" -> Seq(actualScope),
+              "client_id" -> Seq(oAuth2Configuration.clientId),
+              "response_type" -> Seq("code"),
+              "redirect_uri" -> Seq(oAuth2Configuration.callbackUrl),
+              "state" -> Seq(state),
+              "nonce" -> Seq(nonce)
+            ) ++ pkce.map { (_, challenge, method) =>
+              Map("code_challenge" -> Seq(challenge), "code_challenge_method" -> Seq(method))
+            }.getOrElse(Map.empty)
+            usersDatastore.createOidcLoginAttempt(state,
+              OidcLoginAttempt(nonce, pkce.map(_._1)))
+              .map(_ => Redirect(oAuth2Configuration.authorizeUrl, parameters)
+                .addingToSession("oidc_state" -> state))
           }
         }
       }
@@ -113,15 +116,30 @@ class LoginController(
             .encodeBase64URLSafeString(digest),
           "S256"
         )
-      case _ => (codeVerifier, codeVerifier, "plain")
+      case Some("plain") => (codeVerifier, codeVerifier, "plain")
+      case _ => throw new IllegalArgumentException("Unsupported PKCE algorithm")
     }
   }
 
+  private def randomOidcValue(): String = {
+    val bytes = new Array[Byte](32)
+    new SecureRandom().nextBytes(bytes)
+    Base64.getUrlEncoder.withoutPadding().encodeToString(bytes)
+  }
+
   def openIdCodeReturn: Action[AnyContent] = Action.async { implicit request =>
-    {
+    val state = request.body.asJson.flatMap(json => (json \ "state").asOpt[String])
+    val attemptFuture = state.filter(value => request.session.get("oidc_state").contains(value))
+      .map(usersDatastore.consumeOidcLoginAttempt)
+      .getOrElse(Future.successful(None))
+    attemptFuture.flatMap {
+      case None =>
+        logger.warn("Rejected OIDC callback: missing, mismatched, expired or already consumed state")
+        InvalidOIDCLogin.toHttpResponse.removingFromSession("oidc_state").future
+      case Some(attempt) => {
       for (
         code <- request.body.asJson
-          .flatMap(json => (json \ "code").get.asOpt[String])
+           .flatMap(json => (json \ "code").asOpt[String].filter(_.nonEmpty))
           .asFuture;
         oauth2ConfigurationOpt <-
           configurationDatastore
@@ -134,9 +152,7 @@ class LoginController(
             logger.error(
               "Izanami failed to extract code from oauth provider call"
             )
-            InternalServerError(
-              Json.obj("message" -> "Failed to extract code from token")
-            ).asFuture
+            InvalidOIDCLogin.toHttpResponse.future
           } else if (
             oauth2ConfigurationOpt.isEmpty || oauth2ConfigurationOpt.exists(
               _.enabled == false
@@ -150,11 +166,15 @@ class LoginController(
                 "message" -> "OAuth2 configuration is either absent or disabled"
               )
             ).asFuture
+          } else if (oauth2ConfigurationOpt.get.pkce.exists(_.enabled) && attempt.verifier.isEmpty) {
+            InvalidOIDCLogin.toHttpResponse.future
           } else {
             val oauth2Configuration = oauth2ConfigurationOpt.get
 
             var builder = wsClient
               .url(oauth2Configuration.tokenUrl)
+              .withFollowRedirects(false)
+              .withRequestTimeout(10.seconds)
               .withHttpHeaders(
                 ("content-type", "application/x-www-form-urlencoded")
               )
@@ -182,13 +202,7 @@ class LoginController(
             }
 
             if (oauth2Configuration.pkce.exists(_.enabled)) {
-              val maybeCodeVerifier = request.session.get(s"code_verifier")
-              if (maybeCodeVerifier.isEmpty) {
-                logger.error(
-                  "PKCE flow is required but no code_verifier was found"
-                )
-              }
-              body = body + ("code_verifier" -> maybeCodeVerifier.getOrElse(""))
+              body = body + ("code_verifier" -> attempt.verifier.get)
             }
 
             builder
@@ -198,20 +212,13 @@ class LoginController(
                   logger.error(
                     s"Failed to retrieve id token from distant authentication provider. Return code is ${r.status}."
                   )
-                  logger.debug(
-                    s"Failed to retrieve id token from distant authentication provider. Return code is ${r.status}, response body is ${r.body}"
-                  )
                   None
                 } else {
-                  val jsonBody = r.json
-                  val token = (jsonBody \ "id_token").asOpt[String]
+                  val token = scala.util.Try(r.json).toOption.flatMap(json => (json \ "id_token").asOpt[String])
 
                   if (token.isEmpty) {
                     logger.error(
                       s"Failed to read id token from distant authentication provider response."
-                    )
-                    logger.debug(
-                      s"Failed to read id token from distant authentication provider response. Response body is ${jsonBody}"
                     )
                   }
                   token
@@ -224,24 +231,14 @@ class LoginController(
                     )
                   )
                 )(token => {
-                  val maybeClaims = JwtJson
-                    .decode(token, JwtOptions(signature = false, leeway = 10))
-                  if (maybeClaims.isFailure) {
-                    logger.error(s"Failed to decode id token")
-                    logger.debug(
-                      s"Failed to decode id token ${token}",
-                      maybeClaims.failed.get
-                    )
-                  }
-                  maybeClaims.toOption
+                  tokenValidator.validate(token, oauth2Configuration, attempt.nonce).flatMap {
+                    case Left(err) => Future.successful(err.toHttpResponse)
+                    case Right(validatedClaims) => Some(validatedClaims)
                     .flatMap(claims => {
                       val maybeJsonClaims =
                         Json.parse(claims.content).asOpt[JsObject]
                       if (maybeJsonClaims.isEmpty) {
                         logger.error(s"Failed to read json claims")
-                        logger.debug(
-                          s"Failed to read json claims from ${claims}"
-                        )
                       }
                       maybeJsonClaims.map(json => (claims, json))
                     })
@@ -273,7 +270,7 @@ class LoginController(
                     }
                     .getOrElse(
                       Future(
-                        Left(FailedToReadTokenClaims)
+                        Left(InvalidOIDCToken)
                       )
                     )
                     .flatMap {
@@ -330,12 +327,16 @@ class LoginController(
                           }
                         )
                     })
+                  }
                 })
               })
           }
         }
-    }.flatten
-    // .getOrElse(Future(InternalServerError(Json.obj("message" -> "Failed to read token claims"))))
+    }.flatten.recover { case scala.util.control.NonFatal(_) =>
+      logger.warn("OIDC login failed while communicating with the authentication provider")
+      InvalidOIDCLogin.toHttpResponse
+    }.map(_.removingFromSession("oidc_state"))
+    }
   }
 
   private def authenticateOidcUser(
@@ -460,7 +461,9 @@ class LoginController(
                     enabled = true,
                     userRightsByRoles = None,
                     roleClaim = None,
-                    roleRightMode = None
+                    roleRightMode = None,
+                    issuer = (body \ "issuer").asOpt[String],
+                    jwksUrl = (body \ "jwks_uri").asOpt[String]
                   ).some
                 } else {
                   None

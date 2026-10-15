@@ -7,15 +7,17 @@ import { TUser } from "../utils/types";
 import { Loader } from "../components/Loader";
 
 export function Login(props: any) {
-  const code = new URLSearchParams(props.location.search).get("code");
+  const searchParams = new URLSearchParams(props.location.search);
+  const code = searchParams.get("code");
+  const state = searchParams.get("state");
   if (code) {
-    return <TokenWaitScreen code={code} />;
+    return <TokenWaitScreen code={code} state={state} />;
   } else {
     return <LoginForm {...props} />;
   }
 }
 
-function TokenWaitScreen({ code }: { code: string }) {
+function TokenWaitScreen({ code, state }: { code: string; state: string | null }) {
   const fetching = React.useRef<boolean>(false);
   const [error, setError] = React.useState("");
   const navigate = useNavigate();
@@ -28,7 +30,7 @@ function TokenWaitScreen({ code }: { code: string }) {
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, state }),
       }).then((response) => {
         if (response.status >= 400) {
           setError("Failed to retrieve token from code");
