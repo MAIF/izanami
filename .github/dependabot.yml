@@ -1,13 +1,16 @@
 version: 2
 updates:
-  # Enable version updates for npm
+  # Update only the frontend npm dependencies.
   - package-ecosystem: "npm"
-    # Look for `package.json` and `lock` files in the `root` directory
-    directory: "/"
+    directory: "/izanami-frontend"
     # Check the npm registry for updates every day (weekdays)
     schedule:
       interval: "daily"
+    # Increase package.json requirements and keep package-lock.json in sync.
+    versioning-strategy: "increase"
+    # Keep the default limit of 5 open version PRs, including individual majors.
     groups:
+      # Major updates stay outside this group and get individual PRs.
       minor-and-patches:
         patterns:
           - "*"
