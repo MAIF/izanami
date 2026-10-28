@@ -66,7 +66,7 @@ libraryDependencies += guice
 libraryDependencies += ws
 libraryDependencies += "com.softwaremill.macwire" %% "macros" % "2.6.7" % "provided"
 
-libraryDependencies += "com.zaxxer" % "HikariCP" % "5.1.0"
+libraryDependencies += "com.zaxxer" % "HikariCP" % "7.1.0"
 libraryDependencies += "io.vertx" % "vertx-pg-client" % "5.2.1"
 libraryDependencies += "com.ongres.scram" % "scram-client" % "3.2"
 libraryDependencies += "org.flywaydb" % "flyway-database-postgresql" % "12.6.1"
