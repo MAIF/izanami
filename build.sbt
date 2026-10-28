@@ -68,7 +68,7 @@ libraryDependencies += "com.softwaremill.macwire" %% "macros" % "2.6.7" % "provi
 
 libraryDependencies += "com.zaxxer" % "HikariCP" % "5.1.0"
 libraryDependencies += "io.vertx" % "vertx-pg-client" % "5.2.1"
-libraryDependencies += "com.ongres.scram" % "scram-client" % "3.2"
+libraryDependencies += "com.ongres.scram" % "scram-client" % "3.4"
 libraryDependencies += "org.flywaydb" % "flyway-database-postgresql" % "12.6.1"
 libraryDependencies += "org.postgresql" % "postgresql" % "42.7.11"
 libraryDependencies += "com.github.jwt-scala" %% "jwt-play-json" % "9.4.5" excludeAll (excludesJackson: _*)
