@@ -64,7 +64,7 @@ import { QueryBuilder } from "./pages/queryBuilder";
 import { GlobalContextIcon } from "./utils/icons";
 import { WasmScripts } from "./pages/wasmScripts";
 import { differenceInMonths } from "date-fns";
-import { JsonViewer } from "@textea/json-viewer";
+import ReactJsonView from '@microlink/react-json-view'
 import { AtomicDesign } from "./pages/atomicDesign";
 import { Swagger } from "./pages/swagger";
 import { Tags } from "./pages/tags";
@@ -881,13 +881,13 @@ export class App extends Component<any, AppState> {
                     products !
                     <br />
                     <br />
-                    <JsonViewer
-                      rootName={false}
-                      value={stats}
+                    <ReactJsonView
+                      name={null}
+                      src={stats}
                       displayDataTypes={false}
-                      displaySize={false}
-                      defaultInspectDepth={0}
-                      theme="dark"
+                      displayObjectSize={false}
+                      collapsed={true}
+                      theme="brewer"
                     />
                   </>,
                   () => {

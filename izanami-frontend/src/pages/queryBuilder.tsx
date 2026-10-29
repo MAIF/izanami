@@ -3,7 +3,6 @@ import { queryTags, tagsQueryKey } from "../utils/queries";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, useParams } from "react-router-dom";
 import Select from "react-select";
-import { JsonViewer } from "@textea/json-viewer";
 import { customStyles } from "../styles/reactSelect";
 import { IzanamiContext } from "../securityContext";
 import { GenericTable } from "../components/GenericTable";
@@ -16,6 +15,7 @@ import { AllContexts } from "../components/AllContextSelect";
 import { FeatureSelector } from "../components/FeatureSelector";
 import { ProjectSelector } from "../components/ProjectSelector";
 import { clientUrlForContext } from "../utils/contextUtils";
+import ReactJsonView from "@microlink/react-json-view";
 
 export function QueryBuilder() {
   const { tenant } = useParams();
@@ -440,13 +440,14 @@ export function QueryBuilder() {
               </div>
               {jsonDisplay ? (
                 <div className="row mb-2">
-                  <JsonViewer
-                    rootName={false}
-                    value={rawResult}
-                    displayDataTypes={false}
-                    displaySize={false}
-                    theme="dark"
-                  />
+                  <ReactJsonView
+                      name={null}
+                      src={rawResult}
+                      displayDataTypes={false}
+                      displayObjectSize={false}
+                      collapsed={true}
+                      theme="brewer"
+                    />
                 </div>
               ) : (
                 <div className="row" ref={resultRef}>
@@ -550,12 +551,12 @@ function parseUrl(url: string):
 
   return {
     baseUrl: `${groups.protocol}://${groups.host}${groups.port}`,
-    context: search?.get("context") ?? undefined ?? "",
+    context: search?.get("context") ?? "",
     projects: search?.get("projects")?.split(",") ?? [],
     features: search?.get("features")?.split(",") ?? [],
     noTagIn: search?.get("noTagIn")?.split(",") ?? [],
     allTagsIn: search?.get("allTagsIn")?.split(",") ?? [],
     oneTagIn: search?.get("oneTagIn")?.split(",") ?? [],
-    user: search?.get("user") ?? undefined ?? "",
+    user: search?.get("user") ?? "",
   };
 }

@@ -1,7 +1,6 @@
 import { useContext, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import queryClient from "../queryClient";
-import { JsonViewer } from "@textea/json-viewer";
 import { Modal } from "../components/Modal";
 import Select from "react-select";
 import * as yup from "yup";
@@ -31,6 +30,7 @@ import { rightStateArrayToBackendMap } from "../utils/rightUtils";
 import { isEqual } from "lodash";
 import { IzanamiContext } from "../securityContext";
 import { successToast } from "../utils/toastUtils";
+import ReactJsonView from "@microlink/react-json-view";
 const MAILER_OPTIONS = [
   { label: "MailJet", value: "MailJet" },
   { label: "MailGun", value: "MailGun" },
@@ -363,12 +363,13 @@ function ConfigurationForm(props: {
           ) : resultStats.state === "ERROR" ? (
             <div>{resultStats.error}</div>
           ) : (
-            <JsonViewer
-              rootName={false}
-              value={resultStats.results}
+            <ReactJsonView
+              name={null}
+              src={resultStats.results}
               displayDataTypes={false}
-              displaySize={false}
-              theme="dark"
+              displayObjectSize={false}
+              collapsed={true}
+              theme="brewer"
             />
           )}
         </Modal>
