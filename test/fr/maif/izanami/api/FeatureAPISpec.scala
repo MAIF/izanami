@@ -4021,6 +4021,96 @@ class FeatureAPISpec extends BaseAPISpec {
       )
     }
 
+    "select the deepest overload and inherit strategies across multiple subcontexts" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature("F1", enabled = false),
+                  TestFeature(
+                    "F2",
+                    enabled = false,
+                    resultType = "string",
+                    value = "foo"
+                  ),
+                  TestFeature("F3", enabled = true)
+                )
+            )
+            .withGlobalContext(TestFeatureContext("global"))
+        )
+        .build()
+
+      situation
+        .createContext("tenant", "project", "local", "global")
+        .status mustBe CREATED
+      situation
+        .createContext("tenant", "project", "deep", "global/local")
+        .status mustBe CREATED
+      situation
+        .createContext("tenant", "project", "child", "global/local/deep")
+        .status mustBe CREATED
+
+      Seq(
+        ("global", false),
+        ("global/local", true),
+        ("global/local/deep", false)
+      ).foreach { case (context, enabled) =>
+        situation.changeFeatureStrategyForContext(
+          "tenant",
+          "project",
+          context,
+          "F1",
+          enabled = enabled
+        ).status mustBe NO_CONTENT
+      }
+
+      Seq(
+        ("global", "overload"),
+        ("global/local/deep", "deep overload")
+      ).foreach { case (context, value) =>
+        situation.changeFeatureStrategyForContext(
+          "tenant",
+          "project",
+          context,
+          "F2",
+          enabled = true,
+          resultType = "string",
+          value = value
+        ).status mustBe NO_CONTENT
+      }
+
+      Seq(
+        ("", JsFalse, JsNull),
+        ("global", JsFalse, JsString("overload")),
+        ("global/local", JsTrue, JsString("overload")),
+        ("global/local/deep", JsFalse, JsString("deep overload")),
+        ("global/local/deep/child", JsFalse, JsString("deep overload"))
+      ).foreach { case (context, expectedF1, expectedF2) =>
+        withClue(s"Context '$context': ") {
+          val result = situation.evaluateFeaturesAsLoggedInUser(
+            "tenant",
+            projects = Seq("project"),
+            context = context
+          )
+
+          result.status mustBe OK
+          result.json.get
+            .as[Map[String, JsObject]]
+            .values
+            .map(obj =>
+              ((obj \ "name").as[String], (obj \ "active").get)
+            ) must contain theSameElementsAs Seq(
+            ("F1", expectedF1),
+            ("F2", expectedF2),
+            ("F3", JsTrue)
+          )
+        }
+      }
+    }
+
     "return correct activation for resulting feature with provided user" in {
       val situation = TestSituationBuilder()
         .loggedInWithAdminRights()

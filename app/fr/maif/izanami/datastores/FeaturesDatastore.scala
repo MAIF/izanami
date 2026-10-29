@@ -1116,22 +1116,13 @@ class FeaturesDatastore(
                   .values
                   .map(featureDuplicates =>
                     featureDuplicates
-                      .sortWith((first, second) => {
-                        def contextSize(jsValue: JsValue): Int =
-                          (jsValue \ "context")
-                            .asOpt[String]
-                            .map(_.split("."))
-                            .map(_.length)
-                            .getOrElse(0)
-                        val firstContextSize = contextSize(first)
-                        val secondContextSize = contextSize(second)
-
-                        if (firstContextSize == 0) true
-                        else if (secondContextSize == 0) false
-                        else if (firstContextSize < secondContextSize) false
-                        else true
-                      })
-                      .head
+                      .maxBy(feature =>
+                        (feature \ "context")
+                          .asOpt[String]
+                          .map(FeatureContextPath.fromDBString)
+                          .map(_.elements.size)
+                          .getOrElse(0)
+                      )
                   )
                   .flatMap(f => {
                     Feature
