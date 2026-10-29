@@ -262,7 +262,13 @@ export function Rule(props: { rule: TFeatureRule }): JSX.Element {
   if (isPercentageRule(rule)) {
     return <>for {`${rule.percentage}% of users`}</>;
   } else if (isUserListRule(rule)) {
-    return <>{`only for : ${rule.users.join(", ")}`}</>;
+    const targets = [
+      rule.users?.length ? `only for : ${rule.users.join(", ")}` : undefined,
+      rule.groups?.length
+        ? `members of groups : ${rule.groups.join(", ")}`
+        : undefined,
+    ].filter(Boolean);
+    return <>{targets.join(" OR ")}</>;
   } else {
     return <>for all users</>;
   }

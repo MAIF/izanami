@@ -686,12 +686,16 @@ export function testFeature(
   user: string,
   date: Date,
   payload?: { [x: string]: any },
+  groups: string[] = [],
 ): Promise<{ active: boolean }> {
+  const params = new URLSearchParams({
+    date: format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"),
+    user,
+  });
+  groups.forEach((group) => params.append("groups", group));
   return handleFetchJsonResponse(
     fetch(
-      `/api/admin/tenants/${tenant}/test?date=${encodeURIComponent(
-        format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"),
-      )}&user=${user}`,
+      `/api/admin/tenants/${tenant}/test?${params}`,
       {
         method: "POST",
         body: JSON.stringify({ feature, payload }),
@@ -710,14 +714,18 @@ export function testExistingFeature(
   context: string,
   user: string,
   payload?: string,
+  groups: string[] = [],
 ): Promise<{ active: boolean }> {
+  const params = new URLSearchParams({
+    date: format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"),
+    user,
+  });
+  groups.forEach((group) => params.append("groups", group));
   return handleFetchJsonResponse(
     fetch(
       `/api/admin/tenants/${tenant}/features/${featureId}/test${
         context ? "/" + context : ""
-      }?date=${encodeURIComponent(
-        format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"),
-      )}&user=${user}`,
+      }?${params}`,
       {
         method: "POST",
         body: payload ? payload : "{}",

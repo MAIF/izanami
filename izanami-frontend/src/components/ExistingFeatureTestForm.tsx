@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Tooltip as LocalToolTip } from "./Tooltip";
 import Select from "react-select";
+import CreatableSelect from "react-select/creatable";
 import {
   projectContextKey,
   queryContextsForProject,
@@ -20,6 +21,7 @@ import { Loader } from "./Loader";
 
 export interface FeatureTestType {
   user?: string;
+  groups?: string[];
   date: Date;
   context?: string;
   payload?: string;
@@ -47,11 +49,13 @@ export function ExistingFeatureTestForm(props: {
     mutationFn: ({
       context,
       user,
+      groups,
       date,
       payload,
     }: {
       date: Date;
       user: string;
+      groups: string[];
       context: string;
       payload?: string;
     }) =>
@@ -61,7 +65,8 @@ export function ExistingFeatureTestForm(props: {
         date,
         context ?? "",
         user ?? "",
-        payload
+        payload,
+        groups
       ),
   });
 
@@ -84,12 +89,13 @@ export function ExistingFeatureTestForm(props: {
         </div>
         <div className="my-4">
           <form
-            onSubmit={handleSubmit(({ user, date, context, payload }) => {
+            onSubmit={handleSubmit(({ user, groups, date, context, payload }) => {
               setMessage(undefined);
               featureTestMutation
                 .mutateAsync({
                   context: context ?? "",
                   user: user ?? "",
+                  groups: groups ?? [],
                   date,
                   payload,
                 })
@@ -189,6 +195,38 @@ export function ExistingFeatureTestForm(props: {
                           className="form-control"
                           {...register("user")}
                         ></input>
+                      </label>
+                    </div>
+                    <div className="row">
+                      <label
+                        className="mt-3"
+                        htmlFor="existing-feature-test-groups"
+                      >
+                        Groups
+                        <LocalToolTip id="groups-tooltip-id">
+                          Groups supplied by the calling application for
+                          feature evaluation
+                        </LocalToolTip>
+                        <Controller
+                          name="groups"
+                          control={control}
+                          render={({ field: { onChange, value } }) => (
+                            <CreatableSelect
+                              inputId="existing-feature-test-groups"
+                              aria-label="Groups"
+                              value={value?.map((group) => ({
+                                value: group,
+                                label: group,
+                              }))}
+                              onChange={(options) =>
+                                onChange(options.map((option) => option.value))
+                              }
+                              styles={customStyles}
+                              isMulti
+                              isClearable
+                            />
+                          )}
+                        />
                       </label>
                     </div>
                     <div className="row">

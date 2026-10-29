@@ -1291,21 +1291,23 @@ function FeatureTestForm(props: {
     mutationFn: ({
       feature,
       user,
+      groups,
       date,
       payload,
     }: {
       date: Date;
       user: string;
+      groups: string[];
       feature: TCompleteFeature;
       payload?: { [x: string]: any };
-    }) => testFeature(tenant!, feature, user, date, payload),
+    }) => testFeature(tenant!, feature, user, date, payload, groups),
   });
 
   const { mode } = React.useContext(IzanamiContext);
 
   return (
     <form
-      onSubmit={handleSubmit(({ user, date, payload }) => {
+      onSubmit={handleSubmit(({ user, groups, date, payload }) => {
         setMessage(undefined);
         let json = {};
         if (payload) {
@@ -1320,6 +1322,7 @@ function FeatureTestForm(props: {
           .mutateAsync({
             feature: props.feature,
             user: user ?? "",
+            groups: groups ?? [],
             date,
             payload: json as { [x: string]: any },
           })
@@ -1363,6 +1366,28 @@ function FeatureTestForm(props: {
           className="form-control"
           {...register("user")}
         ></input>
+      </label>
+      <label className="mt-3">
+        <span id="feature-test-groups-label">Groups</span>
+        <LocalToolTip id="test-groups-tooltip-id">
+          Groups supplied by the calling application for feature evaluation
+        </LocalToolTip>
+        <Controller
+          name="groups"
+          control={control}
+          render={({ field: { onChange, value } }) => (
+            <CreatableSelect
+              aria-labelledby="feature-test-groups-label"
+              value={value?.map((group) => ({ value: group, label: group }))}
+              onChange={(options) =>
+                onChange(options.map((option) => option.value))
+              }
+              styles={customStyles}
+              isMulti
+              isClearable
+            />
+          )}
+        />
       </label>
       <label className="mt-3">
         Payload

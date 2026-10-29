@@ -547,7 +547,7 @@ object OldFeature {
           percentage = percentage,
           tags = f.tags
         )
-      case UserList(users) =>
+      case UserList(users, groups) if groups.isEmpty =>
         OldCustomersFeature(
           id = f.id,
           name = f.name,
@@ -555,6 +555,15 @@ object OldFeature {
           description = Option(f.description),
           customers = users.toList,
           tags = f.tags
+        )
+      case _: UserList =>
+        OldGlobalScriptFeature(
+          id = f.id,
+          name = f.name,
+          enabled = f.enabled,
+          description = Option(f.description),
+          tags = f.tags,
+          ref = "fake-script-feature"
         )
       case All =>
         OldDefaultFeature(

@@ -484,11 +484,12 @@ export function isPercentageRule(rule?: TFeatureRule): rule is TPercentageRule {
 }
 
 interface TUserList {
-  users: string[];
+  users?: string[];
+  groups?: string[];
 }
 
 export function isUserListRule(rule: TFeatureRule): rule is TUserList {
-  return (rule as TUserList).users !== undefined;
+  return "users" in rule || "groups" in rule;
 }
 
 export function isWasmFeature(

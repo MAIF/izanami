@@ -22,8 +22,58 @@ import java.time.*
 import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.SECONDS
+import scala.jdk.CollectionConverters.*
 
 class EventsAPISpec extends BaseAPISpec {
+  for (batch <- Seq(false, true)) {
+    s"Group targeting SSE (batch=$batch)" should {
+      "evaluate groups in initial states refreshes and updates" in {
+        val situation = TestSituationBuilder()
+          .loggedInWithAdminRights()
+          .withTenants(TestTenant("tenant").withAllRightsKey("key").withProjects(
+            TestProject("project").withFeatures(
+              TestFeature("flag", conditions = Set(TestCondition(
+                rule = TestUserListRule(Set.empty, Set("beta"))
+              )))
+            )
+          )).build()
+        val id = situation.findFeatureId("tenant", "project", "flag").get
+        val events = new java.util.concurrent.ConcurrentLinkedQueue[ServerSentEvent]()
+        if (batch) {
+          situation.listenEventsWithBodyRequest(
+            key = "key", features = Seq(id), projects = Seq.empty,
+            consumer = event => { events.add(event); () },
+            groups = Seq("other,beta", "beta,support"),
+            conditions = false, refreshInterval = Duration.ofSeconds(1)
+          )
+        } else {
+          situation.listenEvents(
+            key = "key", features = Seq(id), projects = Seq.empty,
+            consumer = event => { events.add(event); () },
+            groups = Seq("other,beta", "beta,support"),
+            conditions = false, refreshInterval = Duration.ofSeconds(1)
+          )
+        }
+        await atMost (10, SECONDS) until {
+          events.asScala.count(_.eventType.contains("FEATURE_STATES")) >= 2
+        }
+        for (event <- events.asScala.filter(_.eventType.contains("FEATURE_STATES"))) {
+          (Json.parse(event.data) \ "payload" \ id \ "active").as[Boolean] mustBe true
+        }
+        situation.updateFeatureByName(
+          "tenant", "project", "flag",
+          json => json ++ Json.obj("conditions" -> Json.arr(
+            Json.obj("rule" -> Json.obj("groups" -> Json.arr("support")))
+          ))
+        ).status mustBe 200
+        await atMost (10, SECONDS) until {
+          events.asScala.exists(_.eventType.contains("FEATURE_UPDATED"))
+        }
+        val updated = events.asScala.find(_.eventType.contains("FEATURE_UPDATED")).get
+        (Json.parse(updated.data) \ "payload" \ "active").as[Boolean] mustBe true
+      }
+    }
+  }
 
   "event endpoint" should {
     "should send initial event" in {

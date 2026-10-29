@@ -92,7 +92,8 @@ case class RequestContext(
     user: String,
     context: FeatureContextPath = FeatureContextPath(),
     now: Instant = Instant.now(),
-    data: JsObject = Json.obj()
+    data: JsObject = Json.obj(),
+    groups: Set[String] = Set.empty
 ) {
   def wasmJson: JsValue = Json.obj(
     "tenant" -> tenant,
@@ -1191,8 +1192,11 @@ object Feature {
             }
           }
         }
-    maybeFeature
-      .getOrElse(JsError("Incorrect feature format"))
+    if ((json \ "conditions").asOpt[JsObject].exists(_.keys.contains("groups"))) {
+      JsError("Group targeting requires an array of activation conditions")
+    } else {
+      maybeFeature.getOrElse(JsError("Incorrect feature format"))
+    }
   }
 
   def readCompleteFeature(

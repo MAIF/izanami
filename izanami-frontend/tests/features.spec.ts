@@ -31,6 +31,45 @@ async function featureAction(page: Page, name: string) {
 }
 
 test.describe("Project screen should", () => {
+  test("allow to create edit and test group targeting", async ({ page, tenantName }) => {
+    await testBuilder()
+      .withTenant(testTenant(tenantName).withProject(testProject("project")))
+      .build(page);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.getByRole("button", { name: "Create new feature" }).click();
+    await page.getByLabel("Name").fill("group-flag");
+    await page.getByLabel("Enabled").check();
+    await page.getByRole("button", { name: "Add condition", exact: true }).click();
+    await page.getByRole("combobox", { name: "Strategy to use" }).click();
+    await page.getByRole("option", { name: "User and group list", exact: true }).click();
+
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("At least one user or group should be specified").first()).toBeVisible();
+    await page.getByRole("combobox", { name: /^Groups that should activate feature/ }).fill("beta,+&");
+    await page.getByText('Create "beta,+&"', { exact: true }).click();
+    await page.getByRole("combobox", { name: "Groups", exact: true }).fill("beta,+&");
+    await page.getByText('Create "beta,+&"', { exact: true }).click();
+    await page.getByRole("button", { name: "Test feature", exact: true }).click();
+    await expect(page.getByText('"active": true,')).toBeVisible();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("rowheader", { name: "group-flag", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Active : members of groups : beta,+&", exact: true })).toBeVisible();
+
+    await featureAction(page, "Edit");
+    await page.getByRole("button", { name: /Activation condition #0/ }).click();
+    await expect(page.getByText("beta,+&", { exact: true }).first()).toBeVisible();
+    await page.getByRole("combobox", { name: /^Users that should activate feature/ }).fill("alice");
+    await page.getByText('Create "alice"', { exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("cell", { name: "Active : only for : alice OR members of groups : beta,+&", exact: true })).toBeVisible();
+
+    await featureAction(page, "Test feature");
+    await page.getByRole("combobox", { name: "Groups", exact: true }).fill("beta,+&");
+    await page.getByText('Create "beta,+&"', { exact: true }).click();
+    await page.getByRole("button", { name: "Test feature", exact: true }).click();
+    await expect(page.getByText('"active": true,')).toBeVisible();
+  });
+
   test("allow to create features", async ({ page, tenantName }) => {
     const situation = await testBuilder()
       .withTenant(testTenant(tenantName).withProject(testProject("project")))

@@ -39,6 +39,7 @@ Both endpoints require following headers:
 They also accept following query parameters:
 
 - `user` a `string` indicating user (used by user based conditions and maybe script features)
+- `groups` a list of strings indicating groups the user belongs to, for example `groups=beta,support`.
 - `context` a `string` indicating context, if your request target a subcontext, separate contexts with a "/". For instance `context/subcontext/subsubcontext`
 - `conditions` a `boolean` indicating whether activation conditions should be returned as well. This is useful for caching conditions on the client and recomputing activation startegy locally.
 
@@ -90,6 +91,21 @@ Additionally to previously specified query parameters, this endpoints accept spe
 For script features, it's possible to add a JSON payload that will be used by the script to decide wether feature should be active or not.
 
 This is done by calling above endpoints with `POST` method instead of `GET`, request body will be passed to script.
+
+### Targeting groups
+
+Keep the individual identifier in `user` and pass groups as repeated `groups` query parameters or comma-separated lists:
+
+```sh
+curl --get '<izanami-root>/api/v2/features/<id>' \
+  -H 'Izanami-Client-Id: <client-id>' \
+  -H 'Izanami-Client-Secret: <client-secret>' \
+  --data-urlencode 'user=alice' \
+  --data-urlencode 'groups=beta' \
+  --data-urlencode 'groups=support'
+```
+
+In a user and group list rule, the feature is active if the user matches or belongs to at least one targeted group.
 
 ## Specific clients
 

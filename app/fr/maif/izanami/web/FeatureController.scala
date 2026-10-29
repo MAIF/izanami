@@ -40,7 +40,8 @@ class FeatureController(
   def testFeature(
       tenant: String,
       user: String,
-      date: Instant
+      date: Instant,
+      groups: Seq[String]
   ): Action[JsValue] =
     authenticatedAction.async(parse.json) { implicit request =>
       {
@@ -76,6 +77,7 @@ class FeatureController(
                 RequestContext(
                   tenant = "_test_",
                   user = user,
+                  groups = FeatureRequest.processInputSeqString(groups),
                   now = date,
                   data = (request.body \ "payload")
                     .asOpt[JsObject]
@@ -92,16 +94,18 @@ class FeatureController(
       tenant: String,
       id: String,
       user: String,
-      date: Instant
+      date: Instant,
+      groups: Seq[String]
   ): Action[JsValue] =
-    testExistingFeature(tenant, FeatureContextPath(Seq()), id, user, date)
+    testExistingFeature(tenant, FeatureContextPath(Seq()), id, user, date, groups)
 
   def testExistingFeature(
       tenant: String,
       context: FeatureContextPath,
       id: String,
       user: String,
-      date: Instant
+      date: Instant,
+      groups: Seq[String]
     ): Action[JsValue] = detailledRightForTenanFactory(tenant).async(parse.json) {
     implicit request =>
       {
@@ -123,6 +127,7 @@ class FeatureController(
                 featureService.evaluateStrategy(strategy, RequestContext(
                     tenant = tenant,
                     user,
+                    groups = FeatureRequest.processInputSeqString(groups),
                     context = context,
                     now = date,
                     data = data
@@ -146,6 +151,7 @@ class FeatureController(
                     RequestContext(
                       tenant = tenant,
                       user = user,
+                      groups = FeatureRequest.processInputSeqString(groups),
                       now = date,
                       context = context,
                       data = data
@@ -159,7 +165,8 @@ class FeatureController(
   def checkFeatureForContext(
       id: String,
       user: String,
-      context: fr.maif.izanami.web.FeatureContextPath
+      context: fr.maif.izanami.web.FeatureContextPath,
+      groups: Seq[String]
   ): Action[AnyContent] = workerAction.async { implicit request =>
     {
 
@@ -172,6 +179,7 @@ class FeatureController(
         RequestContext(
           tenant = request.tenant,
           user = user,
+          groups = FeatureRequest.processInputSeqString(groups),
           context = context,
           data = maybeBody.getOrElse(Json.obj())
         ),
@@ -256,7 +264,8 @@ class FeatureController(
       user: String,
       conditions: Boolean,
       date: Option[Instant],
-      featureRequest: FeatureRequest
+      featureRequest: FeatureRequest,
+      groups: Seq[String]
   ): Action[AnyContent] = workerAction.async { implicit request =>
     {
       val maybeBody =
@@ -265,6 +274,7 @@ class FeatureController(
       val requestContext = RequestContext(
         tenant = request.tenant,
         user = user,
+        groups = FeatureRequest.processInputSeqString(groups),
         now = date.getOrElse(Instant.now()),
         context = FeatureContextPath(featureRequest.context),
         data = maybeBody.getOrElse(Json.obj())
@@ -287,7 +297,8 @@ class FeatureController(
     user: String,
     conditions: Boolean,
     date: Option[Instant],
-    context: Option[String]
+    context: Option[String],
+    groups: Seq[String]
   ): Action[JsValue] = workerAction.async(parse.json) { implicit request => {
     val parsedContext = context.map(ctx => ctx.split("/").toSeq).getOrElse(Seq())
     val maybeParsedBody = BatchFeatureRequest.reads(request.body, parsedContext).asOpt;
@@ -295,6 +306,7 @@ class FeatureController(
       val requestContext = RequestContext(
         tenant = request.tenant,
         user = user,
+        groups = FeatureRequest.processInputSeqString(groups),
         now = date.getOrElse(Instant.now()),
         context = FeatureContextPath(req.featureRequest.context),
         data = req.scriptPayload
@@ -317,7 +329,8 @@ class FeatureController(
       tenant: String,
       user: String,
       date: Option[Instant],
-      featureRequest: FeatureRequest
+      featureRequest: FeatureRequest,
+      groups: Seq[String]
   ): Action[AnyContent] = authenticatedAction.async { implicit request =>
     val futureFeaturesByProject =
       featuresDatastore.findByRequestV2(
@@ -349,6 +362,7 @@ class FeatureController(
         val requestContext = RequestContext(
           tenant = tenant,
           user = user,
+          groups = FeatureRequest.processInputSeqString(groups),
           now = date.getOrElse(Instant.now()),
           context = FeatureContextPath(featureRequest.context)
         );

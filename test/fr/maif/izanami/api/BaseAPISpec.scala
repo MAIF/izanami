@@ -2394,11 +2394,11 @@ object BaseAPISpec extends DefaultAwaitTimeout {
     )
   }
 
-  case class TestUserListRule(users: Set[String]) extends TestRule {
+  case class TestUserListRule(users: Set[String], groups: Set[String] = Set.empty) extends TestRule {
     override def json: JsObject = Json.obj(
       "type" -> "USER_LIST",
       "users" -> users
-    )
+    ).applyOn(json => if (groups.nonEmpty) json ++ Json.obj("groups" -> groups) else json)
   }
 
   case class TestApiKey(
@@ -2642,7 +2642,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
         user: String = "",
         conditions: Boolean = true,
         refreshInterval: Duration = Duration.ofSeconds(0L),
-        keepAliveInterval: Duration = Duration.ofSeconds(25L)
+        keepAliveInterval: Duration = Duration.ofSeconds(25L),
+        groups: Seq[String] = Seq.empty
     ): Done = {
       val response = Promise[Done]()
       shouldCleanUpEvents = true
@@ -2660,7 +2661,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                 ","
               )}&features=${features.mkString(
                 ","
-              )}&conditions=${conditions}&refreshInterval=${refreshInterval.toSeconds}&keepAliveInterval=${keepAliveInterval.toSeconds}"""
+              )}&conditions=${conditions}&refreshInterval=${refreshInterval.toSeconds}&keepAliveInterval=${keepAliveInterval.toSeconds}&${Uri.Query(groups.map("groups" -> _): _*)}"""
           ),
           send,
           initialLastEventId = Some("2"),
@@ -2697,7 +2698,8 @@ object BaseAPISpec extends DefaultAwaitTimeout {
                       user: String = "",
                       conditions: Boolean = true,
                       refreshInterval: Duration = Duration.ofSeconds(0L),
-                      keepAliveInterval: Duration = Duration.ofSeconds(25L)
+                      keepAliveInterval: Duration = Duration.ofSeconds(25L),
+                      groups: Seq[String] = Seq.empty
                     ): Done = {
       val response = Promise[Done]()
       shouldCleanUpEvents = true
@@ -2712,7 +2714,7 @@ object BaseAPISpec extends DefaultAwaitTimeout {
       val eventSource: Source[ServerSentEvent, NotUsed] =
         EventSource(
           uri = Uri(
-            s"""$BASE_URL/v2/_events?user=${user}&conditions=${conditions}&refreshInterval=${refreshInterval.toSeconds}&keepAliveInterval=${keepAliveInterval.toSeconds}"""
+            s"""$BASE_URL/v2/_events?user=${user}&conditions=${conditions}&refreshInterval=${refreshInterval.toSeconds}&keepAliveInterval=${keepAliveInterval.toSeconds}&${Uri.Query(groups.map("groups" -> _): _*)}"""
           ),
           send,
           initialLastEventId = Some("2"),

@@ -69,9 +69,12 @@ object All extends ActivationRule {
   override def active(context: RequestContext, featureId: String): Boolean =
     true
 }
-case class UserList(users: Set[String]) extends ActivationRule {
+case class UserList(
+    users: Set[String],
+    groups: Set[String] = Set.empty
+) extends ActivationRule {
   override def active(context: RequestContext, featureId: String): Boolean =
-    users.contains(context.user)
+    users.contains(context.user) || groups.exists(context.groups.contains)
 }
 case class UserPercentage(percentage: Int) extends ActivationRule {
   override def active(context: RequestContext, featureId: String): Boolean =
@@ -204,15 +207,28 @@ object ActivationRule {
   implicit val activationRuleRead: Reads[ActivationRule] = json => {
     if (json.equals(Json.obj())) {
       JsSuccess(All)
+    } else if ((json \ "groups").toOption.isDefined && (json \ "percentage").toOption.isDefined) {
+      JsError("Groups cannot be combined with a percentage rule")
+    } else if ((json \ "percentage").asOpt[Int].isDefined) {
+      (json \ "percentage").validate[Int].map(UserPercentage(_))
+    } else if ((json \ "users").toOption.isDefined || (json \ "groups").toOption.isDefined) {
+      val users = (json \ "users").toOption
+        .map(_.validate[Set[String]])
+        .getOrElse(JsSuccess(Set.empty[String]))
+      val groups = (json \ "groups").toOption
+        .map(_.validate[Set[String]])
+        .getOrElse(JsSuccess(Set.empty[String]))
+      for {
+        parsedUsers <- users
+        parsedGroups <- groups
+        rule <- if (parsedUsers.nonEmpty || parsedGroups.nonEmpty) {
+          JsSuccess(UserList(parsedUsers, parsedGroups))
+        } else {
+          JsError("At least one user or group must be specified")
+        }
+      } yield rule
     } else {
-      (for (percentage <- (json \ "percentage").asOpt[Int])
-        yield UserPercentage(percentage = percentage))
-        .orElse(
-          for (users <- (json \ "users").asOpt[Seq[String]].filter(_.nonEmpty))
-            yield UserList(users = users.toSet)
-        )
-        .map(JsSuccess(_))
-        .getOrElse(JsError("Invalid activation rule"))
+      JsError("Invalid activation rule")
     }
   }
 
@@ -221,9 +237,9 @@ object ActivationRule {
       case All =>
         Json.obj(
         )
-      case UserList(users) =>
-        Json.obj(
-          "users" -> users
+      case UserList(users, groups) =>
+        Json.obj("users" -> users).applyOn(json =>
+          if (groups.nonEmpty) json ++ Json.obj("groups" -> groups) else json
         )
       case UserPercentage(percentage) =>
         Json.obj(
@@ -280,8 +296,7 @@ object ActivationCondition {
 
   def booleanActivationConditionRead: Reads[BooleanActivationCondition] =
     Reads[BooleanActivationCondition] { json =>
-      {
-        val maybeRule = (json \ "rule").asOpt[ActivationRule];
+      (json \ "rule").validateOpt[ActivationRule].flatMap { maybeRule =>
         val maybePeriod = (json \ "period").asOpt[FeaturePeriod];
         if (maybeRule.isDefined || maybePeriod.isDefined) {
           JsSuccess(
@@ -297,60 +312,56 @@ object ActivationCondition {
     }
 
   def numberActivationConditionRead: Reads[NumberActivationCondition] =
-    Reads[NumberActivationCondition] {
-      json =>
-        {
-          val maybeRule = (json \ "rule").asOpt[ActivationRule];
-          val maybePeriod = (json \ "period").asOpt[FeaturePeriod];
+    Reads[NumberActivationCondition] { json =>
+      (json \ "rule").validateOpt[ActivationRule].flatMap { maybeRule =>
+        val maybePeriod = (json \ "period").asOpt[FeaturePeriod];
 
-          (json \ "value").asOpt[BigDecimal]
-            .filter(d =>
-              d.compare(maxNumberValue) <= 0 && d.compare(minNumberValue) >= 0
-            )
-            .map(bd => {
-              if (maybeRule.isDefined || maybePeriod.isDefined) {
-                JsSuccess(
-                  NumberActivationCondition(
-                    rule = maybeRule.getOrElse(All),
-                    period = maybePeriod.getOrElse(FeaturePeriod()),
-                    value = bd
-                  )
+        (json \ "value").asOpt[BigDecimal]
+          .filter(d =>
+            d.compare(maxNumberValue) <= 0 && d.compare(minNumberValue) >= 0
+          )
+          .map(bd => {
+            if (maybeRule.isDefined || maybePeriod.isDefined) {
+              JsSuccess(
+                NumberActivationCondition(
+                  rule = maybeRule.getOrElse(All),
+                  period = maybePeriod.getOrElse(FeaturePeriod()),
+                  value = bd
                 )
-              } else {
-                JsError("Missing both rule and period for activation condition")
-              }
-            })
-            .getOrElse(JsError(
-              "Missing/incorrect value for NumberActivationCondition"
-            ))
-        }
+              )
+            } else {
+              JsError("Missing both rule and period for activation condition")
+            }
+          })
+          .getOrElse(JsError(
+            "Missing/incorrect value for NumberActivationCondition"
+          ))
+      }
     }
 
   def stringActivationConditionRead: Reads[StringActivationCondition] =
-    Reads[StringActivationCondition] {
-      json =>
-        {
-          val maybeRule = (json \ "rule").asOpt[ActivationRule];
-          val maybePeriod = (json \ "period").asOpt[FeaturePeriod];
+    Reads[StringActivationCondition] { json =>
+      (json \ "rule").validateOpt[ActivationRule].flatMap { maybeRule =>
+        val maybePeriod = (json \ "period").asOpt[FeaturePeriod];
 
-          (json \ "value").asOpt[String]
-            .map(bd => {
-              if (maybeRule.isDefined || maybePeriod.isDefined) {
-                JsSuccess(
-                  StringActivationCondition(
-                    rule = maybeRule.getOrElse(All),
-                    period = maybePeriod.getOrElse(FeaturePeriod()),
-                    value = bd
-                  )
+        (json \ "value").asOpt[String]
+          .map(bd => {
+            if (maybeRule.isDefined || maybePeriod.isDefined) {
+              JsSuccess(
+                StringActivationCondition(
+                  rule = maybeRule.getOrElse(All),
+                  period = maybePeriod.getOrElse(FeaturePeriod()),
+                  value = bd
                 )
-              } else {
-                JsError("Missing both rule and period for activation condition")
-              }
-            })
-            .getOrElse(JsError(
-              "Missing/incorrect value for StringActivationCondition"
-            ))
-        }
+              )
+            } else {
+              JsError("Missing both rule and period for activation condition")
+            }
+          })
+          .getOrElse(JsError(
+            "Missing/incorrect value for StringActivationCondition"
+          ))
+      }
     }
 
   def valuedActivationConditionRead

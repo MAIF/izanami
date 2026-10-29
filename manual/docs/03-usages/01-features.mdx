@@ -93,7 +93,7 @@ With user based rules, activation conditions are based on provided user.
 
 Three is two types of user based conditions:
 
-- user list: define a list of user for which feature will be active. This rule is used to implement permission flags.
+- user and group list: define individual users and/or groups for which the feature will be active. A matching user OR membership of at least one targeted group activates the rule.
 - percentage: feature will be active only for given percentage of users. Percentage is based on user hash (using [murmum3](https://en.wikipedia.org/wiki/MurmurHash)), this means that activation is consistent for a given user (if feature is active once, it'll remain active). This rule is used to implement canary flags.
 
 ## String / number features

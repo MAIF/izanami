@@ -196,6 +196,7 @@ function ConditionInput(props: { index: number }) {
     register,
     control,
     getValues,
+    getFieldState,
     setValue,
     watch,
     formState: { errors },
@@ -212,13 +213,14 @@ function ConditionInput(props: { index: number }) {
   }, []);
 
   const users = watch(`conditions.${index}.rule.users`);
+  const groups = watch(`conditions.${index}.rule.groups`);
   const percentage = watch(`conditions.${index}.rule.percentage`);
   const resultType = watch("resultType");
 
   const strategy =
     percentage !== undefined
       ? Strategy.percentage.id
-      : users !== undefined
+      : users !== undefined || groups !== undefined
       ? Strategy.userList.id
       : Strategy.all.id;
 
@@ -315,7 +317,8 @@ function ConditionInput(props: { index: number }) {
             Percentage - activate this rule only for the given percentage of
             users.
             <br />
-            User list - activate this rule only for specified users.
+            User and group list - activate this rule for a specified user OR
+            a member of at least one specified group.
             <br />
             Both time rule and user rule must be active to activate this
             condition.
@@ -334,20 +337,11 @@ function ConditionInput(props: { index: number }) {
             }}
             onChange={(e) => {
               if (e?.value === Strategy.percentage.id) {
-                setValue(`conditions.${index}.rule.users`, undefined as any);
-                setValue(`conditions.${index}.rule.percentage`, 50);
+                setValue(`conditions.${index}.rule`, { percentage: 50 });
               } else if (e?.value === Strategy.userList.id) {
-                setValue(
-                  `conditions.${index}.rule.percentage`,
-                  undefined as any
-                );
-                setValue(`conditions.${index}.rule.users`, []);
+                setValue(`conditions.${index}.rule`, { users: [], groups: [] });
               } else {
-                setValue(`conditions.${index}.rule.users`, undefined as any);
-                setValue(
-                  `conditions.${index}.rule.percentage`,
-                  undefined as any
-                );
+                setValue(`conditions.${index}.rule`, undefined);
               }
             }}
           />
@@ -379,31 +373,71 @@ function ConditionInput(props: { index: number }) {
           </>
         )}
         {strategy === Strategy.userList.id && (
-          <label className="mt-3">
-            Users that should activate feature
-            <Controller
-              rules={{
-                required: "At least one user should be specified",
-                minLength: 1,
-              }}
-              name={`conditions.${index}.rule.users`}
-              control={control}
-              render={({ field: { onChange, value } }) => (
-                <CreatableSelect
-                  value={value?.map((v) => ({ value: v, label: v }))}
-                  onChange={(e) => {
-                    onChange(e.map((v) => v.value));
-                  }}
-                  styles={customStyles}
-                  isMulti
-                  isClearable
-                />
-              )}
-            />
-            <ErrorDisplay
-              error={(errors?.conditions?.[index]?.rule as any)?.users}
-            />
-          </label>
+          <>
+            <p className="mt-3">
+              A listed user OR membership of at least one listed group
+              activates this rule. Groups are supplied by the calling
+              application.
+            </p>
+            <label className="mt-3" htmlFor={`condition-${index}-users`}>
+              Users that should activate feature
+              <Controller
+                rules={{
+                  validate: (value) =>
+                    (value?.length ?? 0) > 0 ||
+                    (getValues(`conditions.${index}.rule.groups`)?.length ??
+                      0) > 0 ||
+                    "At least one user or group should be specified",
+                  deps: `conditions.${index}.rule.groups`,
+                }}
+                name={`conditions.${index}.rule.users`}
+                control={control}
+                render={({ field: { onChange, value } }) => (
+                  <CreatableSelect
+                    inputId={`condition-${index}-users`}
+                    value={value?.map((v) => ({ value: v, label: v }))}
+                    onChange={(e) => {
+                      onChange(e.map((v) => v.value));
+                    }}
+                    styles={customStyles}
+                    isMulti
+                    isClearable
+                  />
+                )}
+              />
+              <ErrorDisplay
+                error={getFieldState(`conditions.${index}.rule.users`).error}
+              />
+            </label>
+            <label className="mt-3" htmlFor={`condition-${index}-groups`}>
+              Groups that should activate feature
+              <Controller
+                rules={{
+                  validate: (value) =>
+                    (value?.length ?? 0) > 0 ||
+                    (getValues(`conditions.${index}.rule.users`)?.length ??
+                      0) > 0 ||
+                    "At least one user or group should be specified",
+                  deps: `conditions.${index}.rule.users`,
+                }}
+                name={`conditions.${index}.rule.groups`}
+                control={control}
+                render={({ field: { onChange, value } }) => (
+                  <CreatableSelect
+                    inputId={`condition-${index}-groups`}
+                    value={value?.map((v) => ({ value: v, label: v }))}
+                    onChange={(e) => onChange(e.map((v) => v.value))}
+                    styles={customStyles}
+                    isMulti
+                    isClearable
+                  />
+                )}
+              />
+              <ErrorDisplay
+                error={getFieldState(`conditions.${index}.rule.groups`).error}
+              />
+            </label>
+          </>
         )}
       </fieldset>
     </>

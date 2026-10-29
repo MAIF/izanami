@@ -86,7 +86,7 @@ type FeatureActionNames =
 export const Strategy = {
   all: { id: "All", label: "All" },
   percentage: { id: "Percentage", label: "Percentage" },
-  userList: { id: "UserList", label: "User list" },
+  userList: { id: "UserList", label: "User and group list" },
 } as const;
 
 export const FeatureType = {

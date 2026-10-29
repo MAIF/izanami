@@ -221,7 +221,8 @@ class EventController(
                  conditions: Boolean,
                  refreshInterval: Int,
                  keepAliveInterval: Int,
-                 context: Option[String]
+                 context: Option[String],
+                 groups: Seq[String]
                ): Action[JsValue] =
     clientKeyAction.async(parse.json) { request =>
       implicit val nameExtractor: EventNameExtractor[JsObject] =
@@ -261,7 +262,8 @@ class EventController(
                     RequestContext(
                       tenant,
                       user,
-                      FeatureContextPath(elements = clientRequest.context)
+                      FeatureContextPath(elements = clientRequest.context),
+                      groups = FeatureRequest.processInputSeqString(groups)
                     ),
                     conditions
                   )
@@ -276,7 +278,8 @@ class EventController(
                   conditions,
                   clientRequest,
                   request,
-                  Some(maybeBody)
+                  Some(maybeBody),
+                  FeatureRequest.processInputSeqString(groups)
                 )
 
                 res
@@ -319,7 +322,8 @@ class EventController(
       conditions: Boolean,
       refreshInterval: Int,
       keepAliveInterval: Int,
-      clientRequest: FeatureRequest
+      clientRequest: FeatureRequest,
+      groups: Seq[String]
   ): Action[AnyContent] =
     clientKeyAction.async { request =>
       implicit val nameExtractor: EventNameExtractor[JsObject] =
@@ -355,7 +359,8 @@ class EventController(
                 RequestContext(
                   tenant,
                   user,
-                  FeatureContextPath(elements = clientRequest.context)
+                  FeatureContextPath(elements = clientRequest.context),
+                  groups = FeatureRequest.processInputSeqString(groups)
                 ),
                 conditions
               )
@@ -370,7 +375,8 @@ class EventController(
               conditions,
               clientRequest,
               request,
-              maybeBody
+              maybeBody,
+              FeatureRequest.processInputSeqString(groups)
             )
 
             res
@@ -420,11 +426,13 @@ class EventController(
       conditions: Boolean,
       featureRequest: FeatureRequest,
       request: ClientKeyRequest[?],
-      maybeBody: Option[JsObject]
+      maybeBody: Option[JsObject],
+      groups: Set[String]
   ): Future[JsObject] = {
     val requestContext = RequestContext(
       tenant = tenant,
       user = user,
+      groups = groups,
       now = Instant.now(),
       context = FeatureContextPath(featureRequest.context),
       data = maybeBody.getOrElse(Json.obj())

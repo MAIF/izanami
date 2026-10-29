@@ -19,6 +19,9 @@
           "$ref": "#/components/parameters/user"
         },
         {
+          "$ref": "#/components/parameters/groups"
+        },
+        {
           "$ref": "#/components/parameters/context"
         },
         {
@@ -96,6 +99,9 @@
           "$ref": "#/components/parameters/user"
         },
         {
+          "$ref": "#/components/parameters/groups"
+        },
+        {
           "$ref": "#/components/parameters/context"
         }
       ],
@@ -145,6 +151,9 @@
         },
         {
           "$ref": "#/components/parameters/user"
+        },
+        {
+          "$ref": "#/components/parameters/groups"
         },
         {
           "$ref": "#/components/parameters/context"
@@ -1482,8 +1491,19 @@
       },
       "UserListCondition": {
         "type": "object",
+        "description": "Matches the individual user OR at least one supplied group. User and group identifiers are separate namespaces. At least one list must be non-empty. Group rules require a compatible evaluator; older SDKs may not support local evaluation.",
+        "anyOf": [
+          { "required": ["users"], "properties": { "users": { "minItems": 1 } } },
+          { "required": ["groups"], "properties": { "groups": { "minItems": 1 } } }
+        ],
         "properties": {
           "users": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "groups": {
             "type": "array",
             "items": {
               "type": "string"
@@ -1493,6 +1513,7 @@
       },
       "UserPercentageCondition": {
         "type": "object",
+        "required": ["percentage"],
         "properties": {
           "percentage": {
             "type": "number",
@@ -1862,6 +1883,21 @@
           "default": ""
         },
         "description": "User for which activation should be computed, this is used by user based conditions (user list, percentage, ...)"
+      },
+      "groups": {
+        "in": "query",
+        "name": "groups",
+        "allowEmptyValue": true,
+        "style": "form",
+        "explode": true,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "example": ["beta", "support"],
+        "description": "Optional groups declared by the calling application. Repeat the parameter (groups=beta&groups=support), use comma-separated lists (groups=beta,support), or combine both forms. Commas are always separators, including URL-encoded commas, so group identifiers containing commas cannot be targeted. Whitespace is not trimmed; empty parameter values are ignored. Order and duplicates have no effect. List rules match the user OR any supplied group. Membership is not verified by Izanami. Percentages and scripts still use only user."
       },
       "context": {
         "in": "query",

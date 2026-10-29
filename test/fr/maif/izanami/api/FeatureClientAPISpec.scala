@@ -8,6 +8,8 @@ import play.api.http.Status.UNAUTHORIZED
 import play.api.libs.json.JsObject
 import play.api.libs.json.JsValue
 import play.api.libs.json.Json
+import play.api.test.Helpers.await
+import play.api.libs.ws.writeableOf_JsValue
 
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -15,6 +17,196 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 
 class FeatureClientAPISpec extends BaseAPISpec {
+  "Group targeting endpoints" should {
+    "reject invalid groups instead of activating a time-based rule for everyone" in {
+      val situation = TestSituationBuilder().loggedInWithAdminRights()
+        .withTenants(TestTenant("tenant").withProjects(
+          TestProject("project").withFeatureNames("flag")
+        )).build()
+      val id = situation.findFeatureId("tenant", "project", "flag").get
+      val period = Json.obj("activationDays" -> Json.obj("days" -> Json.arr("MONDAY")))
+      for (rule <- Seq(
+        Json.obj("groups" -> Json.arr()),
+        Json.obj("users" -> Json.arr(), "groups" -> Json.arr()),
+        Json.obj("users" -> Json.arr("alice"), "groups" -> "beta"),
+        Json.obj("groups" -> Json.arr("beta"), "percentage" -> 50)
+      )) {
+        val json = Json.obj(
+          "name" -> "flag", "enabled" -> true, "resultType" -> "boolean",
+          "conditions" -> Json.arr(Json.obj("period" -> period, "rule" -> rule))
+        )
+        val created = await(ws.url(s"$ADMIN_BASE_URL/tenants/tenant/projects/project/features")
+          .withCookies(situation.cookies: _*).post(json))
+        created.status mustBe 400
+        situation.updateFeature("tenant", id, json).status mustBe 400
+      }
+    }
+
+    "round trip groups through editing export and import" in {
+      val situation = TestSituationBuilder().loggedInWithAdminRights()
+        .withPersonnalAccessToken(TestPersonnalAccessToken("export", allRights = true))
+        .withTenants(
+          TestTenant("source").withProjects(TestProject("project").withFeatures(
+            TestFeature("flag", conditions = Set(TestCondition(
+              rule = TestUserListRule(Set("alice"), Set("beta"))
+            )))
+          )),
+          TestTenant("destination").withApiKeys(TestApiKey("destination-key", admin = true))
+        ).build()
+      val id = situation.findFeatureId("source", "project", "flag").get
+      situation.updateFeatureByName("source", "project", "flag", json =>
+        json ++ Json.obj("conditions" -> Json.arr(Json.obj(
+          "rule" -> Json.obj("groups" -> Json.arr("support"))
+        )))
+      ).status mustBe OK
+      val exported = situation.exportWithTokenName(
+        "source", situation.user, "export", allKeys = false, allWebhooks = false
+      )
+      exported.status mustBe OK
+      val rows = exported.text.linesIterator.filter(_.nonEmpty).toSeq
+      val feature = rows.map(Json.parse).find(json => (json \ "_type").as[String] == "feature").get
+      (feature \ "row" \ "conditions" \ 0 \ "rule" \ "groups").as[Set[String]] mustBe Set("support")
+      situation.importV2("destination", data = rows).status mustBe OK
+      for ((group, expected) <- Seq("beta" -> false, "support" -> true)) {
+        val response = await(ws.url(s"$BASE_URL/v2/features/$id")
+          .withHttpHeaders(situation.keyHeaders("destination-key").toSeq: _*)
+          .addQueryStringParameters("groups" -> group).get())
+        response.status mustBe OK
+        (response.json \ "active").as[Boolean] mustBe expected
+      }
+    }
+
+    "evaluate groups consistently across HTTP and administrative endpoints" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withAllRightsKey("key")
+            .withProjects(TestProject("project").withFeatures(
+              TestFeature("flag", conditions = Set(TestCondition(
+                rule = TestUserListRule(Set("alice"), Set("beta+&", "", "literal,comma", " spaced "))
+              )))
+            ))
+        ).build()
+      val id = situation.findFeatureId("tenant", "project", "flag").get
+      val body = Json.obj("request" -> Json.obj("features" -> Json.arr(id)))
+      val endpoints = Seq(
+        ("GET", s"/features/$id"),
+        ("POST", s"/features/$id"),
+        ("GET", "/features"),
+        ("POST", "/features"),
+        ("POST", "/_features")
+      )
+      val scenarios = Seq(
+        (Seq.empty[String], "unknown", false),
+        (Seq("other"), "unknown", false),
+        (Seq("beta", "+&"), "unknown", false),
+        (Seq("other", "beta+&", "beta+&"), "unknown", true),
+        (Seq("other,beta+&"), "unknown", true),
+        (Seq("other,beta+&", "beta+&,support"), "unknown", true),
+        (Seq("literal,comma"), "unknown", false),
+        (Seq(""), "unknown", false),
+        (Seq("spaced"), "unknown", false),
+        (Seq("other, spaced "), "unknown", true),
+        (Seq("other"), "alice", true),
+        (Seq("alice"), "beta+&", false)
+      )
+      for ((method, path) <- endpoints; (groups, user, expected) <- scenarios) {
+        withClue(s"$method $path, user=$user, groups=$groups: ") {
+          val request = ws.url(s"$BASE_URL/v2$path")
+            .withHttpHeaders(situation.keyHeaders("key").toSeq: _*)
+            .addQueryStringParameters(
+              (Seq("features" -> id, "user" -> user) ++ groups.map("groups" -> _)): _*
+            )
+          val response = await(if (method == "GET") request.get() else request.post(body))
+          response.status mustBe OK
+          val json = if (path.endsWith(id)) response.json else (response.json \ id).get
+          (json \ "active").as[Boolean] mustBe expected
+        }
+      }
+
+      val definition = Json.obj(
+        "name" -> "flag", "enabled" -> true, "resultType" -> "boolean",
+        "conditions" -> Json.arr(Json.obj("rule" -> Json.obj("groups" -> Json.arr("beta+&"))))
+      )
+      val date = java.time.Instant.now().toString
+      for {
+        path <- Seq(s"/tenants/tenant/features/$id/test", "/tenants/tenant/test")
+        groups <- Seq(Seq("other", "beta+&"), Seq("other,beta+&"), Seq("other", "support,beta+&"))
+      } {
+        val response = await(ws.url(s"$ADMIN_BASE_URL$path")
+          .withCookies(situation.cookies: _*)
+          .addQueryStringParameters((Seq("date" -> date) ++ groups.map("groups" -> _)): _*)
+          .post(if (path.endsWith("/tenant/test")) Json.obj("feature" -> definition) else Json.obj()))
+        response.status mustBe OK
+        (response.json \ "active").as[Boolean] mustBe true
+      }
+      val tested = await(ws.url(s"$ADMIN_BASE_URL/tenants/tenant/features/_test")
+        .withCookies(situation.cookies: _*)
+        .addQueryStringParameters("features" -> id, "groups" -> "other,beta+&")
+        .get())
+      tested.status mustBe OK
+      (tested.json \ id \ "active").as[Boolean] mustBe true
+    }
+
+    "preserve groups in context overloads and valued flags" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant").withAllRightsKey("key").withProjects(
+            TestProject("project")
+              .withFeatures(
+                TestFeature("flag"),
+                TestFeature("number", resultType = "number", value = "0", conditions = Set(
+                  TestCondition(rule = TestUserListRule(Set.empty, Set("support")), value = "42")
+                )),
+                TestFeature("string", resultType = "string", value = "default", conditions = Set(
+                  TestCondition(rule = TestUserListRule(Set.empty, Set("support")), value = "targeted")
+                ))
+              )
+              .withContexts(TestFeatureContext("test").withFeatureOverload(
+                TestFeature("flag", conditions = Set(TestCondition(
+                  rule = TestUserListRule(Set.empty, Set("support"))
+                )))
+              ))
+          )
+        ).build()
+      val id = situation.findFeatureId("tenant", "project", "flag").get
+      for ((groups, expected) <- Seq(
+        Seq.empty[String] -> false, Seq("support") -> true, Seq("other,support") -> true
+      )) {
+        val response = await(ws.url(s"$BASE_URL/v2/features/$id")
+          .withHttpHeaders(situation.keyHeaders("key").toSeq: _*)
+          .addQueryStringParameters((Seq("context" -> "test") ++ groups.map("groups" -> _)): _*)
+          .get())
+        response.status mustBe OK
+        (response.json \ "active").as[Boolean] mustBe expected
+      }
+      val tested = await(ws.url(s"$ADMIN_BASE_URL/tenants/tenant/features/$id/test/test")
+        .withCookies(situation.cookies: _*)
+        .addQueryStringParameters("date" -> java.time.Instant.now().toString, "groups" -> "other,support")
+        .post(Json.obj()))
+      tested.status mustBe OK
+      (tested.json \ "active").as[Boolean] mustBe true
+
+      val response = await(ws.url(s"$BASE_URL/v2/features")
+        .withHttpHeaders(situation.keyHeaders("key").toSeq: _*)
+        .addQueryStringParameters(
+          "projects" -> situation.findProjectId("tenant", "project").get,
+          "groups" -> "support", "conditions" -> "true"
+        ).get())
+      response.status mustBe OK
+      val numberId = situation.findFeatureId("tenant", "project", "number").get
+      val stringId = situation.findFeatureId("tenant", "project", "string").get
+      (response.json \ numberId \ "active").as[Int] mustBe 42
+      (response.json \ stringId \ "active").as[String] mustBe "targeted"
+      (response.json \ numberId \ "conditions" \ "" \ "conditions" \ 0 \ "rule" \ "groups")
+        .as[Set[String]] mustBe Set("support")
+      val contexts = situation.fetchContexts("tenant", "project")
+      (contexts.json.get \\ "groups").map(_.as[Set[String]]) must contain(Set("support"))
+    }
+  }
+
   "Feature check GET endpoint" should {
     "prevent evaluating wasm feature if wasm feature is disabled" in {
       var situation = TestSituationBuilder()
