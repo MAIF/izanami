@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Update only the frontend npm dependencies.
+  # Update the frontend and manual npm dependencies.
   - package-ecosystem: "npm"
     directory: "/izanami-frontend"
     # Check the npm registry for updates every day (weekdays)
@@ -17,3 +17,27 @@ updates:
         update-types:
           - minor
           - patch
+      # Group development security updates; production security updates stay individual.
+      development-security:
+        applies-to: security-updates
+        dependency-type: development
+        patterns:
+          - "*"
+  - package-ecosystem: "npm"
+    directory: "/manual"
+    # Check for updates every Monday (the default weekly day).
+    schedule:
+      interval: "weekly"
+    versioning-strategy: "increase"
+    groups:
+      minor-and-patches:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      development-security:
+        applies-to: security-updates
+        dependency-type: development
+        patterns:
+          - "*"
