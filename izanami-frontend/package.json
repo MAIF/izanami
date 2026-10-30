@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
-    "@types/node": "^22.13.13",
+    "@types/node": "^26.6.5",
     "@types/react-dom": "^19.3.0",
     "@types/swagger-ui": "^3.52.4",
     "@vitejs/plugin-react": "^4.3.4",
