@@ -21,7 +21,7 @@
     "clsx": "^1.2.1",
     "docusaurus-lunr-search": "^3.3.0",
     "prism-react-renderer": "^2.1.0",
-    "react": "^18.0.0",
+    "react": "^19.3.1",
     "react-dom": "^18.0.0",
     "swagger-ui-react": "^5.34.0"
   },
