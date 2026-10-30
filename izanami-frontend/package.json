@@ -57,7 +57,7 @@
     "typescript": "7.0.2",
     "undici": "^8.12.2",
     "vite": "^6.4.5",
-    "vitest": "^4.0.8"
+    "vitest": "^4.1.12"
   },
   "overrides": {
     "@codemirror/state": "6.4.1"
