@@ -14,7 +14,7 @@ export const STORAGE_STATE = path.join(__dirname, "playwright/.auth/user.json");
 export default defineConfig({
   timeout: 120_000,
   testDir: "./tests",
-  testIgnore: ["./tests/unit/**/*.spec.ts"],
+  testIgnore: ["**/tests/unit/**"],
   /* Run tests in files in parallel */
   fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
