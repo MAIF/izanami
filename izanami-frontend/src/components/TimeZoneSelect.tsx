@@ -9,7 +9,7 @@ const possibleTimezones: string[] = Intl.supportedValuesOf("timeZone");
 
 export function TimeZoneSelect(props: {
   onChange: (newValue: string) => void;
-  value: string;
+  value?: string;
 }) {
   const { value, onChange } = props;
   return (
