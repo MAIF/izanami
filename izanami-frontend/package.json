@@ -63,7 +63,7 @@
     "rollup-plugin-visualizer": "^5.14.0",
     "sass": "^1.106.1",
     "terser": "^5.51.2",
-    "typescript": "^5.8.2",
+    "typescript": "^7.0.2",
     "undici": "^8.12.2",
     "vite": "^6.4.5",
     "vitest": "^4.0.8"
