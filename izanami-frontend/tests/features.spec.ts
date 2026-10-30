@@ -31,6 +31,41 @@ async function featureAction(page: Page, name: string) {
 }
 
 test.describe("Project screen should", () => {
+  test("display and clear user and group targeting validation errors", async ({ page, tenantName }) => {
+    await testBuilder()
+      .withTenant(testTenant(tenantName).withProject(testProject("project")))
+      .build(page);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.getByRole("button", { name: "Create new feature" }).click();
+    await page.getByLabel("Name").fill("targeting-validation");
+    await page.getByRole("button", { name: "Add condition", exact: true }).click();
+    await page.getByRole("combobox", { name: "Strategy to use" }).click();
+    await page.getByRole("option", { name: "User and group list", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+
+    const targetingErrors = page.getByText(
+      "At least one user or group should be specified",
+      { exact: true },
+    );
+    await expect(targetingErrors).toHaveCount(2);
+    await expect(targetingErrors.nth(0)).toBeVisible();
+    await expect(targetingErrors.nth(1)).toBeVisible();
+
+    const usersInput = page.getByRole("combobox", {
+      name: /^Users that should activate feature/,
+    });
+    await usersInput.fill("alice");
+    await page.getByText('Create "alice"', { exact: true }).click();
+    await expect(targetingErrors).toHaveCount(0);
+    await usersInput.focus();
+    await usersInput.press("Backspace");
+    await expect(targetingErrors).toHaveCount(2);
+
+    await page.getByRole("combobox", { name: /^Groups that should activate feature/ }).fill("beta");
+    await page.getByText('Create "beta"', { exact: true }).click();
+    await expect(targetingErrors).toHaveCount(0);
+  });
+
   test("allow to create edit and test group targeting", async ({ page, tenantName }) => {
     await testBuilder()
       .withTenant(testTenant(tenantName).withProject(testProject("project")))

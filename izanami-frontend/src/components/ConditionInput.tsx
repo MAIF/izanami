@@ -196,7 +196,6 @@ function ConditionInput(props: { index: number }) {
     register,
     control,
     getValues,
-    getFieldState,
     setValue,
     watch,
     formState: { errors },
@@ -392,21 +391,24 @@ function ConditionInput(props: { index: number }) {
                 }}
                 name={`conditions.${index}.rule.users`}
                 control={control}
-                render={({ field: { onChange, value } }) => (
-                  <CreatableSelect
-                    inputId={`condition-${index}-users`}
-                    value={value?.map((v) => ({ value: v, label: v }))}
-                    onChange={(e) => {
-                      onChange(e.map((v) => v.value));
-                    }}
-                    styles={customStyles}
-                    isMulti
-                    isClearable
-                  />
+                render={({
+                  field: { onChange, value },
+                  fieldState: { error },
+                }) => (
+                  <>
+                    <CreatableSelect
+                      inputId={`condition-${index}-users`}
+                      value={value?.map((v) => ({ value: v, label: v }))}
+                      onChange={(e) => {
+                        onChange(e.map((v) => v.value));
+                      }}
+                      styles={customStyles}
+                      isMulti
+                      isClearable
+                    />
+                    <ErrorDisplay error={error} />
+                  </>
                 )}
-              />
-              <ErrorDisplay
-                error={getFieldState(`conditions.${index}.rule.users`).error}
               />
             </label>
             <label className="mt-3" htmlFor={`condition-${index}-groups`}>
@@ -422,19 +424,22 @@ function ConditionInput(props: { index: number }) {
                 }}
                 name={`conditions.${index}.rule.groups`}
                 control={control}
-                render={({ field: { onChange, value } }) => (
-                  <CreatableSelect
-                    inputId={`condition-${index}-groups`}
-                    value={value?.map((v) => ({ value: v, label: v }))}
-                    onChange={(e) => onChange(e.map((v) => v.value))}
-                    styles={customStyles}
-                    isMulti
-                    isClearable
-                  />
+                render={({
+                  field: { onChange, value },
+                  fieldState: { error },
+                }) => (
+                  <>
+                    <CreatableSelect
+                      inputId={`condition-${index}-groups`}
+                      value={value?.map((v) => ({ value: v, label: v }))}
+                      onChange={(e) => onChange(e.map((v) => v.value))}
+                      styles={customStyles}
+                      isMulti
+                      isClearable
+                    />
+                    <ErrorDisplay error={error} />
+                  </>
                 )}
-              />
-              <ErrorDisplay
-                error={getFieldState(`conditions.${index}.rule.groups`).error}
               />
             </label>
           </>
