@@ -709,12 +709,14 @@ function OverloadDetails(props: {
   const [creating, setCreating] = useState(false);
   const { tenant } = useParams();
   const { user, displayModal } = React.useContext(IzanamiContext);
-  const canOverloadForGlobalProtectedContexts = hasRightForTenant(
-    user!,
-    tenant!,
-    TLevel.Admin,
-  );
+  
   const { feature, cancel } = props;
+  const canOverloadForGlobalProtectedContexts = hasRightForProject(
+    user!,
+    TProjectLevel.Admin,
+    feature.project!,
+    tenant!
+  );
   const contextQuery = useQuery({
     queryKey: [projectContextKey(tenant!, feature.project!)],
     queryFn: () => queryContextsForProject(tenant!, feature.project!),

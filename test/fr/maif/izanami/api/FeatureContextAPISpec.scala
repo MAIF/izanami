@@ -2065,7 +2065,112 @@ class FeatureContextAPISpec extends BaseAPISpec {
       res.status mustBe FORBIDDEN
     }
 
-    "Prevent overload creation on protected global context if user is not tenant admin" in {
+    "Allow overload creation on protected global context for project admin without tenant admin rights" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("ctx", isProtected = true))
+            .withProjects(
+              TestProject("project")
+                .withFeatures(TestFeature(name = "F1", enabled = false))
+            )
+        )
+        .withUsers(
+          TestUser("projectAdmin")
+            .withTenantReadRight("tenant")
+            .withProjectAdminRight("project", tenant = "tenant")
+        )
+        .loggedAs("projectAdmin")
+        .build()
+
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "ctx",
+        "F1",
+        enabled = true
+      )
+
+      res.status mustBe NO_CONTENT
+
+      val contextsResponse = situation.fetchContexts("tenant", "project")
+      contextsResponse.status mustBe OK
+      val context = contextsResponse.json.get \ 0
+      (context \ "global").as[Boolean] mustBe true
+      (context \ "protected").as[Boolean] mustBe true
+      val overloads = (context \ "overloads").as[JsArray]
+      overloads.value.size mustBe 1
+      (overloads \ 0 \ "name").as[String] mustBe "F1"
+      (overloads \ 0 \ "enabled").as[Boolean] mustBe true
+    }
+
+    "Prevent overload creation on protected global context for project writer" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("ctx", isProtected = true))
+            .withProjects(
+              TestProject("project")
+                .withFeatures(TestFeature(name = "F1", enabled = false))
+            )
+        )
+        .withUsers(
+          TestUser("projectWriter")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight("project", tenant = "tenant")
+        )
+        .loggedAs("projectWriter")
+        .build()
+
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "ctx",
+        "F1",
+        enabled = true
+      )
+
+      res.status mustBe FORBIDDEN
+      val contextsResponse = situation.fetchContexts("tenant", "project")
+      contextsResponse.status mustBe OK
+      (contextsResponse.json.get \ 0 \ "overloads").as[JsArray].value mustBe empty
+    }
+
+    "Prevent overload creation on protected global context for admin of another project" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withGlobalContext(TestFeatureContext("ctx", isProtected = true))
+            .withProjects(
+              TestProject("project")
+                .withFeatures(TestFeature(name = "F1", enabled = false)),
+              TestProject("otherProject")
+            )
+        )
+        .withUsers(
+          TestUser("otherProjectAdmin")
+            .withTenantReadRight("tenant")
+            .withProjectReadWriteRight("project", tenant = "tenant")
+            .withProjectAdminRight("otherProject", tenant = "tenant")
+        )
+        .loggedAs("otherProjectAdmin")
+        .build()
+
+      val res = situation.changeFeatureStrategyForContext(
+        "tenant",
+        "project",
+        "ctx",
+        "F1",
+        enabled = true
+      )
+
+      res.status mustBe FORBIDDEN
+      val contextsResponse = situation.fetchContexts("tenant", "project")
+      contextsResponse.status mustBe OK
+      (contextsResponse.json.get \ 0 \ "overloads").as[JsArray].value mustBe empty
+    }
+
+    "Prevent overload creation on protected global context without project rights" in {
       val situation = TestSituationBuilder()
         .withTenants(
           TestTenant("tenant")

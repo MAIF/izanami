@@ -133,6 +133,98 @@ test.describe("protected overload", async () => {
   });
 });
 
+test.describe("protected global context overload creation", () => {
+  test("allows project admin without tenant admin rights to create an overload", async ({
+    page,
+    tenantName,
+  }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName)
+          .withContext(testGlobalContext("prod").withProtectedStatus(true))
+          .withProject(
+            testProject("project").withFeature(
+              testFeature("f1").withDisableStatus()
+            )
+          )
+      )
+      .withUser(
+        testUser("protectedGlobalProjectAdmin").withTenantRight(
+          tenantName,
+          testTenantRight(TLevel.Read).withProjectRight("project", TLevel.Admin)
+        )
+      )
+      .loggedAs("protectedGlobalProjectAdmin")
+      .build(page);
+
+    await page.goto(`/tenants/${tenantName}/projects/project`);
+    await clickAction(page, "Overloads");
+    await page.getByRole("button", { name: "Create new overload" }).click();
+    await page.getByRole("checkbox", { name: "Enabled", exact: true }).check();
+    await page.getByText("ContextSelect...").click();
+    const option = page.getByRole("option", { name: "prod protected" });
+    await expect(option).toHaveAttribute("aria-disabled", "false");
+    await option.click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+
+    const overloadRow = page
+      .getByRole("rowheader", { name: "prod protected", exact: true })
+      .locator("..");
+    await expect(
+      overloadRow.getByRole("checkbox", { name: "Disable f1", exact: true })
+    ).toBeChecked();
+
+    await page.reload();
+    await clickAction(page, "Overloads");
+    await expect(
+      overloadRow.getByRole("checkbox", { name: "Disable f1", exact: true })
+    ).toBeChecked();
+  });
+
+  for (const otherProjectAdmin of [false, true]) {
+    test(
+      otherProjectAdmin
+        ? "disables protected global context for admin of another project"
+        : "disables protected global context for project writer",
+      async ({ page, tenantName }) => {
+        const rights = testTenantRight(TLevel.Read).withProjectRight(
+          "project",
+          TLevel.Write
+        );
+        if (otherProjectAdmin) {
+          rights.withProjectRight("otherProject", TLevel.Admin);
+        }
+
+        const username = otherProjectAdmin
+          ? "protectedGlobalOtherAdmin"
+          : "protectedGlobalWriter";
+        await testBuilder()
+          .withTenant(
+            testTenant(tenantName)
+              .withContext(testGlobalContext("prod").withProtectedStatus(true))
+              .withProject(
+                testProject("project").withFeature(
+                  testFeature("f1").withDisableStatus()
+                )
+              )
+              .withProject(testProject("otherProject"))
+          )
+          .withUser(testUser(username).withTenantRight(tenantName, rights))
+          .loggedAs(username)
+          .build(page);
+
+        await page.goto(`/tenants/${tenantName}/projects/project`);
+        await clickAction(page, "Overloads");
+        await page.getByRole("button", { name: "Create new overload" }).click();
+        await page.getByText("ContextSelect...").click();
+        await expect(
+          page.getByRole("option", { name: "prod protected" })
+        ).toHaveAttribute("aria-disabled", "true");
+      }
+    );
+  }
+});
+
 test.describe("non protected overload update", async () => {
   test("1-with protected context child should allow to keep old strategy in impacted protected context if user is admin", async ({
     page,
