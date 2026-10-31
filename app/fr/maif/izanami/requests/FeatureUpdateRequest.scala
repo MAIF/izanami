@@ -30,7 +30,8 @@ case class BaseFeatureUpdateRequest(
     authentication: EventAuthentication,
     preserveProtectedContexts: Boolean,
     feature: CompleteFeature,
-    id: String
+    id: String,
+    allowedValuesProvided: Boolean = true
 ) extends FeatureUpdateRequest {
   def project: String = feature.project
   def tags: Set[String] = feature.tags

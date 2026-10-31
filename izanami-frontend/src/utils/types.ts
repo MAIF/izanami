@@ -378,6 +378,7 @@ interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> {}
 
 interface ClassicalStringFeature extends ClassicalFeatureBase<"string"> {
   value: string;
+  allowedValues?: string[] | null;
   conditions: TValuedCondition<string>[];
 }
 

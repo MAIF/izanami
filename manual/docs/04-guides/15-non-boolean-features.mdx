@@ -116,3 +116,69 @@ There is a very important rule for overload, that stands for both boolean and no
 This ensure that client code always handle feature result with the same logic, independently of the context.
 
 <img src={overloadInProject} />
+
+## Predefined String values
+
+String features accept free text by default. To prevent typos and repeated input,
+enable **Restrict to predefined values** on a classical String feature. Add one
+choice per line and use the up/down controls to set their display order.
+
+The list must contain at least one distinct, non-blank string. Choices are
+case-sensitive and stored exactly as entered: `"blue"`, `"Blue"` and `" blue "`
+are different values. There is no additional limit on the number of choices,
+but existing request and feature size limits still apply.
+
+The base value and every conditional alternative use a select instead of free
+text. The same list is available automatically in every overload, including its
+conditional alternatives. Only the parent can edit the list. Creating a feature
+or an overload requires an explicit selection; editing selects the current value.
+
+The server enforces the restriction for API writes and imports too. Enabling or
+changing the list is rejected if a configured parent or overload value would
+become invalid. The error identifies incompatible values and their locations.
+To replace a choice, add the replacement first, update its usages, then remove
+the old choice. No values or overloads are replaced or deleted automatically.
+
+Predefined values cannot be combined with WASM on the parent or any overload.
+Switching back to free text removes the list but keeps all values and overloads.
+A disabled String feature still evaluates to `null`; `null` is not a choice.
+Existing String features and client evaluation responses are unchanged.
+
+### Administration API and backups
+
+Configure the parent with `allowedValues`:
+
+```json
+{
+  "name": "button-colour",
+  "project": "website",
+  "enabled": true,
+  "resultType": "string",
+  "value": "blue",
+  "conditions": [],
+  "allowedValues": ["blue", "green", "red"]
+}
+```
+
+- A non-empty array enables the restriction. An empty array is invalid.
+- Explicit `"allowedValues": null` disables the restriction.
+- Omitting the field on creation means free text.
+- Omitting it on a parent `PUT` preserves the current restriction. This is an
+  intentional exception to complete replacement, so older clients cannot
+  accidentally disable a restriction they do not know about.
+- Overload writes do not accept their own `allowedValues`; they use the parent.
+
+Duplication copies the parent's list. Tenant exports store it as the
+`allowed_values` field in the feature row. Import restores it using the feature
+conditions conflict policy. Older exports without this field create free-text
+features, or preserve the restriction of an existing feature. Explicit `null`
+can clear it when the conflict policy permits overwriting.
+
+Imports validate the final merged state, including existing overloads and
+overloads imported after their parent. Incompatible imports are rolled back
+completely, rather than leaving partially updated choices or values.
+
+Changing only the shared list uses the normal parent modification rights, even
+if protected overloads exist, provided all their values remain valid. Existing
+protections still apply to changes of values and strategies. Preserving protected
+contexts never creates a separate copy of the list.

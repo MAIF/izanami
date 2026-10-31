@@ -23,6 +23,13 @@ Operation on protected contexts are restricted to users with *admin* rights on e
 
 Protected contexts and associated overloads remain visible to any user with read right on project / tenant.
 
+For String features with [predefined values](./15-non-boolean-features.mdx#predefined-string-values),
+the list belongs to the parent, including for protected overloads. Adding,
+reordering or removing an unused choice uses the normal parent modification
+rights. A change that invalidates any configured value is rejected, including
+values on protected overloads. Context preservation does not copy this list;
+the usual protections still apply to changes of overload values and strategies.
+
 ### Global contexts
 
 Below array details right change regarding global protected contexts.

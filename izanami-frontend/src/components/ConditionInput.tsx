@@ -23,8 +23,9 @@ import { ErrorDisplay } from "./FeatureForm";
 import { Tooltip } from "./Tooltip";
 import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
 import { PeriodDetails, Rule } from "./FeatureDetails";
+import { StringValueInput } from "./StringValueInput";
 
-export function ConditionsInput(props: { folded: boolean }) {
+export function ConditionsInput(props: { folded: boolean; allowedValues?: readonly string[] | null }) {
   const { control, watch } = useFormContext();
 
   const { fields, append, remove } = useFieldArray({
@@ -118,7 +119,7 @@ export function ConditionsInput(props: { folded: boolean }) {
                 id={`${id}-accordion-collapse`}
               >
                 <div className="accordion-body">
-                  <ConditionInput index={index} />
+                  <ConditionInput index={index} allowedValues={props.allowedValues} />
                 </div>
               </div>
             </div>
@@ -189,7 +190,7 @@ function ConditionSummary(props: { condition: TClassicalCondition }) {
   );
 }
 
-function ConditionInput(props: { index: number }) {
+function ConditionInput(props: { index: number; allowedValues?: readonly string[] | null }) {
   const [specificPeriods, setSpecificPeriods] = React.useState(false);
   const { index } = props;
   const {
@@ -231,13 +232,25 @@ function ConditionInput(props: { index: number }) {
             <legend>
               <h5>Result value</h5>
             </legend>
-            <label className="mb-4">
+            <label className="mb-4" htmlFor={resultType === "string" ? `alternative-value-${index}` : undefined}>
               Alternative value
               {resultType === "string" ? (
-                <input
-                  type="text"
-                  className="form-control"
-                  {...register(`conditions.${index}.value`)}
+                <Controller
+                  name={`conditions.${index}.value`}
+                  defaultValue=""
+                  control={control}
+                  rules={{ validate: (value) => !props.allowedValues ||
+                    props.allowedValues.includes(String(value)) || "Choose an allowed value" }}
+                  render={({ field }) => (
+                    <StringValueInput
+                      inputId={`alternative-value-${index}`}
+                      ariaLabel="Alternative value"
+                      value={field.value === undefined ? undefined : String(field.value)}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      allowedValues={props.allowedValues}
+                    />
+                  )}
                 />
               ) : (
                 <input

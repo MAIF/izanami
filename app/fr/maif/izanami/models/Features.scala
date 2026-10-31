@@ -176,7 +176,8 @@ sealed trait CompleteFeature extends AbstractFeature {
             tags,
             metadata,
             description,
-            resultDescriptor
+            resultDescriptor,
+            _
           ) =>
         ClassicalFeatureStrategy(
           enabled = enabled,
@@ -425,7 +426,8 @@ case class Feature(
     override val tags: Set[String] = Set(),
     override val metadata: JsObject = JsObject.empty,
     override val description: String,
-    resultDescriptor: ResultDescriptor
+    resultDescriptor: ResultDescriptor,
+    allowedValues: Option[Seq[String]] = None
 ) extends LightWeightFeature
     with CompleteFeature {
   override def withEnabled(enabled: Boolean): Feature = copy(enabled = enabled)
@@ -818,7 +820,7 @@ object Feature {
                     JsObject
                   ] - "tags" - "name" - "description" - "id" - "project"
               case f => Feature.featureWrite.writes(f).as[JsObject]
-            }) - "metadata" - "tags" - "name" - "description" - "id" - "project"
+            }) - "metadata" - "tags" - "name" - "description" - "id" - "project" - "allowedValues"
           )
         }
       })
@@ -918,7 +920,8 @@ object Feature {
           tags,
           metadata,
           description,
-          resultDescriptor
+          resultDescriptor,
+          allowedValues
         ) => {
       val base = Json.obj(
         "name" -> name,
@@ -933,9 +936,12 @@ object Feature {
           ResultType.resultTypeWrites
         )
       )
+      val configuredBase = if (resultDescriptor.resultType == StringResult) {
+        base ++ Json.obj("allowedValues" -> allowedValues)
+      } else base
       resultDescriptor match {
-        case v: ValuedResultDescriptor => base + ("value" -> v.jsonValue)
-        case BooleanResultDescriptor(conditions) => base
+        case v: ValuedResultDescriptor => configuredBase + ("value" -> v.jsonValue)
+        case BooleanResultDescriptor(conditions) => configuredBase
       }
     }
     case LightWeightWasmFeature(
@@ -1015,6 +1021,21 @@ object Feature {
       json: JsValue,
       project: String = null
   ): JsResult[AbstractFeature] = {
+    val allowedValues = (if ((json \ "allowedValues").toOption.isDefined)
+      json \ "allowedValues" else json \ "allowed_values").validateOpt[Seq[String]]
+    allowedValues match {
+      case error: JsError => return error
+      case JsSuccess(Some(values), _) =>
+        if (values.isEmpty || values.exists(_.isBlank) || values.distinct.size != values.size) {
+          return JsError("allowedValues must contain distinct, non-blank strings")
+        }
+        val resultType = (json \ "resultType").asOpt[String]
+          .orElse((json \ "result_type").asOpt[String])
+        if (resultType != Some("string") || (json \ "wasmConfig").asOpt[JsValue].exists(_ != JsNull)) {
+          return JsError("allowedValues is only supported on classical String features")
+        }
+      case _ =>
+    }
     val metadata =
       json.select("metadata").asOpt[JsObject].getOrElse(JsObject.empty)
     val id = json.select("id").asOpt[String].orNull
@@ -1141,7 +1162,8 @@ object Feature {
                           metadata = metadata,
                           project = jsonProject,
                           description = description,
-                          resultDescriptor = rd
+                          resultDescriptor = rd,
+                          allowedValues = allowedValues.get
                         )
                       )
                     )

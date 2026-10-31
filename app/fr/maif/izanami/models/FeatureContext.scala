@@ -226,7 +226,9 @@ object FeatureContext {
       json: JsValue,
       feature: String
   ): JsResult[CompleteContextualStrategy] = {
-
+    if ((json \ "allowedValues").toOption.isDefined || (json \ "allowed_values").toOption.isDefined) {
+      return JsError("allowedValues is configured on the parent feature, not on an overload")
+    }
     val enabled = (json \ "enabled").asOpt[Boolean].getOrElse(true)
     val maybeWasmConfig =
       (json \ "wasmConfig").asOpt[WasmConfig](WasmConfig.format)

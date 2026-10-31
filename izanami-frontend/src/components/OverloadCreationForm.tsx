@@ -24,6 +24,7 @@ import { ErrorDisplay } from "./FeatureForm";
 import { Tooltip } from "./Tooltip";
 import { ResultTypeIcon } from "./ResultTypeIcon";
 import { IzanamiContext } from "../securityContext";
+import { StringValueInput } from "./StringValueInput";
 
 export function OverloadCreationForm(props: {
   project: string;
@@ -47,7 +48,7 @@ export function OverloadCreationForm(props: {
 
   const izanamiContext = React.useContext(IzanamiContext);
   const wasmEnabledByConfig = izanamiContext?.integrations?.wasmAllowed ?? true;
-  const wasmEnabled = wasmEnabledByConfig
+  const wasmAvailable = wasmEnabledByConfig
     ? true
     : defaultValue
     ? iWasmOverload(defaultValue)
@@ -71,6 +72,7 @@ export function OverloadCreationForm(props: {
     control,
     formState: { errors },
     setValue,
+    watch,
   } = methods;
 
   const projectQuery = useQuery({
@@ -78,6 +80,15 @@ export function OverloadCreationForm(props: {
 
     queryFn: () => queryProject(tenant!, project),
   });
+  const parent = projectQuery.data?.features.find((feature) => feature.name === watch("name"));
+  const allowedValues = parent && "allowedValues" in parent ? parent.allowedValues : null;
+  const wasmEnabled = wasmAvailable && !allowedValues;
+  React.useEffect(() => {
+    if (allowedValues) {
+      setType("Classic");
+      methods.unregister("wasmConfig");
+    }
+  }, [allowedValues]);
 
   if (projectQuery.isError) {
     return <div>Error while fetching project</div>;
@@ -85,12 +96,13 @@ export function OverloadCreationForm(props: {
     return (
       <FormProvider {...methods}>
         <form
-          onSubmit={handleSubmit((data) =>
+          onSubmit={handleSubmit((data) => {
+            if ("allowedValues" in data) delete data.allowedValues;
             submit({
               ...data,
               resultType: featureResultType,
-            } as TContextOverload),
-          )}
+            } as TContextOverload);
+          })}
           className="d-flex flex-column anim__rightToLeft p-3 sub_container"
         >
           <label>
@@ -167,13 +179,25 @@ export function OverloadCreationForm(props: {
             {featureResultType &&
               featureResultType !== "boolean" &&
               type === "Classic" && (
-                <label className="col-6 col-lg-7 col-xl-8 col-xxl-9">
+                <label className="col-6 col-lg-7 col-xl-8 col-xxl-9" htmlFor={featureResultType === "string" ? "overload-base-value" : undefined}>
                   Base value*
                   {featureResultType === "string" ? (
-                    <input
-                      type="text"
-                      className="form-control"
-                      {...register("value")}
+                    <Controller
+                      name="value"
+                      defaultValue=""
+                      control={control}
+                      rules={{ validate: (value) => !allowedValues ||
+                        allowedValues.includes(String(value)) || "Choose an allowed value" }}
+                      render={({ field }) => (
+                        <StringValueInput
+                          inputId="overload-base-value"
+                          ariaLabel="Base value*"
+                          value={field.value === undefined ? undefined : String(field.value)}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          allowedValues={allowedValues}
+                        />
+                      )}
                     />
                   ) : (
                     <input
@@ -227,7 +251,7 @@ export function OverloadCreationForm(props: {
               }}
             />
           </label>
-          {type === "Classic" && <ConditionsInput folded={true} />}
+          {type === "Classic" && <ConditionsInput folded={true} allowedValues={allowedValues} />}
           {type === "Existing WASM script" && <ExistingScript />}
           {type === "New WASM script" && <WasmInput />}
           <div className="d-flex justify-content-end">

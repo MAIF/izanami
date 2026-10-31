@@ -91,28 +91,44 @@ class FeaturesDatastore(
     )
   }
 
+  def lockFeature(
+      tenant: String,
+      id: String,
+      conn: SqlConnection
+  ): Future[Unit] = {
+    Tenant.isTenantValid(tenant)
+    postgresql.queryRaw(
+      s"""SELECT id FROM "${tenant}".features WHERE id = $$1 FOR UPDATE""",
+      List(id),
+      conn = Some(conn)
+    )(_ => ())
+  }
+
   def findActivationStrategiesForFeatureByName(
       tenant: String,
       name: String,
-      project: String
+      project: String,
+      conn: Option[SqlConnection] = None
   ): Future[Option[FeatureWithOverloads]] = {
     Tenant.isTenantValid(tenant)
     postgresql
       .queryOne(
         s"""SELECT f.id FROM "${tenant}".features f where project=$$1 AND name=$$2""",
-        List(project, name)
+        List(project, name),
+        conn = conn
       ) { r =>
         r.optString("id")
       }
       .flatMap {
         case None     => None.future
-        case Some(id) => findActivationStrategiesForFeature(tenant, id)
+        case Some(id) => findActivationStrategiesForFeature(tenant, id, conn)
       }
   }
 
   def findActivationStrategiesForFeature(
       tenant: String,
-      id: String
+      id: String,
+      conn: Option[SqlConnection] = None
   ): Future[Option[FeatureWithOverloads]] = {
     Tenant.isTenantValid(tenant)
     postgresql.queryRaw(
@@ -127,6 +143,7 @@ class FeaturesDatastore(
          |    f.script_config as config,
          |    f.value,
          |    f.result_type,
+         |    f.allowed_values,
          |    COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]'::json) as tags,
          |    COALESCE(
          |        json_object_agg(
@@ -141,12 +158,13 @@ class FeaturesDatastore(
          |    )
          |    AS overloads
          |FROM "${tenant}".features f
-         |LEFT JOIN "${tenant}".feature_contexts_strategies fcs ON fcs.feature = f.name
+         |LEFT JOIN "${tenant}".feature_contexts_strategies fcs ON fcs.feature = f.name AND fcs.project = f.project
          |LEFT JOIN "${tenant}".features_tags ft ON ft.feature = f.id
          |LEFT JOIN "${tenant}".tags t ON ft.tag = t.name
          |WHERE f.id=$$1
          |GROUP BY f.id""".stripMargin,
-      params = List(id)
+      params = List(id),
+      conn = conn
     ) { rs =>
       {
         if (rs.isEmpty) {
@@ -304,19 +322,21 @@ class FeaturesDatastore(
          |    f.script_config as config,
          |    f.value,
          |    f.result_type,
+         |    f.allowed_values,
          |    COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]'::json) as tags,
          |    COALESCE(
          |        json_object_agg(
          |            fcs.context, json_build_object(
          |                'enabled', fcs.enabled,
          |                'conditions', fcs.conditions,
-         |                'config', fcs.script_config
+         |                'config', fcs.script_config,
+         |                'value', fcs.value
          |            )
          |        ) FILTER(WHERE fcs.enabled IS NOT NULL), '{}'::json
          |    )
          |    AS overloads
          |FROM "${tenant}".features f
-         |LEFT JOIN "${tenant}".feature_contexts_strategies fcs ON fcs.feature = f.name
+         |LEFT JOIN "${tenant}".feature_contexts_strategies fcs ON fcs.feature = f.name AND fcs.project = f.project
          |LEFT JOIN "${tenant}".features_tags ft ON ft.feature = f.id
          |LEFT JOIN "${tenant}".tags t ON ft.tag = t.name
          |WHERE f.id=ANY($$1)
@@ -1211,21 +1231,23 @@ class FeaturesDatastore(
             Array[String],
             Array[String],
             Array[String]
-        )
+        ),
+        allowedValues: Array[JsonArray] = Array.empty[JsonArray]
     ): Future[Either[InternalServerError, List[(String, String)]]] = {
       postgresql
         .queryAll(
-          s"""INSERT INTO "${tenant}".features (id, name, project, enabled, conditions, metadata, description, result_type, value)
-               |VALUES (unnest($$1::text[]), unnest($$2::text[]), unnest($$3::text[]), unnest($$4::boolean[]), unnest($$5::jsonb[]), unnest($$6::jsonb[]), unnest($$7::text[]), unnest($$8::"${tenant}".RESULT_TYPE[]), unnest($$9::text[]))
+          s"""INSERT INTO "${tenant}".features (id, name, project, enabled, conditions, metadata, description, result_type, value, allowed_values)
+               |VALUES (unnest($$1::text[]), unnest($$2::text[]), unnest($$3::text[]), unnest($$4::boolean[]), unnest($$5::jsonb[]), unnest($$6::jsonb[]), unnest($$7::text[]), unnest($$8::"${tenant}".RESULT_TYPE[]), unnest($$9::text[]), unnest($$10::jsonb[]))
                 ${conflictStrategy match {
               case Fail => ""
               case Skip => " ON CONFLICT DO NOTHING"
               case MergeOverwrite | ImportController.Replace =>
-                """ ON CONFLICT (name, project) DO UPDATE SET id=excluded.id, name=excluded.name, project=excluded.project, enabled=excluded.enabled, conditions=excluded.conditions, metadata=excluded.metadata, description=excluded.description, script_config=null, result_type=excluded.result_type, value=excluded.value
+                """ ON CONFLICT (name, project) DO UPDATE SET id=excluded.id, name=excluded.name, project=excluded.project, enabled=excluded.enabled, conditions=excluded.conditions, metadata=excluded.metadata, description=excluded.description, script_config=null, result_type=excluded.result_type, value=excluded.value, allowed_values=excluded.allowed_values
                |""".stripMargin
             }}
                 returning id, project""".stripMargin,
-          params.productIterator.toList.map(a => a.asInstanceOf[AnyRef]),
+          params.productIterator.toList.map(a => a.asInstanceOf[AnyRef]) :+
+            (if (allowedValues.isEmpty) Array.fill[JsonArray](params._1.length)(null) else allowedValues),
           conn = Some(conn)
         ) { row =>
           for (
@@ -1459,7 +1481,8 @@ class FeaturesDatastore(
               tags,
               metadata,
               description,
-              resultDescriptor
+              resultDescriptor,
+              _
             ) =>
           (
             Option(id).getOrElse(UUID.randomUUID().toString),
@@ -1511,7 +1534,9 @@ class FeaturesDatastore(
           Future
             .sequence(
               List(
-                insertFeatures(modernFeatureParams),
+                insertFeatures(modernFeatureParams, modernFeatures.map(f =>
+                  f.allowedValues.map(v => new JsonArray(Json.toJson(v).toString())).orNull
+                ).toArray),
                 insertLegacyFeatures(legacyFeatureParams),
                 postgresql
                   .queryAll(
@@ -1875,11 +1900,12 @@ class FeaturesDatastore(
             _,
             metadata,
             description,
-            resultDescriptor
+            resultDescriptor,
+            allowedValues
           ) =>
         (
-          s"""INSERT INTO "${tenant}".features (id, name, project, enabled, conditions, metadata, description, result_type, value)
-           |VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7, $$8, $$9)
+          s"""INSERT INTO "${tenant}".features (id, name, project, enabled, conditions, metadata, description, result_type, value, allowed_values)
+           |VALUES ($$1, $$2, $$3, $$4, $$5, $$6, $$7, $$8, $$9, $$10)
            |returning id""".stripMargin,
           List(
             Option(id).getOrElse(UUID.randomUUID().toString),
@@ -1893,7 +1919,8 @@ class FeaturesDatastore(
             resultDescriptor match {
               case descriptor: ValuedResultDescriptor  => descriptor.stringValue
               case BooleanResultDescriptor(conditions) => null
-            }
+            },
+            allowedValues.map(v => new JsonArray(Json.toJson(v).toString())).orNull
           )
         )
       case CompleteWasmFeature(
@@ -1998,7 +2025,7 @@ class FeaturesDatastore(
               ) =>
             (
               s"""update "${tenant}".features
-                 |SET name=$$1, enabled=$$2, conditions=$$3, script_config=NULL, description=$$5, project=$$6, result_type='boolean' WHERE id=$$4 returning id""".stripMargin,
+                 |SET name=$$1, enabled=$$2, conditions=$$3, script_config=NULL, description=$$5, project=$$6, result_type='boolean', allowed_values=NULL WHERE id=$$4 returning id""".stripMargin,
               List(
                 name,
                 java.lang.Boolean.valueOf(enabled),
@@ -2016,11 +2043,12 @@ class FeaturesDatastore(
                 _,
                 _,
                 description,
-                resultDescriptor
+                resultDescriptor,
+                allowedValues
               ) =>
             (
               s"""update "${tenant}".features
-                 |SET name=$$1, enabled=$$2, conditions=$$3, script_config=NULL, description=$$5, project=$$6, result_type=$$7, value=$$8  WHERE id=$$4 returning id""".stripMargin,
+                 |SET name=$$1, enabled=$$2, conditions=$$3, script_config=NULL, description=$$5, project=$$6, result_type=$$7, value=$$8, allowed_values=$$9 WHERE id=$$4 returning id""".stripMargin,
               List(
                 name,
                 java.lang.Boolean.valueOf(enabled),
@@ -2035,7 +2063,8 @@ class FeaturesDatastore(
                   case descriptor: ValuedResultDescriptor =>
                     descriptor.stringValue
                   case BooleanResultDescriptor(conditions) => null
-                }
+                },
+                allowedValues.map(v => new JsonArray(Json.toJson(v).toString())).orNull
               )
             )
           case CompleteWasmFeature(
@@ -2051,7 +2080,7 @@ class FeaturesDatastore(
               ) =>
             (
               s"""update "${tenant}".features
-                 |SET name=$$1, enabled=$$2, script_config=$$4, conditions=NULL, description=$$5, project=$$6, result_type=$$7, value=null  WHERE id=$$3 returning id""".stripMargin,
+                 |SET name=$$1, enabled=$$2, script_config=$$4, conditions=NULL, description=$$5, project=$$6, result_type=$$7, value=null, allowed_values=NULL WHERE id=$$3 returning id""".stripMargin,
               List(
                 name,
                 java.lang.Boolean.valueOf(enabled),
@@ -2135,7 +2164,10 @@ class FeaturesDatastore(
                     if !oldFeature.baseFeature
                       .hasSameActivationStrategy(
                         feature
-                      ) || oldFeature.project != feature.project =>
+                      ) || oldFeature.project != feature.project || ((oldFeature.baseFeature, feature) match {
+                        case (old: Feature, updated: Feature) => old.allowedValues != updated.allowedValues
+                        case _ => false
+                      }) =>
                   eventService
                     .emitEvent(
                       channel = tenant,
@@ -2339,7 +2371,8 @@ object featureImplicits {
                     resultDescriptor = StringResultDescriptor(
                       value = row.optString("value").get,
                       conditions = conds
-                    )
+                    ),
+                    allowedValues = row.optJsArray("allowed_values").map(_.as[Seq[String]])
                   )
                 }
                 case BooleanResult => {
@@ -2472,7 +2505,8 @@ object featureImplicits {
                     resultDescriptor = StringResultDescriptor(
                       value = row.optString("value").get,
                       conditions = conds
-                    )
+                    ),
+                    allowedValues = row.optJsArray("allowed_values").map(_.as[Seq[String]])
                   )
                 }
                 case BooleanResult => {

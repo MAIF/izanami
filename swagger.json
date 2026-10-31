@@ -1099,6 +1099,14 @@
           {
             "type": "object",
             "properties": {
+              "allowedValues": {
+                "type": "array",
+                "nullable": true,
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "type": "string", "minLength": 1 },
+                "description": "Administration-only shared choices for a classical String parent and all its overloads and conditional alternatives. Values must be non-blank and are compared exactly, including case and spaces. Null disables the restriction; omission on creation means free text, while omission on parent PUT preserves the current restriction. Not configurable on overloads or WASM features. Changes invalidating existing values are rejected."
+              },
               "id": {
                 "type": "string"
               },

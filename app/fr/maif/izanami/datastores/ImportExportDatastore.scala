@@ -38,6 +38,7 @@ import fr.maif.izanami.web.ImportController.Skip
 import fr.maif.izanami.web.ProjectId
 import fr.maif.izanami.web.UserInformation
 import io.vertx.core.json.JsonArray
+import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.SqlConnection
 import play.api.libs.json.JsObject
 import play.api.libs.json.Json
@@ -238,6 +239,14 @@ class ImportExportDatastore(postgresql: =>Postgresql, extensionSchema: String, f
                     case Left(err) => Future.successful(Left(err))
                   }
                 })
+                .flatMap {
+                  case result @ Right(results) if !results.values.exists(_.failedElements.nonEmpty) =>
+                    postgresql.queryRaw("SET CONSTRAINTS ALL IMMEDIATE", List(), conn = Some(conn))(_ => result)
+                      .recoverWith { case error: PgException =>
+                        rollback().map(_ => Left(PostgresErrorMapper.postgresErrorToIzanamiError(error)))
+                      }
+                  case result => Future.successful(result)
+                }
                 .map(e => e.map(m => DBImportResult.from(m)))
                 .flatMap {
                   case Left(err) => {
@@ -452,7 +461,7 @@ class ImportExportDatastore(postgresql: =>Postgresql, extensionSchema: String, f
     val value = conflictStrategy match
       case Fail =>
         s"""
-        |CASE WHEN EXCLUDED.${name}=${table}.${name} THEN ${table}.${name}
+        |CASE WHEN EXCLUDED.${name} ${if (name == "allowed_values") "IS NOT DISTINCT FROM" else "="} ${table}.${name} THEN ${table}.${name}
         |ELSE CASE WHEN 1/(txid_current() - txid_current()) = 1 THEN ${table}.${name} ELSE ${table}.${name} END -- ugly hack to make request fail
         |END
         """ // This is ugly, but it's impossible to RAISE after a DO UPDATE
@@ -468,6 +477,15 @@ class ImportExportDatastore(postgresql: =>Postgresql, extensionSchema: String, f
       conflictStrategy: ConflictStrategy,
       conn: SqlConnection
   ): Future[UnitDBImportResult] = {
+    val invalidRows = rows.filter(row => row.keys.exists(key =>
+      key == "allowed_values" || key == "allowedValues"))
+    if (invalidRows.nonEmpty) {
+      return Future.successful(invalidRows.foldLeft(UnitDBImportResult())((result, row) =>
+        result.addFailedElement(row, fr.maif.izanami.errors.GenericBadRequest(
+          "allowedValues is configured on the parent feature, not on an overload"
+        ))
+      ))
+    }
     val conflictFunction =
       importFeatureUpdateStatement("feature_contexts_strategies")
     val conflictPart =
@@ -635,6 +653,13 @@ class ImportExportDatastore(postgresql: =>Postgresql, extensionSchema: String, f
         "script_config",
         conflictStrategy.strategyFor(ConflictField.FeatureConditions)
       ),
+      s"""allowed_values = CASE WHEN EXISTS (
+         |SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof($$1::jsonb) = 'array'
+         |THEN $$1::jsonb ELSE jsonb_build_array($$1::jsonb) END) incoming
+         |WHERE incoming ->> 'id' = EXCLUDED.id::text AND incoming ? 'allowed_values'
+         |) THEN ${conflictFunction("allowed_values", conflictStrategy.strategyFor(ConflictField.FeatureConditions)).stripPrefix("allowed_values=")}
+         |ELSE CASE WHEN ${if (conflictStrategy.strategyFor(ConflictField.FeatureConditions) == Skip) "features.result_type" else "EXCLUDED.result_type"} = 'string'
+         |THEN features.allowed_values ELSE NULL END END""".stripMargin,
       conflictFunction(
         "created_at",
         conflictStrategy.defaultStrategy
@@ -646,7 +671,7 @@ class ImportExportDatastore(postgresql: =>Postgresql, extensionSchema: String, f
     ).mkString(", ")
     new JsonArray(Json.toJson(rows).toString())
     val columns =
-      "id, name, project, enabled, conditions, script_config, metadata, description, value, result_type, created_at"
+      "id, name, project, enabled, conditions, script_config, metadata, description, value, result_type, created_at, allowed_values"
     val query =
       s"""
           |INSERT INTO "${tenant}".features ($columns) select $columns from json_populate_recordset(null::"${tenant}".features, $$1)

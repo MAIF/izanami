@@ -5,6 +5,7 @@ import {
   testFeature,
   testTenant,
   testProject,
+  testLocalContext,
 } from "./testBuilder";
 import { clickAction } from "./utils";
 
@@ -383,6 +384,92 @@ test.describe("Project screen should", () => {
 });
 
 test.describe("Multi type features", () => {
+  test("configure shared allowed string values for parents and overloads", async ({ page, tenantName }) => {
+    await testBuilder()
+      .withTenant(testTenant(tenantName).withProject(
+        testProject("project").withContext(testLocalContext("mobile")),
+      ))
+      .build(page);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.getByRole("button", { name: "Create new feature" }).click();
+    await page.getByLabel("Name*").fill("colour");
+    await page.getByLabel("Enabled").check();
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByRole("option", { name: "string", exact: true }).click();
+    await page.getByLabel("Restrict to predefined values").check();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Provide at least one distinct, non-blank allowed value")).toBeVisible();
+    await page.getByRole("textbox", { name: "Allowed value 1", exact: true }).fill("blue");
+    await page.getByRole("button", { name: "Add allowed value", exact: true }).click();
+    await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill("blue");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Provide at least one distinct, non-blank allowed value")).toBeVisible();
+    await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill("green");
+    await page.getByRole("button", { name: "Move allowed value 2 up", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Choose an allowed value", { exact: true })).toBeVisible();
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["green", "blue"]);
+    await page.getByRole("option", { name: "blue", exact: true }).click();
+    await page.getByRole("button", { name: "Add alternative value", exact: true }).click();
+    await page.getByRole("combobox", { name: "Alternative value", exact: true }).click();
+    await page.getByRole("option", { name: "green", exact: true }).click();
+    await page.getByRole("combobox", { name: "Strategy to use" }).click();
+    await page.getByRole("option", { name: "Percentage", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("rowheader", { name: "colour", exact: true })).toBeVisible();
+
+    await clickAction(page, "Overloads", "colour");
+    await page.getByRole("button", { name: "Create new overload", exact: true }).click();
+    await page.getByRole("combobox", { name: "Context" }).click();
+    await page.getByRole("option", { name: "mobile", exact: true }).click();
+    await expect(page.getByText("Choose a value", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Restrict to predefined values")).toHaveCount(0);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Choose an allowed value", { exact: true })).toBeVisible();
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["green", "blue"]);
+    await page.getByRole("option", { name: "green", exact: true }).click();
+    await page.getByRole("button", { name: "Add alternative value", exact: true }).click();
+    await page.getByRole("combobox", { name: "Alternative value", exact: true }).click();
+    await page.getByRole("option", { name: "blue", exact: true }).click();
+    await page.getByRole("combobox", { name: "Strategy to use" }).click();
+    await page.getByRole("option", { name: "Percentage", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+
+    await page.getByRole("row")
+      .filter({ has: page.getByRole("link", { name: /^\/?mobile$/ }) })
+      .getByRole("button", { name: "actions" }).click();
+    await page.getByRole("link", { name: "Edit", exact: true }).click();
+    await expect(page.locator('label[for="overload-base-value"]').getByText("green", { exact: true })).toBeVisible();
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["green", "blue"]);
+    await page.getByRole("option", { name: "blue", exact: true }).click();
+    await page.getByRole("button", { name: /^Alternative value blue/ }).click();
+    await page.getByRole("combobox", { name: "Alternative value", exact: true }).click();
+    await page.getByRole("option", { name: "green", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+
+    await clickAction(page, "Duplicate", "colour");
+    await expect(page.getByLabel("Restrict to predefined values")).toBeChecked();
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue("green");
+    await expect(page.getByRole("textbox", { name: "Allowed value 2", exact: true })).toHaveValue("blue");
+    await page.getByLabel("Name*").fill("palette");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("rowheader", { name: "palette", exact: true })).toBeVisible();
+    await clickAction(page, "Edit", "colour");
+    await expect(page.locator('label[for="feature-base-value"]').getByText("blue", { exact: true })).toBeVisible();
+    await page.getByLabel("Restrict to predefined values").uncheck();
+    await page.getByLabel("Base value*").fill("free text");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("rowheader", { name: "colour 1 Overload", exact: true })).toBeVisible();
+    await clickAction(page, "Edit", "colour");
+    await expect(page.getByLabel("Restrict to predefined values")).not.toBeChecked();
+    await expect(page.getByLabel("Base value*")).toHaveValue("free text");
+  });
+
   test("should be creatable", async ({ page, tenantName }) => {
     const situation = await testBuilder()
       .withTenant(testTenant(tenantName).withProject(testProject("project")))

@@ -49,6 +49,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { Tooltip as LocalToolTip } from "./Tooltip";
 import { FeatureTestType } from "./ExistingFeatureTestForm";
 import { json } from "@codemirror/lang-json";
+import { StringValueInput } from "./StringValueInput";
 
 export type LegacyFeature =
   | NoStrategyFeature
@@ -890,6 +891,8 @@ export function V2FeatureForm(props: {
   }, [type]);
 
   const resultType = watch("resultType");
+  const allowedValues = watch("allowedValues");
+  const restricted = resultType === "string" && allowedValues != null;
 
   if (tagQuery.isError) {
     return <div>Error while fetching tags</div>;
@@ -1118,6 +1121,7 @@ export function V2FeatureForm(props: {
                       value={resultTypeOptions.find((o) => value === o.value)}
                       onChange={(selected) => {
                         onChange(selected?.value);
+                        if (selected?.value !== "string") setValue("allowedValues", null);
                       }}
                       options={resultTypeOptions}
                       styles={customStyles}
@@ -1126,10 +1130,27 @@ export function V2FeatureForm(props: {
                 />
               </label>
               {resultType !== "boolean" && type === "Classic" && (
-                <label className="mt-3  col-6">
+                <label className="mt-3  col-6" htmlFor={resultType === "string" ? "feature-base-value" : undefined}>
                   Base value*
                   {resultType === "string" ? (
-                    <textarea className="form-control" {...register("value")} />
+                    <Controller
+                      name="value"
+                      defaultValue=""
+                      control={control}
+                      rules={{ validate: (value) => !restricted ||
+                        allowedValues?.includes(String(value)) || "Choose an allowed value" }}
+                      render={({ field }) => (
+                        <StringValueInput
+                          inputId="feature-base-value"
+                          ariaLabel="Base value*"
+                          value={field.value === undefined ? undefined : String(field.value)}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          allowedValues={restricted ? allowedValues : null}
+                          multiline
+                        />
+                      )}
+                    />
                   ) : (
                     <input
                       type="number"
@@ -1188,6 +1209,67 @@ export function V2FeatureForm(props: {
                 />
               </label>
             </div>
+            {resultType === "string" && type === "Classic" && (
+              <Controller
+                name="allowedValues"
+                control={control}
+                rules={{ validate: (values) => values == null ||
+                  (values.length > 0 && values.every((value) => value.trim().length > 0) &&
+                    new Set(values).size === values.length) ||
+                  "Provide at least one distinct, non-blank allowed value" }}
+                render={({ field, fieldState }) => (
+                  <fieldset className="mt-3">
+                    <legend className="fs-6">String values</legend>
+                    <label>
+                      <input
+                        type="checkbox"
+                        className="izanami-checkbox me-2"
+                        checked={restricted}
+                        onChange={(event) => field.onChange(event.target.checked ? [""] : null)}
+                      />
+                      Restrict to predefined values
+                    </label>
+                    {restricted && (
+                      <>
+                        <p className="small">Shared with every overload and alternative value.</p>
+                        {(field.value ?? []).map((choice, index, choices) => (
+                          <div className="d-flex gap-2 mt-2" key={index}>
+                            <input
+                              aria-label={`Allowed value ${index + 1}`}
+                              className="form-control"
+                              value={choice}
+                              onBlur={field.onBlur}
+                              onChange={(event) => field.onChange(choices.map((value, i) =>
+                                i === index ? event.target.value : value))}
+                            />
+                            <button type="button" className="btn btn-secondary" disabled={index === 0}
+                              aria-label={`Move allowed value ${index + 1} up`}
+                              onClick={() => {
+                                const reordered = [...choices];
+                                [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
+                                field.onChange(reordered);
+                              }}>Up</button>
+                            <button type="button" className="btn btn-secondary" disabled={index === choices.length - 1}
+                              aria-label={`Move allowed value ${index + 1} down`}
+                              onClick={() => {
+                                const reordered = [...choices];
+                                [reordered[index + 1], reordered[index]] = [reordered[index], reordered[index + 1]];
+                                field.onChange(reordered);
+                              }}>Down</button>
+                            <button type="button" className="btn btn-danger"
+                              aria-label={`Remove allowed value ${index + 1}`}
+                              onClick={() => field.onChange(choices.filter((_, i) => i !== index))}>Remove</button>
+                          </div>
+                        ))}
+                        <button type="button" className="btn btn-secondary mt-2"
+                          onClick={() => field.onChange([...(field.value ?? []), ""])}>Add allowed value</button>
+                      </>
+                    )}
+                    <ErrorDisplay error={fieldState.error} />
+                  </fieldset>
+                )}
+              />
+            )}
             <label className="mt-3">
               Feature type
               <Tooltip id="feature-type">
@@ -1208,10 +1290,10 @@ export function V2FeatureForm(props: {
                 )}
               </Tooltip>
               <Select
-                isDisabled={!wasmEnabled}
+                isDisabled={!wasmEnabled || restricted}
                 styles={customStyles}
                 options={
-                  wasmEnabled
+                  wasmEnabled && !restricted
                     ? [
                         { label: "Classic", value: "Classic" },
                         { label: "New WASM script", value: "New WASM script" },
@@ -1241,7 +1323,7 @@ export function V2FeatureForm(props: {
                 }}
               />
             </label>
-            {type === "Classic" && <ConditionsInput folded={!!defaultValue} />}
+            {type === "Classic" && <ConditionsInput folded={!!defaultValue} allowedValues={restricted ? allowedValues : null} />}
             {type === "Existing WASM script" && <ExistingScript />}
             {type === "New WASM script" && <WasmInput />}
             <div

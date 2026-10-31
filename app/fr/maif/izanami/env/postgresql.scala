@@ -170,6 +170,8 @@ class Postgresql(appConfig: AppConf)(implicit ec: ExecutionContext) {
   val pgConfiguration = appConfig.pg
   val sslConfiguration = pgConfiguration.ssl
   def pgErrorPartialFunction: PartialFunction[Throwable, IzanamiError] = {
+    case f: PgException if Set("features_allowed_values_shape", "features_allowed_values_uses").contains(f.getConstraint) =>
+      PostgresErrorMapper.postgresErrorToIzanamiError(f)
     case f: PgException if f.getConstraint() != null =>
       PostgresErrorMapper.constraintNameToIzanamiError(f.getConstraint)
     case _ => {
