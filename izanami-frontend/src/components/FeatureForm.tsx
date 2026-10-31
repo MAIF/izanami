@@ -907,11 +907,8 @@ export function V2FeatureForm(props: {
   const restricted = resultType === "string" && allowedValues != null;
   const queryClient = useQueryClient();
   const predefinedValuesMutation = useMutation({
-    mutationFn: async (feature: TCompleteFeature) => {
+    mutationFn: async () => {
       const values: string[] = [];
-      if (feature.resultType === "string" && "value" in feature) {
-        values.push(feature.value, ...feature.conditions.map((condition) => condition.value));
-      }
       if (defaultValue?.id && defaultValue.project) {
         const contexts = await queryClient.fetchQuery({
           queryKey: [projectContextKey(tenant!, defaultValue.project)],
@@ -927,11 +924,16 @@ export function V2FeatureForm(props: {
           }
         }
       }
-      return [...new Set(values.filter((value) => value.trim().length > 0))];
+      return values;
     },
-    onSuccess: (values) => {
+    onSuccess: (overloadValues) => {
+      const feature = methods.getValues();
+      const values = feature.resultType === "string" && "value" in feature
+        ? [feature.value, ...feature.conditions.map((condition) => condition.value), ...overloadValues]
+        : overloadValues;
+      const allowedValues = [...new Set(values.filter((value) => value.trim().length > 0))];
       setValue("resultType", "string");
-      setValue("allowedValues", values.length ? values : [""]);
+      setValue("allowedValues", allowedValues.length ? allowedValues : [""]);
       if (type !== "Classic") {
         setType("Classic");
         methods.unregister("wasmConfig");
@@ -1174,7 +1176,7 @@ export function V2FeatureForm(props: {
                         if (!selected) return;
                         const usePredefinedValues = selected.value === "restricted-string";
                         if (usePredefinedValues && !restricted) {
-                          predefinedValuesMutation.mutate(methods.getValues());
+                          predefinedValuesMutation.mutate();
                           return;
                         }
                         predefinedValuesMutation.reset();
@@ -1237,41 +1239,6 @@ export function V2FeatureForm(props: {
                 </label>
               )}
             </div>
-            <div className="row">
-              <label className="mt-3 col-6">
-                Description
-                <textarea
-                  className="form-control"
-                  {...register("description")}
-                />
-              </label>
-              <label className="mt-3 col-6">
-                Tags
-                <Tooltip id="modern-tags">
-                  Tags are a way to regroup related features even if they are in
-                  different projects.
-                </Tooltip>
-                <Controller
-                  name="tags"
-                  control={control}
-                  render={({ field: { onChange, value } }) => (
-                    <CreatableSelect
-                      value={value?.map((t) => ({ label: t, value: t }))}
-                      onChange={(values) => {
-                        onChange(values.map((v) => v.value));
-                      }}
-                      options={tagQuery.data.map((t) => ({
-                        label: t.name,
-                        value: t.name,
-                      }))}
-                      styles={customStyles}
-                      isMulti
-                      isClearable
-                    />
-                  )}
-                />
-              </label>
-            </div>
             {restricted && type === "Classic" && (
               <Controller
                 name="allowedValues"
@@ -1327,6 +1294,41 @@ export function V2FeatureForm(props: {
                 )}
               />
             )}
+            <div className="row">
+              <label className="mt-3 col-6">
+                Description
+                <textarea
+                  className="form-control"
+                  {...register("description")}
+                />
+              </label>
+              <label className="mt-3 col-6">
+                Tags
+                <Tooltip id="modern-tags">
+                  Tags are a way to regroup related features even if they are in
+                  different projects.
+                </Tooltip>
+                <Controller
+                  name="tags"
+                  control={control}
+                  render={({ field: { onChange, value } }) => (
+                    <CreatableSelect
+                      value={value?.map((t) => ({ label: t, value: t }))}
+                      onChange={(values) => {
+                        onChange(values.map((v) => v.value));
+                      }}
+                      options={tagQuery.data.map((t) => ({
+                        label: t.name,
+                        value: t.name,
+                      }))}
+                      styles={customStyles}
+                      isMulti
+                      isClearable
+                    />
+                  )}
+                />
+              </label>
+            </div>
             <label className="mt-3">
               Feature type
               <Tooltip id="feature-type">

@@ -192,6 +192,40 @@ class FeatureAPISpec extends BaseAPISpec {
       editor.updateFeature("tenant", id, body ++ Json.obj("allowedValues" -> Json.arr("blue"))).status mustBe BAD_REQUEST
     }
 
+    "complete concurrent parent and overload updates with a small connection pool" in {
+      val situation = TestSituationBuilder()
+        .withCustomConfiguration(Map("app.pg.pool-size" -> Int.box(3)))
+        .withTenants(TestTenant("tenant").withProjects(TestProject("project")
+          .withFeatures(TestFeature("colour", resultType = "string", value = "blue"))
+          .withContextNames("mobile")))
+        .withUsers(TestUser("editor", rights = TestRights()
+          .addTenantRight("tenant", "Read").addProjectRight("project", "tenant", "Write")))
+        .loggedInWithAdminRights().build()
+      val restricted = situation.updateFeatureByName("tenant", "project", "colour",
+        _ ++ Json.obj("allowedValues" -> Json.arr("blue", "green")))
+      restricted.status mustBe OK
+      val body = restricted.json.get.as[JsObject]
+      val id = (body \ "id").as[String]
+      val editor = situation.loggedAs("editor", "barbar123")
+      val requests = (1 to 12).flatMap { _ =>
+        Seq(
+          BaseAPISpec.ws
+            .url(s"${BaseAPISpec.ADMIN_BASE_URL}/tenants/tenant/features/$id")
+            .withCookies(editor.cookies: _*)
+            .put(body),
+          BaseAPISpec.ws
+            .url(s"${BaseAPISpec.ADMIN_BASE_URL}/tenants/tenant/projects/project/contexts/mobile/features/colour")
+            .withCookies(editor.cookies: _*)
+            .put(Json.obj("enabled" -> true, "resultType" -> "string",
+              "value" -> "green", "conditions" -> Json.arr()))
+        )
+      }
+      val responses = await(Future.sequence(requests))
+      responses.grouped(2).foreach { pair =>
+        pair.map(_.status) mustBe Seq(OK, NO_CONTENT)
+      }
+    }
+
     "keep allowed String values consistent during concurrent parent and overload updates" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("tenant").withProjects(TestProject("project")

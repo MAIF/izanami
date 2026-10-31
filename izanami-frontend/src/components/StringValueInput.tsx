@@ -12,15 +12,16 @@ export function StringValueInput(props: {
 }) {
   const { value, onChange, onBlur, allowedValues, multiline, inputId, ariaLabel } = props;
   if (allowedValues) {
+    const choices = [...new Set(allowedValues.filter((choice) => choice.trim().length > 0))];
     return (
       <Select
         inputId={inputId}
         aria-label={ariaLabel}
         styles={customStyles}
         placeholder="Choose a value"
-        options={allowedValues.map((choice) => ({ value: choice, label: choice }))}
+        options={choices.map((choice) => ({ value: choice, label: choice }))}
         value={
-          value !== undefined && allowedValues.includes(value)
+          value !== undefined && choices.includes(value)
             ? { value, label: value }
             : null
         }

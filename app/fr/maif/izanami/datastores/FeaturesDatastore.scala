@@ -1768,7 +1768,8 @@ class FeaturesDatastore(
 
   def readWasmScript(
       tenant: String,
-      name: String
+      name: String,
+      conn: Option[SqlConnection] = None
   ): Future[Option[WasmConfig]] = {
     Tenant.isTenantValid(tenant)
     postgresql.queryOne(
@@ -1777,7 +1778,8 @@ class FeaturesDatastore(
          |FROM "${tenant}".wasm_script_configurations
          |WHERE id=$$1
          |""".stripMargin,
-      List(name)
+      List(name),
+      conn = conn
     ) { r => r.optJsObject("config").map(js => js.as(WasmConfig.format)) }
   }
 
@@ -2191,7 +2193,7 @@ class FeaturesDatastore(
       })
     }
     // TODO allow updating metadata
-    findActivationStrategiesForFeature(tenant = tenant, id = id)
+    findActivationStrategiesForFeature(tenant = tenant, id = id, conn = conn)
       .flatMap {
         case None => Future.successful(Left(FeatureDoesNotExist(id)))
         case Some(oldFeature) => {

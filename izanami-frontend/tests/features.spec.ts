@@ -410,7 +410,16 @@ test.describe("Multi type features", () => {
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Provide at least one distinct, non-blank allowed value")).toBeVisible();
     await page.getByRole("textbox", { name: "Allowed value 1", exact: true }).fill("blue");
+    await expect(page.getByText("Choose a value", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Add allowed value", exact: true }).click();
+    await expect(page.getByText("Choose a value", { exact: true })).toBeVisible();
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["blue"]);
+    await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
+    await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill(" \t ");
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["blue"]);
+    await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
     await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill("blue");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Provide at least one distinct, non-blank allowed value")).toBeVisible();
@@ -523,6 +532,48 @@ test.describe("Multi type features", () => {
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
     await clickAction(page, "Edit", "colour");
     await expect(page.getByRole("textbox", { name: "Allowed value 3", exact: true })).toHaveValue(" overload alternative ");
+  });
+
+  test("collect the latest draft while predefined values are loading", async ({ page, tenantName }) => {
+    const feature = testFeature("colour").withEnableStatus();
+    feature.resultType = "string";
+    feature.value = "blue";
+    await testBuilder()
+      .withTenant(testTenant(tenantName).withProject(testProject("project").withFeature(feature)))
+      .build(page);
+    let releaseContexts = () => {};
+    const contextsReady = new Promise<void>((resolve) => { releaseContexts = resolve; });
+    let contextRequests = 0;
+    await page.route(`**/projects/project/contexts`, async (route) => {
+      contextRequests++;
+      await contextsReady;
+      await route.continue();
+    });
+    try {
+      await page.goto(`/tenants/${tenantName}/projects/project`);
+      await clickAction(page, "Edit", "colour");
+      await page.getByRole("button", { name: "Add alternative value", exact: true }).click();
+      await page.getByLabel("Alternative value", { exact: true }).fill("old alternative");
+      await page.getByRole("combobox", { name: "Strategy to use" }).click();
+      await page.getByRole("option", { name: "Percentage", exact: true }).click();
+      await page.getByRole("combobox", { name: "Feature result type" }).click();
+      await page.getByRole("option", { name: "string (predefined values)", exact: true }).click();
+      await expect(page.locator("#feature-result-type")).toBeDisabled();
+      await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+      await page.getByLabel("Base value*").fill("latest base");
+      await page.getByLabel("Alternative value", { exact: true }).fill("latest alternative");
+      releaseContexts();
+      await expect(page.getByRole("textbox", { name: /^Allowed value \d+$/ })).toHaveCount(2);
+      await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue("latest base");
+      await expect(page.getByRole("textbox", { name: "Allowed value 2", exact: true })).toHaveValue("latest alternative");
+      expect(contextRequests).toBe(1);
+      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+      await clickAction(page, "Edit", "colour");
+      await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue("latest base");
+    } finally {
+      releaseContexts();
+    }
   });
 
   test("should be creatable", async ({ page, tenantName }) => {
