@@ -24,9 +24,9 @@ export async function generate() {
   await page.getByRole("button", { name: "Create new feature" }).click();
   await page.getByLabel("Name").fill("comments");
   await page.getByLabel("Enabled").check();
-  await page.getByRole("combobox", { name: "Result type" }).click();
+  await page.getByRole("combobox", { name: "Feature result type" }).click();
   await screenshot("result-type-menu");
-  await page.getByText("string", { exact: true }).click();
+  await page.getByRole("option", { name: "string (free text)", exact: true }).click();
   await page.getByLabel("Base value").fill("disabled");
 
   await page.getByRole("button", { name: "Add alternative value" }).click();

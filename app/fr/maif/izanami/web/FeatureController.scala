@@ -438,7 +438,7 @@ class FeatureController(
     ) { implicit request =>
       Feature.readCompleteFeature(request.body, project) match {
         case JsError(e) =>
-          BadRequest(Json.obj("message" -> "bad body format")).future
+          BadRequest(Json.obj("message" -> "bad body format", "details" -> JsError.toJson(e))).future
         case JsSuccess(feature, _) =>
           featureService.createFeature(
             tenant = tenant,
@@ -462,7 +462,7 @@ class FeatureController(
       implicit request => {
         Feature.readCompleteFeature(request.body) match {
           case JsError(e) =>
-            BadRequest(Json.obj("message" -> "bad body format")).future
+            BadRequest(Json.obj("message" -> "bad body format", "details" -> JsError.toJson(e))).future
           case _ if !Tenant.isTenantValid(tenant) =>
             BadRequest(Json.obj("message" -> "Incorrect tenant")).future
           case JsSuccess(feature, _) => {

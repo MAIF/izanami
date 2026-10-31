@@ -5,6 +5,7 @@ import {
   testFeature,
   testTenant,
   testProject,
+  testLocalContext,
 } from "./testBuilder";
 import { clickAction } from "./utils";
 
@@ -383,6 +384,307 @@ test.describe("Project screen should", () => {
 });
 
 test.describe("Multi type features", () => {
+  test("configure shared allowed string values for parents and overloads", async ({ page, tenantName }) => {
+    await testBuilder()
+      .withTenant(testTenant(tenantName).withProject(
+        testProject("project").withContext(testLocalContext("mobile")),
+      ))
+      .build(page);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.getByRole("button", { name: "Create new feature" }).click();
+    await page.getByLabel("Name*").fill("colour");
+    await page.getByLabel("Enabled").check();
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByRole("option", { name: "string (free text)", exact: true }).click();
+    await page.getByRole("combobox", { name: "Feature type" }).click();
+    await page.getByRole("option", { name: "New WASM script", exact: true }).click();
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByRole("option", { name: "string (predefined values)", exact: true }).click();
+    await expect(page.getByText("Classic", { exact: true })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Feature type" })).toHaveCount(0);
+    await expect(page.getByLabel("Restrict to predefined values")).toHaveCount(0);
+    await expect(page.getByText("Shared with every overload and alternative value.", { exact: true })).toHaveCount(0);
+    await page.getByLabel("About predefined String values").hover();
+    await expect(page.getByRole("tooltip")).toContainText("This list is shared with every overload.");
+    await expect(page.getByRole("tooltip")).toContainText("values returned under specific conditions");
+    await page.getByLabel("About value numbers", { exact: true }).hover();
+    await expect(page.getByRole("tooltip").filter({ hasText: "Labels and numbers" }))
+      .toContainText("are not part of the returned value");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Provide at least one distinct, non-blank allowed value")).toBeVisible();
+    const firstAllowedValue = page.getByRole("textbox", { name: "Allowed value 1", exact: true });
+    await expect(firstAllowedValue).toHaveJSProperty("tagName", "TEXTAREA");
+    await firstAllowedValue.fill("first line\nsecond line");
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["<no label> 1. first line second line"]);
+    await expect(page.getByRole("option").locator("span[title]")).toHaveAttribute("title", "first line\nsecond line");
+    await expect(page.getByRole("option").getByText("<no label>", { exact: true })).toHaveCSS("opacity", "0.6");
+    await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
+    const longValue = "a".repeat(120);
+    await firstAllowedValue.fill(longValue);
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText([`<no label> 1. ${"a".repeat(80)}...`]);
+    await expect(page.getByRole("option").locator("span[title]")).toHaveAttribute("title", longValue);
+    await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
+    await firstAllowedValue.fill("blue");
+    await expect(page.getByText("Choose a value", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Add allowed value", exact: true }).click();
+    await expect(page.getByText("Choose a value", { exact: true })).toBeVisible();
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["<no label> blue"]);
+    await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
+    await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill(" \t ");
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["<no label> blue"]);
+    await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
+    await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill("blue");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Provide at least one distinct, non-blank allowed value")).toBeVisible();
+    await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill("green");
+    await expect(page.getByRole("button", { name: /^Move allowed value \d+ (up|down)$/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Choose an allowed value", { exact: true })).toBeVisible();
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["<no label> blue", "<no label> green"]);
+    await page.getByRole("option", { name: "<no label> blue", exact: true }).click();
+    await page.getByRole("button", { name: "Add alternative value", exact: true }).click();
+    await page.getByRole("combobox", { name: "Alternative value", exact: true }).click();
+    await page.getByRole("option", { name: "<no label> green", exact: true }).click();
+    await page.getByRole("combobox", { name: "Strategy to use" }).click();
+    await page.getByRole("option", { name: "Percentage", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("rowheader", { name: "colour", exact: true })).toBeVisible();
+
+    await clickAction(page, "Overloads", "colour");
+    await page.getByRole("button", { name: "Create new overload", exact: true }).click();
+    await page.getByRole("combobox", { name: "Context" }).click();
+    await page.getByRole("option", { name: "mobile", exact: true }).click();
+    await expect(page.getByText("string (predefined values)", { exact: true })).toBeVisible();
+    await expect(page.getByText("Choose a value", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Restrict to predefined values")).toHaveCount(0);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Choose an allowed value", { exact: true })).toBeVisible();
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["<no label> blue", "<no label> green"]);
+    await page.getByRole("option", { name: "<no label> green", exact: true }).click();
+    await page.getByRole("button", { name: "Add alternative value", exact: true }).click();
+    await page.getByRole("combobox", { name: "Alternative value", exact: true }).click();
+    await page.getByRole("option", { name: "<no label> blue", exact: true }).click();
+    await page.getByRole("combobox", { name: "Strategy to use" }).click();
+    await page.getByRole("option", { name: "Percentage", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+
+    await page.getByRole("row")
+      .filter({ has: page.getByRole("link", { name: /^\/?mobile$/ }) })
+      .getByRole("button", { name: "actions" }).click();
+    await page.getByRole("link", { name: "Edit", exact: true }).click();
+    await expect(page.locator('label[for="overload-base-value"]')).toContainText("<no label> green");
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["<no label> blue", "<no label> green"]);
+    await page.getByRole("option", { name: "<no label> blue", exact: true }).click();
+    await page.getByRole("button", { name: /^Alternative value blue/ }).click();
+    await page.getByRole("combobox", { name: "Alternative value", exact: true }).click();
+    await page.getByRole("option", { name: "<no label> green", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+
+    await clickAction(page, "Duplicate", "colour");
+    await expect(page.locator('label[for="feature-result-type"]').getByText("string (predefined values)", { exact: true })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue("blue");
+    await expect(page.getByRole("textbox", { name: "Allowed value 2", exact: true })).toHaveValue("green");
+    await page.getByLabel("Name*").fill("palette");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("rowheader", { name: "palette", exact: true })).toBeVisible();
+    await clickAction(page, "Edit", "colour");
+    await expect(page.locator('label[for="feature-base-value"]')).toContainText("<no label> blue");
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByRole("option", { name: "string (free text)", exact: true }).click();
+    await expect(page.getByLabel("Base value*")).toHaveValue("blue");
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveCount(0);
+    await page.getByLabel("Base value*").fill("free text");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("rowheader", { name: "colour 1 Overload", exact: true })).toBeVisible();
+    await clickAction(page, "Edit", "colour");
+    await expect(page.locator('label[for="feature-result-type"]').getByText("string (free text)", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Base value*")).toHaveValue("free text");
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.getByRole("rowheader", { name: "colour 1 Overload", exact: true })
+      .getByRole("button", { name: "1 Overload", exact: true }).click();
+    await page.getByRole("row")
+      .filter({ has: page.getByRole("link", { name: /^\/?mobile$/ }) })
+      .getByRole("button", { name: "actions" }).click();
+    await page.getByRole("link", { name: "Edit", exact: true }).click();
+    await page.getByLabel("Base value*").fill("overload base");
+    await page.getByRole("button", { name: /^Alternative value green/ }).click();
+    await page.getByLabel("Alternative value", { exact: true }).fill(" overload alternative ");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+    await page.reload();
+    await clickAction(page, "Edit", "colour");
+    await page.getByLabel("Base value*").fill("draft text");
+    let contextRequests = 0;
+    page.on("request", (request) => {
+      if (request.url().endsWith(`/projects/project/contexts`) && request.method() === "GET") {
+        contextRequests++;
+      }
+    });
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByRole("option", { name: "string (predefined values)", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: /^Allowed value \d+$/ }))
+      .toHaveCount(4);
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue("draft text");
+    await expect(page.getByRole("textbox", { name: "Allowed value 2", exact: true })).toHaveValue("green");
+    await expect(page.getByRole("textbox", { name: "Allowed value 3", exact: true })).toHaveValue("overload base");
+    await expect(page.getByRole("textbox", { name: "Allowed value 4", exact: true })).toHaveValue(" overload alternative ");
+    expect(contextRequests).toBe(0);
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByRole("option", { name: "string (free text)", exact: true }).click();
+    await page.getByLabel("Base value*").fill("green");
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByRole("option", { name: "string (predefined values)", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: /^Allowed value \d+$/ })).toHaveCount(3);
+    expect(contextRequests).toBe(0);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+    await clickAction(page, "Edit", "colour");
+    await expect(page.getByRole("textbox", { name: "Allowed value 3", exact: true })).toHaveValue(" overload alternative ");
+  });
+
+  test("store optional labels without changing shared string values", async ({ page, tenantName }) => {
+    const message = "Hello,\nWelcome!";
+    const feature = testFeature("message").withEnableStatus();
+    feature.resultType = "string";
+    feature.value = message;
+    await testBuilder()
+      .withTenant(testTenant(tenantName).withProject(
+        testProject("project").withFeature(feature).withContext(testLocalContext("mobile")),
+      ))
+      .build(page);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
+    await clickAction(page, "Edit", "message");
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByRole("option", { name: "string (predefined values)", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue(message);
+    const label = page.getByRole("textbox", { name: "Allowed value 1 label", exact: true });
+    await expect(label).toHaveValue("");
+    await label.fill("Welcome message");
+    await page.getByRole("button", { name: "Add allowed value", exact: true }).click();
+    await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill("Maintenance");
+    const secondLabel = page.getByRole("textbox", { name: "Allowed value 2 label", exact: true });
+    await secondLabel.fill("Welcome message");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Predefined value labels must be unique", { exact: true })).toBeVisible();
+    await secondLabel.fill("welcome message");
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["Welcome message", "welcome message"]);
+    await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
+    await secondLabel.fill("Welcome message ");
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveCount(2);
+    await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
+    await secondLabel.fill("");
+    await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill("Welcome message");
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["Welcome message", "<no label> Welcome message"]);
+    await expect(page.getByRole("option").last().getByText("<no label>", { exact: true })).toHaveCSS("opacity", "0.6");
+    await page.getByRole("option", { name: "<no label> Welcome message", exact: true }).click();
+    await expect(page.locator('label[for="feature-base-value"]')).toContainText("<no label> Welcome message");
+    await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill("Maintenance");
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["Welcome message", "<no label> Maintenance"]);
+    await expect(page.getByRole("option").first().locator("span[title]")).toHaveAttribute("title", message);
+    await page.getByRole("option", { name: "Welcome message", exact: true }).click();
+    await page.getByRole("button", { name: "Add alternative value", exact: true }).click();
+    await page.getByRole("combobox", { name: "Alternative value", exact: true }).click();
+    await page.getByRole("option", { name: "<no label> Maintenance", exact: true }).click();
+    await page.getByRole("combobox", { name: "Strategy to use" }).click();
+    await page.getByRole("option", { name: "Percentage", exact: true }).click();
+    const saved = page.waitForResponse((response) =>
+      response.request().method() === "PUT" && /\/features\/[^/]+$/.test(response.url()));
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    const response = await saved;
+    expect(response.ok()).toBeTruthy();
+    expect(await response.json()).toMatchObject({
+      value: message,
+      allowedValues: [{ value: message, label: "Welcome message" }, { value: "Maintenance" }],
+    });
+    await expect(page.getByRole("rowheader", { name: "message", exact: true })).toBeVisible();
+    await clickAction(page, "Overloads", "message");
+    await page.getByRole("button", { name: "Create new overload", exact: true }).click();
+    await page.getByRole("combobox", { name: "Context" }).click();
+    await page.getByRole("option", { name: "mobile", exact: true }).click();
+    await expect(label).toHaveCount(0);
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["Welcome message", "<no label> Maintenance"]);
+    await page.getByRole("option", { name: "Welcome message", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+    await clickAction(page, "Duplicate", "message");
+    await expect(label).toHaveValue("Welcome message");
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue(message);
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await clickAction(page, "Edit", "message");
+    await label.fill("Renamed welcome");
+    await expect(page.locator('label[for="feature-base-value"]').getByText("Renamed welcome", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+    await clickAction(page, "Edit", "message");
+    await expect(label).toHaveValue("Renamed welcome");
+    await label.fill("   ");
+    await page.getByRole("combobox", { name: "Base value*" }).click();
+    await expect(page.getByRole("option")).toHaveText(["<no label> 1. Hello, Welcome!", "<no label> Maintenance"]);
+    await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
+    await label.fill("");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+    await clickAction(page, "Edit", "message");
+    await expect(label).toHaveValue("");
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue(message);
+  });
+
+  test("collect the latest draft while predefined values are loading", async ({ page, tenantName }) => {
+    const feature = testFeature("colour").withEnableStatus();
+    feature.resultType = "string";
+    feature.value = "blue";
+    await testBuilder()
+      .withTenant(testTenant(tenantName).withProject(testProject("project").withFeature(feature)))
+      .build(page);
+    let releaseContexts = () => {};
+    const contextsReady = new Promise<void>((resolve) => { releaseContexts = resolve; });
+    let contextRequests = 0;
+    await page.route(`**/projects/project/contexts`, async (route) => {
+      contextRequests++;
+      await contextsReady;
+      await route.continue();
+    });
+    try {
+      await page.goto(`/tenants/${tenantName}/projects/project`);
+      await clickAction(page, "Edit", "colour");
+      await page.getByRole("button", { name: "Add alternative value", exact: true }).click();
+      await page.getByLabel("Alternative value", { exact: true }).fill("old alternative");
+      await page.getByRole("combobox", { name: "Strategy to use" }).click();
+      await page.getByRole("option", { name: "Percentage", exact: true }).click();
+      await page.getByRole("combobox", { name: "Feature result type" }).click();
+      await page.getByRole("option", { name: "string (predefined values)", exact: true }).click();
+      await expect(page.locator("#feature-result-type")).toBeDisabled();
+      await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+      await page.getByLabel("Base value*").fill("latest base");
+      await page.getByLabel("Alternative value", { exact: true }).fill("latest alternative");
+      releaseContexts();
+      await expect(page.getByRole("textbox", { name: /^Allowed value \d+$/ })).toHaveCount(2);
+      await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue("latest base");
+      await expect(page.getByRole("textbox", { name: "Allowed value 2", exact: true })).toHaveValue("latest alternative");
+      expect(contextRequests).toBe(1);
+      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+      await clickAction(page, "Edit", "colour");
+      await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue("latest base");
+    } finally {
+      releaseContexts();
+    }
+  });
+
   test("should be creatable", async ({ page, tenantName }) => {
     const situation = await testBuilder()
       .withTenant(testTenant(tenantName).withProject(testProject("project")))
@@ -393,7 +695,7 @@ test.describe("Multi type features", () => {
     await page.getByLabel("Name*").fill("str feature");
     await page.getByLabel("Enabled").check();
     await page.getByRole("combobox", { name: "Feature result type" }).click();
-    await page.getByText("string", { exact: true }).click();
+    await page.getByRole("option", { name: "string (free text)", exact: true }).click();
     await page.getByLabel("Base value*").fill("foo");
     await page
       .getByRole("button", { name: "Test feature", exact: true })

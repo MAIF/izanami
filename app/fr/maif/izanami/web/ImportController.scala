@@ -304,7 +304,18 @@ class ImportController(
       );
       rowType <- parseExportedType(rowTypeStr).toRight(
         UnknownImportType(rowTypeStr)
-      )
+      );
+      _ <- if (rowType == FeatureType) {
+        (dbRow \ "allowed_values").validateOpt[Seq[StringAllowedValue]]
+          .flatMap {
+            case Some(values) => StringAllowedValue.validate(values)
+            case None => JsSuccess(())
+          }.asEither.left.map(errors =>
+            fr.maif.izanami.errors.GenericBadRequest(
+              errors.flatMap(_._2).map(_.message).mkString("; ")
+            )
+          )
+      } else Right(())
     ) yield (rowType, dbRow)
   }
 

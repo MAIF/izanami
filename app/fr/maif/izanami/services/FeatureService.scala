@@ -4,6 +4,7 @@ import fr.maif.izanami.errors.BadOPAReturnType
 import fr.maif.izanami.errors.FeatureContextDoesNotExist
 import fr.maif.izanami.errors.FeatureDoesNotExist
 import fr.maif.izanami.errors.FeatureNotFound
+import fr.maif.izanami.errors.GenericBadRequest
 import fr.maif.izanami.errors.IncorrectKey
 import fr.maif.izanami.errors.InternalServerError
 import fr.maif.izanami.errors.IzanamiError
@@ -26,6 +27,7 @@ import fr.maif.izanami.models.features.FeaturePatch
 import fr.maif.izanami.models.features.ProjectFeaturePatch
 import fr.maif.izanami.models.features.RemoveFeaturePatch
 import fr.maif.izanami.models.features.ResultType
+import fr.maif.izanami.models.features.StringResult
 import fr.maif.izanami.models.features.TagsFeaturePatch
 import fr.maif.izanami.models.features.ValuedResultDescriptor
 import fr.maif.izanami.requests.BaseFeatureUpdateRequest
@@ -134,11 +136,15 @@ class FeatureService(
   }
 
 
-  def lightWeightToCompleteFeature(tenant: String, f: LightWeightFeature): FutureEither[CompleteFeature] = {
+  def lightWeightToCompleteFeature(
+      tenant: String,
+      f: LightWeightFeature,
+      conn: Option[SqlConnection] = None
+  ): FutureEither[CompleteFeature] = {
     f match {
       case f: LightWeightWasmFeature => {
         datastore
-          .readWasmScript(tenant, f.wasmConfigName)
+          .readWasmScript(tenant, f.wasmConfigName, conn)
           .map(maybeWasm => maybeWasm.toRight(
                 InternalServerError(
                   s"Failed to find wasm script config ${f.wasmConfigName}"
@@ -553,19 +559,30 @@ class FeatureService(
   def upsertOverload(
       request: OverloadFeatureUpdateRequest
   ): FutureEither[Unit] = {
-    for (
-      oldFeature <- datastore
-        .findActivationStrategiesForFeatureByName(
-          tenant = request.tenant,
-          name = request.featureName,
-          project = request.project
-        )
-        .map(maybeFeature =>
-          maybeFeature.toRight(FeatureNotFound(request.featureName))
-        )
-        .toFEither;
-      res <- doUpdateFeature(request, oldFeature)
-    ) yield res
+    transactionProvider.executeInTransaction(conn => {
+      for (
+        id <- datastore
+          .findFeatureIds(
+            tenant = request.tenant,
+            featureNameAndProjects = Set((request.project, request.featureName)),
+            conn = Some(conn)
+          ).map(_.get((request.project, request.featureName))
+            .toRight(FeatureNotFound(request.featureName))).toFEither;
+        _ <- datastore.lockFeature(request.tenant, id, conn).mapToFEither;
+        oldFeature <- datastore
+          .findActivationStrategiesForFeatureByName(
+            tenant = request.tenant,
+            name = request.featureName,
+            project = request.project,
+            conn = Some(conn)
+          )
+          .map(maybeFeature =>
+            maybeFeature.toRight(FeatureNotFound(request.featureName))
+          )
+          .toFEither;
+        res <- doUpdateFeature(request, oldFeature, Some(conn))
+      ) yield res
+    })
 
   }
 
@@ -577,6 +594,7 @@ class FeatureService(
       conn,
       conn => {
         for (
+          _ <- datastore.lockFeature(request.tenant, request.id, conn).mapToFEither;
           _ <- tagDatastore
             .createTags(
               request.tags
@@ -589,7 +607,8 @@ class FeatureService(
           oldFeature <- datastore
             .findActivationStrategiesForFeature(
               tenant = request.tenant,
-              id = request.id
+              id = request.id,
+              conn = Some(conn)
             )
             .map(maybeFeature =>
               maybeFeature.toRight(FeatureNotFound(request.featureName))
@@ -639,13 +658,21 @@ class FeatureService(
   private def doUpdateFeature(
       request: FeatureUpdateRequest,
       oldFeature: FeatureWithOverloads,
-      maybeConn: Option[SqlConnection] = None
+      maybeConn: Option[SqlConnection]
   ): FutureEither[Unit] = {
 
     transactionProvider.executeInOptionalTransaction(
       maybeConn,
       conn => {
         for (
+          _ <- (request, oldFeature.baseFeature, request.strategy) match {
+            case (_: OverloadFeatureUpdateRequest, parent: Feature, _: CompleteWasmFeatureStrategy)
+                if parent.allowedValues.nonEmpty =>
+              FutureEither.failure(GenericBadRequest(
+                "WASM overloads are incompatible with the parent's allowedValues"
+              ))
+            case _ => FutureEither.success(())
+          };
           _ <- request.strategy match {
             case _: CompleteWasmFeatureStrategy if !wasmRelatedStuff.isWasmAllowed =>
               FutureEither.failure(WasmFeatureNotAllowed)
@@ -658,7 +685,8 @@ class FeatureService(
             .readProtectedContexts(
               request.tenant,
               request.project,
-              request.maybeContext
+              request.maybeContext,
+              conn = Some(conn)
             )
             .map(ctxs => ctxs.map(_.fullyQualifiedName))
             .mapToFEither;
@@ -684,13 +712,18 @@ class FeatureService(
           _ <- hasRightToUpdate(
             oldFeature = oldFeature,
             updateRequest = request,
-            impactedRootProtectedContexts = protectedContextToUpdate
+            impactedRootProtectedContexts = protectedContextToUpdate,
+            conn = Some(conn)
           );
           f <- if (
             request.preserveProtectedContexts && protectedContextToUpdate.nonEmpty
           ) {
             for (
-              oldStrategy <- lightWeightToCompleteFeature(request.tenant,oldFeature.strategyFor(request.maybeContext.getOrElse(FeatureContextPath())))
+              oldStrategy <- lightWeightToCompleteFeature(
+                request.tenant,
+                oldFeature.strategyFor(request.maybeContext.getOrElse(FeatureContextPath())),
+                conn = Some(conn)
+              )
                               .map(completeFeature =>
                                   completeFeature.toCompleteContextualStrategy
                 );
@@ -869,7 +902,8 @@ class FeatureService(
   private def hasRightToUpdate(
       oldFeature: FeatureWithOverloads,
       updateRequest: FeatureUpdateRequest,
-      impactedRootProtectedContexts: Set[FeatureContextPath]
+      impactedRootProtectedContexts: Set[FeatureContextPath],
+      conn: Option[SqlConnection]
   ): FutureEither[Unit] = {
     (
       updateRequest,
@@ -909,7 +943,7 @@ class FeatureService(
       }
       case (f: OverloadFeatureUpdateRequest, _, _) => {
         featureContextDatastore
-          .readContext(f.tenant, f.context)
+          .readContext(f.tenant, f.context, conn)
           .mapToFEither
           .flatMap {
             case None =>

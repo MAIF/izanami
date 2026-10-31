@@ -376,8 +376,14 @@ interface ClassicalFeatureBase<TypeName extends FeatureTypeName> {
 
 interface ClassicalBooleanFeature extends ClassicalFeatureBase<"boolean"> {}
 
+export interface StringAllowedValue {
+  value: string;
+  label?: string | null;
+}
+
 interface ClassicalStringFeature extends ClassicalFeatureBase<"string"> {
   value: string;
+  allowedValues?: StringAllowedValue[] | null;
   conditions: TValuedCondition<string>[];
 }
 

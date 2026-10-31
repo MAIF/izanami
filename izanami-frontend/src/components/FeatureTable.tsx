@@ -835,7 +835,20 @@ function OverloadDetails(props: {
             }}
             project={feature.project!}
             cancel={() => setCreating(false)}
-            defaultValue={feature as unknown as TContextOverload}
+            defaultValue={
+              feature.resultType === "string" && "allowedValues" in feature && feature.allowedValues
+                ? {
+                    name: feature.name,
+                    enabled: feature.enabled,
+                    id: feature.id ?? "",
+                    path: "",
+                    project: feature.project,
+                    resultType: "string",
+                    value: "",
+                    conditions: [],
+                  }
+                : feature as unknown as TContextOverload
+            }
             noName
             additionalFields={() => (
               <label className="mt-3">

@@ -1,6 +1,7 @@
 package fr.maif.izanami.api
 
 import fr.maif.izanami.api.BaseAPISpec.TestCondition
+import fr.maif.izanami.api.BaseAPISpec.TestApiKey
 import fr.maif.izanami.api.BaseAPISpec.TestDateTimePeriod
 import fr.maif.izanami.api.BaseAPISpec.TestDayPeriod
 import fr.maif.izanami.api.BaseAPISpec.TestFeature
@@ -8,6 +9,7 @@ import fr.maif.izanami.api.BaseAPISpec.TestFeatureContext
 import fr.maif.izanami.api.BaseAPISpec.TestFeaturePatch
 import fr.maif.izanami.api.BaseAPISpec.TestPersonnalAccessToken
 import fr.maif.izanami.api.BaseAPISpec.TestProject
+import fr.maif.izanami.api.BaseAPISpec.TestRights
 import fr.maif.izanami.api.BaseAPISpec.TestSituationBuilder
 import fr.maif.izanami.api.BaseAPISpec.TestTenant
 import fr.maif.izanami.api.BaseAPISpec.TestUser
@@ -29,11 +31,263 @@ import play.api.libs.json.JsTrue
 import play.api.libs.json.JsValue
 import play.api.libs.json.Json
 import play.api.test.Helpers.*
+import play.api.libs.ws.writeableOf_JsValue
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 
 class FeatureAPISpec extends BaseAPISpec {
+  "String allowed values" should {
+    "validate allowed String values on creation without changing free text" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .loggedInWithAdminRights()
+        .build()
+      val body = Json.obj(
+        "name" -> "colour", "enabled" -> true, "resultType" -> "string",
+        "value" -> "blue", "conditions" -> Json.arr()
+      )
+      val invalidLists = Seq(
+        Json.arr(), Json.arr("blue", "blue"), Json.arr("blue", ""),
+        Json.arr("blue", " \t"), Json.arr("blue", 1), JsString("blue"),
+        Json.arr(Json.obj("value" -> "blue"), Json.obj("value" -> "blue", "label" -> "Other")),
+        Json.arr(Json.obj("value" -> "")), Json.arr(Json.obj("value" -> " \t")),
+        Json.arr(Json.obj("label" -> "Missing value")), Json.arr(Json.obj("value" -> 1)),
+        Json.arr(Json.obj("value" -> "blue", "label" -> 1)),
+        Json.arr(Json.obj("value" -> "blue", "label" -> "Colour"), Json.obj("value" -> "green", "label" -> "Colour"))
+      )
+      invalidLists.foreach { choices =>
+        val response = await(BaseAPISpec.ws
+          .url(s"${BaseAPISpec.ADMIN_BASE_URL}/tenants/tenant/projects/project/features")
+          .withCookies(situation.cookies: _*)
+          .post(body ++ Json.obj("allowedValues" -> choices)))
+        response.status mustBe BAD_REQUEST
+      }
+      val invalidValues = Seq(
+        Json.obj("value" -> "typo"),
+        Json.obj("conditions" -> Json.arr(Json.obj("rule" -> Json.obj(), "value" -> "typo")))
+      )
+      invalidValues.foreach { invalid =>
+        val response = await(BaseAPISpec.ws
+          .url(s"${BaseAPISpec.ADMIN_BASE_URL}/tenants/tenant/projects/project/features")
+          .withCookies(situation.cookies: _*)
+          .post(body ++ Json.obj("allowedValues" -> Json.arr(Json.obj("value" -> "blue"))) ++ invalid))
+        response.status mustBe BAD_REQUEST
+      }
+      val choices = Json.arr(Json.obj("value" -> "blue", "label" -> "Blue colour"),
+        Json.obj("value" -> "Blue", "label" -> "blue colour"), Json.obj("value" -> " green ", "label" -> ""),
+        Json.obj("value" -> "first line\nsecond line", "label" -> "Blue colour "),
+        Json.obj("value" -> "unlabeled"), Json.obj("value" -> "blank label", "label" -> ""),
+        Json.obj("value" -> "whitespace label", "label" -> " \t"),
+        Json.obj("value" -> "another whitespace label", "label" -> " \t"))
+      val response = await(BaseAPISpec.ws
+        .url(s"${BaseAPISpec.ADMIN_BASE_URL}/tenants/tenant/projects/project/features")
+        .withCookies(situation.cookies: _*)
+        .post(body ++ Json.obj("allowedValues" -> choices)))
+      response.status mustBe CREATED
+      (response.json \ "allowedValues").as[JsArray] mustBe choices
+      val feature = (situation.fetchProject("tenant", "project").json.get \ "features" \ 0).as[JsObject]
+      (feature \ "allowedValues").as[JsArray] mustBe choices
+      situation.updateFeature("tenant", (feature \ "id").as[String],
+        feature ++ Json.obj("value" -> "green")).status mustBe BAD_REQUEST
+      situation.updateFeature("tenant", (feature \ "id").as[String],
+        feature ++ Json.obj("value" -> " green ")).status mustBe OK
+      situation.updateFeature("tenant", (feature \ "id").as[String],
+        feature ++ Json.obj("value" -> "first line\nsecond line")).status mustBe OK
+      val unlabeled = situation.updateFeature("tenant", (feature \ "id").as[String],
+        feature ++ Json.obj("allowedValues" -> Json.arr(Json.obj("value" -> "blue", "label" -> JsNull))))
+      unlabeled.status mustBe OK
+      (unlabeled.json.get \ "allowedValues").as[JsArray] mustBe Json.arr(Json.obj("value" -> "blue"))
+      situation.createFeature("free", "project", "tenant", resultType = "string", value = "").status mustBe CREATED
+    }
+
+    "replace allowed String values on PUT and clear omitted restrictions" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjects(TestProject("project").withFeatures(
+          TestFeature("colour", resultType = "string", value = "blue")
+        )))
+        .loggedInWithAdminRights().build()
+      val restricted = situation.updateFeatureByName("tenant", "project", "colour",
+        _ ++ Json.obj("allowedValues" -> Json.arr(Json.obj("value" -> "blue"), Json.obj("value" -> "green"))))
+      restricted.status mustBe OK
+      val body = restricted.json.get.as[JsObject]
+      val id = (body \ "id").as[String]
+      val duplicateLabels = situation.updateFeature("tenant", id, body ++ Json.obj("allowedValues" ->
+        Json.arr(Json.obj("value" -> "blue", "label" -> "Colour"), Json.obj("value" -> "green", "label" -> "Colour"))))
+      duplicateLabels.status mustBe BAD_REQUEST
+      duplicateLabels.text must include("Predefined value labels must be unique")
+      val complete = situation.updateFeature("tenant", id, body ++ Json.obj("description" -> "changed"))
+      complete.status mustBe OK
+      (complete.json.get \ "allowedValues").as[JsArray] mustBe (body \ "allowedValues").as[JsArray]
+      situation.patchFeatures("tenant", Seq(TestFeaturePatch(op = "replace", path = s"/$id/enabled", value = JsBoolean(false)))).status mustBe NO_CONTENT
+      ((situation.fetchProject("tenant", "project").json.get \ "features" \ 0) \ "allowedValues")
+        .as[JsArray] mustBe (body \ "allowedValues").as[JsArray]
+      val omitted = situation.updateFeature("tenant", id, (body - "allowedValues") ++ Json.obj("description" -> "changed"))
+      omitted.status mustBe OK
+      (omitted.json.get \ "allowedValues").toOption mustBe Some(JsNull)
+      situation.updateFeature("tenant", id, (body - "allowedValues") ++ Json.obj("value" -> "any text")).status mustBe OK
+      val free = situation.updateFeature("tenant", id, body ++ Json.obj("allowedValues" -> JsNull, "value" -> "any text"))
+      free.status mustBe OK
+      (free.json.get \ "allowedValues").toOption mustBe Some(JsNull)
+      (free.json.get \ "value").as[String] mustBe "any text"
+      situation.updateFeature("tenant", id, body ++ Json.obj("allowedValues" -> Json.arr(Json.obj("value" -> "green")))).status mustBe BAD_REQUEST
+    }
+
+    "share allowed String values with overloads and all conditional alternatives" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant")
+          .withApiKeys(TestApiKey("key", projects = Seq("project")))
+          .withProjects(TestProject("project").withFeatures(
+            TestFeature("colour", resultType = "string", value = "blue")
+          ).withContexts(TestFeatureContext("mobile", isProtected = true))))
+        .loggedInWithAdminRights().build()
+      val restricted = situation.updateFeatureByName("tenant", "project", "colour",
+        _ ++ Json.obj("allowedValues" -> Json.arr(Json.obj("value" -> "blue"),
+          Json.obj("value" -> "green", "label" -> "Green"), Json.obj("value" -> "red", "label" -> "Red"))))
+      restricted.status mustBe OK
+      val body = restricted.json.get.as[JsObject]
+      val id = (body \ "id").as[String]
+      val alternative = Json.obj("rule" -> Json.obj("users" -> Json.arr("alice")), "value" -> "green")
+      situation.updateFeature("tenant", id, body ++ Json.obj("conditions" -> Json.arr(alternative))).status mustBe OK
+      val invalidAlternative = situation.updateFeature("tenant", id, body ++ Json.obj(
+        "conditions" -> Json.arr(alternative ++ Json.obj("value" -> "greenn"))))
+      invalidAlternative.status mustBe BAD_REQUEST
+      invalidAlternative.text must include("parent.conditions[0].value")
+      situation.changeFeatureStrategyForContext("tenant", "project", "mobile", "colour",
+        enabled = true, resultType = "string", value = "red",
+        conditions = Set(TestCondition(rule = TestUserListRule(users = Set("alice")), value = "green"))).status mustBe NO_CONTENT
+      val invalidOverload = situation.changeFeatureStrategyForContext("tenant", "project", "mobile", "colour",
+        enabled = true, resultType = "string", value = "redd")
+      invalidOverload.status mustBe BAD_REQUEST
+      invalidOverload.text must include("overload mobile.value")
+      situation.changeFeatureStrategyForContext("tenant", "project", "mobile", "colour",
+        enabled = true, resultType = "string", value = "red",
+        conditions = Set(TestCondition(rule = TestUserListRule(users = Set("alice")), value = "typo"))).status mustBe BAD_REQUEST
+      val incompatible = situation.updateFeature("tenant", id, body ++ Json.obj("allowedValues" ->
+        Json.arr(Json.obj("value" -> "blue"), Json.obj("value" -> "green"))))
+      incompatible.status mustBe BAD_REQUEST
+      incompatible.text must include("overload mobile.value")
+      val reordered = situation.updateFeature("tenant", id, body ++ Json.obj("allowedValues" ->
+        Json.arr(Json.obj("value" -> "red", "label" -> "Renamed red"),
+          Json.obj("value" -> "green", "label" -> "Renamed green"), Json.obj("value" -> "blue"))))
+      reordered.status mustBe OK
+      (reordered.json.get \ "allowedValues" \ 0 \ "label").as[String] mustBe "Renamed red"
+      situation.updateFeature("tenant", id, body ++ Json.obj("value" -> "Red")).status mustBe BAD_REQUEST
+      (situation.checkFeature(id, "key").json.get \ "active").as[String] mustBe "blue"
+      (situation.checkFeature(id, "key", context = "mobile").json.get \ "active").as[String] mustBe "red"
+      (situation.checkFeature(id, "key", user = "alice", context = "mobile").json.get \ "active").as[String] mustBe "green"
+      situation.updateFeature("tenant", id, body ++ Json.obj("enabled" -> false)).status mustBe OK
+      (situation.checkFeature(id, "key").json.get \ "active").toOption mustBe Some(JsNull)
+    }
+
+    "reject WASM strategies while allowed String values are configured" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjects(TestProject("project")
+          .withFeatures(TestFeature("colour", resultType = "string", value = "blue"))
+          .withContextNames("mobile")))
+        .loggedInWithAdminRights().build()
+      val restricted = situation.updateFeatureByName("tenant", "project", "colour",
+        _ ++ Json.obj("allowedValues" -> Json.arr(Json.obj("value" -> "blue"))))
+      restricted.status mustBe OK
+      val wasm = TestWasmConfig("script", Json.obj("kind" -> "Base64", "path" -> enabledFeatureBase64))
+      situation.changeFeatureStrategyForContext("tenant", "project", "mobile", "colour",
+        enabled = true, resultType = "string", wasmConfig = wasm).status mustBe BAD_REQUEST
+      val body = restricted.json.get.as[JsObject]
+      val id = (body \ "id").as[String]
+      situation.updateFeature("tenant", id, body ++ Json.obj("wasmConfig" -> wasm.json)).status mustBe BAD_REQUEST
+      situation.updateFeature("tenant", id, (body - "allowedValues") ++ Json.obj("wasmConfig" -> wasm.json)).status mustBe OK
+    }
+
+    "allow shared allowed String values changes without bypassing protected overload rights" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjects(TestProject("project")
+          .withFeatures(TestFeature("colour", resultType = "string", value = "blue"))
+          .withContexts(TestFeatureContext("mobile", isProtected = true)
+            .withFeatureOverload(TestFeature("colour", resultType = "string", value = "green")))))
+        .withUsers(TestUser("editor", rights = TestRights()
+          .addTenantRight("tenant", "Read").addProjectRight("project", "tenant", "Update")))
+        .loggedInWithAdminRights().build()
+      val editor = situation.loggedAs("editor", "barbar123")
+      val restricted = editor.updateFeatureByName("tenant", "project", "colour",
+        _ ++ Json.obj("allowedValues" -> Json.arr(Json.obj("value" -> "blue"),
+          Json.obj("value" -> "green"), Json.obj("value" -> "red"))))
+      restricted.status mustBe OK
+      val body = restricted.json.get.as[JsObject]
+      val id = (body \ "id").as[String]
+      editor.updateFeature("tenant", id, body ++ Json.obj("allowedValues" ->
+        Json.arr(Json.obj("value" -> "green", "label" -> "Renamed"), Json.obj("value" -> "blue")))).status mustBe OK
+      editor.updateFeature("tenant", id, body ++ Json.obj("allowedValues" -> Json.arr(Json.obj("value" -> "blue")))).status mustBe BAD_REQUEST
+      editor.changeFeatureStrategyForContext("tenant", "project", "mobile", "colour",
+        enabled = true, resultType = "string", value = "blue").status mustBe FORBIDDEN
+      val free = editor.updateFeature("tenant", id, body ++ Json.obj("allowedValues" -> JsNull))
+      free.status mustBe OK
+      editor.updateFeature("tenant", id, body ++ Json.obj("allowedValues" -> Json.arr(Json.obj("value" -> "blue")))).status mustBe BAD_REQUEST
+    }
+
+    "complete concurrent parent and overload updates with a small connection pool" in {
+      val situation = TestSituationBuilder()
+        .withCustomConfiguration(Map("app.pg.pool-size" -> Int.box(3)))
+        .withTenants(TestTenant("tenant").withProjects(TestProject("project")
+          .withFeatures(TestFeature("colour", resultType = "string", value = "blue"))
+          .withContextNames("mobile")))
+        .withUsers(TestUser("editor", rights = TestRights()
+          .addTenantRight("tenant", "Read").addProjectRight("project", "tenant", "Write")))
+        .loggedInWithAdminRights().build()
+      val restricted = situation.updateFeatureByName("tenant", "project", "colour",
+        _ ++ Json.obj("allowedValues" -> Json.arr(Json.obj("value" -> "blue"), Json.obj("value" -> "green"))))
+      restricted.status mustBe OK
+      val body = restricted.json.get.as[JsObject]
+      val id = (body \ "id").as[String]
+      val editor = situation.loggedAs("editor", "barbar123")
+      val requests = (1 to 12).flatMap { _ =>
+        Seq(
+          BaseAPISpec.ws
+            .url(s"${BaseAPISpec.ADMIN_BASE_URL}/tenants/tenant/features/$id")
+            .withCookies(editor.cookies: _*)
+            .put(body),
+          BaseAPISpec.ws
+            .url(s"${BaseAPISpec.ADMIN_BASE_URL}/tenants/tenant/projects/project/contexts/mobile/features/colour")
+            .withCookies(editor.cookies: _*)
+            .put(Json.obj("enabled" -> true, "resultType" -> "string",
+              "value" -> "green", "conditions" -> Json.arr()))
+        )
+      }
+      val responses = await(Future.sequence(requests))
+      responses.grouped(2).foreach { pair =>
+        pair.map(_.status) mustBe Seq(OK, NO_CONTENT)
+      }
+    }
+
+    "keep allowed String values consistent during concurrent parent and overload updates" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjects(TestProject("project")
+          .withFeatures(TestFeature("colour", resultType = "string", value = "blue"))
+          .withContextNames("mobile")))
+        .loggedInWithAdminRights().build()
+      val restricted = situation.updateFeatureByName("tenant", "project", "colour",
+        _ ++ Json.obj("allowedValues" -> Json.arr(Json.obj("value" -> "blue"), Json.obj("value" -> "green"))))
+      restricted.status mustBe OK
+      val body = restricted.json.get.as[JsObject]
+      val id = (body \ "id").as[String]
+      val parentUpdate = BaseAPISpec.ws
+        .url(s"${BaseAPISpec.ADMIN_BASE_URL}/tenants/tenant/features/$id")
+        .withCookies(situation.cookies: _*)
+        .put(body ++ Json.obj("allowedValues" -> Json.arr(Json.obj("value" -> "blue"))))
+      val overloadUpdate = BaseAPISpec.ws
+        .url(s"${BaseAPISpec.ADMIN_BASE_URL}/tenants/tenant/projects/project/contexts/mobile/features/colour")
+        .withCookies(situation.cookies: _*)
+        .put(Json.obj("enabled" -> true, "resultType" -> "string", "value" -> "green", "conditions" -> Json.arr()))
+      val responses = await(Future.sequence(Seq(parentUpdate, overloadUpdate)))
+      responses.map(_.status) must (be(Seq(OK, BAD_REQUEST)) or be(Seq(BAD_REQUEST, NO_CONTENT)))
+      val current = (situation.fetchProject("tenant", "project").json.get \ "features" \ 0)
+      val choices = (current \ "allowedValues").as[Seq[JsObject]].map(choice => (choice \ "value").as[String])
+      if (responses(1).status == NO_CONTENT) choices must contain("green")
+      else choices mustBe Seq("blue")
+    }
+  }
+
   "Feature PATCH endpoint" should {
     "duplicate old strategy to protected context on multiple feature enable / disable if requested" in {
       val situation = TestSituationBuilder()

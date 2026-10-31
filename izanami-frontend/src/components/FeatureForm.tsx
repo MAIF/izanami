@@ -27,13 +27,15 @@ import Select from "react-select";
 import { ExistingScript, WasmInput } from "./WasmInput";
 import { JSX, useState } from "react";
 import { customStyles } from "../styles/reactSelect";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import {
   queryTags,
   tagsQueryKey,
   testFeature,
   toCompleteFeature,
+  projectContextKey,
+  queryContextsForProject,
 } from "../utils/queries";
 import CreatableSelect from "react-select/creatable";
 import { FEATURE_NAME_REGEXP, LEGACY_ID_REGEXP } from "../utils/patterns";
@@ -49,6 +51,8 @@ import CodeMirror from "@uiw/react-codemirror";
 import { Tooltip as LocalToolTip } from "./Tooltip";
 import { FeatureTestType } from "./ExistingFeatureTestForm";
 import { json } from "@codemirror/lang-json";
+import { StringValueInput } from "./StringValueInput";
+import { possiblePaths } from "../utils/contextUtils";
 
 export type LegacyFeature =
   | NoStrategyFeature
@@ -835,10 +839,19 @@ const resultTypeOptions = [
     label: (
       <div className="d-flex">
         <ResultTypeIcon resultType="string" fontWeight="bold" />
-        <span className="ps-1">string</span>
+        <span className="ps-1">string (free text)</span>
       </div>
     ),
     value: "string",
+  },
+  {
+    label: (
+      <div className="d-flex">
+        <ResultTypeIcon resultType="string" fontWeight="bold" />
+        <span className="ps-1">string (predefined values)</span>
+      </div>
+    ),
+    value: "restricted-string",
   },
   {
     label: (
@@ -890,6 +903,44 @@ export function V2FeatureForm(props: {
   }, [type]);
 
   const resultType = watch("resultType");
+  const allowedValues = watch("allowedValues");
+  const restricted = resultType === "string" && allowedValues != null;
+  const queryClient = useQueryClient();
+  const predefinedValuesMutation = useMutation({
+    mutationFn: async () => {
+      const values: string[] = [];
+      if (defaultValue?.id && defaultValue.project) {
+        const contexts = await queryClient.fetchQuery({
+          queryKey: [projectContextKey(tenant!, defaultValue.project)],
+          queryFn: () => queryContextsForProject(tenant!, defaultValue.project!),
+          staleTime: Infinity,
+        });
+        for (const { context } of possiblePaths(contexts)) {
+          for (const overload of context.overloads) {
+            if (overload.name === defaultValue.name &&
+                overload.resultType === "string" && "value" in overload) {
+              values.push(overload.value, ...overload.conditions.map((condition) => condition.value));
+            }
+          }
+        }
+      }
+      return values;
+    },
+    onSuccess: (overloadValues) => {
+      const feature = methods.getValues();
+      const values = feature.resultType === "string" && "value" in feature
+        ? [feature.value, ...feature.conditions.map((condition) => condition.value), ...overloadValues]
+        : overloadValues;
+      const allowedValues = [...new Set(values.filter((value) => value.trim().length > 0))];
+      setValue("resultType", "string");
+      setValue("allowedValues", (allowedValues.length ? allowedValues : [""]).map((value) => ({ value })));
+      if (type !== "Classic") {
+        setType("Classic");
+        methods.unregister("wasmConfig");
+        setValue("conditions", []);
+      }
+    },
+  });
 
   if (tagQuery.isError) {
     return <div>Error while fetching tags</div>;
@@ -1102,7 +1153,7 @@ export function V2FeatureForm(props: {
             )}
             {additionalFields && additionalFields()}
             <div className="row">
-              <label className="mt-3 col-6">
+              <label className="mt-3 col-6" htmlFor="feature-result-type">
                 Feature result type
                 <Tooltip id="modern-result-type">
                   Result type is result that will be returned by feature
@@ -1115,21 +1166,61 @@ export function V2FeatureForm(props: {
                   control={control}
                   render={({ field: { onChange, value } }) => (
                     <Select
-                      value={resultTypeOptions.find((o) => value === o.value)}
+                      inputId="feature-result-type"
+                      aria-label="Feature result type"
+                      isLoading={predefinedValuesMutation.isPending}
+                      isDisabled={predefinedValuesMutation.isPending}
+                      value={resultTypeOptions.find((o) =>
+                        o.value === (restricted ? "restricted-string" : value))}
                       onChange={(selected) => {
-                        onChange(selected?.value);
+                        if (!selected) return;
+                        const usePredefinedValues = selected.value === "restricted-string";
+                        if (usePredefinedValues && !restricted) {
+                          predefinedValuesMutation.mutate();
+                          return;
+                        }
+                        predefinedValuesMutation.reset();
+                        onChange(usePredefinedValues ? "string" : selected.value);
+                        setValue("allowedValues", usePredefinedValues ? allowedValues ?? [{ value: "" }] : null);
                       }}
                       options={resultTypeOptions}
                       styles={customStyles}
                     />
                   )}
                 />
+                {predefinedValuesMutation.isError && (
+                  <p className="error-message" role="alert">
+                    Failed to load existing values. Select predefined values again to retry.
+                  </p>
+                )}
               </label>
               {resultType !== "boolean" && type === "Classic" && (
-                <label className="mt-3  col-6">
+                <label className="mt-3  col-6" htmlFor={resultType === "string" ? "feature-base-value" : undefined}>
                   Base value*
+                  {restricted && (
+                    <Tooltip id="feature-base-value-number" ariaLabel="About value numbers">
+                      Labels and numbers identify values in the predefined list and are not part of the returned value.
+                    </Tooltip>
+                  )}
                   {resultType === "string" ? (
-                    <textarea className="form-control" {...register("value")} />
+                    <Controller
+                      name="value"
+                      defaultValue=""
+                      control={control}
+                      rules={{ validate: (value) => !restricted ||
+                        allowedValues?.some((choice) => choice.value === String(value)) || "Choose an allowed value" }}
+                      render={({ field }) => (
+                        <StringValueInput
+                          inputId="feature-base-value"
+                          ariaLabel="Base value*"
+                          value={field.value === undefined ? undefined : String(field.value)}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          allowedValues={restricted ? allowedValues : null}
+                          multiline
+                        />
+                      )}
+                    />
                   ) : (
                     <input
                       type="number"
@@ -1153,6 +1244,64 @@ export function V2FeatureForm(props: {
                 </label>
               )}
             </div>
+            {restricted && type === "Classic" && (
+              <Controller
+                name="allowedValues"
+                control={control}
+                rules={{ validate: (values) => {
+                  if (values == null) return true;
+                  if (values.length === 0 || values.some((choice) => choice.value.trim().length === 0) ||
+                    new Set(values.map((choice) => choice.value)).size !== values.length) {
+                    return "Provide at least one distinct, non-blank allowed value";
+                  }
+                  const labels = values.map((choice) => choice.label)
+                    .filter((label): label is string => !!label?.trim());
+                  return new Set(labels).size === labels.length || "Predefined value labels must be unique";
+                } }}
+                render={({ field, fieldState }) => (
+                  <fieldset className="mt-3">
+                    <legend className="fs-6">
+                      Predefined String values
+                      <Tooltip id="string-allowed-values" ariaLabel="About predefined String values">
+                        This list is shared with every overload.
+                        <br />
+                        Both base values and values returned under specific conditions
+                        must be chosen from this list, on the feature and its overloads.
+                      </Tooltip>
+                    </legend>
+                    {(field.value ?? []).map((choice, index, choices) => (
+                      <div className="d-flex align-items-start gap-2 mt-2" key={index}>
+                        <div className="flex-grow-1">
+                          <input
+                            aria-label={`Allowed value ${index + 1} label`}
+                            placeholder="Label (optional)"
+                            className="form-control mb-2"
+                            value={choice.label ?? ""}
+                            onBlur={field.onBlur}
+                            onChange={(event) => field.onChange(choices.map((value, i) =>
+                              i === index ? { ...value, label: event.target.value } : value))}
+                          />
+                          <textarea
+                            aria-label={`Allowed value ${index + 1}`}
+                            className="form-control"
+                            value={choice.value}
+                            onBlur={field.onBlur}
+                            onChange={(event) => field.onChange(choices.map((value, i) =>
+                              i === index ? { ...value, value: event.target.value } : value))}
+                          />
+                        </div>
+                        <button type="button" className="btn btn-danger"
+                          aria-label={`Remove allowed value ${index + 1}`}
+                          onClick={() => field.onChange(choices.filter((_, i) => i !== index))}>Remove</button>
+                      </div>
+                    ))}
+                    <button type="button" className="btn btn-secondary mt-2"
+                      onClick={() => field.onChange([...(field.value ?? []), { value: "" }])}>Add allowed value</button>
+                    <ErrorDisplay error={fieldState.error} />
+                  </fieldset>
+                )}
+              />
+            )}
             <div className="row">
               <label className="mt-3 col-6">
                 Description
@@ -1208,10 +1357,10 @@ export function V2FeatureForm(props: {
                 )}
               </Tooltip>
               <Select
-                isDisabled={!wasmEnabled}
+                isDisabled={!wasmEnabled || restricted}
                 styles={customStyles}
                 options={
-                  wasmEnabled
+                  wasmEnabled && !restricted
                     ? [
                         { label: "Classic", value: "Classic" },
                         { label: "New WASM script", value: "New WASM script" },
@@ -1241,7 +1390,7 @@ export function V2FeatureForm(props: {
                 }}
               />
             </label>
-            {type === "Classic" && <ConditionsInput folded={!!defaultValue} />}
+            {type === "Classic" && <ConditionsInput folded={!!defaultValue} allowedValues={restricted ? allowedValues : null} />}
             {type === "Existing WASM script" && <ExistingScript />}
             {type === "New WASM script" && <WasmInput />}
             <div
@@ -1263,7 +1412,7 @@ export function V2FeatureForm(props: {
               >
                 Cancel
               </button>
-              <button className="btn btn-primary m-2">Save</button>
+              <button className="btn btn-primary m-2" disabled={predefinedValuesMutation.isPending}>Save</button>
             </div>
           </form>
           <div className="col-4">

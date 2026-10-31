@@ -176,7 +176,8 @@ sealed trait CompleteFeature extends AbstractFeature {
             tags,
             metadata,
             description,
-            resultDescriptor
+            resultDescriptor,
+            _
           ) =>
         ClassicalFeatureStrategy(
           enabled = enabled,
@@ -417,6 +418,22 @@ case class SingleConditionFeature(
     copy(tags = this.tags.concat(tags))
 }
 
+case class StringAllowedValue(value: String, label: Option[String] = None)
+
+object StringAllowedValue {
+  implicit val format: OFormat[StringAllowedValue] = Json.format[StringAllowedValue]
+
+  def validate(values: Seq[StringAllowedValue]): JsResult[Unit] = {
+    if (values.isEmpty || values.exists(_.value.isBlank) || values.map(_.value).distinct.size != values.size) {
+      JsError("allowedValues must contain objects with distinct, non-blank string values and optional string labels")
+    } else {
+      val labels = values.flatMap(_.label).filterNot(_.isBlank)
+      if (labels.distinct.size != labels.size) JsError("Predefined value labels must be unique")
+      else JsSuccess(())
+    }
+  }
+}
+
 case class Feature(
     override val id: String,
     override val name: String,
@@ -425,7 +442,8 @@ case class Feature(
     override val tags: Set[String] = Set(),
     override val metadata: JsObject = JsObject.empty,
     override val description: String,
-    resultDescriptor: ResultDescriptor
+    resultDescriptor: ResultDescriptor,
+    allowedValues: Option[Seq[StringAllowedValue]] = None
 ) extends LightWeightFeature
     with CompleteFeature {
   override def withEnabled(enabled: Boolean): Feature = copy(enabled = enabled)
@@ -818,7 +836,7 @@ object Feature {
                     JsObject
                   ] - "tags" - "name" - "description" - "id" - "project"
               case f => Feature.featureWrite.writes(f).as[JsObject]
-            }) - "metadata" - "tags" - "name" - "description" - "id" - "project"
+            }) - "metadata" - "tags" - "name" - "description" - "id" - "project" - "allowedValues"
           )
         }
       })
@@ -918,7 +936,8 @@ object Feature {
           tags,
           metadata,
           description,
-          resultDescriptor
+          resultDescriptor,
+          allowedValues
         ) => {
       val base = Json.obj(
         "name" -> name,
@@ -933,9 +952,12 @@ object Feature {
           ResultType.resultTypeWrites
         )
       )
+      val configuredBase = if (resultDescriptor.resultType == StringResult) {
+        base ++ Json.obj("allowedValues" -> allowedValues)
+      } else base
       resultDescriptor match {
-        case v: ValuedResultDescriptor => base + ("value" -> v.jsonValue)
-        case BooleanResultDescriptor(conditions) => base
+        case v: ValuedResultDescriptor => configuredBase + ("value" -> v.jsonValue)
+        case BooleanResultDescriptor(conditions) => configuredBase
       }
     }
     case LightWeightWasmFeature(
@@ -1015,6 +1037,22 @@ object Feature {
       json: JsValue,
       project: String = null
   ): JsResult[AbstractFeature] = {
+    val allowedValues = (if ((json \ "allowedValues").toOption.isDefined)
+      json \ "allowedValues" else json \ "allowed_values").validateOpt[Seq[StringAllowedValue]]
+    allowedValues match {
+      case error: JsError => return error
+      case JsSuccess(Some(values), _) =>
+        StringAllowedValue.validate(values) match {
+          case error: JsError => return error
+          case _ =>
+        }
+        val resultType = (json \ "resultType").asOpt[String]
+          .orElse((json \ "result_type").asOpt[String])
+        if (resultType != Some("string") || (json \ "wasmConfig").asOpt[JsValue].exists(_ != JsNull)) {
+          return JsError("allowedValues is only supported on classical String features")
+        }
+      case _ =>
+    }
     val metadata =
       json.select("metadata").asOpt[JsObject].getOrElse(JsObject.empty)
     val id = json.select("id").asOpt[String].orNull
@@ -1141,7 +1179,8 @@ object Feature {
                           metadata = metadata,
                           project = jsonProject,
                           description = description,
-                          resultDescriptor = rd
+                          resultDescriptor = rd,
+                          allowedValues = allowedValues.get
                         )
                       )
                     )

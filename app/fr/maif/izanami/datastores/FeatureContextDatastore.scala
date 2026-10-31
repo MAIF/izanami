@@ -36,7 +36,8 @@ class FeatureContextDatastore(postgresql: =>Postgresql, extensionSchema: String,
   def readProtectedContexts(
       tenant: String,
       project: String,
-      parent: Option[FeatureContextPath] = None
+      parent: Option[FeatureContextPath] = None,
+      conn: Option[SqlConnection] = None
   ): Future[Seq[Context]] = {
     require(Tenant.isTenantValid(tenant))
     postgresql.queryAll(
@@ -51,13 +52,15 @@ class FeatureContextDatastore(postgresql: =>Postgresql, extensionSchema: String,
             s"""AND "${extensionSchema}".text2ltree($$2) OPERATOR("${extensionSchema}".@>) ctx_path"""
           )}
          |""".stripMargin,
-      params = parent.fold(List(project))(p => List(project, p.toDBPath))
+      params = parent.fold(List(project))(p => List(project, p.toDBPath)),
+      conn = conn
     ) { r => r.optContext }
   }
 
   def readContext(
       tenant: String,
-      path: FeatureContextPath
+      path: FeatureContextPath,
+      conn: Option[SqlConnection] = None
   ): Future[Option[Context]] = {
     require(Tenant.isTenantValid(tenant))
     postgresql.queryOne(
@@ -66,7 +69,8 @@ class FeatureContextDatastore(postgresql: =>Postgresql, extensionSchema: String,
          |FROM "${tenant}".new_contexts
          |WHERE "${extensionSchema}".ltree_eq(ctx_path, "${extensionSchema}".text2ltree($$1))
          |""".stripMargin,
-      List(path.toDBPath)
+      List(path.toDBPath),
+      conn = conn
     ) { r => r.optContext }
   }
 
@@ -448,7 +452,7 @@ class FeatureContextDatastore(postgresql: =>Postgresql, extensionSchema: String,
   ): Future[Either[IzanamiError, Unit]] = {
     Tenant.isTenantValid(tenant)
     featureDatastore
-      .findActivationStrategiesForFeatureByName(tenant, feature, project)
+      .findActivationStrategiesForFeatureByName(tenant, feature, project, conn)
       .map(o => o.toRight(FeatureDoesNotExist(feature)))
       .flatMap {
         case Left(value)       => Left(value).future
@@ -510,6 +514,8 @@ class FeatureContextDatastore(postgresql: =>Postgresql, extensionSchema: String,
                       conn = Some(conn)
                     ) { _ => Right(oldFeature.id) }
                     .recover {
+                      case f: PgException if f.getConstraint == "features_allowed_values_uses" =>
+                        Left(fr.maif.izanami.errors.PostgresErrorMapper.postgresErrorToIzanamiError(f))
                       case f: PgException
                           if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
                         Left(TenantDoesNotExists(tenant))
@@ -560,6 +566,9 @@ class FeatureContextDatastore(postgresql: =>Postgresql, extensionSchema: String,
                           ),
                           conn = Some(conn)
                         ) { _ => Right(id) }
+                        .recover { case error: PgException if error.getConstraint == "features_allowed_values_uses" =>
+                          Left(fr.maif.izanami.errors.PostgresErrorMapper.postgresErrorToIzanamiError(error))
+                        }
                     }
                   }
                 }

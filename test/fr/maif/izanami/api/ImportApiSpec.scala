@@ -30,6 +30,8 @@ import org.apache.pekko.http.scaladsl.model.sse.ServerSentEvent
 import fr.maif.izanami.api.BaseAPISpec.TestApiKey
 import scala.concurrent.duration.SECONDS
 import play.api.libs.json.JsValue
+import play.api.libs.ws.writeableOf_JsValue
+import play.api.libs.ws.DefaultBodyReadables.readableAsString
 
 class ImportApiSpec extends BaseAPISpec {
 
@@ -68,6 +70,110 @@ class ImportApiSpec extends BaseAPISpec {
   }
 
   "V2 feature import" should {
+    "round trip allowed String values and clear omitted restrictions on overwrite imports" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjectNames("project"))
+        .loggedInWithAdminRights().build()
+      val row = Json.obj(
+        "id" -> "colour", "name" -> "colour", "enabled" -> true, "project" -> "project",
+        "result_type" -> "string", "value" -> "blue", "conditions" -> Json.arr(),
+        "metadata" -> Json.obj(), "description" -> "", "allowed_values" ->
+          Json.arr(Json.obj("value" -> "blue", "label" -> "Blue"), Json.obj("value" -> "green"))
+      )
+      situation.importV2("tenant", data = Seq(Json.stringify(Json.obj("_type" -> "feature", "row" -> row)))).status mustBe OK
+      val stored = (situation.fetchProject("tenant", "project").json.get \ "features" \ 0).as[JsObject]
+      (stored \ "allowedValues").as[JsArray] mustBe (row \ "allowed_values").as[JsArray]
+      Seq(
+        Json.arr(),
+        Json.obj("value" -> "blue"),
+        Json.arr(Json.obj("value" -> "blue"), Json.obj("label" -> "Missing value")),
+        Json.arr(Json.obj("value" -> "blue"), Json.obj("value" -> "")),
+        Json.arr(Json.obj("value" -> "blue"), Json.obj("value" -> " \t")),
+        Json.arr(Json.obj("value" -> "blue"), Json.obj("value" -> 1)),
+        Json.arr(Json.obj("value" -> "blue"), Json.obj("value" -> Json.arr("green"))),
+        Json.arr(Json.obj("value" -> "blue"), Json.arr(Json.obj("value" -> "green"))),
+        Json.arr(Json.obj("value" -> "blue"), Json.obj("value" -> "green", "label" -> Json.arr("Green"))),
+        Json.arr(Json.obj("value" -> "blue", "label" -> 1)),
+        Json.arr(Json.obj("value" -> "blue", "label" -> "First"), Json.obj("value" -> "blue", "label" -> "Second")),
+        Json.arr(Json.obj("value" -> "blue", "label" -> "Same"), Json.obj("value" -> "green", "label" -> "Same"))
+      ).foreach { invalid =>
+        val response = situation.importV2("tenant", conflictStrategy = "overwrite",
+          data = Seq(Json.stringify(Json.obj("_type" -> "feature",
+            "row" -> (row ++ Json.obj("allowed_values" -> invalid))))))
+        withClue(s"allowed_values=$invalid: ${response.text}") {
+          response.status mustBe BAD_REQUEST
+        }
+      }
+      val duplicateLabels = row ++ Json.obj("allowed_values" ->
+        Json.arr(Json.obj("value" -> "blue", "label" -> "Same"), Json.obj("value" -> "green", "label" -> "Same")))
+      situation.importV2("tenant", conflictStrategy = "overwrite", featureConditions = Some("skip"),
+        data = Seq(Json.stringify(Json.obj("_type" -> "feature", "row" -> duplicateLabels)))).status mustBe BAD_REQUEST
+      val exported = play.api.test.Helpers.await(BaseAPISpec.ws
+        .url(s"${BaseAPISpec.ADMIN_BASE_URL}/tenants/tenant/_export")
+        .withCookies(situation.cookies: _*)
+        .post(Json.obj("allProjects" -> true, "allKeys" -> false, "allWebhooks" -> false,
+          "keys" -> Json.arr(), "webhooks" -> Json.arr(), "userRights" -> false)))
+      exported.status mustBe OK
+      val exportedRows = exported.body[String].linesIterator.map(Json.parse).toSeq
+      val exportedFeature = exportedRows.find(json => (json \ "_type").as[String] == "feature").get
+      (exportedFeature \ "row" \ "allowed_values").as[JsArray] mustBe (row \ "allowed_values").as[JsArray]
+      situation.importV2("tenant", conflictStrategy = "overwrite",
+        data = Seq(Json.stringify(exportedFeature))).status mustBe OK
+      val legacy = row - "allowed_values"
+      situation.importV2("tenant", conflictStrategy = "overwrite", featureConditions = Some("skip"),
+        data = Seq(Json.stringify(Json.obj("_type" -> "feature", "row" -> legacy)))).status mustBe OK
+      ((situation.fetchProject("tenant", "project").json.get \ "features" \ 0) \ "allowedValues")
+        .as[JsArray] mustBe (row \ "allowed_values").as[JsArray]
+      situation.importV2("tenant", conflictStrategy = "fail",
+        data = Seq(Json.stringify(Json.obj("_type" -> "feature", "row" -> legacy)))).status mustBe BAD_REQUEST
+      situation.importV2("tenant", conflictStrategy = "overwrite",
+        data = Seq(Json.stringify(Json.obj("_type" -> "feature", "row" -> legacy)))).status mustBe OK
+      ((situation.fetchProject("tenant", "project").json.get \ "features" \ 0) \ "allowedValues")
+        .toOption mustBe Some(play.api.libs.json.JsNull)
+      situation.importV2("tenant", conflictStrategy = "overwrite",
+        data = Seq(Json.stringify(Json.obj("_type" -> "feature", "row" ->
+          (legacy ++ Json.obj("value" -> "free text")))))).status mustBe OK
+      situation.importV2("tenant", conflictStrategy = "overwrite",
+        data = Seq(Json.stringify(Json.obj("_type" -> "feature", "row" ->
+          (legacy ++ Json.obj("allowed_values" -> play.api.libs.json.JsNull, "value" -> "free")))))).status mustBe OK
+      ((situation.fetchProject("tenant", "project").json.get \ "features" \ 0) \ "allowedValues")
+        .toOption mustBe Some(play.api.libs.json.JsNull)
+    }
+
+    "validate final allowed String values across imported and existing overloads atomically" in {
+      val situation = TestSituationBuilder()
+        .withTenants(TestTenant("tenant").withProjects(TestProject("project").withContextNames("mobile")))
+        .loggedInWithAdminRights().build()
+      val row = Json.obj(
+        "id" -> "colour", "name" -> "colour", "enabled" -> true, "project" -> "project",
+        "result_type" -> "string", "value" -> "blue", "conditions" -> Json.arr(),
+        "metadata" -> Json.obj(), "description" -> "", "allowed_values" ->
+          Json.arr(Json.obj("value" -> "blue", "label" -> "Blue"), Json.obj("value" -> "green", "label" -> "Green"))
+      )
+      val overload = Json.obj("project" -> "project", "feature" -> "colour", "context" -> "mobile",
+        "enabled" -> true, "result_type" -> "string", "value" -> "green", "conditions" -> Json.arr())
+      val data = Seq(Json.stringify(Json.obj("_type" -> "feature", "row" -> row)),
+        Json.stringify(Json.obj("_type" -> "overload", "row" -> overload)))
+      situation.importV2("tenant", data = data).status mustBe OK
+      val narrowed = row ++ Json.obj("allowed_values" -> Json.arr(Json.obj("value" -> "blue")))
+      val invalid = Seq(Json.stringify(Json.obj("_type" -> "feature", "row" -> narrowed)))
+      situation.importV2("tenant", conflictStrategy = "overwrite", data = invalid).status mustBe BAD_REQUEST
+      ((situation.fetchProject("tenant", "project").json.get \ "features" \ 0) \ "allowedValues")
+        .as[JsArray] mustBe (row \ "allowed_values").as[JsArray]
+      val corrected = invalid :+ Json.stringify(Json.obj("_type" -> "overload",
+        "row" -> (overload ++ Json.obj("value" -> "blue"))))
+      situation.importV2("tenant", conflictStrategy = "overwrite", data = corrected).status mustBe OK
+      ((situation.fetchProject("tenant", "project").json.get \ "features" \ 0) \ "allowedValues")
+        .as[JsArray] mustBe Json.arr(Json.obj("value" -> "blue"))
+      val invalidOverload = Json.stringify(Json.obj("_type" -> "overload",
+        "row" -> (overload ++ Json.obj("value" -> "typo"))))
+      situation.importV2("tenant", conflictStrategy = "overwrite", data = Seq(invalidOverload)).status mustBe BAD_REQUEST
+      situation.importV2("tenant", conflictStrategy = "overwrite", featureConditions = Some("skip"),
+        data = data).status mustBe OK
+      ((situation.fetchProject("tenant", "project").json.get \ "features" \ 0) \ "allowedValues")
+        .as[JsArray] mustBe Json.arr(Json.obj("value" -> "blue"))
+    }
+
     "fail if row with the same id already exist (fail strategy)" in {
       val situation = TestSituationBuilder()
         .withTenants(TestTenant("testtenant").withApiKeys(TestApiKey(
