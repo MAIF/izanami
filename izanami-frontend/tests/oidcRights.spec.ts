@@ -258,12 +258,12 @@ test.describe("Max rights should", () => {
 
     await page.goto("/tenants/foo2/settings");
     await page.getByRole("button", { name: "actions" }).click();
-    await page.getByRole("link", { name: "Edit" }).click();
+    await page.getByRole("link", { name: "Edit", exact: true }).click();
     await expect(page.getByLabel("Provisional rights")).toBeVisible();
 
     await page.goto("/users");
     await page.getByRole("button", { name: "actions" }).click();
-    await page.getByRole("link", { name: "Edit" }).click();
+    await page.getByRole("link", { name: "Edit", exact: true }).click();
     await expect(page.getByLabel("Provisional rights")).toBeVisible();
   });
 });

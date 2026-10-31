@@ -318,7 +318,7 @@ test.describe("Global settings page should", () => {
       .getByRole("row", { name: "select Sam Tailor Sam Tailor" })
       .getByLabel("actions")
       .click();
-    await page.getByRole("link", { name: "Edit" }).click();
+    await page.getByRole("link", { name: "Edit", exact: true }).click();
 
     await page
       .getByRole("combobox", { name: "Default project right" })
@@ -380,7 +380,7 @@ test.describe("Global settings page should", () => {
     await page.goto("/tenants/secret/settings");
 
     await page.getByRole("button", { name: "actions" }).click();
-    await page.getByRole("link", { name: "Edit" }).click();
+    await page.getByRole("link", { name: "Edit", exact: true }).click();
     await page.getByRole("combobox", { name: "Default project right" }).click();
     await page.getByRole("option", { name: "Admin" }).click();
     await page.getByRole("button", { name: "Update rights" }).click();
@@ -400,7 +400,7 @@ test.describe("Global settings page should", () => {
       "http://localhost:3000/tenants/secret/projects/secretproject/settings",
     );
     await page.getByRole("button", { name: "actions" }).click();
-    await page.getByRole("link", { name: "Edit" }).click();
+    await page.getByRole("link", { name: "Edit", exact: true }).click();
     await page
       .getByRole("cell", { name: "Right level" })
       .getByRole("combobox")
