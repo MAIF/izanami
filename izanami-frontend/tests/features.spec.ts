@@ -395,8 +395,18 @@ test.describe("Multi type features", () => {
     await page.getByLabel("Name*").fill("colour");
     await page.getByLabel("Enabled").check();
     await page.getByRole("combobox", { name: "Feature result type" }).click();
-    await page.getByRole("option", { name: "string", exact: true }).click();
-    await page.getByLabel("Restrict to predefined values").check();
+    await page.getByRole("option", { name: "string (free text)", exact: true }).click();
+    await page.getByRole("combobox", { name: "Feature type" }).click();
+    await page.getByRole("option", { name: "New WASM script", exact: true }).click();
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByRole("option", { name: "string (predefined values)", exact: true }).click();
+    await expect(page.getByText("Classic", { exact: true })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Feature type" })).toHaveCount(0);
+    await expect(page.getByLabel("Restrict to predefined values")).toHaveCount(0);
+    await expect(page.getByText("Shared with every overload and alternative value.", { exact: true })).toHaveCount(0);
+    await page.getByLabel("About predefined String values").hover();
+    await expect(page.getByRole("tooltip")).toContainText("This list is shared with every overload.");
+    await expect(page.getByRole("tooltip")).toContainText("values returned under specific conditions");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Provide at least one distinct, non-blank allowed value")).toBeVisible();
     await page.getByRole("textbox", { name: "Allowed value 1", exact: true }).fill("blue");
@@ -423,6 +433,7 @@ test.describe("Multi type features", () => {
     await page.getByRole("button", { name: "Create new overload", exact: true }).click();
     await page.getByRole("combobox", { name: "Context" }).click();
     await page.getByRole("option", { name: "mobile", exact: true }).click();
+    await expect(page.getByText("string (predefined values)", { exact: true })).toBeVisible();
     await expect(page.getByText("Choose a value", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Restrict to predefined values")).toHaveCount(0);
     await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -453,7 +464,7 @@ test.describe("Multi type features", () => {
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
 
     await clickAction(page, "Duplicate", "colour");
-    await expect(page.getByLabel("Restrict to predefined values")).toBeChecked();
+    await expect(page.locator('label[for="feature-result-type"]').getByText("string (predefined values)", { exact: true })).toBeVisible();
     await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue("green");
     await expect(page.getByRole("textbox", { name: "Allowed value 2", exact: true })).toHaveValue("blue");
     await page.getByLabel("Name*").fill("palette");
@@ -461,13 +472,57 @@ test.describe("Multi type features", () => {
     await expect(page.getByRole("rowheader", { name: "palette", exact: true })).toBeVisible();
     await clickAction(page, "Edit", "colour");
     await expect(page.locator('label[for="feature-base-value"]').getByText("blue", { exact: true })).toBeVisible();
-    await page.getByLabel("Restrict to predefined values").uncheck();
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByRole("option", { name: "string (free text)", exact: true }).click();
+    await expect(page.getByLabel("Base value*")).toHaveValue("blue");
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveCount(0);
     await page.getByLabel("Base value*").fill("free text");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("rowheader", { name: "colour 1 Overload", exact: true })).toBeVisible();
     await clickAction(page, "Edit", "colour");
-    await expect(page.getByLabel("Restrict to predefined values")).not.toBeChecked();
+    await expect(page.locator('label[for="feature-result-type"]').getByText("string (free text)", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Base value*")).toHaveValue("free text");
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.getByRole("rowheader", { name: "colour 1 Overload", exact: true })
+      .getByRole("button", { name: "1 Overload", exact: true }).click();
+    await page.getByRole("row")
+      .filter({ has: page.getByRole("link", { name: /^\/?mobile$/ }) })
+      .getByRole("button", { name: "actions" }).click();
+    await page.getByRole("link", { name: "Edit", exact: true }).click();
+    await page.getByLabel("Base value*").fill("overload base");
+    await page.getByRole("button", { name: /^Alternative value green/ }).click();
+    await page.getByLabel("Alternative value", { exact: true }).fill(" overload alternative ");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+    await page.reload();
+    await clickAction(page, "Edit", "colour");
+    await page.getByLabel("Base value*").fill("draft text");
+    let contextRequests = 0;
+    page.on("request", (request) => {
+      if (request.url().endsWith(`/projects/project/contexts`) && request.method() === "GET") {
+        contextRequests++;
+      }
+    });
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByRole("option", { name: "string (predefined values)", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: /^Allowed value \d+$/ }))
+      .toHaveCount(4);
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue("draft text");
+    await expect(page.getByRole("textbox", { name: "Allowed value 2", exact: true })).toHaveValue("green");
+    await expect(page.getByRole("textbox", { name: "Allowed value 3", exact: true })).toHaveValue("overload base");
+    await expect(page.getByRole("textbox", { name: "Allowed value 4", exact: true })).toHaveValue(" overload alternative ");
+    expect(contextRequests).toBe(0);
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByRole("option", { name: "string (free text)", exact: true }).click();
+    await page.getByLabel("Base value*").fill("green");
+    await page.getByRole("combobox", { name: "Feature result type" }).click();
+    await page.getByRole("option", { name: "string (predefined values)", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: /^Allowed value \d+$/ })).toHaveCount(3);
+    expect(contextRequests).toBe(0);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
+    await clickAction(page, "Edit", "colour");
+    await expect(page.getByRole("textbox", { name: "Allowed value 3", exact: true })).toHaveValue(" overload alternative ");
   });
 
   test("should be creatable", async ({ page, tenantName }) => {
@@ -480,7 +535,7 @@ test.describe("Multi type features", () => {
     await page.getByLabel("Name*").fill("str feature");
     await page.getByLabel("Enabled").check();
     await page.getByRole("combobox", { name: "Feature result type" }).click();
-    await page.getByText("string", { exact: true }).click();
+    await page.getByRole("option", { name: "string (free text)", exact: true }).click();
     await page.getByLabel("Base value*").fill("foo");
     await page
       .getByRole("button", { name: "Test feature", exact: true })

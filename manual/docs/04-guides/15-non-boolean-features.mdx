@@ -120,8 +120,13 @@ This ensure that client code always handle feature result with the same logic, i
 ## Predefined String values
 
 String features accept free text by default. To prevent typos and repeated input,
-enable **Restrict to predefined values** on a classical String feature. Add one
+select **string (predefined values)** in **Feature result type** instead of
+**string (free text)**. Predefined values use a classical String feature. Add one
 choice per line and use the up/down controls to set their display order.
+
+When switching from free text, the list is prefilled with the current base and
+conditional values of the feature and its overloads. Exact duplicates and blank
+values are omitted; the existing values are not changed.
 
 The list must contain at least one distinct, non-blank string. Choices are
 case-sensitive and stored exactly as entered: `"blue"`, `"Blue"` and `" blue "`

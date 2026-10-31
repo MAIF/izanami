@@ -27,13 +27,15 @@ import Select from "react-select";
 import { ExistingScript, WasmInput } from "./WasmInput";
 import { JSX, useState } from "react";
 import { customStyles } from "../styles/reactSelect";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import {
   queryTags,
   tagsQueryKey,
   testFeature,
   toCompleteFeature,
+  projectContextKey,
+  queryContextsForProject,
 } from "../utils/queries";
 import CreatableSelect from "react-select/creatable";
 import { FEATURE_NAME_REGEXP, LEGACY_ID_REGEXP } from "../utils/patterns";
@@ -50,6 +52,7 @@ import { Tooltip as LocalToolTip } from "./Tooltip";
 import { FeatureTestType } from "./ExistingFeatureTestForm";
 import { json } from "@codemirror/lang-json";
 import { StringValueInput } from "./StringValueInput";
+import { possiblePaths } from "../utils/contextUtils";
 
 export type LegacyFeature =
   | NoStrategyFeature
@@ -836,10 +839,19 @@ const resultTypeOptions = [
     label: (
       <div className="d-flex">
         <ResultTypeIcon resultType="string" fontWeight="bold" />
-        <span className="ps-1">string</span>
+        <span className="ps-1">string (free text)</span>
       </div>
     ),
     value: "string",
+  },
+  {
+    label: (
+      <div className="d-flex">
+        <ResultTypeIcon resultType="string" fontWeight="bold" />
+        <span className="ps-1">string (predefined values)</span>
+      </div>
+    ),
+    value: "restricted-string",
   },
   {
     label: (
@@ -893,6 +905,40 @@ export function V2FeatureForm(props: {
   const resultType = watch("resultType");
   const allowedValues = watch("allowedValues");
   const restricted = resultType === "string" && allowedValues != null;
+  const queryClient = useQueryClient();
+  const predefinedValuesMutation = useMutation({
+    mutationFn: async (feature: TCompleteFeature) => {
+      const values: string[] = [];
+      if (feature.resultType === "string" && "value" in feature) {
+        values.push(feature.value, ...feature.conditions.map((condition) => condition.value));
+      }
+      if (defaultValue?.id && defaultValue.project) {
+        const contexts = await queryClient.fetchQuery({
+          queryKey: [projectContextKey(tenant!, defaultValue.project)],
+          queryFn: () => queryContextsForProject(tenant!, defaultValue.project!),
+          staleTime: Infinity,
+        });
+        for (const { context } of possiblePaths(contexts)) {
+          for (const overload of context.overloads) {
+            if (overload.name === defaultValue.name &&
+                overload.resultType === "string" && "value" in overload) {
+              values.push(overload.value, ...overload.conditions.map((condition) => condition.value));
+            }
+          }
+        }
+      }
+      return [...new Set(values.filter((value) => value.trim().length > 0))];
+    },
+    onSuccess: (values) => {
+      setValue("resultType", "string");
+      setValue("allowedValues", values.length ? values : [""]);
+      if (type !== "Classic") {
+        setType("Classic");
+        methods.unregister("wasmConfig");
+        setValue("conditions", []);
+      }
+    },
+  });
 
   if (tagQuery.isError) {
     return <div>Error while fetching tags</div>;
@@ -1105,7 +1151,7 @@ export function V2FeatureForm(props: {
             )}
             {additionalFields && additionalFields()}
             <div className="row">
-              <label className="mt-3 col-6">
+              <label className="mt-3 col-6" htmlFor="feature-result-type">
                 Feature result type
                 <Tooltip id="modern-result-type">
                   Result type is result that will be returned by feature
@@ -1118,16 +1164,33 @@ export function V2FeatureForm(props: {
                   control={control}
                   render={({ field: { onChange, value } }) => (
                     <Select
-                      value={resultTypeOptions.find((o) => value === o.value)}
+                      inputId="feature-result-type"
+                      aria-label="Feature result type"
+                      isLoading={predefinedValuesMutation.isPending}
+                      isDisabled={predefinedValuesMutation.isPending}
+                      value={resultTypeOptions.find((o) =>
+                        o.value === (restricted ? "restricted-string" : value))}
                       onChange={(selected) => {
-                        onChange(selected?.value);
-                        if (selected?.value !== "string") setValue("allowedValues", null);
+                        if (!selected) return;
+                        const usePredefinedValues = selected.value === "restricted-string";
+                        if (usePredefinedValues && !restricted) {
+                          predefinedValuesMutation.mutate(methods.getValues());
+                          return;
+                        }
+                        predefinedValuesMutation.reset();
+                        onChange(usePredefinedValues ? "string" : selected.value);
+                        setValue("allowedValues", usePredefinedValues ? allowedValues ?? [""] : null);
                       }}
                       options={resultTypeOptions}
                       styles={customStyles}
                     />
                   )}
                 />
+                {predefinedValuesMutation.isError && (
+                  <p className="error-message" role="alert">
+                    Failed to load existing values. Select predefined values again to retry.
+                  </p>
+                )}
               </label>
               {resultType !== "boolean" && type === "Classic" && (
                 <label className="mt-3  col-6" htmlFor={resultType === "string" ? "feature-base-value" : undefined}>
@@ -1209,7 +1272,7 @@ export function V2FeatureForm(props: {
                 />
               </label>
             </div>
-            {resultType === "string" && type === "Classic" && (
+            {restricted && type === "Classic" && (
               <Controller
                 name="allowedValues"
                 control={control}
@@ -1219,52 +1282,46 @@ export function V2FeatureForm(props: {
                   "Provide at least one distinct, non-blank allowed value" }}
                 render={({ field, fieldState }) => (
                   <fieldset className="mt-3">
-                    <legend className="fs-6">String values</legend>
-                    <label>
-                      <input
-                        type="checkbox"
-                        className="izanami-checkbox me-2"
-                        checked={restricted}
-                        onChange={(event) => field.onChange(event.target.checked ? [""] : null)}
-                      />
-                      Restrict to predefined values
-                    </label>
-                    {restricted && (
-                      <>
-                        <p className="small">Shared with every overload and alternative value.</p>
-                        {(field.value ?? []).map((choice, index, choices) => (
-                          <div className="d-flex gap-2 mt-2" key={index}>
-                            <input
-                              aria-label={`Allowed value ${index + 1}`}
-                              className="form-control"
-                              value={choice}
-                              onBlur={field.onBlur}
-                              onChange={(event) => field.onChange(choices.map((value, i) =>
-                                i === index ? event.target.value : value))}
-                            />
-                            <button type="button" className="btn btn-secondary" disabled={index === 0}
-                              aria-label={`Move allowed value ${index + 1} up`}
-                              onClick={() => {
-                                const reordered = [...choices];
-                                [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
-                                field.onChange(reordered);
-                              }}>Up</button>
-                            <button type="button" className="btn btn-secondary" disabled={index === choices.length - 1}
-                              aria-label={`Move allowed value ${index + 1} down`}
-                              onClick={() => {
-                                const reordered = [...choices];
-                                [reordered[index + 1], reordered[index]] = [reordered[index], reordered[index + 1]];
-                                field.onChange(reordered);
-                              }}>Down</button>
-                            <button type="button" className="btn btn-danger"
-                              aria-label={`Remove allowed value ${index + 1}`}
-                              onClick={() => field.onChange(choices.filter((_, i) => i !== index))}>Remove</button>
-                          </div>
-                        ))}
-                        <button type="button" className="btn btn-secondary mt-2"
-                          onClick={() => field.onChange([...(field.value ?? []), ""])}>Add allowed value</button>
-                      </>
-                    )}
+                    <legend className="fs-6">
+                      Predefined String values
+                      <Tooltip id="string-allowed-values" ariaLabel="About predefined String values">
+                        This list is shared with every overload.
+                        <br />
+                        Both base values and values returned under specific conditions
+                        must be chosen from this list, on the feature and its overloads.
+                      </Tooltip>
+                    </legend>
+                    {(field.value ?? []).map((choice, index, choices) => (
+                      <div className="d-flex gap-2 mt-2" key={index}>
+                        <input
+                          aria-label={`Allowed value ${index + 1}`}
+                          className="form-control"
+                          value={choice}
+                          onBlur={field.onBlur}
+                          onChange={(event) => field.onChange(choices.map((value, i) =>
+                            i === index ? event.target.value : value))}
+                        />
+                        <button type="button" className="btn btn-secondary" disabled={index === 0}
+                          aria-label={`Move allowed value ${index + 1} up`}
+                          onClick={() => {
+                            const reordered = [...choices];
+                            [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
+                            field.onChange(reordered);
+                          }}>Up</button>
+                        <button type="button" className="btn btn-secondary" disabled={index === choices.length - 1}
+                          aria-label={`Move allowed value ${index + 1} down`}
+                          onClick={() => {
+                            const reordered = [...choices];
+                            [reordered[index + 1], reordered[index]] = [reordered[index], reordered[index + 1]];
+                            field.onChange(reordered);
+                          }}>Down</button>
+                        <button type="button" className="btn btn-danger"
+                          aria-label={`Remove allowed value ${index + 1}`}
+                          onClick={() => field.onChange(choices.filter((_, i) => i !== index))}>Remove</button>
+                      </div>
+                    ))}
+                    <button type="button" className="btn btn-secondary mt-2"
+                      onClick={() => field.onChange([...(field.value ?? []), ""])}>Add allowed value</button>
                     <ErrorDisplay error={fieldState.error} />
                   </fieldset>
                 )}
@@ -1345,7 +1402,7 @@ export function V2FeatureForm(props: {
               >
                 Cancel
               </button>
-              <button className="btn btn-primary m-2">Save</button>
+              <button className="btn btn-primary m-2" disabled={predefinedValuesMutation.isPending}>Save</button>
             </div>
           </form>
           <div className="col-4">

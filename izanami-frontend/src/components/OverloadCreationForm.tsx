@@ -165,7 +165,11 @@ export function OverloadCreationForm(props: {
                               fontWeight="bold"
                               color="var(--color_level1)"
                             />
-                            <span className="ps-1">{featureResultType}</span>
+                            <span className="ps-1">
+                              {featureResultType === "string"
+                                ? allowedValues ? "string (predefined values)" : "string (free text)"
+                                : featureResultType}
+                            </span>
                           </div>
                         ),
                         value: featureResultType,
