@@ -1,6 +1,8 @@
 @use "../variables.module";
 
 .modal {
+  --bs-modal-color: var(--color_level1);
+
   position: fixed;
   top: 0;
   right: 0;
