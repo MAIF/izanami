@@ -16,7 +16,6 @@ import play.api.Logger
 import play.api.libs.json.*
 import play.api.mvc.QueryStringBindable
 import fr.maif.izanami.datastores.FeaturesDatastore
-import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 
 import java.time.*
 import java.time.format.DateTimeFormatter

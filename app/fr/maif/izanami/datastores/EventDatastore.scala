@@ -22,7 +22,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationLong
 import fr.maif.izanami.env.Postgresql
 import org.apache.pekko.actor.ActorSystem
-import java.time.Duration
 import scala.concurrent.ExecutionContext
 
 class EventDatastore(

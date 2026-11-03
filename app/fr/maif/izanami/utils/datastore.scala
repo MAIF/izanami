@@ -3,7 +3,6 @@ package fr.maif.izanami.utils
 import org.apache.pekko.http.scaladsl.util.FastFuture
 import play.api.Logger
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 // FIXME is it still used ?

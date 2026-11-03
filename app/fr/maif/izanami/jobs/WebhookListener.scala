@@ -1,14 +1,9 @@
 package fr.maif.izanami.jobs
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.github.jknack.handlebars.Context
-import com.github.jknack.handlebars.Handlebars
-import com.github.jknack.handlebars.jackson.JsonNodeValueResolver
 import fr.maif.izanami.errors.{TenantDoesNotExists, WebhookCallError}
 import fr.maif.izanami.events.*
 import fr.maif.izanami.models.LightWebhook
 import fr.maif.izanami.models.RequestContext
-import fr.maif.izanami.services.WebhookService
 import fr.maif.izanami.web.FeatureContextPath
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.Cancellable
@@ -39,8 +34,6 @@ class WebhookListener(
   tenantDatastore: =>TenantsDatastore,
   webhookService: =>WebhookService,
   httpClient: WSClient)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
-  private val handlebars = new Handlebars()
-  private val mapper = new ObjectMapper()
   private val logger = Logger("izanami-webhooks")
   private val tenantToListen: TrieMap[String, Unit] = TrieMap()
   private var handleFailHookCancel: Option[Cancellable] = Option.empty

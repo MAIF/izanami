@@ -44,7 +44,6 @@ import play.api.libs.json.JsValue
 import play.api.libs.json.Json
 import play.api.libs.json.Reads
 import play.api.libs.json.Writes
-import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -1287,9 +1286,7 @@ class EventService(
   featureService: =>FeatureService,
   projectDatastore: =>ProjectsDatastore,
   postgresql: =>Postgresql, // TODO this should be split in service / datastore to break postgresql dependency
-  eventDatastore: =>EventDatastore,
-  wasmIntegration: =>WasmIntegration,
-  wasmAllowed: Boolean
+  eventDatastore: =>EventDatastore
   )(implicit ec: ExecutionContext, mat: Materializer) {
   val logger: Logger = Logger("event-service")
   val sourceMap: scala.collection.mutable.Map[String, SourceDescriptor] =
@@ -1324,9 +1321,7 @@ class EventService(
           .processMultipleStrategyResult(
             maybeContextmap.get,
             context,
-            conditions,
-            wasmIntegration,
-            wasmAllowed: Boolean
+            conditions
           )
           .value
           .map {

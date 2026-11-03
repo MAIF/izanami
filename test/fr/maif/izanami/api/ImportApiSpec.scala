@@ -18,7 +18,6 @@ import play.api.http.Status.FORBIDDEN
 import play.api.http.Status.NOT_FOUND
 import play.api.http.Status.NO_CONTENT
 import play.api.http.Status.OK
-import play.api.http.Status.UNAUTHORIZED
 import play.api.libs.json.JsArray
 import play.api.libs.json.JsObject
 import play.api.libs.json.Json

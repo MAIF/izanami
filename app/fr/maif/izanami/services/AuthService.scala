@@ -2,13 +2,9 @@ package fr.maif.izanami.services
 
 import fr.maif.izanami.models.{ReadPersonnalAccessToken, User, UserWithCompleteRightForOneTenant, UserWithRights, UserWithTenantRights}
 import fr.maif.izanami.datastores.{PersonnalAccessTokenDatastore, UsersDatastore}
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.{TokenCheckFailure, TokenCheckSuccess}
 
 import scala.concurrent.Future
-import java.util.Base64
 import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.errors.{BadFormatPersonalAccessToken, InvalidpersonalAccessToken}
-import fr.maif.izanami.utils.Done
 
 import scala.concurrent.ExecutionContext
 import javax.crypto.spec.SecretKeySpec

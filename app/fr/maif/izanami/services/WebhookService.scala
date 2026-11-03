@@ -20,7 +20,7 @@ import fr.maif.izanami.errors.{
 import scala.util.Try
 import fr.maif.izanami.datastores.WebhooksDatastore
 import fr.maif.izanami.web.UserInformation
-import com.github.jknack.handlebars.{Context, Handlebars, Helper, Options}
+import com.github.jknack.handlebars.{Context, Handlebars}
 import fr.maif.izanami.models.Webhook
 
 import scala.concurrent.Future

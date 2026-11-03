@@ -43,7 +43,6 @@ import fr.maif.izanami.utils.Done
 import java.util.concurrent.atomic.AtomicBoolean
 import io.vertx.core.net.NetClientOptions
 import io.vertx.core.net.ClientSSLOptions
-import fr.maif.izanami.IzanamiTypedConfiguration
 import fr.maif.izanami.AppConf
 import fr.maif.izanami.models.SimpleTenant
 

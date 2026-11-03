@@ -12,7 +12,6 @@ import fr.maif.izanami.models.features.ValuedResultType
 import fr.maif.izanami.wasm.{WasmConfig, WasmRelatedStuff, WasmUtils}
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.*
-import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 
 import scala.concurrent.Future
 import scala.util.matching.Regex

@@ -40,7 +40,7 @@ class IzanamiWasmIntegrationContext(
       (Runtime.getRuntime.availableProcessors * 4) + 1
     ))
   )
-  val hFunctions: HostFunctions = HostFunctions(httpCall = HttpCall(hostFunction = HFunction(this), httpClient = httpClient, wasmIntegrationContext = this))
+  val hFunctions: HostFunctions = HostFunctions(httpCall = HttpCall(hostFunction = HFunction(this), httpClient = httpClient))
 
   override def url(
       path: String,

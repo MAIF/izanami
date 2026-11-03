@@ -6,8 +6,6 @@ import play.api.mvc.AnyContent
 import play.api.mvc.BaseController
 import play.api.mvc.ControllerComponents
 
-import scala.concurrent.ExecutionContext
-
 class FrontendController(
     val assets: Assets,
     val controllerComponents: ControllerComponents,

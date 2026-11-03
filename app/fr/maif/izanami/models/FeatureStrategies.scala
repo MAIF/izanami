@@ -3,7 +3,6 @@ package fr.maif.izanami.models
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.wasm.WasmRelatedStuff
 import play.api.libs.json.JsValue
-import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext

@@ -18,7 +18,6 @@ import pdi.jwt.JwtClaim
 import play.api.libs.json.*
 import play.api.mvc.*
 import play.api.mvc.Results.BadRequest
-import play.api.mvc.Results.Forbidden
 import play.api.mvc.Results.Unauthorized
 import fr.maif.izanami.services.{AuthService, DecryptionStuff}
 import fr.maif.izanami.Cluster
@@ -249,6 +248,7 @@ class PersonnalAccessTokenTenantRightsAction(
   override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[UserWithTenantRights]] = {
     authService.findUser(token.username).map {
       case Some(value) if token.hasRight(operation) => TokenValid(value)
+      case Some(value) => TokenInvalid(NotEnoughRights())
       case None => TokenInvalid(UserDoesNotExist(token.username))
     }
   }
@@ -628,7 +628,6 @@ class PersonnalAccessTokenFeatureAuthAction(
     operation: TenantTokenRights,
     featureService: FeatureService,
     override val authService: AuthService,
-    rightService: RightService,
     override val clusteringConfig: Cluster
 )(implicit
     override val executionContext: ExecutionContext
@@ -1146,7 +1145,7 @@ class PersonnalAccessTokenTenantAuthActionFactory(
 }
 
 class PersonnalAccessTokenFeatureAuthActionFactory(
-    bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService, featureService: FeatureService, clusteringConfig: Cluster
+    bodyParser: BodyParser[AnyContent], authService: AuthService, featureService: FeatureService, clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1163,7 +1162,6 @@ class PersonnalAccessTokenFeatureAuthActionFactory(
       minimumLevel,
       operation,
       authService = authService,
-      rightService = rightService,
       featureService = featureService,
       clusteringConfig = clusteringConfig
     )

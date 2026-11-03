@@ -7,7 +7,6 @@ import io.vertx.sqlclient.SqlConnection
 import io.vertx.sqlclient.Pool
 import fr.maif.izanami.env.pgimplicits.ScalaFutureEnhancer
 import fr.maif.izanami.env.pgimplicits.VertxFutureEnhancer
-import fr.maif.izanami.errors.IzanamiError
 import play.api.Logger
 
 import scala.concurrent.ExecutionContext

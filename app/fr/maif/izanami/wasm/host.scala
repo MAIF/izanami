@@ -168,17 +168,14 @@ class Logging(hostFunction: HFunction) {
     returns(0).v.i32 = Status.StatusOK.id
   }
 
-  def getFunctions(config: WasmConfig)(implicit
-      executionContext: ExecutionContext,
-      mat: Materializer
-  ): Seq[HostFunctionWithAuthorization] = {
+  def getFunctions(): Seq[HostFunctionWithAuthorization] = {
     Seq(
       HostFunctionWithAuthorization(proxyLog(), _ => true)
     )
   }
 }
 
-class HttpCall(hostFunction: HFunction, httpClient: WSClient, wasmIntegrationContext: IzanamiWasmIntegrationContext) {
+class HttpCall(hostFunction: HFunction, httpClient: WSClient) {
   def proxyHttpCall(
       config: WasmConfig
   )(implicit

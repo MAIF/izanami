@@ -9,10 +9,9 @@ import play.api.mvc.Result
 import play.api.mvc.Results.Status
 
 import java.security.SecureRandom
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-class IzanamiHttpErrorHandler()(implicit ec: ExecutionContext) extends HttpErrorHandler {
+class IzanamiHttpErrorHandler() extends HttpErrorHandler {
 
   lazy val clientErrorLogger: Logger = Logger("izanami-client-error-handler")
   lazy val serverErrorLogger: Logger = Logger("izanami-server-error-handler")

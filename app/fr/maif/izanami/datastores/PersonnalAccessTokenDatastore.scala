@@ -2,9 +2,6 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.HashUtils.bcryptCheck
 import fr.maif.izanami.datastores.HashUtils.bcryptHash
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckFailure
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckResult
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore.TokenCheckSuccess
 import fr.maif.izanami.datastores.PersonnalAccessTokenDatastoreImplicits.PersonnalAccessTokenRow
 import fr.maif.izanami.env.PostgresqlErrors.FOREIGN_KEY_VIOLATION
 import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
@@ -101,69 +98,9 @@ class PersonnalAccessTokenDatastore(postgresql: =>Postgresql)(implicit val ec: E
       }
     )
   }
-  // FIXME remove
-  /*def checkAccessToken(
-      username: String,
-      token: String,
-      checker: ReadPersonnalAccessToken => Boolean
-  ): Future[TokenCheckResult] = {
-    findValidAccessToken(
-      token = token,
-      username = username,
-      predicate = checker
-    )
-      .map {
-        case Some(value) => TokenCheckSuccess(value)
-        case None        => TokenCheckFailure
-      }
-  }*/
 
   type TokenSecret = String
   type TokenId = UUID
-  private def findValidAccessToken(
-      token: String,
-      username: String,
-      predicate: ReadPersonnalAccessToken => Boolean
-  ): Future[Option[ReadPersonnalAccessToken]] = {
-    extractTokenInformation(token).fold(Future.successful(Option.empty))(
-      (id, secret) => {
-        postgresql
-          .queryOne(
-            s"""
-             |SELECT
-             |  t.id,
-             |  t.username,
-             |  t.name,
-             |  t.created_at,
-             |  t.expires_at,
-             |  t.expiration_timezone,
-             |  t.all_rights,
-             |  t.token,
-             |  COALESCE(json_agg(json_build_object('tenant', tr.tenant, 'right', tr.value)) FILTER (WHERE tr.token IS NOT NULL AND tr.value IS NOT NULL), '[]') AS rights,
-             |  COALESCE(json_agg(tr.global_value) FILTER (WHERE tr.token IS NOT NULL AND tr.global_value IS NOT NULL), '[]') AS global_rights
-             |FROM izanami.personnal_access_tokens t
-             |LEFT OUTER JOIN izanami.personnal_access_token_rights tr ON tr.token = t.id
-             |WHERE t.username = $$1 AND t.id = $$2
-             |GROUP BY t.id
-             |""".stripMargin,
-            List(username, id)
-          ) { r =>
-            for (
-              tokenSecret <- r.optString("token");
-              token <- r.optToken
-            ) yield (tokenSecret, token)
-          }
-          .map {
-            case Some((tokenSecret, token))
-                if (!token.isExpired) && bcryptCheck(
-                  secret,
-                  tokenSecret
-                ) && predicate(token) => Some(token)
-            case _ => None
-          }
-      }
-    )
-  }
 
   private def extractTokenInformation(
       token: String

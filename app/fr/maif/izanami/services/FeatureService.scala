@@ -27,7 +27,6 @@ import fr.maif.izanami.models.features.FeaturePatch
 import fr.maif.izanami.models.features.ProjectFeaturePatch
 import fr.maif.izanami.models.features.RemoveFeaturePatch
 import fr.maif.izanami.models.features.ResultType
-import fr.maif.izanami.models.features.StringResult
 import fr.maif.izanami.models.features.TagsFeaturePatch
 import fr.maif.izanami.models.features.ValuedResultDescriptor
 import fr.maif.izanami.requests.BaseFeatureUpdateRequest
@@ -53,7 +52,6 @@ import play.api.libs.json.JsValue
 import play.api.libs.json.Json
 import play.api.libs.json.Json.JsValueWrapper
 import play.api.libs.json.Writes
-import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -101,9 +99,7 @@ class FeatureService(
   def processMultipleStrategyResult(
       strategyByCtx: Map[String, LightWeightFeature],
       requestContext: RequestContext,
-      conditions: Boolean,
-      wasmIntegration: WasmIntegration,
-      wasmAllowed: Boolean
+      conditions: Boolean
   ): FutureEither[JsObject] = {
     val context = requestContext.context.elements.mkString("_")
     val strategyToUse = if (context.isBlank) {

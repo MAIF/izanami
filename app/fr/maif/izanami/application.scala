@@ -145,9 +145,7 @@ class IzanamiComponentsInstances(
     featureService=featureService,
     projectDatastore=projectDatastore,
     postgresql=postgresql,
-    eventDatastore=eventDatastore,
-    wasmIntegration=wasmIntegration,
-    wasmAllowed = typedConfig.app.feature.allowWasm
+    eventDatastore=eventDatastore
   )
   lazy val webhookListener = new WebhookListener(
     datastore = webhookDatastore,

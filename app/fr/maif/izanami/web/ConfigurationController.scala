@@ -1,7 +1,7 @@
 package fr.maif.izanami.web
 
 import buildinfo.BuildInfo
-import fr.maif.izanami.{Cluster, Exposition, ExpositionUrls, FeatureConfiguration}
+import fr.maif.izanami.{Cluster, ExpositionUrls, FeatureConfiguration}
 import fr.maif.izanami.datastores.{ConfigurationDatastore, StatsDatastore, TenantsDatastore, UsersDatastore}
 import fr.maif.izanami.errors.BadBodyFormat
 import fr.maif.izanami.errors.CantUpdateOIDCCOnfiguration

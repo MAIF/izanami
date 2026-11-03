@@ -2,10 +2,8 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.datastores.FeaturesDatastore
 import fr.maif.izanami.env.Postgresql
-import fr.maif.izanami.models.Feature
 import fr.maif.izanami.models.RequestContext
 import fr.maif.izanami.services.FeatureService
-import fr.maif.izanami.utils.FutureEither
 import play.api.libs.json.JsObject
 import play.api.libs.json.Json
 import play.api.mvc.Action
