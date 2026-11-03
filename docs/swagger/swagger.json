@@ -1099,6 +1099,20 @@
           {
             "type": "object",
             "properties": {
+              "allowedValues": {
+                "type": "array",
+                "nullable": true,
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["value"],
+                  "properties": {
+                    "value": { "type": "string", "minLength": 1 },
+                    "label": { "type": "string", "nullable": true, "description": "Optional display label. Empty or whitespace-only labels use a preview of the value. Never returned instead of the evaluated value." }
+                  }
+                },
+                "description": "Administration-only shared choices for a classical String parent and all its overloads and conditional alternatives. Each choice has a distinct, non-blank value and an optional label. Non-blank labels must be unique within the list; values and labels are compared exactly, including case and spaces. Multiple choices may have absent, null, empty or whitespace-only labels. Null or omission disables the restriction. Parent PUT replaces the complete feature: include allowedValues to retain the restriction. PATCH remains partial. Not configurable on overloads or WASM features. Changes invalidating existing values are rejected."
+              },
               "id": {
                 "type": "string"
               },
