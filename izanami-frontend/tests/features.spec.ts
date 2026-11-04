@@ -1,12 +1,6 @@
 import { Page } from "@playwright/test";
 import { test, expect } from "./izanami-test";
-import {
-  testBuilder,
-  testFeature,
-  testTenant,
-  testProject,
-  testLocalContext,
-} from "./testBuilder";
+import { testBuilder, testFeature, testTenant, testProject, testLocalContext } from "./testBuilder";
 import { clickAction } from "./utils";
 
 test.use({
@@ -32,7 +26,10 @@ async function featureAction(page: Page, name: string) {
 }
 
 test.describe("Project screen should", () => {
-  test("display and clear user and group targeting validation errors", async ({ page, tenantName }) => {
+  test("display and clear user and group targeting validation errors", async ({
+    page,
+    tenantName,
+  }) => {
     await testBuilder()
       .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
@@ -44,10 +41,9 @@ test.describe("Project screen should", () => {
     await page.getByRole("option", { name: "User and group list", exact: true }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
 
-    const targetingErrors = page.getByText(
-      "At least one user or group should be specified",
-      { exact: true },
-    );
+    const targetingErrors = page.getByText("At least one user or group should be specified", {
+      exact: true,
+    });
     await expect(targetingErrors).toHaveCount(2);
     await expect(targetingErrors.nth(0)).toBeVisible();
     await expect(targetingErrors.nth(1)).toBeVisible();
@@ -80,8 +76,12 @@ test.describe("Project screen should", () => {
     await page.getByRole("option", { name: "User and group list", exact: true }).click();
 
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByText("At least one user or group should be specified").first()).toBeVisible();
-    await page.getByRole("combobox", { name: /^Groups that should activate feature/ }).fill("beta+&");
+    await expect(
+      page.getByText("At least one user or group should be specified").first(),
+    ).toBeVisible();
+    await page
+      .getByRole("combobox", { name: /^Groups that should activate feature/ })
+      .fill("beta+&");
     await page.getByText('Create "beta+&"', { exact: true }).click();
     await page.getByRole("combobox", { name: "Groups", exact: true }).fill("beta+&");
     await page.getByText('Create "beta+&"', { exact: true }).click();
@@ -89,7 +89,9 @@ test.describe("Project screen should", () => {
     await expect(page.getByText('"active": true,')).toBeVisible();
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("rowheader", { name: "group-flag", exact: true })).toBeVisible();
-    await expect(page.getByRole("cell", { name: "Active : members of groups : beta+&", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("cell", { name: "Active : members of groups : beta+&", exact: true }),
+    ).toBeVisible();
 
     await featureAction(page, "Edit");
     await page.getByRole("button", { name: /Activation condition #0/ }).click();
@@ -97,7 +99,12 @@ test.describe("Project screen should", () => {
     await page.getByRole("combobox", { name: /^Users that should activate feature/ }).fill("alice");
     await page.getByText('Create "alice"', { exact: true }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByRole("cell", { name: "Active : only for : alice OR members of groups : beta+&", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("cell", {
+        name: "Active : only for : alice OR members of groups : beta+&",
+        exact: true,
+      }),
+    ).toBeVisible();
 
     await featureAction(page, "Test feature");
     await page.getByRole("combobox", { name: "Groups", exact: true }).fill("beta+&");
@@ -116,9 +123,7 @@ test.describe("Project screen should", () => {
     await page.getByLabel("Name").fill("feature");
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(
-      page.getByRole("rowheader", { name: "feature", exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole("rowheader", { name: "feature", exact: true })).toBeVisible();
     await expect(page.getByRole("cell", { name: "Disabled" })).toBeVisible();
   });
 
@@ -134,17 +139,12 @@ test.describe("Project screen should", () => {
 
     await page.waitForLoadState("domcontentloaded");
     await featureAction(page, "Test feature");
-    await page
-      .getByRole("button", { name: "Test feature", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Test feature", exact: true }).click();
 
     await expect(page.getByText('"active": false,')).toBeVisible();
   });
 
-  test("allow to test feature while creating it", async ({
-    page,
-    tenantName,
-  }) => {
+  test("allow to test feature while creating it", async ({ page, tenantName }) => {
     await testBuilder()
       .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
@@ -201,31 +201,18 @@ test.describe("Project screen should", () => {
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
-    await page
-      .getByLabel("Percentage of users that should activate feature")
-      .fill("75");
+    await page.getByLabel("Percentage of users that should activate feature").fill("75");
     await page.getByRole("button", { name: "Add condition (OR)" }).click();
     await page;
-    await page
-      .getByRole("combobox", { name: "Strategy to use" })
-      .nth(1)
-      .focus();
+    await page.getByRole("combobox", { name: "Strategy to use" }).nth(1).focus();
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
-    await page
-      .getByLabel("Users that should activate feature")
-      .nth(1)
-      .fill("user1");
+    await page.getByLabel("Users that should activate feature").nth(1).fill("user1");
     await page.getByText('Create "user1"', { exact: true }).click();
-    await page
-      .getByRole("combobox", { name: "Users that should activate feature" })
-      .click();
-    await page
-      .getByLabel("Users that should activate feature")
-      .nth(1)
-      .fill("user2");
+    await page.getByRole("combobox", { name: "Users that should activate feature" }).click();
+    await page.getByLabel("Users that should activate feature").nth(1).fill("user2");
     await page.getByText('Create "user2"', { exact: true }).click();
     await page.getByRole("button", { name: "Save" }).click();
     await page
@@ -239,9 +226,7 @@ test.describe("Project screen should", () => {
     await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testProject("project").withFeature(
-            testFeature("myname").withDisableStatus(),
-          ),
+          testProject("project").withFeature(testFeature("myname").withDisableStatus()),
         ),
       )
       .build(page);
@@ -354,9 +339,7 @@ test.describe("Project screen should", () => {
   test("allow feature duplication", async ({ page, tenantName }) => {
     await testBuilder()
       .withTenant(
-        testTenant(tenantName).withProject(
-          testProject("project").withFeature(testFeature("test")),
-        ),
+        testTenant(tenantName).withProject(testProject("project").withFeature(testFeature("test"))),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -370,9 +353,7 @@ test.describe("Project screen should", () => {
   test("allow feature deletion", async ({ page, tenantName }) => {
     await testBuilder()
       .withTenant(
-        testTenant(tenantName).withProject(
-          testProject("project").withFeature(testFeature("test")),
-        ),
+        testTenant(tenantName).withProject(testProject("project").withFeature(testFeature("test"))),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -384,11 +365,16 @@ test.describe("Project screen should", () => {
 });
 
 test.describe("Multi type features", () => {
-  test("configure shared allowed string values for parents and overloads", async ({ page, tenantName }) => {
+  test("configure shared allowed string values for parents and overloads", async ({
+    page,
+    tenantName,
+  }) => {
     await testBuilder()
-      .withTenant(testTenant(tenantName).withProject(
-        testProject("project").withContext(testLocalContext("mobile")),
-      ))
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project").withContext(testLocalContext("mobile")),
+        ),
+      )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
     await page.getByRole("button", { name: "Create new feature" }).click();
@@ -403,28 +389,46 @@ test.describe("Multi type features", () => {
     await expect(page.getByText("Classic", { exact: true })).toBeVisible();
     await expect(page.getByRole("combobox", { name: "Feature type" })).toHaveCount(0);
     await expect(page.getByLabel("Restrict to predefined values")).toHaveCount(0);
-    await expect(page.getByText("Shared with every overload and alternative value.", { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByText("Shared with every overload and alternative value.", { exact: true }),
+    ).toHaveCount(0);
     await page.getByLabel("About predefined String values").hover();
-    await expect(page.getByRole("tooltip")).toContainText("This list is shared with every overload.");
-    await expect(page.getByRole("tooltip")).toContainText("values returned under specific conditions");
+    await expect(page.getByRole("tooltip")).toContainText(
+      "This list is shared with every overload.",
+    );
+    await expect(page.getByRole("tooltip")).toContainText(
+      "values returned under specific conditions",
+    );
     await page.getByLabel("About value numbers", { exact: true }).hover();
-    await expect(page.getByRole("tooltip").filter({ hasText: "Labels and numbers" }))
-      .toContainText("are not part of the returned value");
+    await expect(page.getByRole("tooltip").filter({ hasText: "Labels and numbers" })).toContainText(
+      "are not part of the returned value",
+    );
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByText("Provide at least one distinct, non-blank allowed value")).toBeVisible();
+    await expect(
+      page.getByText("Provide at least one distinct, non-blank allowed value"),
+    ).toBeVisible();
     const firstAllowedValue = page.getByRole("textbox", { name: "Allowed value 1", exact: true });
     await expect(firstAllowedValue).toHaveJSProperty("tagName", "TEXTAREA");
     await firstAllowedValue.fill("first line\nsecond line");
     await page.getByRole("combobox", { name: "Base value*" }).click();
     await expect(page.getByRole("option")).toHaveText(["<no label> 1. first line second line"]);
-    await expect(page.getByRole("option").locator("span[title]")).toHaveAttribute("title", "first line\nsecond line");
-    await expect(page.getByRole("option").getByText("<no label>", { exact: true })).toHaveCSS("opacity", "0.6");
+    await expect(page.getByRole("option").locator("span[title]")).toHaveAttribute(
+      "title",
+      "first line\nsecond line",
+    );
+    await expect(page.getByRole("option").getByText("<no label>", { exact: true })).toHaveCSS(
+      "opacity",
+      "0.6",
+    );
     await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
     const longValue = "a".repeat(120);
     await firstAllowedValue.fill(longValue);
     await page.getByRole("combobox", { name: "Base value*" }).click();
     await expect(page.getByRole("option")).toHaveText([`<no label> 1. ${"a".repeat(80)}...`]);
-    await expect(page.getByRole("option").locator("span[title]")).toHaveAttribute("title", longValue);
+    await expect(page.getByRole("option").locator("span[title]")).toHaveAttribute(
+      "title",
+      longValue,
+    );
     await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
     await firstAllowedValue.fill("blue");
     await expect(page.getByText("Choose a value", { exact: true })).toBeVisible();
@@ -439,9 +443,13 @@ test.describe("Multi type features", () => {
     await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
     await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill("blue");
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByText("Provide at least one distinct, non-blank allowed value")).toBeVisible();
+    await expect(
+      page.getByText("Provide at least one distinct, non-blank allowed value"),
+    ).toBeVisible();
     await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill("green");
-    await expect(page.getByRole("button", { name: /^Move allowed value \d+ (up|down)$/ })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /^Move allowed value \d+ (up|down)$/ }),
+    ).toHaveCount(0);
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Choose an allowed value", { exact: true })).toBeVisible();
     await page.getByRole("combobox", { name: "Base value*" }).click();
@@ -475,11 +483,15 @@ test.describe("Multi type features", () => {
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
 
-    await page.getByRole("row")
+    await page
+      .getByRole("row")
       .filter({ has: page.getByRole("link", { name: /^\/?mobile$/ }) })
-      .getByRole("button", { name: "actions" }).click();
+      .getByRole("button", { name: "actions" })
+      .click();
     await page.getByRole("link", { name: "Edit", exact: true }).click();
-    await expect(page.locator('label[for="overload-base-value"]')).toContainText("<no label> green");
+    await expect(page.locator('label[for="overload-base-value"]')).toContainText(
+      "<no label> green",
+    );
     await page.getByRole("combobox", { name: "Base value*" }).click();
     await expect(page.getByRole("option")).toHaveText(["<no label> blue", "<no label> green"]);
     await page.getByRole("option", { name: "<no label> blue", exact: true }).click();
@@ -490,9 +502,17 @@ test.describe("Multi type features", () => {
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
 
     await clickAction(page, "Duplicate", "colour");
-    await expect(page.locator('label[for="feature-result-type"]').getByText("string (predefined values)", { exact: true })).toBeVisible();
-    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue("blue");
-    await expect(page.getByRole("textbox", { name: "Allowed value 2", exact: true })).toHaveValue("green");
+    await expect(
+      page
+        .locator('label[for="feature-result-type"]')
+        .getByText("string (predefined values)", { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue(
+      "blue",
+    );
+    await expect(page.getByRole("textbox", { name: "Allowed value 2", exact: true })).toHaveValue(
+      "green",
+    );
     await page.getByLabel("Name*").fill("palette");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("rowheader", { name: "palette", exact: true })).toBeVisible();
@@ -501,19 +521,31 @@ test.describe("Multi type features", () => {
     await page.getByRole("combobox", { name: "Feature result type" }).click();
     await page.getByRole("option", { name: "string (free text)", exact: true }).click();
     await expect(page.getByLabel("Base value*")).toHaveValue("blue");
-    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveCount(
+      0,
+    );
     await page.getByLabel("Base value*").fill("free text");
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByRole("rowheader", { name: "colour 1 Overload", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("rowheader", { name: "colour 1 Overload", exact: true }),
+    ).toBeVisible();
     await clickAction(page, "Edit", "colour");
-    await expect(page.locator('label[for="feature-result-type"]').getByText("string (free text)", { exact: true })).toBeVisible();
+    await expect(
+      page
+        .locator('label[for="feature-result-type"]')
+        .getByText("string (free text)", { exact: true }),
+    ).toBeVisible();
     await expect(page.getByLabel("Base value*")).toHaveValue("free text");
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
-    await page.getByRole("rowheader", { name: "colour 1 Overload", exact: true })
-      .getByRole("button", { name: "1 Overload", exact: true }).click();
-    await page.getByRole("row")
+    await page
+      .getByRole("rowheader", { name: "colour 1 Overload", exact: true })
+      .getByRole("button", { name: "1 Overload", exact: true })
+      .click();
+    await page
+      .getByRole("row")
       .filter({ has: page.getByRole("link", { name: /^\/?mobile$/ }) })
-      .getByRole("button", { name: "actions" }).click();
+      .getByRole("button", { name: "actions" })
+      .click();
     await page.getByRole("link", { name: "Edit", exact: true }).click();
     await page.getByLabel("Base value*").fill("overload base");
     await page.getByRole("button", { name: /^Alternative value green/ }).click();
@@ -531,12 +563,19 @@ test.describe("Multi type features", () => {
     });
     await page.getByRole("combobox", { name: "Feature result type" }).click();
     await page.getByRole("option", { name: "string (predefined values)", exact: true }).click();
-    await expect(page.getByRole("textbox", { name: /^Allowed value \d+$/ }))
-      .toHaveCount(4);
-    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue("draft text");
-    await expect(page.getByRole("textbox", { name: "Allowed value 2", exact: true })).toHaveValue("green");
-    await expect(page.getByRole("textbox", { name: "Allowed value 3", exact: true })).toHaveValue("overload base");
-    await expect(page.getByRole("textbox", { name: "Allowed value 4", exact: true })).toHaveValue(" overload alternative ");
+    await expect(page.getByRole("textbox", { name: /^Allowed value \d+$/ })).toHaveCount(4);
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue(
+      "draft text",
+    );
+    await expect(page.getByRole("textbox", { name: "Allowed value 2", exact: true })).toHaveValue(
+      "green",
+    );
+    await expect(page.getByRole("textbox", { name: "Allowed value 3", exact: true })).toHaveValue(
+      "overload base",
+    );
+    await expect(page.getByRole("textbox", { name: "Allowed value 4", exact: true })).toHaveValue(
+      " overload alternative ",
+    );
     expect(contextRequests).toBe(0);
     await page.getByRole("combobox", { name: "Feature result type" }).click();
     await page.getByRole("option", { name: "string (free text)", exact: true }).click();
@@ -548,24 +587,33 @@ test.describe("Multi type features", () => {
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
     await clickAction(page, "Edit", "colour");
-    await expect(page.getByRole("textbox", { name: "Allowed value 3", exact: true })).toHaveValue(" overload alternative ");
+    await expect(page.getByRole("textbox", { name: "Allowed value 3", exact: true })).toHaveValue(
+      " overload alternative ",
+    );
   });
 
-  test("store optional labels without changing shared string values", async ({ page, tenantName }) => {
+  test("store optional labels without changing shared string values", async ({
+    page,
+    tenantName,
+  }) => {
     const message = "Hello,\nWelcome!";
     const feature = testFeature("message").withEnableStatus();
     feature.resultType = "string";
     feature.value = message;
     await testBuilder()
-      .withTenant(testTenant(tenantName).withProject(
-        testProject("project").withFeature(feature).withContext(testLocalContext("mobile")),
-      ))
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project").withFeature(feature).withContext(testLocalContext("mobile")),
+        ),
+      )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
     await clickAction(page, "Edit", "message");
     await page.getByRole("combobox", { name: "Feature result type" }).click();
     await page.getByRole("option", { name: "string (predefined values)", exact: true }).click();
-    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue(message);
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue(
+      message,
+    );
     const label = page.getByRole("textbox", { name: "Allowed value 1 label", exact: true });
     await expect(label).toHaveValue("");
     await label.fill("Welcome message");
@@ -574,7 +622,9 @@ test.describe("Multi type features", () => {
     const secondLabel = page.getByRole("textbox", { name: "Allowed value 2 label", exact: true });
     await secondLabel.fill("Welcome message");
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByText("Predefined value labels must be unique", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("Predefined value labels must be unique", { exact: true }),
+    ).toBeVisible();
     await secondLabel.fill("welcome message");
     await page.getByRole("combobox", { name: "Base value*" }).click();
     await expect(page.getByRole("option")).toHaveText(["Welcome message", "welcome message"]);
@@ -584,24 +634,41 @@ test.describe("Multi type features", () => {
     await expect(page.getByRole("option")).toHaveCount(2);
     await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
     await secondLabel.fill("");
-    await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill("Welcome message");
+    await page
+      .getByRole("textbox", { name: "Allowed value 2", exact: true })
+      .fill("Welcome message");
     await page.getByRole("combobox", { name: "Base value*" }).click();
-    await expect(page.getByRole("option")).toHaveText(["Welcome message", "<no label> Welcome message"]);
-    await expect(page.getByRole("option").last().getByText("<no label>", { exact: true })).toHaveCSS("opacity", "0.6");
+    await expect(page.getByRole("option")).toHaveText([
+      "Welcome message",
+      "<no label> Welcome message",
+    ]);
+    await expect(
+      page.getByRole("option").last().getByText("<no label>", { exact: true }),
+    ).toHaveCSS("opacity", "0.6");
     await page.getByRole("option", { name: "<no label> Welcome message", exact: true }).click();
-    await expect(page.locator('label[for="feature-base-value"]')).toContainText("<no label> Welcome message");
+    await expect(page.locator('label[for="feature-base-value"]')).toContainText(
+      "<no label> Welcome message",
+    );
     await page.getByRole("textbox", { name: "Allowed value 2", exact: true }).fill("Maintenance");
     await page.getByRole("combobox", { name: "Base value*" }).click();
-    await expect(page.getByRole("option")).toHaveText(["Welcome message", "<no label> Maintenance"]);
-    await expect(page.getByRole("option").first().locator("span[title]")).toHaveAttribute("title", message);
+    await expect(page.getByRole("option")).toHaveText([
+      "Welcome message",
+      "<no label> Maintenance",
+    ]);
+    await expect(page.getByRole("option").first().locator("span[title]")).toHaveAttribute(
+      "title",
+      message,
+    );
     await page.getByRole("option", { name: "Welcome message", exact: true }).click();
     await page.getByRole("button", { name: "Add alternative value", exact: true }).click();
     await page.getByRole("combobox", { name: "Alternative value", exact: true }).click();
     await page.getByRole("option", { name: "<no label> Maintenance", exact: true }).click();
     await page.getByRole("combobox", { name: "Strategy to use" }).click();
     await page.getByRole("option", { name: "Percentage", exact: true }).click();
-    const saved = page.waitForResponse((response) =>
-      response.request().method() === "PUT" && /\/features\/[^/]+$/.test(response.url()));
+    const saved = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PUT" && /\/features\/[^/]+$/.test(response.url()),
+    );
     await page.getByRole("button", { name: "Save", exact: true }).click();
     const response = await saved;
     expect(response.ok()).toBeTruthy();
@@ -616,34 +683,49 @@ test.describe("Multi type features", () => {
     await page.getByRole("option", { name: "mobile", exact: true }).click();
     await expect(label).toHaveCount(0);
     await page.getByRole("combobox", { name: "Base value*" }).click();
-    await expect(page.getByRole("option")).toHaveText(["Welcome message", "<no label> Maintenance"]);
+    await expect(page.getByRole("option")).toHaveText([
+      "Welcome message",
+      "<no label> Maintenance",
+    ]);
     await page.getByRole("option", { name: "Welcome message", exact: true }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
     await clickAction(page, "Duplicate", "message");
     await expect(label).toHaveValue("Welcome message");
-    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue(message);
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue(
+      message,
+    );
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
     await clickAction(page, "Edit", "message");
     await label.fill("Renamed welcome");
-    await expect(page.locator('label[for="feature-base-value"]').getByText("Renamed welcome", { exact: true })).toBeVisible();
+    await expect(
+      page.locator('label[for="feature-base-value"]').getByText("Renamed welcome", { exact: true }),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
     await clickAction(page, "Edit", "message");
     await expect(label).toHaveValue("Renamed welcome");
     await label.fill("   ");
     await page.getByRole("combobox", { name: "Base value*" }).click();
-    await expect(page.getByRole("option")).toHaveText(["<no label> 1. Hello, Welcome!", "<no label> Maintenance"]);
+    await expect(page.getByRole("option")).toHaveText([
+      "<no label> 1. Hello, Welcome!",
+      "<no label> Maintenance",
+    ]);
     await page.getByRole("combobox", { name: "Base value*" }).press("Escape");
     await label.fill("");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
     await clickAction(page, "Edit", "message");
     await expect(label).toHaveValue("");
-    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue(message);
+    await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue(
+      message,
+    );
   });
 
-  test("collect the latest draft while predefined values are loading", async ({ page, tenantName }) => {
+  test("collect the latest draft while predefined values are loading", async ({
+    page,
+    tenantName,
+  }) => {
     const feature = testFeature("colour").withEnableStatus();
     feature.resultType = "string";
     feature.value = "blue";
@@ -651,7 +733,9 @@ test.describe("Multi type features", () => {
       .withTenant(testTenant(tenantName).withProject(testProject("project").withFeature(feature)))
       .build(page);
     let releaseContexts = () => {};
-    const contextsReady = new Promise<void>((resolve) => { releaseContexts = resolve; });
+    const contextsReady = new Promise<void>((resolve) => {
+      releaseContexts = resolve;
+    });
     let contextRequests = 0;
     await page.route(`**/projects/project/contexts`, async (route) => {
       contextRequests++;
@@ -673,13 +757,19 @@ test.describe("Multi type features", () => {
       await page.getByLabel("Alternative value", { exact: true }).fill("latest alternative");
       releaseContexts();
       await expect(page.getByRole("textbox", { name: /^Allowed value \d+$/ })).toHaveCount(2);
-      await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue("latest base");
-      await expect(page.getByRole("textbox", { name: "Allowed value 2", exact: true })).toHaveValue("latest alternative");
+      await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue(
+        "latest base",
+      );
+      await expect(page.getByRole("textbox", { name: "Allowed value 2", exact: true })).toHaveValue(
+        "latest alternative",
+      );
       expect(contextRequests).toBe(1);
       await page.getByRole("button", { name: "Save", exact: true }).click();
       await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
       await clickAction(page, "Edit", "colour");
-      await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue("latest base");
+      await expect(page.getByRole("textbox", { name: "Allowed value 1", exact: true })).toHaveValue(
+        "latest base",
+      );
     } finally {
       releaseContexts();
     }
@@ -697,17 +787,13 @@ test.describe("Multi type features", () => {
     await page.getByRole("combobox", { name: "Feature result type" }).click();
     await page.getByRole("option", { name: "string (free text)", exact: true }).click();
     await page.getByLabel("Base value*").fill("foo");
-    await page
-      .getByRole("button", { name: "Test feature", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Test feature", exact: true }).click();
 
     await expect(page.getByText('"active": "foo"')).toBeVisible();
     await page.getByRole("button", { name: "Save" }).click();
 
     await clickAction(page, "Test feature", "str feature");
-    await page
-      .getByRole("button", { name: "Test feature", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Test feature", exact: true }).click();
     await expect(page.getByText('"active": "foo"')).toBeVisible();
 
     await page.getByRole("link", { name: "Global contexts" }).click();
@@ -724,16 +810,12 @@ test.describe("Multi type features", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("button", { name: "Save" })).toBeHidden();
     await clickAction(page, "Test feature", "str feature");
-    await page
-      .getByRole("button", { name: "Test feature", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Test feature", exact: true }).click();
     await expect(page.getByText('"active": "foo"')).toBeVisible();
 
     await page.getByRole("combobox", { name: "Context" }).click();
     await page.getByText("globalctx").click();
-    await page
-      .getByRole("button", { name: "Test feature", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Test feature", exact: true }).click();
 
     await expect(page.getByText('"active": "bar"')).toBeVisible();
 
@@ -742,9 +824,7 @@ test.describe("Multi type features", () => {
     await page.getByLabel("Alternative value").fill("bobv");
     await page.getByRole("combobox", { name: "Strategy to use" }).click();
     await page.getByRole("option", { name: "User and group list", exact: true }).click();
-    await page
-      .getByRole("combobox", { name: "Users that should activate feature" })
-      .fill("bob");
+    await page.getByRole("combobox", { name: "Users that should activate feature" }).fill("bob");
     await page.getByText(`Create "bob"`).click();
     await page.getByRole("button", { name: "Save" }).click();
 

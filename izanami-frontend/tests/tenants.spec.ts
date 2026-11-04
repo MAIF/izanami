@@ -33,7 +33,7 @@ test.describe("Home screen should", () => {
       await expect(
         page.getByRole("link", {
           name: tenant,
-        })
+        }),
       ).toBeVisible();
     }
   });

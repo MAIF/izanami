@@ -1,9 +1,4 @@
-import {
-  testBuilder,
-  testFeature,
-  testTenant,
-  testProject,
-} from "../testBuilder";
+import { testBuilder, testFeature, testTenant, testProject } from "../testBuilder";
 import { screenshotBuilder, setup } from "./utils";
 
 export async function generate() {
@@ -16,11 +11,9 @@ export async function generate() {
         .withProject(
           testProject("website")
             .withFeature(testFeature("comments"))
-            .withFeature(testFeature("summer-sales"))
+            .withFeature(testFeature("summer-sales")),
         )
-        .withProject(
-          testProject("stock").withFeature(testFeature("new-store-ui"))
-        )
+        .withProject(testProject("stock").withFeature(testFeature("new-store-ui"))),
     )
     .build(page);
 
@@ -49,9 +42,7 @@ export async function generate() {
   await page.getByLabel("Handlebar template").scrollIntoViewIfNeeded();
   await page.getByLabel("Handlebar template").click();
   await screenshot("webhook-handlebar-form");
-  await page
-    .getByRole("button", { name: "Test the template" })
-    .scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "Test the template" }).scrollIntoViewIfNeeded();
   await page.getByRole("button", { name: "Test the template" }).click();
   await screenshot("webhook-completed-form");
   await page.getByRole("button", { name: "Save" }).click();

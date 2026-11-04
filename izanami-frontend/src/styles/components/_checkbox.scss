@@ -173,8 +173,8 @@ input.checkbox-rounded-select:after {
   border: 2px solid #fff;
   border-top: none;
   border-right: none;
-  transform:rotate(-45deg); 
-  opacity: 0; 
+  transform: rotate(-45deg);
+  opacity: 0;
 }
 input.checkbox-rounded-select:checked,
 input.checkbox-rounded-select:indeterminate {
@@ -190,4 +190,3 @@ input.checkbox-rounded-select:indeterminate:after {
   transform: rotate(0deg);
   border-left: none;
 }
-

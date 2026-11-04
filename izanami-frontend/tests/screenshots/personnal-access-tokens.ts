@@ -1,10 +1,5 @@
 import { screenshotBuilder, setup, featureAction } from "./utils";
-import {
-  DEFAULT_TEST_PASSWORD,
-  testBuilder,
-  testTenant,
-  testUser,
-} from "../testBuilder";
+import { DEFAULT_TEST_PASSWORD, testBuilder, testTenant, testUser } from "../testBuilder";
 
 export async function generate() {
   const { page, browser } = await setup(true);
@@ -18,9 +13,7 @@ export async function generate() {
 
   await page.goto("http://localhost:3000/profile");
 
-  await page
-    .getByRole("button", { name: "Create new token" })
-    .scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "Create new token" }).scrollIntoViewIfNeeded();
   await page.getByRole("button", { name: "Create new token" }).focus();
   await screenshot("create-token-button");
   await page.getByRole("button", { name: "Create new token" }).click();
@@ -54,9 +47,7 @@ export async function generate() {
 
   await page.getByRole("rowheader", { name: "another-token" }).click();
 
-  await page
-    .getByRole("rowheader", { name: "another-token" })
-    .scrollIntoViewIfNeeded();
+  await page.getByRole("rowheader", { name: "another-token" }).scrollIntoViewIfNeeded();
 
   await screenshot("token-table");
 
@@ -75,4 +66,3 @@ export async function generate() {
   await page2.getByRole("button", { name: "Close" }).scrollIntoViewIfNeeded();
   await screenshot2("other-user-tokens");
 }
-

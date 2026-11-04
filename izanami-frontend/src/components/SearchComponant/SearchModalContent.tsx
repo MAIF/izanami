@@ -12,13 +12,9 @@ import {
   Option,
 } from "./searchUtils";
 
-export function SearchModalContent({
-  tenant,
-  allTenants,
-  onClose,
-}: ISearchProps) {
+export function SearchModalContent({ tenant, allTenants, onClose }: ISearchProps) {
   const [modalStatus, setModalStatus] = useState<SearchModalStatus>(
-    tenant ? { all: false, tenant } : { all: true }
+    tenant ? { all: false, tenant } : { all: true },
   );
   const [resultStatus, setResultStatus] = useState<SearchResultStatus>({
     state: "INITIAL",
@@ -44,7 +40,7 @@ export function SearchModalContent({
     if (modalStatus.all) {
       searchEntities(
         term,
-        filters?.map((v) => v.value)
+        filters?.map((v) => v.value),
       )
         .then((r) => setResultStatus({ state: "SUCCESS", results: r }))
         .catch(() => {
@@ -57,14 +53,14 @@ export function SearchModalContent({
       searchEntitiesByTenant(
         modalStatus.tenant,
         term,
-        filters?.map((v) => v.value)
+        filters?.map((v) => v.value),
       )
         .then((r) => setResultStatus({ state: "SUCCESS", results: r }))
         .catch(() =>
           setResultStatus({
             state: "ERROR",
             error: "There was an error fetching data",
-          })
+          }),
         );
     }
   };

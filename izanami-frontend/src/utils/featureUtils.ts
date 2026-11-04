@@ -63,9 +63,7 @@ export function toModernFeature(feature: SingleConditionFeature) {
   }
 }
 
-export function toLegacyFeatureFormat(
-  feature: SingleConditionFeature
-): LegacyFeature {
+export function toLegacyFeatureFormat(feature: SingleConditionFeature): LegacyFeature {
   if (!feature) {
     return { activationStrategy: "NO_STRATEGY" } as LegacyFeature;
   }
@@ -124,8 +122,6 @@ export function toLegacyFeatureFormat(
       activationStrategy: "NO_STRATEGY",
     };
   } else {
-    throw new Error(
-      "Failed to convert SingleConditionFeature to legacy feature"
-    );
+    throw new Error("Failed to convert SingleConditionFeature to legacy feature");
   }
 }

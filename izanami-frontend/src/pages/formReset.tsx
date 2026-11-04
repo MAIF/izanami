@@ -12,7 +12,7 @@ const schema = {
       constraints.required("New passord is required"),
       constraints.matches(
         PASSWORD_REGEXP,
-        `Password must match regex ${PASSWORD_REGEXP.toString()}`
+        `Password must match regex ${PASSWORD_REGEXP.toString()}`,
       ),
     ],
     props: {
@@ -29,7 +29,7 @@ const schema = {
         "Passwords must be identical",
         (value, { parent: { password } }) => {
           return password === value;
-        }
+        },
       ),
     ],
   },
@@ -41,11 +41,7 @@ export function FormReset(props: { token: string }) {
   return done ? (
     <>
       <div>
-        <i
-          className="bi bi-check-circle"
-          aria-hidden
-          style={{ fontSize: "4rem" }}
-        ></i>
+        <i className="bi bi-check-circle" aria-hidden style={{ fontSize: "4rem" }}></i>
       </div>
       <div>Password has been successfully updated</div>
       <NavLink className={() => "align-self-end"} to={"/login"}>

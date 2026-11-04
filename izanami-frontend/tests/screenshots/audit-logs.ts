@@ -1,10 +1,5 @@
 import { screenshotBuilder, setup } from "./utils";
-import {
-  testBuilder,
-  testFeature,
-  testTenant,
-  testProject,
-} from "../testBuilder";
+import { testBuilder, testFeature, testTenant, testProject } from "../testBuilder";
 import { expect } from "@playwright/test";
 
 export async function generate() {
@@ -19,8 +14,8 @@ export async function generate() {
           .withFeature(testFeature("comments"))
           .withFeature(testFeature("summer-sales"))
           .withFeature(testFeature("phone-support"))
-          .withFeature(testFeature("new-layout"))
-      )
+          .withFeature(testFeature("new-layout")),
+      ),
     )
     .build(page);
 
@@ -44,13 +39,9 @@ export async function generate() {
   await page.getByLabel("Confirm").click();
   await expect(page.getByRole("cell", { name: "Disabled" })).toHaveCount(0);
 
-  await page.goto(
-    "http://localhost:3000/tenants/bookstore/projects/website/logs"
-  );
+  await page.goto("http://localhost:3000/tenants/bookstore/projects/website/logs");
 
-  await page
-    .getByRole("columnheader", { name: "User" })
-    .scrollIntoViewIfNeeded();
+  await page.getByRole("columnheader", { name: "User" }).scrollIntoViewIfNeeded();
 
   await screenshot("log-table");
 

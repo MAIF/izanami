@@ -11,10 +11,7 @@ import {
   updateUserRightsForProject,
 } from "../utils/queries";
 import { useNavigate } from "react-router-dom";
-import {
-  isFirstProjectRightAboveOrEqual,
-  useProjectRight,
-} from "../securityContext";
+import { isFirstProjectRightAboveOrEqual, useProjectRight } from "../securityContext";
 import queryClient from "../queryClient";
 import { constraints, format, type } from "@maif/react-forms";
 import { Form } from "../components/Form";
@@ -90,20 +87,14 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
           <InvitationForm
             projectRight={true}
             submit={({ users, level }) =>
-              inviteUsers
-                .mutateAsync({ users, level })
-                .then(() => setInviting(false))
+              inviteUsers.mutateAsync({ users, level }).then(() => setInviting(false))
             }
             cancel={() => setInviting(false)}
             invitedUsers={usersQuery.data.map((user) => user.username) || []}
           />
         )}
 
-        <ProjectUsers
-          tenant={tenant}
-          project={project}
-          usersData={usersQuery.data}
-        />
+        <ProjectUsers tenant={tenant} project={project} usersData={usersQuery.data} />
         <hr />
         <h2 className="mt-4">Danger zone</h2>
         <div className="border border-danger rounded p-2 mt-3">
@@ -168,11 +159,7 @@ export function ProjectSettings(props: { project: string; tenant: string }) {
   }
 }
 
-function ProjectUsers(props: {
-  tenant: string;
-  project: string;
-  usersData: any;
-}) {
+function ProjectUsers(props: { tenant: string; project: string; usersData: any }) {
   const { tenant, project, usersData } = props;
 
   const userUpdateMutationForProject = useMutation({
@@ -285,11 +272,10 @@ function ProjectUsers(props: {
               const maybeDefaultProjectRight = user.defaultRight;
 
               if (maybeDefaultProjectRight && user.right) {
-                const isDefaultRightAboveRight =
-                  !isFirstProjectRightAboveOrEqual(
-                    user.right,
-                    maybeDefaultProjectRight,
-                  );
+                const isDefaultRightAboveRight = !isFirstProjectRightAboveOrEqual(
+                  user.right,
+                  maybeDefaultProjectRight,
+                );
                 return isDefaultRightAboveRight
                   ? `${maybeDefaultProjectRight} (default right)`
                   : user.right;
@@ -346,11 +332,7 @@ function ProjectRightLevelModification(props: {
         }}
       />
       <div className="d-flex justify-content-end">
-        <button
-          type="button"
-          className="btn btn-danger m-2"
-          onClick={() => cancel()}
-        >
+        <button type="button" className="btn btn-danger m-2" onClick={() => cancel()}>
           Cancel
         </button>
         <button
@@ -405,9 +387,7 @@ function ProjectModification(props: {
             defaultValue: project.description,
           },
         }}
-        onSubmit={(data: any) =>
-          updateMutation.mutateAsync(data).then(() => props.onDone())
-        }
+        onSubmit={(data: any) => updateMutation.mutateAsync(data).then(() => props.onDone())}
         onClose={() => props.onDone()}
       />
     </div>

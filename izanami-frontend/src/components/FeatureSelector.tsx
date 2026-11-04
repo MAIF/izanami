@@ -1,12 +1,7 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
-import {
-  findFeatures,
-  projectQueryKey,
-  queryProject,
-  tenantFeaturesKey,
-} from "../utils/queries";
+import { findFeatures, projectQueryKey, queryProject, tenantFeaturesKey } from "../utils/queries";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { Loader } from "./Loader";
@@ -31,9 +26,7 @@ export function FeatureSelector(props: {
         : [tenantFeaturesKey(tenant!)],
 
     queryFn: () =>
-      project
-        ? queryProject(tenant!, project).then((p) => p.features)
-        : findFeatures(tenant!),
+      project ? queryProject(tenant!, project).then((p) => p.features) : findFeatures(tenant!),
   });
 
   if (featureQuery.error) {

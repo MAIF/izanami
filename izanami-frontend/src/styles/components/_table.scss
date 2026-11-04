@@ -1,7 +1,7 @@
 .table {
   color: var(--color_level2) !important;
   background-color: var(--bg-color_level2) !important;
-  thead> * > * {
+  thead > * > * {
     color: var(--color_level2) !important;
     background-color: var(--bg-color_level2) !important;
   }
@@ -9,7 +9,8 @@
   td {
     vertical-align: middle;
   }
-  tbody, &> :not(caption)> * > * {
+  tbody,
+  & > :not(caption) > * > * {
     background-color: var(--bg-color_level3);
     color: var(--color_level3) !important;
     td,

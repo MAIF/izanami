@@ -52,10 +52,7 @@ function setupOIDCConfiguration(cookie: string, rightByRoles?: object) {
 }
 
 test.describe("Max rights should", () => {
-  test("display details of right loss at login if needed", async ({
-    page,
-    browser,
-  }) => {
+  test("display details of right loss at login if needed", async ({ page, browser }) => {
     await testBuilder()
       .withTenant(
         testTenant("foo")
@@ -86,9 +83,7 @@ test.describe("Max rights should", () => {
     await page.getByRole("button", { name: "Add tenant right" }).click();
     await page.getByRole("combobox", { name: "Tenant" }).click();
     await page.getByRole("option", { name: "foo" }).click();
-    await page
-      .getByRole("combobox", { name: "Tenant foo right level" })
-      .click();
+    await page.getByRole("combobox", { name: "Tenant foo right level" }).click();
     await page.getByRole("option", { name: "Write" }).click();
 
     await page.getByRole("combobox", { name: "Default project right" }).click();
@@ -122,9 +117,7 @@ test.describe("Max rights should", () => {
 
     await page.getByRole("button", { name: "Update configuration" }).click();
     await expect(
-      page.getByText(
-        "Updating max rights will disconnect impacted users, are you sure ?",
-      ),
+      page.getByText("Updating max rights will disconnect impacted users, are you sure ?"),
     ).toBeVisible();
     await page.getByRole("button", { name: "Confirm" }).click();
 
@@ -135,9 +128,7 @@ test.describe("Max rights should", () => {
     await page2.getByRole("textbox", { name: "Username" }).fill("User1");
     await page2.getByRole("textbox", { name: "Password" }).fill("pwd");
     await page2.getByRole("button", { name: "Login" }).click();
-    await expect(
-      page2.getByRole("button", { name: "Sam Tailor" }),
-    ).toBeVisible();
+    await expect(page2.getByRole("button", { name: "Sam Tailor" })).toBeVisible();
     await page2.getByRole("button", { name: "Sam Tailor" }).click();
     await page2.getByRole("link", { name: "Logout" }).click();
     await expect(page2).toHaveURL("http://localhost:3000/login");
@@ -146,16 +137,12 @@ test.describe("Max rights should", () => {
     await page.getByRole("option", { name: "Read" }).click();
     await page.getByRole("button", { name: "Update configuration" }).click();
     await expect(
-      page.getByText(
-        "Updating max rights will disconnect impacted users, are you sure ?",
-      ),
+      page.getByText("Updating max rights will disconnect impacted users, are you sure ?"),
     ).toBeVisible();
     await page.getByRole("button", { name: "Confirm" }).click();
 
     await page2.getByRole("button", { name: "OpenId connect" }).click();
-    await expect(
-      page2.getByRole("button", { name: "Sam Tailor" }),
-    ).toBeVisible();
+    await expect(page2.getByRole("button", { name: "Sam Tailor" })).toBeVisible();
 
     await expect(page2.locator("#modal")).toMatchAriaSnapshot(`
       - heading "Your rights have been updated" [level=3]
@@ -166,9 +153,7 @@ test.describe("Max rights should", () => {
       `);
 
     await page2.getByRole("button", { name: "Close" }).click();
-    await expect(
-      page2.getByRole("heading", { name: "Projects" }),
-    ).toBeVisible();
+    await expect(page2.getByRole("heading", { name: "Projects" })).toBeVisible();
   });
 
   test("display badge on user profile where its rights have beend updated by max right update", async ({
@@ -233,9 +218,7 @@ test.describe("Max rights should", () => {
     await page2.getByRole("textbox", { name: "Username" }).fill("User1");
     await page2.getByRole("textbox", { name: "Password" }).fill("pwd");
     await page2.getByRole("button", { name: "Login" }).click();
-    await expect(
-      page2.getByRole("button", { name: "Sam Tailor" }),
-    ).toBeVisible();
+    await expect(page2.getByRole("button", { name: "Sam Tailor" })).toBeVisible();
 
     await page.goto("/settings");
 

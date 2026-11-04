@@ -18,12 +18,10 @@ export async function generate() {
         .withProject(
           testProject("website")
             .withFeature(testFeature("comments").withEnableStatus())
-            .withFeature(testFeature("summer-sales"))
+            .withFeature(testFeature("summer-sales")),
         )
-        .withProject(
-          testProject("suppliers").withFeature(testFeature("advises"))
-        )
-        .withContext(testGlobalContext("QA"))
+        .withProject(testProject("suppliers").withFeature(testFeature("advises")))
+        .withContext(testGlobalContext("QA")),
     )
     .build(page);
 
@@ -48,9 +46,7 @@ export async function generate() {
   await page.getByRole("button", { name: "Test it!" }).click();
   await screenshot("test-result");
   await page.getByLabel("Display json").check();
-  await page.evaluate(() =>
-    window.scrollTo(0, document.documentElement.scrollHeight)
-  );
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await screenshot("test-result-json");
 
   await browser.close();

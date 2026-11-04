@@ -26,11 +26,7 @@ export function Tooltip(
   const content = (
     <>
       <i
-        className={
-          props?.iconClassName
-            ? props.iconClassName
-            : "ms-1 bi bi-question-circle"
-        }
+        className={props?.iconClassName ? props.iconClassName : "ms-1 bi bi-question-circle"}
         data-tooltip-id={props.id}
         data-tooltip-place={props.position || "top"}
         {...ariaAttributes}

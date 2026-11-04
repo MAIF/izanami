@@ -57,7 +57,7 @@ const EventType = {
   SetMaxTenantLevel: "SetMaxTenantLevel",
 } as const;
 
-type EventType = typeof EventType[keyof typeof EventType];
+type EventType = (typeof EventType)[keyof typeof EventType];
 
 interface Event {
   type: EventType;
@@ -212,22 +212,18 @@ function rightToInternalState(rights: TRights): State {
     return Object.entries(rights.tenants).map(([key, value]) => ({
       name: key,
       level: value.level,
-      projects: Object.entries(value.projects ?? {}).map(
-        ([projectName, projectValue]) => ({
-          name: projectName,
-          level: projectValue.level,
-        }),
-      ),
+      projects: Object.entries(value.projects ?? {}).map(([projectName, projectValue]) => ({
+        name: projectName,
+        level: projectValue.level,
+      })),
       keys: Object.entries(value.keys ?? {}).map(([keyName, keyValue]) => ({
         name: keyName,
         level: keyValue.level,
       })),
-      webhooks: Object.entries(value.webhooks ?? {}).map(
-        ([keyName, keyValue]) => ({
-          name: keyName,
-          level: keyValue.level,
-        }),
-      ),
+      webhooks: Object.entries(value.webhooks ?? {}).map(([keyName, keyValue]) => ({
+        name: keyName,
+        level: keyValue.level,
+      })),
       defaultProjectRight: value.defaultProjectRight,
       defaultKeyRight: value.defaultKeyRight,
       defaultWebhookRight: value.defaultWebhookRight,
@@ -487,10 +483,7 @@ export function RightSelector(props: {
     queryFn: () => queryTenants(tenantLevelFilter),
   });
 
-  const [state, dispatch] = React.useReducer(
-    reducer,
-    rightToInternalState(defaultValue ?? {}),
-  );
+  const [state, dispatch] = React.useReducer(reducer, rightToInternalState(defaultValue ?? {}));
   React.useEffect(() => {
     if (defaultValue) {
       dispatch({ type: EventType.SetupState, rights: defaultValue });
@@ -511,9 +504,7 @@ export function RightSelector(props: {
   if (tenantQuery.isLoading) {
     return <Loader message="Loading tenants.." />;
   } else if (tenantQuery.data) {
-    const tenants = props.tenant
-      ? [props.tenant]
-      : tenantQuery.data.map((t) => t.name);
+    const tenants = props.tenant ? [props.tenant] : tenantQuery.data.map((t) => t.name);
     const selectorChoices = props.tenant
       ? [props.tenant]
       : tenants.filter((item) => {
@@ -551,9 +542,7 @@ export function RightSelector(props: {
                       name={name}
                       choices={selectorChoices}
                       userRight={
-                        admin
-                          ? TLevel.Admin
-                          : findTenantRight(rights, name) || TLevel.Read
+                        admin ? TLevel.Admin : findTenantRight(rights, name) || TLevel.Read
                       }
                       onItemChange={(item) => {
                         dispatch({ type: EventType.DeleteTenant, name });
@@ -600,15 +589,11 @@ export function RightSelector(props: {
                                         }
                                       : { label: "None", value: "None" }
                                   }
-                                  options={[
-                                    { label: "None", value: "None" },
-                                  ].concat(
-                                    Object.entries(TProjectLevel).map(
-                                      ([key, value]) => ({
-                                        label: value,
-                                        value: key,
-                                      }),
-                                    ),
+                                  options={[{ label: "None", value: "None" }].concat(
+                                    Object.entries(TProjectLevel).map(([key, value]) => ({
+                                      label: value,
+                                      value: key,
+                                    })),
                                   )}
                                   styles={customStyles}
                                   onChange={(selected) => {
@@ -634,8 +619,7 @@ export function RightSelector(props: {
                         </div>
                         <div className="sub_container sub_container-bglighter key-selector">
                           <label>
-                            <i className="fas fa-key" aria-hidden></i>&nbsp;Keys
-                            rights for {name}
+                            <i className="fas fa-key" aria-hidden></i>&nbsp;Keys rights for {name}
                           </label>
                           <div>
                             <div className="d-flex flex-row justify-content-between">
@@ -659,15 +643,11 @@ export function RightSelector(props: {
                                         }
                                       : { label: "None", value: "None" }
                                   }
-                                  options={[
-                                    { label: "None", value: "None" },
-                                  ].concat(
-                                    Object.entries(TLevel).map(
-                                      ([key, value]) => ({
-                                        label: value,
-                                        value: key,
-                                      }),
-                                    ),
+                                  options={[{ label: "None", value: "None" }].concat(
+                                    Object.entries(TLevel).map(([key, value]) => ({
+                                      label: value,
+                                      value: key,
+                                    })),
                                   )}
                                   styles={customStyles}
                                   onChange={(selected) => {
@@ -681,11 +661,7 @@ export function RightSelector(props: {
                               </label>
                             </div>
                             <div className="my-2">
-                              <KeySelector
-                                tenant={name}
-                                dispatch={dispatch}
-                                keys={keys}
-                              />
+                              <KeySelector tenant={name} dispatch={dispatch} keys={keys} />
                             </div>
                           </div>
                         </div>
@@ -716,15 +692,11 @@ export function RightSelector(props: {
                                         }
                                       : { label: "None", value: "None" }
                                   }
-                                  options={[
-                                    { label: "None", value: "None" },
-                                  ].concat(
-                                    Object.entries(TLevel).map(
-                                      ([key, value]) => ({
-                                        label: value,
-                                        value: key,
-                                      }),
-                                    ),
+                                  options={[{ label: "None", value: "None" }].concat(
+                                    Object.entries(TLevel).map(([key, value]) => ({
+                                      label: value,
+                                      value: key,
+                                    })),
                                   )}
                                   styles={customStyles}
                                   onChange={(selected) => {
@@ -756,8 +728,8 @@ export function RightSelector(props: {
                           <i className="fa-solid fa-lock" aria-hidden></i>
                           &nbsp;Max rights for {name}
                           <Tooltip id="max-right-tooltip">
-                            Users from external authentication provider won't be
-                            able to have rights above max rights.
+                            Users from external authentication provider won't be able to have rights
+                            above max rights.
                             <br />
                             Max rights are used only in "initial" right mode.
                           </Tooltip>
@@ -795,9 +767,7 @@ export function RightSelector(props: {
                               dispatch({
                                 type: EventType.SetMaxTenantLevel,
                                 tenant: name,
-                                level: (selected?.value
-                                  ? selected.value
-                                  : undefined) as TLevel,
+                                level: (selected?.value ? selected.value : undefined) as TLevel,
                               });
                             }}
                           />
@@ -875,9 +845,7 @@ export function RightSelector(props: {
                               dispatch({
                                 type: EventType.SetMaxKeyLevel,
                                 tenant: name,
-                                level: (selected?.value
-                                  ? selected.value
-                                  : undefined) as TLevel,
+                                level: (selected?.value ? selected.value : undefined) as TLevel,
                               });
                             }}
                           />
@@ -915,9 +883,7 @@ export function RightSelector(props: {
                               dispatch({
                                 type: EventType.SetMaxWebhookLevel,
                                 tenant: name,
-                                level: (selected?.value
-                                  ? selected.value
-                                  : undefined) as TLevel,
+                                level: (selected?.value ? selected.value : undefined) as TLevel,
                               });
                             }}
                           />
@@ -950,11 +916,7 @@ export function RightSelector(props: {
         </>
         {!creating &&
           selectedTenants.length < tenants.length &&
-          !(
-            props.tenant &&
-            defaultValue?.tenants &&
-            props.tenant in defaultValue.tenants
-          ) && (
+          !(props.tenant && defaultValue?.tenants && props.tenant in defaultValue.tenants) && (
             <button
               className="btn btn-primary mt-2"
               onClick={() => {
@@ -969,9 +931,7 @@ export function RightSelector(props: {
                 }
               }}
             >
-              {props.tenant
-                ? `Add specific ${props.tenant} right`
-                : "Add tenant right"}
+              {props.tenant ? `Add specific ${props.tenant} right` : "Add tenant right"}
             </button>
           )}
       </div>
@@ -1009,9 +969,9 @@ function ProjectSelector(props: {
     );
   } else if (projectQuery.data) {
     const selectedProjectNames = projects.map((p) => p.name);
-    const availableProjects = (
-      projectQuery.data.projects?.map((p) => p.name) || []
-    ).filter((p) => !selectedProjectNames.includes(p));
+    const availableProjects = (projectQuery.data.projects?.map((p) => p.name) || []).filter(
+      (p) => !selectedProjectNames.includes(p),
+    );
 
     return (
       <>
@@ -1062,15 +1022,11 @@ function ProjectSelector(props: {
             />
           </div>
         )}
-        {!creating &&
-          projects.length < (projectQuery.data.projects?.length || 0) && (
-            <button
-              className="btn btn-primary btn-sm mt-2"
-              onClick={() => setCreating(true)}
-            >
-              Add project rights
-            </button>
-          )}
+        {!creating && projects.length < (projectQuery.data.projects?.length || 0) && (
+          <button className="btn btn-primary btn-sm mt-2" onClick={() => setCreating(true)}>
+            Add project rights
+          </button>
+        )}
       </>
     );
   } else {
@@ -1157,10 +1113,7 @@ function KeySelector(props: {
           </div>
         )}
         {!creating && keys.length < (keyQuery.data.length || 0) && (
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => setCreating(true)}
-          >
+          <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
             Add key rights
           </button>
         )}
@@ -1197,9 +1150,9 @@ function WebhookSelector(props: {
     );
   } else if (webhookQuery.data) {
     const selectedWebhookNames = webhooks.map(({ name }) => name);
-    const availableWebhooks = (
-      webhookQuery.data.map((k) => k.name) || []
-    ).filter((p) => !selectedWebhookNames.includes(p));
+    const availableWebhooks = (webhookQuery.data.map((k) => k.name) || []).filter(
+      (p) => !selectedWebhookNames.includes(p),
+    );
     return (
       <>
         {webhooks.map(({ name, level }) => (
@@ -1250,10 +1203,7 @@ function WebhookSelector(props: {
           </div>
         )}
         {!creating && webhooks.length < (webhookQuery.data.length || 0) && (
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => setCreating(true)}
-          >
+          <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
             Add webhook rights
           </button>
         )}
@@ -1277,9 +1227,7 @@ type ItemSelectorProps<T extends TProjectLevelWithNone> = {
   possibleRights: T[];
 };
 
-function ItemSelector<T extends TProjectLevelWithNone>(
-  props: ItemSelectorProps<T>,
-) {
+function ItemSelector<T extends TProjectLevelWithNone>(props: ItemSelectorProps<T>) {
   const {
     choices,
     onItemChange,
@@ -1323,11 +1271,7 @@ function ItemSelector<T extends TProjectLevelWithNone>(
         }}
         isDisabled={!name}
       />
-      <button
-        type="button"
-        className="btn btn-danger"
-        onClick={() => onClear?.()}
-      >
+      <button type="button" className="btn btn-danger" onClick={() => onClear?.()}>
         Delete
       </button>
     </div>

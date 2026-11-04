@@ -33,13 +33,7 @@ import Keys from "./pages/keys";
 import { isAuthenticated } from "./utils/authUtils";
 import "./App.css";
 import { TUser } from "./utils/types";
-import {
-  TIzanamiContext,
-  IzanamiContext,
-  Modes,
-  MODE_KEY,
-  ModeValue,
-} from "./securityContext";
+import { TIzanamiContext, IzanamiContext, Modes, MODE_KEY, ModeValue } from "./securityContext";
 import { Topbar } from "./Topbar";
 import { Users } from "./pages/users";
 import { Settings } from "./pages/settings";
@@ -64,7 +58,7 @@ import { QueryBuilder } from "./pages/queryBuilder";
 import { GlobalContextIcon } from "./utils/icons";
 import { WasmScripts } from "./pages/wasmScripts";
 import { differenceInMonths } from "date-fns";
-import ReactJsonView from '@microlink/react-json-view'
+import ReactJsonView from "@microlink/react-json-view";
 import { AtomicDesign } from "./pages/atomicDesign";
 import { Swagger } from "./pages/swagger";
 import { Tags } from "./pages/tags";
@@ -96,11 +90,7 @@ function Wrapper({
   });
 }
 
-function redirectToLoginIfNotAuthenticated({
-  request,
-}: {
-  request: { url: string };
-}) {
+function redirectToLoginIfNotAuthenticated({ request }: { request: { url: string } }) {
   const { pathname, search } = new URL(request.url);
   if (!isAuthenticated()) {
     return redirect(`/login?req=${encodeURI(`${pathname}${search}`)}`);
@@ -204,10 +194,7 @@ const router = createBrowserRouter([
             element: <Wrapper element={TenantAudit} />,
             handle: {
               crumb: (data: any) => (
-                <NavLink
-                  className={() => ""}
-                  to={`/tenants/${data.tenant}/logs`}
-                >
+                <NavLink className={() => ""} to={`/tenants/${data.tenant}/logs`}>
                   <i className="fa-solid fa-timeline" aria-hidden></i>&nbsp;Logs
                 </NavLink>
               ),
@@ -218,10 +205,7 @@ const router = createBrowserRouter([
             element: <Wrapper element={WebHooks} />,
             handle: {
               crumb: (data: any) => (
-                <NavLink
-                  className={() => ""}
-                  to={`/tenants/${data.tenant}/webhooks`}
-                >
+                <NavLink className={() => ""} to={`/tenants/${data.tenant}/webhooks`}>
                   <i className="fas fa-plug" aria-hidden></i>&nbsp;Webhooks
                 </NavLink>
               ),
@@ -232,10 +216,7 @@ const router = createBrowserRouter([
             element: <Wrapper element={GlobalContexts} />,
             handle: {
               crumb: (data: any) => (
-                <NavLink
-                  className={() => ""}
-                  to={`/tenants/${data.tenant}/contexts`}
-                >
+                <NavLink className={() => ""} to={`/tenants/${data.tenant}/contexts`}>
                   <GlobalContextIcon />
                   &nbsp;Global contexts
                 </NavLink>
@@ -312,10 +293,7 @@ const router = createBrowserRouter([
             element: <Wrapper element={Keys} />,
             handle: {
               crumb: (data: any) => (
-                <NavLink
-                  className={() => ""}
-                  to={`/tenants/${data.tenant}/keys`}
-                >
+                <NavLink className={() => ""} to={`/tenants/${data.tenant}/keys`}>
                   <i className="fas fa-key" aria-hidden></i>&nbsp;{data.project}
                   Keys
                 </NavLink>
@@ -327,10 +305,7 @@ const router = createBrowserRouter([
             element: <Wrapper element={TenantSettings} />,
             handle: {
               crumb: (data: any) => (
-                <NavLink
-                  className={() => ""}
-                  to={`/tenants/${data.tenant}/settings`}
-                >
+                <NavLink className={() => ""} to={`/tenants/${data.tenant}/settings`}>
                   <i className="fas fa-cog" aria-hidden></i> Settings
                 </NavLink>
               ),
@@ -341,12 +316,8 @@ const router = createBrowserRouter([
             element: <Wrapper element={QueryBuilder} />,
             handle: {
               crumb: (data: any) => (
-                <NavLink
-                  className={() => ""}
-                  to={`/tenants/${data.tenant}/query-builder`}
-                >
-                  <i className="fa-solid fa-hammer" aria-hidden></i> Query
-                  builder
+                <NavLink className={() => ""} to={`/tenants/${data.tenant}/query-builder`}>
+                  <i className="fa-solid fa-hammer" aria-hidden></i> Query builder
                 </NavLink>
               ),
             },
@@ -356,10 +327,7 @@ const router = createBrowserRouter([
             element: <Wrapper element={WasmScripts} />,
             handle: {
               crumb: (data: any) => (
-                <NavLink
-                  className={() => ""}
-                  to={`/tenants/${data.tenant}/scripts`}
-                >
+                <NavLink className={() => ""} to={`/tenants/${data.tenant}/scripts`}>
                   <i className="fa-solid fa-code" aria-hidden></i> Wasm scripts
                 </NavLink>
               ),
@@ -369,10 +337,7 @@ const router = createBrowserRouter([
             path: "/tenants/:tenant/tags",
             handle: {
               crumb: (data: any) => (
-                <NavLink
-                  className={() => ""}
-                  to={`/tenants/${data.tenant}/tags`}
-                >
+                <NavLink className={() => ""} to={`/tenants/${data.tenant}/tags`}>
                   <i className="fa-solid fa-tag" aria-hidden></i> Tags
                 </NavLink>
               ),
@@ -387,10 +352,7 @@ const router = createBrowserRouter([
                 element: <Wrapper element={Tag} />,
                 handle: {
                   crumb: (data: any) => (
-                    <NavLink
-                      className={() => ""}
-                      to={`/tenants/${data.tenant}/tags/${data.tag}`}
-                    >
+                    <NavLink className={() => ""} to={`/tenants/${data.tenant}/tags/${data.tag}`}>
                       <i className="fa-solid fa-tag" aria-hidden></i> {data.tag}
                     </NavLink>
                   ),
@@ -460,99 +422,57 @@ function RightUpdateMessage({ rightUpdates }: { rightUpdates: RightUpdate }) {
           <>
             {changes?.levelRight && (
               <li>
-                Your right for tenant{" "}
-                <span style={{ fontWeight: "bold" }}>{tenant}</span> has been
-                updated from{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {changes.levelRight.before}
-                </span>{" "}
-                to{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {changes.levelRight.after}
-                </span>
+                Your right for tenant <span style={{ fontWeight: "bold" }}>{tenant}</span> has been
+                updated from <span style={{ fontWeight: "bold" }}>{changes.levelRight.before}</span>{" "}
+                to <span style={{ fontWeight: "bold" }}>{changes.levelRight.after}</span>
               </li>
             )}
             {changes.defaultProject && (
               <li>
                 Tenant {tenant}: your{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  default project right
-                </span>{" "}
-                has been updated from{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {changes.defaultProject.before}
-                </span>{" "}
-                to{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {changes.defaultProject.after}
-                </span>
+                <span style={{ fontWeight: "bold" }}>default project right</span> has been updated
+                from <span style={{ fontWeight: "bold" }}>{changes.defaultProject.before}</span> to{" "}
+                <span style={{ fontWeight: "bold" }}>{changes.defaultProject.after}</span>
               </li>
             )}
             {changes.defaultKey && (
               <li>
-                Tenant {tenant}: your{" "}
-                <span style={{ fontWeight: "bold" }}>default key right</span>{" "}
+                Tenant {tenant}: your <span style={{ fontWeight: "bold" }}>default key right</span>{" "}
                 has been updated from{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {changes.defaultKey.before}
-                </span>{" "}
-                to{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {changes.defaultKey.after}
-                </span>
+                <span style={{ fontWeight: "bold" }}>{changes.defaultKey.before}</span> to{" "}
+                <span style={{ fontWeight: "bold" }}>{changes.defaultKey.after}</span>
               </li>
             )}
             {changes.defaultWebhook && (
               <li>
                 Tenant {tenant}: your{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  default webhook right
-                </span>{" "}
-                has been updated from{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {changes.defaultWebhook.before}
-                </span>{" "}
-                to{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {changes.defaultWebhook.after}
-                </span>
+                <span style={{ fontWeight: "bold" }}>default webhook right</span> has been updated
+                from <span style={{ fontWeight: "bold" }}>{changes.defaultWebhook.before}</span> to{" "}
+                <span style={{ fontWeight: "bold" }}>{changes.defaultWebhook.after}</span>
               </li>
             )}
             {Object.entries(changes.projects).map(([name, projectChange]) => (
               <li key={`${tenant}-${name}`}>
                 Tenant {tenant}: your right on project{" "}
-                <span style={{ fontWeight: "bold" }}>{name}</span> has been
-                updated from{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {projectChange.before}
-                </span>{" "}
-                to{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {projectChange.after}
-                </span>
+                <span style={{ fontWeight: "bold" }}>{name}</span> has been updated from{" "}
+                <span style={{ fontWeight: "bold" }}>{projectChange.before}</span> to{" "}
+                <span style={{ fontWeight: "bold" }}>{projectChange.after}</span>
               </li>
             ))}
             {Object.entries(changes.keys).map(([name, keyChange]) => (
               <li key={`${tenant}-${name}`}>
                 Tenant {tenant}: your right on key{" "}
-                <span style={{ fontWeight: "bold" }}>{name}</span> has been
-                updated from{" "}
-                <span style={{ fontWeight: "bold" }}>{keyChange.before}</span>{" "}
-                to <span style={{ fontWeight: "bold" }}>{keyChange.after}</span>
+                <span style={{ fontWeight: "bold" }}>{name}</span> has been updated from{" "}
+                <span style={{ fontWeight: "bold" }}>{keyChange.before}</span> to{" "}
+                <span style={{ fontWeight: "bold" }}>{keyChange.after}</span>
               </li>
             ))}
             {Object.entries(changes.webhooks).map(([name, webhookChange]) => (
               <li key={`${tenant}-${name}`}>
                 Tenant {tenant}: your right on webhook{" "}
-                <span style={{ fontWeight: "bold" }}>{name}</span> has been
-                updated from{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {webhookChange.before}
-                </span>{" "}
-                to{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {webhookChange.after}
-                </span>
+                <span style={{ fontWeight: "bold" }}>{name}</span> has been updated from{" "}
+                <span style={{ fontWeight: "bold" }}>{webhookChange.before}</span> to{" "}
+                <span style={{ fontWeight: "bold" }}>{webhookChange.after}</span>
               </li>
             ))}
           </>
@@ -608,15 +528,8 @@ function RedirectToFirstTenant(): JSX.Element {
 type AppLoadingState = "Loading" | "Error" | "Success";
 
 export function Layout() {
-  const {
-    user,
-    setUser,
-    logout,
-    expositionUrl,
-    version,
-    updateLightMode,
-    mode,
-  } = useContext(IzanamiContext);
+  const { user, setUser, logout, expositionUrl, version, updateLightMode, mode } =
+    useContext(IzanamiContext);
   const [isOpenModal, setIsOpenModal] = useState(false);
   const [loadingState, setLoadingState] = React.useState<AppLoadingState>(
     !user?.username || !expositionUrl ? "Loading" : "Success",
@@ -700,9 +613,7 @@ export function Layout() {
                 </button>
               </div>
               <ul className="navbar-nav ms-auto">
-                {(tenant ||
-                  user?.admin ||
-                  Object.keys(user?.rights.tenants || {}).length > 0) && (
+                {(tenant || user?.admin || Object.keys(user?.rights.tenants || {}).length > 0) && (
                   <li className="me-2 d-flex align-items-center justify-content-end my-1">
                     <button
                       className="btn btn-secondary"
@@ -719,18 +630,12 @@ export function Layout() {
                   </li>
                 )}
                 <li
-                  onClick={() =>
-                    updateLightMode(
-                      mode === Modes.dark ? Modes.light : Modes.dark,
-                    )
-                  }
+                  onClick={() => updateLightMode(mode === Modes.dark ? Modes.light : Modes.dark)}
                   className="me-2 d-flex align-items-center justify-content-end my-2"
                 >
                   <i
                     id="lightMode"
-                    className={`${
-                      mode === Modes.light ? "fa fa-lightbulb" : "fa fa-moon"
-                    }`}
+                    className={`${mode === Modes.light ? "fa fa-lightbulb" : "fa fa-moon"}`}
                     style={{ color: "var(--color_level2)", cursor: "pointer" }}
                   />
                 </li>
@@ -786,9 +691,7 @@ export function Layout() {
               <Outlet />
             </main>
           </div>
-          {(tenant ||
-            user?.admin ||
-            Object.keys(user?.rights.tenants || {}).length > 0) && (
+          {(tenant || user?.admin || Object.keys(user?.rights.tenants || {}).length > 0) && (
             <SearchModal
               currentTenant={tenant}
               availableTenants={Object.keys(user?.rights.tenants || {})}
@@ -859,26 +762,21 @@ export class App extends Component<any, AppState> {
             if (
               !configuration.anonymousReporting &&
               (!configuration.anonymousReportingLastAsked ||
-                differenceInMonths(
-                  new Date(),
-                  configuration.anonymousReportingLastAsked,
-                ) > 3)
+                differenceInMonths(new Date(), configuration.anonymousReportingLastAsked) > 3)
             ) {
               return queryStats().then((stats) => {
                 this.state.askConfirmation(
                   <>
-                    As you may know, Izanami is an open-source project. As such,
-                    we don't have much feedback from our users. But this
-                    feedback is essential for us to shape the future of Izanami.
+                    As you may know, Izanami is an open-source project. As such, we don't have much
+                    feedback from our users. But this feedback is essential for us to shape the
+                    future of Izanami.
                     <br />
-                    The best way to help is to enable anonymous reporting . This
-                    feature allow Izanami to send us periodical reports. It
-                    won't send sensitive or personnal data, just a bunch of
-                    statistics about your usage of izanami (see what's sent
+                    The best way to help is to enable anonymous reporting . This feature allow
+                    Izanami to send us periodical reports. It won't send sensitive or personnal
+                    data, just a bunch of statistics about your usage of izanami (see what's sent
                     below).
-                    <br /> At any moment, you can turn off anonymous reporting
-                    from settings page. Thanks for helping us building better
-                    products !
+                    <br /> At any moment, you can turn off anonymous reporting from settings page.
+                    Thanks for helping us building better products !
                     <br />
                     <br />
                     <ReactJsonView
@@ -938,9 +836,7 @@ export class App extends Component<any, AppState> {
           this.setState({
             confirmation: {
               message: msg,
-              callback: callback
-                ? () => callback().finally(() => resolve())
-                : undefined,
+              callback: callback ? () => callback().finally(() => resolve()) : undefined,
               onCancel: () => {
                 if (onCancel) {
                   return onCancel().finally(() => resolve());
@@ -994,7 +890,7 @@ export class App extends Component<any, AppState> {
           });
         });
       },
-      setExpositionUrls: ({url, clientUrlByContexts}) => {
+      setExpositionUrls: ({ url, clientUrlByContexts }) => {
         this.setState({ expositionUrl: url, clientUrlByContexts });
       },
       integrations: undefined,
@@ -1013,7 +909,9 @@ export class App extends Component<any, AppState> {
     if (!this.state.expositionUrl) {
       fetch("/api/admin/exposition")
         .then((response) => response.json())
-        .then(({ url, clientUrlByContexts }) => this.setState({ expositionUrl: url, clientUrlByContexts }));
+        .then(({ url, clientUrlByContexts }) =>
+          this.setState({ expositionUrl: url, clientUrlByContexts }),
+        );
     }
   }
 

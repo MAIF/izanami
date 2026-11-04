@@ -8,9 +8,7 @@ import {
   TRights,
 } from "./types";
 
-export function tokenRightsToObject(
-  rights: TokenTenantRightsArray
-): TokenTenantRights {
+export function tokenRightsToObject(rights: TokenTenantRightsArray): TokenTenantRights {
   return rights.reduce((acc, [tenant, rights]) => {
     if (tenant && rights && rights.length > 0) {
       acc[tenant] = rights;
@@ -39,7 +37,7 @@ export function rightStateArrayToBackendMap(state?: State): TRights {
         maxKeyRight,
         maxWebhookRight,
         maxTenantRight,
-      }
+      },
     ) => {
       acc[name] = {
         level,
@@ -56,19 +54,20 @@ export function rightStateArrayToBackendMap(state?: State): TRights {
       };
       return acc;
     },
-    {} as { [x: string]: any }
+    {} as { [x: string]: any },
   );
 
   return { tenants: backendRights };
 }
 
-function projectOrKeyArrayToObject(
-  arr: { name: string; level?: TProjectLevel }[]
-) {
-  return arr.reduce((acc, { name, level }) => {
-    acc[name] = { level };
-    return acc;
-  }, {} as { [x: string]: any });
+function projectOrKeyArrayToObject(arr: { name: string; level?: TProjectLevel }[]) {
+  return arr.reduce(
+    (acc, { name, level }) => {
+      acc[name] = { level };
+      return acc;
+    },
+    {} as { [x: string]: any },
+  );
 }
 
 export type State = {

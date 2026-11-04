@@ -20,13 +20,11 @@ export async function generate() {
         .withProject(
           testProject("webstore")
             .withFeature(
-              testFeature("comments")
-                .withEnableStatus()
-                .withOverload(testOverload("prod", false))
+              testFeature("comments").withEnableStatus().withOverload(testOverload("prod", false)),
             )
-            .withFeature(testFeature("phone-support").withDisableStatus())
+            .withFeature(testFeature("phone-support").withDisableStatus()),
         )
-        .withKey(testKey({ name: "adminkey", admin: true }))
+        .withKey(testKey({ name: "adminkey", admin: true })),
     )
     .withTenant(testTenant("target-bookstore"))
     .build(page);

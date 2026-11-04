@@ -91,14 +91,10 @@ export async function createProject(name, page) {
 }
 
 // expected date format : 2024-05-20 15:00:00+00
-export async function updateFeatureCreationDate(
-  tenant: string,
-  feature: string,
-  date: string
-) {
+export async function updateFeatureCreationDate(tenant: string, feature: string, date: string) {
   return executeInDatabase(async (client) => {
     return client.query(
-      `UPDATE "${tenant}".features SET created_at='${date}'::timestamptz WHERE id='${feature}'`
+      `UPDATE "${tenant}".features SET created_at='${date}'::timestamptz WHERE id='${feature}'`,
     );
   });
 }

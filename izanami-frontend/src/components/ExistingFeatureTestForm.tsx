@@ -6,11 +6,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Tooltip as LocalToolTip } from "./Tooltip";
 import Select from "react-select";
 import CreatableSelect from "react-select/creatable";
-import {
-  projectContextKey,
-  queryContextsForProject,
-  testExistingFeature,
-} from "../utils/queries";
+import { projectContextKey, queryContextsForProject, testExistingFeature } from "../utils/queries";
 import { IzanamiContext, Modes } from "../securityContext";
 import { possiblePaths } from "../utils/contextUtils";
 import { customStyles } from "../styles/reactSelect";
@@ -59,23 +55,13 @@ export function ExistingFeatureTestForm(props: {
       context: string;
       payload?: string;
     }) =>
-      testExistingFeature(
-        tenant!,
-        feature.id!,
-        date,
-        context ?? "",
-        user ?? "",
-        payload,
-        groups
-      ),
+      testExistingFeature(tenant!, feature.id!, date, context ?? "", user ?? "", payload, groups),
   });
 
   if (contextQuery.error) {
     return <div>Error while fetching contexts</div>;
   } else if (contextQuery.data) {
-    const allContexts = possiblePaths(contextQuery.data).map(
-      ({ path }) => path
-    );
+    const allContexts = possiblePaths(contextQuery.data).map(({ path }) => path);
     return (
       <div className="position-relative">
         <div className="position-absolute top-0 end-0 px-3">
@@ -134,9 +120,7 @@ export function ExistingFeatureTestForm(props: {
                               isClearable
                               isDisabled={allContexts?.length === 0}
                               placeholder={
-                                allContexts?.length > 0
-                                  ? "Specify context"
-                                  : "No context available"
+                                allContexts?.length > 0 ? "Specify context" : "No context available"
                               }
                             />
                           )}
@@ -159,23 +143,10 @@ export function ExistingFeatureTestForm(props: {
                               <input
                                 style={{ width: "100%" }}
                                 className="form-control"
-                                defaultValue={format(
-                                  new Date(),
-                                  "yyyy-MM-dd'T'HH:mm"
-                                )}
-                                value={
-                                  value
-                                    ? format(value, "yyyy-MM-dd'T'HH:mm")
-                                    : ""
-                                }
+                                defaultValue={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                                value={value ? format(value, "yyyy-MM-dd'T'HH:mm") : ""}
                                 onChange={(e) => {
-                                  onChange(
-                                    parse(
-                                      e.target.value,
-                                      "yyyy-MM-dd'T'HH:mm",
-                                      new Date()
-                                    )
-                                  );
+                                  onChange(parse(e.target.value, "yyyy-MM-dd'T'HH:mm", new Date()));
                                 }}
                                 type="datetime-local"
                               />
@@ -190,22 +161,14 @@ export function ExistingFeatureTestForm(props: {
                         <LocalToolTip id="user-tooltip-id">
                           User to use for feature evaluation
                         </LocalToolTip>
-                        <input
-                          type="text"
-                          className="form-control"
-                          {...register("user")}
-                        ></input>
+                        <input type="text" className="form-control" {...register("user")}></input>
                       </label>
                     </div>
                     <div className="row">
-                      <label
-                        className="mt-3"
-                        htmlFor="existing-feature-test-groups"
-                      >
+                      <label className="mt-3" htmlFor="existing-feature-test-groups">
                         Groups
                         <LocalToolTip id="groups-tooltip-id">
-                          Groups supplied by the calling application for
-                          feature evaluation
+                          Groups supplied by the calling application for feature evaluation
                         </LocalToolTip>
                         <Controller
                           name="groups"
@@ -245,9 +208,7 @@ export function ExistingFeatureTestForm(props: {
                               value={value}
                               onChange={onChange}
                               extensions={[json()]}
-                              theme={`${
-                                mode === Modes.dark ? "dark" : "light"
-                              }`}
+                              theme={`${mode === Modes.dark ? "dark" : "light"}`}
                               id="test-payload"
                               minHeight="100px"
                               maxHeight="300px"

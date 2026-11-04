@@ -4,19 +4,12 @@ test.use({
   headless: true,
 });
 
-test("User invitation flow should work", async ({
-  page,
-  browser,
-  context,
-  browserName,
-}) => {
+test("User invitation flow should work", async ({ page, browser, context, browserName }) => {
   await page.goto("/home");
 
   await page.getByRole("link", { name: "Users" }).click();
   await page.getByRole("button", { name: "Invite new user" }).click();
-  await page
-    .getByLabel("Email to invite")
-    .fill(`benjamin.cavy.${browserName}@gmail.com`);
+  await page.getByLabel("Email to invite").fill(`benjamin.cavy.${browserName}@gmail.com`);
   await page.getByRole("checkbox").nth(0).check(); // FIXME when react forms will pass labels
   await page.getByRole("button", { name: "Send invitation" }).click();
 
@@ -35,9 +28,7 @@ test("User invitation flow should work", async ({
 
   await page1.goto(url);
   await page1.getByLabel("Username").fill(`foobar${browserName}`);
-  await page1
-    .getByLabel("Password*", { exact: true })
-    .fill(`foobarbar${browserName}`);
+  await page1.getByLabel("Password*", { exact: true }).fill(`foobarbar${browserName}`);
   await page1.getByLabel("Confirm password").fill("foobarbar");
   await page1.getByRole("button", { name: "Create user" }).click();
 

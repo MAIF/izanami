@@ -23,9 +23,7 @@ export const getLinkPath = (item: SearchResult) => {
   const { tenant } = item;
   switch (item.type) {
     case SearchTypeEnum.FEATURE.value: {
-      const projectName = item.path.find(
-        (p) => p.type === SearchTypeEnum.PROJECT.value
-      )?.name;
+      const projectName = item.path.find((p) => p.type === SearchTypeEnum.PROJECT.value)?.name;
       return `/tenants/${tenant}/projects/${projectName}?filter=${item.name}`;
     }
     case SearchTypeEnum.PROJECT.value:
@@ -44,14 +42,12 @@ export const getLinkPath = (item: SearchResult) => {
       return `/tenants/${tenant}/contexts?open=["${open}"]`;
     }
     case SearchTypeEnum.LOCAL_CONTEXT.value: {
-      const projectName = item.path.find(
-        (p) => p.type === SearchTypeEnum.PROJECT.value
-      )?.name;
+      const projectName = item.path.find((p) => p.type === SearchTypeEnum.PROJECT.value)?.name;
       const maybeOpen = item.path
         .filter(
           (p) =>
             p.type === SearchTypeEnum.GLOBAL_CONTEXT.value ||
-            p.type === SearchTypeEnum.LOCAL_CONTEXT.value
+            p.type === SearchTypeEnum.LOCAL_CONTEXT.value,
         )
         .map((p) => p.name);
       const open = [...maybeOpen, item.name].join("/");
@@ -76,7 +72,7 @@ export const typeDisplayInformation = new Map<
       icon: () => type.icon,
       displayName: type.label,
     },
-  ])
+  ]),
 );
 export const FilterOptions = Object.values(SearchTypeEnum)
   .filter((type) => type.value !== "tenant")

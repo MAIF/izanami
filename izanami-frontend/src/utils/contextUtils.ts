@@ -1,40 +1,41 @@
 import { hasRightForProject } from "../securityContext";
-import {
-  TContext,
-  TContextOverload,
-  TContextWithPath,
-  TProjectLevel,
-  TUser,
-} from "./types";
-
+import { TContext, TContextOverload, TContextWithPath, TProjectLevel, TUser } from "./types";
 
 function normalizeContextName(context: string) {
-  if(context.startsWith("/")) {
-    return context.slice(1)
+  if (context.startsWith("/")) {
+    return context.slice(1);
   } else {
-    return context
+    return context;
   }
 }
 
-export function clientUrlForContext(context: string, clientUrlByContexts: {[ctx: string]: string}, expositionUrl: string): string {
-  let actualContext = normalizeContextName(context)
+export function clientUrlForContext(
+  context: string,
+  clientUrlByContexts: { [ctx: string]: string },
+  expositionUrl: string,
+): string {
+  let actualContext = normalizeContextName(context);
 
-  if(actualContext === "") {
+  if (actualContext === "") {
     return clientUrlByContexts?.[""] ?? expositionUrl;
   }
-  
-  return Object.entries(clientUrlByContexts).filter(([context, _url]) => {
-    const keep = actualContext.startsWith(normalizeContextName(context))
-    return keep
-  })
-    .toSorted(([context1, _url1], [context2, _key2]) => {
-      const partCount1 = context1.split("/").length
-      const partCount2 = context2.split("/").length
-      if(partCount1 !== partCount2) {
-        return partCount2 - partCount1;
-      }
-      return context2.length - context1.length
-    }).at(0)?.[1] ?? expositionUrl
+
+  return (
+    Object.entries(clientUrlByContexts)
+      .filter(([context, _url]) => {
+        const keep = actualContext.startsWith(normalizeContextName(context));
+        return keep;
+      })
+      .toSorted(([context1, _url1], [context2, _key2]) => {
+        const partCount1 = context1.split("/").length;
+        const partCount2 = context2.split("/").length;
+        if (partCount1 !== partCount2) {
+          return partCount2 - partCount1;
+        }
+        return context2.length - context1.length;
+      })
+      .at(0)?.[1] ?? expositionUrl
+  );
 }
 
 /**
@@ -42,16 +43,11 @@ export function clientUrlForContext(context: string, clientUrlByContexts: {[ctx:
  * @param contexts context list
  * @returns an array of objects containing path and associated context (associated context is "leaf" contetxt)
  */
-export function possiblePaths(
-  contexts: TContext[]
-): { path: string; context: TContext }[] {
+export function possiblePaths(contexts: TContext[]): { path: string; context: TContext }[] {
   return possiblePathsRec(contexts);
 }
 
-function possiblePathsRec(
-  contexts: TContext[],
-  path = ""
-): { path: string; context: TContext }[] {
+function possiblePathsRec(contexts: TContext[], path = ""): { path: string; context: TContext }[] {
   return contexts.flatMap((ctx) => {
     if (ctx.children) {
       return [
@@ -96,7 +92,7 @@ export function extractContextsMatching(
   predicate: (ctx: TContext) => boolean,
   stopOnMatch: boolean = true,
   stopCondition?: (ctx: TContext) => boolean,
-  prefix: string[] = []
+  prefix: string[] = [],
 ): (TContext & { parent: string[] })[] {
   return contexts.flatMap((context) => {
     const res = [];
@@ -116,8 +112,8 @@ export function extractContextsMatching(
         predicate,
         stopOnMatch,
         stopCondition,
-        prefix.concat(context.name)
-      )
+        prefix.concat(context.name),
+      ),
     );
   });
 }
@@ -144,9 +140,7 @@ export function findImpactedProtectedContexts({
   from?: string;
   rootOnly?: boolean;
 }): TContextWithPath[] {
-  const fromTouse = from
-    ? from.split("/").filter((part) => part.length > 0)
-    : [];
+  const fromTouse = from ? from.split("/").filter((part) => part.length > 0) : [];
 
   const contextsToUse = getSubtreeMatchingPath(contexts, fromTouse ?? []);
 
@@ -155,9 +149,7 @@ export function findImpactedProtectedContexts({
     (c) => {
       return (
         c.protected &&
-        (!c.overloads ||
-          c.overloads.length === 0 ||
-          c.overloads.every((o) => o.id !== featureId))
+        (!c.overloads || c.overloads.length === 0 || c.overloads.every((o) => o.id !== featureId))
       );
     },
     rootOnly,
@@ -166,7 +158,7 @@ export function findImpactedProtectedContexts({
         ctx.overloads.some((o) => o.id === featureId) ||
         (ctx.project !== undefined && ctx.project === project)
       );
-    }
+    },
   ).map((ctx) => {
     return { ...ctx, parent: fromTouse.concat(ctx.parent) };
   });
@@ -186,16 +178,11 @@ export function intersection(s1: string[], s2: string[]): string[] {
  * @param contexts list of contexts
  * @returns the context that matches given path if it exists, null otherwise
  */
-export function findContextForPath(
-  path: string,
-  contexts: TContext[]
-): TContext | null {
+export function findContextForPath(path: string, contexts: TContext[]): TContext | null {
   const strippedPath = path.startsWith("/") ? path.substring(1) : path;
   const firstSlashIndex = path.indexOf("/");
   const firstPart =
-    firstSlashIndex !== -1
-      ? strippedPath.substring(0, firstSlashIndex)
-      : strippedPath;
+    firstSlashIndex !== -1 ? strippedPath.substring(0, firstSlashIndex) : strippedPath;
   const nextContext = contexts.find((ctx) => ctx.name == firstPart);
 
   if (nextContext && firstSlashIndex == -1) {
@@ -218,7 +205,7 @@ export function findContextForPath(
 export function findOverloadsForFeature(
   name: string,
   contexts: TContext[],
-  filter: (ctx: TContext) => boolean = () => true
+  filter: (ctx: TContext) => boolean = () => true,
 ): TContextOverload[] {
   return findOverloadsForFeatureRec(name, contexts, [], filter);
 }
@@ -227,7 +214,7 @@ function findOverloadsForFeatureRec(
   name: string,
   contexts: TContext[],
   path: string[],
-  filter: (ctx: TContext) => boolean
+  filter: (ctx: TContext) => boolean,
 ): TContextOverload[] {
   return contexts.flatMap((ctx) => {
     const maybeOverload = ctx.overloads
@@ -237,7 +224,7 @@ function findOverloadsForFeatureRec(
       name,
       ctx.children,
       [...path, ctx.name],
-      filter
+      filter,
     );
 
     if (maybeOverload) {
@@ -254,24 +241,21 @@ function findOverloadsForFeatureRec(
  * @param contexts context list
  * @returns name of all contexts containing overload for given feature
  */
-export function findContextWithOverloadsForFeature(
-  name: string,
-  contexts: TContext[]
-): string[] {
+export function findContextWithOverloadsForFeature(name: string, contexts: TContext[]): string[] {
   return findContextWithOverloadsForFeatureRec(name, contexts);
 }
 
 function findContextWithOverloadsForFeatureRec(
   name: string,
   contexts: TContext[],
-  path = ""
+  path = "",
 ): string[] {
   return contexts.flatMap((ctx) => {
     const hasOverload = ctx.overloads.some((o) => o.name === name);
     const childOverloadsCtx = findContextWithOverloadsForFeatureRec(
       name,
       ctx.children,
-      path + "/" + ctx.name
+      path + "/" + ctx.name,
     );
 
     if (hasOverload) {
@@ -339,22 +323,17 @@ export function analyzeUpdateImpact({
     from: updatedContext,
   });
 
-  const isAdmin = hasRightForProject(
-    user,
-    TProjectLevel.Admin,
-    project,
-    tenant
-  );
+  const isAdmin = hasRightForProject(user, TProjectLevel.Admin, project, tenant);
 
   return {
     impactedProtectedContexts: impactedProtectedContexts as [
       TContextWithPath,
-      ...TContextWithPath[]
+      ...TContextWithPath[],
     ],
     unprotectedUpdateAllowed: isAdmin,
     impactedRootProtectedContexts: impactedProtectedRootContexts as [
       TContextWithPath,
-      ...TContextWithPath[]
+      ...TContextWithPath[],
     ],
   };
 }

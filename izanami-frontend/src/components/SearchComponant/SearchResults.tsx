@@ -26,9 +26,7 @@ export function SearchResults({
   const { user } = useContext(IzanamiContext);
   const username = user?.username ?? "";
   const [searchHistory, setSearchHistory] = useState<SearchResult[]>([]);
-  const allHistory = JSON.parse(
-    localStorage.getItem("userSearchHistory") || "{}"
-  );
+  const allHistory = JSON.parse(localStorage.getItem("userSearchHistory") || "{}");
 
   useEffect(() => {
     if (allHistory[username]) {
@@ -50,8 +48,8 @@ export function SearchResults({
           [...userHistory, ...prevHistory, item].map((item) => [
             item.name + item.type + item.tenant, // better to have item id
             item,
-          ])
-        ).values()
+          ]),
+        ).values(),
       ).slice(-30);
       allHistory[username] = updatedHistory;
       localStorage.setItem("userSearchHistory", JSON.stringify(allHistory));
@@ -64,7 +62,7 @@ export function SearchResults({
     .filter(
       (item) =>
         (modalStatus.all || item.tenant === modalStatus.tenant) &&
-        (filterOptions.length === 0 || filterOptions.includes(item.type))
+        (filterOptions.length === 0 || filterOptions.includes(item.type)),
     )
     .slice(-5);
 
@@ -80,10 +78,7 @@ export function SearchResults({
                 onClick={() => {
                   setSearchHistory([]);
                   delete allHistory[username];
-                  localStorage.setItem(
-                    "userSearchHistory",
-                    JSON.stringify(allHistory)
-                  );
+                  localStorage.setItem("userSearchHistory", JSON.stringify(allHistory));
                 }}
               >
                 Clear
@@ -100,14 +95,9 @@ export function SearchResults({
                       onClick={(e) => {
                         e.preventDefault();
                         setSearchHistory((prevHistory) => {
-                          const updatedHistory = prevHistory.filter(
-                            (item) => item !== term
-                          );
+                          const updatedHistory = prevHistory.filter((item) => item !== term);
                           allHistory[username] = updatedHistory;
-                          localStorage.setItem(
-                            "userSearchHistory",
-                            JSON.stringify(allHistory)
-                          );
+                          localStorage.setItem("userSearchHistory", JSON.stringify(allHistory));
                           return updatedHistory;
                         });
                       }}
@@ -130,20 +120,12 @@ export function SearchResults({
                       >
                         {modalStatus.all &&
                           term.path.map((pathElement, pathIndex) => (
-                            <li
-                              className="breadcrumb-item"
-                              key={`${term.name}-${pathIndex}`}
-                            >
-                              {typeDisplayInformation
-                                .get(pathElement.type)
-                                ?.icon() ?? ""}
+                            <li className="breadcrumb-item" key={`${term.name}-${pathIndex}`}>
+                              {typeDisplayInformation.get(pathElement.type)?.icon() ?? ""}
                               {pathElement.name}
                             </li>
                           ))}
-                        <li
-                          className="breadcrumb-item"
-                          key={`${term.name}-name`}
-                        >
+                        <li className="breadcrumb-item" key={`${term.name}-name`}>
                           {typeDisplayInformation.get(term.type)?.icon() ?? ""}
                           {term.name}
                         </li>
@@ -186,19 +168,14 @@ export function SearchResults({
           <ul className="search-ul nav flex-column">
             {[...groupedItems.keys()].map((originTable, originTableIndex) => (
               <li className="search-ul-item" key={originTable}>
-                <span>
-                  {typeDisplayInformation.get(originTable)?.displayName ?? ""}
-                </span>
+                <span>{typeDisplayInformation.get(originTable)?.displayName ?? ""}</span>
                 {groupedItems.get(originTable)?.map((item, index) => (
                   <ol
                     className="search-ul nav flex-column"
                     key={`${item.name}-${originTableIndex}-${index}`}
                   >
                     <li className="search-ul-item">
-                      <Link
-                        to={getLinkPath(item) || "#"}
-                        onClick={() => handleItemClick(item)}
-                      >
+                      <Link to={getLinkPath(item) || "#"} onClick={() => handleItemClick(item)}>
                         <ul
                           className="breadcrumb"
                           style={{
@@ -206,22 +183,13 @@ export function SearchResults({
                           }}
                         >
                           {item.path.map((pathElement, pathIndex) => (
-                            <li
-                              className="breadcrumb-item"
-                              key={`${item.name}-${pathIndex}`}
-                            >
-                              {typeDisplayInformation
-                                .get(pathElement.type)
-                                ?.icon() ?? ""}
+                            <li className="breadcrumb-item" key={`${item.name}-${pathIndex}`}>
+                              {typeDisplayInformation.get(pathElement.type)?.icon() ?? ""}
                               {pathElement.name}
                             </li>
                           ))}
-                          <li
-                            className="breadcrumb-item"
-                            key={`${item.name}-name`}
-                          >
-                            {typeDisplayInformation.get(item.type)?.icon() ??
-                              ""}
+                          <li className="breadcrumb-item" key={`${item.name}-name`}>
+                            {typeDisplayInformation.get(item.type)?.icon() ?? ""}
                             {item.name}
                           </li>
                         </ul>

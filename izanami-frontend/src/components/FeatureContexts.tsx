@@ -16,7 +16,7 @@ type TOverloadRender = (
   context: TContext,
   parents: TContext[],
   path: string,
-  modificationRight: boolean
+  modificationRight: boolean,
 ) => JSX.Element | JSX.Element[];
 
 export function FeatureContexts(props: {
@@ -55,8 +55,7 @@ export function FeatureContexts(props: {
     queryFn: () => fetchContexts(),
   });
 
-  const { askConfirmation, askInputConfirmation } =
-    React.useContext(IzanamiContext);
+  const { askConfirmation, askInputConfirmation } = React.useContext(IzanamiContext);
 
   if (contextQuery.data) {
     return (
@@ -81,13 +80,12 @@ export function FeatureContexts(props: {
                   All subcontexts and their overloads will be lost !<br />
                   Please confirm by typing context name below.
                   <Tooltip id="protected-context-delete-confirmation">
-                    Typing context name is required since this context is
-                    protected.
+                    Typing context name is required since this context is protected.
                   </Tooltip>
                 </>,
                 () => deleteContext(path),
                 context.name,
-                `Delete context ${context.name}`
+                `Delete context ${context.name}`,
               );
             } else {
               return askConfirmation(
@@ -96,7 +94,7 @@ export function FeatureContexts(props: {
                   <br />
                   All subcontexts and their overloads will be lost !
                 </>,
-                () => deleteContext(path)
+                () => deleteContext(path),
               );
             }
           },
@@ -127,7 +125,7 @@ export function FeatureContexts(props: {
                   constraints: [
                     constraints.matches(
                       FEATURE_NAME_REGEXP,
-                      `Context name must match ${FEATURE_NAME_REGEXP} regex`
+                      `Context name must match ${FEATURE_NAME_REGEXP} regex`,
                     ),
                   ],
                   props: {
@@ -136,9 +134,7 @@ export function FeatureContexts(props: {
                 },
               }}
               onClose={() => setCreating(false)}
-              onSubmit={({ name }) =>
-                createSubContext("", name).then(() => setCreating(false))
-              }
+              onSubmit={({ name }) => createSubContext("", name).then(() => setCreating(false))}
             />
           </div>
         )}
@@ -198,9 +194,7 @@ function Overloads({
   overloadRender: TOverloadRender;
 }) {
   const [overloadDisplayed, setOverloadDisplay] = useState(defaultOpen);
-  const icon = overloadDisplayed
-    ? "bi-caret-down-fill anim__rotate"
-    : "bi-caret-right-fill";
+  const icon = overloadDisplayed ? "bi-caret-down-fill anim__rotate" : "bi-caret-right-fill";
   const { hasUpdateDeleteRight } = React.useContext(LocalContext);
   const overloads = context.overloads;
 
@@ -218,8 +212,7 @@ function Overloads({
           setOverloadDisplay((displayed) => !displayed);
         }}
       >
-        <i className={`bi ${icon}`} aria-hidden></i> {overloads.length || "no"}{" "}
-        overload
+        <i className={`bi ${icon}`} aria-hidden></i> {overloads.length || "no"} overload
         {overloads.length === 1 ? "" : "s"}
       </a>
       <div
@@ -227,8 +220,7 @@ function Overloads({
           marginLeft: `${spacing}px`,
         }}
       >
-        {overloadDisplayed &&
-          overloadRender(context, parents, path, hasUpdateDeleteRight)}
+        {overloadDisplayed && overloadRender(context, parents, path, hasUpdateDeleteRight)}
       </div>
     </div>
   );
@@ -249,24 +241,22 @@ function FeatureContextTree(props: {
   } = React.useContext(LocalContext);
   const spacing = 20;
 
-  const { askConfirmation, askInputConfirmation } =
-    React.useContext(IzanamiContext);
+  const { askConfirmation, askInputConfirmation } = React.useContext(IzanamiContext);
 
   function contextToTreeNode(
     contexts: TContext[],
     path = "",
-    parents: TContext[] = []
+    parents: TContext[] = [],
   ): TreeNode<{
     context: TContext;
     path: string;
     parents: TContext[];
   }>[] {
     return contexts.map((ctx) => {
-      const nonLeafChildren = contextToTreeNode(
-        ctx.children,
-        `${path}/${ctx.name}`,
-        [...parents, ctx]
-      );
+      const nonLeafChildren = contextToTreeNode(ctx.children, `${path}/${ctx.name}`, [
+        ...parents,
+        ctx,
+      ]);
       return {
         options: hasUpdateDeleteRight
           ? [
@@ -275,8 +265,7 @@ function FeatureContextTree(props: {
                     {
                       icon: <>Add subcontext</>,
                       form: (submit: any, cancel: any) => {
-                        const { createSubContextCallback } =
-                          React.useContext(LocalContext);
+                        const { createSubContextCallback } = React.useContext(LocalContext);
                         return (
                           <div className="sub_container anim__popUp mt-2">
                             <h4>Add subcontext</h4>
@@ -290,7 +279,7 @@ function FeatureContextTree(props: {
                                   constraints: [
                                     constraints.matches(
                                       FEATURE_NAME_REGEXP,
-                                      `Context name must match ${FEATURE_NAME_REGEXP} regex`
+                                      `Context name must match ${FEATURE_NAME_REGEXP} regex`,
                                     ),
                                   ],
                                   props: {
@@ -308,20 +297,16 @@ function FeatureContextTree(props: {
                                     >
                                       Cancel
                                     </button>
-                                    <button
-                                      className="btn btn-primary m-2"
-                                      onClick={valid}
-                                    >
+                                    <button className="btn btn-primary m-2" onClick={valid}>
                                       Save
                                     </button>
                                   </div>
                                 );
                               }}
                               onSubmit={({ name }) =>
-                                createSubContextCallback(
-                                  `${path}/${ctx.name}`,
-                                  name
-                                ).then(() => submit())
+                                createSubContextCallback(`${path}/${ctx.name}`, name).then(() =>
+                                  submit(),
+                                )
                               }
                             />
                           </div>
@@ -330,36 +315,22 @@ function FeatureContextTree(props: {
                     },
                   ]
                 : []),
-              ...(hasRightOverProtectedContexts &&
-              (!ctx.global || allowGlobalContextDelete)
+              ...(hasRightOverProtectedContexts && (!ctx.global || allowGlobalContextDelete)
                 ? [
                     {
-                      icon: (
-                        <>
-                          {ctx.protected
-                            ? "Unprotect context"
-                            : "Protect context"}
-                        </>
-                      ),
+                      icon: <>{ctx.protected ? "Unprotect context" : "Protect context"}</>,
                       action: () => {
                         if (ctx.protected) {
                           return askInputConfirmation(
                             <>
-                              Are you sure you want to unprotected context{" "}
-                              {ctx.name} ?<br />
-                              This will allow any user with at least "Write"
-                              right {ctx.global
-                                ? "on tenant"
-                                : "on project"}{" "}
-                              to:
+                              Are you sure you want to unprotected context {ctx.name} ?<br />
+                              This will allow any user with at least "Write" right{" "}
+                              {ctx.global ? "on tenant" : "on project"} to:
                               <ul>
+                                <li>Add, edit or delete overload for this context</li>
                                 <li>
-                                  Add, edit or delete overload for this context
-                                </li>
-                                <li>
-                                  Delete this context and every subcontexts with
-                                  their overloads (except if one subcontext is
-                                  protected).
+                                  Delete this context and every subcontexts with their overloads
+                                  (except if one subcontext is protected).
                                 </li>
                               </ul>
                               Please confirm by typing context name below.
@@ -372,24 +343,19 @@ function FeatureContextTree(props: {
                                 global: ctx.global,
                               });
                             },
-                            ctx.name
+                            ctx.name,
                           );
                         } else {
                           return askConfirmation(
                             <>
-                              Are you sure you want to protect context{" "}
-                              {ctx.name} ?<br />
-                              Only users with Admin right{" "}
-                              {ctx.global ? "on tenant" : "on project"} will be
-                              able to:
+                              Are you sure you want to protect context {ctx.name} ?<br />
+                              Only users with Admin right {ctx.global
+                                ? "on tenant"
+                                : "on project"}{" "}
+                              will be able to:
                               <ul>
-                                <li>
-                                  Add, edit or delete overload for this context
-                                </li>
-                                <li>
-                                  Delete this context and every subcontexts
-                                  their overloads.
-                                </li>
+                                <li>Add, edit or delete overload for this context</li>
+                                <li>Delete this context and every subcontexts their overloads.</li>
                               </ul>
                             </>,
                             () => {
@@ -399,7 +365,7 @@ function FeatureContextTree(props: {
                                 protected: !ctx.protected,
                                 global: ctx.global,
                               });
-                            }
+                            },
                           );
                         }
                       },
@@ -412,8 +378,7 @@ function FeatureContextTree(props: {
                 : [
                     {
                       icon: <>Delete</>,
-                      action: () =>
-                        deleteContextCallback(`${path}/${ctx.name}`, ctx),
+                      action: () => deleteContextCallback(`${path}/${ctx.name}`, ctx),
                     },
                   ]),
             ]
@@ -531,9 +496,9 @@ function EditableTree<T>({
   const { name, defaultOpened } = node;
 
   const [isOpen, setOpen] = useState(defaultOpened);
-  const [form, setForm] = useState<
-    (submit: () => void, cancel: () => void) => JSX.Element
-  >(() => defaultForm);
+  const [form, setForm] = useState<(submit: () => void, cancel: () => void) => JSX.Element>(
+    () => defaultForm,
+  );
 
   const icon = isOpen ? "bi-caret-down anim__rotate" : "bi-caret-right";
   const isOpenable = Boolean(payloadRender || node?.children?.length > 0);
@@ -581,10 +546,7 @@ function EditableTree<T>({
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
               >
-                <i
-                  className="bi bi-three-dots-vertical"
-                  aria-label="actions"
-                ></i>
+                <i className="bi bi-three-dots-vertical" aria-label="actions"></i>
               </button>
               <ul className="dropdown-menu">
                 {node.options.map(({ icon, ...rest }, index) => {
@@ -599,11 +561,7 @@ function EditableTree<T>({
                         }
                       }}
                     >
-                      <a
-                        className="dropdown-item"
-                        href="#"
-                        onClick={(e) => e.preventDefault()}
-                      >
+                      <a className="dropdown-item" href="#" onClick={(e) => e.preventDefault()}>
                         {icon}
                       </a>
                     </li>
@@ -638,7 +596,7 @@ function EditableTree<T>({
             },
             () => {
               setForm(() => defaultForm);
-            }
+            },
           )}
         </div>
       </div>

@@ -1,11 +1,7 @@
 import { useParams } from "react-router-dom";
 import { AuditLog } from "../components/AuditLogs";
 import AsyncCreatableSelect from "react-select/async-creatable";
-import {
-  fetchFeature,
-  queryProjectById,
-  searchEntitiesByTenant,
-} from "../utils/queries";
+import { fetchFeature, queryProjectById, searchEntitiesByTenant } from "../utils/queries";
 import { customStyles } from "../styles/reactSelect";
 import { JSX, useEffect, useState } from "react";
 import { Loader } from "../components/Loader";
@@ -31,29 +27,27 @@ export function TenantAudit() {
 }
 
 const loadEntities = (tenant: string) => (input: string) => {
-  return searchEntitiesByTenant(tenant, input, ["feature", "project"]).then(
-    (resp) =>
-      resp.map(({ name, type, id, ...rest }) => {
-        let label = <span>name</span>;
-        if (type === "feature") {
-          label = (
-            <span>
-              <i className="fas fa-rocket" aria-hidden />
-              &nbsp;{name} (<i className="fas fa-building" aria-hidden />{" "}
-              {rest.path?.[0]?.name})
-            </span>
-          );
-        } else if (type === "project") {
-          label = (
-            <span>
-              <i className="fas fa-building" aria-hidden />
-              &nbsp;{name}
-            </span>
-          );
-        }
+  return searchEntitiesByTenant(tenant, input, ["feature", "project"]).then((resp) =>
+    resp.map(({ name, type, id, ...rest }) => {
+      let label = <span>name</span>;
+      if (type === "feature") {
+        label = (
+          <span>
+            <i className="fas fa-rocket" aria-hidden />
+            &nbsp;{name} (<i className="fas fa-building" aria-hidden /> {rest.path?.[0]?.name})
+          </span>
+        );
+      } else if (type === "project") {
+        label = (
+          <span>
+            <i className="fas fa-building" aria-hidden />
+            &nbsp;{name}
+          </span>
+        );
+      }
 
-        return { label: label, value: id, type: type };
-      })
+      return { label: label, value: id, type: type };
+    }),
   );
 };
 
@@ -94,19 +88,13 @@ function EntitySelector(props: {
 
     let promises = [];
     if (featureToFetch) {
-      promises.push(
-        Promise.all(featureToFetch.map((f) => fetchFeature(props.tenant, f)))
-      );
+      promises.push(Promise.all(featureToFetch.map((f) => fetchFeature(props.tenant, f))));
     } else {
       promises.push(Promise.resolve([]));
     }
 
     if (projectTofetch) {
-      promises.push(
-        Promise.all(
-          projectTofetch.map((p) => queryProjectById(props.tenant, p))
-        )
-      );
+      promises.push(Promise.all(projectTofetch.map((p) => queryProjectById(props.tenant, p))));
     } else {
       promises.push([]);
     }
@@ -119,8 +107,7 @@ function EntitySelector(props: {
             label: (
               <span>
                 <i className="fas fa-rocket" aria-hidden />
-                &nbsp;{f.name} (<i className="fas fa-building" aria-hidden />{" "}
-                {f.project})
+                &nbsp;{f.name} (<i className="fas fa-building" aria-hidden /> {f.project})
               </span>
             ),
             value: f.id,
@@ -136,7 +123,7 @@ function EntitySelector(props: {
               ),
               value: p.id,
               type: "project",
-            }))
+            })),
           )
           .concat(unknownOptions);
       })

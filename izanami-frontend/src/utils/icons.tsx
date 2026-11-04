@@ -14,11 +14,7 @@ export function GlobalContextIcon(props: { className?: string }) {
 
 export function StringIcon() {
   return (
-    <svg
-      style={{ marginTop: "-3px" }}
-      height="10px"
-      viewBox="0 0 8.3977594 4.1816964"
-    >
+    <svg style={{ marginTop: "-3px" }} height="10px" viewBox="0 0 8.3977594 4.1816964">
       <use xlinkHref="#string-icon"></use>
     </svg>
   );

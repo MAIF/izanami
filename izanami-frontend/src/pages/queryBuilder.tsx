@@ -21,14 +21,11 @@ export function QueryBuilder() {
   const { tenant } = useParams();
   const { expositionUrl, clientUrlByContexts } = React.useContext(IzanamiContext);
 
-
   const tagQuery = useQuery({
     queryKey: [tagsQueryKey(tenant!)],
     queryFn: () => queryTags(tenant!),
   });
-  const [selectedProjects, setSelectedProjects] = React.useState<
-    readonly string[]
-  >([]);
+  const [selectedProjects, setSelectedProjects] = React.useState<readonly string[]>([]);
   const [features, setFeatures] = React.useState<readonly string[]>([]);
   const [allTagsIn, setAllTagsIn] = React.useState<readonly string[]>([]);
 
@@ -43,8 +40,15 @@ export function QueryBuilder() {
   const [context, setContext] = React.useState<string>("");
   const [date, setDate] = React.useState<Date>(new Date());
   const [user, setUser] = React.useState<string>("");
-  const initiallUrl = clientUrlForContext(context ?? "", clientUrlByContexts?.[tenant!] ?? {}, expositionUrl ?? "");
-  const [baseUrl, setBaseUrl] = React.useState<{url: string, initial: boolean}>({url: initiallUrl, initial: true});
+  const initiallUrl = clientUrlForContext(
+    context ?? "",
+    clientUrlByContexts?.[tenant!] ?? {},
+    expositionUrl ?? "",
+  );
+  const [baseUrl, setBaseUrl] = React.useState<{ url: string; initial: boolean }>({
+    url: initiallUrl,
+    initial: true,
+  });
   const [parseError, setParseError] = React.useState<string>("");
   const [jsonDisplay, setJsonDisplay] = React.useState(false);
   const [tagDisplay, setTagDisplay] = React.useState(false);
@@ -70,18 +74,14 @@ export function QueryBuilder() {
     .filter(({ value }) => (Array.isArray(value) ? value.length > 0 : value))
     .map(
       ({ name, value }) =>
-        `${name}=${encodeURIComponent(
-          (Array.isArray(value) ? value.join(",") : value) as string
-        )}`
+        `${name}=${encodeURIComponent((Array.isArray(value) ? value.join(",") : value) as string)}`,
     )
     .join("&");
 
   const callUrl = `${expositionUrl}/api/admin/tenants/${tenant}/features/_test${
     queryStr.length > 0 ? "?" + queryStr : ""
   }`;
-  const url = `${baseUrl.url}/api/v2/features${
-    queryStr.length > 0 ? "?" + queryStr : ""
-  }`;
+  const url = `${baseUrl.url}/api/v2/features${queryStr.length > 0 ? "?" + queryStr : ""}`;
 
   const handleToggle = () => {
     setTagDisplay((current) => !current);
@@ -114,9 +114,7 @@ export function QueryBuilder() {
             {importDisplay && (
               <label className="w-100">
                 Existing url
-                <Tooltip id="paste_url">
-                  Paste an existing URL to fill below fields.
-                </Tooltip>
+                <Tooltip id="paste_url">Paste an existing URL to fill below fields.</Tooltip>
                 <div className="input-group">
                   <input
                     placeholder="Paste an existing URL to fill below fields"
@@ -136,9 +134,7 @@ export function QueryBuilder() {
                         const parseResult = parseUrl(inputUrl);
 
                         if (!parseResult) {
-                          setParseError(
-                            `Failed to parse pasted url, REGEXP is ${URL_REGEXP}`
-                          );
+                          setParseError(`Failed to parse pasted url, REGEXP is ${URL_REGEXP}`);
                         } else {
                           const {
                             allTagsIn,
@@ -158,14 +154,11 @@ export function QueryBuilder() {
                           setContext(context);
                           setSelectedProjects(projects);
                           setFeatures(features);
-                          setBaseUrl({url: baseUrl, initial: true});
+                          setBaseUrl({ url: baseUrl, initial: true });
                         }
                       }}
                     >
-                      <i
-                        className="fa-solid fa-mortar-pestle"
-                        title="Click to fill the fields"
-                      ></i>
+                      <i className="fa-solid fa-mortar-pestle" title="Click to fill the fields"></i>
                     </button>
                   </div>
                 </div>
@@ -182,9 +175,7 @@ export function QueryBuilder() {
             <div className="col-sm">
               <label className="w-100">
                 Projects&nbsp;
-                <Tooltip id="projects">
-                  All features of these projects will be evaluated.
-                </Tooltip>
+                <Tooltip id="projects">All features of these projects will be evaluated.</Tooltip>
                 <ProjectSelector
                   onChange={(ids) => {
                     setSelectedProjects(ids);
@@ -196,8 +187,7 @@ export function QueryBuilder() {
               <label className="w-100">
                 Features (Project) &nbsp;
                 <Tooltip id="features" position="top">
-                  These features will be evaluated, even if their projects are
-                  not selected.
+                  These features will be evaluated, even if their projects are not selected.
                 </Tooltip>
                 <FeatureSelector
                   onChange={(ids) => {
@@ -210,8 +200,7 @@ export function QueryBuilder() {
               <label className="w-100">
                 Context&nbsp;
                 <Tooltip id="contexts">
-                  Features will be evaluated for this context, either select or
-                  type your context.
+                  Features will be evaluated for this context, either select or type your context.
                 </Tooltip>
                 <AllContexts
                   id="query-selector-context-select"
@@ -221,9 +210,13 @@ export function QueryBuilder() {
                     } else {
                       setContext(value);
                     }
-                    if(baseUrl.initial) {
-                      const baseUrlToUpdate = clientUrlForContext(value ?? "", clientUrlByContexts?.[tenant!] ?? {}, expositionUrl ?? "")
-                      setBaseUrl({url: baseUrlToUpdate, initial: true})
+                    if (baseUrl.initial) {
+                      const baseUrlToUpdate = clientUrlForContext(
+                        value ?? "",
+                        clientUrlByContexts?.[tenant!] ?? {},
+                        expositionUrl ?? "",
+                      );
+                      setBaseUrl({ url: baseUrlToUpdate, initial: true });
                     }
                   }}
                 />
@@ -246,16 +239,13 @@ export function QueryBuilder() {
                 value={baseUrl.url}
                 type="text"
                 className="form-control"
-                onChange={(e) => setBaseUrl({url: e.target.value, initial: false})}
+                onChange={(e) => setBaseUrl({ url: e.target.value, initial: false })}
               />
             </label>
           </div>
           <div className="row mt-2">
             <div className="col">
-              <button
-                onClick={handleToggle}
-                className="btn btn-secondary btn-sm"
-              >
+              <button onClick={handleToggle} className="btn btn-secondary btn-sm">
                 {tagDisplay ? "Hide tag filters" : "Show tag filters"}
               </button>
             </div>
@@ -266,17 +256,12 @@ export function QueryBuilder() {
                 <label className="w-100">
                   All tags in&nbsp;
                   <Tooltip id="alltags">
-                    Projects will be filtered to evaluate only features with all
-                    listed tags.
+                    Projects will be filtered to evaluate only features with all listed tags.
                   </Tooltip>
                   <Select
-                    value={tagOptions.filter(({ value }) =>
-                      allTagsIn.includes(value)
-                    )}
+                    value={tagOptions.filter(({ value }) => allTagsIn.includes(value))}
                     styles={customStyles}
-                    options={tagOptions.filter(
-                      ({ value }) => !allTagsIn.includes(value)
-                    )}
+                    options={tagOptions.filter(({ value }) => !allTagsIn.includes(value))}
                     onChange={(vs) => {
                       setAllTagsIn(vs.map(({ value }) => value));
                     }}
@@ -289,17 +274,13 @@ export function QueryBuilder() {
                 <label className="w-100">
                   No tag in&nbsp;
                   <Tooltip id="notags">
-                    Projects will be filtered to evaluate only features with
-                    none of the listed tags.
+                    Projects will be filtered to evaluate only features with none of the listed
+                    tags.
                   </Tooltip>
                   <Select
-                    value={tagOptions.filter(({ value }) =>
-                      noTagIn.includes(value)
-                    )}
+                    value={tagOptions.filter(({ value }) => noTagIn.includes(value))}
                     styles={customStyles}
-                    options={tagOptions.filter(
-                      ({ value }) => !noTagIn.includes(value)
-                    )}
+                    options={tagOptions.filter(({ value }) => !noTagIn.includes(value))}
                     onChange={(vs) => {
                       setNoTagIn(vs.map(({ value }) => value));
                     }}
@@ -312,17 +293,13 @@ export function QueryBuilder() {
                 <label className="w-100">
                   One tag in&nbsp;
                   <Tooltip id="onetag">
-                    Projects will be filtered to evaluate only features with
-                    none of the listed tags.
+                    Projects will be filtered to evaluate only features with none of the listed
+                    tags.
                   </Tooltip>
                   <Select
-                    value={tagOptions.filter(({ value }) =>
-                      oneTagIn.includes(value)
-                    )}
+                    value={tagOptions.filter(({ value }) => oneTagIn.includes(value))}
                     styles={customStyles}
-                    options={tagOptions.filter(
-                      ({ value }) => !oneTagIn.includes(value)
-                    )}
+                    options={tagOptions.filter(({ value }) => !oneTagIn.includes(value))}
                     onChange={(vs) => {
                       setOneTagIn(vs.map(({ value }) => value));
                     }}
@@ -337,16 +314,9 @@ export function QueryBuilder() {
           <div className="row mt-4">
             <label className="w-100 ">
               Generated URL&nbsp;
-              <Tooltip id="url">
-                URL you can use in Izanami client applications.
-              </Tooltip>
+              <Tooltip id="url">URL you can use in Izanami client applications.</Tooltip>
               <div className="input-group">
-                <input
-                  type="text"
-                  className="form-control"
-                  value={url}
-                  id="url"
-                />
+                <input type="text" className="form-control" value={url} id="url" />
                 <div className="input-group-append">
                   <CopyButton value={url} />
                 </div>
@@ -355,40 +325,29 @@ export function QueryBuilder() {
           </div>
 
           <div className="row justify-content-center mt-4">
-            <div
-              className="col-2 sub_container-bglighter"
-              style={{ minWidth: "300px" }}
-            >
+            <div className="col-2 sub_container-bglighter" style={{ minWidth: "300px" }}>
               <div className="row justify-content-center">
                 <div className="p-4">
                   <div className="row mb-4">
                     <label className="col-sm">
                       Date to emulate
                       <Tooltip id="date-emulate">
-                        Allow to emulate a date to test features that rely on
-                        activation days / dates
+                        Allow to emulate a date to test features that rely on activation days /
+                        dates
                       </Tooltip>
                       <input
                         className="form-control"
                         type="datetime-local"
                         value={format(date, "yyyy-MM-dd'T'HH:mm")}
                         onChange={(e) =>
-                          setDate(
-                            parse(
-                              e.target.value,
-                              "yyyy-MM-dd'T'HH:mm",
-                              new Date()
-                            )
-                          )
+                          setDate(parse(e.target.value, "yyyy-MM-dd'T'HH:mm", new Date()))
                         }
                       />
                     </label>
                   </div>
                   <div className="text-center">
                     <button
-                      disabled={
-                        selectedProjects.length === 0 && features.length === 0
-                      }
+                      disabled={selectedProjects.length === 0 && features.length === 0}
                       className="btn btn-primary btn-lg"
                       type="button"
                       onClick={() => {
@@ -404,16 +363,14 @@ export function QueryBuilder() {
                             }) => {
                               setRawResult(result);
                               setResult(
-                                Object.entries(result).map(
-                                  ([key, { name, active, project }]) => ({
-                                    name,
-                                    active,
-                                    id: key,
-                                    project,
-                                  })
-                                )
+                                Object.entries(result).map(([key, { name, active, project }]) => ({
+                                  name,
+                                  active,
+                                  id: key,
+                                  project,
+                                })),
                               );
-                            }
+                            },
                           );
                       }}
                     >
@@ -441,13 +398,13 @@ export function QueryBuilder() {
               {jsonDisplay ? (
                 <div className="row mb-2">
                   <ReactJsonView
-                      name={null}
-                      src={rawResult}
-                      displayDataTypes={false}
-                      displayObjectSize={false}
-                      collapsed={true}
-                      theme="brewer"
-                    />
+                    name={null}
+                    src={rawResult}
+                    displayDataTypes={false}
+                    displayObjectSize={false}
+                    collapsed={true}
+                    theme="brewer"
+                  />
                 </div>
               ) : (
                 <div className="row" ref={resultRef}>
@@ -466,9 +423,7 @@ export function QueryBuilder() {
                         header: () => "Project",
                         cell: (info: any) => {
                           return (
-                            <NavLink
-                              to={`/tenants/${tenant}/projects/${info.getValue()}`}
-                            >
+                            <NavLink to={`/tenants/${tenant}/projects/${info.getValue()}`}>
                               {info.getValue()}
                             </NavLink>
                           );
@@ -485,9 +440,7 @@ export function QueryBuilder() {
                         header: () => "Value",
                         cell: (info: any) => {
                           return info.getValue() ? (
-                            <span className="activation-status">
-                              {"" + info.getValue()}
-                            </span>
+                            <span className="activation-status">{"" + info.getValue()}</span>
                           ) : (
                             <span className="activation-status disabled-status">
                               {"" + info.getValue()}

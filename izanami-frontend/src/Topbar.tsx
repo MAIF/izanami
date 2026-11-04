@@ -16,18 +16,15 @@ function Breadcrumbs() {
     .map((match: any) => {
       return match.handle.crumb(match.params);
     });
-  
-    if (crumbs.length === 1) {return <nav className="mb-5" />}
+
+  if (crumbs.length === 1) {
+    return <nav className="mb-5" />;
+  }
   return (
     <nav aria-label="breadcrumb" className="breadcrumb nav flex-column">
       <ol className="breadcrumb">
         {crumbs.map((crumb, index, arr) => (
-          <li
-            className={`breadcrumb-item ${
-              index === arr.length - 1 ? "active" : ""
-            }`}
-            key={index}
-          >
+          <li className={`breadcrumb-item ${index === arr.length - 1 ? "active" : ""}`} key={index}>
             {crumb}
           </li>
         ))}

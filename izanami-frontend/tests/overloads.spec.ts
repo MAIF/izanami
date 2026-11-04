@@ -26,18 +26,16 @@ test.describe("Project screen overload table should", () => {
         testTenant(tenantName).withProject(
           testProject("project")
             .withFeature(
-              testFeature("f1")
-                .withDisableStatus()
-                .withOverload(testOverload("ctx", true))
+              testFeature("f1").withDisableStatus().withOverload(testOverload("ctx", true)),
             )
-            .withContext(testLocalContext("ctx").withProtectedStatus(true))
-        )
+            .withContext(testLocalContext("ctx").withProtectedStatus(true)),
+        ),
       )
       .withUser(
         testUser("testu", false).withTenantRight(
           tenantName,
-          testTenantRight("Write").withProjectRight("project", "Write")
-        )
+          testTenantRight("Write").withProjectRight("project", "Write"),
+        ),
       )
       .build(page);
     const otherPage = await logAsInNewPage(browser, "testu");
@@ -46,18 +44,14 @@ test.describe("Project screen overload table should", () => {
     await otherPage.getByLabel("Overload").click();
 
     await expect(
-      otherPage
-        .getByRole("cell", { name: "Feature overloads" })
-        .getByLabel("actions")
+      otherPage.getByRole("cell", { name: "Feature overloads" }).getByLabel("actions"),
     ).not.toBeAttached();
 
     await page.goto(`/tenants/${tenantName}/projects/project`);
     await page.getByLabel("Overload").click();
 
     await expect(
-      page
-        .getByRole("cell", { name: "Feature overloads" })
-        .getByLabel("actions")
+      page.getByRole("cell", { name: "Feature overloads" }).getByLabel("actions"),
     ).toBeAttached();
   });
 });

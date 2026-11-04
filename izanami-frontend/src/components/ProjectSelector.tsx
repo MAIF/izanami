@@ -17,8 +17,7 @@ export function ProjectSelector(props: {
   const tenantQuery = useQuery({
     queryKey: [tenantQueryKey(tenant!)],
 
-    queryFn: () =>
-      queryTenant(tenant!)
+    queryFn: () => queryTenant(tenant!),
   });
 
   if (tenantQuery.error) {

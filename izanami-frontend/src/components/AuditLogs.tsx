@@ -1,10 +1,6 @@
 import * as React from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import {
-  createSearchParams,
-  useNavigate,
-  useSearchParams,
-} from "react-router-dom";
+import { createSearchParams, useNavigate, useSearchParams } from "react-router-dom";
 import { castDateIfNeeded, handleFetchJsonResponse } from "../utils/queries";
 import { GenericTable } from "../components/GenericTable";
 import { format, parse, isValid } from "date-fns";
@@ -47,7 +43,7 @@ function decodeArrayFromUrl(value: string | null): string[] {
 }
 
 function extractSearchQueryFromUrlParams(
-  params: URLSearchParams
+  params: URLSearchParams,
 ): Omit<Omit<LogSearchQuery, "total">, "tenant"> {
   const {
     users: _,
@@ -63,7 +59,7 @@ function extractSearchQueryFromUrlParams(
   const additionalFields = Object.fromEntries(
     Object.entries(rest).map(([key, value]) => {
       return [key, JSON.parse(value)];
-    })
+    }),
   );
 
   return {
@@ -75,18 +71,10 @@ function extractSearchQueryFromUrlParams(
         ? Number(params.get("pageSize"))
         : DEFAULT_PAGE_SIZE,
     start: params.get("start")
-      ? parse(
-          decodeURIComponent(params.get("start")!),
-          "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
-          new Date()
-        )
+      ? parse(decodeURIComponent(params.get("start")!), "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", new Date())
       : undefined,
     end: params.get("end")
-      ? parse(
-          decodeURIComponent(params.get("end")!),
-          "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
-          new Date()
-        )
+      ? parse(decodeURIComponent(params.get("end")!), "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", new Date())
       : undefined,
     additionalFields: additionalFields,
   } as any;
@@ -97,7 +85,7 @@ type AuditLogProps = {
   customSearchFields?: (
     onChange: (value: any) => undefined,
     clear: () => undefined,
-    defaultValue: { [x: string]: any }
+    defaultValue: { [x: string]: any },
   ) => React.ReactNode;
   eventTypes?: TFeatureEventTypes[];
 };
@@ -105,7 +93,7 @@ type AuditLogProps = {
 function fetchLogs(
   eventUrl: string,
   cursor: number | null,
-  query: LogSearchQuery
+  query: LogSearchQuery,
 ): Promise<{ events: LogEntry[]; count: number | null }> {
   const { additionalFields, ...rest } = query;
   const searchPart = Object.entries({
@@ -118,7 +106,7 @@ function fetchLogs(
         return "";
       } else if ((key === "start" || key === "end") && value) {
         return `${key}=${encodeURIComponent(
-          format(value as Date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+          format(value as Date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"),
         )}`;
       } else if (Array.isArray(value)) {
         return `${key}=${value.join(",")}`;
@@ -130,9 +118,7 @@ function fetchLogs(
     })
     .filter((str) => str.length > 0);
 
-  return handleFetchJsonResponse(
-    fetch(`${eventUrl}?${searchPart.join("&")}`)
-  ).then((logs) => {
+  return handleFetchJsonResponse(fetch(`${eventUrl}?${searchPart.join("&")}`)).then((logs) => {
     logs.events.forEach((log: LogEntry) => {
       if (log.emittedAt) {
         log.emittedAt = new Date(log.emittedAt);
@@ -170,47 +156,40 @@ export function AuditLog(props: AuditLogProps) {
   const customSearchFields = props.customSearchFields;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const query: Omit<LogSearchQuery, "total"> =
-    extractSearchQueryFromUrlParams(searchParams);
+  const query: Omit<LogSearchQuery, "total"> = extractSearchQueryFromUrlParams(searchParams);
 
   const [page, setPage] = useState(0);
   const totalRef = React.useRef<number | undefined>(undefined);
   const key = queryKey(query);
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetching,
-    isFetchingNextPage,
-    status,
-  } = useInfiniteQuery({
-    queryKey: [eventUrl, key],
-    queryFn: ({ pageParam }) => {
-      const logQuery: LogSearchQuery = {
-        ...query,
-        total: totalRef.current === undefined,
-      } as LogSearchQuery;
-      return fetchLogs(eventUrl, pageParam, logQuery).then((res) => {
-        if (res.count) {
-          totalRef.current = res.count;
+  const { data, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage, status } =
+    useInfiniteQuery({
+      queryKey: [eventUrl, key],
+      queryFn: ({ pageParam }) => {
+        const logQuery: LogSearchQuery = {
+          ...query,
+          total: totalRef.current === undefined,
+        } as LogSearchQuery;
+        return fetchLogs(eventUrl, pageParam, logQuery).then((res) => {
+          if (res.count) {
+            totalRef.current = res.count;
+          }
+          return res;
+        });
+      },
+      initialPageParam: null as number | null,
+      getNextPageParam: (lastPage) => {
+        if (lastPage.events.length < query.pageSize) {
+          return undefined;
         }
-        return res;
-      });
-    },
-    initialPageParam: null as number | null,
-    getNextPageParam: (lastPage) => {
-      if (lastPage.events.length < query.pageSize) {
-        return undefined;
-      }
-      if (query.order === "asc") {
-        const next = Math.max(...lastPage.events.map((log) => log.eventId));
-        return next;
-      } else {
-        const next = Math.min(...lastPage.events.map((log) => log.eventId));
-        return next;
-      }
-    },
-  });
+        if (query.order === "asc") {
+          const next = Math.max(...lastPage.events.map((log) => log.eventId));
+          return next;
+        } else {
+          const next = Math.min(...lastPage.events.map((log) => log.eventId));
+          return next;
+        }
+      },
+    });
 
   return (
     <>
@@ -230,19 +209,17 @@ export function AuditLog(props: AuditLogProps) {
           const serializedAdditionalFields = Object.fromEntries(
             Object.entries(additionalFields).map(([key, value]) => {
               return [key, JSON.stringify(value)];
-            })
+            }),
           );
 
           const param = Object.fromEntries(
-            Object.entries({ ...serializedAdditionalFields, ...rest }).map(
-              ([key, value]) => {
-                let v: any = value;
-                if (Array.isArray(value)) {
-                  v = value.join(",");
-                }
-                return [key, v];
+            Object.entries({ ...serializedAdditionalFields, ...rest }).map(([key, value]) => {
+              let v: any = value;
+              if (Array.isArray(value)) {
+                v = value.join(",");
               }
-            )
+              return [key, v];
+            }),
           );
 
           navigate({
@@ -251,15 +228,11 @@ export function AuditLog(props: AuditLogProps) {
               pageSize: "" + DEFAULT_PAGE_SIZE,
               start:
                 query?.start && isValid(query.start)
-                  ? encodeURIComponent(
-                      format(query?.start, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
-                    )
+                  ? encodeURIComponent(format(query?.start, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"))
                   : "",
               end:
                 query?.end && isValid(query.end)
-                  ? encodeURIComponent(
-                      format(query?.end, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
-                    )
+                  ? encodeURIComponent(format(query?.end, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"))
                   : "",
             })}`,
           });
@@ -287,17 +260,12 @@ export function AuditLog(props: AuditLogProps) {
                       fetchNextPage();
                     }
                   }}
-                  hasNext={
-                    data?.pages?.[page]?.events?.length === query.pageSize
-                  }
+                  hasNext={data?.pages?.[page]?.events?.length === query.pageSize}
                 />
               </div>
             )}
             {!data?.pages?.[page]?.events?.length ? (
-              <div
-                className="d-flex justify-content-center fw-bold"
-                style={{ fontSize: "1.2rem" }}
-              >
+              <div className="d-flex justify-content-center fw-bold" style={{ fontSize: "1.2rem" }}>
                 No more data to display
               </div>
             ) : (
@@ -320,14 +288,11 @@ export function AuditLog(props: AuditLogProps) {
                         <SortButton
                           currentState={query.order}
                           onChange={(newState) => {
-                            const serializedAdditionalFields =
-                              Object.fromEntries(
-                                Object.entries(query.additionalFields).map(
-                                  ([key, value]) => {
-                                    return [key, JSON.stringify(value)];
-                                  }
-                                )
-                              );
+                            const serializedAdditionalFields = Object.fromEntries(
+                              Object.entries(query.additionalFields).map(([key, value]) => {
+                                return [key, JSON.stringify(value)];
+                              }),
+                            );
                             navigate({
                               search: `?${createSearchParams({
                                 ...serializedAdditionalFields,
@@ -337,18 +302,12 @@ export function AuditLog(props: AuditLogProps) {
                                 order: newState,
                                 start: query.start
                                   ? encodeURIComponent(
-                                      format(
-                                        query.start,
-                                        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
-                                      )
+                                      format(query.start, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"),
                                     )
                                   : "",
                                 end: query.end
                                   ? encodeURIComponent(
-                                      format(
-                                        query.end,
-                                        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
-                                      )
+                                      format(query.end, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"),
                                     )
                                   : "",
                               })}`,
@@ -376,8 +335,7 @@ export function AuditLog(props: AuditLogProps) {
                       const rowValue = info.row.original;
                       const type = rowValue.type;
                       return (
-                        tenantEventTypeOptions.find((t) => t.value === type)
-                          ?.label || "<UNKNOWN>"
+                        tenantEventTypeOptions.find((t) => t.value === type)?.label || "<UNKNOWN>"
                       );
                     },
                     size: 15,
@@ -395,10 +353,7 @@ export function AuditLog(props: AuditLogProps) {
                         type === "FEATURE_DELETED"
                       ) {
                         let name;
-                        if (
-                          type === "FEATURE_CREATED" ||
-                          type === "FEATURE_UPDATED"
-                        ) {
+                        if (type === "FEATURE_CREATED" || type === "FEATURE_UPDATED") {
                           name = rowValue.conditions[""].name;
                         } else {
                           name = rowValue.name;
@@ -456,26 +411,16 @@ export function AuditLog(props: AuditLogProps) {
                 customRowActions={{
                   details: {
                     hasRight: (user, log) => {
-                      return (
-                        log.type !== "FEATURE_DELETED" &&
-                        log.type !== "PROJECT_CREATED"
-                      );
+                      return log.type !== "FEATURE_DELETED" && log.type !== "PROJECT_CREATED";
                     },
                     icon: (
                       <>
-                        <i
-                          className="fa-solid fa-circle-info"
-                          aria-hidden="true"
-                        ></i>{" "}
-                        Details
+                        <i className="fa-solid fa-circle-info" aria-hidden="true"></i> Details
                       </>
                     ),
                     customForm: (data, cancel) => (
                       <div>
-                        <LogFeatureDetails
-                          details={data}
-                          onClose={() => cancel()}
-                        />
+                        <LogFeatureDetails details={data} onClose={() => cancel()} />
                       </div>
                     ),
                   },
@@ -504,15 +449,13 @@ function PageSelector(props: {
       <span>
         <span className="fw-bold log-result-count">{total} results</span>
         <Tooltip id="result-explanation">
-          Result count is computed once initially, therefore it can become
-          incorrect if new events are emitted after that.
+          Result count is computed once initially, therefore it can become incorrect if new events
+          are emitted after that.
         </Tooltip>
       </span>
       <nav>
         <ul className="pagination">
-          <li
-            className={`page-item ${page === 0 || disabled ? "disabled" : ""}`}
-          >
+          <li className={`page-item ${page === 0 || disabled ? "disabled" : ""}`}>
             <a
               className="page-link"
               href="#"
@@ -561,12 +504,7 @@ function PageSelector(props: {
           })}
           {afterMax && (
             <li className="page-item disabled">
-              <a
-                className="page-link"
-                href="#"
-                aria-label="more pages are available"
-                aria-disabled
-              >
+              <a className="page-link" href="#" aria-label="more pages are available" aria-disabled>
                 ...
               </a>
             </li>
@@ -591,7 +529,7 @@ function PageSelector(props: {
 
 const loadOptions = (
   inputValue: string,
-  callback: (options: { label: string; value: string }[]) => void
+  callback: (options: { label: string; value: string }[]) => void,
 ) => {
   fetch(`/api/admin/users/search?query=${inputValue}&count=20`)
     .then((resp) => resp.json())
@@ -609,22 +547,20 @@ function SearchCriterions(props: {
   customSearchFields?: (
     onChange: (value: { [x: string]: any }) => any,
     clear: () => any,
-    defaultValue: { [x: string]: any }
+    defaultValue: { [x: string]: any },
   ) => React.ReactNode;
 }) {
   const eventOptions = tenantEventTypeOptions.filter(({ value }) => {
     return props?.eventTypes ? props.eventTypes.includes(value as any) : true;
   });
-  const methods = useForm<Omit<LogSearchQuery, "total"> & { [x: string]: any }>(
-    {
-      defaultValues: props.defaultValue || {
-        users: [],
-        types: [],
-        start: undefined,
-        end: undefined,
-      },
-    }
-  );
+  const methods = useForm<Omit<LogSearchQuery, "total"> & { [x: string]: any }>({
+    defaultValues: props.defaultValue || {
+      users: [],
+      types: [],
+      start: undefined,
+      end: undefined,
+    },
+  });
   const customSearchFields = props.customSearchFields;
 
   const {
@@ -651,9 +587,7 @@ function SearchCriterions(props: {
               render={({ field: { value, onChange } }) => (
                 <AsyncCreatableSelect
                   loadOptions={loadOptions} // FIXME TS
-                  filterOption={(options) =>
-                    !value.find((v) => v === options.value)
-                  }
+                  filterOption={(options) => !value.find((v) => v === options.value)}
                   styles={customStyles}
                   cacheOptions
                   isMulti
@@ -663,9 +597,7 @@ function SearchCriterions(props: {
                       : "Start typing to search users";
                   }}
                   placeholder="Start typing to search users"
-                  onChange={(selected) =>
-                    onChange(selected.map((s) => s.value))
-                  }
+                  onChange={(selected) => onChange(selected.map((s) => s.value))}
                 />
               )}
             />
@@ -678,15 +610,11 @@ function SearchCriterions(props: {
               control={control}
               render={({ field: { onChange, value } }) => (
                 <Select
-                  value={eventOptions.filter((base) =>
-                    value.includes(base.value)
-                  )}
+                  value={eventOptions.filter((base) => value.includes(base.value))}
                   options={eventOptions}
                   styles={customStyles}
                   isMulti
-                  onChange={(selected) =>
-                    onChange(selected?.map(({ value }) => value))
-                  }
+                  onChange={(selected) => onChange(selected?.map(({ value }) => value))}
                 />
               )}
             />
@@ -712,13 +640,7 @@ function SearchCriterions(props: {
                             : ""
                         }
                         onChange={(e) => {
-                          onChange(
-                            parse(
-                              e.target.value,
-                              "yyyy-MM-dd'T'HH:mm",
-                              new Date()
-                            )
-                          );
+                          onChange(parse(e.target.value, "yyyy-MM-dd'T'HH:mm", new Date()));
                         }}
                         type="datetime-local"
                         aria-label="date-range-from"
@@ -742,13 +664,7 @@ function SearchCriterions(props: {
                             : ""
                         }
                         onChange={(e) => {
-                          onChange(
-                            parse(
-                              e.target.value,
-                              "yyyy-MM-dd'T'HH:mm",
-                              new Date()
-                            )
-                          );
+                          onChange(parse(e.target.value, "yyyy-MM-dd'T'HH:mm", new Date()));
                         }}
                         type="datetime-local"
                         aria-label="date-range-to"
@@ -765,7 +681,7 @@ function SearchCriterions(props: {
                 setValue("additionalFields", v);
               },
               () => {},
-              props?.defaultValue?.additionalFields || {}
+              props?.defaultValue?.additionalFields || {},
             )}
         </div>
         <div className="row">
@@ -787,34 +703,22 @@ function LogFeatureDetails(props: {
   const type = props.details.type;
   if (type === "FEATURE_CREATED") {
     return (
-      <FeatureCreatedLogFeatureDetails
-        details={props.details}
-        onClose={() => props.onClose()}
-      />
+      <FeatureCreatedLogFeatureDetails details={props.details} onClose={() => props.onClose()} />
     );
   } else if (type === "FEATURE_UPDATED") {
     return (
-      <FeatureUpdatedLogFeatureDetails
-        details={props.details}
-        onClose={() => props.onClose()}
-      />
+      <FeatureUpdatedLogFeatureDetails details={props.details} onClose={() => props.onClose()} />
     );
   } else if (type === "PROJECT_UPDATED") {
     return (
-      <ProjectUpdatedLogFeatureDetails
-        details={props.details}
-        onClose={() => props.onClose()}
-      />
+      <ProjectUpdatedLogFeatureDetails details={props.details} onClose={() => props.onClose()} />
     );
   } else {
     return <div className="error-message">Unknown event type {type}</div>;
   }
 }
 
-function FeatureCreatedLogFeatureDetails(props: {
-  details: FeatureCreated;
-  onClose: () => void;
-}) {
+function FeatureCreatedLogFeatureDetails(props: { details: FeatureCreated; onClose: () => void }) {
   const [isJson, setJson] = useState(false);
   const details = props.details;
   return (
@@ -847,11 +751,7 @@ function FeatureCreatedLogFeatureDetails(props: {
         </>
       )}
       <div className="d-flex justify-content-end">
-        <button
-          type="button"
-          className="btn btn-danger m-2"
-          onClick={() => props.onClose()}
-        >
+        <button type="button" className="btn btn-danger m-2" onClick={() => props.onClose()}>
           Close
         </button>
       </div>
@@ -859,10 +759,7 @@ function FeatureCreatedLogFeatureDetails(props: {
   );
 }
 
-function FeatureUpdatedLogFeatureDetails(props: {
-  details: FeatureUpdated;
-  onClose: () => void;
-}) {
+function FeatureUpdatedLogFeatureDetails(props: { details: FeatureUpdated; onClose: () => void }) {
   const [isJson, setJson] = useState(false);
   const details = props.details;
 
@@ -886,11 +783,7 @@ function FeatureUpdatedLogFeatureDetails(props: {
         <NaturalLanguageUpdateEventDisplay event={details} />
       )}
       <div className="d-flex justify-content-end">
-        <button
-          type="button"
-          className="btn btn-danger m-2"
-          onClick={() => props.onClose()}
-        >
+        <button type="button" className="btn btn-danger m-2" onClick={() => props.onClose()}>
           Close
         </button>
       </div>
@@ -898,10 +791,7 @@ function FeatureUpdatedLogFeatureDetails(props: {
   );
 }
 
-function ProjectUpdatedLogFeatureDetails(props: {
-  details: ProjectUpdated;
-  onClose: () => void;
-}) {
+function ProjectUpdatedLogFeatureDetails(props: { details: ProjectUpdated; onClose: () => void }) {
   const [isJson, setJson] = useState(false);
   const details = props.details;
   return (
@@ -948,11 +838,7 @@ function ProjectUpdatedLogFeatureDetails(props: {
         </div>
       )}
       <div className="d-flex justify-content-end">
-        <button
-          type="button"
-          className="btn btn-danger m-2"
-          onClick={() => props.onClose()}
-        >
+        <button type="button" className="btn btn-danger m-2" onClick={() => props.onClose()}>
           Close
         </button>
       </div>
@@ -973,17 +859,11 @@ function NaturalLanguageUpdateEventDisplay(props: { event: FeatureUpdated }) {
         const newConditions = details.conditions[ctx];
         const hasChanged = !isEqual(oldConditions, newConditions);
         return (
-          <div
-            className="accordion mt-3"
-            id={`accordion-${ctx}`}
-            key={`accordion-${ctx}`}
-          >
+          <div className="accordion mt-3" id={`accordion-${ctx}`} key={`accordion-${ctx}`}>
             <div className="accordion-item">
               <h2 className="accordion-header" id="headingOne">
                 <button
-                  className={`accordion-button ${
-                    hasChanged ? "" : "collapsed"
-                  }`}
+                  className={`accordion-button ${hasChanged ? "" : "collapsed"}`}
                   type="button"
                   data-bs-toggle="collapse"
                   data-bs-target={`#${`collapse-accordion-${ctx}`}`}
@@ -1001,17 +881,12 @@ function NaturalLanguageUpdateEventDisplay(props: { event: FeatureUpdated }) {
               </h2>
               <div
                 id={`collapse-accordion-${ctx}`}
-                className={`accordion-collapse collapse ${
-                  hasChanged ? "show" : ""
-                }`}
+                className={`accordion-collapse collapse ${hasChanged ? "show" : ""}`}
                 aria-labelledby="headingOne"
                 data-bs-parent={`#${`accordion-${ctx}`}`}
               >
                 <div className="accordion-body">
-                  <ConditionDiff
-                    oldConditions={oldConditions}
-                    newConditions={newConditions}
-                  />
+                  <ConditionDiff oldConditions={oldConditions} newConditions={newConditions} />
                 </div>
               </div>
             </div>
@@ -1035,11 +910,7 @@ export function ConditionDiff(props: {
         {oldConditions ? (
           <>
             {oldConditions.name}
-            {oldConditions.enabled ? (
-              <div className="fw-bold">Enabled</div>
-            ) : (
-              <div>Disabled</div>
-            )}
+            {oldConditions.enabled ? <div className="fw-bold">Enabled</div> : <div>Disabled</div>}
             <>
               {oldConditions.resultType === "boolean" ? (
                 <div style={{ marginTop: "8px" }}>
@@ -1069,11 +940,7 @@ export function ConditionDiff(props: {
           newConditions ? (
             <>
               {newConditions.name}
-              {newConditions.enabled ? (
-                <div className="fw-bold">Enabled</div>
-              ) : (
-                <div>Disabled</div>
-              )}
+              {newConditions.enabled ? <div className="fw-bold">Enabled</div> : <div>Disabled</div>}
               <>
                 {newConditions.resultType === "boolean" ? (
                   <div style={{ marginTop: "8px" }}>
@@ -1108,19 +975,11 @@ function FeatureUpdateJsonEventDisplay(props: { event: FeatureUpdated }) {
       </div>
       <Original
         value={JSON.stringify(before, null, 2)}
-        extensions={[
-          json(),
-          EditorView.editable.of(false),
-          EditorState.readOnly.of(true),
-        ]}
+        extensions={[json(), EditorView.editable.of(false), EditorState.readOnly.of(true)]}
       />
       <Modified
         value={JSON.stringify(after, null, 2)}
-        extensions={[
-          json(),
-          EditorView.editable.of(false),
-          EditorState.readOnly.of(true),
-        ]}
+        extensions={[json(), EditorView.editable.of(false), EditorState.readOnly.of(true)]}
       />
     </CodeMirrorMerge>
   );

@@ -51,7 +51,7 @@ header .nav-link {
 }
 
 .fieldset-form fieldset:disabled {
-  opacity: .5;
+  opacity: 0.5;
 }
 
 .item-block {

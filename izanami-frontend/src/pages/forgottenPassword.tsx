@@ -29,8 +29,8 @@ export function ForgottenPassword() {
             }}
           />
           <p>
-            If this email is associated with an account, a mail has been send
-            with password reset instruction.
+            If this email is associated with an account, a mail has been send with password reset
+            instruction.
             <p className="mt-4">
               <NavLink className={() => "align-self-end"} to={"/login"}>
                 Get back to login
@@ -60,9 +60,7 @@ export function ForgottenPassword() {
                     required: true,
                     type: "string",
                     label: "Email",
-                    constraints: [
-                      constraints.email("Email format is incorrect"),
-                    ],
+                    constraints: [constraints.email("Email format is incorrect")],
                     props: {
                       autoFocus: true,
                     },
@@ -87,10 +85,7 @@ export function ForgottenPassword() {
                           <NavLink to={"/login"}>
                             <button className="btn btn-danger">Cancel</button>
                           </NavLink>
-                          <button
-                            className="btn btn-primary ms-2"
-                            onClick={valid}
-                          >
+                          <button className="btn btn-primary ms-2" onClick={valid}>
                             Reset password
                           </button>
                         </>

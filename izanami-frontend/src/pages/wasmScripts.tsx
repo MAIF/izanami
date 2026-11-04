@@ -1,11 +1,6 @@
 import * as React from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import {
-  deleteScript,
-  fetchWasmScripts,
-  tenantScriptKey,
-  updateScript,
-} from "../utils/queries";
+import { deleteScript, fetchWasmScripts, tenantScriptKey, updateScript } from "../utils/queries";
 import { GenericTable } from "../components/GenericTable";
 import { NavLink, useSearchParams } from "react-router-dom";
 import { TLevel, TUser, TWasmConfig } from "../utils/types";
@@ -23,13 +18,8 @@ export function WasmScripts(props: { tenant: string }) {
     queryFn: () => fetchWasmScripts(tenant),
   });
   const wasmUpdateMutation = useMutation({
-    mutationFn: ({
-      name,
-      newScript,
-    }: {
-      name: string;
-      newScript: TWasmConfig;
-    }) => updateScript(tenant!, name, newScript),
+    mutationFn: ({ name, newScript }: { name: string; newScript: TWasmConfig }) =>
+      updateScript(tenant!, name, newScript),
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [tenantScriptKey(tenant!)] });
@@ -48,9 +38,7 @@ export function WasmScripts(props: { tenant: string }) {
         <GenericTable
           idAccessor={(script) => script.config.name}
           data={scriptQuery.data}
-          filters={
-            selectedSearchRow ? [{ id: "name", value: selectedSearchRow }] : []
-          }
+          filters={selectedSearchRow ? [{ id: "name", value: selectedSearchRow }] : []}
           defaultSort="name"
           columns={[
             {
@@ -80,20 +68,18 @@ export function WasmScripts(props: { tenant: string }) {
               cell: (info) => {
                 return (
                   <>
-                    {(info.getValue() as any).map(
-                      ({ name, project, id }: any) => {
-                        return (
-                          <div key={id}>
-                            <NavLink
-                              className={() => ""}
-                              to={`/tenants/${tenant}/projects/${project}`}
-                            >
-                              {name}({project})
-                            </NavLink>
-                          </div>
-                        );
-                      },
-                    )}
+                    {(info.getValue() as any).map(({ name, project, id }: any) => {
+                      return (
+                        <div key={id}>
+                          <NavLink
+                            className={() => ""}
+                            to={`/tenants/${tenant}/projects/${project}`}
+                          >
+                            {name}({project})
+                          </NavLink>
+                        </div>
+                      );
+                    })}
                   </>
                 );
               },
@@ -143,11 +129,10 @@ export function WasmScripts(props: { tenant: string }) {
                 askConfirmation(
                   `Are you sure you want to delete script ${wasmConfig.config.name} ?`,
                   () => {
-                    return deleteScript(tenant, wasmConfig.config.name).then(
-                      () =>
-                        queryClient.invalidateQueries({
-                          queryKey: [tenantScriptKey(tenant)],
-                        }),
+                    return deleteScript(tenant, wasmConfig.config.name).then(() =>
+                      queryClient.invalidateQueries({
+                        queryKey: [tenantScriptKey(tenant)],
+                      }),
                     );
                   },
                 ),
@@ -176,18 +161,12 @@ function WasmScriptUpdateForm(props: {
   return (
     <FormProvider {...methods}>
       <form
-        onSubmit={handleSubmit((data: { wasmConfig: TWasmConfig }) =>
-          submit(data.wasmConfig),
-        )}
+        onSubmit={handleSubmit((data: { wasmConfig: TWasmConfig }) => submit(data.wasmConfig))}
         className="d-flex flex-column flex-shrink-1"
       >
         <WasmInput />
         <div className="d-flex justify-content-end">
-          <button
-            type="button"
-            className="btn btn-danger m-2"
-            onClick={() => cancel()}
-          >
+          <button type="button" className="btn btn-danger m-2" onClick={() => cancel()}>
             Cancel
           </button>
           <button className="btn btn-primary m-2">Save</button>

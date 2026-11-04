@@ -30,6 +30,9 @@ jobs:
           node-version: '20.x'
           cache: 'npm'
           cache-dependency-path: izanami-frontend/package-lock.json
+      - name: format frontend
+        run: npm run fmt:check
+        continue-on-error: true
       - name: lint frontend
         run: npm run lint
         continue-on-error: true

@@ -27,11 +27,7 @@ import {
   queryTags,
   updateFeatureActivationForContext,
 } from "../utils/queries";
-import {
-  IzanamiContext,
-  hasRightForProject,
-  useProjectRight,
-} from "../securityContext";
+import { IzanamiContext, hasRightForProject, useProjectRight } from "../securityContext";
 import { GenericTable, TCustomAction } from "./GenericTable";
 import { ColumnDef, Row } from "@tanstack/react-table";
 import queryClient from "../queryClient";
@@ -64,14 +60,7 @@ import { OverloadTable } from "./OverloadTable";
 import { ExistingFeatureTestForm } from "./ExistingFeatureTestForm";
 import { isEqual } from "lodash";
 
-type FeatureFields =
-  | "id"
-  | "name"
-  | "tags"
-  | "enabled"
-  | "details"
-  | "project"
-  | "overloadCount";
+type FeatureFields = "id" | "name" | "tags" | "enabled" | "details" | "project" | "overloadCount";
 
 type FeatureActionNames =
   | "delete"
@@ -93,13 +82,7 @@ export const FeatureType = {
   classical: { value: "Classical", label: "Classical feature" },
 } as const;
 
-const BULK_OPERATIONS = [
-  "Enable",
-  "Disable",
-  "Delete",
-  "Transfer",
-  "Apply Tags",
-] as const;
+const BULK_OPERATIONS = ["Enable", "Disable", "Delete", "Transfer", "Apply Tags"] as const;
 
 const UPDATE_BULK_OPERATIONS = ["Enable", "Disable", "Apply Tags"] as const;
 
@@ -109,19 +92,9 @@ function OperationButton(props: {
   selectedRows: TLightFeature[];
   cancel: () => void;
   refresh: () => any;
-  validationCallback: (
-    action: string,
-    features: TLightFeature[],
-  ) => Promise<any>;
+  validationCallback: (action: string, features: TLightFeature[]) => Promise<any>;
 }) {
-  const {
-    tenant,
-    bulkOperation,
-    selectedRows,
-    cancel,
-    refresh,
-    validationCallback,
-  } = props;
+  const { tenant, bulkOperation, selectedRows, cancel, refresh, validationCallback } = props;
   const hasSelectedRows = selectedRows.length > 0;
   const { askConfirmation } = React.useContext(IzanamiContext);
   return (
@@ -131,60 +104,58 @@ function OperationButton(props: {
         type="button"
         disabled={!hasSelectedRows || !bulkOperation}
         onClick={() => {
-          validationCallback(bulkOperation, selectedRows).then(
-            (preserveProtectedContexts) => {
-              switch (bulkOperation) {
-                case "Delete":
-                  askConfirmation(
-                    `Are you sure you want to delete ${
-                      selectedRows.length
-                    } feature${selectedRows.length > 1 ? "s" : ""} ?`,
-                    () =>
-                      patchFeatures(
-                        tenant!,
-                        selectedRows.map((f) => ({
-                          op: "remove",
-                          path: `/${f.id}`,
-                        })),
-                        preserveProtectedContexts,
-                      ).then(() => refresh()),
-                  );
-                  break;
-                case "Enable":
-                  patchFeatures(
-                    tenant!,
-                    selectedRows
-                      .filter((f) => !f.enabled)
-                      .map((f) => ({
-                        op: "replace",
-                        path: `/${f.id}/enabled`,
-                        value: true,
+          validationCallback(bulkOperation, selectedRows).then((preserveProtectedContexts) => {
+            switch (bulkOperation) {
+              case "Delete":
+                askConfirmation(
+                  `Are you sure you want to delete ${
+                    selectedRows.length
+                  } feature${selectedRows.length > 1 ? "s" : ""} ?`,
+                  () =>
+                    patchFeatures(
+                      tenant!,
+                      selectedRows.map((f) => ({
+                        op: "remove",
+                        path: `/${f.id}`,
                       })),
-                    preserveProtectedContexts,
-                  )
-                    .then(() => refresh())
-                    .then(() => {
-                      cancel();
-                    });
-                  break;
-                case "Disable":
-                  patchFeatures(
-                    tenant!,
-                    selectedRows
-                      .filter((f) => f.enabled)
-                      .map((f) => ({
-                        op: "replace",
-                        path: `/${f.id}/enabled`,
-                        value: false,
-                      })),
-                    preserveProtectedContexts,
-                  )
-                    .then(() => refresh())
-                    .then(() => cancel());
-                  break;
-              }
-            },
-          );
+                      preserveProtectedContexts,
+                    ).then(() => refresh()),
+                );
+                break;
+              case "Enable":
+                patchFeatures(
+                  tenant!,
+                  selectedRows
+                    .filter((f) => !f.enabled)
+                    .map((f) => ({
+                      op: "replace",
+                      path: `/${f.id}/enabled`,
+                      value: true,
+                    })),
+                  preserveProtectedContexts,
+                )
+                  .then(() => refresh())
+                  .then(() => {
+                    cancel();
+                  });
+                break;
+              case "Disable":
+                patchFeatures(
+                  tenant!,
+                  selectedRows
+                    .filter((f) => f.enabled)
+                    .map((f) => ({
+                      op: "replace",
+                      path: `/${f.id}/enabled`,
+                      value: false,
+                    })),
+                  preserveProtectedContexts,
+                )
+                  .then(() => refresh())
+                  .then(() => cancel());
+                break;
+            }
+          });
         }}
       >
         {bulkOperation} {selectedRows.length} feature
@@ -199,10 +170,7 @@ function OperationTransferForm(props: {
   selectedRows: TLightFeature[];
   cancel: () => void;
   refresh: () => any;
-  validationCallback: (
-    action: string,
-    features: TLightFeature[],
-  ) => Promise<boolean>;
+  validationCallback: (action: string, features: TLightFeature[]) => Promise<boolean>;
 }) {
   const { tenant, selectedRows, cancel, refresh, validationCallback } = props;
   const selectedRowProjects = selectedRows.map((f) => f.project);
@@ -243,35 +211,30 @@ function OperationTransferForm(props: {
           },
         }}
         onSubmit={(data: { project: string }) => {
-          return validationCallback("Transfer", selectedRows).then(
-            (preserveProtectedContexts) =>
-              askConfirmation(
-                `Transferring ${selectedRows.length} feature${
-                  selectedRows.length > 1 ? "s" : ""
-                }  will delete existing local overloads (if any), are you sure ?`,
-                () =>
-                  patchFeatures(
-                    tenant!,
-                    selectedRows.map((f) => ({
-                      op: "replace",
-                      path: `/${f.id}/project`,
-                      value: data.project,
-                    })),
-                    preserveProtectedContexts,
-                  )
-                    .then(refresh)
-                    .then(cancel),
-              ),
+          return validationCallback("Transfer", selectedRows).then((preserveProtectedContexts) =>
+            askConfirmation(
+              `Transferring ${selectedRows.length} feature${
+                selectedRows.length > 1 ? "s" : ""
+              }  will delete existing local overloads (if any), are you sure ?`,
+              () =>
+                patchFeatures(
+                  tenant!,
+                  selectedRows.map((f) => ({
+                    op: "replace",
+                    path: `/${f.id}/project`,
+                    value: data.project,
+                  })),
+                  preserveProtectedContexts,
+                )
+                  .then(refresh)
+                  .then(cancel),
+            ),
           );
         }}
         footer={({ valid }: { valid: () => void }) => {
           return (
             <div className="d-flex justify-content-end">
-              <button
-                type="button"
-                className="btn btn-danger-light m-2"
-                onClick={cancel}
-              >
+              <button type="button" className="btn btn-danger-light m-2" onClick={cancel}>
                 Cancel
               </button>
               <button className="btn btn-primary m-2" onClick={valid}>
@@ -291,10 +254,7 @@ function OperationTagForm(props: {
   selectedRows: TLightFeature[];
   cancel: () => void;
   refresh: () => any;
-  validationCallback: (
-    action: string,
-    features: TLightFeature[],
-  ) => Promise<boolean>;
+  validationCallback: (action: string, features: TLightFeature[]) => Promise<boolean>;
 }) {
   const { tenant, selectedRows, cancel, refresh, validationCallback } = props;
   const tagsQuery = useQuery({
@@ -309,27 +269,24 @@ function OperationTagForm(props: {
     setSelectedValues(selectedOptions);
   };
   const OnSubmit = (selectedRows: TLightFeature[], values: Option[]) => {
-    validationCallback("Apply Tags", selectedRows).then(
-      (preserveProtectedContexts) =>
-        askConfirmation(
-          `Are you sure to apply ${values.length} tag${
-            selectedRows.length > 1 ? "s" : ""
-          } on ${selectedRows.length} feature${
-            selectedRows.length > 1 ? "s" : ""
-          }?`,
-          () =>
-            patchFeatures(
-              tenant!,
-              selectedRows.map((f) => ({
-                op: "replace",
-                path: `/${f.id}/tags`,
-                value: [...new Set(values.map((value) => value.value))],
-              })),
-              preserveProtectedContexts,
-            )
-              .then(refresh)
-              .then(cancel),
-        ),
+    validationCallback("Apply Tags", selectedRows).then((preserveProtectedContexts) =>
+      askConfirmation(
+        `Are you sure to apply ${values.length} tag${
+          selectedRows.length > 1 ? "s" : ""
+        } on ${selectedRows.length} feature${selectedRows.length > 1 ? "s" : ""}?`,
+        () =>
+          patchFeatures(
+            tenant!,
+            selectedRows.map((f) => ({
+              op: "replace",
+              path: `/${f.id}/tags`,
+              value: [...new Set(values.map((value) => value.value))],
+            })),
+            preserveProtectedContexts,
+          )
+            .then(refresh)
+            .then(cancel),
+      ),
     );
   };
   if (tagsQuery.isLoading) {
@@ -367,10 +324,7 @@ function OperationTagForm(props: {
         <button
           className="btn btn-primary m-2"
           onClick={() =>
-            OnSubmit(
-              selectedRows,
-              values ? values : dataTags.filter((f) => f.checked),
-            )
+            OnSubmit(selectedRows, values ? values : dataTags.filter((f) => f.checked))
           }
         >
           Update {selectedRows.length} feature
@@ -395,10 +349,7 @@ function TransferForm(props: {
   });
 
   const featureUpdateMutation = useMutation({
-    mutationFn: (data: {
-      project: string;
-      preserveProtectedContexts: boolean;
-    }) =>
+    mutationFn: (data: { project: string; preserveProtectedContexts: boolean }) =>
       patchFeatures(
         tenant,
         [
@@ -445,16 +396,15 @@ function TransferForm(props: {
           },
         }}
         onSubmit={(data) => {
-          return validationCallback([feature]).then(
-            (preserveProtectedContexts) =>
-              askConfirmation(
-                "Transferring this feature will delete existing local overloads (if any), are you sure ?",
-                () =>
-                  featureUpdateMutation.mutateAsync({
-                    ...data,
-                    preserveProtectedContexts,
-                  } as any),
-              ),
+          return validationCallback([feature]).then((preserveProtectedContexts) =>
+            askConfirmation(
+              "Transferring this feature will delete existing local overloads (if any), are you sure ?",
+              () =>
+                featureUpdateMutation.mutateAsync({
+                  ...data,
+                  preserveProtectedContexts,
+                } as any),
+            ),
           );
         }}
         onClose={() => cancel()}
@@ -470,19 +420,9 @@ function OperationForm(props: {
   selectedRows: TLightFeature[];
   cancel: () => void;
   refresh: () => any;
-  validationCallback: (
-    action: string,
-    features: TLightFeature[],
-  ) => Promise<boolean>;
+  validationCallback: (action: string, features: TLightFeature[]) => Promise<boolean>;
 }) {
-  const {
-    tenant,
-    bulkOperation,
-    selectedRows,
-    cancel,
-    refresh,
-    validationCallback,
-  } = props;
+  const { tenant, bulkOperation, selectedRows, cancel, refresh, validationCallback } = props;
   switch (bulkOperation) {
     case "Transfer":
       return (
@@ -544,9 +484,7 @@ export function CopyButton(props: { value: any; title?: any }) {
           <>
             <i
               aria-label="copy feature id"
-              className={`${
-                title ? "bi bi-clipboard me-2" : "bi bi-clipboard"
-              }`}
+              className={`${title ? "bi bi-clipboard me-2" : "bi bi-clipboard"}`}
               data-tooltip-id="copy_id"
               data-tooltip-content="Copied to clipboard !"
               data-tooltip-place="top"
@@ -568,11 +506,7 @@ export function CopyButton(props: { value: any; title?: any }) {
   );
 }
 
-function FeatureUrl(props: {
-  context?: string;
-  tenant: string;
-  feature: TLightFeature;
-}) {
+function FeatureUrl(props: { context?: string; tenant: string; feature: TLightFeature }) {
   const { project } = props.feature;
   const { tenant, context, feature } = props;
   const contextQuery = useQuery({
@@ -584,20 +518,20 @@ function FeatureUrl(props: {
 
   const { clientUrlByContexts, expositionUrl } = React.useContext(IzanamiContext);
 
-  const clientUrl = clientUrlForContext(selectedContext ?? "", clientUrlByContexts?.[tenant] ?? {}, expositionUrl ?? "<BASE-IZANAMI-URL>")
+  const clientUrl = clientUrlForContext(
+    selectedContext ?? "",
+    clientUrlByContexts?.[tenant] ?? {},
+    expositionUrl ?? "<BASE-IZANAMI-URL>",
+  );
 
-  const url = `${
-    clientUrl
-  }/api/v2/features/${feature.id}${
+  const url = `${clientUrl}/api/v2/features/${feature.id}${
     selectedContext ? "?context=" + encodeURIComponent(selectedContext) : ""
   }`;
 
   if (contextQuery.error) {
     return <div>Failed to fetch contexts</div>;
   } else if (contextQuery.data) {
-    const allContexts = possiblePaths(contextQuery.data).map(
-      ({ path }) => path,
-    );
+    const allContexts = possiblePaths(contextQuery.data).map(({ path }) => path);
 
     return (
       <>
@@ -610,9 +544,7 @@ function FeatureUrl(props: {
           <label style={{ width: "100%" }}>
             Context (optional)
             <Select
-              defaultValue={
-                context ? { label: context, value: context } : undefined
-              }
+              defaultValue={context ? { label: context, value: context } : undefined}
               onChange={(e) => {
                 setSelectedContext(e?.value);
               }}
@@ -661,10 +593,7 @@ function FeatureUrl(props: {
   }
 }
 
-function OverloadTableForFeature(props: {
-  tenant: string;
-  feature: TLightFeature;
-}) {
+function OverloadTableForFeature(props: { tenant: string; feature: TLightFeature }) {
   const { project, name } = props.feature;
   const { tenant } = props;
   const contextQuery = useQuery({
@@ -691,9 +620,7 @@ function OverloadTableForFeature(props: {
           })
         }
         fields={["linkedPath", "enabled", "details"]}
-        actions={() =>
-          hasDeleteRight ? ["edit", "delete"] : hasUpdateRight ? ["edit"] : []
-        }
+        actions={() => (hasDeleteRight ? ["edit", "delete"] : hasUpdateRight ? ["edit"] : [])}
       />
     );
   } else {
@@ -701,20 +628,17 @@ function OverloadTableForFeature(props: {
   }
 }
 
-function OverloadDetails(props: {
-  feature: TLightFeature;
-  cancel: () => void;
-}) {
+function OverloadDetails(props: { feature: TLightFeature; cancel: () => void }) {
   const [creating, setCreating] = useState(false);
   const { tenant } = useParams();
   const { user, displayModal } = React.useContext(IzanamiContext);
-  
+
   const { feature, cancel } = props;
   const canOverloadForGlobalProtectedContexts = hasRightForProject(
     user!,
     TProjectLevel.Admin,
     feature.project!,
-    tenant!
+    tenant!,
   );
   const contextQuery = useQuery({
     queryKey: [projectContextKey(tenant!, feature.project!)],
@@ -748,20 +672,13 @@ function OverloadDetails(props: {
       }),
   });
   const [selectedContext, selectContext] = useState<string>();
-  const modificationRight = useProjectRight(
-    tenant,
-    feature.project!,
-    TLevel.Write,
-  );
+  const modificationRight = useProjectRight(tenant, feature.project!, TLevel.Write);
 
   if (contextQuery.error) {
     return <div>Failed to fetch contexts</div>;
   } else if (contextQuery.data) {
     const allContexts = possiblePaths(contextQuery.data);
-    const excluded = findContextWithOverloadsForFeature(
-      feature.name,
-      contextQuery.data,
-    );
+    const excluded = findContextWithOverloadsForFeature(feature.name, contextQuery.data);
 
     return (
       <>
@@ -800,9 +717,7 @@ function OverloadDetails(props: {
                     <OverloadUpdateConfirmationModal
                       hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
                       impactedProtectedContexts={impactedProtectedContexts}
-                      impactedRootProtectedContexts={
-                        impactedRootProtectedContexts
-                      }
+                      impactedRootProtectedContexts={impactedRootProtectedContexts}
                       context={selectedContext}
                       newFeature={overload as any}
                       onCancel={() => close()}
@@ -846,7 +761,7 @@ function OverloadDetails(props: {
                     value: "",
                     conditions: [],
                   }
-                : feature as unknown as TContextOverload
+                : (feature as unknown as TContextOverload)
             }
             noName
             additionalFields={() => (
@@ -869,12 +784,7 @@ function OverloadDetails(props: {
                       } else if (context.protected) {
                         isAllowed =
                           canOverloadForGlobalProtectedContexts ||
-                          hasRightForProject(
-                            user!,
-                            TLevel.Admin,
-                            context.project!,
-                            tenant!,
-                          );
+                          hasRightForProject(user!, TLevel.Admin, context.project!, tenant!);
                       }
 
                       return {
@@ -891,10 +801,7 @@ function OverloadDetails(props: {
                             {path}
                             {context.global && <GlobalContextIcon />}
                             {context.protected && (
-                              <i
-                                className="fa-solid fa-lock fs-6 ml-5"
-                                aria-label="protected"
-                              ></i>
+                              <i className="fa-solid fa-lock fs-6 ml-5" aria-label="protected"></i>
                             )}
                           </span>
                         ),
@@ -909,11 +816,7 @@ function OverloadDetails(props: {
         )}
         <OverloadTableForFeature feature={feature} tenant={tenant!} />
         <div className="d-flex justify-content-end">
-          <button
-            type="button"
-            className="btn btn-danger m-2"
-            onClick={() => cancel()}
-          >
+          <button type="button" className="btn btn-danger m-2" onClick={() => cancel()}>
             Close
           </button>
         </div>
@@ -998,12 +901,7 @@ export function FeatureTable(props: {
       id: string;
       feature: Omit<TCompleteFeature, "stale" | "creationDate">;
     }) => {
-      return updateFeature(
-        tenant!,
-        data.id,
-        data.strategyPreservation,
-        data.feature,
-      );
+      return updateFeature(tenant!, data.id, data.strategyPreservation, data.feature);
     },
 
     onSuccess: () => {
@@ -1040,10 +938,7 @@ export function FeatureTable(props: {
   const staleMessage = (stale?: StaleStatus) => {
     switch (stale?.because) {
       case "NoCall":
-        return `Feature has not been called since ${format(
-          stale?.since,
-          "PPPp",
-        )}`;
+        return `Feature has not been called since ${format(stale?.since, "PPPp")}`;
       case "NeverCalled":
         return `Feature has never been called since its creation at ${format(
           stale?.since,
@@ -1086,13 +981,16 @@ export function FeatureTable(props: {
 
         if (contextQueries.some((q) => q.isLoading)) {
           return (
-            <div className="d-flex justify-start align-items-center" style={{wordBreak: "break-all"}}>
+            <div
+              className="d-flex justify-start align-items-center"
+              style={{ wordBreak: "break-all" }}
+            >
               {featureNameBase}
             </div>
           );
         } else if (contextQueries.some((q) => q.isError)) {
           return (
-            <div className="d-flex align-items-center" style={{wordBreak: "break-all"}}>
+            <div className="d-flex align-items-center" style={{ wordBreak: "break-all" }}>
               <div className="d-flex py-2">
                 {featureNameBase}
                 <Pill tooltip="Failed to fetch overloads" criticity={"error"}>
@@ -1111,20 +1009,21 @@ export function FeatureTable(props: {
 
           if (!maybeContexts || maybeContexts.length === 0) {
             return (
-              <div className="d-flex justify-start align-items-center" style={{wordBreak: "break-all"}}>
+              <div
+                className="d-flex justify-start align-items-center"
+                style={{ wordBreak: "break-all" }}
+              >
                 {featureNameBase}
               </div>
             );
           } else {
             return (
-              <div className="d-flex align-items-center" style={{wordBreak: "break-all"}}>
+              <div className="d-flex align-items-center" style={{ wordBreak: "break-all" }}>
                 <div className="d-flex py-2">
                   {featureNameBase}
                   <Pill
                     onClick={() =>
-                      document
-                        .getElementById(`overload-action-icon-${feature.id}`)
-                        ?.click()
+                      document.getElementById(`overload-action-icon-${feature.id}`)?.click()
                     }
                     tooltip="Overloads"
                     criticity={"info"}
@@ -1150,7 +1049,10 @@ export function FeatureTable(props: {
       cell: (props: { row: Row<any> }) => {
         const feature = props.row.original;
         return (
-          <div className="d-flex justify-start align-items-center" style={{wordBreak: "break-all"}}>
+          <div
+            className="d-flex justify-start align-items-center"
+            style={{ wordBreak: "break-all" }}
+          >
             {displayFeature(feature)}
           </div>
         );
@@ -1191,13 +1093,9 @@ export function FeatureTable(props: {
                   type="checkbox"
                   className="izanami-checkbox"
                   style={{ marginTop: 0 }}
-                  aria-label={`${isEnabled ? "Disable" : "Enable"} ${
-                    feature.name
-                  }`}
+                  aria-label={`${isEnabled ? "Disable" : "Enable"} ${feature.name}`}
                   onChange={() => {
-                    const contexts = contextQueries.flatMap(
-                      (q) => q.data ?? [],
-                    );
+                    const contexts = contextQueries.flatMap((q) => q.data ?? []);
                     const {
                       impactedProtectedContexts,
                       impactedRootProtectedContexts,
@@ -1225,15 +1123,9 @@ export function FeatureTable(props: {
                                 },
                               });
                             }}
-                            impactedProtectedContexts={
-                              impactedProtectedContexts
-                            }
-                            impactedRootProtectedContexts={
-                              impactedRootProtectedContexts
-                            }
-                            hasUserAdminRightOnFeature={
-                              unprotectedUpdateAllowed
-                            }
+                            impactedProtectedContexts={impactedProtectedContexts}
+                            impactedRootProtectedContexts={impactedRootProtectedContexts}
+                            hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
                             oldFeature={feature as TLightFeature}
                             newFeature={
                               {
@@ -1259,11 +1151,7 @@ export function FeatureTable(props: {
                 &nbsp;
               </>
             )}
-            <span
-              className={`activation-status ${
-                isEnabled ? "enabled" : "disabled"
-              }-status`}
-            >
+            <span className={`activation-status ${isEnabled ? "enabled" : "disabled"}-status`}>
               {isEnabled ? "Enabled" : "Disabled"}
             </span>
           </label>
@@ -1364,16 +1252,14 @@ export function FeatureTable(props: {
                     hasConditionChanged = true;
                   } else {
                     hasConditionChanged =
-                      hasConditionChanged ||
-                      !isEqual(feature.conditions, datum.conditions);
+                      hasConditionChanged || !isEqual(feature.conditions, datum.conditions);
                   }
                 } else if ("wasmConfig" in feature) {
                   if (!("wasmConfig" in datum)) {
                     hasConditionChanged = true;
                   } else {
                     hasConditionChanged =
-                      hasConditionChanged ||
-                      !isEqual(feature.wasmConfig, datum.wasmConfig);
+                      hasConditionChanged || !isEqual(feature.wasmConfig, datum.wasmConfig);
                   }
                 }
 
@@ -1398,9 +1284,7 @@ export function FeatureTable(props: {
                           queryKey: [tagsQueryKey(tenant!)],
                         });
                         queryClient.invalidateQueries({
-                          queryKey: [
-                            projectContextKey(tenant!, datum.project!),
-                          ],
+                          queryKey: [projectContextKey(tenant!, datum.project!)],
                         });
                         cancel();
                       },
@@ -1416,8 +1300,9 @@ export function FeatureTable(props: {
                     false,
                   );
 
-                  const protectedContextsWithOverloads =
-                    contextsWithOverload.filter((c) => c.protected);
+                  const protectedContextsWithOverloads = contextsWithOverload.filter(
+                    (c) => c.protected,
+                  );
 
                   const {
                     impactedProtectedContexts,
@@ -1431,40 +1316,29 @@ export function FeatureTable(props: {
                     updatedFeatureId: feature.id!,
                   });
 
-                  if (
-                    contextsWithOverload.length > 0 &&
-                    feature.resultType !== datum.resultType
-                  ) {
-                    if (
-                      !unprotectedUpdateAllowed &&
-                      protectedContextsWithOverloads.length > 0
-                    ) {
-                      const protectedContextNames =
-                        protectedContextsWithOverloads.map((c) => {
-                          const displayname = c.parent.concat(c.name).join("/");
-                          return (
-                            <span key={displayname}>
-                              {displayname}&nbsp;
-                              {c.global && (
-                                <>
-                                  <GlobalContextIcon />
-                                  &nbsp;
-                                </>
-                              )}
-                              {c.protected && (
-                                <i
-                                  className="fa-solid fa-lock fs-6"
-                                  aria-label="protected"
-                                ></i>
-                              )}
-                            </span>
-                          );
-                        });
+                  if (contextsWithOverload.length > 0 && feature.resultType !== datum.resultType) {
+                    if (!unprotectedUpdateAllowed && protectedContextsWithOverloads.length > 0) {
+                      const protectedContextNames = protectedContextsWithOverloads.map((c) => {
+                        const displayname = c.parent.concat(c.name).join("/");
+                        return (
+                          <span key={displayname}>
+                            {displayname}&nbsp;
+                            {c.global && (
+                              <>
+                                <GlobalContextIcon />
+                                &nbsp;
+                              </>
+                            )}
+                            {c.protected && (
+                              <i className="fa-solid fa-lock fs-6" aria-label="protected"></i>
+                            )}
+                          </span>
+                        );
+                      });
 
                       askConfirmation(
                         <>
-                          This feature has overloads for below protected
-                          contexts with result type{" "}
+                          This feature has overloads for below protected contexts with result type{" "}
                           <span className="fw-bold">{datum.resultType}</span>:
                           <ul>
                             {protectedContextNames.map((n, index) => (
@@ -1475,9 +1349,8 @@ export function FeatureTable(props: {
                           <span className="fw-bold">{feature.resultType}</span>
                           will delete these overloads.
                           <br />
-                          You are not allowed to delete these overload since
-                          only a project admin can update protected contexts,
-                          therefore&nbsp;
+                          You are not allowed to delete these overload since only a project admin
+                          can update protected contexts, therefore&nbsp;
                           <span className="fw-bold">
                             you are not allowed to perform this operation
                           </span>
@@ -1488,13 +1361,10 @@ export function FeatureTable(props: {
                       return askConfirmation(
                         <>
                           This feature has overload for below contexts with{" "}
-                          <span className="fw-bold">{datum.resultType}</span>{" "}
-                          result type:
+                          <span className="fw-bold">{datum.resultType}</span> result type:
                           <ul>
                             {contextsWithOverload.map((c) => {
-                              const displayname = c.parent
-                                .concat(c.name)
-                                .join("/");
+                              const displayname = c.parent.concat(c.name).join("/");
 
                               return (
                                 <li key={displayname}>
@@ -1518,9 +1388,8 @@ export function FeatureTable(props: {
                             })}
                           </ul>
                           Updating result type to{" "}
-                          <span className="fw-bold">{feature.resultType}</span>{" "}
-                          will delete all these overloads, are you sure that it
-                          is what you want ?
+                          <span className="fw-bold">{feature.resultType}</span> will delete all
+                          these overloads, are you sure that it is what you want ?
                         </>,
                         () => callback(false),
                       );
@@ -1530,16 +1399,12 @@ export function FeatureTable(props: {
                       return (
                         <OverloadUpdateConfirmationModal
                           impactedProtectedContexts={impactedProtectedContexts}
-                          impactedRootProtectedContexts={
-                            impactedRootProtectedContexts
-                          }
+                          impactedRootProtectedContexts={impactedRootProtectedContexts}
                           hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
                           oldFeature={datum as TLightFeature}
                           newFeature={feature as TLightFeature}
                           onCancel={() => close()}
-                          onConfirm={(strategyPreservation) =>
-                            callback(strategyPreservation)
-                          }
+                          onConfirm={(strategyPreservation) => callback(strategyPreservation)}
                         />
                       );
                     });
@@ -1621,8 +1486,7 @@ export function FeatureTable(props: {
     transfer: {
       icon: (
         <>
-          <i className="fa-solid fa-arrow-right-arrow-left" aria-hidden></i>{" "}
-          Transfer
+          <i className="fa-solid fa-arrow-right-arrow-left" aria-hidden></i> Transfer
         </>
       ),
       hasRight: (user: TUser, feature: TLightFeature) => {
@@ -1638,28 +1502,18 @@ export function FeatureTable(props: {
               feature={datum}
               cancel={cancel}
               validationCallback={([feature]) => {
-                const contexts = contextQueries.flatMap(
-                  (ctxq) => ctxq.data ?? [],
-                );
+                const contexts = contextQueries.flatMap((ctxq) => ctxq.data ?? []);
                 const protectedOverloads = findOverloadsForFeature(
                   feature.name,
                   contexts,
                   (ctx) => ctx.protected,
                 );
-                if (
-                  !hasRightForProject(
-                    user!,
-                    TLevel.Admin,
-                    feature.project!,
-                    tenant!,
-                  )
-                ) {
+                if (!hasRightForProject(user!, TLevel.Admin, feature.project!, tenant!)) {
                   return askConfirmation(
                     <>
                       <h3>Operation not permitted</h3>
                       <div>
-                        Feature {feature.name} have overload(s) in below
-                        protected context(s)
+                        Feature {feature.name} have overload(s) in below protected context(s)
                       </div>
                       <ul>
                         {protectedOverloads.map((o) => (
@@ -1667,11 +1521,9 @@ export function FeatureTable(props: {
                         ))}
                       </ul>
                       <p>
-                        Transferring this feature would delete these overloads.
-                        You don't have admin right on this project,{" "}
-                        <span className="fw-bold">
-                          therefore you can't transfer this feature.
-                        </span>
+                        Transferring this feature would delete these overloads. You don't have admin
+                        right on this project,{" "}
+                        <span className="fw-bold">therefore you can't transfer this feature.</span>
                       </p>
                     </>,
                   );
@@ -1681,8 +1533,8 @@ export function FeatureTable(props: {
                   <>
                     <h3>Transfer confirmation</h3>
                     <div>
-                      Feature <span className="fw-bold">{feature.name}</span>{" "}
-                      have overload(s) in below protected context(s)
+                      Feature <span className="fw-bold">{feature.name}</span> have overload(s) in
+                      below protected context(s)
                     </div>
                     <ul>
                       {protectedOverloads.map((o) => (
@@ -1721,14 +1573,13 @@ export function FeatureTable(props: {
           (ctx) => ctx.protected,
         );
 
-        const { impactedProtectedContexts, unprotectedUpdateAllowed } =
-          analyzeUpdateImpact({
-            tenant: tenant!,
-            project: feature.project!,
-            user: user!,
-            contexts: contexts,
-            updatedFeatureId: feature.id!,
-          });
+        const { impactedProtectedContexts, unprotectedUpdateAllowed } = analyzeUpdateImpact({
+          tenant: tenant!,
+          project: feature.project!,
+          user: user!,
+          contexts: contexts,
+          updatedFeatureId: feature.id!,
+        });
 
         const isProjectAdmin = hasRightForProject(
           user!,
@@ -1741,8 +1592,8 @@ export function FeatureTable(props: {
             <>
               <h3>Operation not permitted</h3>
               <div>
-                Deleting feature <span className="fw-bold">{feature.name}</span>{" "}
-                would impact below protected contexts:
+                Deleting feature <span className="fw-bold">{feature.name}</span> would impact below
+                protected contexts:
                 <ul>
                   {impactedProtectedContexts.map((ctx) => {
                     return <li key={ctx.name}>{ctx.name}</li>;
@@ -1750,12 +1601,8 @@ export function FeatureTable(props: {
                 </ul>
               </div>
               <p>
-                You don't have admin rights on this project, therefore you can't
-                delete{" "}
-                {impactedProtectedContexts.length > 1
-                  ? "these features"
-                  : "this feature"}
-                .
+                You don't have admin rights on this project, therefore you can't delete{" "}
+                {impactedProtectedContexts.length > 1 ? "these features" : "this feature"}.
               </p>
             </>,
           );
@@ -1764,8 +1611,8 @@ export function FeatureTable(props: {
             <>
               <h3>Delete confirmation</h3>
               <div>
-                Feature <span className="fw-bold">{feature.name}</span> have
-                overload(s) in below protected context(s)
+                Feature <span className="fw-bold">{feature.name}</span> have overload(s) in below
+                protected context(s)
               </div>
               <ul>
                 {protectedOverloads.map((o) => (
@@ -1785,8 +1632,8 @@ export function FeatureTable(props: {
           return askConfirmation(
             <>
               <h3>Delete confirmation</h3>
-              Feature <span className="fw-bold">{feature.name}</span> have
-              overloads for below protected contexts:
+              Feature <span className="fw-bold">{feature.name}</span> have overloads for below
+              protected contexts:
               <ul>
                 {protectedOverloads
                   .map((o) => o.name)
@@ -1794,12 +1641,10 @@ export function FeatureTable(props: {
                     <li key={name}>{name}</li>
                   ))}
               </ul>
+              <p>Updating protected overloads require admin rights on project.</p>
               <p>
-                Updating protected overloads require admin rights on project.
-              </p>
-              <p>
-                You don't have admin rights on this project, therefore you can't
-                delete this feature.
+                You don't have admin rights on this project, therefore you can't delete this
+                feature.
               </p>
             </>,
           );
@@ -1825,15 +1670,11 @@ export function FeatureTable(props: {
         return actions(feature).includes("url");
       },
       action: (feature: TLightFeature) =>
-        askConfirmation(
-          <FeatureUrl tenant={tenant!} feature={feature} />
-        ),
+        askConfirmation(<FeatureUrl tenant={tenant!} feature={feature} />),
     },
   };
 
-  const [bulkOperation, setBulkOperation] = useState<string | undefined>(
-    undefined,
-  );
+  const [bulkOperation, setBulkOperation] = useState<string | undefined>(undefined);
 
   const selectedFeatures = features.filter((f) =>
     selectedRows.map((item) => item.id).includes(f.id),
@@ -1849,16 +1690,12 @@ export function FeatureTable(props: {
   return (
     <div>
       {selectableRows && (
-        <div
-          className={`d-flex align-items-center ${
-            selectedRows.length > 0 ? "" : "invisible"
-          }`}
-        >
+        <div className={`d-flex align-items-center ${selectedRows.length > 0 ? "" : "invisible"}`}>
           <Select
-            options={(canDeleteSelected
-              ? BULK_OPERATIONS
-              : UPDATE_BULK_OPERATIONS
-            ).map((op) => ({ label: op, value: op }))}
+            options={(canDeleteSelected ? BULK_OPERATIONS : UPDATE_BULK_OPERATIONS).map((op) => ({
+              label: op,
+              value: op,
+            }))}
             value={
               bulkOperation
                 ? {
@@ -1890,10 +1727,7 @@ export function FeatureTable(props: {
               refresh={() => refresh()}
               validationCallback={(action, features) => {
                 const contexts = contextQueries.flatMap((q) => q.data ?? []);
-                const protectedContexts = extractContextsMatching(
-                  contexts,
-                  (ctx) => ctx.protected,
-                );
+                const protectedContexts = extractContextsMatching(contexts, (ctx) => ctx.protected);
 
                 const protectedOverloadsByProjectAndFeatures = protectedContexts
                   .flatMap((ctx) =>
@@ -1906,9 +1740,7 @@ export function FeatureTable(props: {
                           project: o.project,
                         };
                       })
-                      .filter(({ id }) =>
-                        features.map((f) => f.id).includes(id),
-                      ),
+                      .filter(({ id }) => features.map((f) => f.id).includes(id)),
                   )
                   .reduce((acc, { feature, path, project }) => {
                     if (!acc.has(project!)) {
@@ -1927,26 +1759,16 @@ export function FeatureTable(props: {
                     return acc;
                   }, new Map<string, Map<string, string[]>>());
 
-                const forbiddenOverloadToDelete =
-                  protectedOverloadsByProjectAndFeatures
-                    .entries()
-                    .filter(
-                      ([project]) =>
-                        !hasRightForProject(
-                          user!,
-                          TLevel.Admin,
-                          project,
-                          tenant!,
-                        ),
-                    )
-                    .reduce((acc, [project, overloadByFeature]) => {
-                      acc.set(project, overloadByFeature);
-                      return acc;
-                    }, new Map<string, Map<string, string[]>>());
+                const forbiddenOverloadToDelete = protectedOverloadsByProjectAndFeatures
+                  .entries()
+                  .filter(([project]) => !hasRightForProject(user!, TLevel.Admin, project, tenant!))
+                  .reduce((acc, [project, overloadByFeature]) => {
+                    acc.set(project, overloadByFeature);
+                    return acc;
+                  }, new Map<string, Map<string, string[]>>());
 
                 if (
-                  (bulkOperation === "Delete" ||
-                    bulkOperation === "Transfer") &&
+                  (bulkOperation === "Delete" || bulkOperation === "Transfer") &&
                   forbiddenOverloadToDelete.size > 0
                 ) {
                   return askConfirmation(
@@ -1955,45 +1777,34 @@ export function FeatureTable(props: {
                         padding: "0.5rem",
                       }}
                     >
-                      {bulkOperation === "Delete" ? "Deleting" : "Transfering"}{" "}
-                      these features would cause deletion of overload for the
-                      following protected contexts :
+                      {bulkOperation === "Delete" ? "Deleting" : "Transfering"} these features would
+                      cause deletion of overload for the following protected contexts :
                       <ul>
-                        {forbiddenOverloadToDelete
-                          .entries()
-                          .flatMap(([project, pathByFeatures]) =>
-                            pathByFeatures
-                              .entries()
-                              .flatMap(([feature, pathes]) => {
-                                return pathes.map((path) => [
-                                  project,
-                                  feature,
-                                  path,
-                                ]);
-                              })
-                              .map(([project, feature, path]) => {
-                                return (
-                                  <li key={`${project}-${feature}-${path}`}>
-                                    <i className="fas fa-building" />
-                                    &nbsp;{project} {">"}{" "}
-                                    <i className="fas fa-rocket" />
-                                    &nbsp;{feature} {">"} <GlobalContextIcon />
-                                    &nbsp;{path}
-                                  </li>
-                                );
-                              }),
-                          )}
+                        {forbiddenOverloadToDelete.entries().flatMap(([project, pathByFeatures]) =>
+                          pathByFeatures
+                            .entries()
+                            .flatMap(([feature, pathes]) => {
+                              return pathes.map((path) => [project, feature, path]);
+                            })
+                            .map(([project, feature, path]) => {
+                              return (
+                                <li key={`${project}-${feature}-${path}`}>
+                                  <i className="fas fa-building" />
+                                  &nbsp;{project} {">"} <i className="fas fa-rocket" />
+                                  &nbsp;{feature} {">"} <GlobalContextIcon />
+                                  &nbsp;{path}
+                                </li>
+                              );
+                            }),
+                        )}
                       </ul>
-                      You don't have admin right on these projects and therefore
-                      cannot delete these overloards.
+                      You don't have admin right on these projects and therefore cannot delete these
+                      overloards.
                     </div>,
                   ).then(() => {
                     throw new Error("Not enough rights");
                   });
-                } else if (
-                  bulkOperation === "Enable" ||
-                  bulkOperation === "Disable"
-                ) {
+                } else if (bulkOperation === "Enable" || bulkOperation === "Disable") {
                   const impactByFeature = features
                     .filter((feat) => {
                       return (
@@ -2011,8 +1822,7 @@ export function FeatureTable(props: {
                           user: user!,
                         });
 
-                        const enabling =
-                          bulkOperation === "Enable" ? true : false;
+                        const enabling = bulkOperation === "Enable" ? true : false;
                         acc[f.id!] = {
                           ...impact,
                           newFeature: {
@@ -2020,8 +1830,7 @@ export function FeatureTable(props: {
                             enabled: enabling,
                           } as TLightFeature,
                           oldFeature: f,
-                          hasUserAdminRightOnFeature:
-                            impact.unprotectedUpdateAllowed,
+                          hasUserAdminRightOnFeature: impact.unprotectedUpdateAllowed,
                         };
 
                         return acc;
@@ -2034,9 +1843,9 @@ export function FeatureTable(props: {
                         };
                       },
                     );
-                  const hasProtectedContextImpact = Object.values(
-                    impactByFeature,
-                  ).some((i) => i.impactedProtectedContexts.length > 0);
+                  const hasProtectedContextImpact = Object.values(impactByFeature).some(
+                    (i) => i.impactedProtectedContexts.length > 0,
+                  );
                   if (hasProtectedContextImpact) {
                     let ok = false; // FIXME this is ugly
                     let preserveProtectedContexts = false;
@@ -2047,8 +1856,7 @@ export function FeatureTable(props: {
                         onConfirm={(shouldPreserveProtectedContexts) => {
                           ok = true;
                           close();
-                          preserveProtectedContexts =
-                            shouldPreserveProtectedContexts;
+                          preserveProtectedContexts = shouldPreserveProtectedContexts;
                           return Promise.resolve();
                         }}
                       />
@@ -2085,9 +1893,7 @@ export function FeatureTable(props: {
         isRowSelectable={(feature) =>
           hasRightForProject(user!, TLevel.Read, feature.project!, tenant!)
         }
-        filters={
-          selectedSearchRow ? [{ id: "name", value: selectedSearchRow }] : []
-        }
+        filters={selectedSearchRow ? [{ id: "name", value: selectedSearchRow }] : []}
       />
     </div>
   );

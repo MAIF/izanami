@@ -38,7 +38,6 @@
 }
 .search-ul .search-ul-item {
   justify-content: space-between;
-
 }
 .search-ul .search-ul-item a {
   &:hover,
@@ -46,7 +45,6 @@
   &:focus {
     color: #fff;
   }
-
 }
 .selected-search-item {
   background-color: var(--bg-color_level2);

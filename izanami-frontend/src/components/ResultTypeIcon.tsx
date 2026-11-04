@@ -28,26 +28,17 @@ const NumberTypeIcon = () => (
           className="cls-1"
           d="M92,42.08h0V95.13l21.19,20.31,20.89-20V22.77L111.32,0,92,42.07Z"
         />
-        <path
-          className="cls-1"
-          d="M87.41,198.29H42.16L0,217.57v0l22.78,22.78h83.87L87.42,198.3Z"
-        />
+        <path className="cls-1" d="M87.41,198.29H42.16L0,217.57v0l22.78,22.78h83.87L87.42,198.3Z" />
         <path
           className="cls-1"
           d="M113.2,121.36,92,141.67V198l19.33,42.3,22.76-22.76V141.37l-20.89-20Z"
         />
-        <path
-          className="cls-1"
-          d="M42.24,42.08h45L106.62,0H22.78L0,22.77,42.24,42.09Z"
-        />
+        <path className="cls-1" d="M42.24,42.08h45L106.62,0H22.78L0,22.77,42.24,42.09Z" />
         <polygon
           className="cls-1"
           points="256.75 98.07 213.05 98.07 191.83 118.4 213.05 138.73 256.75 138.73 277.97 118.4 256.75 98.07"
         />
-        <path
-          className="cls-1"
-          d="M259.87,45.11v50l21.19,20.31,20.89-20V22.77l-9.87-9.87Z"
-        />
+        <path className="cls-1" d="M259.87,45.11v50l21.19,20.31,20.89-20V22.77l-9.87-9.87Z" />
         <path
           className="cls-1"
           d="M209.94,45.11,177.73,12.9l-9.87,9.87V95.42l20.89,20,21.19-20.31Z"
@@ -83,10 +74,7 @@ export const ResultTypeIcon = (props: {
   return (
     <div className="custom-badge" style={{ fill: color }} aria-hidden>
       {rs === "boolean" ? (
-        <i
-          style={{ fontSize: "14px", color: color }}
-          className="fa-solid fa-toggle-off"
-        ></i>
+        <i style={{ fontSize: "14px", color: color }} className="fa-solid fa-toggle-off"></i>
       ) : rs === "string" ? (
         <StringIcon />
       ) : rs === "number" ? (

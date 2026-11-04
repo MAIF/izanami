@@ -79,8 +79,7 @@ export function TokenForm(props: {
         <label>
           Name*
           <Tooltip id="token-name">
-            Token name, use something meaningfull, it can be modified later
-            without impacts.
+            Token name, use something meaningfull, it can be modified later without impacts.
           </Tooltip>
           <input
             autoFocus={true}
@@ -101,8 +100,7 @@ export function TokenForm(props: {
           <Tooltip id="token-all-rights">
             If this is checked, token will have all user rights.
             <br />
-            If this is unchecked, you'll have to specify what token is allowed
-            to do.
+            If this is unchecked, you'll have to specify what token is allowed to do.
           </Tooltip>
           <Controller
             name="allRights"
@@ -133,12 +131,7 @@ export function TokenForm(props: {
                 name="rights"
                 control={control}
                 render={({ field: { onChange, value } }) => {
-                  return (
-                    <TenantRightSelector
-                      value={value}
-                      onChange={(v) => onChange(v)}
-                    />
-                  );
+                  return <TenantRightSelector value={value} onChange={(v) => onChange(v)} />;
                 }}
               />
             </div>
@@ -157,9 +150,7 @@ export function TokenForm(props: {
                       }))}
                       styles={customStyles}
                       isMulti
-                      onChange={(selected) =>
-                        onChange(selected?.map(({ value }) => value))
-                      }
+                      onChange={(selected) => onChange(selected?.map(({ value }) => value))}
                     />
                   )}
                 />
@@ -182,14 +173,10 @@ export function TokenForm(props: {
                 <input
                   className="form-control"
                   value={
-                    value && !isNaN(value.getTime())
-                      ? format(value, "yyyy-MM-dd'T'HH:mm")
-                      : ""
+                    value && !isNaN(value.getTime()) ? format(value, "yyyy-MM-dd'T'HH:mm") : ""
                   }
                   onChange={(e) => {
-                    onChange(
-                      parse(e.target.value, "yyyy-MM-dd'T'HH:mm", new Date())
-                    );
+                    onChange(parse(e.target.value, "yyyy-MM-dd'T'HH:mm", new Date()));
                   }}
                   type="datetime-local"
                   aria-label="date-range-to"
@@ -200,9 +187,7 @@ export function TokenForm(props: {
         </label>
         <label className="mt-3">
           Timezone
-          <Tooltip id="token-expiration-timezone">
-            Timezone for token expiration.
-          </Tooltip>
+          <Tooltip id="token-expiration-timezone">Timezone for token expiration.</Tooltip>
           <Controller
             name="expirationTimezone"
             defaultValue={DEFAULT_TIMEZONE}
@@ -255,9 +240,7 @@ function TenantRightSelector(props: {
                   options={tenantQuery.data
                     .map((t) => t.name)
                     .filter(
-                      (t) =>
-                        hasRightForTenant(user!, t, "Admin") &&
-                        !value.find(([v]) => t == v)
+                      (t) => hasRightForTenant(user!, t, "Admin") && !value.find(([v]) => t == v),
                     )}
                   tenant={tenant}
                   rights={rs}
@@ -274,12 +257,7 @@ function TenantRightSelector(props: {
                 <button
                   className="btn btn-danger"
                   type="button"
-                  onClick={() =>
-                    onChange([
-                      ...value.slice(0, index),
-                      ...value.slice(index + 1),
-                    ])
-                  }
+                  onClick={() => onChange([...value.slice(0, index), ...value.slice(index + 1)])}
                 >
                   Delete
                 </button>
@@ -321,9 +299,7 @@ function UnitTenantRightSelector(props: {
         <Select
           styles={customStyles}
           value={tenant ? { value: tenant, label: tenant } : null}
-          options={props.options
-            .filter((v) => v !== tenant)
-            .map((v) => ({ label: v, value: v }))}
+          options={props.options.filter((v) => v !== tenant).map((v) => ({ label: v, value: v }))}
           onChange={(v) => props?.onChange(v?.value ?? null, [])}
         />
       </label>
@@ -332,13 +308,14 @@ function UnitTenantRightSelector(props: {
         <Select
           styles={customStyles}
           value={rights?.map((r) => ({ value: r, label: r })) ?? []}
-          options={POSSIBLE_TOKEN_RIGHTS.filter(
-            (v) => !props.rights?.includes(v)
-          ).map((v) => ({ label: v, value: v }))}
+          options={POSSIBLE_TOKEN_RIGHTS.filter((v) => !props.rights?.includes(v)).map((v) => ({
+            label: v,
+            value: v,
+          }))}
           onChange={(v) => {
             props?.onChange(
               props.tenant,
-              v?.map((v) => v?.value)
+              v?.map((v) => v?.value),
             );
           }}
           isMulti

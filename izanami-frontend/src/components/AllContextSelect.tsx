@@ -9,11 +9,7 @@ import { Loader } from "./Loader";
 import { TContext } from "../utils/types";
 import { possiblePaths } from "../utils/contextUtils";
 
-export function AllContexts(props: {
-  id: string;
-  value?: string;
-  onChange: (v?: string) => void;
-}) {
+export function AllContexts(props: { id: string; value?: string; onChange: (v?: string) => void }) {
   const { tenant } = useParams();
   const { value, onChange } = props;
   const contextQuery = useQuery({
@@ -30,9 +26,7 @@ export function AllContexts(props: {
     return (
       <Select
         inputId={props.id}
-        value={
-          value ? options.find(({ value }) => value === props.value) : undefined
-        }
+        value={value ? options.find(({ value }) => value === props.value) : undefined}
         onChange={(newValue) => {
           onChange?.(newValue?.value);
         }}

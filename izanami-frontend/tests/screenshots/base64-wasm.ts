@@ -1,10 +1,5 @@
 import { openActions, screenshotBuilder, setup } from "./utils";
-import {
-  testBuilder,
-  testTenant,
-  testProject,
-  testGlobalContext,
-} from "../testBuilder";
+import { testBuilder, testTenant, testProject, testGlobalContext } from "../testBuilder";
 import { base64Mobile } from "./base64-mobile-wasm";
 
 export async function generate() {
@@ -16,15 +11,9 @@ export async function generate() {
     .withTenant(
       testTenant("bookstore")
         .withProject(testProject("website"))
-        .withContext(
-          testGlobalContext("prod").withSubContext(testGlobalContext("mobile"))
-        )
-        .withContext(
-          testGlobalContext("dev").withLocalSubContext(
-            testGlobalContext("mobile")
-          )
-        )
-        .withContext(testGlobalContext("mobile"))
+        .withContext(testGlobalContext("prod").withSubContext(testGlobalContext("mobile")))
+        .withContext(testGlobalContext("dev").withLocalSubContext(testGlobalContext("mobile")))
+        .withContext(testGlobalContext("mobile")),
     )
     .build(page);
 
@@ -53,18 +42,14 @@ export async function generate() {
   await page.waitForTimeout(200);
   await screenshot("active-mobile");
 
-  await page
-    .getByRole("combobox", { name: "Context mobile", exact: true })
-    .click();
+  await page.getByRole("combobox", { name: "Context mobile", exact: true }).click();
   await page.getByText("prod/mobile", { exact: true }).click();
   await page.getByRole("button", { name: "Test feature", exact: true }).click();
   await page.getByText('"active": true').click();
   await page.waitForTimeout(200);
   await screenshot("active-prod-mobile");
 
-  await page
-    .getByRole("combobox", { name: "Context prod/mobile", exact: true })
-    .click();
+  await page.getByRole("combobox", { name: "Context prod/mobile", exact: true }).click();
   await page.getByText("prod", { exact: true }).click();
   await page.getByRole("button", { name: "Test feature", exact: true }).click();
   await page.getByText('"active": false').click();

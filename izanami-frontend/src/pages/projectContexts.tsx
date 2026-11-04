@@ -32,11 +32,7 @@ import { OverloadTable } from "../components/OverloadTable";
 import { analyzeUpdateImpact } from "../utils/contextUtils";
 import { OverloadUpdateConfirmationModal } from "../components/OverloadUpdateConfirmationModal";
 
-export function ProjectContexts(props: {
-  tenant: string;
-  project: string;
-  open?: string;
-}) {
+export function ProjectContexts(props: { tenant: string; project: string; open?: string }) {
   const { tenant, project, open } = props;
 
   const deleteContextMutation = useMutation({
@@ -53,25 +49,16 @@ export function ProjectContexts(props: {
   });
 
   const contextProtectionUpdateMutation = useMutation({
-    mutationFn: (data: {
-      name: string;
-      path: string;
-      protected: boolean;
-      global: boolean;
-    }) => {
+    mutationFn: (data: { name: string; path: string; protected: boolean; global: boolean }) => {
       const { name, path, protected: isProtected, global } = data;
       if (global) {
-        return changeProtectionStatusForGlobalContext(
-          tenant,
-          `${path}/${name}`,
-          isProtected
-        );
+        return changeProtectionStatusForGlobalContext(tenant, `${path}/${name}`, isProtected);
       } else {
         return changeProtectionStatusForLocalContext(
           tenant,
           project,
           `${path}/${name}`,
-          isProtected
+          isProtected,
         );
       }
     },
@@ -84,12 +71,7 @@ export function ProjectContexts(props: {
   });
 
   const createContextMutation = useMutation({
-    mutationFn: (data: {
-      tenant: string;
-      project: string;
-      path: string;
-      name: string;
-    }) => {
+    mutationFn: (data: { tenant: string; project: string; path: string; name: string }) => {
       const { tenant, project, path, name } = data;
       return createContext(tenant, project, path, name);
     },
@@ -112,9 +94,7 @@ export function ProjectContexts(props: {
         updateContextProtection={(v) => {
           return contextProtectionUpdateMutation.mutateAsync(v);
         }}
-        deleteContext={(path) =>
-          deleteContextMutation.mutateAsync({ tenant, project, path })
-        }
+        deleteContext={(path) => deleteContextMutation.mutateAsync({ tenant, project, path })}
         createSubContext={(path, name) => {
           return createContextMutation.mutateAsync({
             tenant,
@@ -170,16 +150,8 @@ function ProjectOverloadTable({
       resultType: FeatureTypeName;
       strategyPreservation: boolean;
     }) => {
-      const {
-        project,
-        name,
-        enabled,
-        conditions,
-        wasm,
-        value,
-        resultType,
-        strategyPreservation,
-      } = data;
+      const { project, name, enabled, conditions, wasm, value, resultType, strategyPreservation } =
+        data;
       return updateFeatureActivationForContext(
         tenant,
         project,
@@ -190,18 +162,14 @@ function ProjectOverloadTable({
         strategyPreservation,
         conditions,
         wasm,
-        value
+        value,
       );
     },
   });
 
   const [creating, setCreating] = React.useState(false);
   const [displayingAllFeatures, displayAllFeatures] = useState(false);
-  const createDeleteRight = useProjectRight(
-    tenant,
-    project,
-    TProjectLevel.Write
-  );
+  const createDeleteRight = useProjectRight(tenant, project, TProjectLevel.Write);
   const updateRight = useProjectRight(tenant, project, TProjectLevel.Update);
   const { allContexts } = React.useContext(LocalContext);
   const { user, displayModal } = React.useContext(IzanamiContext);
@@ -226,9 +194,7 @@ function ProjectOverloadTable({
             project={project!}
             cancel={() => setCreating(false)}
             submit={(datum) => {
-              const oldFeature = projectQuery.data.features.find(
-                (f) => f.name === datum.name
-              )!;
+              const oldFeature = projectQuery.data.features.find((f) => f.name === datum.name)!;
 
               const {
                 impactedProtectedContexts,
@@ -249,9 +215,7 @@ function ProjectOverloadTable({
                     <OverloadUpdateConfirmationModal
                       hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
                       impactedProtectedContexts={impactedProtectedContexts}
-                      impactedRootProtectedContexts={
-                        impactedRootProtectedContexts
-                      }
+                      impactedRootProtectedContexts={impactedRootProtectedContexts}
                       context={path}
                       newFeature={datum as any}
                       onCancel={() => close()}
@@ -261,12 +225,8 @@ function ProjectOverloadTable({
                             project: project!,
                             name: datum.name,
                             enabled: datum.enabled,
-                            conditions:
-                              "conditions" in datum ? datum.conditions : [],
-                            wasm:
-                              "wasmConfig" in datum
-                                ? datum.wasmConfig
-                                : undefined,
+                            conditions: "conditions" in datum ? datum.conditions : [],
+                            wasm: "wasmConfig" in datum ? datum.wasmConfig : undefined,
                             value: "value" in datum ? datum.value : undefined,
                             resultType: datum.resultType,
                             strategyPreservation: strategyPreservation,
@@ -278,7 +238,7 @@ function ProjectOverloadTable({
                                 queryKey: [projectContextKey(tenant, project!)],
                               });
                             },
-                          }
+                          },
                         );
                       }}
                     />
@@ -303,7 +263,7 @@ function ProjectOverloadTable({
                         queryKey: [projectContextKey(tenant, project!)],
                       });
                     },
-                  }
+                  },
                 );
               }
             }}
@@ -315,9 +275,7 @@ function ProjectOverloadTable({
             className="izanami-checkbox"
             onChange={(e) => displayAllFeatures(e.target.checked)}
           />
-          <span className="mt-3 ms-2">
-            Display all features strategy for this context
-          </span>
+          <span className="mt-3 ms-2">Display all features strategy for this context</span>
         </label>
         <OverloadTable
           contexts={allContexts}
@@ -326,8 +284,8 @@ function ProjectOverloadTable({
             createDeleteRight && o.path === path.substring(1)
               ? ["edit", "test", "delete"]
               : updateRight && o.path === path.substring(1)
-              ? ["edit", "test"]
-              : []
+                ? ["edit", "test"]
+                : []
           }
           fields={["path", "name", "enabled", "details"]}
           refresh={() => {
@@ -344,8 +302,7 @@ function ProjectOverloadTable({
                   {
                     name: "default",
                     id: "default",
-                    overloads: projectQuery.data
-                      .features as unknown as TContextOverload[],
+                    overloads: projectQuery.data.features as unknown as TContextOverload[],
                     children: [],
                   } as any, // FIXME TS
                   ...parents,
@@ -364,16 +321,13 @@ function ProjectOverloadTable({
 
 function allFeatureStrategies(
   overloads: TContextOverload[],
-  parents: TContext[]
+  parents: TContext[],
 ): TContextOverload[] {
   let result: {
     overloads: { [x: string]: TContextOverload };
     path: string[];
   } = parents.reduce(
-    (
-      acc: { overloads: { [x: string]: TContextOverload }; path: string[] },
-      context
-    ) => {
+    (acc: { overloads: { [x: string]: TContextOverload }; path: string[] }, context) => {
       context.overloads.forEach((overload) => {
         acc.overloads[overload.name] = {
           ...overload,
@@ -388,7 +342,7 @@ function allFeatureStrategies(
         path: [...acc.path, context.name],
       };
     },
-    { overloads: {}, path: [] }
+    { overloads: {}, path: [] },
   );
 
   const path = parents
@@ -396,9 +350,7 @@ function allFeatureStrategies(
     .map((p) => p.name)
     .join("/");
 
-  overloads.forEach(
-    (overload) => (result.overloads[overload.name] = { ...overload, path })
-  );
+  overloads.forEach((overload) => (result.overloads[overload.name] = { ...overload, path }));
 
   return Object.values(result.overloads);
 }

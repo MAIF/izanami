@@ -9,10 +9,7 @@ export function successToast(message: string, id?: string) {
       }}
     >
       {message}
-      <button
-        onClick={() => toast.dismiss(id ?? message)}
-        className="btn btn-sm ms-3 me-0"
-      >
+      <button onClick={() => toast.dismiss(id ?? message)} className="btn btn-sm ms-3 me-0">
         X
       </button>
     </div>,
@@ -33,10 +30,7 @@ export function errorToast(message: string, id?: string) {
       }}
     >
       {message}
-      <button
-        onClick={() => toast.dismiss(id ?? message)}
-        className="btn btn-sm ms-3 me-0"
-      >
+      <button onClick={() => toast.dismiss(id ?? message)} className="btn btn-sm ms-3 me-0">
         X
       </button>
     </div>,

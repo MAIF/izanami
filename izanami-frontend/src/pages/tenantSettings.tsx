@@ -40,12 +40,7 @@ import {
 import { UserEdition } from "./users";
 import { InvitationForm } from "../components/InvitationForm";
 import { TENANT_NAME_REGEXP } from "../utils/patterns";
-import {
-  Controller,
-  FormProvider,
-  useForm,
-  useFormContext,
-} from "react-hook-form";
+import { Controller, FormProvider, useForm, useFormContext } from "react-hook-form";
 import { Tooltip } from "../components/Tooltip";
 import { customStyles } from "../styles/reactSelect";
 import { TimeZoneSelect } from "../components/TimeZoneSelect";
@@ -57,8 +52,7 @@ import { successToast } from "../utils/toastUtils";
 
 export function TenantSettings(props: { tenant: string }) {
   const { tenant } = props;
-  const { askConfirmation, askInputConfirmation } =
-    React.useContext(IzanamiContext);
+  const { askConfirmation, askInputConfirmation } = React.useContext(IzanamiContext);
   const [inviting, setInviting] = React.useState(false);
   const [v1ImportDisplayed, setV1ImportDisplayed] = React.useState(false);
   const [exportDisplayed, setExportDisplayed] = React.useState(false);
@@ -118,9 +112,7 @@ export function TenantSettings(props: { tenant: string }) {
         {inviting && (
           <InvitationForm
             submit={({ users, level }) =>
-              inviteUsers
-                .mutateAsync({ users, level })
-                .then(() => setInviting(false))
+              inviteUsers.mutateAsync({ users, level }).then(() => setInviting(false))
             }
             cancel={() => setInviting(false)}
             invitedUsers={usersQuery.data?.map((user) => user.username) || []}
@@ -144,10 +136,7 @@ export function TenantSettings(props: { tenant: string }) {
         </div>
 
         {modification && (
-          <TenantModification
-            tenant={tenantQuery.data}
-            onDone={() => setModification(false)}
-          />
+          <TenantModification tenant={tenantQuery.data} onDone={() => setModification(false)} />
         )}
 
         <div className="d-flex align-items-center justify-content-between p-2">
@@ -194,9 +183,7 @@ export function TenantSettings(props: { tenant: string }) {
                           throw new Error(`Failed to import data`);
                         })
                         .then((txt: string) => {
-                          throw new Error(
-                            `Failed to import data (${response.status}): ${txt}`,
-                          );
+                          throw new Error(`Failed to import data (${response.status}): ${txt}`);
                         });
                     } else {
                       return response.json().then((body: any) => body.id);
@@ -204,10 +191,7 @@ export function TenantSettings(props: { tenant: string }) {
                   })
                   .then((id) => pollForImportResult(tenant, id))
                   .then((res) => {
-                    if (
-                      !res.incompatibleScripts ||
-                      res.incompatibleScripts.length === 0
-                    ) {
+                    if (!res.incompatibleScripts || res.incompatibleScripts.length === 0) {
                       askConfirmation("Import succeeded !");
                     } else {
                       askConfirmation(
@@ -220,11 +204,9 @@ export function TenantSettings(props: { tenant: string }) {
                               <li key={s}>{s}</li>
                             ))}
                           </ul>
-                          Only Javascript scripts that don't use http client are
-                          supported.
+                          Only Javascript scripts that don't use http client are supported.
                           <br />
-                          Associated features were imported as basic disabled
-                          features.
+                          Associated features were imported as basic disabled features.
                         </div>,
                       );
                     }
@@ -234,9 +216,7 @@ export function TenantSettings(props: { tenant: string }) {
                     askConfirmation(
                       <span className="error-message">
                         An error occured :{" "}
-                        {typeof err === "string"
-                          ? err
-                          : err?.message ?? JSON.stringify(err)}
+                        {typeof err === "string" ? err : (err?.message ?? JSON.stringify(err))}
                       </span>,
                     );
                   });
@@ -248,9 +228,7 @@ export function TenantSettings(props: { tenant: string }) {
             <ExportForm
               cancel={() => setExportDisplayed(false)}
               submit={(request: IzanamiTenantExportRequest) =>
-                requestExport(tenant, request).then(() =>
-                  setExportDisplayed(false),
-                )
+                requestExport(tenant, request).then(() => setExportDisplayed(false))
               }
             />
           </div>
@@ -265,10 +243,7 @@ export function TenantSettings(props: { tenant: string }) {
                       askConfirmation(
                         <>
                           {importRes.details && (
-                            <ImportError
-                              details={importRes.details}
-                              message={importRes.message}
-                            />
+                            <ImportError details={importRes.details} message={importRes.message} />
                           )}
                         </>,
                         undefined,
@@ -344,18 +319,12 @@ export function TenantSettings(props: { tenant: string }) {
   }
 }
 
-function ImportError(props: {
-  details?: ImportErrorDetails;
-  message?: string;
-}) {
+function ImportError(props: { details?: ImportErrorDetails; message?: string }) {
   const { details, message } = props;
 
   if (details) {
     const rows = Object.entries(details)
-      .sort(
-        ([_key1, { order: order1 }], [_key2, { order: order2 }]) =>
-          order1 - order2,
-      )
+      .sort(([_key1, { order: order1 }], [_key2, { order: order2 }]) => order1 - order2)
       .map(([name, { failures }], index) => {
         return (
           <>
@@ -385,15 +354,12 @@ function ImportError(props: {
     return (
       <div>
         <h3>Import errors !</h3>
-        Import failed due to some errors. Since there was errors, nothing was
-        inserted / updated.
+        Import failed due to some errors. Since there was errors, nothing was inserted / updated.
         <br />
-        Fix error listed belows and try to reimport. Note that some errors may
-        be "sequential" (for instance failing to import a project will trigger
-        feature insertion).
+        Fix error listed belows and try to reimport. Note that some errors may be "sequential" (for
+        instance failing to import a project will trigger feature insertion).
         <br />
-        Errors are sorted by insertion order, therefore fixing top rows may fix
-        below ones.
+        Errors are sorted by insertion order, therefore fixing top rows may fix below ones.
         {rows}
       </div>
     );
@@ -429,8 +395,8 @@ function ImportForm(props: {
         enabling: "skip",
         name: "skip",
         project: "skip",
-        tags: "skip"
-      }
+        tags: "skip",
+      },
     },
   });
   const {
@@ -456,9 +422,7 @@ function ImportForm(props: {
           <Tooltip id="import-conflict-tooltip">
             Conflict strategy.
             <ul>
-              <li>
-                Skip will ignore conflictual elements (they won't be overriden)
-              </li>
+              <li>Skip will ignore conflictual elements (they won't be overriden)</li>
               <li>Fail will fail on any conflict (except on projects)</li>
               <li>Overwrite will write imported version over existing</li>
             </ul>
@@ -469,9 +433,7 @@ function ImportForm(props: {
             control={control}
             render={({ field: { onChange, value } }) => (
               <Select
-                value={CONFLICT_STRATEGIES_OPTIONS.find(
-                  ({ value: aValue }) => value === aValue,
-                )}
+                value={CONFLICT_STRATEGIES_OPTIONS.find(({ value: aValue }) => value === aValue)}
                 onChange={(value) => {
                   onChange(value?.value);
                 }}
@@ -482,8 +444,10 @@ function ImportForm(props: {
           />
         </label>
         <label className="mt-3 mb-3">
-          Fine tune feature conflict strategy<Tooltip id="fine-tune-features">
-            Fine tuning feature conflict strategy allows to define a merge strategy per fields for feature.
+          Fine tune feature conflict strategy
+          <Tooltip id="fine-tune-features">
+            Fine tuning feature conflict strategy allows to define a merge strategy per fields for
+            feature.
           </Tooltip>
           <input
             type="checkbox"
@@ -498,9 +462,7 @@ function ImportForm(props: {
         )}
         <label className="mt-3">
           Exported file (ndjson)
-          <Tooltip id="exported-file">
-            Exported ndjson file from another v2 instance
-          </Tooltip>
+          <Tooltip id="exported-file">Exported ndjson file from another v2 instance</Tooltip>
           <input
             className="form-control"
             type="file"
@@ -528,11 +490,7 @@ function ImportForm(props: {
               borderRadius: "10px",
             }}
           ></div>
-          <button
-            type="button"
-            className="btn btn-danger m-2"
-            onClick={() => cancel()}
-          >
+          <button type="button" className="btn btn-danger m-2" onClick={() => cancel()}>
             Cancel
           </button>
           {isSubmitting ? (
@@ -556,11 +514,7 @@ function TenantUsers(props: { tenant: string; usersData: any }) {
   const { tenant, usersData } = props;
 
   const userUpdateMutationForTenant = useMutation({
-    mutationFn: (user: {
-      username: string;
-      tenant: string;
-      rights: TTenantRight;
-    }) => {
+    mutationFn: (user: { username: string; tenant: string; rights: TTenantRight }) => {
       const { username, tenant, rights } = user;
       return updateUserRightsForTenant(username, tenant, rights);
     },
@@ -668,11 +622,9 @@ function TenantModification(props: { tenant: TenantType; onDone: () => void }) {
       updateTenant(props.tenant.name, data),
 
     onSuccess: (data: any, variables: { name: string; description: string }) =>
-      queryClient
-        .invalidateQueries({ queryKey: [tenantQueryKey(props.tenant.name)] })
-        .then(() => {
-          navigate(`/tenants/${variables.name}/settings`);
-        }),
+      queryClient.invalidateQueries({ queryKey: [tenantQueryKey(props.tenant.name)] }).then(() => {
+        navigate(`/tenants/${variables.name}/settings`);
+      }),
   });
   return (
     <div className="sub_container">
@@ -701,9 +653,7 @@ function TenantModification(props: { tenant: TenantType; onDone: () => void }) {
             defaultValue: props.tenant.description,
           },
         }}
-        onSubmit={(data: any) =>
-          updateMutation.mutateAsync(data).then(() => props.onDone())
-        }
+        onSubmit={(data: any) => updateMutation.mutateAsync(data).then(() => props.onDone())}
         onClose={() => props.onDone()}
         submitText="Update"
       />
@@ -781,23 +731,15 @@ function ExportForm(props: {
           <label className="mt-3">
             Export all projects
             <Tooltip id="export-projects-list">
-              <div>
-                If this is checked, all projects of this tenant will be exported
-              </div>
+              <div>If this is checked, all projects of this tenant will be exported</div>
             </Tooltip>
-            <input
-              type="checkbox"
-              className="izanami-checkbox"
-              {...register("allProjects")}
-            />
+            <input type="checkbox" className="izanami-checkbox" {...register("allProjects")} />
           </label>
           {!getValues("allProjects") &&
             (projectQuery.isSuccess ? (
               <label className="mt-3">
                 Projects to export
-                <Tooltip id="export-projects-list">
-                  These projects will be exported
-                </Tooltip>
+                <Tooltip id="export-projects-list">These projects will be exported</Tooltip>
                 <Controller
                   name="projects"
                   control={control}
@@ -831,23 +773,15 @@ function ExportForm(props: {
           <label className="mt-3">
             Export all keys
             <Tooltip id="export-all-keys">
-              <div>
-                If this is checked, all keys of this tenant will be exported
-              </div>
+              <div>If this is checked, all keys of this tenant will be exported</div>
             </Tooltip>
-            <input
-              type="checkbox"
-              className="izanami-checkbox"
-              {...register("allKeys")}
-            />
+            <input type="checkbox" className="izanami-checkbox" {...register("allKeys")} />
           </label>
           {!getValues("allKeys") &&
             (keyQuery.isSuccess ? (
               <label className="mt-3">
                 Keys to export
-                <Tooltip id="export-key-list">
-                  These keys will be exported
-                </Tooltip>
+                <Tooltip id="export-key-list">These keys will be exported</Tooltip>
                 <Controller
                   name="keys"
                   control={control}
@@ -881,23 +815,15 @@ function ExportForm(props: {
           <label className="mt-3">
             Export all webhooks
             <Tooltip id="export-all-webhooks">
-              <div>
-                If this is checked, all webhooks of this tenant will be exported
-              </div>
+              <div>If this is checked, all webhooks of this tenant will be exported</div>
             </Tooltip>
-            <input
-              type="checkbox"
-              className="izanami-checkbox"
-              {...register("allWebhooks")}
-            />
+            <input type="checkbox" className="izanami-checkbox" {...register("allWebhooks")} />
           </label>
           {!getValues("allWebhooks") &&
             (webhookQuery.isSuccess ? (
               <label className="mt-3">
                 Webhooks to export
-                <Tooltip id="export-key-list">
-                  These webhooks will be exported
-                </Tooltip>
+                <Tooltip id="export-key-list">These webhooks will be exported</Tooltip>
                 <Controller
                   name="webhooks"
                   control={control}
@@ -932,18 +858,13 @@ function ExportForm(props: {
             Include user rights
             <Tooltip id="include-user-rights">
               <div>
-                If this is checked, exported data will contain user rights on
-                exported elements.
+                If this is checked, exported data will contain user rights on exported elements.
                 <br />
-                Including user rights may lead to import errors if users don't
-                exist in target instance.
+                Including user rights may lead to import errors if users don't exist in target
+                instance.
               </div>
             </Tooltip>
-            <input
-              type="checkbox"
-              className="izanami-checkbox"
-              {...register("userRights")}
-            />
+            <input type="checkbox" className="izanami-checkbox" {...register("userRights")} />
           </label>
           <div
             className="d-flex justify-content-end align-items-center align-self-end"
@@ -965,11 +886,7 @@ function ExportForm(props: {
                 borderRadius: "10px",
               }}
             ></div>
-            <button
-              type="button"
-              className="btn btn-danger m-2"
-              onClick={() => cancel()}
-            >
+            <button type="button" className="btn btn-danger m-2" onClick={() => cancel()}>
               Cancel
             </button>
             {isSubmitting ? (
@@ -1035,10 +952,7 @@ function IzanamiV1ImportForm(props: {
               <Tooltip id="conflict-tooltip">
                 Conflict strategy.
                 <ul>
-                  <li>
-                    Skip will ignore conflictual elements (they won't be
-                    inserted)
-                  </li>
+                  <li>Skip will ignore conflictual elements (they won't be inserted)</li>
                   <li>Fail will fail on any conflict (except on projects)</li>
                   <li>Overwrite will write imported version over existing</li>
                 </ul>
@@ -1064,9 +978,7 @@ function IzanamiV1ImportForm(props: {
             <label className="mt-3">
               Inline WASM scripts as Base64
               <Tooltip id="inline-scripts">
-                <div>
-                  Whether Izanami should store Wasm script in its own database
-                </div>
+                <div>Whether Izanami should store Wasm script in its own database</div>
                 <div>(inBase64 format) or rely on Wasmo</div>
                 <div>to provide scripts at runtime. </div>
                 <div>Either way, you MUST have a Wasmo instance</div>
@@ -1084,11 +996,7 @@ function IzanamiV1ImportForm(props: {
             <legend>Features</legend>
             <label>
               Exported feature files (ndjson)
-              <input
-                className="form-control"
-                type="file"
-                {...register("featureFiles")}
-              />
+              <input className="form-control" type="file" {...register("featureFiles")} />
             </label>
 
             <label className="mt-3">
@@ -1111,14 +1019,8 @@ function IzanamiV1ImportForm(props: {
                 <label className="mt-3">
                   Deduce project from feature name
                   <Tooltip id="import-deduce-project">
-                    <div>
-                      If this is checked, Izanami will try to deduce feature
-                      project
-                    </div>
-                    <div>
-                      from its name, by splitting it into project / name
-                      combination.
-                    </div>
+                    <div>If this is checked, Izanami will try to deduce feature project</div>
+                    <div>from its name, by splitting it into project / name combination.</div>
                   </Tooltip>
                   <input
                     type="checkbox"
@@ -1168,43 +1070,35 @@ function IzanamiV1ImportForm(props: {
                   {...rest}
                 />
               </label>
-              {projectQuery.data &&
-                !getValues("newProject") &&
-                !getValues("deduceProject") && (
-                  <>
-                    <label className="mt-3">
-                      Target project
-                      <Tooltip id="target-existing-project">
-                        Project to import features into.
-                      </Tooltip>
-                      <Controller
-                        name="project"
-                        control={control}
-                        render={({ field: { onChange, value } }) => (
-                          <Select
-                            value={value ? { label: value, value } : undefined}
-                            onChange={(e) => {
-                              onChange(e?.value);
-                            }}
-                            options={projectQuery.data.projects!.map((t) => ({
-                              label: t.name,
-                              value: t.name,
-                            }))}
-                            styles={customStyles}
-                          />
-                        )}
-                      />
-                    </label>
-                  </>
-                )}
+              {projectQuery.data && !getValues("newProject") && !getValues("deduceProject") && (
+                <>
+                  <label className="mt-3">
+                    Target project
+                    <Tooltip id="target-existing-project">Project to import features into.</Tooltip>
+                    <Controller
+                      name="project"
+                      control={control}
+                      render={({ field: { onChange, value } }) => (
+                        <Select
+                          value={value ? { label: value, value } : undefined}
+                          onChange={(e) => {
+                            onChange(e?.value);
+                          }}
+                          options={projectQuery.data.projects!.map((t) => ({
+                            label: t.name,
+                            value: t.name,
+                          }))}
+                          styles={customStyles}
+                        />
+                      )}
+                    />
+                  </label>
+                </>
+              )}
               {getValues("newProject") && !getValues("deduceProject") && (
                 <label className="mt-3">
                   New project name
-                  <input
-                    type="text"
-                    className="form-control"
-                    {...register("project")}
-                  />
+                  <input type="text" className="form-control" {...register("project")} />
                 </label>
               )}
             </>
@@ -1213,33 +1107,21 @@ function IzanamiV1ImportForm(props: {
             <legend>Users</legend>
             <label>
               Exported user files (ndjson)
-              <input
-                className="form-control"
-                type="file"
-                {...register("userFiles")}
-              />
+              <input className="form-control" type="file" {...register("userFiles")} />
             </label>
           </fieldset>
           <fieldset>
             <legend>Keys</legend>
             <label>
               Exported key files (ndjson)
-              <input
-                className="form-control"
-                type="file"
-                {...register("keyFiles")}
-              />
+              <input className="form-control" type="file" {...register("keyFiles")} />
             </label>
           </fieldset>
           <fieldset>
             <legend>Scripts</legend>
             <label>
               Exported script files (ndjson)
-              <input
-                className="form-control"
-                type="file"
-                {...register("scriptFiles")}
-              />
+              <input className="form-control" type="file" {...register("scriptFiles")} />
             </label>
           </fieldset>
           <div
@@ -1262,11 +1144,7 @@ function IzanamiV1ImportForm(props: {
                 borderRadius: "10px",
               }}
             ></div>
-            <button
-              type="button"
-              className="btn btn-danger m-2"
-              onClick={() => cancel()}
-            >
+            <button type="button" className="btn btn-danger m-2" onClick={() => cancel()}>
               Cancel
             </button>
             {isSubmitting ? (
@@ -1327,30 +1205,22 @@ export function ConflictStrategySelect({
   name: keyof NonNullable<ImportRequest["featureConflict"]>;
   tooltip?: React.JSX.Element;
 }) {
-  const { control } = useFormContext(
-    
-  );
+  const { control } = useFormContext();
   return (
     <label style={{ width: "100%" }}>
       {String(name).charAt(0).toUpperCase() + String(name).slice(1)}
-      {tooltip && (
-        <Tooltip id={`${name}-conflict-selection`}>{tooltip}</Tooltip>
-      )}
+      {tooltip && <Tooltip id={`${name}-conflict-selection`}>{tooltip}</Tooltip>}
       <Controller
         name={`featureConflict.${name}`}
         control={control}
         render={({ field: { onChange, value } }) => (
           <Select
-            value={CONFLICT_STRATEGIES_OPTIONS.find(
-              ({ value: aValue }) => value === aValue,
-            )}
+            value={CONFLICT_STRATEGIES_OPTIONS.find(({ value: aValue }) => value === aValue)}
             onChange={(value) => {
               onChange(value?.value);
             }}
             styles={customStyles}
-            options={CONFLICT_STRATEGIES_OPTIONS.filter(
-              ({ value }) => value !== "fail",
-            )}
+            options={CONFLICT_STRATEGIES_OPTIONS.filter(({ value }) => value !== "fail")}
           />
         )}
       />

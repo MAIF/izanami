@@ -5,10 +5,10 @@
   margin-right: 5px;
   color: var(--color_level2) !important;
   &:focus {
-    background-color:var(--bg-color_level3);
+    background-color: var(--bg-color_level3);
   }
   &:hover {
-    background-color:var(--bg-color_level3) !important;
+    background-color: var(--bg-color_level3) !important;
     color: var(--color_level3) !important;
   }
 }
@@ -110,10 +110,10 @@
 .btn-danger-light {
   color: #fff;
   border: none;
-  border-color:none;
+  border-color: none;
   &:hover {
     color: #fff;
-    border:none;
+    border: none;
     border-color: var(--color-red);
     background-color: var(--color-red);
   }

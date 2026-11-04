@@ -51,9 +51,7 @@ export function HomePage() {
             <div className="item-block">
               {user?.admin ? (
                 <>
-                  <div className="item-text">
-                    Izanami doesn't have any tenant yet.
-                  </div>
+                  <div className="item-text">Izanami doesn't have any tenant yet.</div>
                   <button
                     type="button"
                     className="btn btn-primary btn-lg"
@@ -63,9 +61,7 @@ export function HomePage() {
                   </button>
                 </>
               ) : (
-                <div style={{ fontSize: "21px" }}>
-                  You don't have rights on any tenant.
-                </div>
+                <div style={{ fontSize: "21px" }}>You don't have rights on any tenant.</div>
               )}
             </div>
           )}
@@ -125,10 +121,7 @@ const tenantCreationSchema = {
       autoFocus: true,
     },
     constraints: [
-      constraints.matches(
-        TENANT_NAME_REGEXP,
-        `Tenant name must match ${TENANT_NAME_REGEXP} regex`
-      ),
+      constraints.matches(TENANT_NAME_REGEXP, `Tenant name must match ${TENANT_NAME_REGEXP} regex`),
     ],
   },
   description: {

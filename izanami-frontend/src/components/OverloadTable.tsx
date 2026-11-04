@@ -1,10 +1,5 @@
 import { NavLink, useParams } from "react-router-dom";
-import {
-  TContext,
-  TContextOverload,
-  TProjectLevel,
-  TUser,
-} from "../utils/types";
+import { TContext, TContextOverload, TProjectLevel, TUser } from "../utils/types";
 import { ColumnDef, Row } from "@tanstack/react-table";
 import { useMutation } from "@tanstack/react-query";
 import { useContext } from "react";
@@ -13,15 +8,8 @@ import {
   deleteFeatureActivationForContext,
   updateFeatureActivationForContext,
 } from "../utils/queries";
-import {
-  hasRightForProject,
-  hasRightForTenant,
-  IzanamiContext,
-} from "../securityContext";
-import {
-  analyzeUpdateImpact,
-  findContextForPath,
-} from "../utils/contextUtils";
+import { hasRightForProject, hasRightForTenant, IzanamiContext } from "../securityContext";
+import { analyzeUpdateImpact, findContextForPath } from "../utils/contextUtils";
 import { GlobalContextIcon } from "../utils/icons";
 import { ResultTypeIcon } from "./ResultTypeIcon";
 import { OverloadUpdateConfirmationModal } from "./OverloadUpdateConfirmationModal";
@@ -50,7 +38,7 @@ export function OverloadTable(props: {
         feature: string;
         project: string;
         strategyPreservation: boolean;
-      }
+      },
     ) => {
       return updateFeatureActivationForContext(
         tenant!,
@@ -62,7 +50,7 @@ export function OverloadTable(props: {
         data.strategyPreservation,
         "conditions" in data ? data.conditions : undefined,
         "wasmConfig" in data ? data.wasmConfig : undefined,
-        "value" in data ? data.value : undefined
+        "value" in data ? data.value : undefined,
       );
     },
 
@@ -83,7 +71,7 @@ export function OverloadTable(props: {
         data.project, // TODO this should not be necessary
         data.path,
         data.feature,
-        data.strategyPreservation
+        data.strategyPreservation,
       ),
 
     onSuccess: () => {
@@ -91,12 +79,9 @@ export function OverloadTable(props: {
     },
   });
 
-  const { askInputConfirmation, user, displayModal, askConfirmation } =
-    useContext(IzanamiContext);
+  const { askInputConfirmation, user, displayModal, askConfirmation } = useContext(IzanamiContext);
   const contextByPath = new Map(
-    overloads
-      .map((o) => o.path)
-      .map((p) => [p, findContextForPath(p, contexts)])
+    overloads.map((o) => o.path).map((p) => [p, findContextForPath(p, contexts)]),
   );
 
   const hasPath = fields.includes("path");
@@ -162,7 +147,7 @@ export function OverloadTable(props: {
           user!,
           TProjectLevel.Update,
           feature.project!,
-          tenant!
+          tenant!,
         );
 
         return (
@@ -182,9 +167,7 @@ export function OverloadTable(props: {
                   type="checkbox"
                   className="izanami-checkbox"
                   style={{ marginTop: 0 }}
-                  aria-label={`${isEnabled ? "Disable" : "Enable"} ${
-                    feature.name
-                  }`}
+                  aria-label={`${isEnabled ? "Disable" : "Enable"} ${feature.name}`}
                   onChange={() => {
                     const context = contextByPath.get(feature.path);
                     const {
@@ -200,18 +183,14 @@ export function OverloadTable(props: {
                       updatedContext: feature.path ?? "" + "/" + context?.name,
                     });
 
-                    if (
-                      context?.protected &&
-                      impactedProtectedContexts.length === 0
-                    ) {
+                    if (context?.protected && impactedProtectedContexts.length === 0) {
                       askInputConfirmation(
                         <>
-                          Updating this overload will impact protected context{" "}
-                          {context.name}.<br />
+                          Updating this overload will impact protected context {context.name}.<br />
                           Please type feature name below to confirm.
                           <LocalToolTip id="overload-update-confirmation">
-                            Typing feature name is required since this overload
-                            is for a protected context.
+                            Typing feature name is required since this overload is for a protected
+                            context.
                           </LocalToolTip>
                         </>,
                         () => {
@@ -224,20 +203,16 @@ export function OverloadTable(props: {
                           });
                         },
                         feature.name,
-                        `Updating feature ${feature.name}`
+                        `Updating feature ${feature.name}`,
                       );
                     } else if (impactedProtectedContexts.length > 0) {
                       return displayModal(({ close }) => (
                         <OverloadUpdateConfirmationModal
                           impactedProtectedContexts={impactedProtectedContexts}
-                          impactedRootProtectedContexts={
-                            impactedRootProtectedContexts
-                          }
+                          impactedRootProtectedContexts={impactedRootProtectedContexts}
                           hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
                           oldFeature={feature as any}
-                          newFeature={
-                            { ...feature, enabled: !isEnabled } as any
-                          }
+                          newFeature={{ ...feature, enabled: !isEnabled } as any}
                           onCancel={() => close()}
                           onConfirm={(strategyPreservation) =>
                             updateStrategyMutation.mutateAsync({
@@ -265,11 +240,7 @@ export function OverloadTable(props: {
                 &nbsp;
               </>
             )}
-            <span
-              className={`activation-status ${
-                isEnabled ? "enabled" : "disabled"
-              }-status`}
-            >
+            <span className={`activation-status ${isEnabled ? "enabled" : "disabled"}-status`}>
               {isEnabled ? "Enabled" : "Disabled"}
             </span>
           </label>
@@ -310,9 +281,7 @@ export function OverloadTable(props: {
         if (context?.protected) {
           if (context.global && hasRightForTenant(user, tenant!, "Admin")) {
             return canEdit;
-          } else if (
-            hasRightForProject(user, "Admin", overload.project!, tenant!)
-          ) {
+          } else if (hasRightForProject(user, "Admin", overload.project!, tenant!)) {
             return canEdit;
           } else {
             return false;
@@ -344,18 +313,14 @@ export function OverloadTable(props: {
                   updatedContext: datum.path ?? "" + "/" + context?.name,
                 });
 
-                if (
-                  context?.protected &&
-                  impactedProtectedContexts.length === 0
-                ) {
+                if (context?.protected && impactedProtectedContexts.length === 0) {
                   askInputConfirmation(
                     <>
-                      Updating this overload will impact protected context{" "}
-                      {context.name}.<br />
+                      Updating this overload will impact protected context {context.name}.<br />
                       Please type feature name below to confirm.
                       <LocalToolTip id="overload-update-confirmation">
-                        Typing feature name is required since this overload is
-                        for a protected context.
+                        Typing feature name is required since this overload is for a protected
+                        context.
                       </LocalToolTip>
                     </>,
                     () => {
@@ -367,19 +332,17 @@ export function OverloadTable(props: {
                         } as any,
                         {
                           onSuccess: () => cancel(),
-                        }
+                        },
                       );
                     },
                     datum.name,
-                    `Updating feature ${datum.name}`
+                    `Updating feature ${datum.name}`,
                   );
                 } else if (impactedProtectedContexts.length > 0) {
                   return displayModal(({ close }) => (
                     <OverloadUpdateConfirmationModal
                       impactedProtectedContexts={impactedProtectedContexts}
-                      impactedRootProtectedContexts={
-                        impactedRootProtectedContexts
-                      }
+                      impactedRootProtectedContexts={impactedRootProtectedContexts}
                       hasUserAdminRightOnFeature={unprotectedUpdateAllowed}
                       oldFeature={datum as any}
                       newFeature={overload as any}
@@ -393,7 +356,7 @@ export function OverloadTable(props: {
                           } as any,
                           {
                             onSuccess: () => cancel(),
-                          }
+                          },
                         );
                       }}
                       context={datum.path}
@@ -408,7 +371,7 @@ export function OverloadTable(props: {
                     } as any,
                     {
                       onSuccess: () => cancel(),
-                    }
+                    },
                   );
                 }
               }}
@@ -429,13 +392,7 @@ export function OverloadTable(props: {
         return actions(overload).includes("test");
       },
       customForm: (datum: TContextOverload, cancel: () => void) => {
-        return (
-          <ExistingFeatureTestForm
-            context={datum.path}
-            feature={datum}
-            cancel={cancel}
-          />
-        );
+        return <ExistingFeatureTestForm context={datum.path} feature={datum} cancel={cancel} />;
       },
     },
     delete: {
@@ -450,9 +407,7 @@ export function OverloadTable(props: {
         if (context?.protected) {
           if (context.global && hasRightForTenant(user, tenant!, "Admin")) {
             return canDelete;
-          } else if (
-            hasRightForProject(user, "Admin", overload.project!, tenant!)
-          ) {
+          } else if (hasRightForProject(user, "Admin", overload.project!, tenant!)) {
             return canDelete;
           } else {
             return false;
@@ -480,12 +435,10 @@ export function OverloadTable(props: {
         if (context?.protected && impactedProtectedContexts.length === 0) {
           askInputConfirmation(
             <>
-              Deleting this overload will impact protected context{" "}
-              {context.name}.<br />
+              Deleting this overload will impact protected context {context.name}.<br />
               Please type feature name below to confirm.
               <LocalToolTip id="overload-update-confirmation">
-                Typing feature name is required since this overload is for a
-                protected context.
+                Typing feature name is required since this overload is for a protected context.
               </LocalToolTip>
             </>,
             () =>
@@ -496,7 +449,7 @@ export function OverloadTable(props: {
                 strategyPreservation: false,
               }),
             overload.name,
-            `Deleting ${overload.path} overload for feature ${overload.name}`
+            `Deleting ${overload.path} overload for feature ${overload.name}`,
           );
         } else if (impactedProtectedContexts.length > 0) {
           return displayModal(({ close }) => (
@@ -521,8 +474,8 @@ export function OverloadTable(props: {
           return askConfirmation(
             <>
               Are you sure you want to delete feature{" "}
-              <span className="fw-bold">{overload.name}</span> overload for
-              context <span className="fw-bold">{overload.path}</span> ?
+              <span className="fw-bold">{overload.name}</span> overload for context{" "}
+              <span className="fw-bold">{overload.path}</span> ?
             </>,
             () => {
               return deleteStrategyMutation.mutateAsync({
@@ -531,7 +484,7 @@ export function OverloadTable(props: {
                 project: overload.project as any,
                 strategyPreservation: false,
               });
-            }
+            },
           );
         }
       },
@@ -540,9 +493,7 @@ export function OverloadTable(props: {
 
   return (
     <GenericTable
-      idAccessor={(datum: TContextOverload) =>
-        `${datum.path ?? ""} ${datum.name}`
-      }
+      idAccessor={(datum: TContextOverload) => `${datum.path ?? ""} ${datum.name}`}
       columns={columns}
       data={overloads}
       customRowActions={customActions}

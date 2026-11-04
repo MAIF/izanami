@@ -7,10 +7,7 @@ import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
 // @ts-ignore
 const possibleTimezones: string[] = Intl.supportedValuesOf("timeZone");
 
-export function TimeZoneSelect(props: {
-  onChange: (newValue: string) => void;
-  value?: string;
-}) {
+export function TimeZoneSelect(props: { onChange: (newValue: string) => void; value?: string }) {
   const { value, onChange } = props;
   return (
     <Select

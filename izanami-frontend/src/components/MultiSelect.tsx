@@ -32,8 +32,8 @@ const MultiSelect = (props: ISelectProps) => {
       data.indeterminate && isSelected
         ? CHECKBOX_STATES.Indeterminate
         : isSelected && !data.indeterminate
-        ? CHECKBOX_STATES.Checked
-        : CHECKBOX_STATES.Empty
+          ? CHECKBOX_STATES.Checked
+          : CHECKBOX_STATES.Empty,
     );
 
     const handleChange = () => {
@@ -50,24 +50,23 @@ const MultiSelect = (props: ISelectProps) => {
 
     React.useEffect(() => {
       checkboxRef.current.checked = state === CHECKBOX_STATES.Checked;
-      checkboxRef.current.indeterminate =
-        state === CHECKBOX_STATES.Indeterminate;
+      checkboxRef.current.indeterminate = state === CHECKBOX_STATES.Indeterminate;
     }, [state]);
 
     return (
       <>
-      {/* @ts-expect-error("this works...") */}
-      <components.Option {...props}>
-        <div className="d-flex align-items-center">
-          <input
-            type="checkbox"
-            onChange={handleChange}
-            ref={checkboxRef}
-            className="checkbox-rounded-select"
-          />
-          <label style={{ marginLeft: "5px" }}>{props.label}</label>
-        </div>
-      </components.Option>
+        {/* @ts-expect-error("this works...") */}
+        <components.Option {...props}>
+          <div className="d-flex align-items-center">
+            <input
+              type="checkbox"
+              onChange={handleChange}
+              ref={checkboxRef}
+              className="checkbox-rounded-select"
+            />
+            <label style={{ marginLeft: "5px" }}>{props.label}</label>
+          </div>
+        </components.Option>
       </>
     );
   };
@@ -75,10 +74,10 @@ const MultiSelect = (props: ISelectProps) => {
   const MultiValue = (props: any) => {
     return (
       <>
-      {/* @ts-expect-error("this works...") */}
-      <components.MultiValue {...props}>
-        <span>{props.data.label}</span>
-      </components.MultiValue>
+        {/* @ts-expect-error("this works...") */}
+        <components.MultiValue {...props}>
+          <span>{props.data.label}</span>
+        </components.MultiValue>
       </>
     );
   };

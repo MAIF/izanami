@@ -2,25 +2,14 @@ import * as React from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { FeatureTable } from "../components/FeatureTable";
-import {
-  createFeature,
-  projectContextKey,
-  projectQueryKey,
-  queryProject,
-} from "../utils/queries";
+import { createFeature, projectContextKey, projectQueryKey, queryProject } from "../utils/queries";
 import { TProjectLevel } from "../utils/types";
 import { useProjectRight } from "../securityContext";
 import queryClient from "../queryClient";
 import { FeatureForm } from "../components/FeatureForm";
 import { useSearchParams } from "react-router-dom";
 
-export function Project({
-  project,
-  tenant,
-}: {
-  project: string;
-  tenant: string;
-}) {
+export function Project({ project, tenant }: { project: string; tenant: string }) {
   const [searchParams] = useSearchParams();
   const selectedSearchRow = searchParams.get("filter") ?? "";
   const [error, setError] = useState<string>("");
@@ -34,11 +23,7 @@ export function Project({
   });
   const [creating, setCreating] = useState(false);
 
-  const hasCreationRight = useProjectRight(
-    tenant,
-    project,
-    TProjectLevel.Write
-  );
+  const hasCreationRight = useProjectRight(tenant, project, TProjectLevel.Write);
   const hasUpdateRight = useProjectRight(tenant, project, TProjectLevel.Update);
 
   const featureCreateMutation = useMutation({
@@ -78,10 +63,7 @@ export function Project({
         </div>
         {/* TODO centralize this */}
         {error && (
-          <div
-            className="alert alert-danger alert-dismissible fade show"
-            role="alert"
-          >
+          <div className="alert alert-danger alert-dismissible fade show" role="alert">
             {error}
             <button
               type="button"
@@ -131,9 +113,7 @@ export function Project({
                 marginTop: "10%",
               }}
             >
-              <div className="item-text">
-                There is no feature for this project.
-              </div>
+              <div className="item-text">There is no feature for this project.</div>
               <button
                 type="button"
                 className="btn btn-primary btn-lg"
@@ -147,28 +127,13 @@ export function Project({
           <FeatureTable
             features={projectData.features}
             selectedSearchRow={selectedSearchRow}
-            fields={[
-              "id",
-              "name",
-              "enabled",
-              "details",
-              "tags",
-              "overloadCount",
-            ]}
+            fields={["id", "name", "enabled", "details", "tags", "overloadCount"]}
             actions={() =>
               hasCreationRight
-                ? [
-                    "edit",
-                    "delete",
-                    "test",
-                    "duplicate",
-                    "transfer",
-                    "overloads",
-                    "url",
-                  ]
+                ? ["edit", "delete", "test", "duplicate", "transfer", "overloads", "url"]
                 : hasUpdateRight
-                ? ["edit", "test", "overloads", "url"]
-                : ["test", "overloads", "url"]
+                  ? ["edit", "test", "overloads", "url"]
+                  : ["test", "overloads", "url"]
             }
             refresh={() =>
               Promise.all([

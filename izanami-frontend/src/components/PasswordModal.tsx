@@ -10,8 +10,7 @@ export function InputConfirmationModal(props: {
   expectedValue?: string;
   isLoading?: boolean;
 }) {
-  const { isOpenModal, title, onClose, onConfirm, children, expectedValue } =
-    props;
+  const { isOpenModal, title, onClose, onConfirm, children, expectedValue } = props;
   const [input, setInput] = useState<string>("");
 
   if (!isOpenModal) return null;

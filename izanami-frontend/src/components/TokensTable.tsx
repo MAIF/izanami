@@ -187,21 +187,15 @@ export function TokensTable(props: { user: string }) {
                   <TokenForm
                     defaultValue={{
                       ...token,
-                      rights: token.rights
-                        ? tokenRightsToArray(token.rights)
-                        : [],
+                      rights: token.rights ? tokenRightsToArray(token.rights) : [],
                     }}
                     onSubmit={(newValue) => {
                       return udpateQuery
                         .mutateAsync({
                           old: token,
                           ...newValue,
-                          rights: newValue.allRights
-                            ? {}
-                            : tokenRightsToObject(newValue.rights),
-                          globalRights: newValue.allRights
-                            ? []
-                            : newValue.globalRights,
+                          rights: newValue.allRights ? {} : tokenRightsToObject(newValue.rights),
+                          globalRights: newValue.allRights ? [] : newValue.globalRights,
                         })
                         .then(() => cancel());
                     }}
@@ -218,23 +212,16 @@ export function TokensTable(props: { user: string }) {
               </>
             ),
             action: (token: PersonnalAccessToken) => {
-              askConfirmation(
-                `Are you sure you want to delete token ${token.name}?`,
-                () => {
-                  return deletionQuery.mutateAsync({ id: token.id });
-                },
-              );
+              askConfirmation(`Are you sure you want to delete token ${token.name}?`, () => {
+                return deletionQuery.mutateAsync({ id: token.id });
+              });
             },
           },
         }}
       />
     );
   } else if (tokenQuery.error) {
-    return (
-      <div className="error-message">
-        Failed to fetch personnal acess tokens
-      </div>
-    );
+    return <div className="error-message">Failed to fetch personnal acess tokens</div>;
   } else {
     return <Loader message="Loading personnal access tokens" />;
   }

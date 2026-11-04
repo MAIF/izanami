@@ -1,10 +1,5 @@
 import { screenshotBuilder, setup, featureAction } from "./utils";
-import {
-  testBuilder,
-  testGlobalContext,
-  testTenant,
-  testProject,
-} from "../testBuilder";
+import { testBuilder, testGlobalContext, testTenant, testProject } from "../testBuilder";
 
 export async function generate() {
   const { page } = await setup(true);
@@ -15,7 +10,7 @@ export async function generate() {
     .withTenant(
       testTenant("bookstore")
         .withProject(testProject("website"))
-        .withContext(testGlobalContext("dev"))
+        .withContext(testGlobalContext("dev")),
     )
     .build(page);
 
@@ -33,9 +28,7 @@ export async function generate() {
   await page.getByLabel("Alternative value").fill("comments");
   await page.getByRole("combobox", { name: "Strategy to use" }).click();
   await page.getByText("Percentage").click();
-  await page
-    .getByLabel("Percentage of users that should activate feature")
-    .fill("25");
+  await page.getByLabel("Percentage of users that should activate feature").fill("25");
   await screenshot("alternative-value");
   await page.getByRole("button", { name: "Save" }).click();
 

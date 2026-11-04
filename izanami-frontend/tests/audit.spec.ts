@@ -1,10 +1,5 @@
 import { test, expect } from "./izanami-test";
-import {
-  testBuilder,
-  testFeature,
-  testTenant,
-  testProject,
-} from "./testBuilder";
+import { testBuilder, testFeature, testTenant, testProject } from "./testBuilder";
 
 test.use({
   headless: true,
@@ -24,20 +19,16 @@ test.describe("Project audit screen should", () => {
             .withFeature(testFeature("f6"))
             .withFeature(testFeature("f7"))
             .withFeature(testFeature("f8"))
-            .withFeature(testFeature("f9"))
-        )
+            .withFeature(testFeature("f9")),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project/logs`);
 
     await expect(page.getByText("9 results")).toBeVisible();
-    await expect(
-      page.getByRole("row", { name: "RESERVED_ADMIN_USER" })
-    ).toHaveCount(9);
+    await expect(page.getByRole("row", { name: "RESERVED_ADMIN_USER" })).toHaveCount(9);
     await expect(page.getByRole("row", { name: "Created" })).toHaveCount(9);
-    await expect(
-      page.getByRole("row", { name: "Triggered from backoffice" })
-    ).toHaveCount(9);
+    await expect(page.getByRole("row", { name: "Triggered from backoffice" })).toHaveCount(9);
 
     await page.goto(`/tenants/${tenantName}/projects/project`);
     await page
@@ -62,9 +53,7 @@ test.describe("Project audit screen should", () => {
     await expect(page.getByText("3 results")).toBeVisible();
 
     await page.getByLabel("Features").click();
-    const id = await (
-      await page.evaluateHandle(() => navigator.clipboard.readText())
-    ).jsonValue();
+    const id = await (await page.evaluateHandle(() => navigator.clipboard.readText())).jsonValue();
 
     await page.keyboard.type(id);
     await page.getByRole("option", { name: "Create" }).click();
@@ -101,9 +90,7 @@ test.describe("Project audit screen should", () => {
 
     await page.getByRole("button", { name: "sort in ascending order" }).click();
     await expect(page.locator("li").filter({ hasText: "..." })).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "2", exact: true })
-    ).toBeHidden();
+    await expect(page.getByRole("link", { name: "2", exact: true })).toBeHidden();
     await expect(page.getByRole("cell", { name: "Created" })).toHaveCount(9);
     await expect(page.getByRole("cell", { name: "Deleted" })).toHaveCount(3);
     await expect(page.getByRole("cell", { name: "Updated" })).toHaveCount(8);

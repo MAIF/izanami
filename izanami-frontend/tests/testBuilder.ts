@@ -1,8 +1,5 @@
 import { Cookie, Page } from "@playwright/test";
-import {
-  handleFetchJsonResponse,
-  handleFetchWithoutResponse,
-} from "../src/utils/queries";
+import { handleFetchJsonResponse, handleFetchWithoutResponse } from "../src/utils/queries";
 import { TLevel } from "../src/utils/types";
 import { backendUrl, logAs } from "./utils";
 
@@ -62,14 +59,7 @@ export class TestSituationBuilder {
 
     Promise.all(
       context.subcontexts.map((c) =>
-        this.buildLocalContextHierarchy(
-          page,
-          tenant,
-          project,
-          c,
-          url,
-          `${parent}/${context.name}`,
-        ),
+        this.buildLocalContextHierarchy(page, tenant, project, c, url, `${parent}/${context.name}`),
       ),
     );
   }
@@ -120,9 +110,7 @@ export class TestSituationBuilder {
     const cookie = await this.cookie(page);
     await handleFetchJsonResponse(
       fetch(
-        `${url}/api/admin/tenants/${tenant.name}/contexts${
-          parent.length > 0 ? `${parent}` : ""
-        }`,
+        `${url}/api/admin/tenants/${tenant.name}/contexts${parent.length > 0 ? `${parent}` : ""}`,
         {
           method: "POST",
           body: JSON.stringify({
@@ -139,13 +127,7 @@ export class TestSituationBuilder {
 
     Promise.all(
       context.subcontexts.map((c) =>
-        this.buildContextHierarchy(
-          page,
-          tenant,
-          c,
-          url,
-          `${parent}/${context.name}`,
-        ),
+        this.buildContextHierarchy(page, tenant, c, url, `${parent}/${context.name}`),
       ),
     );
   }
@@ -155,11 +137,7 @@ export class TestSituationBuilder {
     return `${cookies[0].name}=${cookies[0].value}`;
   }
 
-  async createTenant(
-    tenant: TestTenant,
-    cookie: Cookie,
-    url: string,
-  ): Promise<any> {
+  async createTenant(tenant: TestTenant, cookie: Cookie, url: string): Promise<any> {
     return handleFetchJsonResponse(
       fetch(`${url}/api/admin/tenants`, {
         method: "POST",
@@ -172,12 +150,7 @@ export class TestSituationBuilder {
     );
   }
 
-  async createTag(
-    tenant: TestTenant,
-    tag: TestTag,
-    cookie: Cookie,
-    url: string,
-  ): Promise<any> {
+  async createTag(tenant: TestTenant, tag: TestTag, cookie: Cookie, url: string): Promise<any> {
     return handleFetchJsonResponse(
       fetch(`${url}/api/admin/tenants/${tenant.name}/tags`, {
         method: "POST",
@@ -216,26 +189,18 @@ export class TestSituationBuilder {
     url: string,
   ): Promise<any> {
     return handleFetchJsonResponse(
-      fetch(
-        `${url}/api/admin/tenants/${tenant.name}/projects/${project.name}/features`,
-        {
-          method: "POST",
-          body: JSON.stringify(feature),
-          headers: {
-            "Content-Type": "application/json",
-            cookie: `${cookie.name}=${cookie.value}`,
-          },
+      fetch(`${url}/api/admin/tenants/${tenant.name}/projects/${project.name}/features`, {
+        method: "POST",
+        body: JSON.stringify(feature),
+        headers: {
+          "Content-Type": "application/json",
+          cookie: `${cookie.name}=${cookie.value}`,
         },
-      ),
+      }),
     );
   }
 
-  async createKey(
-    tenant: TestTenant,
-    key: TestKey,
-    cookie: Cookie,
-    url: string,
-  ): Promise<any> {
+  async createKey(tenant: TestTenant, key: TestKey, cookie: Cookie, url: string): Promise<any> {
     return handleFetchJsonResponse(
       fetch(`${url}/api/admin/tenants/${tenant.name}/keys`, {
         method: "POST",
@@ -280,9 +245,7 @@ export class TestSituationBuilder {
       fetch(
         `${url}/api/admin/tenants/${tenant.name}/projects/${
           project.name
-        }/contexts${contextPath ? `/${contextPath}` : ""}/features/${
-          feature.name
-        }`,
+        }/contexts${contextPath ? `/${contextPath}` : ""}/features/${feature.name}`,
         {
           method: "PUT",
           body: JSON.stringify(rest),
@@ -317,29 +280,25 @@ export class TestSituationBuilder {
           })
           .then(() => {
             return Promise.all(
-              t.webhooks.map((webhook) =>
-                this.createWebhook(t, webhook, cookie, url),
-              ),
+              t.webhooks.map((webhook) => this.createWebhook(t, webhook, cookie, url)),
             ).catch((err) => {
               console.error("Failed to create webhooks", err);
               throw err;
             });
           })
           .then(() =>
-            Promise.all(
-              t.tags.map((tag) => this.createTag(t, tag, cookie, url)),
-            ).catch((err) => {
+            Promise.all(t.tags.map((tag) => this.createTag(t, tag, cookie, url))).catch((err) => {
               console.error("Failed to create tags", err);
               throw err;
             }),
           )
           .then(() => {
-            return Promise.all(
-              t.keys.map((key) => this.createKey(t, key, cookie, url)),
-            ).catch((err) => {
-              console.error("Failed to create keys", err);
-              throw err;
-            });
+            return Promise.all(t.keys.map((key) => this.createKey(t, key, cookie, url))).catch(
+              (err) => {
+                console.error("Failed to create keys", err);
+                throw err;
+              },
+            );
           })
           .then(() =>
             Promise.all(
@@ -351,14 +310,9 @@ export class TestSituationBuilder {
                   })
                   .then(() =>
                     Promise.all(
-                      p.contexts.map((c) =>
-                        this.buildLocalContextHierarchy(page, t, p, c, url),
-                      ),
+                      p.contexts.map((c) => this.buildLocalContextHierarchy(page, t, p, c, url)),
                     ).catch((err) => {
-                      console.error(
-                        "Failed to build local context hierarchy",
-                        err,
-                      );
+                      console.error("Failed to build local context hierarchy", err);
                       throw err;
                     }),
                   )
@@ -370,20 +324,13 @@ export class TestSituationBuilder {
                             console.error("Failed to create feature", err);
                             throw err;
                           })
-                          .then(
-                            ({ id, name }) => [name, id!] as featureIdByName,
-                          )
+                          .then(({ id, name }) => [name, id!] as featureIdByName)
                           .then((featureIds) => {
                             return Promise.all(
-                              f.overloads.map((o) =>
-                                this.createOverload(t, p, f, o, cookie, url),
-                              ),
+                              f.overloads.map((o) => this.createOverload(t, p, f, o, cookie, url)),
                             )
                               .catch((err) => {
-                                console.error(
-                                  "Failed to create overloads",
-                                  err,
-                                );
+                                console.error("Failed to create overloads", err);
                                 throw err;
                               })
                               .then(() => featureIds);
@@ -397,9 +344,7 @@ export class TestSituationBuilder {
       ),
     )
       .then((pairs) => {
-        return Promise.all(
-          this.users.map((user) => this.createUser(page, user, url)),
-        )
+        return Promise.all(this.users.map((user) => this.createUser(page, user, url)))
           .catch((err) => {
             console.error("Failed to create users", err);
             throw err;
@@ -478,10 +423,7 @@ export function testTenantRight(level: TLevel): TestTenantRight {
   return new TestTenantRight(level);
 }
 
-export function testOverload(
-  contextPath: string,
-  enabled = false,
-): TestOverload {
+export function testOverload(contextPath: string, enabled = false): TestOverload {
   return new TestOverload(contextPath, enabled);
 }
 

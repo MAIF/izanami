@@ -36,9 +36,7 @@ export function Users() {
   const { askConfirmation, user } = useContext(IzanamiContext);
   const [selectedRows, setSelectedRows] = useState<UserType[]>([]);
   const hasSelectedRows = selectedRows.length > 0;
-  const [bulkOperation, setBulkOperation] = useState<string | undefined>(
-    undefined,
-  );
+  const [bulkOperation, setBulkOperation] = useState<string | undefined>(undefined);
   const BULK_OPERATIONS = ["Delete", "Toggle Admin Role"] as const;
   const isAdmin = useAdmin();
   const context = useContext(IzanamiContext);
@@ -62,11 +60,7 @@ export function Users() {
   });
 
   const userUpdateMutation = useMutation({
-    mutationFn: (user: {
-      username: string;
-      admin: boolean;
-      rights: TRights;
-    }) => {
+    mutationFn: (user: { username: string; admin: boolean; rights: TRights }) => {
       const { username, ...rest } = user;
       return updateUserRights(username, rest);
     },
@@ -78,11 +72,7 @@ export function Users() {
   });
 
   const userUpdateMutationForTenant = useMutation({
-    mutationFn: (user: {
-      username: string;
-      tenant: string;
-      rights: TTenantRight;
-    }) => {
+    mutationFn: (user: { username: string; tenant: string; rights: TTenantRight }) => {
       const { username, tenant, rights } = user;
       return updateUserRightsForTenant(username, tenant, rights);
     },
@@ -92,12 +82,7 @@ export function Users() {
     },
   });
   const inviteUserMutation = useMutation({
-    mutationFn: (data: {
-      admin: boolean;
-      email: string;
-      rights: TRights;
-      userToCopy: string;
-    }) => {
+    mutationFn: (data: { admin: boolean; email: string; rights: TRights; userToCopy: string }) => {
       if (data.userToCopy) {
         return queryUser(data.userToCopy).then((res: TUser) => {
           return createInvitation(data.email, res.admin, res.rights);
@@ -169,11 +154,7 @@ export function Users() {
               footer={({ valid }: { valid: () => void }) => {
                 return (
                   <div className="d-flex justify-content-end">
-                    <button
-                      type="button"
-                      className="btn btn-danger-light m-2"
-                      onClick={cancel}
-                    >
+                    <button type="button" className="btn btn-danger-light m-2" onClick={cancel}>
                       Cancel
                     </button>
                     <button className="btn btn-primary m-2" onClick={valid}>
@@ -244,19 +225,14 @@ export function Users() {
         },
         cell: (props: { row: any }) => {
           const user = props.row.original!;
-          return Object.keys(user?.tenantRights || {}).map(
-            (tenantName: string) => (
-              <Link
-                to={`/tenants/${tenantName}`}
-                key={`${user.username}-${tenantName}`}
-              >
-                <button className="btn btn-secondary btn-sm my-1">
-                  <i className="fas fa-cloud me-2" aria-hidden="true"></i>
-                  {`${tenantName}`}
-                </button>
-              </Link>
-            ),
-          );
+          return Object.keys(user?.tenantRights || {}).map((tenantName: string) => (
+            <Link to={`/tenants/${tenantName}`} key={`${user.username}-${tenantName}`}>
+              <button className="btn btn-secondary btn-sm my-1">
+                <i className="fas fa-cloud me-2" aria-hidden="true"></i>
+                {`${tenantName}`}
+              </button>
+            </Link>
+          ));
         },
         filterFn: (row: Row<any>, columnId: string, filterValue: any) => {
           if (!filterValue || filterValue?.length === 0) {
@@ -264,10 +240,7 @@ export function Users() {
           }
           const value: any = row.getValue(columnId);
 
-          return (
-            row.original.admin ||
-            filterValue.some((v: string) => value.includes(v))
-          );
+          return row.original.admin || filterValue.some((v: string) => value.includes(v));
         },
         size: 50,
       },
@@ -306,9 +279,7 @@ export function Users() {
                     type: "string",
                     format: "email",
                     required: true,
-                    constraints: [
-                      constraints.email("Email format is incorrect"),
-                    ],
+                    constraints: [constraints.email("Email format is incorrect")],
                     props: {
                       autoFocus: true,
                     },
@@ -365,14 +336,12 @@ export function Users() {
                     userToCopy: ctx.userToCopy?.value,
                   };
 
-                  return inviteUserMutation
-                    .mutateAsync(payload)
-                    .then((response) => {
-                      if (response && response.invitationUrl) {
-                        setCreationUrl(response.invitationUrl);
-                      }
-                      setCreating(false);
-                    });
+                  return inviteUserMutation.mutateAsync(payload).then((response) => {
+                    if (response && response.invitationUrl) {
+                      setCreationUrl(response.invitationUrl);
+                    }
+                    setCreating(false);
+                  });
                 }}
                 onClose={() => setCreating(false)}
                 submitText="Send invitation"
@@ -380,21 +349,13 @@ export function Users() {
             </div>
           </>
         )}
-        <div
-          className={`d-flex align-items-center ${
-            hasSelectedRows ? "" : "invisible"
-          }`}
-        >
+        <div className={`d-flex align-items-center ${hasSelectedRows ? "" : "invisible"}`}>
           <Select
             options={BULK_OPERATIONS.map((op) => ({
               label: op,
               value: op,
             }))}
-            value={
-              bulkOperation
-                ? { label: bulkOperation, value: bulkOperation }
-                : null
-            }
+            value={bulkOperation ? { label: bulkOperation, value: bulkOperation } : null}
             onChange={(e) => setBulkOperation(e?.value)}
             styles={customStyles}
             isClearable={true}
@@ -429,8 +390,7 @@ export function Users() {
                 </>
               ),
               hasRight: (user, rowUser) =>
-                (isAdmin || isTenantAdmin) &&
-                rowUser.username !== user.username,
+                (isAdmin || isTenantAdmin) && rowUser.username !== user.username,
               customForm: (data, cancel) => {
                 const { username } = data;
                 return (
@@ -448,10 +408,7 @@ export function Users() {
                         return Promise.all(
                           Object.entries(newItem.rights.tenants)
                             .filter(([tenantName, tenantRight]) => {
-                              return !isEqual(
-                                tenantRight,
-                                old.rights.tenants?.[tenantName],
-                              );
+                              return !isEqual(tenantRight, old.rights.tenants?.[tenantName]);
                             })
                             .map(([tenantName, tenantRight]) => {
                               return userUpdateMutationForTenant.mutateAsync({
@@ -469,8 +426,7 @@ export function Users() {
               },
             },
             tokens: {
-              hasRight: (user, rowUser) =>
-                isAdmin && rowUser.username !== user.username,
+              hasRight: (user, rowUser) => isAdmin && rowUser.username !== user.username,
               icon: (
                 <>
                   <i className="fas fa-key" aria-hidden></i> Tokens
@@ -482,11 +438,7 @@ export function Users() {
                     <h4>Personnal access tokens for {data.username}</h4>
                     <TokensTable user={data.username} />
                     <div className="d-flex justify-content-end">
-                      <button
-                        type="button"
-                        className="btn btn-danger m-2"
-                        onClick={() => cancel()}
-                      >
+                      <button type="button" className="btn btn-danger m-2" onClick={() => cancel()}>
                         Close
                       </button>
                     </div>
@@ -495,8 +447,7 @@ export function Users() {
               },
             },
             delete: {
-              hasRight: (user, rowUser) =>
-                isAdmin && rowUser.username !== user.username,
+              hasRight: (user, rowUser) => isAdmin && rowUser.username !== user.username,
               icon: (
                 <>
                   <i className="bi bi-trash" aria-hidden></i> Delete
@@ -523,11 +474,7 @@ export function Users() {
   }
 }
 
-function UrlModal(props: {
-  visible: boolean;
-  onClose: () => void;
-  url: string;
-}) {
+function UrlModal(props: { visible: boolean; onClose: () => void; url: string }) {
   const { visible, onClose, url } = props;
 
   const [copied, setCopied] = useState(false);
@@ -573,8 +520,8 @@ function UrlModal(props: {
         </div>
         {warningVisible && (
           <span style={{ color: "#D5443F" }}>
-            Please make sure you copied the url before closing this dialog, this
-            url won't be displayed again
+            Please make sure you copied the url before closing this dialog, this url won't be
+            displayed again
           </span>
         )}
       </>
@@ -591,27 +538,20 @@ export function UserEdition(props: {
   const { username, submit, cancel } = props;
   const context = useContext(IzanamiContext);
   const isAdmin = useAdmin();
-  const adminTenants: string[] = Object.entries(
-    context.user?.rights.tenants || {},
-  )
+  const adminTenants: string[] = Object.entries(context.user?.rights.tenants || {})
     .filter(([, tenantRight]) => tenantRight.level == TLevel.Admin)
     .map(([name]) => name);
 
   const userQuery = useQuery({
     queryKey: [
-      props.tenant
-        ? userQueryKeyForTenant(username, props.tenant)
-        : userQueryKey(username),
+      props.tenant ? userQueryKeyForTenant(username, props.tenant) : userQueryKey(username),
     ],
 
     queryFn: () => {
       if (isAdmin && !props.tenant) {
         return queryUser(username);
       } else {
-        return queryUserForTenants(
-          username,
-          props.tenant ? [props.tenant] : adminTenants,
-        );
+        return queryUserForTenants(username, props.tenant ? [props.tenant] : adminTenants);
       }
     },
   });

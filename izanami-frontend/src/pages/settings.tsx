@@ -18,12 +18,7 @@ import { customStyles } from "../styles/reactSelect";
 import { Form } from "../components/Form";
 import { Loader } from "../components/Loader";
 import { RightSelector } from "../components/RightSelector";
-import {
-  Controller,
-  FormProvider,
-  useForm,
-  useFormContext,
-} from "react-hook-form";
+import { Controller, FormProvider, useForm, useFormContext } from "react-hook-form";
 import { Tooltip } from "../components/Tooltip";
 import { ErrorMessage } from "../components/HookFormErrorMessage";
 import { rightStateArrayToBackendMap } from "../utils/rightUtils";
@@ -52,15 +47,9 @@ type FormConfiguration = Omit<
   "version" | "anonymousReportingLastAsked" | "preventOAuthModification"
 >;
 
-type UpdateConfiguration = Omit<
-  Configuration,
-  "version" | "preventOAuthModification"
->;
+type UpdateConfiguration = Omit<Configuration, "version" | "preventOAuthModification">;
 
-function hasMaxRightChange(
-  oldRightByRoles?: RightByRoles,
-  newRightByRoles?: RightByRoles,
-) {
+function hasMaxRightChange(oldRightByRoles?: RightByRoles, newRightByRoles?: RightByRoles) {
   return !!Object.keys(oldRightByRoles ?? {})
     .concat(Object.keys(newRightByRoles ?? {}))
     .find((role) => {
@@ -78,13 +67,10 @@ function hasMaxRightChange(
           const newRightForTenant = newRightsForRole?.tenants?.[tenant];
 
           return (
-            oldRightForTenant?.maxTenantRight !==
-              newRightForTenant?.maxTenantRight ||
-            oldRightForTenant?.maxProjectRight !==
-              newRightForTenant?.maxProjectRight ||
+            oldRightForTenant?.maxTenantRight !== newRightForTenant?.maxTenantRight ||
+            oldRightForTenant?.maxProjectRight !== newRightForTenant?.maxProjectRight ||
             oldRightForTenant?.maxKeyRight !== newRightForTenant?.maxKeyRight ||
-            oldRightForTenant?.maxWebhookRight !==
-              newRightForTenant?.maxWebhookRight
+            oldRightForTenant?.maxWebhookRight !== newRightForTenant?.maxWebhookRight
           );
         });
     });
@@ -99,14 +85,11 @@ export function Settings() {
     mutationFn: (data: UpdateConfiguration) => updateConfiguration(data),
     onSuccess: () => {
       successToast("Configuration has been updated successfully");
-    }
+    },
   });
   const { askConfirmation } = useContext(IzanamiContext);
 
-  const updateSettings = (
-    current: Configuration,
-    newValue: FormConfiguration,
-  ): Promise<void> => {
+  const updateSettings = (current: Configuration, newValue: FormConfiguration): Promise<void> => {
     const wasAnonymousReportingDisabled =
       !newValue.anonymousReporting && current.anonymousReporting;
 
@@ -145,8 +128,7 @@ export function Settings() {
           onSubmit={(newConfig) => {
             const newRightMode = newConfig?.oidcConfiguration?.roleRightMode;
             if (newRightMode != "Supervised") {
-              const oldRights =
-                configurationQuery.data?.oidcConfiguration?.userRightsByRoles;
+              const oldRights = configurationQuery.data?.oidcConfiguration?.userRightsByRoles;
               const newRights = newConfig?.oidcConfiguration?.userRightsByRoles;
               if (hasMaxRightChange(oldRights, newRights)) {
                 return askConfirmation(
@@ -168,8 +150,7 @@ export function Settings() {
 const INVITATION_MODE_OPTIONS = [
   {
     value: "Response",
-    label:
-      "Request response (invitation url will be displayed right after creating invitation)",
+    label: "Request response (invitation url will be displayed right after creating invitation)",
   },
   {
     value: "Mail",
@@ -194,9 +175,7 @@ function ConfigurationForm(props: {
     },
   };
 
-  const methods = useForm<
-    Omit<Omit<Configuration, "version">, "anonymousReportingLastAsked">
-  >({
+  const methods = useForm<Omit<Omit<Configuration, "version">, "anonymousReportingLastAsked">>({
     values: configuration,
     defaultValues: defaultValue,
   });
@@ -218,10 +197,7 @@ function ConfigurationForm(props: {
         className="container m-0 fieldset-form"
         onSubmit={handleSubmit((data) => {
           let valid = true;
-          const isEmailValid = yup
-            .string()
-            .email()
-            .isValidSync(data.originEmail);
+          const isEmailValid = yup.string().email().isValidSync(data.originEmail);
           if (data.originEmail && !isEmailValid) {
             valid = false;
             setError("originEmail", {
@@ -231,9 +207,7 @@ function ConfigurationForm(props: {
           }
 
           if ("port" in data.mailerConfiguration) {
-            data.mailerConfiguration.port = Number(
-              data.mailerConfiguration.port,
-            );
+            data.mailerConfiguration.port = Number(data.mailerConfiguration.port);
           }
           if (valid) {
             props?.onSubmit(data).then(() => {
@@ -250,9 +224,7 @@ function ConfigurationForm(props: {
               control={control}
               render={({ field }) => (
                 <Select
-                  value={MAILER_OPTIONS.find(
-                    ({ value }) => value === field.value,
-                  )}
+                  value={MAILER_OPTIONS.find(({ value }) => value === field.value)}
                   onChange={(e) => {
                     field.onChange(e?.value);
                   }}
@@ -275,9 +247,7 @@ function ConfigurationForm(props: {
               control={control}
               render={({ field }) => (
                 <Select
-                  value={INVITATION_MODE_OPTIONS.find(
-                    ({ value }) => value === field.value,
-                  )}
+                  value={INVITATION_MODE_OPTIONS.find(({ value }) => value === field.value)}
                   onChange={(e) => {
                     field.onChange(e?.value);
                   }}
@@ -291,11 +261,7 @@ function ConfigurationForm(props: {
         <div className="row mt-3">
           <label className="col-12">
             Origin email
-            <input
-              className="form-control"
-              type="text"
-              {...register("originEmail")}
-            />
+            <input className="form-control" type="text" {...register("originEmail")} />
           </label>
           <ErrorMessage errors={errors} name="originEmail" />
         </div>
@@ -306,8 +272,8 @@ function ConfigurationForm(props: {
               <Tooltip id="reporting-tooltip">
                 This feature allows Izanami to send us periodical reports.
                 <br />
-                It won't send sensitive or personal data, only a set of usage
-                statistics related to Izanami.
+                It won't send sensitive or personal data, only a set of usage statistics related to
+                Izanami.
               </Tooltip>
             </label>
             <button
@@ -412,17 +378,15 @@ function MailJetFormV2() {
               className="form-control"
               type="password"
               aria-describedby="mailjetApiKeyHelp"
-              placeholder={
-                isCurrentConfigurationUsingMailJet ? "*************" : ""
-              }
+              placeholder={isCurrentConfigurationUsingMailJet ? "*************" : ""}
               {...register("mailerConfiguration.secret", {
                 required: "Secret is required",
               })}
             />
             {isCurrentConfigurationUsingMailJet && (
               <small id="mailjetApiKeyHelp">
-                For security reason, current secret is not displayed. Type your
-                new secret to replace it.
+                For security reason, current secret is not displayed. Type your new secret to
+                replace it.
               </small>
             )}
           </label>
@@ -464,9 +428,7 @@ function MailGunFormV2() {
             <input
               className="form-control"
               type="text"
-              placeholder={
-                isCurrentConfigurationUsingMailgun ? "*************" : ""
-              }
+              placeholder={isCurrentConfigurationUsingMailgun ? "*************" : ""}
               aria-describedby="mailgunApiKeyHelp"
               {...register("mailerConfiguration.apiKey", {
                 required: "API key is required",
@@ -474,8 +436,8 @@ function MailGunFormV2() {
             />
             {isCurrentConfigurationUsingMailgun && (
               <small id="mailgunApiKeyHelp">
-                For security reason, current API key is not displayed. Type your
-                new API key to replace it.
+                For security reason, current API key is not displayed. Type your new API key to
+                replace it.
               </small>
             )}
           </label>
@@ -492,9 +454,7 @@ function MailGunFormV2() {
               }}
               render={({ field }) => (
                 <Select
-                  value={MAILGUN_REGIONS_OPTIONS.find(
-                    ({ value }) => value === field.value,
-                  )}
+                  value={MAILGUN_REGIONS_OPTIONS.find(({ value }) => value === field.value)}
                   onChange={(e) => {
                     field.onChange(e?.value);
                   }}
@@ -517,8 +477,7 @@ function SMTPFormV2() {
     formState: { errors, defaultValues },
   } = useFormContext<Configuration>();
 
-  const isCurrentConfigurationUsingSMTP =
-    defaultValues?.mailerConfiguration?.mailer === "SMTP";
+  const isCurrentConfigurationUsingSMTP = defaultValues?.mailerConfiguration?.mailer === "SMTP";
 
   return (
     <fieldset>
@@ -552,11 +511,7 @@ function SMTPFormV2() {
       <div className="row mt-3">
         <label className="col-12">
           User
-          <input
-            className="form-control"
-            type="text"
-            {...register("mailerConfiguration.user")}
-          />
+          <input className="form-control" type="text" {...register("mailerConfiguration.user")} />
         </label>
       </div>
       <div className="row mt-3">
@@ -570,8 +525,8 @@ function SMTPFormV2() {
           />
           {isCurrentConfigurationUsingSMTP && (
             <small>
-              For security reason, current password is not displayed. Type your
-              new password to replace it.
+              For security reason, current password is not displayed. Type your new password to
+              replace it.
             </small>
           )}
         </label>
@@ -677,8 +632,8 @@ function OIDCForm() {
           cause: oAuthLoadedFromEnvMessage,
         }
       : isOIDCEnabled
-      ? { readOnly: false }
-      : { readOnly: true, cause: "OIDC configuration is disabled" };
+        ? { readOnly: false }
+        : { readOnly: true, cause: "OIDC configuration is disabled" };
 
   return (
     <>
@@ -703,9 +658,7 @@ function OIDCForm() {
           }}
           onSubmit={(base) => {
             setOIDCCOnfigLoading(true);
-            return fetchConfig(base as any).finally(() =>
-              setOIDCCOnfigLoading(false),
-            );
+            return fetchConfig(base as any).finally(() => setOIDCCOnfigLoading(false));
           }}
         />
       </Modal>
@@ -745,8 +698,8 @@ function OIDCForm() {
               {preventOAuthModification && (
                 <p className="error-message d-flex align-items-center gap-2">
                   <i className="fas fa-warning" />
-                  The configuration is loaded from your environment variables
-                  and cannot be edited until you remove them.
+                  The configuration is loaded from your environment variables and cannot be edited
+                  until you remove them.
                 </p>
               )}
               <fieldset disabled={preventOAuthModification}>
@@ -784,9 +737,7 @@ function OIDCForm() {
                           }}
                           render={({ field }) => (
                             <Select
-                              value={OIDC_METHOD_OPTIONS.find(
-                                ({ value }) => value === field.value,
-                              )}
+                              value={OIDC_METHOD_OPTIONS.find(({ value }) => value === field.value)}
                               onChange={(e) => {
                                 field.onChange(e?.value);
                               }}
@@ -796,10 +747,7 @@ function OIDCForm() {
                           )}
                         />
                       </label>
-                      <ErrorMessage
-                        errors={errors}
-                        name="oidcConfiguration.method"
-                      />
+                      <ErrorMessage errors={errors} name="oidcConfiguration.method" />
                     </div>
                     <div className="row mt-3">
                       <label>
@@ -812,10 +760,7 @@ function OIDCForm() {
                           })}
                         />
                       </label>
-                      <ErrorMessage
-                        errors={errors}
-                        name="oidcConfiguration.clientId"
-                      />
+                      <ErrorMessage errors={errors} name="oidcConfiguration.clientId" />
                     </div>
                     <div className="row mt-3">
                       <label>
@@ -823,22 +768,17 @@ function OIDCForm() {
                         <input
                           type="password"
                           className="form-control"
-                          placeholder={
-                            isOIDCAlreadySetup ? "*************" : ""
-                          }
+                          placeholder={isOIDCAlreadySetup ? "*************" : ""}
                           {...register("oidcConfiguration.clientSecret")}
                         />
                         {isOIDCAlreadySetup && (
                           <small>
-                            For security reason, client secret is not displayed.
-                            Type your new client secret to replace it.
+                            For security reason, client secret is not displayed. Type your new
+                            client secret to replace it.
                           </small>
                         )}
                       </label>
-                      <ErrorMessage
-                        errors={errors}
-                        name="oidcConfiguration.clientSecret"
-                      />
+                      <ErrorMessage errors={errors} name="oidcConfiguration.clientSecret" />
                     </div>
                     <div className="row mt-3">
                       <label>
@@ -851,10 +791,7 @@ function OIDCForm() {
                           })}
                         />
                       </label>
-                      <ErrorMessage
-                        errors={errors}
-                        name="oidcConfiguration.tokenUrl"
-                      />
+                      <ErrorMessage errors={errors} name="oidcConfiguration.tokenUrl" />
                     </div>
                     <div className="row mt-3">
                       <label>
@@ -867,15 +804,16 @@ function OIDCForm() {
                           })}
                         />
                       </label>
-                      <ErrorMessage
-                        errors={errors}
-                        name="oidcConfiguration.authorizeUrl"
-                      />
+                      <ErrorMessage errors={errors} name="oidcConfiguration.authorizeUrl" />
                     </div>
                     <div className="row mt-3">
                       <label>
                         Expected issuer (optional)
-                        <input type="text" className="form-control" {...register("oidcConfiguration.issuer")} />
+                        <input
+                          type="text"
+                          className="form-control"
+                          {...register("oidcConfiguration.issuer")}
+                        />
                       </label>
                       <small className="text-warning">
                         Leaving this field empty disables ID token issuer validation.
@@ -884,7 +822,11 @@ function OIDCForm() {
                     <div className="row mt-3">
                       <label>
                         Expected audience (optional, usually your client ID)
-                        <input type="text" className="form-control" {...register("oidcConfiguration.audience")} />
+                        <input
+                          type="text"
+                          className="form-control"
+                          {...register("oidcConfiguration.audience")}
+                        />
                       </label>
                       <small className="text-warning">
                         Leaving this field empty disables ID token audience validation.
@@ -893,7 +835,11 @@ function OIDCForm() {
                     <div className="row mt-3">
                       <label>
                         JWKS URL (optional)
-                        <input type="text" className="form-control" {...register("oidcConfiguration.jwksUrl")} />
+                        <input
+                          type="text"
+                          className="form-control"
+                          {...register("oidcConfiguration.jwksUrl")}
+                        />
                       </label>
                       <small className="text-warning">
                         Leaving this field empty disables ID token signature verification.
@@ -902,9 +848,7 @@ function OIDCForm() {
                     <div className="row mt-3">
                       <label>
                         Scopes
-                        <Tooltip id="oidc-scopes">
-                          Space separated list of scopes
-                        </Tooltip>
+                        <Tooltip id="oidc-scopes">Space separated list of scopes</Tooltip>
                         <input
                           type="text"
                           className="form-control"
@@ -913,10 +857,7 @@ function OIDCForm() {
                           })}
                         />
                       </label>
-                      <ErrorMessage
-                        errors={errors}
-                        name="oidcConfiguration.scopes"
-                      />
+                      <ErrorMessage errors={errors} name="oidcConfiguration.scopes" />
                     </div>
                     <div className="row mt-3">
                       <label>
@@ -929,10 +870,7 @@ function OIDCForm() {
                           })}
                         />
                       </label>
-                      <ErrorMessage
-                        errors={errors}
-                        name="oidcConfiguration.nameField"
-                      />
+                      <ErrorMessage errors={errors} name="oidcConfiguration.nameField" />
                     </div>
                     <div className="row mt-3">
                       <label>
@@ -945,10 +883,7 @@ function OIDCForm() {
                           })}
                         />
                       </label>
-                      <ErrorMessage
-                        errors={errors}
-                        name="oidcConfiguration.emailField"
-                      />
+                      <ErrorMessage errors={errors} name="oidcConfiguration.emailField" />
                     </div>
                     <div className="row mt-3">
                       <label>
@@ -961,10 +896,7 @@ function OIDCForm() {
                           })}
                         />
                       </label>
-                      <ErrorMessage
-                        errors={errors}
-                        name="oidcConfiguration.callbackUrl"
-                      />
+                      <ErrorMessage errors={errors} name="oidcConfiguration.callbackUrl" />
                     </div>
                     <div className="row mt-3">
                       <label>
@@ -1000,10 +932,7 @@ function OIDCForm() {
                             )}
                           />
                         </label>
-                        <ErrorMessage
-                          errors={errors}
-                          name="oidcConfiguration.pkce.algorithm"
-                        />
+                        <ErrorMessage errors={errors} name="oidcConfiguration.pkce.algorithm" />
                       </div>
                     )}
                     <div className="row mt-3">
@@ -1025,9 +954,7 @@ function OIDCForm() {
                           render={({ field }) => (
                             <Select
                               value={
-                                field.value
-                                  ? { value: field.value, label: field.value }
-                                  : null
+                                field.value ? { value: field.value, label: field.value } : null
                               }
                               onChange={(e) => {
                                 field.onChange(e?.value);
@@ -1147,10 +1074,13 @@ function RightByRoleSelector(props: {
                     .filter((entry) => {
                       return !missingTenants.includes(entry[0]);
                     })
-                    .reduce((acc, [key, value]) => {
-                      acc[key] = value;
-                      return acc;
-                    }, {} as { [k: string]: any }),
+                    .reduce(
+                      (acc, [key, value]) => {
+                        acc[key] = value;
+                        return acc;
+                      },
+                      {} as { [k: string]: any },
+                    ),
                 };
               }
 
@@ -1158,9 +1088,7 @@ function RightByRoleSelector(props: {
                 <>
                   <div key={`${role}-right`}>
                     <h3>
-                      {role === ""
-                        ? "Default rights"
-                        : `Rights for role ${role}`}
+                      {role === "" ? "Default rights" : `Rights for role ${role}`}
                       &nbsp;
                       <button
                         className="btn btn-danger btn-sm"
@@ -1196,8 +1124,7 @@ function RightByRoleSelector(props: {
                       <label className="d-flex flex-row align-items-center">
                         Can become admin
                         <Tooltip id="max-right-admin-tooltip">
-                          Whether users with this role can become admin of this
-                          Izanami instance.
+                          Whether users with this role can become admin of this Izanami instance.
                         </Tooltip>
                         &nbsp;
                         <input

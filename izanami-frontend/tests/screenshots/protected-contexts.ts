@@ -18,10 +18,10 @@ export async function generate() {
             .withFeature(testFeature("comments"))
             .withFeature(testFeature("summer-sales"))
             .withFeature(testFeature("phone-support"))
-            .withFeature(testFeature("new-layout"))
+            .withFeature(testFeature("new-layout")),
         )
         .withContext(testGlobalContext("prod"))
-        .withContext(testGlobalContext("dev"))
+        .withContext(testGlobalContext("dev")),
     )
     .build(page);
 

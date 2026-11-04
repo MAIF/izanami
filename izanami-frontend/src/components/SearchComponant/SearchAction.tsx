@@ -14,11 +14,11 @@ interface SearchActionProps {
 const CustomOption = (props: any) => {
   return (
     <>
-    {/* @ts-expect-error("this works") */}
-    <components.Option {...props}>
-      <span style={{ marginRight: 1 }}>{props.data.icon}</span>
-      {props.data.label}
-    </components.Option>
+      {/* @ts-expect-error("this works") */}
+      <components.Option {...props}>
+        <span style={{ marginRight: 1 }}>{props.data.icon}</span>
+        {props.data.label}
+      </components.Option>
     </>
   );
 };
@@ -40,9 +40,7 @@ export function SearchAction({
       <div className="d-flex flex-row gap-1 mb-2 mb-md-0">
         <button
           onClick={() => setModalStatus({ all: true })}
-          className={`btn btn-secondary${
-            modalStatus.all ? " search-form-button-selected" : ""
-          }`}
+          className={`btn btn-secondary${modalStatus.all ? " search-form-button-selected" : ""}`}
           style={{ backgroundColor: "var(--color-blue) !important" }}
           value="all"
           aria-pressed={modalStatus.all}

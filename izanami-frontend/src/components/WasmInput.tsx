@@ -2,12 +2,7 @@ import * as React from "react";
 import { customStyles } from "../styles/reactSelect";
 import Select from "react-select";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Controller,
-  FieldErrors,
-  useFormContext,
-  useWatch,
-} from "react-hook-form";
+import { Controller, FieldErrors, useFormContext, useWatch } from "react-hook-form";
 import { TContextOverload, WasmFeature } from "../utils/types";
 import { useParams } from "react-router-dom";
 import { ErrorDisplay } from "./FeatureForm";
@@ -25,9 +20,7 @@ export function WasmInput() {
     <>
       <label className="mt-3 col-6">
         Script name*
-        <Tooltip id="script-name">
-          Script name, use something meaningfull
-        </Tooltip>
+        <Tooltip id="script-name">Script name, use something meaningfull</Tooltip>
         <input
           className="form-control"
           {...register("wasmConfig.name", {
@@ -46,9 +39,7 @@ export function WasmInput() {
         <div className="row">
           <label className="col-7">
             Wasm function name
-            <Tooltip id="function-name">
-              Function to call inside your script.
-            </Tooltip>
+            <Tooltip id="function-name">Function to call inside your script.</Tooltip>
             <input
               className="form-control"
               defaultValue="execute"
@@ -60,9 +51,7 @@ export function WasmInput() {
             <label className="d-flex  flex-column">
               <span>
                 Open Policy Agent
-                <Tooltip id="opa">
-                  Whether your script is an Open Policy Agent script.
-                </Tooltip>
+                <Tooltip id="opa">Whether your script is an Open Policy Agent script.</Tooltip>
               </span>
               <input
                 type="checkbox"
@@ -110,7 +99,7 @@ function KindOptions() {
                 render={({ field: { onChange, value } }) => (
                   <Select
                     value={query.data.find(
-                      ({ value: qValue }: { value: string }) => value === qValue
+                      ({ value: qValue }: { value: string }) => value === qValue,
                     )}
                     onChange={(e) => onChange(e?.value)}
                     options={query.data}
@@ -119,11 +108,7 @@ function KindOptions() {
                 )}
               />
             </label>
-            <ErrorDisplay
-              error={
-                (errors as FieldErrors<WasmFeature>)?.wasmConfig?.source?.path
-              }
-            />
+            <ErrorDisplay error={(errors as FieldErrors<WasmFeature>)?.wasmConfig?.source?.path} />
           </>
         );
       } else {
@@ -135,11 +120,7 @@ function KindOptions() {
         <>
           <label>
             URL
-            <input
-              type="text"
-              className="form-control"
-              {...register("wasmConfig.source.path")}
-            />
+            <input type="text" className="form-control" {...register("wasmConfig.source.path")} />
           </label>
           <label>
             Headers
@@ -151,10 +132,13 @@ function KindOptions() {
                   value={value ? Object.entries(value) : []}
                   onChange={(arr: [string, string][]) =>
                     onChange(
-                      arr.reduce((acc, [key, value]) => {
-                        acc[key] = value;
-                        return acc;
-                      }, {} as { [x: string]: any })
+                      arr.reduce(
+                        (acc, [key, value]) => {
+                          acc[key] = value;
+                          return acc;
+                        },
+                        {} as { [x: string]: any },
+                      ),
                     )
                   }
                 />
@@ -209,11 +193,7 @@ function KindOptions() {
       opts = (
         <label>
           File path
-          <input
-            type="text"
-            className="form-control"
-            {...register("wasmConfig.source.path")}
-          />
+          <input type="text" className="form-control" {...register("wasmConfig.source.path")} />
         </label>
       );
       break;
@@ -222,17 +202,9 @@ function KindOptions() {
         <>
           <label className="w-100">
             Base64 encoded plugin*
-            <input
-              type="text"
-              className="form-control"
-              {...register("wasmConfig.source.path")}
-            />
+            <input type="text" className="form-control" {...register("wasmConfig.source.path")} />
           </label>
-          <ErrorDisplay
-            error={
-              (errors as FieldErrors<WasmFeature>)?.wasmConfig?.source?.path
-            }
-          />
+          <ErrorDisplay error={(errors as FieldErrors<WasmFeature>)?.wasmConfig?.source?.path} />
         </>
       );
   }
@@ -245,8 +217,7 @@ function KindOptions() {
           <Tooltip id="wasm-kind">
             WASMO will reference a script from a running WASMO instance.
             <br />
-            Base64 will embed a Base64 WASM script directly in this Izanami
-            instance.
+            Base64 will embed a Base64 WASM script directly in this Izanami instance.
           </Tooltip>
           <Controller
             name="wasmConfig.source.kind"
@@ -261,9 +232,7 @@ function KindOptions() {
                   onChange(e?.value);
                 }}
                 styles={customStyles}
-                isOptionDisabled={(option: any) =>
-                  option.value === "Wasmo" && !integrations?.wasmo
-                }
+                isOptionDisabled={(option: any) => option.value === "Wasmo" && !integrations?.wasmo}
                 options={[
                   { label: "Base64", value: "Base64" },
                   {
@@ -279,9 +248,7 @@ function KindOptions() {
             )}
           />
         </label>
-        <ErrorDisplay
-          error={(errors as FieldErrors<WasmFeature>)?.wasmConfig?.source?.kind}
-        />
+        <ErrorDisplay error={(errors as FieldErrors<WasmFeature>)?.wasmConfig?.source?.kind} />
         <div className="col-6">{opts}</div>
       </div>
     </>
@@ -304,7 +271,7 @@ function loadWasmManagerScripts() {
               plugin.versions?.map((version) => ({
                 ...version,
                 id: plugin.pluginId,
-              })) || []
+              })) || [],
           )
           .flat()
           // FIXME TS
@@ -312,9 +279,7 @@ function loadWasmManagerScripts() {
             const wasmName = (isAString(plugin) ? plugin : plugin.name) || "";
             const parts = wasmName.split(".wasm");
             return {
-              label: `${parts[0]} - ${
-                parts[0].endsWith("-dev") ? "[DEV]" : "[RELEASE]"
-              }`,
+              label: `${parts[0]} - ${parts[0].endsWith("-dev") ? "[DEV]" : "[RELEASE]"}`,
               value: wasmName,
             };
           })
@@ -385,10 +350,7 @@ function ObjectInput(props: {
                       className="btn btn-danger m-2"
                       type="button"
                       onClick={() => {
-                        onChange([
-                          ...fieldValue.slice(0, index),
-                          ...fieldValue.slice(index + 1),
-                        ]);
+                        onChange([...fieldValue.slice(0, index), ...fieldValue.slice(index + 1)]);
                       }}
                     >
                       Delete
@@ -425,9 +387,7 @@ export function ExistingScript() {
     queryFn: () =>
       fetch(`/api/admin/tenants/${tenant}/local-scripts`)
         .then((resp) => resp.json())
-        .then((ws) =>
-          ws.map(({ name }: { name: string }) => ({ label: name, value: name }))
-        ),
+        .then((ws) => ws.map(({ name }: { name: string }) => ({ label: name, value: name }))),
   });
 
   if (query.error) {
@@ -454,9 +414,7 @@ export function ExistingScript() {
             )}
           />
         </label>
-        <ErrorDisplay
-          error={(errors as FieldErrors<WasmFeature>)?.wasmConfig?.name}
-        />
+        <ErrorDisplay error={(errors as FieldErrors<WasmFeature>)?.wasmConfig?.name} />
       </>
     );
   } else {

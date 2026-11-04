@@ -13,9 +13,7 @@ import {
 import { tenantFromTitleAndBrowser } from "./izanami-test";
 
 test.describe("Export / import should", () => {
-  test("allow to export then import data", async ({ page, browser }, {
-    title,
-  }) => {
+  test("allow to export then import data", async ({ page, browser }, { title }) => {
     const tenantName = await tenantFromTitleAndBrowser(title, browser);
     const emptyTenantName = `${tenantName}-empty-tenant`;
     await TestSituationBuilder.newBuilder()
@@ -23,24 +21,16 @@ test.describe("Export / import should", () => {
         testTenant(tenantName)
           .withProject(
             testProject("testProject")
-              .withFeature(
-                testFeature("f1").withOverload(
-                  testOverload("testcontext", true)
-                )
-              )
+              .withFeature(testFeature("f1").withOverload(testOverload("testcontext", true)))
               .withContext(
-                testLocalContext("testcontext").withSubContext(
-                  testLocalContext("localsubcontext")
-                )
-              )
+                testLocalContext("testcontext").withSubContext(testLocalContext("localsubcontext")),
+              ),
           )
           .withTag(testTag("my-tag"))
           .withKey(testKey({ name: "my-key" }))
           .withContext(
-            testGlobalContext("global-context").withSubContext(
-              testGlobalContext("subcontext")
-            )
-          )
+            testGlobalContext("global-context").withSubContext(testGlobalContext("subcontext")),
+          ),
       )
       .withTenant(testTenant(emptyTenantName))
       .build(page);
@@ -72,9 +62,7 @@ test.describe("Export / import should", () => {
     await page.getByRole("rowheader", { name: "testcontext" }).click();
     await page.getByRole("link", { name: "Contexts", exact: true }).click();
     await page.getByRole("link", { name: "testcontext" }).click();
-    await expect(
-      page.getByRole("link", { name: "localsubcontext" })
-    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "localsubcontext" })).toBeVisible();
 
     await page.getByRole("link", { name: "Tags" }).click();
     await expect(page.getByRole("rowheader", { name: "my-tag" })).toBeVisible();
@@ -88,8 +76,6 @@ test.describe("Export / import should", () => {
     await page.getByRole("combobox", { name: "On conflict" }).click();
     await page.getByText("Fail").click();
     await page.getByRole("button", { name: "Import" }).click();
-    await expect(
-      page.getByRole("heading", { name: "Import errors !" })
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Import errors !" })).toBeVisible();
   });
 });

@@ -31,9 +31,7 @@ export function TextualFeatureDetails({ feature }: { feature: TLightFeature }) {
       <>
         {feature.description && <div>{feature.description}</div>}
         <div className="fw-semibold">Active :</div>
-        <SingleConditionFeatureDetail
-          feature={toLegacyFeatureFormat(feature)}
-        />
+        <SingleConditionFeatureDetail feature={toLegacyFeatureFormat(feature)} />
       </>
     );
   } else {
@@ -68,15 +66,13 @@ function SingleConditionFeatureDetail({ feature }: { feature: LegacyFeature }) {
     case "DATE_RANGE":
       return (
         <>
-          from {format(feature.parameters.from, "PPP")} to{" "}
-          {format(feature.parameters.to, "PPP")}
+          from {format(feature.parameters.from, "PPP")} to {format(feature.parameters.to, "PPP")}
         </>
       );
     case "HOUR_RANGE":
       return (
         <>
-          from {formatHours(feature.parameters.startAt)} to{" "}
-          {formatHours(feature.parameters.endAt)}
+          from {formatHours(feature.parameters.startAt)} to {formatHours(feature.parameters.endAt)}
         </>
       );
     case "RELEASE_DATE":
@@ -158,11 +154,7 @@ export function ConditionDetails({
   }
 }
 
-function BooleanConditionsDetails({
-  conditions,
-}: {
-  conditions: TClassicalCondition[];
-}) {
+function BooleanConditionsDetails({ conditions }: { conditions: TClassicalCondition[] }) {
   if (conditions.length === 0) {
     return (
       <>
@@ -202,9 +194,7 @@ function formatHours(hours: string): string {
 }
 
 function hours(hours: THourPeriod): string {
-  return `from ${formatHours(hours.startTime)} to ${formatHours(
-    hours.endTime
-  )}`;
+  return `from ${formatHours(hours.startTime)} to ${formatHours(hours.endTime)}`;
 }
 
 function days(days: TDayOfWeepPeriod): string {
@@ -240,10 +230,7 @@ export function PeriodDetails(props: { period: TFeaturePeriod }): JSX.Element {
 export function Period({ period }: { period: TFeaturePeriod }): JSX.Element {
   let display = "";
   if (period.begin && period.end) {
-    display = `from ${format(period.begin, "PPPp")} to ${format(
-      period.end,
-      "PPPp"
-    )}`;
+    display = `from ${format(period.begin, "PPPp")} to ${format(period.end, "PPPp")}`;
   } else if (period.begin) {
     display = `after ${format(period.begin, "PPPp")}`;
   } else if (period.end) {
@@ -264,9 +251,7 @@ export function Rule(props: { rule: TFeatureRule }): JSX.Element {
   } else if (isUserListRule(rule)) {
     const targets = [
       rule.users?.length ? `only for : ${rule.users.join(", ")}` : undefined,
-      rule.groups?.length
-        ? `members of groups : ${rule.groups.join(", ")}`
-        : undefined,
+      rule.groups?.length ? `members of groups : ${rule.groups.join(", ")}` : undefined,
     ].filter(Boolean);
     return <>{targets.join(" OR ")}</>;
   } else {

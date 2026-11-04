@@ -10,10 +10,7 @@ export interface Option {
   value: string;
 }
 
-const loadOptions = (
-  inputValue: string,
-  callback: (options: string[]) => void
-) => {
+const loadOptions = (inputValue: string, callback: (options: string[]) => void) => {
   fetch(`/api/admin/users/search?query=${inputValue}&count=20`)
     .then((resp) => resp.json())
     .then((data) => callback(data.map((d: string) => ({ label: d, value: d }))))
@@ -63,7 +60,7 @@ export function InvitationForm(props: InvitationProps) {
           props?.submit?.({
             users: data.users.map((user) => user.value),
             level: data.level,
-          })
+          }),
         )}
         className="d-flex flex-column sub_container anim__rightToLeft mb-2"
       >
@@ -81,9 +78,7 @@ export function InvitationForm(props: InvitationProps) {
               <AsyncSelect
                 {...field}
                 loadOptions={loadOptions as any} // FIXME TS
-                filterOption={(options) =>
-                  !props.invitedUsers?.includes(options.data.value)
-                }
+                filterOption={(options) => !props.invitedUsers?.includes(options.data.value)}
                 styles={customStyles}
                 cacheOptions
                 isMulti
@@ -109,28 +104,21 @@ export function InvitationForm(props: InvitationProps) {
             }}
             render={({ field: { onChange, value } }) => (
               <Select
-                value={(props?.projectRight
-                  ? PROJECT_LEVEL_OPTIONS
-                  : LEVEL_OPTIONS
-                ).find((o) => o.value === value)}
+                value={(props?.projectRight ? PROJECT_LEVEL_OPTIONS : LEVEL_OPTIONS).find(
+                  (o) => o.value === value,
+                )}
                 onChange={(value) => {
                   onChange(value?.value);
                 }}
                 styles={customStyles}
-                options={
-                  props?.projectRight ? PROJECT_LEVEL_OPTIONS : LEVEL_OPTIONS
-                }
+                options={props?.projectRight ? PROJECT_LEVEL_OPTIONS : LEVEL_OPTIONS}
               />
             )}
           />
           <ErrorMessage errors={errors} name="level" />
         </label>
         <div className="d-flex justify-content-end">
-          <button
-            type="button"
-            className="btn btn-danger-light m-2"
-            onClick={() => props.cancel()}
-          >
+          <button type="button" className="btn btn-danger-light m-2" onClick={() => props.cancel()}>
             Cancel
           </button>
           <button className="btn btn-primary m-2" type="submit">

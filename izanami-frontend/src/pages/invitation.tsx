@@ -1,5 +1,5 @@
 import React from "react";
-import { useMutation } from '@tanstack/react-query';
+import { useMutation } from "@tanstack/react-query";
 import Logo from "../../izanami.png";
 import { createUser } from "../utils/queries";
 import { constraints } from "@maif/react-forms";
@@ -14,7 +14,7 @@ export function Invitation(props: { token: string }) {
     mutationFn: (data: { username: string; password: string; token: string }) => {
       const { username, password, token } = data;
       return createUser(username, password, token);
-    }
+    },
   });
 
   return (
@@ -40,7 +40,7 @@ export function Invitation(props: { token: string }) {
                   constraints: [
                     constraints.matches(
                       USERNAME_REGEXP,
-                      `Username must match regex ${USERNAME_REGEXP.toString()}`
+                      `Username must match regex ${USERNAME_REGEXP.toString()}`,
                     ),
                   ],
                 },
@@ -52,7 +52,7 @@ export function Invitation(props: { token: string }) {
                   constraints: [
                     constraints.matches(
                       PASSWORD_REGEXP,
-                      `Password must match regex ${PASSWORD_REGEXP.toString()}`
+                      `Password must match regex ${PASSWORD_REGEXP.toString()}`,
                     ),
                   ],
                 },
@@ -66,7 +66,7 @@ export function Invitation(props: { token: string }) {
                       "Passwords must be identical",
                       (value, { parent: { password } }) => {
                         return password === value;
-                      }
+                      },
                     ),
                   ],
                 },
@@ -74,12 +74,10 @@ export function Invitation(props: { token: string }) {
               submitText="Create user"
               onSubmit={function (data: { [x: string]: any }): Promise<any> {
                 const { username, password } = data;
-                return userCreationMutation
-                  .mutateAsync({ username, password, token })
-                  .then(() => {
-                    location.search = "";
-                    location.href = "/login";
-                  });
+                return userCreationMutation.mutateAsync({ username, password, token }).then(() => {
+                  location.search = "";
+                  location.href = "/login";
+                });
               }}
             />
           </div>

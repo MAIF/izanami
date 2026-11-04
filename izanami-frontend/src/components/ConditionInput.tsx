@@ -12,12 +12,7 @@ import CreatableSelect from "react-select/creatable";
 import { customStyles } from "../styles/reactSelect";
 import { Strategy } from "./FeatureTable";
 import { useEffect } from "react";
-import {
-  useFieldArray,
-  Controller,
-  useFormContext,
-  FieldErrors,
-} from "react-hook-form";
+import { useFieldArray, Controller, useFormContext, FieldErrors } from "react-hook-form";
 import { format, parse, startOfDay } from "date-fns";
 import { TimeZoneSelect } from "./TimeZoneSelect";
 import { ErrorDisplay } from "./FeatureForm";
@@ -26,7 +21,10 @@ import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
 import { PeriodDetails, Rule } from "./FeatureDetails";
 import { StringValueInput } from "./StringValueInput";
 
-export function ConditionsInput(props: { folded: boolean; allowedValues?: readonly StringAllowedValue[] | null }) {
+export function ConditionsInput(props: {
+  folded: boolean;
+  allowedValues?: readonly StringAllowedValue[] | null;
+}) {
   const { control, watch } = useFormContext();
 
   const { fields, append, remove } = useFieldArray({
@@ -48,21 +46,14 @@ export function ConditionsInput(props: { folded: boolean; allowedValues?: readon
       {fields.map(({ id }, index) => {
         const condition = conditions?.[index];
         const emptyCondition =
-          Object.entries(condition).filter(([, value]) => value !== "")
-            .length === 0;
+          Object.entries(condition).filter(([, value]) => value !== "").length === 0;
 
         return (
-          <div
-            className="accordion accordion-dark"
-            id={`${id}-accordion`}
-            key={id}
-          >
+          <div className="accordion accordion-dark" id={`${id}-accordion`} key={id}>
             <div className="accordion-item mt-3">
               <h3 className="accordion-header">
                 <button
-                  className={`accordion-button ${
-                    props.folded ? "collapsed" : ""
-                  }`}
+                  className={`accordion-button ${props.folded ? "collapsed" : ""}`}
                   type="button"
                   data-bs-toggle="collapse"
                   data-bs-target={`#${id}-accordion-collapse`}
@@ -74,21 +65,14 @@ export function ConditionsInput(props: { folded: boolean; allowedValues?: readon
                       <div>
                         {resultType === "boolean" ? (
                           <>
-                            <span className="fw-bold">
-                              Activation condition #{index}
-                            </span>
-                            {emptyCondition ? (
-                              <>&nbsp;{"<Empty condition>"}</>
-                            ) : (
-                              ""
-                            )}
+                            <span className="fw-bold">Activation condition #{index}</span>
+                            {emptyCondition ? <>&nbsp;{"<Empty condition>"}</> : ""}
                           </>
                         ) : emptyCondition ? (
                           "<No value specified>"
                         ) : (
                           <>
-                            Alternative value{" "}
-                            <span className="fw-bold">{condition?.value}</span>
+                            Alternative value <span className="fw-bold">{condition?.value}</span>
                           </>
                         )}
                         &nbsp;
@@ -112,9 +96,7 @@ export function ConditionsInput(props: { folded: boolean; allowedValues?: readon
                 </button>
               </h3>
               <div
-                className={`accordion-collapse collapse ${
-                  props.folded ? "" : "show"
-                }`}
+                className={`accordion-collapse collapse ${props.folded ? "" : "show"}`}
                 aria-labelledby="headingOne"
                 data-bs-parent={`#${id}-accordion`}
                 id={`${id}-accordion-collapse`}
@@ -138,9 +120,7 @@ export function ConditionsInput(props: { folded: boolean; allowedValues?: readon
 
             if (props.folded) {
               setTimeout(() => {
-                const buttons = document.querySelectorAll(
-                  "button.accordion-button"
-                );
+                const buttons = document.querySelectorAll("button.accordion-button");
                 const last = buttons?.[buttons.length - 1] as HTMLButtonElement;
                 last.click();
               }, 0);
@@ -191,7 +171,10 @@ function ConditionSummary(props: { condition: TClassicalCondition }) {
   );
 }
 
-function ConditionInput(props: { index: number; allowedValues?: readonly StringAllowedValue[] | null }) {
+function ConditionInput(props: {
+  index: number;
+  allowedValues?: readonly StringAllowedValue[] | null;
+}) {
   const [specificPeriods, setSpecificPeriods] = React.useState(false);
   const { index } = props;
   const {
@@ -222,8 +205,8 @@ function ConditionInput(props: { index: number; allowedValues?: readonly StringA
     percentage !== undefined
       ? Strategy.percentage.id
       : users !== undefined || groups !== undefined
-      ? Strategy.userList.id
-      : Strategy.all.id;
+        ? Strategy.userList.id
+        : Strategy.all.id;
 
   return (
     <>
@@ -233,15 +216,22 @@ function ConditionInput(props: { index: number; allowedValues?: readonly StringA
             <legend>
               <h5>Result value</h5>
             </legend>
-            <label className="mb-4" htmlFor={resultType === "string" ? `alternative-value-${index}` : undefined}>
+            <label
+              className="mb-4"
+              htmlFor={resultType === "string" ? `alternative-value-${index}` : undefined}
+            >
               Alternative value
               {resultType === "string" ? (
                 <Controller
                   name={`conditions.${index}.value`}
                   defaultValue=""
                   control={control}
-                  rules={{ validate: (value) => !props.allowedValues ||
-                    props.allowedValues.some((choice) => choice.value === String(value)) || "Choose an allowed value" }}
+                  rules={{
+                    validate: (value) =>
+                      !props.allowedValues ||
+                      props.allowedValues.some((choice) => choice.value === String(value)) ||
+                      "Choose an allowed value",
+                  }}
                   render={({ field }) => (
                     <StringValueInput
                       inputId={`alternative-value-${index}`}
@@ -262,10 +252,7 @@ function ConditionInput(props: { index: number; allowedValues?: readonly StringA
                 />
               )}
               <ErrorDisplay
-                error={
-                  (errors as FieldErrors<ValuedFeature>)?.conditions?.[index]
-                    ?.value as any
-                }
+                error={(errors as FieldErrors<ValuedFeature>)?.conditions?.[index]?.value as any}
               />
             </label>
           </>
@@ -274,16 +261,15 @@ function ConditionInput(props: { index: number; allowedValues?: readonly StringA
           <h5>Time rule</h5>
         </legend>
         <div>
-        <label htmlFor={`${`conditions.${index}.timeRule`}`}>
-          Active only on specific periods
-          <Tooltip id="specific-period">
-            Check this to add time activation rules for your feature.
-            <br />
-            Both time rule and user rule must be active to activate this
-            condition.
-          </Tooltip>
-        </label>
-        <input
+          <label htmlFor={`${`conditions.${index}.timeRule`}`}>
+            Active only on specific periods
+            <Tooltip id="specific-period">
+              Check this to add time activation rules for your feature.
+              <br />
+              Both time rule and user rule must be active to activate this condition.
+            </Tooltip>
+          </label>
+          <input
             id={`${`conditions.${index}.timeRule`}`}
             type="checkbox"
             className="izanami-checkbox"
@@ -300,13 +286,12 @@ function ConditionInput(props: { index: number; allowedValues?: readonly StringA
                         days: DAYS.slice(),
                       },
                       hourPeriods: [],
-                      timezone:
-                        Intl.DateTimeFormat().resolvedOptions().timeZone,
+                      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                       end: null as any,
                     },
                     {
                       shouldValidate: true,
-                    }
+                    },
                   );
                 }
               } else {
@@ -327,14 +312,12 @@ function ConditionInput(props: { index: number; allowedValues?: readonly StringA
           <Tooltip id="user-strategy">
             All - activate this rule for every user.
             <br />
-            Percentage - activate this rule only for the given percentage of
-            users.
+            Percentage - activate this rule only for the given percentage of users.
             <br />
-            User and group list - activate this rule for a specified user OR
-            a member of at least one specified group.
+            User and group list - activate this rule for a specified user OR a member of at least
+            one specified group.
             <br />
-            Both time rule and user rule must be active to activate this
-            condition.
+            Both time rule and user rule must be active to activate this condition.
           </Tooltip>
           <Select
             styles={customStyles}
@@ -380,17 +363,14 @@ function ConditionInput(props: { index: number; allowedValues?: readonly StringA
                 })}
               />
             </label>
-            <ErrorDisplay
-              error={(errors?.conditions?.[index]?.rule as any)?.percentage}
-            />
+            <ErrorDisplay error={(errors?.conditions?.[index]?.rule as any)?.percentage} />
           </>
         )}
         {strategy === Strategy.userList.id && (
           <>
             <p className="mt-3">
-              A listed user OR membership of at least one listed group
-              activates this rule. Groups are supplied by the calling
-              application.
+              A listed user OR membership of at least one listed group activates this rule. Groups
+              are supplied by the calling application.
             </p>
             <label className="mt-3" htmlFor={`condition-${index}-users`}>
               Users that should activate feature
@@ -398,17 +378,13 @@ function ConditionInput(props: { index: number; allowedValues?: readonly StringA
                 rules={{
                   validate: (value) =>
                     (value?.length ?? 0) > 0 ||
-                    (getValues(`conditions.${index}.rule.groups`)?.length ??
-                      0) > 0 ||
+                    (getValues(`conditions.${index}.rule.groups`)?.length ?? 0) > 0 ||
                     "At least one user or group should be specified",
                   deps: `conditions.${index}.rule.groups`,
                 }}
                 name={`conditions.${index}.rule.users`}
                 control={control}
-                render={({
-                  field: { onChange, value },
-                  fieldState: { error },
-                }) => (
+                render={({ field: { onChange, value }, fieldState: { error } }) => (
                   <>
                     <CreatableSelect
                       inputId={`condition-${index}-users`}
@@ -431,17 +407,13 @@ function ConditionInput(props: { index: number; allowedValues?: readonly StringA
                 rules={{
                   validate: (value) =>
                     (value?.length ?? 0) > 0 ||
-                    (getValues(`conditions.${index}.rule.users`)?.length ??
-                      0) > 0 ||
+                    (getValues(`conditions.${index}.rule.users`)?.length ?? 0) > 0 ||
                     "At least one user or group should be specified",
                   deps: `conditions.${index}.rule.users`,
                 }}
                 name={`conditions.${index}.rule.groups`}
                 control={control}
-                render={({
-                  field: { onChange, value },
-                  fieldState: { error },
-                }) => (
+                render={({ field: { onChange, value }, fieldState: { error } }) => (
                   <>
                     <CreatableSelect
                       inputId={`condition-${index}-groups`}
@@ -482,17 +454,11 @@ function Period(props: { index: number }) {
               return (
                 <input
                   value={
-                    value && !isNaN(value.getTime())
-                      ? format(value, "yyyy-MM-dd'T'HH:mm")
-                      : ""
+                    value && !isNaN(value.getTime()) ? format(value, "yyyy-MM-dd'T'HH:mm") : ""
                   }
                   onChange={(e) => {
                     const value = e.target?.value;
-                    onChange(
-                      value
-                        ? parse(value, "yyyy-MM-dd'T'HH:mm", new Date())
-                        : null
-                    );
+                    onChange(value ? parse(value, "yyyy-MM-dd'T'HH:mm", new Date()) : null);
                   }}
                   type="datetime-local"
                   aria-label="date-range-from"
@@ -510,20 +476,12 @@ function Period(props: { index: number }) {
               return (
                 <input
                   value={
-                    value && !isNaN(value.getTime())
-                      ? format(value, "yyyy-MM-dd'T'HH:mm")
-                      : ""
+                    value && !isNaN(value.getTime()) ? format(value, "yyyy-MM-dd'T'HH:mm") : ""
                   }
                   onChange={(e) => {
                     const value = e.target?.value;
                     onChange(
-                      value
-                        ? parse(
-                            e.target.value,
-                            "yyyy-MM-dd'T'HH:mm",
-                            new Date()
-                          )
-                        : null
+                      value ? parse(e.target.value, "yyyy-MM-dd'T'HH:mm", new Date()) : null,
                     );
                   }}
                   type="datetime-local"
@@ -574,10 +532,7 @@ function Period(props: { index: number }) {
             />
           )}
         />
-        <ErrorDisplay
-          name={`conditions.[${index}].period.activationDays`}
-          errors={errors}
-        />
+        <ErrorDisplay name={`conditions.[${index}].period.activationDays`} errors={errors} />
       </label>
 
       <HourRanges index={index} />
@@ -602,8 +557,7 @@ function HourRanges(props: { index: number }) {
         <label className="">
           Time range
           <Tooltip id="time-range">
-            Specify time ranges on which feature will be active (if matching all
-            other rules).
+            Specify time ranges on which feature will be active (if matching all other rules).
           </Tooltip>
         </label>
         <button
@@ -614,9 +568,7 @@ function HourRanges(props: { index: number }) {
           Add
         </button>
       </div>
-      <div
-        style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}
-      >
+      <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
         {fields.map((hourRange, index) => (
           <fieldset
             key={`period-${index}`}
@@ -635,21 +587,9 @@ function HourRanges(props: { index: number }) {
                       id={`date-range-start-${index}`}
                       className="form-control"
                       type="time"
-                      value={
-                        value
-                          ? format(
-                              parse(value, "HH:mm:ss", new Date()),
-                              "HH:mm"
-                            )
-                          : ""
-                      }
+                      value={value ? format(parse(value, "HH:mm:ss", new Date()), "HH:mm") : ""}
                       onChange={(e) => {
-                        onChange(
-                          format(
-                            parse(e.target.value, "HH:mm", new Date()),
-                            "HH:mm:ss"
-                          )
-                        );
+                        onChange(format(parse(e.target.value, "HH:mm", new Date()), "HH:mm:ss"));
                       }}
                     />
                   );
@@ -667,21 +607,9 @@ function HourRanges(props: { index: number }) {
                       id={`date-range-end-${index}`}
                       className="form-control"
                       type="time"
-                      value={
-                        value
-                          ? format(
-                              parse(value, "HH:mm:ss", new Date()),
-                              "HH:mm"
-                            )
-                          : ""
-                      }
+                      value={value ? format(parse(value, "HH:mm:ss", new Date()), "HH:mm") : ""}
                       onChange={(e) => {
-                        onChange(
-                          format(
-                            parse(e.target.value, "HH:mm", new Date()),
-                            "HH:mm:ss"
-                          )
-                        );
+                        onChange(format(parse(e.target.value, "HH:mm", new Date()), "HH:mm:ss"));
                       }}
                     />
                   );
@@ -697,10 +625,7 @@ function HourRanges(props: { index: number }) {
               </button>
             </div>
             <ErrorDisplay
-              error={
-                errors?.conditions?.[parentIndex]?.period?.hourPeriods?.[index]
-                  ?.endTime
-              }
+              error={errors?.conditions?.[parentIndex]?.period?.hourPeriods?.[index]?.endTime}
             />
           </fieldset>
         ))}

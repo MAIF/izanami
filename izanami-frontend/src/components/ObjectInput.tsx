@@ -22,14 +22,10 @@ export function ObjectInput(props: {
     <div className="container-fluid row-gap-3">
       {arr.length > 0 && (
         <div className="row my-1">
-          <label
-            className={smallerFirstCol ? `col-3 col-md4` : `col-4 col-md-5`}
-          >
+          <label className={smallerFirstCol ? `col-3 col-md4` : `col-4 col-md-5`}>
             {nameLabel}
           </label>
-          <label
-            className={smallerFirstCol ? `col-5 col-md-6` : `col-4 col-md-5`}
-          >
+          <label className={smallerFirstCol ? `col-5 col-md-6` : `col-4 col-md-5`}>
             {valueLabel}
           </label>
         </div>
@@ -43,26 +39,28 @@ export function ObjectInput(props: {
               value={name}
               onChange={(e) => {
                 const v = e.target.value;
-                props.onChange(arr
+                props.onChange(
+                  arr
                     .slice(0, index)
                     .concat([{ name: v, value }])
-                    .concat(arr.slice(index + 1)));
+                    .concat(arr.slice(index + 1)),
+                );
               }}
             />
           </div>
-          <div
-            className={smallerFirstCol ? `col-5 col-md-6` : `col-4 col-md-5`}
-          >
+          <div className={smallerFirstCol ? `col-5 col-md-6` : `col-4 col-md-5`}>
             <input
               className="form-control"
               aria-label={`header-${index}-value`}
               value={value}
               onChange={(e) => {
                 const v = e.target.value;
-                props.onChange(arr
+                props.onChange(
+                  arr
                     .slice(0, index)
                     .concat([{ name, value: v }])
-                    .concat(arr.slice(index + 1)));
+                    .concat(arr.slice(index + 1)),
+                );
               }}
             />
           </div>

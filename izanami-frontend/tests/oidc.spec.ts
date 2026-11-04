@@ -1,11 +1,5 @@
 import { test, expect } from "./izanami-test";
-import {
-  testBuilder,
-  testTenant,
-  testProject,
-  testKey,
-  testWebhook,
-} from "./testBuilder";
+import { testBuilder, testTenant, testProject, testKey, testWebhook } from "./testBuilder";
 import { cleanupConfig } from "./utils";
 
 test.use({
@@ -17,11 +11,7 @@ test.beforeEach(async () => {
 });
 
 test.describe("Global settings page should", () => {
-  test("allow to update oidc rights and roles", async ({
-    page,
-    tenantName,
-    browser,
-  }) => {
+  test("allow to update oidc rights and roles", async ({ page, tenantName, browser }) => {
     const secondTenantName = `${tenantName}2`;
     await testBuilder()
       .withTenant(
@@ -44,9 +34,7 @@ test.describe("Global settings page should", () => {
 
     await page.getByRole("button", { name: "OIDC Configuration" }).click();
     await page.getByText("Enable OIDC authentication").click();
-    await page
-      .getByRole("button", { name: "Read OIDC config from URL" })
-      .click();
+    await page.getByRole("button", { name: "Read OIDC config from URL" }).click();
     await page.getByRole("textbox", { name: "URL of the OIDC config" }).click();
     await page
       .getByRole("textbox", { name: "URL of the OIDC config" })
@@ -55,15 +43,11 @@ test.describe("Global settings page should", () => {
     await page.getByRole("textbox", { name: "Client ID", exact: true }).fill("foo");
     await page.getByRole("textbox", { name: "Client Secret" }).fill("bar");
     await page.getByRole("textbox", { name: "Name field name" }).click();
-    await page
-      .getByRole("textbox", { name: "Name field name" })
-      .fill("username");
+    await page.getByRole("textbox", { name: "Name field name" }).fill("username");
     await page.getByRole("textbox", { name: "Email field name" }).fill("email");
     await page.getByRole("textbox", { name: "Name field name" }).click();
     await page.getByRole("textbox", { name: "Name field name" }).fill("name");
-    await page
-      .getByRole("textbox", { name: "Scopes" })
-      .fill("openid profile email roles");
+    await page.getByRole("textbox", { name: "Scopes" }).fill("openid profile email roles");
     await page.getByRole("checkbox", { name: "Use PKCE flow" }).check();
     await page.getByRole("combobox", { name: "PKCE Algorithm" }).click();
     await page.getByRole("option", { name: "HMAC-SHA256" }).click();
@@ -71,9 +55,7 @@ test.describe("Global settings page should", () => {
 
     await page.getByRole("textbox", { name: "Role claim" }).fill("roles");
     await page.getByRole("combobox", { name: "Role right mode" }).click();
-    await page
-      .getByRole("option", { name: "Supervised" })
-      .click({ force: true });
+    await page.getByRole("option", { name: "Supervised" }).click({ force: true });
     await page.getByRole("button", { name: "Update configuration" }).click();
 
     await page.getByRole("button", { name: "Rights configuration" }).click();
@@ -107,7 +89,7 @@ test.describe("Global settings page should", () => {
     await page.getByRole("option", { name: "Update" }).click();
 
     await page.getByRole("button", { name: "Update configuration" }).click();
-    await expect(page.getByText("Configuration has been updated successfully")).toBeVisible()
+    await expect(page.getByText("Configuration has been updated successfully")).toBeVisible();
 
     const page2 = await (await browser.newContext()).newPage();
     await page2.context().clearCookies();
@@ -122,28 +104,20 @@ test.describe("Global settings page should", () => {
         name: "chromium-allow-to-update-oidc-rights-and-roles",
       }),
     ).toBeVisible();
-    await expect(
-      page2.getByRole("link", { name: "project", exact: true }),
-    ).toBeVisible();
+    await expect(page2.getByRole("link", { name: "project", exact: true })).toBeVisible();
     await expect(page2.getByRole("link", { name: "project2" })).toBeVisible();
     await page2.getByRole("link", { name: "project", exact: true }).click();
-    await expect(
-      page2.getByRole("link", { name: "Project settings" }),
-    ).toBeVisible();
+    await expect(page2.getByRole("link", { name: "Project settings" })).toBeVisible();
     await page2
       .getByRole("link", {
         name: "chromium-allow-to-update-oidc-rights-and-roles",
       })
       .click();
     await page2.getByRole("link", { name: "project2" }).click();
-    await expect(
-      page2.getByRole("link", { name: "Project settings" }),
-    ).not.toBeVisible();
+    await expect(page2.getByRole("link", { name: "Project settings" })).not.toBeVisible();
 
     await page.getByRole("button", { name: "Add role" }).click();
-    await page
-      .getByRole("textbox", { name: "Role name Create role" })
-      .fill("admin");
+    await page.getByRole("textbox", { name: "Role name Create role" }).fill("admin");
     await page.getByRole("button", { name: "Create role" }).click();
     await page.getByRole("checkbox", { name: "Admin" }).last().check();
     await page2.context().clearCookies();
@@ -152,12 +126,8 @@ test.describe("Global settings page should", () => {
     await page2.getByRole("textbox", { name: "Username" }).fill("User1");
     await page2.getByRole("textbox", { name: "Password" }).fill("pwd");
     await page2.getByRole("button", { name: "Login" }).click();
-    await expect(
-      page.getByRole("heading", { name: "Admin zone" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "Global settings" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Admin zone" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Global settings" })).toBeVisible();
   });
 
   test("allow to update max rights", async ({ page, browser }) => {
@@ -178,28 +148,18 @@ test.describe("Global settings page should", () => {
 
     await page.goto("http://localhost:3000/tenants/test");
     await page.getByRole("link", { name: "Global settings" }).click();
-    await page
-      .getByRole("button", { name: "OIDC Configuration DISABLED" })
-      .click();
-    await page
-      .getByRole("checkbox", { name: "Enable OIDC authentication" })
-      .check();
-    await page
-      .getByRole("button", { name: "Read OIDC config from URL" })
-      .click();
+    await page.getByRole("button", { name: "OIDC Configuration DISABLED" }).click();
+    await page.getByRole("checkbox", { name: "Enable OIDC authentication" }).check();
+    await page.getByRole("button", { name: "Read OIDC config from URL" }).click();
     await page
       .getByRole("textbox", { name: "URL of the OIDC config" })
       .fill("http://localhost:9001/.well-known/openid-configuration");
 
     await page.getByRole("button", { name: "Fetch configuration" }).click();
-    await expect(
-      page.getByRole("heading", { name: "Get from OIDC config" }),
-    ).not.toBeVisible();
+    await expect(page.getByRole("heading", { name: "Get from OIDC config" })).not.toBeVisible();
     await page.getByRole("textbox", { name: "Client ID", exact: true }).fill("foo");
     await page.getByRole("textbox", { name: "Client Secret" }).fill("bar");
-    await page
-      .getByRole("textbox", { name: "Scopes" })
-      .fill("openid email profile roles");
+    await page.getByRole("textbox", { name: "Scopes" }).fill("openid email profile roles");
     await page.getByRole("checkbox", { name: "Use PKCE flow" }).check();
     await page.getByRole("combobox", { name: "PKCE Algorithm" }).click();
     await page.getByRole("option", { name: "HMAC-SHA256" }).click();
@@ -232,34 +192,21 @@ test.describe("Global settings page should", () => {
 
     await page.getByRole("button", { name: "Add tenant right" }).click();
     await page.getByRole("combobox", { name: "New Tenant" }).click();
-    await page
-      .getByRole("option", { name: "secret", exact: true })
-      .click({ force: true });
-    await page
-      .getByRole("combobox", { name: "Tenant secret right level" })
-      .click();
+    await page.getByRole("option", { name: "secret", exact: true }).click({ force: true });
+    await page.getByRole("combobox", { name: "Tenant secret right level" }).click();
     await page.getByRole("option", { name: "None" }).click();
 
-    await page
-      .getByRole("combobox", { name: "Max tenant right" })
-      .nth(1)
-      .click();
+    await page.getByRole("combobox", { name: "Max tenant right" }).nth(1).click();
     await page.getByRole("option", { name: "Read" }).click();
-    await page
-      .getByRole("combobox", { name: "Max project right" })
-      .nth(1)
-      .click();
+    await page.getByRole("combobox", { name: "Max project right" }).nth(1).click();
     await page.getByRole("option", { name: "Read" }).click();
     await page.getByRole("combobox", { name: "Max key right" }).nth(1).click();
     await page.getByRole("option", { name: "Read" }).click();
-    await page
-      .getByRole("combobox", { name: "Max webhook right" })
-      .nth(1)
-      .click();
+    await page.getByRole("combobox", { name: "Max webhook right" }).nth(1).click();
     await page.getByRole("option", { name: "Read" }).click();
 
     await page.getByRole("button", { name: "Update configuration" }).click();
-    await expect(page.getByText("Configuration has been updated successfully")).toBeVisible()
+    await expect(page.getByText("Configuration has been updated successfully")).toBeVisible();
 
     /******************** ADMIN ROLE SETUP ************************/
     await page.getByRole("button", { name: "Add role" }).click();
@@ -268,27 +215,14 @@ test.describe("Global settings page should", () => {
     await expect(page.getByText("Rights for role admin")).toBeVisible();
 
     await page.getByRole("button", { name: "Add tenant right" }).last().click();
-    await page
-      .getByRole("combobox", { name: "New Tenant" })
-      .click({ force: true });
-    await page
-      .getByRole("option", { name: "secret", exact: true })
-      .click({ force: true });
+    await page.getByRole("combobox", { name: "New Tenant" }).click({ force: true });
+    await page.getByRole("option", { name: "secret", exact: true }).click({ force: true });
 
-    await page
-      .getByRole("combobox", { name: "Max tenant right" })
-      .nth(2)
-      .click();
+    await page.getByRole("combobox", { name: "Max tenant right" }).nth(2).click();
     await page.getByRole("option", { name: "Write" }).click();
-    await page
-      .getByRole("combobox", { name: "Max project right" })
-      .nth(2)
-      .click();
+    await page.getByRole("combobox", { name: "Max project right" }).nth(2).click();
     await page.getByRole("option", { name: "Write" }).click();
-    await page
-      .getByRole("combobox", { name: "Max webhook right" })
-      .nth(2)
-      .click();
+    await page.getByRole("combobox", { name: "Max webhook right" }).nth(2).click();
     await page.getByRole("option", { name: "Write" }).click();
 
     await page.getByRole("button", { name: "Update configuration" }).click();
@@ -303,9 +237,7 @@ test.describe("Global settings page should", () => {
     await page2.getByRole("textbox", { name: "Username" }).fill("User1");
     await page2.getByRole("textbox", { name: "Password" }).fill("pwd");
     await page2.getByRole("button", { name: "Login" }).click();
-    await expect(
-      page2.getByRole("button", { name: "Sam Tailor" }),
-    ).toBeVisible();
+    await expect(page2.getByRole("button", { name: "Sam Tailor" })).toBeVisible();
     //await page2.close();
 
     /******************** ACTUAL TEST ************************/
@@ -318,10 +250,7 @@ test.describe("Global settings page should", () => {
       .click();
     await page.getByRole("link", { name: "Edit", exact: true }).click();
 
-    await page
-      .getByRole("combobox", { name: "Default project right" })
-      .nth(1)
-      .click();
+    await page.getByRole("combobox", { name: "Default project right" }).nth(1).click();
     await page.getByRole("option", { name: "Admin" }).click();
     await page.getByRole("button", { name: "Update rights" }).click();
     await expect(
@@ -330,20 +259,11 @@ test.describe("Global settings page should", () => {
       ),
     ).toBeVisible();
 
-    await page
-      .getByRole("combobox", { name: "Default project right" })
-      .nth(1)
-      .click();
+    await page.getByRole("combobox", { name: "Default project right" }).nth(1).click();
     await page.getByRole("option", { name: "Read" }).click();
-    await page
-      .getByRole("combobox", { name: "Default key right" })
-      .nth(1)
-      .click();
+    await page.getByRole("combobox", { name: "Default key right" }).nth(1).click();
     await page.getByRole("option", { name: "Admin" }).click();
-    await page
-      .getByRole("combobox", { name: "Default webhook right" })
-      .nth(1)
-      .click();
+    await page.getByRole("combobox", { name: "Default webhook right" }).nth(1).click();
     await page.getByRole("option", { name: "Admin" }).click();
     await page.getByRole("button", { name: "Update rights" }).click();
 
@@ -353,26 +273,15 @@ test.describe("Global settings page should", () => {
       ),
     ).toBeVisible();
 
-    await page
-      .getByRole("combobox", { name: "Default project right" })
-      .nth(1)
-      .click();
+    await page.getByRole("combobox", { name: "Default project right" }).nth(1).click();
     await page.getByRole("option", { name: "Write" }).click();
-    await page
-      .getByRole("combobox", { name: "Default key right" })
-      .nth(1)
-      .click();
+    await page.getByRole("combobox", { name: "Default key right" }).nth(1).click();
     await page.getByRole("option", { name: "Write" }).click();
-    await page
-      .getByRole("combobox", { name: "Default webhook right" })
-      .nth(1)
-      .click();
+    await page.getByRole("combobox", { name: "Default webhook right" }).nth(1).click();
     await page.getByRole("option", { name: "Write" }).click();
     await page.getByRole("button", { name: "Update rights" }).click();
 
-    await expect(
-      page.getByRole("heading", { name: "User rights" }),
-    ).not.toBeVisible();
+    await expect(page.getByRole("heading", { name: "User rights" })).not.toBeVisible();
 
     // TEST RIGHTS FROM TENANT SETTINGS PAGE
     await page.goto("/tenants/secret/settings");
@@ -389,20 +298,13 @@ test.describe("Global settings page should", () => {
     await page.getByRole("combobox", { name: "Default project right" }).click();
     await page.getByRole("option", { name: "Write" }).click();
     await page.getByRole("button", { name: "Update rights" }).click();
-    await expect(
-      page.getByRole("combobox", { name: "Default project right" }),
-    ).not.toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Default project right" })).not.toBeVisible();
 
     // TEST RIGHTS FROM PROJECT PAGE
-    await page.goto(
-      "http://localhost:3000/tenants/secret/projects/secretproject/settings",
-    );
+    await page.goto("http://localhost:3000/tenants/secret/projects/secretproject/settings");
     await page.getByRole("button", { name: "actions" }).click();
     await page.getByRole("link", { name: "Edit", exact: true }).click();
-    await page
-      .getByRole("cell", { name: "Right level" })
-      .getByRole("combobox")
-      .click();
+    await page.getByRole("cell", { name: "Right level" }).getByRole("combobox").click();
     await page.getByRole("option", { name: "Admin" }).click();
     await page.getByRole("button", { name: "Save" }).click();
 
@@ -410,15 +312,10 @@ test.describe("Global settings page should", () => {
       "User role doesn't allow him to have following rights on tenant secret: Admin right for project secretproject (max allowed is Write)",
     );
 
-    await page
-      .getByRole("cell", { name: "Right level" })
-      .getByRole("combobox")
-      .click();
+    await page.getByRole("cell", { name: "Right level" }).getByRole("combobox").click();
     await page.getByRole("option", { name: "Write" }).click();
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(
-      page.getByRole("heading", { name: "Right level" }),
-    ).not.toBeVisible();
+    await expect(page.getByRole("heading", { name: "Right level" })).not.toBeVisible();
     await expect(
       page
         .getByRole("rowheader", { name: "Sam Tailor" })
@@ -428,10 +325,7 @@ test.describe("Global settings page should", () => {
 
     await page.getByRole("link", { name: "Global settings" }).click();
     await page.getByRole("button", { name: "Rights configuration" }).click();
-    await page
-      .getByRole("combobox", { name: "Max project right" })
-      .last()
-      .click();
+    await page.getByRole("combobox", { name: "Max project right" }).last().click();
     await page.getByRole("option", { name: "Read" }).click();
     await page.getByRole("button", { name: "Update configuration" }).click();
     await page.getByRole("button", { name: "Confirm" }).click();
@@ -439,9 +333,7 @@ test.describe("Global settings page should", () => {
     await page2.reload();
     await expect(page2).toHaveURL("/login");
 
-    await page.goto(
-      "http://localhost:3000/tenants/secret/projects/secretproject/settings",
-    );
+    await page.goto("http://localhost:3000/tenants/secret/projects/secretproject/settings");
     await expect(
       page
         .getByRole("rowheader", { name: "Sam Tailor" })
@@ -459,9 +351,7 @@ test.describe("Global settings page should", () => {
       `);
 
     await page2.getByRole("button", { name: "Close" }).click();
-    await expect(page2).toHaveURL(
-      new RegExp("^http://localhost:3000/tenants/"),
-    );
+    await expect(page2).toHaveURL(new RegExp("^http://localhost:3000/tenants/"));
 
     await page.reload();
     await expect(

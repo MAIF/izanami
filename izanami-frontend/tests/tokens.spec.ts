@@ -1,10 +1,5 @@
 import { test, expect } from "./izanami-test";
-import {
-  testBuilder,
-  testTenant,
-  testProject,
-  testFeature,
-} from "./testBuilder";
+import { testBuilder, testTenant, testProject, testFeature } from "./testBuilder";
 import { backendUrl, clickAction } from "./utils";
 
 test.use({
@@ -36,9 +31,7 @@ test.describe("Personnal access token", () => {
     await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testProject("tokenProject")
-            .withFeature(testFeature("f1"))
-            .withFeature(testFeature("f2")),
+          testProject("tokenProject").withFeature(testFeature("f1")).withFeature(testFeature("f2")),
         ),
       )
       .build(page);
@@ -52,9 +45,7 @@ test.describe("Personnal access token", () => {
     await page.getByLabel("All rights").check();
     await page.getByRole("button", { name: "Save" }).click();
 
-    const token = await page
-      .getByRole("textbox", { name: "secret" })
-      .inputValue();
+    const token = await page.getByRole("textbox", { name: "secret" }).inputValue();
 
     await page.getByLabel("Cancel").click();
     await page.getByLabel("Cancel").click();
@@ -67,9 +58,7 @@ test.describe("Personnal access token", () => {
     expect(body).toContain(`"name":"f2"`);
     expect(body).toContain(`"name":"tokenProject"`);
 
-    await expect(
-      page.getByRole("rowheader", { name: "test-token" }),
-    ).toBeVisible();
+    await expect(page.getByRole("rowheader", { name: "test-token" })).toBeVisible();
 
     await clickAction(page, "Edit");
     await page.getByLabel("Name*").fill("test-token-no-rights");
@@ -80,9 +69,7 @@ test.describe("Personnal access token", () => {
     await page.getByRole("option", { name: "IMPORT" }).click();
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(
-      page.getByRole("rowheader", { name: "test-token-no-rights" }),
-    ).toBeVisible();
+    await expect(page.getByRole("rowheader", { name: "test-token-no-rights" })).toBeVisible();
 
     fetchRes = await exportRequest();
     expect(fetchRes.status).toEqual(403);
@@ -97,9 +84,7 @@ test.describe("Personnal access token", () => {
     await page.getByRole("option", { name: "EXPORT" }).click();
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(
-      page.getByRole("rowheader", { name: "test-token-with-rights" }),
-    ).toBeVisible();
+    await expect(page.getByRole("rowheader", { name: "test-token-with-rights" })).toBeVisible();
 
     fetchRes = await exportRequest();
     expect(fetchRes.status).toEqual(200);
@@ -111,9 +96,7 @@ test.describe("Personnal access token", () => {
     await page.getByLabel("date-range-to").fill("1999-01-01T08:00");
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(
-      page.getByRole("rowheader", { name: "test-token2" }),
-    ).toBeVisible();
+    await expect(page.getByRole("rowheader", { name: "test-token2" })).toBeVisible();
     await expect(page.getByRole("cell", { name: "01/01/1999" })).toBeVisible();
 
     fetchRes = await exportRequest();
@@ -134,9 +117,7 @@ test.describe("Personnal access token", () => {
 
     await clickAction(page, "Delete");
     await page.getByLabel("Confirm").click();
-    await expect(
-      page.getByRole("rowheader", { name: "test-token2" }),
-    ).toBeHidden();
+    await expect(page.getByRole("rowheader", { name: "test-token2" })).toBeHidden();
 
     fetchRes = await exportRequest();
     expect(fetchRes.status).toEqual(401);

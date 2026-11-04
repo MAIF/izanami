@@ -42,9 +42,7 @@ export async function generate() {
     .locator("..");
   await secondConditionLocator.click();
   await secondConditionLocator.getByLabel("Active only on specific").check();
-  await secondConditionLocator
-    .getByRole("combobox", { name: "Strategy to use" })
-    .click();
+  await secondConditionLocator.getByRole("combobox", { name: "Strategy to use" }).click();
   await secondConditionLocator.getByText("User list").click();
   await secondConditionLocator
     .getByRole("combobox", { name: "Users that should activate feature" })
@@ -52,21 +50,13 @@ export async function generate() {
   await secondConditionLocator
     .getByRole("combobox", { name: "Users that should activate feature" })
     .fill("beta-tester1");
-  await secondConditionLocator
-    .getByText('Create "beta-tester1"', { exact: true })
-    .click();
+  await secondConditionLocator.getByText('Create "beta-tester1"', { exact: true }).click();
   await secondConditionLocator
     .getByRole("combobox", { name: "Users that should activate feature" })
     .fill("beta-tester2");
-  await secondConditionLocator
-    .getByText('Create "beta-tester2"', { exact: true })
-    .click();
-  await secondConditionLocator
-    .getByLabel("date-range-from")
-    .fill("2024-05-15T08:00");
-  await secondConditionLocator
-    .getByLabel("date-range-to")
-    .fill("2024-06-24T23:59");
+  await secondConditionLocator.getByText('Create "beta-tester2"', { exact: true }).click();
+  await secondConditionLocator.getByLabel("date-range-from").fill("2024-05-15T08:00");
+  await secondConditionLocator.getByLabel("date-range-to").fill("2024-06-24T23:59");
   await screenshot("second-condition-form");
   await page.getByRole("button", { name: "Save" }).click();
   await screenshot("summer-sale-summary2");

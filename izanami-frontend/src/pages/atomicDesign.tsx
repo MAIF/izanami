@@ -1,9 +1,7 @@
 export function AtomicDesign() {
   return (
     <>
-      <p style={{ color: "var(--color-primary)" }}>
-        Colors & bg-colors levels for Dark/White Mode
-      </p>
+      <p style={{ color: "var(--color-primary)" }}>Colors & bg-colors levels for Dark/White Mode</p>
       <div
         style={{
           width: 400,

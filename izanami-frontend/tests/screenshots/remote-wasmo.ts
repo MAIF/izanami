@@ -1,10 +1,5 @@
 import { openActions, screenshotBuilder, setup } from "./utils";
-import {
-  testBuilder,
-  testTenant,
-  testProject,
-  testGlobalContext,
-} from "../testBuilder";
+import { testBuilder, testTenant, testProject, testGlobalContext } from "../testBuilder";
 
 export async function generate() {
   const { page, browser } = await setup(true);
@@ -15,15 +10,9 @@ export async function generate() {
     .withTenant(
       testTenant("bookstore")
         .withProject(testProject("website"))
-        .withContext(
-          testGlobalContext("prod").withSubContext(testGlobalContext("mobile"))
-        )
-        .withContext(
-          testGlobalContext("dev").withLocalSubContext(
-            testGlobalContext("mobile")
-          )
-        )
-        .withContext(testGlobalContext("mobile"))
+        .withContext(testGlobalContext("prod").withSubContext(testGlobalContext("mobile")))
+        .withContext(testGlobalContext("dev").withLocalSubContext(testGlobalContext("mobile")))
+        .withContext(testGlobalContext("mobile")),
     )
     .build(page);
   await page.goto("http://localhost:5001/");
@@ -36,14 +25,9 @@ export async function generate() {
   await screenshot("plugin-name-selection");
   await page.getByRole("textbox").press("Enter");
   await page.getByRole("button", { name: "index.js" }).click();
+  await page.locator(".d-flex > div:nth-child(2) > div > div:nth-child(2)").first().click();
   await page
-    .locator(".d-flex > div:nth-child(2) > div > div:nth-child(2)")
-    .first()
-    .click();
-  await page
-    .getByText(
-      "export function execute() { Host.outputString(JSON.stringify({ active: true"
-    )
+    .getByText("export function execute() { Host.outputString(JSON.stringify({ active: true")
     .press("Meta+a");
 
   await page.keyboard.press("Backspace");
@@ -59,9 +43,7 @@ export async function generate() {
   await page.locator('button[tooltip="Save plugin"]').click();
   await page.locator('button[tooltip="Build"]').click();
   await page.waitForTimeout(2000);
-  await page
-    .getByText("[RELEASE] You can now use the")
-    .click({ timeout: 120000 });
+  await page.getByText("[RELEASE] You can now use the").click({ timeout: 120000 });
   await screenshot("plugin-builded");
   await page.goto("http://localhost:3000/tenants/bookstore/projects/website/");
 
@@ -88,18 +70,14 @@ export async function generate() {
   await page.waitForTimeout(200);
   await screenshot("mobile-active");
 
-  await page
-    .getByRole("combobox", { name: "Context mobile", exact: true })
-    .click();
+  await page.getByRole("combobox", { name: "Context mobile", exact: true }).click();
   await page.getByText("prod/mobile", { exact: true }).click();
   await page.getByRole("button", { name: "Test feature", exact: true }).click();
   await page.getByText('"active": true').click();
   await page.waitForTimeout(200);
   await screenshot("prod-mobile-active");
 
-  await page
-    .getByRole("combobox", { name: "Context prod/mobile", exact: true })
-    .click();
+  await page.getByRole("combobox", { name: "Context prod/mobile", exact: true }).click();
   await page.getByText("prod", { exact: true }).click();
   await page.getByRole("button", { name: "Test feature", exact: true }).click();
   await page.getByText('"active": false').click();

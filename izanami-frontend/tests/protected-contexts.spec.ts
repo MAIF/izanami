@@ -18,21 +18,16 @@ test.use({
 });
 
 test.describe("protected overload", async () => {
-  test("1-should ask textual confirmation before deletion", async ({
-    page,
-    tenantName,
-  }) => {
+  test("1-should ask textual confirmation before deletion", async ({ page, tenantName }) => {
     await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
           testProject("project")
             .withFeature(
-              testFeature("f1")
-                .withDisableStatus()
-                .withOverload(testOverload("/prod", true))
+              testFeature("f1").withDisableStatus().withOverload(testOverload("/prod", true)),
             )
-            .withContext(testGlobalContext("prod").withProtectedStatus(true))
-        )
+            .withContext(testGlobalContext("prod").withProtectedStatus(true)),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -49,21 +44,16 @@ test.describe("protected overload", async () => {
     await page.getByRole("cell", { name: "No items yet", exact: true }).click();
   });
 
-  test("2-should ask textual confirmation before update", async ({
-    page,
-    tenantName,
-  }) => {
+  test("2-should ask textual confirmation before update", async ({ page, tenantName }) => {
     await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
           testProject("project")
             .withFeature(
-              testFeature("f1")
-                .withDisableStatus()
-                .withOverload(testOverload("/prod", true))
+              testFeature("f1").withDisableStatus().withOverload(testOverload("/prod", true)),
             )
-            .withContext(testGlobalContext("prod").withProtectedStatus(true))
-        )
+            .withContext(testGlobalContext("prod").withProtectedStatus(true)),
+        ),
       )
 
       .build(page);
@@ -86,9 +76,7 @@ test.describe("protected overload", async () => {
     await page.getByRole("textbox", { name: "Confirmation" }).click();
     await page.getByRole("textbox", { name: "Confirmation" }).fill("f1");
     await page.getByRole("button", { name: "Confirm" }).click();
-    await expect(
-      page.getByRole("link", { name: "prod protected" })
-    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "prod protected" })).toBeVisible();
   });
 
   test("3-should prevent feature to be deleted if user is not admin", async ({
@@ -100,21 +88,16 @@ test.describe("protected overload", async () => {
         testTenant(tenantName).withProject(
           testProject("project")
             .withFeature(
-              testFeature("f1")
-                .withDisableStatus()
-                .withOverload(testOverload("/prod", true))
+              testFeature("f1").withDisableStatus().withOverload(testOverload("/prod", true)),
             )
-            .withContext(testGlobalContext("prod").withProtectedStatus(true))
-        )
+            .withContext(testGlobalContext("prod").withProtectedStatus(true)),
+        ),
       )
       .withUser(
         testUser("testu113").withTenantRight(
           tenantName,
-          testTenantRight(TLevel.Write).withProjectRight(
-            "project",
-            TLevel.Write
-          )
-        )
+          testTenantRight(TLevel.Write).withProjectRight("project", TLevel.Write),
+        ),
       )
       .build(page);
 
@@ -125,8 +108,8 @@ test.describe("protected overload", async () => {
     await clickAction(page, "Delete");
     await expect(
       page.getByText(
-        "You don't have admin rights on this project, therefore you can't delete this feature."
-      )
+        "You don't have admin rights on this project, therefore you can't delete this feature.",
+      ),
     ).toBeVisible();
     await page.getByRole("button", { name: "Close" }).click();
   });
@@ -141,17 +124,13 @@ test.describe("protected global context overload creation", () => {
       .withTenant(
         testTenant(tenantName)
           .withContext(testGlobalContext("prod").withProtectedStatus(true))
-          .withProject(
-            testProject("project").withFeature(
-              testFeature("f1").withDisableStatus()
-            )
-          )
+          .withProject(testProject("project").withFeature(testFeature("f1").withDisableStatus())),
       )
       .withUser(
         testUser("protectedGlobalProjectAdmin").withTenantRight(
           tenantName,
-          testTenantRight(TLevel.Read).withProjectRight("project", TLevel.Admin)
-        )
+          testTenantRight(TLevel.Read).withProjectRight("project", TLevel.Admin),
+        ),
       )
       .loggedAs("protectedGlobalProjectAdmin")
       .build(page);
@@ -170,13 +149,13 @@ test.describe("protected global context overload creation", () => {
       .getByRole("rowheader", { name: "prod protected", exact: true })
       .locator("..");
     await expect(
-      overloadRow.getByRole("checkbox", { name: "Disable f1", exact: true })
+      overloadRow.getByRole("checkbox", { name: "Disable f1", exact: true }),
     ).toBeChecked();
 
     await page.reload();
     await clickAction(page, "Overloads");
     await expect(
-      overloadRow.getByRole("checkbox", { name: "Disable f1", exact: true })
+      overloadRow.getByRole("checkbox", { name: "Disable f1", exact: true }),
     ).toBeChecked();
   });
 
@@ -186,27 +165,20 @@ test.describe("protected global context overload creation", () => {
         ? "disables protected global context for admin of another project"
         : "disables protected global context for project writer",
       async ({ page, tenantName }) => {
-        const rights = testTenantRight(TLevel.Read).withProjectRight(
-          "project",
-          TLevel.Write
-        );
+        const rights = testTenantRight(TLevel.Read).withProjectRight("project", TLevel.Write);
         if (otherProjectAdmin) {
           rights.withProjectRight("otherProject", TLevel.Admin);
         }
 
-        const username = otherProjectAdmin
-          ? "protectedGlobalOtherAdmin"
-          : "protectedGlobalWriter";
+        const username = otherProjectAdmin ? "protectedGlobalOtherAdmin" : "protectedGlobalWriter";
         await testBuilder()
           .withTenant(
             testTenant(tenantName)
               .withContext(testGlobalContext("prod").withProtectedStatus(true))
               .withProject(
-                testProject("project").withFeature(
-                  testFeature("f1").withDisableStatus()
-                )
+                testProject("project").withFeature(testFeature("f1").withDisableStatus()),
               )
-              .withProject(testProject("otherProject"))
+              .withProject(testProject("otherProject")),
           )
           .withUser(testUser(username).withTenantRight(tenantName, rights))
           .loggedAs(username)
@@ -216,10 +188,11 @@ test.describe("protected global context overload creation", () => {
         await clickAction(page, "Overloads");
         await page.getByRole("button", { name: "Create new overload" }).click();
         await page.getByText("ContextSelect...").click();
-        await expect(
-          page.getByRole("option", { name: "prod protected" })
-        ).toHaveAttribute("aria-disabled", "true");
-      }
+        await expect(page.getByRole("option", { name: "prod protected" })).toHaveAttribute(
+          "aria-disabled",
+          "true",
+        );
+      },
     );
   }
 });
@@ -236,23 +209,20 @@ test.describe("non protected overload update", async () => {
             .withFeature(
               testFeature("f1")
                 .withDisableStatus()
-                .withOverload(testOverload("/unprotected", true))
+                .withOverload(testOverload("/unprotected", true)),
             )
             .withContext(
               testLocalContext("unprotected").withSubContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-            )
-        )
+                testLocalContext("protected").withProtectedStatus(true),
+              ),
+            ),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
 
     await page.getByRole("button", { name: "Overload" }).click();
-    await page
-      .getByRole("cell", { name: "Feature overloads" })
-      .getByLabel("actions")
-      .click();
+    await page.getByRole("cell", { name: "Feature overloads" }).getByLabel("actions").click();
 
     await page.getByRole("link", { name: "Edit" }).click();
     await page.getByRole("checkbox", { name: "Enabled" }).uncheck();
@@ -266,16 +236,12 @@ test.describe("non protected overload update", async () => {
       - textbox "Type feature name below to confirm."
       `);
 
-    await page
-      .getByRole("checkbox", { name: "Duplicate old strategy for" })
-      .check();
+    await page.getByRole("checkbox", { name: "Duplicate old strategy for" }).check();
     await page.getByRole("button", { name: "Confirm" }).click();
     const row = page
       .getByRole("row", { name: "unprotected/protected" })
       .filter({ hasNotText: "Feature overloads" });
-    await expect(
-      row.getByRole("rowheader", { name: "unprotected/protected" })
-    ).toBeVisible();
+    await expect(row.getByRole("rowheader", { name: "unprotected/protected" })).toBeVisible();
     await expect(row.getByRole("cell", { name: "Enabled" })).toBeVisible();
   });
 
@@ -290,14 +256,14 @@ test.describe("non protected overload update", async () => {
             .withFeature(
               testFeature("f1")
                 .withDisableStatus()
-                .withOverload(testOverload("/unprotected", true))
+                .withOverload(testOverload("/unprotected", true)),
             )
             .withContext(
               testLocalContext("unprotected").withSubContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-            )
-        )
+                testLocalContext("protected").withProtectedStatus(true),
+              ),
+            ),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -313,16 +279,12 @@ test.describe("non protected overload update", async () => {
       - textbox "Type feature name below to confirm."
       `);
 
-    await page
-      .getByRole("checkbox", { name: "Duplicate old strategy for" })
-      .check();
+    await page.getByRole("checkbox", { name: "Duplicate old strategy for" }).check();
     await page.getByRole("button", { name: "Confirm" }).click();
     const row = page
       .getByRole("row", { name: "unprotected/protected" })
       .filter({ hasNotText: "Feature overloads" });
-    await expect(
-      row.getByRole("rowheader", { name: "unprotected/protected" })
-    ).toBeVisible();
+    await expect(row.getByRole("rowheader", { name: "unprotected/protected" })).toBeVisible();
     await expect(row.getByRole("cell", { name: "Enabled" })).toBeVisible();
   });
 
@@ -337,23 +299,20 @@ test.describe("non protected overload update", async () => {
             .withFeature(
               testFeature("f1")
                 .withDisableStatus()
-                .withOverload(testOverload("/unprotected", true))
+                .withOverload(testOverload("/unprotected", true)),
             )
             .withContext(
               testLocalContext("unprotected").withSubContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-            )
-        )
+                testLocalContext("protected").withProtectedStatus(true),
+              ),
+            ),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
 
     await page.getByRole("button", { name: "Overload" }).click();
-    await page
-      .getByRole("cell", { name: "Feature overloads" })
-      .getByLabel("actions")
-      .click();
+    await page.getByRole("cell", { name: "Feature overloads" }).getByLabel("actions").click();
 
     await page.getByRole("link", { name: "Edit" }).click();
     await page.getByRole("checkbox", { name: "Enabled" }).uncheck();
@@ -367,20 +326,14 @@ test.describe("non protected overload update", async () => {
       - textbox "Type feature name below to confirm."
       `);
 
-    await page
-      .getByRole("textbox", { name: "Type feature name below to" })
-      .click();
-    await page
-      .getByRole("textbox", { name: "Type feature name below to" })
-      .fill("f1");
+    await page.getByRole("textbox", { name: "Type feature name below to" }).click();
+    await page.getByRole("textbox", { name: "Type feature name below to" }).fill("f1");
     await page.getByRole("button", { name: "Confirm" }).click();
 
     const row = page
       .getByRole("row", { name: "unprotected" })
       .filter({ hasNotText: "Feature overloads" });
-    await expect(
-      row.getByRole("rowheader", { name: "protected" })
-    ).toBeVisible();
+    await expect(row.getByRole("rowheader", { name: "protected" })).toBeVisible();
     await expect(row.getByRole("cell", { name: "Disabled" })).toBeVisible();
   });
 
@@ -395,14 +348,14 @@ test.describe("non protected overload update", async () => {
             .withFeature(
               testFeature("f1")
                 .withDisableStatus()
-                .withOverload(testOverload("/unprotected", true))
+                .withOverload(testOverload("/unprotected", true)),
             )
             .withContext(
               testLocalContext("unprotected").withSubContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-            )
-        )
+                testLocalContext("protected").withProtectedStatus(true),
+              ),
+            ),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -419,20 +372,14 @@ test.describe("non protected overload update", async () => {
       - textbox "Type feature name below to confirm."
       `);
 
-    await page
-      .getByRole("textbox", { name: "Type feature name below to" })
-      .click();
-    await page
-      .getByRole("textbox", { name: "Type feature name below to" })
-      .fill("f1");
+    await page.getByRole("textbox", { name: "Type feature name below to" }).click();
+    await page.getByRole("textbox", { name: "Type feature name below to" }).fill("f1");
     await page.getByRole("button", { name: "Confirm" }).click();
 
     const row = page
       .getByRole("row", { name: "unprotected" })
       .filter({ hasNotText: "Feature overloads" });
-    await expect(
-      row.getByRole("rowheader", { name: "protected" })
-    ).toBeVisible();
+    await expect(row.getByRole("rowheader", { name: "protected" })).toBeVisible();
     await expect(row.getByRole("cell", { name: "Disabled" })).toBeVisible();
   });
 
@@ -447,23 +394,20 @@ test.describe("non protected overload update", async () => {
             .withFeature(
               testFeature("f1")
                 .withDisableStatus()
-                .withOverload(testOverload("/unprotected", true))
+                .withOverload(testOverload("/unprotected", true)),
             )
             .withContext(
               testLocalContext("unprotected").withSubContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-            )
-        )
+                testLocalContext("protected").withProtectedStatus(true),
+              ),
+            ),
+        ),
       )
       .withUser(
         testUser("testu8").withTenantRight(
           tenantName,
-          testTenantRight(TLevel.Write).withProjectRight(
-            "project",
-            TLevel.Write
-          )
-        )
+          testTenantRight(TLevel.Write).withProjectRight("project", TLevel.Write),
+        ),
       )
       .build(page);
 
@@ -472,26 +416,21 @@ test.describe("non protected overload update", async () => {
     await page.goto(`/tenants/${tenantName}/projects/project`);
 
     await page.getByRole("button", { name: "Overload" }).click();
-    await page
-      .getByRole("cell", { name: "Feature overloads" })
-      .getByLabel("actions")
-      .click();
+    await page.getByRole("cell", { name: "Feature overloads" }).getByLabel("actions").click();
 
     await page.getByRole("link", { name: "Edit" }).click();
     await page.getByRole("checkbox", { name: "Enabled" }).uncheck();
     await page.getByRole("button", { name: "Save" }).click();
 
     await expect(
-      page.getByText("You don't have enough rights to update these contexts")
+      page.getByText("You don't have enough rights to update these contexts"),
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Confirm" }).click();
     const row = page
       .getByRole("row", { name: "unprotected/protected" })
       .filter({ hasNotText: "Feature overloads" });
-    await expect(
-      row.getByRole("rowheader", { name: "unprotected/protected" })
-    ).toBeVisible();
+    await expect(row.getByRole("rowheader", { name: "unprotected/protected" })).toBeVisible();
     await expect(row.getByRole("cell", { name: "Enabled" })).toBeVisible();
   });
 
@@ -506,23 +445,20 @@ test.describe("non protected overload update", async () => {
             .withFeature(
               testFeature("f1")
                 .withDisableStatus()
-                .withOverload(testOverload("/unprotected", true))
+                .withOverload(testOverload("/unprotected", true)),
             )
             .withContext(
               testLocalContext("unprotected").withSubContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-            )
-        )
+                testLocalContext("protected").withProtectedStatus(true),
+              ),
+            ),
+        ),
       )
       .withUser(
         testUser("testu9").withTenantRight(
           tenantName,
-          testTenantRight(TLevel.Write).withProjectRight(
-            "project",
-            TLevel.Write
-          )
-        )
+          testTenantRight(TLevel.Write).withProjectRight("project", TLevel.Write),
+        ),
       )
       .build(page);
 
@@ -544,48 +480,38 @@ test.describe("non protected overload update", async () => {
     const row = page
       .getByRole("row", { name: "unprotected/protected" })
       .filter({ hasNotText: "Feature overloads" });
-    await expect(
-      row.getByRole("rowheader", { name: "unprotected/protected" })
-    ).toBeVisible();
+    await expect(row.getByRole("rowheader", { name: "unprotected/protected" })).toBeVisible();
     await expect(row.getByRole("cell", { name: "Enabled" })).toBeVisible();
   });
 });
 
-test.describe(
-  "non protected overload delete with protected context child should",
-  async () => {
-    test("1-allow to not protect old strategy if user is admin", async ({
-      page,
-      tenantName,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(
-                testFeature("f1")
-                  .withDisableStatus()
-                  .withOverload(testOverload("/unprotected", true))
-              )
-              .withContext(
-                testLocalContext("unprotected").withSubContext(
-                  testLocalContext("protected").withProtectedStatus(true)
-                )
-              )
-          )
-        )
-        .build(page);
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+test.describe("non protected overload delete with protected context child should", async () => {
+  test("1-allow to not protect old strategy if user is admin", async ({ page, tenantName }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(
+              testFeature("f1")
+                .withDisableStatus()
+                .withOverload(testOverload("/unprotected", true)),
+            )
+            .withContext(
+              testLocalContext("unprotected").withSubContext(
+                testLocalContext("protected").withProtectedStatus(true),
+              ),
+            ),
+        ),
+      )
+      .build(page);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await page.getByRole("button", { name: "Overload" }).click();
-      await page
-        .getByRole("cell", { name: "Feature overloads" })
-        .getByLabel("actions")
-        .click();
+    await page.getByRole("button", { name: "Overload" }).click();
+    await page.getByRole("cell", { name: "Feature overloads" }).getByLabel("actions").click();
 
-      await page.getByRole("link", { name: "Delete", exact: true }).click();
+    await page.getByRole("link", { name: "Delete", exact: true }).click();
 
-      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
       - list:
         - listitem: unprotected/protected
       - checkbox "Duplicate old strategy for these contexts"
@@ -593,47 +519,37 @@ test.describe(
       - textbox "Type feature name below to confirm."
       `);
 
-      await page
-        .getByRole("textbox", { name: "Type feature name below to" })
-        .fill("f1");
-      await page.getByRole("button", { name: "Confirm" }).click();
-      await page
-        .getByRole("cell", { name: "No items yet", exact: true })
-        .click();
-    });
+    await page.getByRole("textbox", { name: "Type feature name below to" }).fill("f1");
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await page.getByRole("cell", { name: "No items yet", exact: true }).click();
+  });
 
-    test("2-allow to protect old strategy if user is admin", async ({
-      page,
-      tenantName,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(
-                testFeature("f1")
-                  .withDisableStatus()
-                  .withOverload(testOverload("/unprotected", true))
-              )
-              .withContext(
-                testLocalContext("unprotected").withSubContext(
-                  testLocalContext("protected").withProtectedStatus(true)
-                )
-              )
-          )
-        )
-        .build(page);
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+  test("2-allow to protect old strategy if user is admin", async ({ page, tenantName }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(
+              testFeature("f1")
+                .withDisableStatus()
+                .withOverload(testOverload("/unprotected", true)),
+            )
+            .withContext(
+              testLocalContext("unprotected").withSubContext(
+                testLocalContext("protected").withProtectedStatus(true),
+              ),
+            ),
+        ),
+      )
+      .build(page);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await page.getByRole("button", { name: "Overload" }).click();
-      await page
-        .getByRole("cell", { name: "Feature overloads" })
-        .getByLabel("actions")
-        .click();
+    await page.getByRole("button", { name: "Overload" }).click();
+    await page.getByRole("cell", { name: "Feature overloads" }).getByLabel("actions").click();
 
-      await page.getByRole("link", { name: "Delete", exact: true }).click();
+    await page.getByRole("link", { name: "Delete", exact: true }).click();
 
-      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
       - list:
         - listitem: unprotected/protected
       - checkbox "Duplicate old strategy for these contexts"
@@ -641,180 +557,149 @@ test.describe(
       - textbox "Type feature name below to confirm."
       `);
 
-      await page
-        .getByRole("checkbox", { name: "Duplicate old strategy for" })
-        .check();
-      await page.getByRole("button", { name: "Confirm" }).click();
-      await expect(
-        page.getByRole("rowheader", { name: "unprotected/protected" })
-      ).toBeVisible();
-    });
+    await page.getByRole("checkbox", { name: "Duplicate old strategy for" }).check();
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await expect(page.getByRole("rowheader", { name: "unprotected/protected" })).toBeVisible();
+  });
 
-    test("3-force to keep old strategy in protected context if user is not admin", async ({
-      page,
-      tenantName,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(
-                testFeature("f1")
-                  .withDisableStatus()
-                  .withOverload(testOverload("/unprotected", true))
-              )
-              .withContext(
-                testLocalContext("unprotected").withSubContext(
-                  testLocalContext("protected").withProtectedStatus(true)
-                )
-              )
-          )
-        )
-        .withUser(
-          testUser("testu12").withTenantRight(
-            tenantName,
-            testTenantRight(TLevel.Write).withProjectRight(
-              "project",
-              TLevel.Write
+  test("3-force to keep old strategy in protected context if user is not admin", async ({
+    page,
+    tenantName,
+  }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(
+              testFeature("f1")
+                .withDisableStatus()
+                .withOverload(testOverload("/unprotected", true)),
             )
-          )
-        )
-        .build(page);
-      await logAs(page, "testu12");
+            .withContext(
+              testLocalContext("unprotected").withSubContext(
+                testLocalContext("protected").withProtectedStatus(true),
+              ),
+            ),
+        ),
+      )
+      .withUser(
+        testUser("testu12").withTenantRight(
+          tenantName,
+          testTenantRight(TLevel.Write).withProjectRight("project", TLevel.Write),
+        ),
+      )
+      .build(page);
+    await logAs(page, "testu12");
 
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await page.getByRole("button", { name: "Overload" }).click();
-      await page
-        .getByRole("cell", { name: "Feature overloads" })
-        .getByLabel("actions")
-        .click();
+    await page.getByRole("button", { name: "Overload" }).click();
+    await page.getByRole("cell", { name: "Feature overloads" }).getByLabel("actions").click();
 
-      await page.getByRole("link", { name: "Delete", exact: true }).click();
+    await page.getByRole("link", { name: "Delete", exact: true }).click();
 
-      await expect(
-        page.getByText("You don't have enough rights to update these contexts")
-      ).toBeVisible();
+    await expect(
+      page.getByText("You don't have enough rights to update these contexts"),
+    ).toBeVisible();
 
-      await page.getByRole("button", { name: "Confirm" }).click();
-      await expect(
-        page.getByRole("rowheader", { name: "unprotected/protected" })
-      ).toBeVisible();
-    });
-  }
-);
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await expect(page.getByRole("rowheader", { name: "unprotected/protected" })).toBeVisible();
+  });
+});
 
-test.describe(
-  "feature with protected context without overload should",
-  async () => {
-    test("1-be possible to update for non admin user wile forcing startegy preservation", async ({
-      tenantName,
-      page,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(testFeature("f1").withDisableStatus())
-              .withContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-          )
-        )
-        .withUser(
-          testUser("testu13").withTenantRight(
-            tenantName,
-            testTenantRight(TLevel.Write).withProjectRight(
-              "project",
-              TLevel.Write
-            )
-          )
-        )
-        .loggedAs("testu13")
-        .build(page);
+test.describe("feature with protected context without overload should", async () => {
+  test("1-be possible to update for non admin user wile forcing startegy preservation", async ({
+    tenantName,
+    page,
+  }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(testFeature("f1").withDisableStatus())
+            .withContext(testLocalContext("protected").withProtectedStatus(true)),
+        ),
+      )
+      .withUser(
+        testUser("testu13").withTenantRight(
+          tenantName,
+          testTenantRight(TLevel.Write).withProjectRight("project", TLevel.Write),
+        ),
+      )
+      .loggedAs("testu13")
+      .build(page);
 
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await clickAction(page, "Edit");
-      await page.getByRole("checkbox", { name: "Enabled" }).check();
-      await page.getByRole("button", { name: "Save" }).click();
-      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
+    await clickAction(page, "Edit");
+    await page.getByRole("checkbox", { name: "Enabled" }).check();
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - text: "You don't have enough rights to update these contexts, therefore old strategy will be applied to below contexts:"
         - list:
           - listitem: protected
         `);
-      await page.getByRole("button", { name: "Confirm" }).click();
-      await page.getByRole("button", { name: "Overload" }).click();
-      await expect(
-        page.getByRole("rowheader", { name: "protected" })
-      ).toBeVisible();
-    });
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await page.getByRole("button", { name: "Overload" }).click();
+    await expect(page.getByRole("rowheader", { name: "protected" })).toBeVisible();
+  });
 
-    test("2-be possible to update for non admin user wile forcing startegy preservation (toggle button)", async ({
-      tenantName,
-      page,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(testFeature("f1").withDisableStatus())
-              .withContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-          )
-        )
-        .withUser(
-          testUser("testu14").withTenantRight(
-            tenantName,
-            testTenantRight(TLevel.Write).withProjectRight(
-              "project",
-              TLevel.Write
-            )
-          )
-        )
-        .loggedAs("testu14")
-        .build(page);
+  test("2-be possible to update for non admin user wile forcing startegy preservation (toggle button)", async ({
+    tenantName,
+    page,
+  }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(testFeature("f1").withDisableStatus())
+            .withContext(testLocalContext("protected").withProtectedStatus(true)),
+        ),
+      )
+      .withUser(
+        testUser("testu14").withTenantRight(
+          tenantName,
+          testTenantRight(TLevel.Write).withProjectRight("project", TLevel.Write),
+        ),
+      )
+      .loggedAs("testu14")
+      .build(page);
 
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await page.getByRole("checkbox", { name: "Enable f1" }).click();
+    await page.getByRole("checkbox", { name: "Enable f1" }).click();
 
-      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - text: "You don't have enough rights to update these contexts, therefore old strategy will be applied to below contexts:"
         - list:
           - listitem: protected
         `);
-      await page.getByRole("button", { name: "Confirm" }).click();
-      await page.getByRole("button", { name: "Overload" }).click();
-      await expect(
-        page.getByRole("rowheader", { name: "protected" })
-      ).toBeVisible();
-    });
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await page.getByRole("button", { name: "Overload" }).click();
+    await expect(page.getByRole("rowheader", { name: "protected" })).toBeVisible();
+  });
 
-    test("3-be possible to update while preserving strategy for admin user", async ({
-      tenantName,
-      page,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(testFeature("f1").withDisableStatus())
-              .withContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-          )
-        )
-        .build(page);
+  test("3-be possible to update while preserving strategy for admin user", async ({
+    tenantName,
+    page,
+  }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(testFeature("f1").withDisableStatus())
+            .withContext(testLocalContext("protected").withProtectedStatus(true)),
+        ),
+      )
+      .build(page);
 
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await clickAction(page, "Edit");
-      await page.getByRole("checkbox", { name: "Enabled" }).check();
-      await page.getByRole("button", { name: "Save" }).click();
+    await clickAction(page, "Edit");
+    await page.getByRole("checkbox", { name: "Enabled" }).check();
+    await page.getByRole("button", { name: "Save" }).click();
 
-      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - list:
           - listitem: protected
         - text: These contexts strategies can be left unchanged by duplicating old strategy in them.
@@ -823,37 +708,31 @@ test.describe(
         - textbox "Type feature name below to confirm."
         `);
 
-      await page
-        .getByRole("checkbox", { name: "Duplicate old strategy for" })
-        .check();
-      await page.getByRole("button", { name: "Confirm" }).click();
-      await page.getByRole("button", { name: "Overload" }).click();
-      await expect(
-        page.getByRole("rowheader", { name: "protected" })
-      ).toBeVisible();
-    });
+    await page.getByRole("checkbox", { name: "Duplicate old strategy for" }).check();
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await page.getByRole("button", { name: "Overload" }).click();
+    await expect(page.getByRole("rowheader", { name: "protected" })).toBeVisible();
+  });
 
-    test("4-be possible to update while preserving strategy for admin user (toggle button)", async ({
-      tenantName,
-      page,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(testFeature("f1").withDisableStatus())
-              .withContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-          )
-        )
-        .build(page);
+  test("4-be possible to update while preserving strategy for admin user (toggle button)", async ({
+    tenantName,
+    page,
+  }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(testFeature("f1").withDisableStatus())
+            .withContext(testLocalContext("protected").withProtectedStatus(true)),
+        ),
+      )
+      .build(page);
 
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await page.getByRole("checkbox", { name: "Enable f1" }).click();
+    await page.getByRole("checkbox", { name: "Enable f1" }).click();
 
-      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - list:
           - listitem: protected
         - text: These contexts strategies can be left unchanged by duplicating old strategy in them.
@@ -862,39 +741,33 @@ test.describe(
         - textbox "Type feature name below to confirm."
         `);
 
-      await page
-        .getByRole("checkbox", { name: "Duplicate old strategy for" })
-        .check();
-      await page.getByRole("button", { name: "Confirm" }).click();
-      await page.getByRole("button", { name: "Overload" }).click();
-      await expect(
-        page.getByRole("rowheader", { name: "protected" })
-      ).toBeVisible();
-    });
+    await page.getByRole("checkbox", { name: "Duplicate old strategy for" }).check();
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await page.getByRole("button", { name: "Overload" }).click();
+    await expect(page.getByRole("rowheader", { name: "protected" })).toBeVisible();
+  });
 
-    test("5-be possible to update without preserving strategy for admin user", async ({
-      tenantName,
-      page,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(testFeature("f1").withDisableStatus())
-              .withContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-          )
-        )
-        .build(page);
+  test("5-be possible to update without preserving strategy for admin user", async ({
+    tenantName,
+    page,
+  }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(testFeature("f1").withDisableStatus())
+            .withContext(testLocalContext("protected").withProtectedStatus(true)),
+        ),
+      )
+      .build(page);
 
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await clickAction(page, "Edit");
-      await page.getByRole("checkbox", { name: "Enabled" }).check();
-      await page.getByRole("button", { name: "Save" }).click();
+    await clickAction(page, "Edit");
+    await page.getByRole("checkbox", { name: "Enabled" }).check();
+    await page.getByRole("button", { name: "Save" }).click();
 
-      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - list:
           - listitem: protected
         - text: These contexts strategies can be left unchanged by duplicating old strategy in them.
@@ -903,45 +776,37 @@ test.describe(
         - textbox "Type feature name below to confirm."
         `);
 
-      await page
-        .getByRole("textbox", { name: "Type feature name below to" })
-        .click();
-      await page
-        .getByRole("textbox", { name: "Type feature name below to" })
-        .fill("f1");
-      await page.getByRole("button", { name: "Confirm" }).click();
+    await page.getByRole("textbox", { name: "Type feature name below to" }).click();
+    await page.getByRole("textbox", { name: "Type feature name below to" }).fill("f1");
+    await page.getByRole("button", { name: "Confirm" }).click();
 
-      await expect(page.locator("tbody")).toMatchAriaSnapshot(`
+    await expect(page.locator("tbody")).toMatchAriaSnapshot(`
           - cell "Disable f1 Enabled":
             - checkbox "Disable f1" [checked]
           `);
 
-      await expect(
-        page.getByRole("button", { name: "Overload" })
-      ).not.toBeVisible();
-    });
+    await expect(page.getByRole("button", { name: "Overload" })).not.toBeVisible();
+  });
 
-    test("6-be possible to update without preserving strategy for admin user (toggle button)", async ({
-      tenantName,
-      page,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(testFeature("f1").withDisableStatus())
-              .withContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-          )
-        )
-        .build(page);
+  test("6-be possible to update without preserving strategy for admin user (toggle button)", async ({
+    tenantName,
+    page,
+  }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(testFeature("f1").withDisableStatus())
+            .withContext(testLocalContext("protected").withProtectedStatus(true)),
+        ),
+      )
+      .build(page);
 
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await page.getByRole("checkbox", { name: "Enable f1" }).click();
+    await page.getByRole("checkbox", { name: "Enable f1" }).click();
 
-      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - list:
           - listitem: protected
         - text: These contexts strategies can be left unchanged by duplicating old strategy in them.
@@ -950,140 +815,116 @@ test.describe(
         - textbox "Type feature name below to confirm."
         `);
 
-      await page
-        .getByRole("textbox", { name: "Type feature name below to" })
-        .click();
-      await page
-        .getByRole("textbox", { name: "Type feature name below to" })
-        .fill("f1");
-      await page.getByRole("button", { name: "Confirm" }).click();
+    await page.getByRole("textbox", { name: "Type feature name below to" }).click();
+    await page.getByRole("textbox", { name: "Type feature name below to" }).fill("f1");
+    await page.getByRole("button", { name: "Confirm" }).click();
 
-      await expect(page.locator("tbody")).toMatchAriaSnapshot(`
+    await expect(page.locator("tbody")).toMatchAriaSnapshot(`
           - cell "Disable f1 Enabled":
             - checkbox "Disable f1" [checked]
           `);
 
-      await expect(
-        page.getByRole("button", { name: "Overload" })
-      ).not.toBeVisible();
-    });
+    await expect(page.getByRole("button", { name: "Overload" })).not.toBeVisible();
+  });
 
-    test("7-be impossible to delete for non admin user", async ({
-      page,
-      tenantName,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(testFeature("f1").withDisableStatus())
-              .withContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-          )
-        )
-        .withUser(
-          testUser("testu19").withTenantRight(
-            tenantName,
-            testTenantRight(TLevel.Write).withProjectRight(
-              "project",
-              TLevel.Write
-            )
-          )
-        )
-        .loggedAs("testu19")
-        .build(page);
+  test("7-be impossible to delete for non admin user", async ({ page, tenantName }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(testFeature("f1").withDisableStatus())
+            .withContext(testLocalContext("protected").withProtectedStatus(true)),
+        ),
+      )
+      .withUser(
+        testUser("testu19").withTenantRight(
+          tenantName,
+          testTenantRight(TLevel.Write).withProjectRight("project", TLevel.Write),
+        ),
+      )
+      .loggedAs("testu19")
+      .build(page);
 
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await clickAction(page, "Delete");
+    await clickAction(page, "Delete");
 
-      //await page.getByRole("button", { name: "actions" }).click();
-      //await page.getByRole("link", { name: "Delete", exact: true }).click();
-      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
+    //await page.getByRole("button", { name: "actions" }).click();
+    //await page.getByRole("link", { name: "Delete", exact: true }).click();
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - text: "Deleting feature f1 would impact below protected contexts:"
         - list:
           - listitem: protected
         - paragraph: You don't have admin rights on this project, therefore you can't delete this feature.
         `);
-      await page.getByRole("button", { name: "Close" }).click();
-    });
+    await page.getByRole("button", { name: "Close" }).click();
+  });
 
-    test("8-be possible to update for non admin user if update concerns tags or description", async ({
-      page,
-      tenantName,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(testFeature("f1").withDisableStatus())
-              .withContext(
-                testLocalContext("protected").withProtectedStatus(true)
-              )
-          )
-        )
-        .withUser(
-          testUser("testu20").withTenantRight(
-            tenantName,
-            testTenantRight(TLevel.Write).withProjectRight(
-              "project",
-              TLevel.Write
-            )
-          )
-        )
-        .loggedAs("testu20")
-        .build(page);
+  test("8-be possible to update for non admin user if update concerns tags or description", async ({
+    page,
+    tenantName,
+  }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(testFeature("f1").withDisableStatus())
+            .withContext(testLocalContext("protected").withProtectedStatus(true)),
+        ),
+      )
+      .withUser(
+        testUser("testu20").withTenantRight(
+          tenantName,
+          testTenantRight(TLevel.Write).withProjectRight("project", TLevel.Write),
+        ),
+      )
+      .loggedAs("testu20")
+      .build(page);
 
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await clickAction(page, "Edit");
-      await page.locator("label").filter({ hasText: "TagsSelect..." }).click();
-      await page.getByRole("combobox", { name: "Tags" }).fill("foo");
-      await page.getByRole("option", { name: 'Create "foo"' }).click();
-      await page.getByRole("textbox", { name: "Description" }).click();
-      await page
-        .getByRole("textbox", { name: "Description" })
-        .fill("hello world");
-      await page.getByRole("button", { name: "Save" }).click();
+    await clickAction(page, "Edit");
+    await page.locator("label").filter({ hasText: "TagsSelect..." }).click();
+    await page.getByRole("combobox", { name: "Tags" }).fill("foo");
+    await page.getByRole("option", { name: 'Create "foo"' }).click();
+    await page.getByRole("textbox", { name: "Description" }).click();
+    await page.getByRole("textbox", { name: "Description" }).fill("hello world");
+    await page.getByRole("button", { name: "Save" }).click();
 
-      const row = page.getByRole("row", { name: "f1" });
-      await expect(row.getByText("hello world")).toBeVisible();
-      await row.getByRole("link", { name: "foo" }).click();
-    });
-  }
-);
+    const row = page.getByRole("row", { name: "f1" });
+    await expect(row.getByText("hello world")).toBeVisible();
+    await row.getByRole("link", { name: "foo" }).click();
+  });
+});
 
-test.describe(
-  "Overload creation in non protected context with protected context child",
-  async () => {
-    test("1-should allow admin to impact protected context without creating old strategy in it", async ({
-      page,
-      tenantName,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(testFeature("f1").withDisableStatus())
-              .withContext(
-                testLocalContext("unprotected").withSubContext(
-                  testLocalContext("protected").withProtectedStatus(true)
-                )
-              )
-          )
-        )
-        .build(page);
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+test.describe("Overload creation in non protected context with protected context child", async () => {
+  test("1-should allow admin to impact protected context without creating old strategy in it", async ({
+    page,
+    tenantName,
+  }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(testFeature("f1").withDisableStatus())
+            .withContext(
+              testLocalContext("unprotected").withSubContext(
+                testLocalContext("protected").withProtectedStatus(true),
+              ),
+            ),
+        ),
+      )
+      .build(page);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await clickAction(page, "Overloads");
-      await page.getByRole("button", { name: "Create new overload" }).click();
-      await page.getByRole("checkbox", { name: "Enabled" }).check();
-      await page.getByText("ContextSelect...").click();
-      await page.getByText("unprotected", { exact: true }).click();
-      await page.getByRole("button", { name: "Save" }).click();
+    await clickAction(page, "Overloads");
+    await page.getByRole("button", { name: "Create new overload" }).click();
+    await page.getByRole("checkbox", { name: "Enabled" }).check();
+    await page.getByText("ContextSelect...").click();
+    await page.getByText("unprotected", { exact: true }).click();
+    await page.getByRole("button", { name: "Save" }).click();
 
-      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
       - text: "Creatingf1 overload(s) for context unprotected will impact below protected contexts, since neither them nor their parents define overload for this feature:"
       - list:
         - listitem: unprotected/protected
@@ -1092,48 +933,44 @@ test.describe(
       - textbox "Type feature name below to confirm."
       `);
 
-      await page
-        .getByRole("textbox", { name: "Type feature name below to" })
-        .fill("f1");
+    await page.getByRole("textbox", { name: "Type feature name below to" }).fill("f1");
 
-      await page.getByRole("button", { name: "Confirm" }).click();
+    await page.getByRole("button", { name: "Confirm" }).click();
 
-      const row = page
-        .getByRole("row", { name: "unprotected" })
-        .filter({ hasNotText: "Feature overloads" });
-      await expect(
-        row.getByRole("rowheader", { name: "unprotected" })
-      ).toBeVisible();
-      await expect(row.getByRole("cell", { name: "Enabled" })).toBeVisible();
-    });
+    const row = page
+      .getByRole("row", { name: "unprotected" })
+      .filter({ hasNotText: "Feature overloads" });
+    await expect(row.getByRole("rowheader", { name: "unprotected" })).toBeVisible();
+    await expect(row.getByRole("cell", { name: "Enabled" })).toBeVisible();
+  });
 
-    test("2-should allow admin to create old strategy in child protected context", async ({
-      page,
-      tenantName,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(testFeature("f1").withDisableStatus())
-              .withContext(
-                testLocalContext("unprotected").withSubContext(
-                  testLocalContext("protected").withProtectedStatus(true)
-                )
-              )
-          )
-        )
-        .build(page);
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+  test("2-should allow admin to create old strategy in child protected context", async ({
+    page,
+    tenantName,
+  }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(testFeature("f1").withDisableStatus())
+            .withContext(
+              testLocalContext("unprotected").withSubContext(
+                testLocalContext("protected").withProtectedStatus(true),
+              ),
+            ),
+        ),
+      )
+      .build(page);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await clickAction(page, "Overloads");
-      await page.getByRole("button", { name: "Create new overload" }).click();
-      await page.getByRole("checkbox", { name: "Enabled" }).check();
-      await page.getByText("ContextSelect...").click();
-      await page.getByText("unprotected", { exact: true }).click();
-      await page.getByRole("button", { name: "Save" }).click();
+    await clickAction(page, "Overloads");
+    await page.getByRole("button", { name: "Create new overload" }).click();
+    await page.getByRole("checkbox", { name: "Enabled" }).check();
+    await page.getByText("ContextSelect...").click();
+    await page.getByText("unprotected", { exact: true }).click();
+    await page.getByRole("button", { name: "Save" }).click();
 
-      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
       - text: "Creatingf1 overload(s) for context unprotected will impact below protected contexts, since neither them nor their parents define overload for this feature:"
       - list:
         - listitem: unprotected/protected
@@ -1142,71 +979,60 @@ test.describe(
       - textbox "Type feature name below to confirm."
       `);
 
-      await page
-        .getByRole("checkbox", { name: "Duplicate old strategy for" })
-        .check();
-      await page.getByRole("button", { name: "Confirm" }).click();
+    await page.getByRole("checkbox", { name: "Duplicate old strategy for" }).check();
+    await page.getByRole("button", { name: "Confirm" }).click();
 
-      const unprotectedRow = page
-        .getByRole("row", { name: "unprotected" })
-        .filter({ hasNotText: "Feature overloads" })
-        .first();
+    const unprotectedRow = page
+      .getByRole("row", { name: "unprotected" })
+      .filter({ hasNotText: "Feature overloads" })
+      .first();
 
-      await expect(
-        unprotectedRow.getByRole("rowheader", { name: "unprotected" })
-      ).toBeVisible();
-      await expect(
-        unprotectedRow.getByRole("cell", { name: "Enabled" })
-      ).toBeVisible();
+    await expect(unprotectedRow.getByRole("rowheader", { name: "unprotected" })).toBeVisible();
+    await expect(unprotectedRow.getByRole("cell", { name: "Enabled" })).toBeVisible();
 
-      const protectedRow = page
-        .getByRole("row", { name: "unprotected/protected" })
-        .filter({ hasNotText: "Feature overloads" });
-      await expect(
-        protectedRow.getByRole("rowheader", { name: "unprotected/protected" })
-      ).toBeVisible();
-      await expect(
-        protectedRow.getByRole("cell", { name: "Disabled" })
-      ).toBeVisible();
-    });
+    const protectedRow = page
+      .getByRole("row", { name: "unprotected/protected" })
+      .filter({ hasNotText: "Feature overloads" });
+    await expect(
+      protectedRow.getByRole("rowheader", { name: "unprotected/protected" }),
+    ).toBeVisible();
+    await expect(protectedRow.getByRole("cell", { name: "Disabled" })).toBeVisible();
+  });
 
-    test("3-should force non admin user to create old strategy in child protected context", async ({
-      page,
-      tenantName,
-    }) => {
-      await testBuilder()
-        .withTenant(
-          testTenant(tenantName).withProject(
-            testProject("project")
-              .withFeature(testFeature("f1").withDisableStatus())
-              .withContext(
-                testLocalContext("unprotected").withSubContext(
-                  testLocalContext("protected").withProtectedStatus(true)
-                )
-              )
-          )
-        )
-        .withUser(
-          testUser("testu133").withTenantRight(
-            tenantName,
-            testTenantRight(TLevel.Write).withProjectRight(
-              "project",
-              TLevel.Write
-            )
-          )
-        )
-        .loggedAs("testu133")
-        .build(page);
-      await page.goto(`/tenants/${tenantName}/projects/project`);
+  test("3-should force non admin user to create old strategy in child protected context", async ({
+    page,
+    tenantName,
+  }) => {
+    await testBuilder()
+      .withTenant(
+        testTenant(tenantName).withProject(
+          testProject("project")
+            .withFeature(testFeature("f1").withDisableStatus())
+            .withContext(
+              testLocalContext("unprotected").withSubContext(
+                testLocalContext("protected").withProtectedStatus(true),
+              ),
+            ),
+        ),
+      )
+      .withUser(
+        testUser("testu133").withTenantRight(
+          tenantName,
+          testTenantRight(TLevel.Write).withProjectRight("project", TLevel.Write),
+        ),
+      )
+      .loggedAs("testu133")
+      .build(page);
+    await page.goto(`/tenants/${tenantName}/projects/project`);
 
-      await clickAction(page, "Overloads");
-      await page.getByRole("button", { name: "Create new overload" }).click();
-      await page.getByRole("checkbox", { name: "Enabled" }).check();
-      await page.getByText("ContextSelect...").click();
-      await page.getByText("unprotected", { exact: true }).click();
-      await page.getByRole("button", { name: "Save" }).click();
+    await clickAction(page, "Overloads");
+    await page.getByRole("button", { name: "Create new overload" }).click();
+    await page.getByRole("checkbox", { name: "Enabled" }).check();
+    await page.getByText("ContextSelect...").click();
+    await page.getByText("unprotected", { exact: true }).click();
+    await page.getByRole("button", { name: "Save" }).click();
 
-      await expect(page.locator("#modal")).toMatchAriaSnapshot(`
+    await expect(page.locator("#modal")).toMatchAriaSnapshot(`
         - list:
           - listitem: unprotected/protected
         - text: "You don't have enough rights to update these contexts, therefore old strategy will be applied to below contexts:"
@@ -1214,29 +1040,22 @@ test.describe(
           - listitem: unprotected/protected
         `);
 
-      await page.getByRole("button", { name: "Confirm" }).click();
+    await page.getByRole("button", { name: "Confirm" }).click();
 
-      const unprotectedRow = page
-        .getByRole("row", { name: "unprotected" })
-        .filter({ hasNotText: "Feature overloads" })
-        .first();
+    const unprotectedRow = page
+      .getByRole("row", { name: "unprotected" })
+      .filter({ hasNotText: "Feature overloads" })
+      .first();
 
-      await expect(
-        unprotectedRow.getByRole("rowheader", { name: "unprotected" })
-      ).toBeVisible();
-      await expect(
-        unprotectedRow.getByRole("cell", { name: "Enabled" })
-      ).toBeVisible();
+    await expect(unprotectedRow.getByRole("rowheader", { name: "unprotected" })).toBeVisible();
+    await expect(unprotectedRow.getByRole("cell", { name: "Enabled" })).toBeVisible();
 
-      const protectedRow = page
-        .getByRole("row", { name: "unprotected/protected" })
-        .filter({ hasNotText: "Feature overloads" });
-      await expect(
-        protectedRow.getByRole("rowheader", { name: "unprotected/protected" })
-      ).toBeVisible();
-      await expect(
-        protectedRow.getByRole("cell", { name: "Disabled" })
-      ).toBeVisible();
-    });
-  }
-);
+    const protectedRow = page
+      .getByRole("row", { name: "unprotected/protected" })
+      .filter({ hasNotText: "Feature overloads" });
+    await expect(
+      protectedRow.getByRole("rowheader", { name: "unprotected/protected" }),
+    ).toBeVisible();
+    await expect(protectedRow.getByRole("cell", { name: "Disabled" })).toBeVisible();
+  });
+});

@@ -1,7 +1,7 @@
 {
   "name": "izanami-frontend",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "scripts": {
     "dev": "vite",
     "compile": "tsc",
@@ -12,7 +12,9 @@
     "screenshots": "npx tsx ./tests/screenshots/index.ts",
     "unit-tests": "vitest",
     "lint": "oxlint",
-    "lint:fix": "oxlint --fix"
+    "lint:fix": "oxlint --fix",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check"
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",
@@ -49,6 +51,7 @@
     "@types/swagger-ui": "^3.52.4",
     "@vitejs/plugin-react": "^4.3.4",
     "buffer": "^6.0.3",
+    "oxfmt": "^0.76.0",
     "oxlint": "^1.91.0",
     "pg": "^8.23.1",
     "prettier": "2.6.2",

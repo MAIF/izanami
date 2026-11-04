@@ -5,7 +5,7 @@ export const customStyles: object = {
       isDisabled,
       isFocused,
       isSelected,
-    }: { isDisabled: boolean; isFocused: boolean; isSelected: boolean }
+    }: { isDisabled: boolean; isFocused: boolean; isSelected: boolean },
   ) => {
     if (isSelected) {
       return {
@@ -13,15 +13,15 @@ export const customStyles: object = {
         backgroundColor: isDisabled
           ? null
           : isSelected
-          ? "var(--bg-color_level1)  !important"
-          : isFocused
-          ? "var(--bg-color_level1) !important"
-          : null,
+            ? "var(--bg-color_level1)  !important"
+            : isFocused
+              ? "var(--bg-color_level1) !important"
+              : null,
         color: isSelected
           ? "var(--color_level1) !important"
           : isFocused
-          ? "var(--color_level1) !important"
-          : "8C8C8B !important",
+            ? "var(--color_level1) !important"
+            : "8C8C8B !important",
       };
     } else {
       return {
@@ -30,22 +30,19 @@ export const customStyles: object = {
         backgroundColor: isDisabled
           ? null
           : isSelected
-          ? "var(--bg-color_level3) !important"
-          : isFocused
-          ? "var(--bg-color_level2)  !important"
-          : null,
+            ? "var(--bg-color_level3) !important"
+            : isFocused
+              ? "var(--bg-color_level2)  !important"
+              : null,
         color: isSelected
           ? "var(--color_level1) !important"
           : isFocused
-          ? "var(--color_level1) !important"
-          : "8C8C8B !important",
+            ? "var(--color_level1) !important"
+            : "8C8C8B !important",
       };
     }
   },
-  indicatorSeparator: (
-    styles: object,
-    { isDisabled }: { isDisabled: boolean }
-  ) => {
+  indicatorSeparator: (styles: object, { isDisabled }: { isDisabled: boolean }) => {
     if (isDisabled) {
       return {
         ...styles,
@@ -55,10 +52,7 @@ export const customStyles: object = {
       return styles;
     }
   },
-  dropdownIndicator: (
-    styles: object,
-    { isDisabled }: { isDisabled: boolean }
-  ) => {
+  dropdownIndicator: (styles: object, { isDisabled }: { isDisabled: boolean }) => {
     if (isDisabled) {
       return {
         ...styles,
@@ -87,9 +81,7 @@ export const customStyles: object = {
   }),
   placeholder: (styles: object, { isDisabled }: { isDisabled: boolean }) => ({
     ...styles,
-    color: isDisabled
-      ? "var(--color_level2) !important"
-      : "var(--color_level3) !important",
+    color: isDisabled ? "var(--color_level2) !important" : "var(--color_level3) !important",
     fontStyle: "italic",
   }),
   noOptionsMessage: (styles: object) => ({
@@ -98,9 +90,7 @@ export const customStyles: object = {
   }),
   singleValue: (provided: object, { isDisabled }: { isDisabled: boolean }) => ({
     ...provided,
-    color: isDisabled
-      ? "var(--color_level1) !important"
-      : "var(--color_level3) !important",
+    color: isDisabled ? "var(--color_level1) !important" : "var(--color_level3) !important",
     backgroundColor: null,
   }),
   multiValue: (styles: object) => {

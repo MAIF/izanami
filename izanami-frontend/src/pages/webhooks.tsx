@@ -23,11 +23,7 @@ import { ProjectSelector } from "../components/ProjectSelector";
 import { LightWebhook, TLevel, Webhook } from "../utils/types";
 import { GenericTable } from "../components/GenericTable";
 import { Link, useSearchParams } from "react-router-dom";
-import {
-  IzanamiContext,
-  hasRightForWebhook,
-  useTenantRight,
-} from "../securityContext";
+import { IzanamiContext, hasRightForWebhook, useTenantRight } from "../securityContext";
 import queryClient from "../queryClient";
 
 import { RightTable } from "../components/RightTable";
@@ -42,13 +38,11 @@ export function WebHooks(props: { tenant: string }) {
   const selectedSearchRow = searchParams.get("filter");
   const tenant = props.tenant;
   const [creating, setCreating] = React.useState(false);
-  const { refreshUser, askInputConfirmation } =
-    React.useContext(IzanamiContext);
+  const { refreshUser, askInputConfirmation } = React.useContext(IzanamiContext);
   const hasTenantWriteLevel = useTenantRight(tenant, TLevel.Write);
 
   const webhookCreationMutation = useMutation({
-    mutationFn: (data: { webhook: LightWebhook }) =>
-      createWebhook(tenant!, data.webhook),
+    mutationFn: (data: { webhook: LightWebhook }) => createWebhook(tenant!, data.webhook),
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [webhookQueryKey(tenant)] });
@@ -60,8 +54,7 @@ export function WebHooks(props: { tenant: string }) {
     mutationFn: (data: { id: string; webhook: LightWebhook }) =>
       updateWebhook(tenant!, data.id, data.webhook),
 
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: [webhookQueryKey(tenant)] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [webhookQueryKey(tenant)] }),
   });
 
   const webhookDeletion = useMutation({
@@ -116,9 +109,7 @@ export function WebHooks(props: { tenant: string }) {
                   webhook: {
                     ...webhook,
                     headers: objectHeaders,
-                    bodyTemplate: bodyOverloadedActive
-                      ? webhook.bodyTemplate
-                      : undefined,
+                    bodyTemplate: bodyOverloadedActive ? webhook.bodyTemplate : undefined,
                   },
                 })
                 .then(() => setCreating(false));
@@ -127,9 +118,7 @@ export function WebHooks(props: { tenant: string }) {
         )}
         {!creating && webhookQuery.data.length === 0 && (
           <div className="item-block">
-            <div className="item-text">
-              There is no webhooks you can see for this tenant.
-            </div>
+            <div className="item-text">There is no webhooks you can see for this tenant.</div>
             {hasTenantWriteLevel && (
               <button
                 type="button"
@@ -145,11 +134,7 @@ export function WebHooks(props: { tenant: string }) {
           <GenericTable
             idAccessor={(hook) => hook.id}
             data={webhookQuery.data}
-            filters={
-              selectedSearchRow
-                ? [{ id: "name", value: selectedSearchRow }]
-                : []
-            }
+            filters={selectedSearchRow ? [{ id: "name", value: selectedSearchRow }] : []}
             defaultSort="name"
             columns={[
               {
@@ -162,9 +147,7 @@ export function WebHooks(props: { tenant: string }) {
                 accessorKey: "enabled",
                 cell: (info: any) =>
                   info.getValue() ? (
-                    <span className="activation-status enabled-status">
-                      Enabled
-                    </span>
+                    <span className="activation-status enabled-status">Enabled</span>
                   ) : (
                     <span className="activation-status">Disabled</span>
                   ),
@@ -193,24 +176,16 @@ export function WebHooks(props: { tenant: string }) {
                 id: "scope",
                 minSize: 200,
                 size: 25,
-                filterFn: (
-                  row: Row<Webhook>,
-                  columnId: string,
-                  filterValue: any,
-                ) => {
+                filterFn: (row: Row<Webhook>, columnId: string, filterValue: any) => {
                   if (!filterValue || filterValue?.length === 0) {
                     return true;
                   }
                   const featureMatch = Boolean(
-                    row.original?.features?.find(({ name }) =>
-                      name.includes(filterValue),
-                    ) || false,
+                    row.original?.features?.find(({ name }) => name.includes(filterValue)) || false,
                   );
 
                   const projectMatch = Boolean(
-                    row.original?.projects?.find(({ name }) =>
-                      name.includes(filterValue),
-                    ) || false,
+                    row.original?.projects?.find(({ name }) => name.includes(filterValue)) || false,
                   );
 
                   return featureMatch || projectMatch;
@@ -231,8 +206,7 @@ export function WebHooks(props: { tenant: string }) {
                         <div key={id} className="mt-1">
                           <Link to={`/tenants/${tenant}/projects/${name}`}>
                             <button className="btn btn-sm btn-primary mr-0">
-                              <i className="fas fa-building" aria-hidden />{" "}
-                              {name}
+                              <i className="fas fa-building" aria-hidden /> {name}
                             </button>
                           </Link>
                         </div>
@@ -240,13 +214,9 @@ export function WebHooks(props: { tenant: string }) {
                       {features.map(({ project, name, id }) => (
                         <div key={id} className="mt-1">
                           <Link to={`/tenants/${tenant}/projects/${project}`}>
-                            <button
-                              className="btn btn-sm btn-primary"
-                              style={{ marginRight: 0 }}
-                            >
+                            <button className="btn btn-sm btn-primary" style={{ marginRight: 0 }}>
                               {name}&nbsp; (
-                              <i className="fas fa-building" aria-hidden />{" "}
-                              {project})
+                              <i className="fas fa-building" aria-hidden /> {project})
                             </button>
                           </Link>
                         </div>
@@ -286,9 +256,7 @@ export function WebHooks(props: { tenant: string }) {
                           webhook: {
                             ...hook,
                             headers: objectHeaders,
-                            bodyTemplate: hook.bodyOverloadedActive
-                              ? hook.bodyTemplate
-                              : undefined,
+                            bodyTemplate: hook.bodyOverloadedActive ? hook.bodyTemplate : undefined,
                           },
                         })
                         .then(() => cancel());
@@ -325,8 +293,7 @@ export function WebHooks(props: { tenant: string }) {
                 action: (webhook: Webhook) => {
                   askInputConfirmation(
                     <>
-                      Are you sure you want to delete webhook {webhook.name}?
-                      This can't be undone.
+                      Are you sure you want to delete webhook {webhook.name}? This can't be undone.
                       <br />
                       Please confirm by typing webhook name below.
                     </>,
@@ -404,9 +371,7 @@ function WebhookRightTable(props: { tenant: string; webhook: Webhook }) {
                 }),
               ).then(() => setCreating(false));
             }}
-            invitedUsers={webhookRightQuery.data.map(
-              (webhookRight) => webhookRight.username,
-            )}
+            invitedUsers={webhookRightQuery.data.map((webhookRight) => webhookRight.username)}
           />
         )}
         <RightTable
@@ -499,18 +464,14 @@ function WebHookCreationForm(props: {
               type: type.string,
               defaultValue: maybeDefault?.url ?? "",
               constraints: [
-                constraints.test(
-                  "url",
-                  "Should be a valid http/https url",
-                  (value) => {
-                    try {
-                      new URL(value);
-                      return value.startsWith("http");
-                    } catch {
-                      return false;
-                    }
-                  },
-                ),
+                constraints.test("url", "Should be a valid http/https url", (value) => {
+                  try {
+                    new URL(value);
+                    return value.startsWith("http");
+                  } catch {
+                    return false;
+                  }
+                }),
               ],
             },
             headers: {
@@ -526,9 +487,10 @@ function WebHookCreationForm(props: {
                 </>
               ),
               type: type.object,
-              defaultValue: Object.entries(maybeDefault?.headers ?? {}).map(
-                ([key, value]) => ({ name: key, value }),
-              ),
+              defaultValue: Object.entries(maybeDefault?.headers ?? {}).map(([key, value]) => ({
+                name: key,
+                value,
+              })),
               array: true,
               render: ({ value, onChange }) => {
                 return (
@@ -549,8 +511,7 @@ function WebHookCreationForm(props: {
                       <>
                         Global
                         <Tooltip id="webhooks-global">
-                          Global webhooks are called for every feature update
-                          for this tenant.
+                          Global webhooks are called for every feature update for this tenant.
                         </Tooltip>
                       </>
                     ),
@@ -567,12 +528,9 @@ function WebHookCreationForm(props: {
               defaultValue: maybeDefault?.features?.map((f) => f.id) ?? [],
               label: () => (
                 <>
-                  <label htmlFor="webhook-features-select">
-                    Features (project)
-                  </label>
+                  <label htmlFor="webhook-features-select">Features (project)</label>
                   <Tooltip id="webhooks-features">
-                    Update of selected features will trigger calls on provided
-                    URL.
+                    Update of selected features will trigger calls on provided URL.
                   </Tooltip>
                 </>
               ),
@@ -581,11 +539,7 @@ function WebHookCreationForm(props: {
               format: format.select,
               render: ({ value, onChange }) => {
                 return (
-                  <FeatureSelector
-                    id="webhook-features-select"
-                    value={value}
-                    onChange={onChange}
-                  />
+                  <FeatureSelector id="webhook-features-select" value={value} onChange={onChange} />
                 );
               },
               arrayConstraints: [
@@ -619,11 +573,7 @@ function WebHookCreationForm(props: {
               format: format.select,
               render: ({ value, onChange }) => {
                 return (
-                  <ProjectSelector
-                    id="webhook-projects-select"
-                    value={value}
-                    onChange={onChange}
-                  />
+                  <ProjectSelector id="webhook-projects-select" value={value} onChange={onChange} />
                 );
               },
               arrayConstraints: [
@@ -681,8 +631,7 @@ function WebHookCreationForm(props: {
                 <>
                   Custom body
                   <Tooltip id="webhook-body-format-customization-tooltip">
-                    Allow replacing the built-in webhook call body with a custom
-                    body.
+                    Allow replacing the built-in webhook call body with a custom body.
                   </Tooltip>
                 </>
               ),
@@ -691,8 +640,7 @@ function WebHookCreationForm(props: {
             },
             bodyTemplate: {
               deps: ["bodyOverloadedActive"],
-              visible: ({ rawValues: { bodyOverloadedActive } }) =>
-                bodyOverloadedActive,
+              visible: ({ rawValues: { bodyOverloadedActive } }) => bodyOverloadedActive,
               label: () => {
                 return "";
               },
@@ -704,10 +652,7 @@ function WebHookCreationForm(props: {
 }`,
               render: ({ value, onChange }) => {
                 return (
-                  <WebhookTransformationEditor
-                    value={value}
-                    onChange={(v) => onChange?.(v)}
-                  />
+                  <WebhookTransformationEditor value={value} onChange={(v) => onChange?.(v)} />
                 );
               },
             },

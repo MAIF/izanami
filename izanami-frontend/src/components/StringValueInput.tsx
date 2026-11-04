@@ -13,9 +13,11 @@ export function StringValueInput(props: {
 }) {
   const { value, onChange, onBlur, allowedValues, multiline, inputId, ariaLabel } = props;
   if (allowedValues) {
-    const choices = allowedValues.filter((choice, index) =>
-      choice.value.trim().length > 0 &&
-      allowedValues.findIndex((other) => other.value === choice.value) === index);
+    const choices = allowedValues.filter(
+      (choice, index) =>
+        choice.value.trim().length > 0 &&
+        allowedValues.findIndex((other) => other.value === choice.value) === index,
+    );
     const options = choices.map((choice) => ({
       value: choice.value,
       label: choice.label?.trim() ? choice.label : choice.value,
@@ -35,23 +37,24 @@ export function StringValueInput(props: {
           return (
             <span className="d-block text-truncate" title={choice}>
               {!labeled && (
-                <span style={{ opacity: 0.6, pointerEvents: "none" }}>
-                  {"<no label> "}
-                </span>
+                <span style={{ opacity: 0.6, pointerEvents: "none" }}>{"<no label> "}</span>
               )}
               {needsPreview && !labeled ? (
                 <>
                   <span style={{ opacity: 0.6, pointerEvents: "none" }}>
-                    {allowedValues.findIndex((item) => item.value === choice) + 1}. </span>
+                    {allowedValues.findIndex((item) => item.value === choice) + 1}.{" "}
+                  </span>
                   {preview}
                 </>
-              ) : needsPreview || labeled ? preview : choice}
+              ) : needsPreview || labeled ? (
+                preview
+              ) : (
+                choice
+              )}
             </span>
           );
         }}
-        value={
-          options.find((choice) => choice.value === value) ?? null
-        }
+        value={options.find((choice) => choice.value === value) ?? null}
         onChange={(choice) => onChange(choice?.value ?? "")}
         onBlur={onBlur}
       />

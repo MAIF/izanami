@@ -34,10 +34,9 @@ export const tenantEventTypeOptions = [
   { label: "Project updated", value: "PROJECT_UPDATED" },
 ];
 
-export type TFeatureEventTypes =
-  typeof featureEventTypeOptions[number]["value"];
+export type TFeatureEventTypes = (typeof featureEventTypeOptions)[number]["value"];
 
-export type TTenantEventTypes = typeof tenantEventTypeOptions[number]["value"];
+export type TTenantEventTypes = (typeof tenantEventTypeOptions)[number]["value"];
 
 export type LogSearchQuery = {
   users: string[];
@@ -61,13 +60,10 @@ export const POSSIBLE_TOKEN_RIGHTS = [
   "UPDATE FEATURE",
 ] as const;
 
-export const POSSIBLE_GLOBAL_TOKEN_RIGHTS = [
-  "CREATE TENANT",
-  "READ TENANTS",
-] as const;
+export const POSSIBLE_GLOBAL_TOKEN_RIGHTS = ["CREATE TENANT", "READ TENANTS"] as const;
 
-export type TokenTenantRight = typeof POSSIBLE_TOKEN_RIGHTS[number];
-export type TokenGlobalRight = typeof POSSIBLE_GLOBAL_TOKEN_RIGHTS[number];
+export type TokenTenantRight = (typeof POSSIBLE_TOKEN_RIGHTS)[number];
+export type TokenGlobalRight = (typeof POSSIBLE_GLOBAL_TOKEN_RIGHTS)[number];
 
 export type TokenTenantRightsArray = [string | null, TokenTenantRight[]][];
 export type TokenTenantRights = { [tenant: string]: TokenTenantRight[] };
@@ -75,11 +71,7 @@ export type TokenTenantRights = { [tenant: string]: TokenTenantRight[] };
 export type TokenGlobalRightsArray = TokenGlobalRight[];
 
 export type EventType = TTenantEventTypes;
-export type LogEntry =
-  | FeatureLogEntry
-  | ProjectCreated
-  | ProjectDeleted
-  | ProjectUpdated;
+export type LogEntry = FeatureLogEntry | ProjectCreated | ProjectDeleted | ProjectUpdated;
 
 interface LogEntryBase {
   eventId: number;
@@ -220,23 +212,15 @@ export interface FeatureInCreation {
   tags?: string[];
 }
 
-export type TLightFeature =
-  | ClassicalFeature
-  | LightWasmFeature
-  | SingleConditionFeature;
+export type TLightFeature = ClassicalFeature | LightWasmFeature | SingleConditionFeature;
 
-export type TCompleteFeature =
-  | ClassicalFeature
-  | WasmFeature
-  | SingleConditionFeature;
+export type TCompleteFeature = ClassicalFeature | WasmFeature | SingleConditionFeature;
 
 export function isClassicalFeature(feature: TLightFeature | TCompleteFeature) {
   const lightF = feature as LightWasmFeature;
   const completeF = feature as WasmFeature;
   return (
-    !isLightWasmFeature(lightF) &&
-    !isSingleConditionFeature(feature) &&
-    !isWasmFeature(completeF)
+    !isLightWasmFeature(lightF) && !isSingleConditionFeature(feature) && !isWasmFeature(completeF)
   );
 }
 
@@ -277,8 +261,7 @@ export type NoValueChange = {
 
 export type StaleStatus = NeverCalled | NoCall | NoValueChange;
 
-export interface SinglePercentageConditionFeature
-  extends SingleConditionFeature {
+export interface SinglePercentageConditionFeature extends SingleConditionFeature {
   conditions: {
     percentage: number;
   };
@@ -287,10 +270,7 @@ export interface SinglePercentageConditionFeature
 export function isSinglePercentageConditionFeature(
   feature: TLightFeature | TCompleteFeature,
 ): feature is SinglePercentageConditionFeature {
-  return (
-    (feature as SinglePercentageConditionFeature)?.conditions?.percentage !==
-    undefined
-  );
+  return (feature as SinglePercentageConditionFeature)?.conditions?.percentage !== undefined;
 }
 
 export interface SingleCustomerConditionFeature extends SingleConditionFeature {
@@ -302,13 +282,10 @@ export interface SingleCustomerConditionFeature extends SingleConditionFeature {
 export function isSingleCustomerConditionFeature(
   feature: TLightFeature | TCompleteFeature,
 ): feature is SingleCustomerConditionFeature {
-  return (
-    (feature as SingleCustomerConditionFeature)?.conditions?.users !== undefined
-  );
+  return (feature as SingleCustomerConditionFeature)?.conditions?.users !== undefined;
 }
 
-export interface SingleDateRangeConditionFeature
-  extends SingleConditionFeature {
+export interface SingleDateRangeConditionFeature extends SingleConditionFeature {
   conditions: {
     timezone: string;
     begin: Date;
@@ -319,14 +296,10 @@ export interface SingleDateRangeConditionFeature
 export function isSingleDateRangeConditionFeature(
   feature: TLightFeature | TCompleteFeature,
 ): feature is SingleDateRangeConditionFeature {
-  return (
-    (feature as SingleDateRangeConditionFeature)?.conditions?.begin !==
-    undefined
-  );
+  return (feature as SingleDateRangeConditionFeature)?.conditions?.begin !== undefined;
 }
 
-export interface SingleHourRangeConditionFeature
-  extends SingleConditionFeature {
+export interface SingleHourRangeConditionFeature extends SingleConditionFeature {
   conditions: {
     timezone: string;
     startTime: string;
@@ -338,14 +311,10 @@ export function isSingleHourRangeConditionFeature(
   feature: TLightFeature | TCompleteFeature,
 ): feature is SingleHourRangeConditionFeature {
   const f = feature as SingleHourRangeConditionFeature;
-  return (
-    f?.conditions?.startTime !== undefined ||
-    f?.conditions?.endTime !== undefined
-  );
+  return f?.conditions?.startTime !== undefined || f?.conditions?.endTime !== undefined;
 }
 
-export interface SingleNoStrategyConditionFeature
-  extends SingleConditionFeature {
+export interface SingleNoStrategyConditionFeature extends SingleConditionFeature {
   conditions: Record<string, never>;
 }
 
@@ -354,8 +323,7 @@ export function isSingleNoStrategyConditionFeature(
 ): feature is SingleNoStrategyConditionFeature {
   return (
     isSingleConditionFeature(feature) &&
-    Object.keys((feature as SingleNoStrategyConditionFeature).conditions)
-      ?.length === 0
+    Object.keys((feature as SingleNoStrategyConditionFeature).conditions)?.length === 0
   );
 }
 
@@ -468,7 +436,7 @@ export const DAYS = [
   "SUNDAY",
 ] as const;
 
-export type TDays = typeof DAYS[number];
+export type TDays = (typeof DAYS)[number];
 
 export interface TFeaturePeriod {
   begin?: Date;
@@ -498,27 +466,21 @@ export function isUserListRule(rule: TFeatureRule): rule is TUserList {
   return "users" in rule || "groups" in rule;
 }
 
-export function isWasmFeature(
-  feature: TCompleteFeature,
-): feature is WasmFeature {
+export function isWasmFeature(feature: TCompleteFeature): feature is WasmFeature {
   return (
     (feature as WasmFeature).wasmConfig !== undefined &&
     typeof (feature as WasmFeature).wasmConfig === "object"
   );
 }
 
-export function isLightWasmFeature(
-  feature: TLightFeature,
-): feature is LightWasmFeature {
+export function isLightWasmFeature(feature: TLightFeature): feature is LightWasmFeature {
   return (
     (feature as LightWasmFeature).wasmConfig !== undefined &&
     typeof (feature as LightWasmFeature).wasmConfig === "string"
   );
 }
 
-export function iWasmOverload(
-  overload: TContextOverload,
-): overload is TWasmContextOverload {
+export function iWasmOverload(overload: TContextOverload): overload is TWasmContextOverload {
   return (
     (overload as TWasmContextOverload).wasmConfig !== undefined &&
     (typeof (overload as TWasmContextOverload).wasmConfig === "object" ||
@@ -578,9 +540,7 @@ export const TLevelArray = Object.keys(TLevel) as TLevel[];
 
 export const TLevelWithNone = { ...TLevel, None: "None" } as const;
 
-export const TLevelWithNoneArray = Object.keys(
-  TLevelWithNone,
-) as TLevelWithNone[];
+export const TLevelWithNoneArray = Object.keys(TLevelWithNone) as TLevelWithNone[];
 
 export const TProjectLevel = {
   Read: "Read",
@@ -600,12 +560,12 @@ export const TProjectLevelWithNoneArray = Object.keys(
   TProjectLevelWithNone,
 ) as TProjectLevelWithNone[];
 
-export type TLevel = typeof TLevel[keyof typeof TLevel];
-export type TLevelWithNone = typeof TLevelWithNone[keyof typeof TLevelWithNone];
+export type TLevel = (typeof TLevel)[keyof typeof TLevel];
+export type TLevelWithNone = (typeof TLevelWithNone)[keyof typeof TLevelWithNone];
 
-export type TProjectLevel = typeof TProjectLevel[keyof typeof TProjectLevel];
+export type TProjectLevel = (typeof TProjectLevel)[keyof typeof TProjectLevel];
 export type TProjectLevelWithNone =
-  typeof TProjectLevelWithNone[keyof typeof TProjectLevelWithNone];
+  (typeof TProjectLevelWithNone)[keyof typeof TProjectLevelWithNone];
 
 export interface TUser {
   username: string;
@@ -693,8 +653,7 @@ export interface TContextOverloadBase<FeatureTypeName> {
   resultType: FeatureTypeName;
 }
 
-export interface TBooleanContextOverload
-  extends TContextOverloadBase<"boolean"> {}
+export interface TBooleanContextOverload extends TContextOverloadBase<"boolean"> {}
 
 export interface TNumberContextOverload extends TContextOverloadBase<"number"> {
   conditions: TValuedCondition<number>[];
@@ -885,7 +844,7 @@ export interface PKCEConfig {
 }
 
 export const rightRoleModes = ["Supervised", "Initial"] as const;
-type TRoleRightMode = typeof rightRoleModes[number];
+type TRoleRightMode = (typeof rightRoleModes)[number];
 
 export interface OIDCSettings {
   method: "BASIC" | "POST";

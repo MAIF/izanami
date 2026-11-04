@@ -7,12 +7,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import queryClient from "../queryClient";
 import { IzanamiContext, useTenantRight } from "../securityContext";
 import { createProject, queryTenant, tenantQueryKey } from "../utils/queries";
-import {
-  ProjectInCreationType,
-  TenantProjectType,
-  TenantType,
-  TLevel,
-} from "../utils/types";
+import { ProjectInCreationType, TenantProjectType, TenantType, TLevel } from "../utils/types";
 import { PROJECT_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
 import { CopyButton } from "../components/FeatureTable";
@@ -51,8 +46,7 @@ function ProjectList(props: { tenant: TenantType }) {
 
   const { refreshUser } = React.useContext(IzanamiContext);
   const projectCreationMutation = useMutation({
-    mutationFn: (data: ProjectInCreationType) =>
-      createProject(tenant.name, data),
+    mutationFn: (data: ProjectInCreationType) => createProject(tenant.name, data),
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [queryKey] });
@@ -131,21 +125,14 @@ function ProjectList(props: { tenant: TenantType }) {
           </div>
         )}
         {tenant?.projects?.map((project) => (
-          <ProjectCard
-            key={project.id}
-            project={project}
-            tenantName={tenant.name}
-          />
+          <ProjectCard key={project.id} project={project} tenantName={tenant.name} />
         ))}
       </div>
     </>
   );
 }
 
-function ProjectCard(props: {
-  project: TenantProjectType;
-  tenantName: string;
-}) {
+function ProjectCard(props: { project: TenantProjectType; tenantName: string }) {
   const { project, tenantName } = props;
   return (
     <div className="col" key={project.name}>
@@ -180,7 +167,7 @@ const projectCreationSchema = {
     constraints: [
       constraints.matches(
         PROJECT_NAME_REGEXP,
-        `Project name must match ${PROJECT_NAME_REGEXP.toString()}`
+        `Project name must match ${PROJECT_NAME_REGEXP.toString()}`,
       ),
     ],
   },

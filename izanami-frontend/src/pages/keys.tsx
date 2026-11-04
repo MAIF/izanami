@@ -18,11 +18,7 @@ import { constraints, format, type } from "@maif/react-forms";
 import { GenericTable } from "../components/GenericTable";
 import { customStyles } from "../styles/reactSelect";
 import { Modal } from "../components/Modal";
-import {
-  hasRightForKey,
-  IzanamiContext,
-  useTenantRight,
-} from "../securityContext";
+import { hasRightForKey, IzanamiContext, useTenantRight } from "../securityContext";
 import { KEY_NAME_REGEXP } from "../utils/patterns";
 import { Loader } from "../components/Loader";
 import { useSearchParams } from "react-router-dom";
@@ -53,9 +49,7 @@ function editionSchema(tenant: string, key?: TKey) {
       label: () => (
         <>
           Enabled
-          <Tooltip id="enabled-key-id">
-            Key must be enabled to call Izanami endpoints
-          </Tooltip>
+          <Tooltip id="enabled-key-id">Key must be enabled to call Izanami endpoints</Tooltip>
         </>
       ),
       type: type.bool,
@@ -69,9 +63,7 @@ function editionSchema(tenant: string, key?: TKey) {
       label: () => (
         <>
           Tenant wide
-          <Tooltip id="unscoped-key-id">
-            A tenant wide key can read all tenant features.
-          </Tooltip>
+          <Tooltip id="unscoped-key-id">A tenant wide key can read all tenant features.</Tooltip>
         </>
       ),
       type: type.bool,
@@ -119,8 +111,7 @@ export default function Keys(props: { tenant: string }) {
   });
   const hasTenantWriteRight = useTenantRight(tenant, TLevel.Write);
   const [creating, setCreating] = React.useState(false);
-  const { refreshUser, askInputConfirmation } =
-    React.useContext(IzanamiContext);
+  const { refreshUser, askInputConfirmation } = React.useContext(IzanamiContext);
 
   const keyDeleteMutation = useMutation({
     mutationKey: [tenantKeyQueryKey(tenant)],
@@ -145,8 +136,7 @@ export default function Keys(props: { tenant: string }) {
   const keyCreateMutation = useMutation({
     mutationKey: [tenantKeyQueryKey(tenant)],
 
-    mutationFn: (params: { key: TKey; tenant: string }) =>
-      createKey(params.tenant, params.key),
+    mutationFn: (params: { key: TKey; tenant: string }) => createKey(params.tenant, params.key),
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [tenantKeyQueryKey(tenant)] });
@@ -242,11 +232,7 @@ export default function Keys(props: { tenant: string }) {
                 transform: "translateY(-50%)",
               }}
             >
-              <CopyButton
-                icon
-                secondary
-                value={info.row.original.clientSecret}
-              />
+              <CopyButton icon secondary value={info.row.original.clientSecret} />
             </div>
           </div>
         );
@@ -267,9 +253,7 @@ export default function Keys(props: { tenant: string }) {
         const value: any = row.getValue(columnId);
         const isTenantWide = row.original.admin;
 
-        return filterValue.some(
-          (v: string) => value.includes(v) || isTenantWide,
-        );
+        return filterValue.some((v: string) => value.includes(v) || isTenantWide);
       },
       cell: (info: any) => {
         if (info.row.original.admin) {
@@ -283,12 +267,7 @@ export default function Keys(props: { tenant: string }) {
           return info.row.original.projects.map((p: string) => {
             return (
               <>
-                <ProjectLink
-                  key={p}
-                  tenant={tenant}
-                  project={p}
-                  className="table-link"
-                />
+                <ProjectLink key={p} tenant={tenant} project={p} className="table-link" />
                 <br />
               </>
             );
@@ -357,8 +336,7 @@ export default function Keys(props: { tenant: string }) {
           !creating && (
             <div className="item-block">
               <div className="item-text">
-                There is no key{hasTenantWriteRight ? "" : " you can see"} for
-                this tenant.
+                There is no key{hasTenantWriteRight ? "" : " you can see"} for this tenant.
               </div>
               {hasTenantWriteRight && (
                 <button
@@ -377,11 +355,7 @@ export default function Keys(props: { tenant: string }) {
             data={keyQuery.data}
             defaultSort="name"
             idAccessor={(key) => key.name}
-            filters={
-              selectedSearchRow
-                ? [{ id: "name", value: selectedSearchRow }]
-                : []
-            }
+            filters={selectedSearchRow ? [{ id: "name", value: selectedSearchRow }] : []}
             customRowActions={{
               edit: {
                 icon: (
@@ -413,8 +387,7 @@ export default function Keys(props: { tenant: string }) {
                     <i className="fa-solid fa-lock" aria-hidden></i> Rights
                   </>
                 ),
-                hasRight: (user, key) =>
-                  hasRightForKey(user, TLevel.Admin, key.name, tenant),
+                hasRight: (user, key) => hasRightForKey(user, TLevel.Admin, key.name, tenant),
                 customForm: (key, cancel) => {
                   return (
                     <>
@@ -437,8 +410,7 @@ export default function Keys(props: { tenant: string }) {
                 action: (key: TKey) => {
                   askInputConfirmation(
                     <>
-                      Are you sure you want to delete key {key.name}? This can't
-                      be undone.
+                      Are you sure you want to delete key {key.name}? This can't be undone.
                       <br />
                       Please confirm by typing key name below.
                     </>,
@@ -475,24 +447,12 @@ export default function Keys(props: { tenant: string }) {
   }
 }
 
-function KeyModal(props: {
-  visible: boolean;
-  secret?: string;
-  id?: string;
-  onClose: () => void;
-}) {
+function KeyModal(props: { visible: boolean; secret?: string; id?: string; onClose: () => void }) {
   const { visible, secret, onClose, id } = props;
   return (
-    <Modal
-      title="Key created !"
-      visible={visible}
-      onClose={() => onClose()}
-      isLoading={false}
-    >
+    <Modal title="Key created !" visible={visible} onClose={() => onClose()} isLoading={false}>
       <>
-        <label htmlFor="clientid">
-          Key client id (izanami-client-id header)
-        </label>
+        <label htmlFor="clientid">Key client id (izanami-client-id header)</label>
         <div className="input-group mb-3">
           <input
             id="clientid"
@@ -515,9 +475,7 @@ function KeyModal(props: {
             </button>
           </div>
         </div>
-        <label htmlFor="secret">
-          Key secret (izanami-client-secret header)
-        </label>
+        <label htmlFor="secret">Key secret (izanami-client-secret header)</label>
         <div className="input-group mb-3">
           <input
             id="secret"

@@ -2,11 +2,7 @@ import * as React from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { FeatureTable } from "../components/FeatureTable";
 import queryClient from "../queryClient";
-import {
-  IzanamiContext,
-  hasRightForProject,
-  useAdmin,
-} from "../securityContext";
+import { IzanamiContext, hasRightForProject, useAdmin } from "../securityContext";
 import {
   createFeature,
   featureQueryKey,
@@ -62,10 +58,7 @@ export function Tag(prop: { tag: string; tenant: string }) {
       <>
         <div className="d-flex align-items-center">
           <h1>
-            Features with tag{" "}
-            <span className="badge bg-warning text-dark btn-sm p-1">
-              {name}
-            </span>
+            Features with tag <span className="badge bg-warning text-dark btn-sm p-1">{name}</span>
           </h1>
 
           {creationRight && (
@@ -173,9 +166,7 @@ function Features(props: { tagName: string; tenant: string }): JSX.Element {
         refresh={() => queryClient.invalidateQueries({ queryKey: [queryKey] })}
         fields={["name", "tags", "project", "enabled", "details", "project"]}
         actions={(feature) => {
-          if (
-            hasRightForProject(user!, TLevel.Write, feature.project!, tenant)
-          ) {
+          if (hasRightForProject(user!, TLevel.Write, feature.project!, tenant)) {
             return ["delete", "edit", "test", "overloads", "url"];
           } else {
             return ["test", "overloads", "url"];

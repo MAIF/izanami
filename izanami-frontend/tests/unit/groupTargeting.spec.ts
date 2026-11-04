@@ -13,9 +13,9 @@ describe("group targeting", () => {
   });
 
   it("encodes repeated groups separately from the user in both test endpoints", async () => {
-    const fetch = vi.fn().mockImplementation(() =>
-      Promise.resolve(Response.json({ active: true })),
-    );
+    const fetch = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(Response.json({ active: true })));
     vi.stubGlobal("fetch", fetch);
     const feature: TCompleteFeature = {
       name: "flag",

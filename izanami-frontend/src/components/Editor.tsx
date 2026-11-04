@@ -7,7 +7,7 @@ import { customStyles } from "../styles/reactSelect";
 import { Tooltip } from "./Tooltip";
 import { testHandlebarTemplate } from "../utils/queries";
 import { HandleBarResult } from "../utils/types";
-import { lintGutter, linter, Diagnostic } from "@codemirror/lint"
+import { lintGutter, linter, Diagnostic } from "@codemirror/lint";
 
 export function WebhookTransformationEditor(props: {
   value: string;
@@ -46,7 +46,11 @@ export function WebhookTransformationEditor(props: {
           }}
         >
           <Editor
-            errors={(result && "error" in result) ? [backendErrorToDiagnostic({ error: result.error, template: value })] : []}
+            errors={
+              result && "error" in result
+                ? [backendErrorToDiagnostic({ error: result.error, template: value })]
+                : []
+            }
             value={value}
             onChange={(t) => {
               setResult(undefined);
@@ -79,7 +83,7 @@ export function WebhookTransformationEditor(props: {
             }}
             className="error-message"
           >
-          An error occured while applying handlebar template, see editor above for details
+            An error occured while applying handlebar template, see editor above for details
           </div>
         ) : (
           <div
@@ -116,18 +120,34 @@ export function WebhookTransformationEditor(props: {
   );
 }
 
-const BACKEND_ERROR_REGEX = /^Invalid handlebar template: inline@[0-9a-z]+:(?<row>[0-9]+):(?<col>[0-9a-z]+):(?<msg>.*)$/s;
-function backendErrorToDiagnostic({ error, template }: { error: string, template: string }): Diagnostic {
+const BACKEND_ERROR_REGEX =
+  /^Invalid handlebar template: inline@[0-9a-z]+:(?<row>[0-9]+):(?<col>[0-9a-z]+):(?<msg>.*)$/s;
+function backendErrorToDiagnostic({
+  error,
+  template,
+}: {
+  error: string;
+  template: string;
+}): Diagnostic {
   const result = BACKEND_ERROR_REGEX.exec(error);
   const groups = result?.groups || {};
   const row = Number(groups.row!);
   const col = Number(groups.col!);
   const msg = groups.msg!;
-  const previousRowsCharCount = template.split("\n").slice(0, row - 1).join("\n").length + 1
-  return { from: previousRowsCharCount + col, to: previousRowsCharCount + 1 + col, severity: "error", message: msg };
+  const previousRowsCharCount =
+    template
+      .split("\n")
+      .slice(0, row - 1)
+      .join("\n").length + 1;
+  return {
+    from: previousRowsCharCount + col,
+    to: previousRowsCharCount + 1 + col,
+    severity: "error",
+    message: msg,
+  };
 }
 
-function Editor(props: { value: string; onChange: (v: string) => void, errors?: Diagnostic[] }) {
+function Editor(props: { value: string; onChange: (v: string) => void; errors?: Diagnostic[] }) {
   const { value, onChange } = props;
 
   return (
@@ -147,12 +167,15 @@ function Editor(props: { value: string; onChange: (v: string) => void, errors?: 
         id="handlebar-editor"
         value={value}
         height="450px"
-        extensions={[handlebarsLanguage, lintGutter(), linter(() => {
-          return props.errors || []
-        })]}
+        extensions={[
+          handlebarsLanguage,
+          lintGutter(),
+          linter(() => {
+            return props.errors || [];
+          }),
+        ]}
         onChange={(v) => onChange(v)}
         theme="dark"
-
       />
     </>
   );
@@ -188,13 +211,7 @@ events.set(
                     },
                   ],
                   activationDays: {
-                    days: [
-                      "MONDAY",
-                      "FRIDAY",
-                      "TUESDAY",
-                      "THURSDAY",
-                      "WEDNESDAY",
-                    ],
+                    days: ["MONDAY", "FRIDAY", "TUESDAY", "THURSDAY", "WEDNESDAY"],
                   },
                   timezone: "Europe/Paris",
                 },
@@ -257,13 +274,7 @@ events.set(
                     },
                   ],
                   activationDays: {
-                    days: [
-                      "MONDAY",
-                      "TUESDAY",
-                      "THURSDAY",
-                      "WEDNESDAY",
-                      "FRIDAY",
-                    ],
+                    days: ["MONDAY", "TUESDAY", "THURSDAY", "WEDNESDAY", "FRIDAY"],
                   },
                   timezone: "Europe/Paris",
                 },
@@ -312,10 +323,7 @@ events.set(
   ),
 );
 
-function EventPicker(props: {
-  defaultEvent: string;
-  onChange: (v: string) => void;
-}) {
+function EventPicker(props: { defaultEvent: string; onChange: (v: string) => void }) {
   const { defaultEvent, onChange } = props;
   const [value, setValue] = useState(events.get(defaultEvent) ?? "");
 
@@ -330,9 +338,7 @@ function EventPicker(props: {
       </label>
       <div style={{ marginBottom: "4px" }}>
         <Select
-          defaultValue={
-            defaultEvent ? { label: defaultEvent, value: defaultEvent } : null
-          }
+          defaultValue={defaultEvent ? { label: defaultEvent, value: defaultEvent } : null}
           options={[...events.keys()].map((key) => ({
             label: key,
             value: key,

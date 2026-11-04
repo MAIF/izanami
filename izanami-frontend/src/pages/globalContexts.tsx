@@ -40,18 +40,9 @@ function GlobalFeatureContexts(props: { tenant: string; open: string }) {
   });
 
   const globalContextProtectionUpdateMutation = useMutation({
-    mutationFn: (data: {
-      name: string;
-      path: string;
-      protected: boolean;
-      global: boolean;
-    }) => {
+    mutationFn: (data: { name: string; path: string; protected: boolean; global: boolean }) => {
       const { name, path, protected: isProtected } = data;
-      return changeProtectionStatusForGlobalContext(
-        tenant,
-        `${path}/${name}`,
-        isProtected
-      );
+      return changeProtectionStatusForGlobalContext(tenant, `${path}/${name}`, isProtected);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [globalContextKey(tenant)] });
@@ -76,13 +67,9 @@ function GlobalFeatureContexts(props: { tenant: string; open: string }) {
         allowProtectedContextUpdate={protectedContextRight}
         allowGlobalContextDelete={true}
         open={open ? JSON.parse(open) : []}
-        updateContextProtection={(v) =>
-          globalContextProtectionUpdateMutation.mutateAsync(v)
-        }
+        updateContextProtection={(v) => globalContextProtectionUpdateMutation.mutateAsync(v)}
         modificationRight={modificationRight || false}
-        deleteContext={(path: string) =>
-          deleteContextMutation.mutateAsync({ tenant, path })
-        }
+        deleteContext={(path: string) => deleteContextMutation.mutateAsync({ tenant, path })}
         createSubContext={(path: string, name: string) =>
           createGlobalSubContextMutation.mutateAsync({ tenant, path, name })
         }

@@ -11,17 +11,20 @@ import {
 export const MODE_KEY = "izanami-dark-light-mode";
 export const Modes = { light: "light", dark: "dark" } as const;
 type ModeKeys = keyof typeof Modes;
-export type ModeValue = typeof Modes[ModeKeys];
+export type ModeValue = (typeof Modes)[ModeKeys];
 
 export interface TIzanamiContext {
   updateLightMode: (mode: ModeValue) => void;
   mode: ModeValue;
   version?: string;
   expositionUrl?: string;
-  clientUrlByContexts: {[tenant: string]: {[ctx: string]: string}};
+  clientUrlByContexts: { [tenant: string]: { [ctx: string]: string } };
   user?: TUser;
   setUser: (user: TUser) => void;
-  setExpositionUrls: (urls: {url: string, clientUrlByContexts: {[tenant:string]: {[ctx: string]: string}}}) => void;
+  setExpositionUrls: (urls: {
+    url: string;
+    clientUrlByContexts: { [tenant: string]: { [ctx: string]: string } };
+  }) => void;
   logout: () => void;
   displayModal: (content: React.FC<{ close: () => void }>) => Promise<void>;
   askConfirmation: (
@@ -161,10 +164,7 @@ export function hasRightForProject(
 
   return (
     tenantRight.level === TLevel.Admin ||
-    isFirstProjectRightAboveOrEqual(
-      findProjectRight(user.rights, tenant, project),
-      level,
-    )
+    isFirstProjectRightAboveOrEqual(findProjectRight(user.rights, tenant, project), level)
   );
 }
 
@@ -176,12 +176,7 @@ export function hasRightForTenant(user: TUser, tenant: string, level: TLevel) {
   return tenantRight && isFirstRightAboveOrEqual(tenantRight, level);
 }
 
-export function hasRightForKey(
-  user: TUser,
-  level: TLevel,
-  key: string,
-  tenant: string,
-): boolean {
+export function hasRightForKey(user: TUser, level: TLevel, key: string, tenant: string): boolean {
   if (user.admin) {
     return true;
   }
@@ -231,21 +226,14 @@ export function findProjectRight(
   );
 }
 
-export function findKeyRight(
-  rights: TRights,
-  tenant: string,
-  key: string,
-): TLevel | undefined {
+export function findKeyRight(rights: TRights, tenant: string, key: string): TLevel | undefined {
   return (
     rights.tenants?.[tenant]?.keys?.[key].level ||
     rightWithNoneToRight(rights.tenants?.[tenant]?.defaultKeyRight)
   );
 }
 
-export function findTenantRight(
-  rights: TRights,
-  tenant: string,
-): TLevel | undefined {
+export function findTenantRight(rights: TRights, tenant: string): TLevel | undefined {
   return rightWithNoneToRight(rights?.tenants?.[tenant]?.level);
 }
 
@@ -257,9 +245,7 @@ function rightWithNoneToRight(level?: TLevelWithNone): TLevel | undefined {
   }
 }
 
-function projectRightWithNoneToRight(
-  level?: TProjectLevelWithNone,
-): TProjectLevel | undefined {
+function projectRightWithNoneToRight(level?: TProjectLevelWithNone): TProjectLevel | undefined {
   if (!level || level === "None") {
     return undefined;
   } else {
@@ -267,10 +253,7 @@ function projectRightWithNoneToRight(
   }
 }
 
-export function isFirstRightAboveOrEqual(
-  currentRight?: TLevelWithNone,
-  seekedRight?: TLevel,
-) {
+export function isFirstRightAboveOrEqual(currentRight?: TLevelWithNone, seekedRight?: TLevel) {
   if (!currentRight) {
     return false;
   }
@@ -312,10 +295,7 @@ export function isFirstProjectRightAboveOrEqual(
         currentRight === TProjectLevel.Admin
       );
     case TProjectLevel.Write:
-      return (
-        currentRight === TProjectLevel.Write ||
-        currentRight === TProjectLevel.Admin
-      );
+      return currentRight === TProjectLevel.Write || currentRight === TProjectLevel.Admin;
     case TProjectLevel.Admin:
       return currentRight === TProjectLevel.Admin;
     default:
@@ -334,10 +314,7 @@ export function rightsBelow(currentRight?: TLevel): TLevel[] {
   return result;
 }
 
-export function isRightBelowOrEqual(
-  right: TProjectLevelWithNone,
-  maxRight: TProjectLevelWithNone,
-) {
+export function isRightBelowOrEqual(right: TProjectLevelWithNone, maxRight: TProjectLevelWithNone) {
   switch (maxRight) {
     case "None":
       return right === "None";
@@ -346,18 +323,11 @@ export function isRightBelowOrEqual(
     case "Write":
       return right === "Write" || right === "Read" || right === "None";
     case "Admin":
-      return (
-        right === "Admin" ||
-        right === "Write" ||
-        right === "Read" ||
-        right === "None"
-      );
+      return right === "Admin" || right === "Write" || right === "Read" || right === "None";
   }
 }
 
-export function projectRightsBelow(
-  currentRight?: TProjectLevel,
-): TProjectLevel[] {
+export function projectRightsBelow(currentRight?: TProjectLevel): TProjectLevel[] {
   if (!currentRight) {
     return [];
   }

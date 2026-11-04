@@ -15,18 +15,14 @@ async function createProject(page: Page, name: string) {
 
 test.describe("Tenant screen should", () => {
   test("allow to create project", async ({ page, tenantName }) => {
-    await testBuilder()
-      .withTenant(testTenant(tenantName))
-      .build(page);
+    await testBuilder().withTenant(testTenant(tenantName)).build(page);
     await page.goto(`/tenants/${tenantName}`);
     await createProject(page, "foo");
     await expect(page).toHaveURL(`/tenants/${tenantName}/projects/foo`);
   });
 
   test("list extisting projects", async ({ page, tenantName }) => {
-    await testBuilder()
-      .withTenant(testTenant(tenantName))
-      .build(page);
+    await testBuilder().withTenant(testTenant(tenantName)).build(page);
     await page.goto(`/tenants/${tenantName}`);
     const projects = ["project1", "project2", "project3"];
 
@@ -40,7 +36,7 @@ test.describe("Tenant screen should", () => {
       await expect(
         page.getByRole("link", {
           name: project,
-        })
+        }),
       ).toBeVisible();
     }
   });

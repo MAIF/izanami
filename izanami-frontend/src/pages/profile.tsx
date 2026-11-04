@@ -29,11 +29,7 @@ export function Profile() {
   const [informationEdition, setInformationEdition] = useState(false);
   const [passwordEdition, setPasswordEdition] = useState(false);
   const passwordUpdateMutation = useMutation({
-    mutationFn: (user: {
-      username: string;
-      oldPassword: string;
-      password: string;
-    }) => {
+    mutationFn: (user: { username: string; oldPassword: string; password: string }) => {
       const { username, ...rest } = user;
       return updateUserPassword(username, rest);
     },
@@ -144,12 +140,7 @@ export function Profile() {
 function EditionForm(props: {
   defaultValues: { name: string; email: string; defaultTenant?: string };
   onCancel: () => void;
-  onSubmit: (
-    name: string,
-    email: string,
-    password: string,
-    tenant?: string
-  ) => Promise<any>;
+  onSubmit: (name: string, email: string, password: string, tenant?: string) => Promise<any>;
 }) {
   const {
     defaultValues: { name, email, defaultTenant },
@@ -176,7 +167,7 @@ function EditionForm(props: {
             constraints: [
               constraints.matches(
                 USERNAME_REGEXP,
-                `Username must match regex ${USERNAME_REGEXP.toString()}`
+                `Username must match regex ${USERNAME_REGEXP.toString()}`,
               ),
             ],
             props: {
@@ -248,7 +239,7 @@ function PasswordEditionForm(props: {
           constraints: [
             constraints.matches(
               PASSWORD_REGEXP,
-              `Password must match regex ${PASSWORD_REGEXP.toString()}`
+              `Password must match regex ${PASSWORD_REGEXP.toString()}`,
             ),
           ],
         },
@@ -262,14 +253,12 @@ function PasswordEditionForm(props: {
               "Passwords must be identical",
               (value, { parent: { newPassword } }) => {
                 return newPassword === value;
-              }
+              },
             ),
           ],
         },
       }}
-      onSubmit={({ currentPassword, newPassword }) =>
-        onSubmit(currentPassword, newPassword)
-      }
+      onSubmit={({ currentPassword, newPassword }) => onSubmit(currentPassword, newPassword)}
       onClose={() => onCancel()}
       submitText="Update password"
     />
@@ -289,8 +278,8 @@ function Rights(): JSX.Element {
       {admin && (
         <div className="mt-3">
           <h5>
-            <i className="bi bi-shield-check me-2" aria-hidden></i>You are
-            global admin of this Izanami instance
+            <i className="bi bi-shield-check me-2" aria-hidden></i>You are global admin of this
+            Izanami instance
           </h5>
         </div>
       )}
@@ -303,21 +292,18 @@ function Rights(): JSX.Element {
                 <span style={{ fontWeight: "bold" }}>
                   Your default project right is {value.defaultProjectRight}
                 </span>
-                {Object.entries(value.projects).map(
-                  ([projectName, projectRight]) => {
-                    return (
-                      <div key={`${key}-${projectName}`}>
-                        You have {projectRight.level} right of the project
-                        <Link to={`/tenants/${key}/projects/${projectName}`}>
-                          <button className="btn btn-sm btn-primary m-1">
-                            <i className="fas fa-building" aria-hidden />{" "}
-                            {projectName}
-                          </button>
-                        </Link>{" "}
-                      </div>
-                    );
-                  }
-                )}
+                {Object.entries(value.projects).map(([projectName, projectRight]) => {
+                  return (
+                    <div key={`${key}-${projectName}`}>
+                      You have {projectRight.level} right of the project
+                      <Link to={`/tenants/${key}/projects/${projectName}`}>
+                        <button className="btn btn-sm btn-primary m-1">
+                          <i className="fas fa-building" aria-hidden /> {projectName}
+                        </button>
+                      </Link>{" "}
+                    </div>
+                  );
+                })}
               </>
             )}
 
@@ -349,21 +335,19 @@ function Rights(): JSX.Element {
                 <span style={{ fontWeight: "bold" }}>
                   Your default project right is {value.defaultWebhookRight}
                 </span>
-                {Object.entries(value.webhooks).map(
-                  ([webhookName, webhookRight]) => {
-                    return (
-                      <div key={`${key}-${webhookName}`}>
-                        You have {webhookRight.level} right for the webhook
-                        <Link to={`/tenants/${key}/webhooks`}>
-                          <button className="btn btn-sm btn-primary m-1">
-                            <i className="fas fa-plug me-1" aria-hidden />
-                            {webhookName}
-                          </button>
-                        </Link>
-                      </div>
-                    );
-                  }
-                )}
+                {Object.entries(value.webhooks).map(([webhookName, webhookRight]) => {
+                  return (
+                    <div key={`${key}-${webhookName}`}>
+                      You have {webhookRight.level} right for the webhook
+                      <Link to={`/tenants/${key}/webhooks`}>
+                        <button className="btn btn-sm btn-primary m-1">
+                          <i className="fas fa-plug me-1" aria-hidden />
+                          {webhookName}
+                        </button>
+                      </Link>
+                    </div>
+                  );
+                })}
               </>
             )}
 
@@ -449,7 +433,7 @@ function Tokens() {
         data.expirationTimezone,
         data.allRights,
         data.rights,
-        data.globalRights
+        data.globalRights,
       ),
 
     onSuccess: () => {
@@ -487,9 +471,7 @@ function Tokens() {
                   expiresAt: token.expiresAt,
                   expirationTimezone: token.expirationTimezone,
                   allRights: token.allRights,
-                  rights: token.allRights
-                    ? {}
-                    : tokenRightsToObject(token.rights),
+                  rights: token.allRights ? {} : tokenRightsToObject(token.rights),
                   globalRights: token.allRights ? [] : token.globalRights,
                 })
                 .then((t) =>
@@ -500,7 +482,7 @@ function Tokens() {
                       title="Access token created"
                       onClose={close}
                     />
-                  ))
+                  )),
                 )
                 .then(() => setCreating(false));
             }}
@@ -556,8 +538,8 @@ function OneTimeSecretModalContent(props: {
         </div>
         {state === "Warning" && (
           <span style={{ color: "#D5443F" }}>
-            Please make sure you copied above value before closing this dialog,
-            this value won't be displayed again.
+            Please make sure you copied above value before closing this dialog, this value won't be
+            displayed again.
           </span>
         )}
       </div>

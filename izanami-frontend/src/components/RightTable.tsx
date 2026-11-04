@@ -8,10 +8,7 @@ import { PrevisionalRightsPill } from "./PrevisionalRightsPill";
 
 export function RightTable(props: {
   data: TSingleRightForTenantUser[];
-  onRightChange: (
-    datum: TSingleRightForTenantUser,
-    level?: TLevel,
-  ) => Promise<void>;
+  onRightChange: (datum: TSingleRightForTenantUser, level?: TLevel) => Promise<void>;
   canEdit: boolean;
 }) {
   const { askConfirmation } = React.useContext(IzanamiContext);
@@ -27,8 +24,7 @@ export function RightTable(props: {
                 <i className="bi bi-pencil-square" aria-hidden></i> Edit
               </>
             ),
-            hasRight: (user, datum) =>
-              canEdit && datum.username !== user?.username,
+            hasRight: (user, datum) => canEdit && datum.username !== user?.username,
             customForm: (data: TSingleRightForTenantUser, cancel) => (
               <RightLevelModification
                 submit={(level: TLevel) => {
@@ -49,8 +45,7 @@ export function RightTable(props: {
                 <i className="bi bi-trash" aria-hidden></i> Delete
               </>
             ),
-            hasRight: (user, datum) =>
-              canEdit && datum.username !== user?.username,
+            hasRight: (user, datum) => canEdit && datum.username !== user?.username,
             action: (d) =>
               askConfirmation(
                 `Are you sure you want to remove ${d.username} rights on this ?`,
@@ -171,17 +166,10 @@ function RightLevelModification(props: {
         }}
       />
       <div className="d-flex justify-content-end">
-        <button
-          type="button"
-          className="btn btn-danger m-2"
-          onClick={() => cancel()}
-        >
+        <button type="button" className="btn btn-danger m-2" onClick={() => cancel()}>
           Cancel
         </button>
-        <button
-          className="btn btn-primary m-2"
-          onClick={() => submit(newLevel)}
-        >
+        <button className="btn btn-primary m-2" onClick={() => submit(newLevel)}>
           Save
         </button>
       </div>

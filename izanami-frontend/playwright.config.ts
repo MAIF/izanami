@@ -97,29 +97,33 @@ export default defineConfig({
         stderr: "pipe",
         stdout: "pipe",
       }
-    : [{
-        command: `cd .. && docker-compose up > /dev/null`,
-        url: "http://localhost:5001",
-        reuseExistingServer: !process.env.CI,
-        stderr: "pipe",
-        stdout: "pipe",
-        gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
-        name: "Containers"
-    }, {
-        command: `cd .. && sbt "run -Dconfig.resource=base-test.conf -Dlogger.file=./test/resources/logback.xml"`,
-        url: "http://127.0.0.1:9000/api/_health",
-        reuseExistingServer: false, // Test conf is different from dev conf
-        stderr: "pipe",
-        stdout: "pipe",
-        name: "Backend"
-    }, {
-        command: `npm run dev`,
-        url: "http://localhost:3000",
-        reuseExistingServer: !process.env.CI,
-        stderr: "pipe",
-        stdout: "pipe",
-        name: "Frontend"
-    }],
+    : [
+        {
+          command: `cd .. && docker-compose up > /dev/null`,
+          url: "http://localhost:5001",
+          reuseExistingServer: !process.env.CI,
+          stderr: "pipe",
+          stdout: "pipe",
+          gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },
+          name: "Containers",
+        },
+        {
+          command: `cd .. && sbt "run -Dconfig.resource=base-test.conf -Dlogger.file=./test/resources/logback.xml"`,
+          url: "http://127.0.0.1:9000/api/_health",
+          reuseExistingServer: false, // Test conf is different from dev conf
+          stderr: "pipe",
+          stdout: "pipe",
+          name: "Backend",
+        },
+        {
+          command: `npm run dev`,
+          url: "http://localhost:3000",
+          reuseExistingServer: !process.env.CI,
+          stderr: "pipe",
+          stdout: "pipe",
+          name: "Frontend",
+        },
+      ],
 });
 
 /*
@@ -137,7 +141,7 @@ export default defineConfig({
         stdout: "pipe",
     }]
 
-    */  
+    */
 
 /*
   npx playwright test

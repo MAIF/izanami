@@ -23,31 +23,26 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
   onCancel,
   context,
 }: OverloadUpdateConfirmationModalProps) {
-  const [confirmationText, setConfirmationText] = useState<string | undefined>(
-    undefined,
-  );
+  const [confirmationText, setConfirmationText] = useState<string | undefined>(undefined);
   const [error, setError] = useState<undefined | string>(undefined);
   const featureEntries = Object.values(features);
   const singleFeature =
     featureEntries.length === 1
-      ? featureEntries[0]?.oldFeature?.name ??
-        featureEntries[0]?.newFeature?.name
+      ? (featureEntries[0]?.oldFeature?.name ?? featureEntries[0]?.newFeature?.name)
       : undefined;
-  const oldNewFeatures: [TLightFeature?, TLightFeature?][] = Object.values(
-    features,
-  ).map(({ oldFeature, newFeature }) => {
-    return [oldFeature, newFeature];
-  });
+  const oldNewFeatures: [TLightFeature?, TLightFeature?][] = Object.values(features).map(
+    ({ oldFeature, newFeature }) => {
+      return [oldFeature, newFeature];
+    },
+  );
 
   const isDelete = featureEntries.every((e) => !e.newFeature);
   const isCreate = featureEntries.every((e) => !e.oldFeature);
   const { impactedContexts, rootImpactedContexts, forbiddenUpdateByProject } =
     featureEntries.reduce(
       (acc, impact) => {
-        const featureName =
-          impact?.oldFeature?.name ?? impact?.newFeature?.name;
-        const { impactedProtectedContexts, impactedRootProtectedContexts } =
-          impact;
+        const featureName = impact?.oldFeature?.name ?? impact?.newFeature?.name;
+        const { impactedProtectedContexts, impactedRootProtectedContexts } = impact;
 
         impactedProtectedContexts.forEach((ctx) => {
           const name = ctx.parent.concat(ctx.name).join("/");
@@ -98,13 +93,9 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
         onSubmit={(e) => {
           e.preventDefault();
           const names = featureEntries.map(
-            ({ oldFeature, newFeature }) =>
-              oldFeature?.name ?? newFeature?.name,
+            ({ oldFeature, newFeature }) => oldFeature?.name ?? newFeature?.name,
           );
-          if (
-            strategyPreservation ||
-            names.some((name) => name === confirmationText)
-          ) {
+          if (strategyPreservation || names.some((name) => name === confirmationText)) {
             onConfirm(strategyPreservation).then(() => onCancel());
           } else {
             setError("Name does not match");
@@ -116,11 +107,7 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
         </div>
         <div className="modal-body">
           {isDelete ? "Deleting " : isCreate ? "Creating" : "Updating "}
-          {singleFeature ? (
-            <span className="fw-bold">{singleFeature}</span>
-          ) : (
-            "these features"
-          )}{" "}
+          {singleFeature ? <span className="fw-bold">{singleFeature}</span> : "these features"}{" "}
           {context ? (
             <>
               overload(s) for context <span className="fw-bold">{context}</span>{" "}
@@ -128,49 +115,38 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
           ) : (
             ""
           )}
-          will impact below protected contexts, since neither them nor their
-          parents define overload for{" "}
-          {singleFeature ? "this feature" : "these features"}:
+          will impact below protected contexts, since neither them nor their parents define overload
+          for {singleFeature ? "this feature" : "these features"}:
           <ul>
             {Object.entries(impactedContexts).map(([ctx, features]) => (
               <li key={ctx}>
                 {ctx}
                 &nbsp;
-                <i
-                  className="fa-solid fa-lock fs-6 ml-5"
-                  aria-label="protected"
-                  aria-hidden
-                ></i>
-                {!singleFeature && (
-                  <span className="fw-bold"> ({features.join(", ")})</span>
-                )}
+                <i className="fa-solid fa-lock fs-6 ml-5" aria-label="protected" aria-hidden></i>
+                {!singleFeature && <span className="fw-bold"> ({features.join(", ")})</span>}
               </li>
             ))}
           </ul>
           {Object.keys(forbiddenUpdateByProject).length === 0 ? (
             <>
-              These contexts strategies can be left unchanged by duplicating old
-              strategy{" "}
-              {Object.keys(impactedContexts).length !==
-              Object.keys(rootImpactedContexts).length ? (
+              These contexts strategies can be left unchanged by duplicating old strategy{" "}
+              {Object.keys(impactedContexts).length !== Object.keys(rootImpactedContexts).length ? (
                 <>
                   in below contexts:
                   <ul>
-                    {Object.entries(rootImpactedContexts).map(
-                      ([ctx, features]) => {
-                        return (
-                          <li key={ctx}>
-                            {ctx}&nbsp;
-                            <i
-                              className="fa-solid fa-lock fs-6 ml-5"
-                              aria-label="protected"
-                              aria-hidden
-                            ></i>
-                            {!singleFeature && ` (${features.join(",")})`}
-                          </li>
-                        );
-                      },
-                    )}
+                    {Object.entries(rootImpactedContexts).map(([ctx, features]) => {
+                      return (
+                        <li key={ctx}>
+                          {ctx}&nbsp;
+                          <i
+                            className="fa-solid fa-lock fs-6 ml-5"
+                            aria-label="protected"
+                            aria-hidden
+                          ></i>
+                          {!singleFeature && ` (${features.join(",")})`}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </>
               ) : (
@@ -198,12 +174,11 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
                 <span style={{ fontSize: "16px" }}>
                   Duplicate old strategy for these contexts
                   <Tooltip id="strategy-preservation-tooltip">
-                    If you choose to duplicate old stragegy in impacted
-                    contexts, Izanami will copy old
+                    If you choose to duplicate old stragegy in impacted contexts, Izanami will copy
+                    old
                     <br /> strategy of updated feature(s) in impacted contexts.
                     <br /> This will prevent "cascading update" and only{" "}
-                    {context ? "current context" : "feature base strategy"} will
-                    be impacted.
+                    {context ? "current context" : "feature base strategy"} will be impacted.
                   </Tooltip>
                 </span>
               </label>
@@ -226,11 +201,8 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
                     }}
                   >
                     <span style={{ alignSelf: "flex-start" }}>
-                      Type{" "}
-                      {singleFeature
-                        ? "feature name"
-                        : "one of the feature names"}{" "}
-                      below to confirm.
+                      Type {singleFeature ? "feature name" : "one of the feature names"} below to
+                      confirm.
                     </span>
                     <input
                       className="form-control"
@@ -249,8 +221,7 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
             <>
               You don't have enough rights to update these contexts, therefore{" "}
               <span className="fw-bold">
-                old {singleFeature ? "strategy" : "strategies"} will be applied
-                to below contexts
+                old {singleFeature ? "strategy" : "strategies"} will be applied to below contexts
               </span>
               :
               <ul>
@@ -288,11 +259,7 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
             Close
           </button>
 
-          <button
-            type="submit"
-            className="btn btn-primary"
-            aria-label="Confirm"
-          >
+          <button type="submit" className="btn btn-primary" aria-label="Confirm">
             Confirm
           </button>
         </div>
@@ -301,11 +268,7 @@ export function MultiFeatureOverloadUpdateConfirmationModal({
   );
 }
 
-function FeaturesDiffs({
-  oldNewfeatures,
-}: {
-  oldNewfeatures: [TLightFeature, TLightFeature][];
-}) {
+function FeaturesDiffs({ oldNewfeatures }: { oldNewfeatures: [TLightFeature, TLightFeature][] }) {
   return (
     <div className="accordion" id="diffAccordion">
       {oldNewfeatures.map(([oldFeature, newFeature]) => {
@@ -324,16 +287,9 @@ function FeaturesDiffs({
                 {oldFeature.name}
               </button>
             </h2>
-            <div
-              id={id}
-              className="accordion-collapse collapse"
-              data-bs-parent="#diffAccordion"
-            >
+            <div id={id} className="accordion-collapse collapse" data-bs-parent="#diffAccordion">
               <div className="accordion-body">
-                <ConditionDiff
-                  newConditions={newFeature}
-                  oldConditions={oldFeature}
-                />
+                <ConditionDiff newConditions={newFeature} oldConditions={oldFeature} />
               </div>
             </div>
           </div>

@@ -12,12 +12,7 @@ export function SearchModal(props: {
   if (!isOpenModal) return null;
 
   return (
-    <Modal
-      visible={isOpenModal}
-      onClose={() => onClose()}
-      position="top"
-      isLoading={false}
-    >
+    <Modal visible={isOpenModal} onClose={() => onClose()} position="top" isLoading={false}>
       <SearchModalContent
         tenant={currentTenant}
         allTenants={availableTenants}

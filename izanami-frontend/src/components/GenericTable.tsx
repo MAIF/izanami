@@ -35,9 +35,7 @@ interface TProps<T extends RowData> {
   filters?: ColumnFiltersState | undefined;
 }
 
-export type TCustomAction<T> =
-  | TCustomActionWithoutForm<T>
-  | TFormCustomAction<T>;
+export type TCustomAction<T> = TCustomActionWithoutForm<T> | TFormCustomAction<T>;
 
 export interface TCustomActionParent<T> {
   icon: React.ReactNode | ((data: any) => React.ReactNode);
@@ -57,20 +55,18 @@ export interface TFormCustomAction<T> extends TFormCustomActionParent<T> {
 }
 
 function isCustomActionWithoutForm<T>(
-  action: TCustomAction<T>
+  action: TCustomAction<T>,
 ): action is TCustomActionWithoutForm<T> {
   return (action as TCustomActionWithoutForm<T>).action !== undefined;
 }
 
-function isFormCustomAction<T>(
-  action: TCustomAction<T>
-): action is TFormCustomAction<T> {
+function isFormCustomAction<T>(action: TCustomAction<T>): action is TFormCustomAction<T> {
   return (action as TFormCustomAction<T>).customForm !== undefined;
 }
 
 function renderActionForm<T>(
   action: TCustomAction<T> | undefined,
-  customFormRender: (action: TFormCustomAction<T>) => React.ReactNode
+  customFormRender: (action: TFormCustomAction<T>) => React.ReactNode,
 ): React.ReactNode {
   if (!action) {
     return <></>;
@@ -102,18 +98,15 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
             desc: false,
           },
         ]
-      : []
+      : [],
   );
   const [rowSelection, setRowSelection] = React.useState({});
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    filters || []
-  );
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(filters || []);
   useEffect(() => {
     setColumnFilters(filters!);
   }, [filters]);
 
-  const hasActionColumn =
-    customRowActions && Object.keys(customRowActions).length > 0;
+  const hasActionColumn = customRowActions && Object.keys(customRowActions).length > 0;
 
   const [activeCustomAction, setActiveCustomAction] = useState(new Map());
 
@@ -121,53 +114,44 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
   const user = izanamiCtx.user!;
 
   function extractAction(row: Row<any>) {
-    return customRowActions?.[
-      activeCustomAction.get(idAccessor(row.original!))
-    ];
+    return customRowActions?.[activeCustomAction.get(idAccessor(row.original!))];
   }
 
   const actionColumn: ColumnDef<T> = {
     id: "actions",
     enableSorting: false,
     minSize: 47,
-    header: () => (
-      <div className="d-flex flex-column align-items-end">Actions</div>
-    ),
+    header: () => <div className="d-flex flex-column align-items-end">Actions</div>,
     cell: function (props: { row: Row<any> }) {
       const element: T = props.row.original!;
       const actionList = Object.entries(customRowActions || {})
-          .filter(([, value]) => {
-            return value.hasRight ? value.hasRight(user, element) : true;
-          })
-          .map(([key, action]) => {
-            return (
-              <li
-                key={`${props.row.id}-${key}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isCustomActionWithoutForm(action)) {
-                    action.action(props.row.original);
-                  } else {
-                    setActiveCustomAction((current) => {
-                      const mapKey = idAccessor(element);
-                      current.set(mapKey, key);
-                      return new Map(current);
-                    });
-                  }
-                }}
-              >
-                <a
-                  className="dropdown-item"
-                  href="#"
-                  onClick={(e) => e.preventDefault()}
-                >
-                  {typeof action.icon === "function"
-                    ? action.icon(props.row.original)
-                    : action.icon}
-                </a>
-              </li>
-            );
-          }).filter(Boolean);
+        .filter(([, value]) => {
+          return value.hasRight ? value.hasRight(user, element) : true;
+        })
+        .map(([key, action]) => {
+          return (
+            <li
+              key={`${props.row.id}-${key}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isCustomActionWithoutForm(action)) {
+                  action.action(props.row.original);
+                } else {
+                  setActiveCustomAction((current) => {
+                    const mapKey = idAccessor(element);
+                    current.set(mapKey, key);
+                    return new Map(current);
+                  });
+                }
+              }}
+            >
+              <a className="dropdown-item" href="#" onClick={(e) => e.preventDefault()}>
+                {typeof action.icon === "function" ? action.icon(props.row.original) : action.icon}
+              </a>
+            </li>
+          );
+        })
+        .filter(Boolean);
       return (
         <>
           {actionList.length > 0 && (
@@ -224,9 +208,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
               alignItems: "center",
             }}
           >
-            <div
-              style={{ width: "16px", height: "16px", position: "relative" }}
-            >
+            <div style={{ width: "16px", height: "16px", position: "relative" }}>
               <IndeterminateCheckbox
                 {...{
                   checked: row.getIsSelected(),
@@ -291,23 +273,11 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
                 let sortIcon = <></>;
                 const sorted = header.column.getIsSorted();
                 if (sorted === "desc") {
-                  sortIcon = (
-                    <i
-                      className="bi bi-arrow-down ms-2"
-                      aria-label="move down"
-                    ></i>
-                  );
+                  sortIcon = <i className="bi bi-arrow-down ms-2" aria-label="move down"></i>;
                 } else if (sorted === "asc") {
-                  sortIcon = (
-                    <i className="bi bi-arrow-up ms-2" aria-label="move up"></i>
-                  );
+                  sortIcon = <i className="bi bi-arrow-up ms-2" aria-label="move up"></i>;
                 } else if (header.column.getCanSort()) {
-                  sortIcon = (
-                    <i
-                      className="bi bi-arrow-down-up ms-2"
-                      aria-label="move"
-                    ></i>
-                  );
+                  sortIcon = <i className="bi bi-arrow-down-up ms-2" aria-label="move"></i>;
                 }
                 return (
                   <th
@@ -320,9 +290,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
                       maxWidth: header.column.columnDef.maxSize,
                       minWidth: header.column.columnDef.minSize,
                       width: `${header.column.columnDef.size}%`,
-                      ...(index == 0 && selectableRows
-                        ? { width: "45px" }
-                        : {}),
+                      ...(index == 0 && selectableRows ? { width: "45px" } : {}),
                     }}
                   >
                     <div
@@ -330,26 +298,18 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
                         index == 0 && selectableRows
                           ? "justify-content-center align-items-center"
                           : header.column.getCanFilter()
-                          ? "filterable"
-                          : ""
+                            ? "filterable"
+                            : ""
                       }`}
                     >
                       <div>
                         {header.isPlaceholder
                           ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                          : flexRender(header.column.columnDef.header, header.getContext())}
                         {sortIcon}
                       </div>
                       {header.column.getCanFilter() && (
-                        <div
-                          onClick={
-                            (e) =>
-                              e.stopPropagation() /* avoid sort on filter click */
-                          }
-                        >
+                        <div onClick={(e) => e.stopPropagation() /* avoid sort on filter click */}>
                           <Filter column={header.column} table={table} />
                         </div>
                       )}
@@ -372,64 +332,39 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
                           <th
                             scope="row"
                             key={cell.id}
-                            style={(selectableRows
-                                ? { verticalAlign: "middle" }
-                                : {})}
+                            style={selectableRows ? { verticalAlign: "middle" } : {}}
                           >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </th>
                         );
                       } else if (hasActionColumn && index === arr.length - 1) {
                         return (
-                          <td
-                            scope="row"
-                            key={cell.id}
-                            style={{ paddingLeft: "0" }}
-                          >
+                          <td scope="row" key={cell.id} style={{ paddingLeft: "0" }}>
                             <div className="d-flex flex-row justify-content-end align-items-center">
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext()
-                              )}
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </div>
                           </td>
                         );
                       }
                       return (
                         <td key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       );
                     })}
                   </tr>
                   {activeCustomAction.has(idAccessor(row.original!)) && (
-                    <tr
-                      key={`${row.id}-${activeCustomAction.get(
-                        idAccessor(row.original!)
-                      )}`}
-                    >
+                    <tr key={`${row.id}-${activeCustomAction.get(idAccessor(row.original!))}`}>
                       <td colSpan={completeColumns.length}>
                         <div className="sub_container">
-                          {renderActionForm(
-                            extractAction(row),
-                            (customRowAction) => {
-                              return customRowAction.customForm?.(
-                                row.original,
-                                () => {
-                                  setActiveCustomAction((current) => {
-                                    current.delete(idAccessor(row.original!));
-                                    return new Map(current);
-                                  });
-                                }
-                              );
-                            }
-                          )}
+                          {renderActionForm(extractAction(row), (customRowAction) => {
+                            return customRowAction.customForm?.(row.original, () => {
+                              setActiveCustomAction((current) => {
+                                current.delete(idAccessor(row.original!));
+                                return new Map(current);
+                              });
+                            });
+                          })}
                         </div>
                       </td>
                     </tr>
@@ -451,13 +386,11 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
 }
 
 function Filter({ column }: { column: Column<any>; table: Table<any> }) {
-  if (
-    (column.columnDef?.meta as { valueType?: string })?.valueType === "discrete"
-  ) {
+  if ((column.columnDef?.meta as { valueType?: string })?.valueType === "discrete") {
     const possibleValues = new Set(
       [...column.getFacetedUniqueValues().keys()]
         .flatMap((arr) => arr)
-        .flatMap((str) => str.split(","))
+        .flatMap((str) => str.split(",")),
     );
     const options = [...possibleValues].map((v) => ({ value: v, label: v }));
     return (
@@ -476,9 +409,7 @@ function Filter({ column }: { column: Column<any>; table: Table<any> }) {
         isMulti
       />
     );
-  } else if (
-    (column.columnDef?.meta as { valueType?: string })?.valueType === "boolean"
-  ) {
+  } else if ((column.columnDef?.meta as { valueType?: string })?.valueType === "boolean") {
     return (
       <Select
         isClearable
@@ -496,9 +427,7 @@ function Filter({ column }: { column: Column<any>; table: Table<any> }) {
         }}
       />
     );
-  } else if (
-    (column.columnDef?.meta as { valueType?: string })?.valueType === "status"
-  ) {
+  } else if ((column.columnDef?.meta as { valueType?: string })?.valueType === "status") {
     return (
       <Select
         isClearable
@@ -516,10 +445,7 @@ function Filter({ column }: { column: Column<any>; table: Table<any> }) {
         }}
       />
     );
-  } else if (
-    (column.columnDef?.meta as { valueType?: string })?.valueType ===
-    "activation"
-  ) {
+  } else if ((column.columnDef?.meta as { valueType?: string })?.valueType === "activation") {
     return (
       <Select
         isClearable
@@ -537,9 +463,7 @@ function Filter({ column }: { column: Column<any>; table: Table<any> }) {
         }}
       />
     );
-  } else if (
-    (column.columnDef?.meta as { valueType?: string })?.valueType === "rights"
-  ) {
+  } else if ((column.columnDef?.meta as { valueType?: string })?.valueType === "rights") {
     return (
       <Select
         isClearable

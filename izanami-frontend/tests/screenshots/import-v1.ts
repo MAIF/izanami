@@ -14,9 +14,7 @@ export async function generate() {
   await screenshot("form-button-hover");
   await importFormButtonLocator.click();
   const featureLocator = page.getByLabel("Exported feature files");
-  await featureLocator.setInputFiles(
-    "./tests/screenshots/import/features.ndjson"
-  );
+  await featureLocator.setInputFiles("./tests/screenshots/import/features.ndjson");
   await featureLocator.scrollIntoViewIfNeeded();
   await page.getByLabel("New project name").fill("website");
   await screenshot("filled-form");

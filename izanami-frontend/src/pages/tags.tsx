@@ -2,13 +2,7 @@ import * as React from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState, useContext } from "react";
 import { Loader } from "../components/Loader";
-import {
-  createTag,
-  deleteTag,
-  queryTags,
-  tagsQueryKey,
-  updateTag,
-} from "../utils/queries";
+import { createTag, deleteTag, queryTags, tagsQueryKey, updateTag } from "../utils/queries";
 import { GenericTable } from "../components/GenericTable";
 import { NavLink } from "react-router-dom";
 import { Form } from "../components/Form";
@@ -16,11 +10,7 @@ import { constraints, format, type } from "@maif/react-forms";
 import { TAG_NAME_REGEXP } from "../utils/patterns";
 import queryClient from "../queryClient";
 import { TLevel, TagType, TUser } from "../utils/types";
-import {
-  IzanamiContext,
-  useTenantRight,
-  hasRightForTenant,
-} from "../securityContext";
+import { IzanamiContext, useTenantRight, hasRightForTenant } from "../securityContext";
 import Select from "react-select";
 import { customStyles } from "../styles/reactSelect";
 import { CopyButton } from "../components/FeatureTable";
@@ -36,8 +26,7 @@ export function Tags(props: { tenant: string }) {
   const [creating, setCreating] = useState<boolean>(false);
 
   const tagCreateMutation = useMutation({
-    mutationFn: (data: TagType) =>
-      createTag(tenant, data.name, data.description),
+    mutationFn: (data: TagType) => createTag(tenant, data.name, data.description),
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [tagsQueryKey(tenant!)] });
@@ -65,9 +54,7 @@ export function Tags(props: { tenant: string }) {
     },
   });
 
-  const [bulkOperation, setBulkOperation] = useState<string | undefined>(
-    undefined,
-  );
+  const [bulkOperation, setBulkOperation] = useState<string | undefined>(undefined);
 
   const BULK_OPERATIONS = ["Delete"] as const;
   const [selectedRows, setSelectedRows] = useState<TagType[]>([]);
@@ -77,9 +64,7 @@ export function Tags(props: { tenant: string }) {
     return (
       <>
         <div className="item-block">
-          <div className="item-text">
-            There was an error fetching data for Tags.
-          </div>
+          <div className="item-text">There was an error fetching data for Tags.</div>
         </div>
       </>
     );
@@ -126,9 +111,7 @@ export function Tags(props: { tenant: string }) {
                 },
               }}
               onSubmit={(tag: TagType) => {
-                return tagCreateMutation
-                  .mutateAsync(tag)
-                  .then(() => setCreating(false));
+                return tagCreateMutation.mutateAsync(tag).then(() => setCreating(false));
               }}
               onClose={() => setCreating(false)}
             />
@@ -138,8 +121,7 @@ export function Tags(props: { tenant: string }) {
           ? !creating && (
               <div className="item-block">
                 <div className="item-text">
-                  There is no tag{hasTenantWriteRight ? "" : " you can see"} for
-                  this tenant.
+                  There is no tag{hasTenantWriteRight ? "" : " you can see"} for this tenant.
                 </div>
                 {hasTenantWriteRight && (
                   <button
@@ -153,21 +135,13 @@ export function Tags(props: { tenant: string }) {
               </div>
             )
           : hasTenantWriteRight && (
-              <div
-                className={`d-flex align-items-center ${
-                  hasSelectedRows ? "" : "invisible"
-                }`}
-              >
+              <div className={`d-flex align-items-center ${hasSelectedRows ? "" : "invisible"}`}>
                 <Select
                   options={BULK_OPERATIONS.map((op) => ({
                     label: op,
                     value: op,
                   }))}
-                  value={
-                    bulkOperation
-                      ? { label: bulkOperation, value: bulkOperation }
-                      : null
-                  }
+                  value={bulkOperation ? { label: bulkOperation, value: bulkOperation } : null}
                   onChange={(e) => setBulkOperation(e?.value)}
                   styles={customStyles}
                   isClearable={true}
@@ -191,9 +165,7 @@ export function Tags(props: { tenant: string }) {
                               } tag${selectedRows.length > 1 ? "s" : ""} ?`,
                               () => {
                                 return Promise.all(
-                                  selectedRows.map((row) =>
-                                    tagDeleteMutation.mutateAsync(row),
-                                  ),
+                                  selectedRows.map((row) => tagDeleteMutation.mutateAsync(row)),
                                 ).then(() => setBulkOperation(undefined));
                               },
                             );
@@ -226,10 +198,7 @@ export function Tags(props: { tenant: string }) {
                   return (
                     <>
                       <div key={String(name)}>
-                        <NavLink
-                          className={() => ""}
-                          to={`/tenants/${tenant}/tags/${name}`}
-                        >
+                        <NavLink className={() => ""} to={`/tenants/${tenant}/tags/${name}`}>
                           <span className="badge bg-warning text-dark">{`${name}`}</span>
                         </NavLink>
                       </div>
@@ -320,13 +289,11 @@ export function Tags(props: { tenant: string }) {
                 },
                 action: (tag: TagType) => {
                   return new Promise((resolve, reject) => {
-                    askConfirmation(
-                      `Are you sure you want to delete tag ${tag.name} ?`,
-                      () =>
-                        tagDeleteMutation
-                          .mutateAsync({ name: tag.name })
-                          .then((res) => resolve(res))
-                          .catch((err) => reject(err)),
+                    askConfirmation(`Are you sure you want to delete tag ${tag.name} ?`, () =>
+                      tagDeleteMutation
+                        .mutateAsync({ name: tag.name })
+                        .then((res) => resolve(res))
+                        .catch((err) => reject(err)),
                     );
                   });
                 },

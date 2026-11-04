@@ -5,12 +5,7 @@ import {
   TContextOverload,
   TStringContextOverload,
 } from "../utils/types";
-import {
-  useForm,
-  Controller,
-  FormProvider,
-  FieldErrors,
-} from "react-hook-form";
+import { useForm, Controller, FormProvider, FieldErrors } from "react-hook-form";
 import { ConditionsInput } from "./ConditionInput";
 import Select from "react-select";
 import { ExistingScript, WasmInput } from "./WasmInput";
@@ -36,31 +31,23 @@ export function OverloadCreationForm(props: {
   additionalFields?: () => JSX.Element;
   resultType?: FeatureTypeName;
 }) {
-  const {
-    cancel,
-    submit,
-    project,
-    excluded,
-    defaultValue,
-    noName,
-    additionalFields,
-  } = props;
+  const { cancel, submit, project, excluded, defaultValue, noName, additionalFields } = props;
 
   const izanamiContext = React.useContext(IzanamiContext);
   const wasmEnabledByConfig = izanamiContext?.integrations?.wasmAllowed ?? true;
   const wasmAvailable = wasmEnabledByConfig
     ? true
     : defaultValue
-    ? iWasmOverload(defaultValue)
-    : false;
+      ? iWasmOverload(defaultValue)
+      : false;
 
   const methods = useForm<TContextOverload>({ defaultValues: defaultValue });
   const { tenant } = useParams();
   const isWasm = defaultValue && "wasmConfig" in defaultValue;
   const [type, setType] = useState(isWasm ? "Existing WASM script" : "Classic");
-  const [featureResultType, setFeatureResultType] = useState<
-    FeatureTypeName | undefined
-  >(props.resultType);
+  const [featureResultType, setFeatureResultType] = useState<FeatureTypeName | undefined>(
+    props.resultType,
+  );
   React.useEffect(() => {
     if (type === "Existing WASM script") {
       setValue("wasmConfig.source.kind", "Local");
@@ -137,21 +124,15 @@ export function OverloadCreationForm(props: {
           </label>
           <label className="mt-3">
             Enabled
-            <input
-              type="checkbox"
-              className="izanami-checkbox ms-2"
-              {...register("enabled")}
-            />
+            <input type="checkbox" className="izanami-checkbox ms-2" {...register("enabled")} />
           </label>
           {additionalFields?.()}
           <div className="row mt-3">
             <label className="col-6 col-lg-5 col-xl-4 col-xxl-3">
               Feature result type
               <Tooltip id="modern-result-type">
-                Result type is result that will be returned by feature
-                evaluation.
-                <br /> It's usually boolean, but for some cases it can be string
-                or number.
+                Result type is result that will be returned by feature evaluation.
+                <br /> It's usually boolean, but for some cases it can be string or number.
               </Tooltip>
               <Select
                 placeholder="Select a feature to display its result type"
@@ -167,7 +148,9 @@ export function OverloadCreationForm(props: {
                             />
                             <span className="ps-1">
                               {featureResultType === "string"
-                                ? allowedValues ? "string (predefined values)" : "string (free text)"
+                                ? allowedValues
+                                  ? "string (predefined values)"
+                                  : "string (free text)"
                                 : featureResultType}
                             </span>
                           </div>
@@ -180,49 +163,46 @@ export function OverloadCreationForm(props: {
                 styles={customStyles}
               />
             </label>
-            {featureResultType &&
-              featureResultType !== "boolean" &&
-              type === "Classic" && (
-                <label className="col-6 col-lg-7 col-xl-8 col-xxl-9" htmlFor={featureResultType === "string" ? "overload-base-value" : undefined}>
-                  Base value*
-                  {allowedValues && (
-                    <Tooltip id="overload-base-value-number" ariaLabel="About value numbers">
-                      Labels and numbers identify values in the predefined list and are not part of the returned value.
-                    </Tooltip>
-                  )}
-                  {featureResultType === "string" ? (
-                    <Controller
-                      name="value"
-                      defaultValue=""
-                      control={control}
-                      rules={{ validate: (value) => !allowedValues ||
-                        allowedValues.some((choice) => choice.value === String(value)) || "Choose an allowed value" }}
-                      render={({ field }) => (
-                        <StringValueInput
-                          inputId="overload-base-value"
-                          ariaLabel="Base value*"
-                          value={field.value === undefined ? undefined : String(field.value)}
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          allowedValues={allowedValues}
-                        />
-                      )}
-                    />
-                  ) : (
-                    <input
-                      type="number"
-                      className="form-control"
-                      step="any"
-                      {...register("value")}
-                    />
-                  )}
-                  <ErrorDisplay
-                    error={
-                      (errors as FieldErrors<TStringContextOverload>).value
-                    }
+            {featureResultType && featureResultType !== "boolean" && type === "Classic" && (
+              <label
+                className="col-6 col-lg-7 col-xl-8 col-xxl-9"
+                htmlFor={featureResultType === "string" ? "overload-base-value" : undefined}
+              >
+                Base value*
+                {allowedValues && (
+                  <Tooltip id="overload-base-value-number" ariaLabel="About value numbers">
+                    Labels and numbers identify values in the predefined list and are not part of
+                    the returned value.
+                  </Tooltip>
+                )}
+                {featureResultType === "string" ? (
+                  <Controller
+                    name="value"
+                    defaultValue=""
+                    control={control}
+                    rules={{
+                      validate: (value) =>
+                        !allowedValues ||
+                        allowedValues.some((choice) => choice.value === String(value)) ||
+                        "Choose an allowed value",
+                    }}
+                    render={({ field }) => (
+                      <StringValueInput
+                        inputId="overload-base-value"
+                        ariaLabel="Base value*"
+                        value={field.value === undefined ? undefined : String(field.value)}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        allowedValues={allowedValues}
+                      />
+                    )}
                   />
-                </label>
-              )}
+                ) : (
+                  <input type="number" className="form-control" step="any" {...register("value")} />
+                )}
+                <ErrorDisplay error={(errors as FieldErrors<TStringContextOverload>).value} />
+              </label>
+            )}
           </div>
           <label className="mt-3">
             Feature type
@@ -242,9 +222,7 @@ export function OverloadCreationForm(props: {
                   : [{ label: "Classic", value: "Classic" }]
               }
               value={
-                wasmEnabled
-                  ? { label: type, value: type }
-                  : { label: "Classic", value: "Classic" }
+                wasmEnabled ? { label: type, value: type } : { label: "Classic", value: "Classic" }
               }
               onChange={(e) => {
                 setValue("conditions", []);
@@ -264,11 +242,7 @@ export function OverloadCreationForm(props: {
           {type === "Existing WASM script" && <ExistingScript />}
           {type === "New WASM script" && <WasmInput />}
           <div className="d-flex justify-content-end">
-            <button
-              type="button"
-              className="btn btn-danger m-2"
-              onClick={() => cancel()}
-            >
+            <button type="button" className="btn btn-danger m-2" onClick={() => cancel()}>
               Cancel
             </button>
             <button className="btn btn-primary m-2">Save</button>

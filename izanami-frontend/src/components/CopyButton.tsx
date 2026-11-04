@@ -1,11 +1,7 @@
 import * as React from "react";
 import { Tooltip } from "react-tooltip";
 
-export function CopyButton(props: {
-  value: string;
-  icon?: boolean;
-  secondary?: boolean;
-}) {
+export function CopyButton(props: { value: string; icon?: boolean; secondary?: boolean }) {
   const [validCheckMark, setValidCheckmark] = React.useState(false);
   const timeRef = React.useRef<undefined | NodeJS.Timeout>(undefined);
 
@@ -35,13 +31,7 @@ export function CopyButton(props: {
           <Tooltip id="copy" isOpen={validCheckMark} />
         </>
       ) : (
-        <>
-          {props.icon ? (
-            <i className="bi bi-clipboard" aria-label="copy"></i>
-          ) : (
-            "Copy"
-          )}
-        </>
+        <>{props.icon ? <i className="bi bi-clipboard" aria-label="copy"></i> : "Copy"}</>
       )}
     </button>
   );

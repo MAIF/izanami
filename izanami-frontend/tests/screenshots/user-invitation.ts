@@ -1,10 +1,5 @@
 import { screenshotBuilder, setup } from "./utils";
-import {
-  testBuilder,
-  testFeature,
-  testTenant,
-  testProject,
-} from "../testBuilder";
+import { testBuilder, testFeature, testTenant, testProject } from "../testBuilder";
 
 export async function generate() {
   const { page, browser } = await setup(true);
@@ -19,8 +14,8 @@ export async function generate() {
           .withFeature(testFeature("comments"))
           .withFeature(testFeature("summer-sales"))
           .withFeature(testFeature("phone-support"))
-          .withFeature(testFeature("new-layout"))
-      )
+          .withFeature(testFeature("new-layout")),
+      ),
     )
     .build(page);
 

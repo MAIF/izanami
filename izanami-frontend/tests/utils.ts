@@ -20,11 +20,7 @@ export async function logAs(page: Page, user: string) {
   return page;
 }
 
-export async function clickAction(
-  page: Page,
-  name: string,
-  rowHeader?: string,
-) {
+export async function clickAction(page: Page, name: string, rowHeader?: string) {
   let dropdownLocator: Locator | null = null;
   if (rowHeader) {
     dropdownLocator = page
@@ -50,13 +46,7 @@ export async function clickAction(
   await locator.click({ force: true });
 }
 
-const SCHEMAS_TO_KEEP = [
-  "public",
-  "izanami",
-  "information_schema",
-  "pg_catalog",
-  "pg_toast",
-];
+const SCHEMAS_TO_KEEP = ["public", "izanami", "information_schema", "pg_catalog", "pg_toast"];
 
 const clearWasmo = async () => {
   return fetch("http://localhost:5001/api/plugins")
@@ -75,9 +65,7 @@ const clearWasmo = async () => {
     });
 };
 
-export const executeInDatabase = async (
-  callback: (c: Client) => Promise<any>,
-) => {
+export const executeInDatabase = async (callback: (c: Client) => Promise<any>) => {
   const client = new Client({
     host: "localhost",
     port: 5432,
@@ -110,9 +98,7 @@ export const cleanup = async () => {
       "SELECT schema_name AS sch FROM information_schema.schemata",
     );
 
-    const schemas = schemaData.rows
-      .map((r) => r.sch)
-      .filter((s) => !SCHEMAS_TO_KEEP.includes(s)); // Hello world!
+    const schemas = schemaData.rows.map((r) => r.sch).filter((s) => !SCHEMAS_TO_KEEP.includes(s)); // Hello world!
 
     const promises: Promise<any>[] = schemas.map((s) =>
       client.query(`DROP SCHEMA "${s}" CASCADE`).catch((err) => {
@@ -121,26 +107,16 @@ export const cleanup = async () => {
       }),
     );
     promises.push(client.query("DELETE FROM izanami.tenants CASCADE"));
+    promises.push(client.query("TRUNCATE TABLE izanami.users_tenants_rights CASCADE"));
+    promises.push(client.query("TRUNCATE TABLE izanami.personnal_access_tokens CASCADE"));
     promises.push(
-      client.query("TRUNCATE TABLE izanami.users_tenants_rights CASCADE"),
-    );
-    promises.push(
-      client.query("TRUNCATE TABLE izanami.personnal_access_tokens CASCADE"),
-    );
-    promises.push(
-      client.query(
-        "DELETE FROM izanami.users WHERE username <> 'RESERVED_ADMIN_USER'",
-      ),
+      client.query("DELETE FROM izanami.users WHERE username <> 'RESERVED_ADMIN_USER'"),
     );
     promises.push(client.query("TRUNCATE TABLE izanami.invitations CASCADE"));
     promises.push(client.query("TRUNCATE TABLE izanami.sessions CASCADE"));
-    promises.push(
-      client.query("TRUNCATE TABLE izanami.pending_imports CASCADE"),
-    );
+    promises.push(client.query("TRUNCATE TABLE izanami.pending_imports CASCADE"));
     promises.push(client.query("TRUNCATE TABLE izanami.key_tenant CASCADE"));
-    promises.push(
-      client.query("UPDATE izanami.mailers SET configuration='{}'::JSONB"),
-    );
+    promises.push(client.query("UPDATE izanami.mailers SET configuration='{}'::JSONB"));
     promises.push(
       client.query(
         "UPDATE izanami.configuration SET mailer='CONSOLE', invitation_mode='RESPONSE', anonymous_reporting_date=NOW(), oidc_configuration=null",
@@ -164,19 +140,13 @@ export const cleanupConfig = async () => {
   await client.connect();
 
   const promises: Promise<any>[] = [];
-  promises.push(
-    client.query("UPDATE izanami.mailers SET configuration='{}'::JSONB"),
-  );
+  promises.push(client.query("UPDATE izanami.mailers SET configuration='{}'::JSONB"));
   promises.push(
     client.query(
       "UPDATE izanami.configuration SET mailer='CONSOLE', invitation_mode='RESPONSE', anonymous_reporting_date=NOW(), oidc_configuration=null",
     ),
   );
-  promises.push(
-    client.query(
-      "DELETE FROM izanami.users WHERE username <> 'RESERVED_ADMIN_USER'",
-    ),
-  );
+  promises.push(client.query("DELETE FROM izanami.users WHERE username <> 'RESERVED_ADMIN_USER'"));
 
   await Promise.all(promises);
 
@@ -196,11 +166,7 @@ export async function createTenant(page: Page, tenant: string) {
   await page.waitForURL(`/tenants/${tenant}`);
 }
 
-export async function createProject(
-  page: Page,
-  tenant: string,
-  project: string,
-) {
+export async function createProject(page: Page, tenant: string, project: string) {
   await page.goto(`/tenants/${tenant}`);
   await page.getByRole("button", { name: "Create new project" }).click();
   await page.getByLabel("Project name").fill(project);
@@ -208,11 +174,7 @@ export async function createProject(
   await page.waitForURL(/.*\/tenants\/.*\/projects\/.*/);
 }
 
-export async function createTenantThenProject(
-  page: Page,
-  tenant: string,
-  project: string,
-) {
+export async function createTenantThenProject(page: Page, tenant: string, project: string) {
   createTenant(page, tenant);
   await page.getByRole("button", { name: "Create new project" }).click();
   await page.getByLabel("Project name").fill(project);

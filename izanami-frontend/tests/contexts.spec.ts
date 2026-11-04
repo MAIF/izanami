@@ -23,16 +23,14 @@ test.describe("Project context screen should", () => {
     await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testProject("project").withContext(
-            testLocalContext("ctx").withProtectedStatus(true)
-          )
-        )
+          testProject("project").withContext(testLocalContext("ctx").withProtectedStatus(true)),
+        ),
       )
       .withUser(
         testUser(tenantName, false).withTenantRight(
           tenantName,
-          testTenantRight("Write").withProjectRight("project", "Write")
-        )
+          testTenantRight("Write").withProjectRight("project", "Write"),
+        ),
       )
       .build(page);
 
@@ -41,15 +39,10 @@ test.describe("Project context screen should", () => {
     const otherPage = await logAsInNewPage(browser, tenantName);
     await otherPage.goto(`/tenants/${tenantName}/projects/project/contexts`);
 
-    await expect(
-      otherPage.getByRole("button", { name: "actions" })
-    ).not.toBeAttached();
+    await expect(otherPage.getByRole("button", { name: "actions" })).not.toBeAttached();
   });
 
-  test("allow toggling context protection if user is admin", async ({
-    page,
-    tenantName,
-  }) => {
+  test("allow toggling context protection if user is admin", async ({ page, tenantName }) => {
     await testBuilder()
       .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
@@ -62,17 +55,13 @@ test.describe("Project context screen should", () => {
     await page.getByRole("link", { name: "Protect context" }).click();
     await page.getByLabel("Confirm").click();
 
-    await expect(
-      page.getByRole("link", { name: "prod protected" })
-    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "prod protected" })).toBeVisible();
 
     await page.getByRole("button", { name: "actions" }).click();
     await page.getByRole("link", { name: "Unprotect context" }).click();
     await page.getByRole("textbox", { name: "Confirmation" }).fill("prod");
     await page.getByRole("button", { name: "Confirm" }).click();
-    await expect(
-      page.getByRole("link", { name: "prod", exact: true })
-    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "prod", exact: true })).toBeVisible();
   });
 
   test("allow to create root context", async ({ page, tenantName }) => {
@@ -107,8 +96,8 @@ test.describe("Project context screen should", () => {
     await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
-          testProject("project").withFeature(testFeature("testfeature"))
-        )
+          testProject("project").withFeature(testFeature("testfeature")),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -128,22 +117,17 @@ test.describe("Project context screen should", () => {
     await page.getByLabel("Enabled").check();
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("cell", { name: "Enabled" })).toBeVisible();
-    await expect(
-      page.getByRole("cell", { name: "testfeature", exact: true })
-    ).toBeVisible();
+    await expect(page.getByRole("cell", { name: "testfeature", exact: true })).toBeVisible();
   });
 
-  test("allow to display strategy for all features", async ({
-    page,
-    tenantName,
-  }) => {
+  test("allow to display strategy for all features", async ({ page, tenantName }) => {
     await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
           testProject("project")
             .withFeature(testFeature("testfeature"))
-            .withFeature(testFeature("anotherfeature"))
-        )
+            .withFeature(testFeature("anotherfeature")),
+        ),
       )
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -161,17 +145,11 @@ test.describe("Project context screen should", () => {
     await page.keyboard.press("Enter");
     await page.getByLabel("Enabled").check({ force: true });
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(
-      page.getByRole("cell", { name: "anotherfeature", exact: true })
-    ).toHaveCount(1);
-    await page
-      .getByLabel("Display all features strategy for this context")
-      .check();
+    await expect(page.getByRole("cell", { name: "anotherfeature", exact: true })).toHaveCount(1);
+    await page.getByLabel("Display all features strategy for this context").check();
 
     await expect(page.getByRole("cell", { name: "Enabled" })).toHaveCount(1);
     await expect(page.getByRole("cell", { name: "Disabled" })).toHaveCount(1);
-    await expect(
-      page.getByRole("cell", { name: "actions" }).getByLabel("actions")
-    ).toHaveCount(1);
+    await expect(page.getByRole("cell", { name: "actions" }).getByLabel("actions")).toHaveCount(1);
   });
 });
