@@ -12,7 +12,7 @@ env:
 
 
 jobs:
-  release:
+  frontend-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.2.0
@@ -30,6 +30,8 @@ jobs:
           node-version: '20.x'
           cache: 'npm'
           cache-dependency-path: izanami-frontend/package-lock.json
+      - name: lint frontend
+        run: npm run lint
       - name: build frontend & install playwright
         run: |
           cd izanami-frontend
