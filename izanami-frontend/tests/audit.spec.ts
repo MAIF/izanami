@@ -1,4 +1,3 @@
-import { Page } from "@playwright/test";
 import { test, expect } from "./izanami-test";
 import {
   testBuilder,
@@ -12,8 +11,8 @@ test.use({
 });
 
 test.describe("Project audit screen should", () => {
-  test("display log events", async ({ page, tenantName, browser, context }) => {
-    const situation = await testBuilder()
+  test("display log events", async ({ page, tenantName, context }) => {
+    await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
           testProject("project")

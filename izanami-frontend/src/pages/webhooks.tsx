@@ -34,7 +34,6 @@ import { RightTable } from "../components/RightTable";
 import { useState } from "react";
 import { InvitationForm } from "../components/InvitationForm";
 import { WebhookTransformationEditor } from "../components/Editor";
-import Handlebars from "handlebars";
 import { Row } from "@tanstack/react-table";
 import { ObjectInput } from "../components/ObjectInput";
 

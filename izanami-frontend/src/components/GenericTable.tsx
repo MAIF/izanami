@@ -135,8 +135,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
     ),
     cell: function (props: { row: Row<any> }) {
       const element: T = props.row.original!;
-      const actionList = [
-        ...Object.entries(customRowActions || {})
+      const actionList = Object.entries(customRowActions || {})
           .filter(([, value]) => {
             return value.hasRight ? value.hasRight(user, element) : true;
           })
@@ -168,8 +167,7 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
                 </a>
               </li>
             );
-          }),
-      ].filter(Boolean);
+          }).filter(Boolean);
       return (
         <>
           {actionList.length > 0 && (
@@ -374,11 +372,9 @@ export function GenericTable<T extends RowData>(props: TProps<T>) {
                           <th
                             scope="row"
                             key={cell.id}
-                            style={{
-                              ...(selectableRows
+                            style={(selectableRows
                                 ? { verticalAlign: "middle" }
-                                : {}),
-                            }}
+                                : {})}
                           >
                             {flexRender(
                               cell.column.columnDef.cell,

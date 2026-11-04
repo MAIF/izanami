@@ -4,11 +4,10 @@ import Select from "react-select";
 import { handlebarsLanguage } from "@xiechao/codemirror-lang-handlebars";
 import { json } from "@codemirror/lang-json";
 import { customStyles } from "../styles/reactSelect";
-import Handlebars from "handlebars";
 import { Tooltip } from "./Tooltip";
 import { testHandlebarTemplate } from "../utils/queries";
 import { HandleBarResult } from "../utils/types";
-import { lintGutter, linter, Diagnostic, forceLinting } from "@codemirror/lint"
+import { lintGutter, linter, Diagnostic } from "@codemirror/lint"
 
 export function WebhookTransformationEditor(props: {
   value: string;
@@ -117,7 +116,7 @@ export function WebhookTransformationEditor(props: {
   );
 }
 
-const BACKEND_ERROR_REGEX = /^Invalid handlebar template: inline@[0-9a-z]+\:(?<row>[0-9]+)\:(?<col>[0-9a-z]+)\:(?<msg>.*)$/s;
+const BACKEND_ERROR_REGEX = /^Invalid handlebar template: inline@[0-9a-z]+:(?<row>[0-9]+):(?<col>[0-9a-z]+):(?<msg>.*)$/s;
 function backendErrorToDiagnostic({ error, template }: { error: string, template: string }): Diagnostic {
   const result = BACKEND_ERROR_REGEX.exec(error);
   const groups = result?.groups || {};
@@ -148,7 +147,7 @@ function Editor(props: { value: string; onChange: (v: string) => void, errors?: 
         id="handlebar-editor"
         value={value}
         height="450px"
-        extensions={[handlebarsLanguage, lintGutter(), linter(view => {
+        extensions={[handlebarsLanguage, lintGutter(), linter(() => {
           return props.errors || []
         })]}
         onChange={(v) => onChange(v)}

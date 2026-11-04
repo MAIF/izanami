@@ -299,7 +299,7 @@ export class TestSituationBuilder {
     const cookie = (await page.context().cookies())[0];
     const url = backendUrl();
     return Promise.all(
-      this.tenants.map((t, index) =>
+      this.tenants.map((t) =>
         this.createTenant(t, cookie, url)
           .catch((err) => {
             console.error("Failed to create tenant", err);
@@ -721,6 +721,7 @@ class TestGlobalContext implements TestContext {
 
   constructor(name: string) {
     this.name = name;
+    this.isProtected = false;
   }
 
   withSubContext(context: TestGlobalContext): TestGlobalContext {
@@ -746,6 +747,7 @@ class TestLocalContext implements TestContext {
 
   constructor(name: string) {
     this.name = name;
+    this.isProtected = false;
   }
 
   withSubContext(context: TestLocalContext): TestLocalContext {

@@ -1,4 +1,3 @@
-import { Page } from "@playwright/test";
 import { test, expect } from "./izanami-test";
 import {
   testBuilder,
@@ -34,7 +33,7 @@ test.describe("Personnal access token", () => {
       });
     }
 
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
           testProject("tokenProject")

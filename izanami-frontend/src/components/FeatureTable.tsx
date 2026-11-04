@@ -30,7 +30,6 @@ import {
 import {
   IzanamiContext,
   hasRightForProject,
-  hasRightForTenant,
   useProjectRight,
 } from "../securityContext";
 import { GenericTable, TCustomAction } from "./GenericTable";

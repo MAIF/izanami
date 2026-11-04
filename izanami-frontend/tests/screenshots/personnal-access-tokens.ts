@@ -1,4 +1,4 @@
-import { screenshotBuilder, setup, openActions, featureAction } from "./utils";
+import { screenshotBuilder, setup, featureAction } from "./utils";
 import {
   DEFAULT_TEST_PASSWORD,
   testBuilder,

@@ -56,7 +56,7 @@ test.describe("Max rights should", () => {
     page,
     browser,
   }) => {
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(
         testTenant("foo")
           .withProject(testProject("project"))
@@ -205,7 +205,7 @@ test.describe("Max rights should", () => {
       },
     };
 
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(
         testTenant("foo2")
           .withProject(testProject("project"))

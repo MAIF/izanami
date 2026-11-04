@@ -37,7 +37,6 @@ import {
   HandleBarResult,
 } from "./types";
 import { isArray } from "lodash";
-import toast from "react-hot-toast";
 import * as React from "react";
 import { errorToast } from "./toastUtils";
 
@@ -223,7 +222,7 @@ export function importData(
   };
   if (importRequest.fineTuneFeatureConflict) {
     queryParams = Object.entries(importRequest.featureConflict ?? {})
-      .filter(([key, value]) => value)
+      .filter(([_key, value]) => value)
       .reduce((acc, [key, value]) => {
         acc[`feature${capitalizeFirstLetter(key)}`] = value;
         return acc;
@@ -1158,7 +1157,6 @@ function _handleFetchResponse<T>(
       return handler(response);
     })
     .catch((error) => {
-      const id = crypto.randomUUID();
       const msg =
         error instanceof String
           ? error

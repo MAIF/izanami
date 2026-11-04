@@ -8,7 +8,7 @@ import {
 import { expect } from "@playwright/test";
 
 export async function generate() {
-  const { page, browser } = await setup(true);
+  const { page } = await setup(true);
 
   const screenshot = screenshotBuilder("audit-logs")(page);
 

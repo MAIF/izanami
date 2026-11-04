@@ -143,7 +143,7 @@ function LoginForm(props: { req?: string }) {
                   if (json?.message) {
                     error += ` : ${json.message}`;
                   }
-                } catch (err) {
+                } catch {
                   //
                 }
                 setError(error);

@@ -6,10 +6,9 @@ import {
   testProject,
   testGlobalContext,
 } from "../testBuilder";
-import { expect } from "@playwright/test";
 
 export async function generate() {
-  const { page, browser } = await setup(true);
+  const { page } = await setup(true);
   const screenshot = screenshotBuilder("protected-context")(page);
   await testBuilder()
     .withTenant(

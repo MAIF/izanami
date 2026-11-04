@@ -50,13 +50,13 @@ function extractSearchQueryFromUrlParams(
   params: URLSearchParams
 ): Omit<Omit<LogSearchQuery, "total">, "tenant"> {
   const {
-    users,
-    types,
-    order,
-    pageSize,
-    start,
-    end,
-    tenant: t,
+    users: _,
+    types: __,
+    order: ___,
+    pageSize: ____,
+    start: _____,
+    end: ______,
+    tenant: _______,
     ...rest
   } = Object.fromEntries(params);
 

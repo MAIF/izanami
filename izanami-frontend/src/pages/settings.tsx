@@ -1125,7 +1125,7 @@ function RightByRoleSelector(props: {
         )}
         <fieldset disabled={readOnly.readOnly}>
           {Object.entries(rights)
-            .toSorted(([role1, right1], [role2, right2]) => {
+            .toSorted(([role1, _right1], [role2, _right2]) => {
               if (role1 === "") {
                 return -1;
               } else if (role2 === "") {

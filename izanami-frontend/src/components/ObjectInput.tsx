@@ -43,12 +43,10 @@ export function ObjectInput(props: {
               value={name}
               onChange={(e) => {
                 const v = e.target.value;
-                props.onChange([
-                  ...arr
+                props.onChange(arr
                     .slice(0, index)
                     .concat([{ name: v, value }])
-                    .concat(arr.slice(index + 1)),
-                ]);
+                    .concat(arr.slice(index + 1)));
               }}
             />
           </div>
@@ -61,12 +59,10 @@ export function ObjectInput(props: {
               value={value}
               onChange={(e) => {
                 const v = e.target.value;
-                props.onChange([
-                  ...arr
+                props.onChange(arr
                     .slice(0, index)
                     .concat([{ name, value: v }])
-                    .concat(arr.slice(index + 1)),
-                ]);
+                    .concat(arr.slice(index + 1)));
               }}
             />
           </div>
@@ -75,9 +71,7 @@ export function ObjectInput(props: {
               className="btn btn-danger"
               type="button"
               onClick={() => {
-                props.onChange([
-                  ...arr.slice(0, index).concat(arr.slice(index + 1)),
-                ]);
+                props.onChange(arr.slice(0, index).concat(arr.slice(index + 1)));
               }}
             >
               Delete

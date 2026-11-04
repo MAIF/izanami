@@ -7,7 +7,7 @@ import {
 } from "../utils/types";
 import { ColumnDef, Row } from "@tanstack/react-table";
 import { useMutation } from "@tanstack/react-query";
-import { useContext, useState } from "react";
+import { useContext } from "react";
 import { Tooltip as LocalToolTip } from "./Tooltip";
 import {
   deleteFeatureActivationForContext,
@@ -21,7 +21,6 @@ import {
 import {
   analyzeUpdateImpact,
   findContextForPath,
-  findImpactedProtectedContexts,
 } from "../utils/contextUtils";
 import { GlobalContextIcon } from "../utils/icons";
 import { ResultTypeIcon } from "./ResultTypeIcon";

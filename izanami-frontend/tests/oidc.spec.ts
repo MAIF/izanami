@@ -1,14 +1,12 @@
-import { Page } from "@playwright/test";
 import { test, expect } from "./izanami-test";
 import {
   testBuilder,
-  testFeature,
   testTenant,
   testProject,
   testKey,
   testWebhook,
 } from "./testBuilder";
-import { cleanupConfig, clickAction } from "./utils";
+import { cleanupConfig } from "./utils";
 
 test.use({
   headless: true,
@@ -25,7 +23,7 @@ test.describe("Global settings page should", () => {
     browser,
   }) => {
     const secondTenantName = `${tenantName}2`;
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(
         testTenant(tenantName)
           .withProject(testProject("project"))
@@ -163,7 +161,7 @@ test.describe("Global settings page should", () => {
   });
 
   test("allow to update max rights", async ({ page, browser }) => {
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(
         testTenant("test")
           .withProject(testProject("testproject"))

@@ -1,7 +1,6 @@
 import { Page } from "@playwright/test";
 import { test, expect } from "./izanami-test";
 import { testBuilder, testTenant, testProject } from "./testBuilder";
-import { PASSWORD } from "./utils";
 
 test.use({
   headless: true,
@@ -16,7 +15,7 @@ async function createProject(page: Page, name: string) {
 
 test.describe("Tenant screen should", () => {
   test("allow to create project", async ({ page, tenantName }) => {
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(testTenant(tenantName))
       .build(page);
     await page.goto(`/tenants/${tenantName}`);
@@ -25,7 +24,7 @@ test.describe("Tenant screen should", () => {
   });
 
   test("list extisting projects", async ({ page, tenantName }) => {
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(testTenant(tenantName))
       .build(page);
     await page.goto(`/tenants/${tenantName}`);
@@ -49,7 +48,7 @@ test.describe("Tenant screen should", () => {
 
 test.describe("Project setting screen should", () => {
   test("allow to delete project", async ({ page, tenantName }) => {
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);

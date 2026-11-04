@@ -23,11 +23,11 @@ export function clientUrlForContext(context: string, clientUrlByContexts: {[ctx:
     return clientUrlByContexts?.[""] ?? expositionUrl;
   }
   
-  return Object.entries(clientUrlByContexts).filter(([context, url]) => {
+  return Object.entries(clientUrlByContexts).filter(([context, _url]) => {
     const keep = actualContext.startsWith(normalizeContextName(context))
     return keep
   })
-    .toSorted(([context1, url1], [context2, key2]) => {
+    .toSorted(([context1, _url1], [context2, _key2]) => {
       const partCount1 = context1.split("/").length
       const partCount2 = context2.split("/").length
       if(partCount1 !== partCount2) {

@@ -21,7 +21,7 @@ test.describe("Project screen overload table should", () => {
     tenantName,
     browser,
   }) => {
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
           testProject("project")

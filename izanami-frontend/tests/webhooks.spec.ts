@@ -7,7 +7,6 @@ import {
   testWebhook,
   testProject,
 } from "./testBuilder";
-import { PASSWORD } from "./utils";
 
 test.use({
   headless: true,

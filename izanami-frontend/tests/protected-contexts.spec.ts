@@ -1,4 +1,3 @@
-import { Page } from "@playwright/test";
 import { test, expect } from "./izanami-test";
 import {
   testBuilder,

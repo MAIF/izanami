@@ -353,7 +353,7 @@ function ImportError(props: {
   if (details) {
     const rows = Object.entries(details)
       .sort(
-        ([key1, { order: order1 }], [key2, { order: order2 }]) =>
+        ([_key1, { order: order1 }], [_key2, { order: order2 }]) =>
           order1 - order2,
       )
       .map(([name, { failures }], index) => {

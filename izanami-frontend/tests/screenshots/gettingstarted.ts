@@ -79,13 +79,6 @@ export async function generate() {
   await page.getByRole("button", { name: "Close" }).click();
   await screenshot("first-key");
 
-  const curl = `\`\`\`bash
-  curl -H "izanami-client-id: <YOUR CLIENT ID>" \\
-  -H "izanami-client-secret: <YOUR CLIENT SECRET>" \\
-  <FEATURE URL>
-  \`\`\``;
-
-  //fs.writeFileSync("../../../manual/static/code/curl.md", curl);
   await browser.close();
 }
 

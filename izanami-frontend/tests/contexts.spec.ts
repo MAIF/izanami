@@ -20,7 +20,7 @@ test.describe("Project context screen should", () => {
     tenantName,
     browser,
   }) => {
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
           testProject("project").withContext(
@@ -50,7 +50,7 @@ test.describe("Project context screen should", () => {
     page,
     tenantName,
   }) => {
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project/contexts`);
@@ -76,7 +76,7 @@ test.describe("Project context screen should", () => {
   });
 
   test("allow to create root context", async ({ page, tenantName }) => {
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -88,7 +88,7 @@ test.describe("Project context screen should", () => {
   });
 
   test("allow to create subcontext", async ({ page, tenantName }) => {
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(testTenant(tenantName).withProject(testProject("project")))
       .build(page);
     await page.goto(`/tenants/${tenantName}/projects/project`);
@@ -104,7 +104,7 @@ test.describe("Project context screen should", () => {
   });
 
   test("allow to create feature overload", async ({ page, tenantName }) => {
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
           testProject("project").withFeature(testFeature("testfeature"))
@@ -137,7 +137,7 @@ test.describe("Project context screen should", () => {
     page,
     tenantName,
   }) => {
-    const situation = await testBuilder()
+    await testBuilder()
       .withTenant(
         testTenant(tenantName).withProject(
           testProject("project")

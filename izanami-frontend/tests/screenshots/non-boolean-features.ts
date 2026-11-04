@@ -1,4 +1,4 @@
-import { screenshotBuilder, setup, openActions, featureAction } from "./utils";
+import { screenshotBuilder, setup, featureAction } from "./utils";
 import {
   testBuilder,
   testGlobalContext,
@@ -7,7 +7,7 @@ import {
 } from "../testBuilder";
 
 export async function generate() {
-  const { page, browser } = await setup(true);
+  const { page } = await setup(true);
 
   const screenshot = screenshotBuilder("non-boolean-feature")(page);
 
