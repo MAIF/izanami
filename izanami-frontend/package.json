@@ -14,7 +14,8 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",
-    "fmt:check": "oxfmt --check"
+    "fmt:check": "oxfmt --check",
+    "prepare": "husky"
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",
@@ -51,10 +52,10 @@
     "@types/swagger-ui": "^3.52.4",
     "@vitejs/plugin-react": "^4.3.4",
     "buffer": "^6.0.3",
+    "lint-staged": "^17.6.0",
     "oxfmt": "^0.76.0",
     "oxlint": "^1.91.0",
     "pg": "^8.23.1",
-    "prettier": "2.6.2",
     "process": "^0.11.10",
     "rollup-plugin-analyzer": "^4.0.0",
     "rollup-plugin-visualizer": "^5.14.0",
@@ -67,5 +68,11 @@
   },
   "overrides": {
     "@codemirror/state": "6.4.1"
+  },
+  "lint-staged": {
+    "src/**/*.{js,jsx,ts,tsx,json,css}": [
+      "oxformat --write",
+      "git add"
+    ]
   }
 }
