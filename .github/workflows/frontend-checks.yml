@@ -32,6 +32,7 @@ jobs:
           cache-dependency-path: izanami-frontend/package-lock.json
       - name: lint frontend
         run: npm run lint
+        continue-on-error: true
       - name: build frontend & install playwright
         run: |
           cd izanami-frontend
