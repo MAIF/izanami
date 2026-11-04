@@ -14,14 +14,14 @@ import scala.concurrent.duration.DurationLong
 import fr.maif.izanami.datastores.FeatureCallsDatastore
 import org.apache.pekko.actor.ActorSystem
 
-
 class FeatureUsageService(
-  featureCalls: =>FeatureCallsDatastore,
-  staleDelay: Duration,
-  isStatusTrackingActive: Boolean,
-  callRegistrationIntervalInSeconds: Long,
-  actorSystem: ActorSystem,
-  implicit private val ec: ExecutionContext) {
+    featureCalls: => FeatureCallsDatastore,
+    staleDelay: Duration,
+    isStatusTrackingActive: Boolean,
+    callRegistrationIntervalInSeconds: Long,
+    actorSystem: ActorSystem,
+    implicit private val ec: ExecutionContext
+) {
   private val callAggregator: FeatureCallAggregator = FeatureCallAggregator()
   private var callAggregationRegisterCancellation: Cancellable =
     Cancellable.alreadyCancelled

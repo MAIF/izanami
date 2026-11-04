@@ -633,9 +633,10 @@ case object BadFormatPersonalAccessToken extends IzanamiError(
       status = BAD_REQUEST
     )
 case object InvalidpersonalAccessToken extends IzanamiError(
-  message = "This personal access token either doesn't exist or don't have right for this operation",
-  status = BAD_REQUEST 
-)
+      message =
+        "This personal access token either doesn't exist or don't have right for this operation",
+      status = BAD_REQUEST
+    )
 case class ErrorAggregator(errors: Seq[IzanamiError])
     extends IzanamiError(
       message = errors.map(err => err.message).mkString("\n"),

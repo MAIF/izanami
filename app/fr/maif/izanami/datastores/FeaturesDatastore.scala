@@ -51,13 +51,13 @@ import io.otoroshi.wasm4s.scaladsl.WasmIntegration
 import scala.concurrent.ExecutionContext
 
 class FeaturesDatastore(
-  postgresql: =>Postgresql,
-  extensionSchema: String,
-  projectDatastore: =>ProjectsDatastore,
-  tenantDatastore: =>TenantsDatastore,
-  featureContextDatastore: =>FeatureContextDatastore,
-  eventService: =>EventService,
-  wasmIntegration: =>WasmIntegration
+    postgresql: => Postgresql,
+    extensionSchema: String,
+    projectDatastore: => ProjectsDatastore,
+    tenantDatastore: => TenantsDatastore,
+    featureContextDatastore: => FeatureContextDatastore,
+    eventService: => EventService,
+    wasmIntegration: => WasmIntegration
 )(implicit val ec: ExecutionContext) extends Datastore {
   private type ProjectName = String
   private type FeatureName = String
@@ -1249,7 +1249,9 @@ class FeaturesDatastore(
             }}
                 returning id, project""".stripMargin,
           params.productIterator.toList.map(a => a.asInstanceOf[AnyRef]) :+
-            (if (allowedValues.isEmpty) Array.fill[JsonArray](params._1.length)(null) else allowedValues),
+            (if (allowedValues.isEmpty)
+               Array.fill[JsonArray](params._1.length)(null)
+             else allowedValues),
           conn = Some(conn)
         ) { row =>
           for (
@@ -1536,9 +1538,14 @@ class FeaturesDatastore(
           Future
             .sequence(
               List(
-                insertFeatures(modernFeatureParams, modernFeatures.map(f =>
-                  f.allowedValues.map(v => new JsonArray(Json.toJson(v).toString())).orNull
-                ).toArray),
+                insertFeatures(
+                  modernFeatureParams,
+                  modernFeatures.map(f =>
+                    f.allowedValues.map(v =>
+                      new JsonArray(Json.toJson(v).toString())
+                    ).orNull
+                  ).toArray
+                ),
                 insertLegacyFeatures(legacyFeatureParams),
                 postgresql
                   .queryAll(
@@ -1924,7 +1931,9 @@ class FeaturesDatastore(
               case descriptor: ValuedResultDescriptor  => descriptor.stringValue
               case BooleanResultDescriptor(conditions) => null
             },
-            allowedValues.map(v => new JsonArray(Json.toJson(v).toString())).orNull
+            allowedValues.map(v =>
+              new JsonArray(Json.toJson(v).toString())
+            ).orNull
           )
         )
       case CompleteWasmFeature(
@@ -2068,7 +2077,9 @@ class FeaturesDatastore(
                     descriptor.stringValue
                   case BooleanResultDescriptor(conditions) => null
                 },
-                allowedValues.map(v => new JsonArray(Json.toJson(v).toString())).orNull
+                allowedValues.map(v =>
+                  new JsonArray(Json.toJson(v).toString())
+                ).orNull
               )
             )
           case CompleteWasmFeature(
@@ -2168,10 +2179,14 @@ class FeaturesDatastore(
                     if !oldFeature.baseFeature
                       .hasSameActivationStrategy(
                         feature
-                      ) || oldFeature.project != feature.project || ((oldFeature.baseFeature, feature) match {
-                        case (old: Feature, updated: Feature) => old.allowedValues != updated.allowedValues
-                        case _ => false
-                      }) =>
+                      ) || oldFeature.project != feature.project || ((
+                      oldFeature.baseFeature,
+                      feature
+                    ) match {
+                      case (old: Feature, updated: Feature) =>
+                        old.allowedValues != updated.allowedValues
+                      case _ => false
+                    }) =>
                   eventService
                     .emitEvent(
                       channel = tenant,
@@ -2376,7 +2391,9 @@ object featureImplicits {
                       value = row.optString("value").get,
                       conditions = conds
                     ),
-                    allowedValues = row.optJsArray("allowed_values").map(_.as[Seq[StringAllowedValue]])
+                    allowedValues = row.optJsArray(
+                      "allowed_values"
+                    ).map(_.as[Seq[StringAllowedValue]])
                   )
                 }
                 case BooleanResult => {
@@ -2510,7 +2527,9 @@ object featureImplicits {
                       value = row.optString("value").get,
                       conditions = conds
                     ),
-                    allowedValues = row.optJsArray("allowed_values").map(_.as[Seq[StringAllowedValue]])
+                    allowedValues = row.optJsArray(
+                      "allowed_values"
+                    ).map(_.as[Seq[StringAllowedValue]])
                   )
                 }
                 case BooleanResult => {

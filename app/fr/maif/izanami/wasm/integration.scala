@@ -23,11 +23,14 @@ import fr.maif.izanami.Wasm
 import play.api.libs.ws.WSClient
 
 class IzanamiWasmIntegrationContext(
-  configurationDatastore: =>ConfigurationDatastore,
-  featureDatastore: =>FeaturesDatastore,
-  wasmConfiguration: Wasm,
-  httpClient: WSClient
-  )(implicit override val executionContext: ExecutionContext, override val materializer: Materializer) extends WasmIntegrationContext {
+    configurationDatastore: => ConfigurationDatastore,
+    featureDatastore: => FeaturesDatastore,
+    wasmConfiguration: Wasm,
+    httpClient: WSClient
+)(implicit
+    override val executionContext: ExecutionContext,
+    override val materializer: Materializer
+) extends WasmIntegrationContext {
   val logger: Logger = Logger("izanami-wasm")
   val selfRefreshingPools: Boolean = false
   val wasmCacheTtl: Long = wasmConfiguration.cache.ttl
@@ -40,7 +43,9 @@ class IzanamiWasmIntegrationContext(
       (Runtime.getRuntime.availableProcessors * 4) + 1
     ))
   )
-  val hFunctions: HostFunctions = HostFunctions(httpCall = HttpCall(hostFunction = HFunction(this), httpClient = httpClient))
+  val hFunctions: HostFunctions = HostFunctions(httpCall =
+    HttpCall(hostFunction = HFunction(this), httpClient = httpClient)
+  )
 
   override def url(
       path: String,

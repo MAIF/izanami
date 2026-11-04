@@ -15,11 +15,11 @@ case class FixedProject(name: String) extends ProjectChoiceStrategy
 
 class TenantController(
     val controllerComponents: ControllerComponents,
-    tenantAuthAction: =>TenantAuthActionFactory,
-    personnalAccessTokenAuthAction: =>PersonnalAccessTokenAdminAuthActionFactory,
-    personnalAccessTokenTenantAuthAction: =>PersonnalAccessTokenTenantAuthActionFactory,
-    personnalAccessTokenTenantRightsAuthAction: =>PersonnalAccessTokenTenantRightsActionFactory,
-    tenantService: =>TenantService
+    tenantAuthAction: => TenantAuthActionFactory,
+    personnalAccessTokenAuthAction: => PersonnalAccessTokenAdminAuthActionFactory,
+    personnalAccessTokenTenantAuthAction: => PersonnalAccessTokenTenantAuthActionFactory,
+    personnalAccessTokenTenantRightsAuthAction: => PersonnalAccessTokenTenantRightsActionFactory,
+    tenantService: => TenantService
 )(implicit ec: ExecutionContext) extends BaseController {
 
   def updateTenant(name: String): Action[JsValue] =
@@ -44,7 +44,13 @@ class TenantController(
             BadRequest(Json.obj("message" -> "bad body format")).future
           case JsSuccess(tenant, _) => {
             tenantService
-              .createTenant(tenant, StandardUserInformation(username=request.user, authentication = request.authentication))
+              .createTenant(
+                tenant,
+                StandardUserInformation(
+                  username = request.user,
+                  authentication = request.authentication
+                )
+              )
               .toResult(tenant => Created(Json.toJson(tenant)))
           }
         }
@@ -61,7 +67,13 @@ class TenantController(
 
   def deleteTenant(name: String): Action[AnyContent] =
     (tenantAuthAction(name, RightLevel.Admin)).async { implicit request =>
-      tenantService.deleteTenant(name, StandardUserInformation(username=request.user, authentication = request.authentication)).toResult(_ => NoContent)
+      tenantService.deleteTenant(
+        name,
+        StandardUserInformation(
+          username = request.user,
+          authentication = request.authentication
+        )
+      ).toResult(_ => NoContent)
     }
 
   def readTenant(name: String): Action[AnyContent] =
@@ -70,13 +82,18 @@ class TenantController(
       minimumLevel = Read,
       operation = ReadTenant
     ).async { implicit request =>
-      tenantService.readTenant(name = name, user = StandardUserInformation(username=request.user, authentication = request.authentication)).toResult(
-        tenant =>
-          Ok(
-            Json.toJson(
-              tenant
-            )(Tenant.simpleTenantWithProjectWrites)
-          )
+      tenantService.readTenant(
+        name = name,
+        user = StandardUserInformation(
+          username = request.user,
+          authentication = request.authentication
+        )
+      ).toResult(tenant =>
+        Ok(
+          Json.toJson(
+            tenant
+          )(Tenant.simpleTenantWithProjectWrites)
+        )
       )
     }
 }

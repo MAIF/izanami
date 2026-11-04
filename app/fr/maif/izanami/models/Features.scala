@@ -108,7 +108,9 @@ sealed trait CompleteFeature extends AbstractFeature {
   def value(
       requestContext: RequestContext,
       wasmRelatedStuff: WasmRelatedStuff
-  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]]
+  )(implicit
+      executionContext: ExecutionContext
+  ): Future[Either[IzanamiError, JsValue]]
 
   override def withProject(project: String): CompleteFeature
 
@@ -400,7 +402,9 @@ case class SingleConditionFeature(
   override def value(
       requestContext: RequestContext,
       wasmRelatedStuff: WasmRelatedStuff
-  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
+  )(implicit
+      executionContext: ExecutionContext
+  ): Future[Either[IzanamiError, JsValue]] = {
     val res = if (enabled) condition.active(requestContext, id) else false
     Future.successful(Right(JsBoolean(res)))
   }
@@ -420,14 +424,22 @@ case class SingleConditionFeature(
 case class StringAllowedValue(value: String, label: Option[String] = None)
 
 object StringAllowedValue {
-  implicit val format: OFormat[StringAllowedValue] = Json.format[StringAllowedValue]
+  implicit val format: OFormat[StringAllowedValue] =
+    Json.format[StringAllowedValue]
 
   def validate(values: Seq[StringAllowedValue]): JsResult[Unit] = {
-    if (values.isEmpty || values.exists(_.value.isBlank) || values.map(_.value).distinct.size != values.size) {
-      JsError("allowedValues must contain objects with distinct, non-blank string values and optional string labels")
+    if (
+      values.isEmpty || values.exists(
+        _.value.isBlank
+      ) || values.map(_.value).distinct.size != values.size
+    ) {
+      JsError(
+        "allowedValues must contain objects with distinct, non-blank string values and optional string labels"
+      )
     } else {
       val labels = values.flatMap(_.label).filterNot(_.isBlank)
-      if (labels.distinct.size != labels.size) JsError("Predefined value labels must be unique")
+      if (labels.distinct.size != labels.size)
+        JsError("Predefined value labels must be unique")
       else JsSuccess(())
     }
   }
@@ -450,7 +462,9 @@ case class Feature(
   override def value(
       requestContext: RequestContext,
       wasmRelatedStuff: WasmRelatedStuff
-  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
+  )(implicit
+      executionContext: ExecutionContext
+  ): Future[Either[IzanamiError, JsValue]] = {
     Future.successful(Right((enabled, resultDescriptor) match {
       case (false, r: BooleanResultDescriptor)         => JsFalse
       case (false, _)                                  => JsNull
@@ -498,7 +512,9 @@ case class LightWeightWasmFeature(
   def toCompleteWasmFeature(
       tenant: String,
       featureDatastore: FeaturesDatastore
-  )(implicit ec: ExecutionContext): Future[Either[IzanamiError, CompleteWasmFeature]] = {
+  )(implicit
+      ec: ExecutionContext
+  ): Future[Either[IzanamiError, CompleteWasmFeature]] = {
     featureDatastore
       .readWasmScript(tenant, wasmConfigName)
       .map {
@@ -569,7 +585,12 @@ case class CompleteWasmFeature(
       case (_, false, BooleanResult) => Future.successful(Right(JsFalse))
       case (_, false, _)             => Future.successful(Right(JsNull))
       case (_, true, _)              =>
-        WasmUtils.handle(wasmConfig, requestContext, resultType, wasmRelatedStuff.wasmIntegration)(ec)
+        WasmUtils.handle(
+          wasmConfig,
+          requestContext,
+          resultType,
+          wasmRelatedStuff.wasmIntegration
+        )(ec)
     }
   }
 
@@ -702,12 +723,10 @@ object FeatureTagRequest {
     }
 }
 
-
 case class BatchFeatureRequest(
-  featureRequest: FeatureRequest,
-  scriptPayload: JsObject
+    featureRequest: FeatureRequest,
+    scriptPayload: JsObject
 )
-
 
 object BatchFeatureRequest {
   private def toUUIDSeq(v: JsLookupResult): Option[Seq[UUID]] = {
@@ -716,23 +735,41 @@ object BatchFeatureRequest {
     })
   }
 
-  def reads(json: JsValue, context: Seq[String]): JsResult[BatchFeatureRequest] = {
-    val maybeRequest = for(
+  def reads(
+      json: JsValue,
+      context: Seq[String]
+  ): JsResult[BatchFeatureRequest] = {
+    val maybeRequest = for (
       request <- (json \ "request").asOpt[JsObject];
       featureJson = (request \ "features").asOpt[JsValue];
-      features <- featureJson.fold(Some(Seq[String]()))(json => json.asOpt[Seq[String]]);
+      features <- featureJson.fold(Some(Seq[String]()))(json =>
+        json.asOpt[Seq[String]]
+      );
       projectJson = (request \ "projects").asOpt[JsValue];
-      projects <- projectJson.fold(Some(Seq[String]()))(json => json.asOpt[Seq[String]]);
+      projects <- projectJson.fold(Some(Seq[String]()))(json =>
+        json.asOpt[Seq[String]]
+      );
       oneTagIn <- toUUIDSeq(request \ "oneTagIn");
       allTagsIn <- toUUIDSeq(request \ "allTagsIn");
       noTagIn <- toUUIDSeq(request \ "noTagIn")
     ) yield {
-      FeatureRequest(projects = projects.toSet, features = features.toSet, oneTagIn = oneTagIn.toSet, allTagsIn = allTagsIn.toSet, noTagIn = noTagIn.toSet, context = context)
+      FeatureRequest(
+        projects = projects.toSet,
+        features = features.toSet,
+        oneTagIn = oneTagIn.toSet,
+        allTagsIn = allTagsIn.toSet,
+        noTagIn = noTagIn.toSet,
+        context = context
+      )
     }
 
     maybeRequest.fold(JsError("Invalid request body"))(req => {
-      val scriptPayload = (json \ "payload").asOpt[JsObject].getOrElse(Json.obj())
-      JsSuccess(BatchFeatureRequest(featureRequest = req, scriptPayload = scriptPayload))
+      val scriptPayload =
+        (json \ "payload").asOpt[JsObject].getOrElse(Json.obj())
+      JsSuccess(BatchFeatureRequest(
+        featureRequest = req,
+        scriptPayload = scriptPayload
+      ))
     })
   }
 }
@@ -864,7 +901,9 @@ object Feature {
       feature: CompleteFeature,
       context: RequestContext,
       wasmRelatedStuff: WasmRelatedStuff
-  )(implicit ec: ExecutionContext): Future[Either[IzanamiError, Option[JsObject]]] = {
+  )(implicit
+      ec: ExecutionContext
+  ): Future[Either[IzanamiError, Option[JsObject]]] = {
     feature
       .value(context, wasmRelatedStuff)
       .map {
@@ -955,7 +994,8 @@ object Feature {
         base ++ Json.obj("allowedValues" -> allowedValues)
       } else base
       resultDescriptor match {
-        case v: ValuedResultDescriptor => configuredBase + ("value" -> v.jsonValue)
+        case v: ValuedResultDescriptor =>
+          configuredBase + ("value" -> v.jsonValue)
         case BooleanResultDescriptor(conditions) => configuredBase
       }
     }
@@ -1036,19 +1076,27 @@ object Feature {
       json: JsValue,
       project: String = null
   ): JsResult[AbstractFeature] = {
-    val allowedValues = (if ((json \ "allowedValues").toOption.isDefined)
-      json \ "allowedValues" else json \ "allowed_values").validateOpt[Seq[StringAllowedValue]]
+    val allowedValues =
+      (if ((json \ "allowedValues").toOption.isDefined)
+         json \ "allowedValues"
+       else json \ "allowed_values").validateOpt[Seq[StringAllowedValue]]
     allowedValues match {
-      case error: JsError => return error
+      case error: JsError             => return error
       case JsSuccess(Some(values), _) =>
         StringAllowedValue.validate(values) match {
           case error: JsError => return error
-          case _ =>
+          case _              =>
         }
         val resultType = (json \ "resultType").asOpt[String]
           .orElse((json \ "result_type").asOpt[String])
-        if (resultType != Some("string") || (json \ "wasmConfig").asOpt[JsValue].exists(_ != JsNull)) {
-          return JsError("allowedValues is only supported on classical String features")
+        if (
+          resultType != Some(
+            "string"
+          ) || (json \ "wasmConfig").asOpt[JsValue].exists(_ != JsNull)
+        ) {
+          return JsError(
+            "allowedValues is only supported on classical String features"
+          )
         }
       case _ =>
     }
@@ -1230,7 +1278,9 @@ object Feature {
             }
           }
         }
-    if ((json \ "conditions").asOpt[JsObject].exists(_.keys.contains("groups"))) {
+    if (
+      (json \ "conditions").asOpt[JsObject].exists(_.keys.contains("groups"))
+    ) {
       JsError("Group targeting requires an array of activation conditions")
     } else {
       maybeFeature.getOrElse(JsError("Incorrect feature format"))

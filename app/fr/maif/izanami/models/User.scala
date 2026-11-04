@@ -717,7 +717,10 @@ case class UserWithCompleteRightForOneTenant(
     tenantRight: Option[TenantRight],
     override val roles: Set[String]
 ) extends UserTrait {
-  def hasRightForProject(projectName: String, level: ProjectRightLevel): Boolean = {
+  def hasRightForProject(
+      projectName: String,
+      level: ProjectRightLevel
+  ): Boolean = {
     val maybeTenantAdmin = tenantRight.map(t => t.level == RightLevel.Admin)
 
     admin || maybeTenantAdmin

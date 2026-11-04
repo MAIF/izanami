@@ -15,11 +15,11 @@ import fr.maif.izanami.utils.FutureEither
 
 class ApiKeyController(
     val controllerComponents: ControllerComponents,
-    tenantAuthAction: =>TenantAuthActionFactory,
-    keyAuthAction: =>KeyAuthActionFactory,
-    tokenAuthAction: =>PersonnalAccessTokenKeyAuthActionFactory,
-    pacTenantAuthAction: =>PersonnalAccessTokenTenantAuthActionFactory,
-    apiKeyService: =>APIKeyService
+    tenantAuthAction: => TenantAuthActionFactory,
+    keyAuthAction: => KeyAuthActionFactory,
+    tokenAuthAction: => PersonnalAccessTokenKeyAuthActionFactory,
+    pacTenantAuthAction: => PersonnalAccessTokenTenantAuthActionFactory,
+    apiKeyService: => APIKeyService
 )(implicit val ec: ExecutionContext)
     extends BaseController {
 
@@ -35,7 +35,10 @@ class ApiKeyController(
             apiKeyService.createAPIKey(
               tenant = tenant,
               key = key,
-              user = StandardUserInformation(username=request.user, authentication = request.authentication)
+              user = StandardUserInformation(
+                username = request.user,
+                authentication = request.authentication
+              )
             )
           })
           .toResult(key => Created(Json.toJson(key)))
@@ -54,7 +57,10 @@ class ApiKeyController(
               tenant = tenant,
               oldName = name,
               newKey = key,
-              user = StandardUserInformation(username = request.user, authentication = request.authentication)
+              user = StandardUserInformation(
+                username = request.user,
+                authentication = request.authentication
+              )
             )
           })
           .toResult(_ => {
@@ -65,7 +71,7 @@ class ApiKeyController(
 
   def readApiKey(tenant: String): Action[AnyContent] =
     pacTenantAuthAction(tenant, RightLevel.Read, ReadTenantKeys).async {
-      implicit request  =>
+      implicit request =>
         apiKeyService
           .readVisibleAPIKeysForUser(tenant, request.user)
           .map(keys => Ok(Json.toJson(keys)))

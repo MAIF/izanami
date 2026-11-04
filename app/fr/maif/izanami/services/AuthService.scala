@@ -1,7 +1,16 @@
 package fr.maif.izanami.services
 
-import fr.maif.izanami.models.{ReadPersonnalAccessToken, User, UserWithCompleteRightForOneTenant, UserWithRights, UserWithTenantRights}
-import fr.maif.izanami.datastores.{PersonnalAccessTokenDatastore, UsersDatastore}
+import fr.maif.izanami.models.{
+  ReadPersonnalAccessToken,
+  User,
+  UserWithCompleteRightForOneTenant,
+  UserWithRights,
+  UserWithTenantRights
+}
+import fr.maif.izanami.datastores.{
+  PersonnalAccessTokenDatastore,
+  UsersDatastore
+}
 
 import scala.concurrent.Future
 import fr.maif.izanami.utils.FutureEither
@@ -10,18 +19,22 @@ import scala.concurrent.ExecutionContext
 import javax.crypto.spec.SecretKeySpec
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 
-
-
 class AuthService(
-  personalAccessTokenDatastore: =>PersonnalAccessTokenDatastore,
-  userDatastore: =>UsersDatastore,
-  tokenSecret: String,
-  encryptionKey: SecretKeySpec
+    personalAccessTokenDatastore: => PersonnalAccessTokenDatastore,
+    userDatastore: => UsersDatastore,
+    tokenSecret: String,
+    encryptionKey: SecretKeySpec
 )(implicit val ec: ExecutionContext) {
   val decryptionStuff = DecryptionStuff(tokenSecret, encryptionKey)
 
-
-  def checkPersonalAccessToken(username: String, token: String): Future[Option[ReadPersonnalAccessToken]] = personalAccessTokenDatastore.readAccessToken(username = username, token = token)
+  def checkPersonalAccessToken(
+      username: String,
+      token: String
+  ): Future[Option[ReadPersonnalAccessToken]] =
+    personalAccessTokenDatastore.readAccessToken(
+      username = username,
+      token = token
+    )
 
   def isUserValid(username: String, password: String): Future[Option[User]] = {
     userDatastore.isUserValid(username = username, password = password)
@@ -61,7 +74,10 @@ class AuthService(
       username: String,
       tenant: String
   ): FutureEither[Option[UserWithCompleteRightForOneTenant]] = {
-    userDatastore.findUserWithRightForTenant(username = username, tenant = tenant).toFEither
+    userDatastore.findUserWithRightForTenant(
+      username = username,
+      tenant = tenant
+    ).toFEither
       .map(u => Some(u))
   }
 
@@ -69,7 +85,10 @@ class AuthService(
       username: String,
       tenants: Set[String]
   ): Future[Option[UserWithRights]] =
-    userDatastore.findCompleteRightsFromTenant(username = username, tenants = tenants)
+    userDatastore.findCompleteRightsFromTenant(
+      username = username,
+      tenants = tenants
+    )
 }
 
 case class DecryptionStuff(tokenSecret: String, encryptionKey: SecretKeySpec)

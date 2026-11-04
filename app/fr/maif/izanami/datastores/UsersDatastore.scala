@@ -15,7 +15,12 @@ import fr.maif.izanami.services.*
 import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterFutureEither, BetterJsValue, BetterSyntax}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterFuture,
+  BetterFutureEither,
+  BetterJsValue,
+  BetterSyntax
+}
 import fr.maif.izanami.web.ImportController.*
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
@@ -35,13 +40,14 @@ import scala.concurrent.ExecutionContext
 import org.apache.pekko.actor.ActorSystem
 
 class UsersDatastore(
-  postgresql: =>Postgresql,
-  houseKeepingStartDelayInSeconds: Long,
-  houseKeepingIntervalInSeconds: Long,
-  sessionsTtl: Integer,
-  invitationsTtl: Integer,
-  passwordResetRequestsTtl: Integer, 
-  actorSystem: ActorSystem)(implicit val ec: ExecutionContext) extends Datastore {
+    postgresql: => Postgresql,
+    houseKeepingStartDelayInSeconds: Long,
+    houseKeepingIntervalInSeconds: Long,
+    sessionsTtl: Integer,
+    invitationsTtl: Integer,
+    passwordResetRequestsTtl: Integer,
+    actorSystem: ActorSystem
+)(implicit val ec: ExecutionContext) extends Datastore {
   var sessionExpirationCancellation: Cancellable = Cancellable.alreadyCancelled
   var invitationExpirationCancellation: Cancellable =
     Cancellable.alreadyCancelled
@@ -55,7 +61,9 @@ class UsersDatastore(
         houseKeepingIntervalInSeconds.seconds
       )(() => {
         deleteExpiredSessions(sessionsTtl)
-        postgresql.queryRaw("DELETE FROM izanami.oidc_login_attempts WHERE creation < NOW() - INTERVAL '5 minutes'") { _ => () }
+        postgresql.queryRaw(
+          "DELETE FROM izanami.oidc_login_attempts WHERE creation < NOW() - INTERVAL '5 minutes'"
+        ) { _ => () }
       })
     invitationExpirationCancellation = actorSystem.scheduler
       .scheduleAtFixedRate(
@@ -82,10 +90,10 @@ class UsersDatastore(
   }
 
   /** Resolve the stable identity first. Only unlinked OIDC accounts can be
-    * claimed by name, for progressive migration of existing accounts.
-    * The caller must keep the transaction open until a new user is created
-    * and linked. Concurrent conflicts are rejected by database constraints
-    * or by the conditional identity binding, without explicit locks.
+    * claimed by name, for progressive migration of existing accounts. The
+    * caller must keep the transaction open until a new user is created and
+    * linked. Concurrent conflicts are rejected by database constraints or by
+    * the conditional identity binding, without explicit locks.
     */
   def resolveOidcUser(
       identity: OidcIdentity,
@@ -93,26 +101,32 @@ class UsersDatastore(
       conn: SqlConnection
   ): FutureEither[Option[String]] = {
     FutureEither.success(postgresql.queryOne(
-        "SELECT username FROM izanami.users WHERE oidc_issuer=$1 AND oidc_subject=$2",
-        List(identity.issuer, identity.subject),
-        conn = Some(conn)
-      )(_.optString("username")))
+      "SELECT username FROM izanami.users WHERE oidc_issuer=$1 AND oidc_subject=$2",
+      List(identity.issuer, identity.subject),
+      conn = Some(conn)
+    )(_.optString("username")))
       .flatMap {
         case Some(username) => FutureEither.success(Some(username))
-        case None =>
+        case None           =>
           FutureEither.success(postgresql.queryOne(
-              "SELECT user_type, oidc_issuer, oidc_subject FROM izanami.users WHERE username=$1",
-              List(proposedUsername),
-              conn = Some(conn)
-            ) { row =>
-              row.optString("user_type").map(userType =>
-                (userType, row.optString("oidc_issuer"), row.optString("oidc_subject"))
+            "SELECT user_type, oidc_issuer, oidc_subject FROM izanami.users WHERE username=$1",
+            List(proposedUsername),
+            conn = Some(conn)
+          ) { row =>
+            row.optString("user_type").map(userType =>
+              (
+                userType,
+                row.optString("oidc_issuer"),
+                row.optString("oidc_subject")
               )
-            })
+            )
+          })
             .flatMap {
-              case None => FutureEither.success(None)
+              case None                       => FutureEither.success(None)
               case Some(("OIDC", None, None)) =>
-                bindOidcIdentity(proposedUsername, identity, conn).map(_ => Some(proposedUsername))
+                bindOidcIdentity(proposedUsername, identity, conn).map(_ =>
+                  Some(proposedUsername)
+                )
               case Some(("OIDC", Some(issuer), Some(subject)))
                   if issuer == identity.issuer && subject == identity.subject =>
                 FutureEither.success(Some(proposedUsername))
@@ -138,21 +152,27 @@ class UsersDatastore(
       .toFEither
   }
 
-  def createOidcLoginAttempt(state: String, attempt: OidcLoginAttempt): Future[Unit] = {
+  def createOidcLoginAttempt(
+      state: String,
+      attempt: OidcLoginAttempt
+  ): Future[Unit] = {
     postgresql.queryRaw(
       "INSERT INTO izanami.oidc_login_attempts (state, nonce, verifier) VALUES ($1, $2, $3)",
       List(state, attempt.nonce, attempt.verifier.orNull)
     ) { _ => () }
   }
 
-  def consumeOidcLoginAttempt(state: String): Future[Option[OidcLoginAttempt]] = {
+  def consumeOidcLoginAttempt(state: String)
+      : Future[Option[OidcLoginAttempt]] = {
     postgresql.queryOne(
       """DELETE FROM izanami.oidc_login_attempts
         |WHERE state=$1 AND creation >= NOW() - INTERVAL '5 minutes'
         |RETURNING nonce, verifier""".stripMargin,
       List(state)
     ) { row =>
-      row.optString("nonce").map(nonce => OidcLoginAttempt(nonce, row.optString("verifier")))
+      row.optString("nonce").map(nonce =>
+        OidcLoginAttempt(nonce, row.optString("verifier"))
+      )
     }
   }
 
@@ -899,11 +919,20 @@ class UsersDatastore(
 
   }
 
-  def updateUserRoles(user: String, roles: Set[String], conn: Option[SqlConnection]): FutureEither[Done] = {
-    postgresql.queryOne(s"UPDATE izanami.users SET roles=$$1 WHERE username=$$2", params = List(JsArray(roles.map(JsString(_)).toIndexedSeq).vertxJsValue, user), conn= conn)(_ => {
+  def updateUserRoles(
+      user: String,
+      roles: Set[String],
+      conn: Option[SqlConnection]
+  ): FutureEither[Done] = {
+    postgresql.queryOne(
+      s"UPDATE izanami.users SET roles=$$1 WHERE username=$$2",
+      params =
+        List(JsArray(roles.map(JsString(_)).toIndexedSeq).vertxJsValue, user),
+      conn = conn
+    )(_ => {
       Some(Done.done())
     }).map(_ => Done.done())
-    .mapToFEither
+      .mapToFEither
   }
 
   def createUserWithConn(
@@ -1321,14 +1350,16 @@ class UsersDatastore(
            |AND s.id = $$1
            |""".stripMargin,
         List(session)
-      ) { row => {
-        for(
-          admin <- row.optBoolean("admin");
-          username <- row.optString("username")
-        ) yield {
-          if(admin) Right(username) else Left(NotEnoughRights())
+      ) { row =>
+        {
+          for (
+            admin <- row.optBoolean("admin");
+            username <- row.optString("username")
+          ) yield {
+            if (admin) Right(username) else Left(NotEnoughRights())
+          }
         }
-      } }.map(o => o.getOrElse(Left(SessionNotFound(session))))
+      }.map(o => o.getOrElse(Left(SessionNotFound(session))))
       .toFEither
   }
 
@@ -1551,7 +1582,10 @@ class UsersDatastore(
     ) { r => r.optUser() }
   }
 
-  def findUser(username: String, conn: Option[SqlConnection] = None): Future[Option[UserWithTenantRights]] = {
+  def findUser(
+      username: String,
+      conn: Option[SqlConnection] = None
+  ): Future[Option[UserWithTenantRights]] = {
     findUsers(Set(username), conn = conn).map(_.headOption)
   }
 
@@ -1793,7 +1827,11 @@ class UsersDatastore(
       tenants: Set[String],
       conn: Option[SqlConnection] = None
   ): Future[Option[UserWithRights]] =
-    findCompleteRightsFromTenantForUsers(Set(username), tenants, conn = conn).map(m =>
+    findCompleteRightsFromTenantForUsers(
+      Set(username),
+      tenants,
+      conn = conn
+    ).map(m =>
       m.get(username)
     )
 

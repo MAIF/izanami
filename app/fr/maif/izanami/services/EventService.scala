@@ -1279,15 +1279,14 @@ object EventService {
     )
   }
 
-  
 }
 
 class EventService(
-  featureService: =>FeatureService,
-  projectDatastore: =>ProjectsDatastore,
-  postgresql: =>Postgresql, // TODO this should be split in service / datastore to break postgresql dependency
-  eventDatastore: =>EventDatastore
-  )(implicit ec: ExecutionContext, mat: Materializer) {
+    featureService: => FeatureService,
+    projectDatastore: => ProjectsDatastore,
+    postgresql: => Postgresql, // TODO this should be split in service / datastore to break postgresql dependency
+    eventDatastore: => EventDatastore
+)(implicit ec: ExecutionContext, mat: Materializer) {
   val logger: Logger = Logger("event-service")
   val sourceMap: scala.collection.mutable.Map[String, SourceDescriptor] =
     scala.collection.mutable.Map()

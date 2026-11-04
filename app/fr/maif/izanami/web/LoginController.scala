@@ -11,7 +11,11 @@ import fr.maif.izanami.models.User.userRightsWrites
 import fr.maif.izanami.security.JwtService
 import fr.maif.izanami.security.OidcTokenValidator
 import fr.maif.izanami.errors.{InvalidOIDCLogin, InvalidOIDCToken}
-import fr.maif.izanami.services.{MaxRightComplianceResult, PostgresTransactionProvider, RightService}
+import fr.maif.izanami.services.{
+  MaxRightComplianceResult,
+  PostgresTransactionProvider,
+  RightService
+}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -32,63 +36,73 @@ import scala.concurrent.duration.DurationInt
 
 class LoginController(
     val controllerComponents: ControllerComponents,
-    rightService: =>RightService,
-    sessionAuthAction: =>AuthenticatedSessionAction,
-    wsClient: =>WSClient,
-    jwtService: =>JwtService,
-    configurationDatastore: =>ConfigurationDatastore,
-    usersDatastore: =>UsersDatastore,
-    postgresTransactionProvider: =>PostgresTransactionProvider,
+    rightService: => RightService,
+    sessionAuthAction: => AuthenticatedSessionAction,
+    wsClient: => WSClient,
+    jwtService: => JwtService,
+    configurationDatastore: => ConfigurationDatastore,
+    usersDatastore: => UsersDatastore,
+    postgresTransactionProvider: => PostgresTransactionProvider,
     openIdConfiguration: Option[OpenId],
     sessions: Sessions
 )(implicit val ec: ExecutionContext) extends BaseController {
   private val logger = Logger("izanami.login")
   private val tokenValidator = new OidcTokenValidator(wsClient)
 
-  def openIdConnect: Action[AnyContent] = Action.async { implicit request => {
-    configurationDatastore
-      .readFullConfiguration()
-      .value
-      .map(e => {
-        e.toOption.flatMap(_.oidcConfiguration)
-      })
-      .flatMap {
-        case None => MissingOIDCConfigurationError().toHttpResponse.future
-        case Some(
-              oAuth2Configuration
-            ) => {
-          if (!oAuth2Configuration.enabled) {
-            BadRequest(Json.obj("message" -> "Something wrong happened")).future
-          } else {
-            val hasOpenIdInScope =
-              oAuth2Configuration.scopes
-                .split(" ")
-                .toSet
-                .exists(s => s.equalsIgnoreCase("openid"))
-            val actualScope =
-              if (!hasOpenIdInScope) oAuth2Configuration.scopes + " openid"
-              else oAuth2Configuration.scopes
-            val state = randomOidcValue()
-            val nonce = randomOidcValue()
-            val pkce = oAuth2Configuration.pkce.filter(_.enabled)
-              .map(p => generatePKCECodes(Some(p.algorithm)))
-            val parameters = Map(
-              "scope" -> Seq(actualScope),
-              "client_id" -> Seq(oAuth2Configuration.clientId),
-              "response_type" -> Seq("code"),
-              "redirect_uri" -> Seq(oAuth2Configuration.callbackUrl),
-              "state" -> Seq(state),
-              "nonce" -> Seq(nonce)
-            ) ++ pkce.map { (_, challenge, method) =>
-              Map("code_challenge" -> Seq(challenge), "code_challenge_method" -> Seq(method))
-            }.getOrElse(Map.empty)
-            usersDatastore.createOidcLoginAttempt(state,
-              OidcLoginAttempt(nonce, pkce.map(_._1)))
-              .map(_ => Redirect(oAuth2Configuration.authorizeUrl, parameters)
-                .addingToSession("oidc_state" -> state))
+  def openIdConnect: Action[AnyContent] = Action.async { implicit request =>
+    {
+      configurationDatastore
+        .readFullConfiguration()
+        .value
+        .map(e => {
+          e.toOption.flatMap(_.oidcConfiguration)
+        })
+        .flatMap {
+          case None => MissingOIDCConfigurationError().toHttpResponse.future
+          case Some(
+                oAuth2Configuration
+              ) => {
+            if (!oAuth2Configuration.enabled) {
+              BadRequest(
+                Json.obj("message" -> "Something wrong happened")
+              ).future
+            } else {
+              val hasOpenIdInScope =
+                oAuth2Configuration.scopes
+                  .split(" ")
+                  .toSet
+                  .exists(s => s.equalsIgnoreCase("openid"))
+              val actualScope =
+                if (!hasOpenIdInScope) oAuth2Configuration.scopes + " openid"
+                else oAuth2Configuration.scopes
+              val state = randomOidcValue()
+              val nonce = randomOidcValue()
+              val pkce = oAuth2Configuration.pkce.filter(_.enabled)
+                .map(p => generatePKCECodes(Some(p.algorithm)))
+              val parameters = Map(
+                "scope" -> Seq(actualScope),
+                "client_id" -> Seq(oAuth2Configuration.clientId),
+                "response_type" -> Seq("code"),
+                "redirect_uri" -> Seq(oAuth2Configuration.callbackUrl),
+                "state" -> Seq(state),
+                "nonce" -> Seq(nonce)
+              ) ++ pkce.map { (_, challenge, method) =>
+                Map(
+                  "code_challenge" -> Seq(challenge),
+                  "code_challenge_method" -> Seq(method)
+                )
+              }.getOrElse(Map.empty)
+              usersDatastore.createOidcLoginAttempt(
+                state,
+                OidcLoginAttempt(nonce, pkce.map(_._1))
+              )
+                .map(_ =>
+                  Redirect(oAuth2Configuration.authorizeUrl, parameters)
+                    .addingToSession("oidc_state" -> state)
+                )
+            }
           }
         }
-      }
     }
   }
 
@@ -128,214 +142,235 @@ class LoginController(
   }
 
   def openIdCodeReturn: Action[AnyContent] = Action.async { implicit request =>
-    val state = request.body.asJson.flatMap(json => (json \ "state").asOpt[String])
-    val attemptFuture = state.filter(value => request.session.get("oidc_state").contains(value))
-      .map(usersDatastore.consumeOidcLoginAttempt)
-      .getOrElse(Future.successful(None))
+    val state =
+      request.body.asJson.flatMap(json => (json \ "state").asOpt[String])
+    val attemptFuture =
+      state.filter(value => request.session.get("oidc_state").contains(value))
+        .map(usersDatastore.consumeOidcLoginAttempt)
+        .getOrElse(Future.successful(None))
     attemptFuture.flatMap {
       case None =>
-        logger.warn("Rejected OIDC callback: missing, mismatched, expired or already consumed state")
+        logger.warn(
+          "Rejected OIDC callback: missing, mismatched, expired or already consumed state"
+        )
         InvalidOIDCLogin.toHttpResponse.removingFromSession("oidc_state").future
       case Some(attempt) => {
-      for (
-        code <- request.body.asJson
-           .flatMap(json => (json \ "code").asOpt[String].filter(_.nonEmpty))
-          .asFuture;
-        oauth2ConfigurationOpt <-
-          configurationDatastore
-            .readFullConfiguration()
-            .value
-            .map(_.toOption.flatMap(_.oidcConfiguration))
-      )
-        yield {
-          if (code.isEmpty) {
-            logger.error(
-              "Izanami failed to extract code from oauth provider call"
-            )
-            InvalidOIDCLogin.toHttpResponse.future
-          } else if (
-            oauth2ConfigurationOpt.isEmpty || oauth2ConfigurationOpt.exists(
-              _.enabled == false
-            )
-          ) {
-            logger.error(
-              "Izanami received oauth provider call however oauth configuration is either disabled or not set"
-            )
-            InternalServerError(
-              Json.obj(
-                "message" -> "OAuth2 configuration is either absent or disabled"
-              )
-            ).asFuture
-          } else if (oauth2ConfigurationOpt.get.pkce.exists(_.enabled) && attempt.verifier.isEmpty) {
-            InvalidOIDCLogin.toHttpResponse.future
-          } else {
-            val oauth2Configuration = oauth2ConfigurationOpt.get
-
-            var builder = wsClient
-              .url(oauth2Configuration.tokenUrl)
-              .withFollowRedirects(false)
-              .withRequestTimeout(10.seconds)
-              .withHttpHeaders(
-                ("content-type", "application/x-www-form-urlencoded")
-              )
-            var body = Map(
-              "grant_type" -> "authorization_code",
-              "code" -> code.get,
-              "redirect_uri" -> oauth2Configuration.callbackUrl
-            )
-
-            if (oauth2Configuration.method == OAuth2BASICMethod) {
-              builder = builder
-                .withAuth(
-                  oauth2Configuration.clientId,
-                  oauth2Configuration.clientSecret,
-                  WSAuthScheme.BASIC
+          for (
+            code <- request.body.asJson
+              .flatMap(json => (json \ "code").asOpt[String].filter(_.nonEmpty))
+              .asFuture;
+            oauth2ConfigurationOpt <-
+              configurationDatastore
+                .readFullConfiguration()
+                .value
+                .map(_.toOption.flatMap(_.oidcConfiguration))
+          )
+            yield {
+              if (code.isEmpty) {
+                logger.error(
+                  "Izanami failed to extract code from oauth provider call"
                 )
-            } else {
-              body = Map(
-                "grant_type" -> "authorization_code",
-                "code" -> code.get,
-                "redirect_uri" -> oauth2Configuration.callbackUrl,
-                "client_id" -> oauth2Configuration.clientId,
-                "client_secret" -> oauth2Configuration.clientSecret
-              )
-            }
-
-            if (oauth2Configuration.pkce.exists(_.enabled)) {
-              body = body + ("code_verifier" -> attempt.verifier.get)
-            }
-
-            builder
-              .post(body)
-              .flatMap(r => {
-                val maybeToken = if (r.status >= 400) {
-                  logger.error(
-                    s"Failed to retrieve id token from distant authentication provider. Return code is ${r.status}."
+                InvalidOIDCLogin.toHttpResponse.future
+              } else if (
+                oauth2ConfigurationOpt.isEmpty || oauth2ConfigurationOpt.exists(
+                  _.enabled == false
+                )
+              ) {
+                logger.error(
+                  "Izanami received oauth provider call however oauth configuration is either disabled or not set"
+                )
+                InternalServerError(
+                  Json.obj(
+                    "message" -> "OAuth2 configuration is either absent or disabled"
                   )
-                  None
-                } else {
-                  val token = scala.util.Try(r.json).toOption.flatMap(json => (json \ "id_token").asOpt[String])
+                ).asFuture
+              } else if (
+                oauth2ConfigurationOpt.get.pkce.exists(
+                  _.enabled
+                ) && attempt.verifier.isEmpty
+              ) {
+                InvalidOIDCLogin.toHttpResponse.future
+              } else {
+                val oauth2Configuration = oauth2ConfigurationOpt.get
 
-                  if (token.isEmpty) {
-                    logger.error(
-                      s"Failed to read id token from distant authentication provider response."
+                var builder = wsClient
+                  .url(oauth2Configuration.tokenUrl)
+                  .withFollowRedirects(false)
+                  .withRequestTimeout(10.seconds)
+                  .withHttpHeaders(
+                    ("content-type", "application/x-www-form-urlencoded")
+                  )
+                var body = Map(
+                  "grant_type" -> "authorization_code",
+                  "code" -> code.get,
+                  "redirect_uri" -> oauth2Configuration.callbackUrl
+                )
+
+                if (oauth2Configuration.method == OAuth2BASICMethod) {
+                  builder = builder
+                    .withAuth(
+                      oauth2Configuration.clientId,
+                      oauth2Configuration.clientSecret,
+                      WSAuthScheme.BASIC
                     )
-                  }
-                  token
+                } else {
+                  body = Map(
+                    "grant_type" -> "authorization_code",
+                    "code" -> code.get,
+                    "redirect_uri" -> oauth2Configuration.callbackUrl,
+                    "client_id" -> oauth2Configuration.clientId,
+                    "client_secret" -> oauth2Configuration.clientSecret
+                  )
                 }
 
-                maybeToken.fold(
-                  Future(
-                    InternalServerError(
-                      Json.obj("message" -> "Failed to retrieve token")
-                    )
-                  )
-                )(token => {
-                  tokenValidator.validate(token, oauth2Configuration, attempt.nonce).flatMap {
-                    case Left(err) => Future.successful(err.toHttpResponse)
-                    case Right(validatedClaims) => Some(validatedClaims)
-                    .flatMap(claims => {
-                      val maybeJsonClaims =
-                        Json.parse(claims.content).asOpt[JsObject]
-                      if (maybeJsonClaims.isEmpty) {
-                        logger.error(s"Failed to read json claims")
-                      }
-                      maybeJsonClaims.map(json => (claims, json))
-                    })
-                    .flatMap { (claims, json) =>
-                      val roles =
-                        extractRoles(json, oauth2Configuration.roleClaim)
-                          .getOrElse(Set())
-                      logger.debug(
-                        s"Extracted roles [${roles.mkString(",")}] from id_token. "
+                if (oauth2Configuration.pkce.exists(_.enabled)) {
+                  body = body + ("code_verifier" -> attempt.verifier.get)
+                }
+
+                builder
+                  .post(body)
+                  .flatMap(r => {
+                    val maybeToken = if (r.status >= 400) {
+                      logger.error(
+                        s"Failed to retrieve id token from distant authentication provider. Return code is ${r.status}."
+                      )
+                      None
+                    } else {
+                      val token = scala.util.Try(r.json).toOption.flatMap(
+                        json => (json \ "id_token").asOpt[String]
                       )
 
-                      for (
-                        issuer <- claims.issuer.filter(_.nonEmpty);
-                        subject <- claims.subject.filter(_.nonEmpty);
-                        username <- (json \ oauth2Configuration.nameField)
-                          .asOpt[String];
-                        email <- (json \ oauth2Configuration.emailField)
-                          .asOpt[String]
-                      )
-                        yield {
-                          authenticateOidcUser(
-                            OidcIdentity(issuer, subject),
-                            username,
-                            email,
-                            roles,
-                            oauth2Configuration
-                          )
-                        }
-                    }
-                    .getOrElse(
-                      Future(
-                        Left(InvalidOIDCToken)
-                      )
-                    )
-                    .flatMap {
-                      case Right((username, maybeRightCompliance)) => {
-                        usersDatastore
-                          .createSession(username)
-                          .map(id => Right((id, maybeRightCompliance)))
-                      }
-                      case Left(err) => Future(Left(err))
-                    }
-                    .map(maybeId => {
-                      maybeId
-                        .map((id, maybeRightCompliance) => {
-                          (
-                            jwtService.generateToken(id),
-                            maybeRightCompliance
-                          )
-                        })
-                        .fold(
-                          err => {
-                            err.toHttpResponse
-                          },
-                          (token, maybeRightCompliance) => {
-                            if (maybeRightCompliance.exists(!_.isEmpty)) {
-                              Ok(
-                                Json.obj(
-                                  "rightUpdates" -> Json.toJson(
-                                    maybeRightCompliance
-                                  )(Writes.optionWithNull(
-                                    MaxRightComplianceResult.writes
-                                  ))
-                                )
-                              )
-                                .withCookies(
-                                  Cookie(
-                                    name = "token",
-                                    value = token,
-                                    httpOnly = false,
-                                    sameSite = Some(SameSite.Strict)
-                                  )
-                                )
-                            } else {
-                              NoContent
-                                .withCookies(
-                                  Cookie(
-                                    name = "token",
-                                    value = token,
-                                    httpOnly = false,
-                                    sameSite = Some(SameSite.Strict)
-                                  )
-                                )
-                            }
-
-                          }
+                      if (token.isEmpty) {
+                        logger.error(
+                          s"Failed to read id token from distant authentication provider response."
                         )
+                      }
+                      token
+                    }
+
+                    maybeToken.fold(
+                      Future(
+                        InternalServerError(
+                          Json.obj("message" -> "Failed to retrieve token")
+                        )
+                      )
+                    )(token => {
+                      tokenValidator.validate(
+                        token,
+                        oauth2Configuration,
+                        attempt.nonce
+                      ).flatMap {
+                        case Left(err) => Future.successful(err.toHttpResponse)
+                        case Right(validatedClaims) => Some(validatedClaims)
+                            .flatMap(claims => {
+                              val maybeJsonClaims =
+                                Json.parse(claims.content).asOpt[JsObject]
+                              if (maybeJsonClaims.isEmpty) {
+                                logger.error(s"Failed to read json claims")
+                              }
+                              maybeJsonClaims.map(json => (claims, json))
+                            })
+                            .flatMap { (claims, json) =>
+                              val roles =
+                                extractRoles(
+                                  json,
+                                  oauth2Configuration.roleClaim
+                                )
+                                  .getOrElse(Set())
+                              logger.debug(
+                                s"Extracted roles [${roles.mkString(",")}] from id_token. "
+                              )
+
+                              for (
+                                issuer <- claims.issuer.filter(_.nonEmpty);
+                                subject <- claims.subject.filter(_.nonEmpty);
+                                username <- (json \ oauth2Configuration.nameField)
+                                  .asOpt[String];
+                                email <- (json \ oauth2Configuration.emailField)
+                                  .asOpt[String]
+                              )
+                                yield {
+                                  authenticateOidcUser(
+                                    OidcIdentity(issuer, subject),
+                                    username,
+                                    email,
+                                    roles,
+                                    oauth2Configuration
+                                  )
+                                }
+                            }
+                            .getOrElse(
+                              Future(
+                                Left(InvalidOIDCToken)
+                              )
+                            )
+                            .flatMap {
+                              case Right((username, maybeRightCompliance)) => {
+                                usersDatastore
+                                  .createSession(username)
+                                  .map(id => Right((id, maybeRightCompliance)))
+                              }
+                              case Left(err) => Future(Left(err))
+                            }
+                            .map(maybeId => {
+                              maybeId
+                                .map((id, maybeRightCompliance) => {
+                                  (
+                                    jwtService.generateToken(id),
+                                    maybeRightCompliance
+                                  )
+                                })
+                                .fold(
+                                  err => {
+                                    err.toHttpResponse
+                                  },
+                                  (token, maybeRightCompliance) => {
+                                    if (
+                                      maybeRightCompliance.exists(!_.isEmpty)
+                                    ) {
+                                      Ok(
+                                        Json.obj(
+                                          "rightUpdates" -> Json.toJson(
+                                            maybeRightCompliance
+                                          )(Writes.optionWithNull(
+                                            MaxRightComplianceResult.writes
+                                          ))
+                                        )
+                                      )
+                                        .withCookies(
+                                          Cookie(
+                                            name = "token",
+                                            value = token,
+                                            httpOnly = false,
+                                            sameSite = Some(SameSite.Strict)
+                                          )
+                                        )
+                                    } else {
+                                      NoContent
+                                        .withCookies(
+                                          Cookie(
+                                            name = "token",
+                                            value = token,
+                                            httpOnly = false,
+                                            sameSite = Some(SameSite.Strict)
+                                          )
+                                        )
+                                    }
+
+                                  }
+                                )
+                            })
+                      }
                     })
-                  }
-                })
-              })
-          }
-        }
-    }.flatten.recover { case scala.util.control.NonFatal(_) =>
-      logger.warn("OIDC login failed while communicating with the authentication provider")
-      InvalidOIDCLogin.toHttpResponse
-    }.map(_.removingFromSession("oidc_state"))
+                  })
+              }
+            }
+        }.flatten.recover { case scala.util.control.NonFatal(_) =>
+          logger.warn(
+            "OIDC login failed while communicating with the authentication provider"
+          )
+          InvalidOIDCLogin.toHttpResponse
+        }.map(_.removingFromSession("oidc_state"))
     }
   }
 
@@ -345,8 +380,12 @@ class LoginController(
       email: String,
       roles: Set[String],
       configuration: OAuth2Configuration
-  ): Future[Either[IzanamiError, (String, Option[MaxRightComplianceResult])]] = {
-    def createOrUpdateUser(): FutureEither[(String, Option[MaxRightComplianceResult])] = {
+  ): Future[Either[
+    IzanamiError,
+    (String, Option[MaxRightComplianceResult])
+  ]] = {
+    def createOrUpdateUser()
+        : FutureEither[(String, Option[MaxRightComplianceResult])] = {
       // TransactionProvider does not roll back Left values: fail the Future
       // so a rejected login also rolls back its identity binding and rights.
       postgresTransactionProvider.executeInTransaction { conn =>
@@ -354,9 +393,20 @@ class LoginController(
           .resolveOidcUser(identity, proposedUsername, conn)
           .flatMap {
             case Some(username) =>
-              FutureEither.success(usersDatastore.findUserWithCompleteRights(username, conn = Some(conn)))
-                .flatMap(user => FutureEither.from(user.toRight(UserNotFound(username))))
-                .flatMap(user => rightService.updateUserRightsAndRolesIfNeeded(user, roles, Some(conn)))
+              FutureEither.success(usersDatastore.findUserWithCompleteRights(
+                username,
+                conn = Some(conn)
+              ))
+                .flatMap(user =>
+                  FutureEither.from(user.toRight(UserNotFound(username)))
+                )
+                .flatMap(user =>
+                  rightService.updateUserRightsAndRolesIfNeeded(
+                    user,
+                    roles,
+                    Some(conn)
+                  )
+                )
                 .map(compliance => (username, compliance))
             case None =>
               val rights = rightService.generateRightForNewUser(roles)
@@ -370,14 +420,24 @@ class LoginController(
                 ).withRights(Rights(rights.tenants)),
                 conn = Some(conn)
               ).toFEither
-                .flatMap(_ => usersDatastore.bindOidcIdentity(proposedUsername, identity, conn))
-                .map(_ => (proposedUsername, Option.empty[MaxRightComplianceResult]))
+                .flatMap(_ =>
+                  usersDatastore.bindOidcIdentity(
+                    proposedUsername,
+                    identity,
+                    conn
+                  )
+                )
+                .map(_ =>
+                  (proposedUsername, Option.empty[MaxRightComplianceResult])
+                )
           }
         result.value.flatMap {
-          case Left(err) => Future.failed(err)
+          case Left(err)    => Future.failed(err)
           case Right(value) => Future.successful(value)
         }
-      }.map(value => Right[IzanamiError, (String, Option[MaxRightComplianceResult])](value))
+      }.map(value =>
+        Right[IzanamiError, (String, Option[MaxRightComplianceResult])](value)
+      )
         .recover { case err: IzanamiError => Left(err) }
         .toFEither
     }
@@ -389,7 +449,8 @@ class LoginController(
 
     createOrUpdateUser().value.flatMap {
       case Left(err: RightComplianceError) => Future.successful(Left(err))
-      case Left(OIDCIdentityConflict) => Future.successful(Left(OIDCIdentityConflict))
+      case Left(OIDCIdentityConflict)      =>
+        Future.successful(Left(OIDCIdentityConflict))
       case Left(_) if rightByRolesFromEnvIfAny.isDefined =>
         configurationDatastore
           .updateOIDCRightByRolesIfNeeded(rightByRolesFromEnvIfAny.get)
@@ -456,7 +517,8 @@ class LoginController(
                     authorizeUrl = authorizeUrl.getOrElse(""),
                     scopes = scope,
                     pkce = None,
-                    callbackUrl = s"${jwtService.expositionUrl}/login", // FIXME we should not rely on other class internals
+                    callbackUrl =
+                      s"${jwtService.expositionUrl}/login", // FIXME we should not rely on other class internals
                     method = OAuth2BASICMethod,
                     enabled = true,
                     userRightsByRoles = None,

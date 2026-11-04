@@ -1,6 +1,10 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.{EventDatastore, PersonnalAccessTokenDatastore, ProjectsDatastore}
+import fr.maif.izanami.datastores.{
+  EventDatastore,
+  PersonnalAccessTokenDatastore,
+  ProjectsDatastore
+}
 import fr.maif.izanami.datastores.EventDatastore.AscOrder
 import fr.maif.izanami.datastores.EventDatastore.FeatureEventRequest
 import fr.maif.izanami.datastores.EventDatastore.parseSortOrder
@@ -35,15 +39,15 @@ import scala.util.Try
 
 class ProjectController(
     val controllerComponents: ControllerComponents,
-    tenantAuthAction: =>TenantAuthActionFactory,
-    projectAuthAction: =>ProjectAuthActionFactory,
-    projectAuthActionById: =>ProjectAuthActionByIdFactory,
-    personnalAccessTokenDetailledRightForTenantFactory: =>PersonnalAccessTokenDetailledRightForTenantFactory,
-    featureUsageService: =>FeatureUsageService,
-    personnalAccessTokenAuthAction: =>PersonnalAccessTokenProjectAuthActionFactory,
-    eventDatastore: =>EventDatastore, // FIXME use service instead
-    projectsDatastore: =>ProjectsDatastore,  // FIXME use service instead
-    personnalAccessTokenDatastore: =>PersonnalAccessTokenDatastore  // FIXME use service instead
+    tenantAuthAction: => TenantAuthActionFactory,
+    projectAuthAction: => ProjectAuthActionFactory,
+    projectAuthActionById: => ProjectAuthActionByIdFactory,
+    personnalAccessTokenDetailledRightForTenantFactory: => PersonnalAccessTokenDetailledRightForTenantFactory,
+    featureUsageService: => FeatureUsageService,
+    personnalAccessTokenAuthAction: => PersonnalAccessTokenProjectAuthActionFactory,
+    eventDatastore: => EventDatastore, // FIXME use service instead
+    projectsDatastore: => ProjectsDatastore, // FIXME use service instead
+    personnalAccessTokenDatastore: => PersonnalAccessTokenDatastore // FIXME use service instead
 )(implicit val ec: ExecutionContext) extends BaseController {
 
   def readEventsForProject(
@@ -137,7 +141,14 @@ class ProjectController(
             BadRequest(Json.obj("message" -> "bad body format")).future
           case JsSuccess(project, _) => {
             projectsDatastore
-              .createProject(tenant, project, StandardUserInformation(username = request.user, authentication = request.authentication))
+              .createProject(
+                tenant,
+                project,
+                StandardUserInformation(
+                  username = request.user,
+                  authentication = request.authentication
+                )
+              )
               .map(maybeProject =>
                 maybeProject.fold(
                   err => Results.Status(err.status)(Json.toJson(err)),
@@ -160,7 +171,10 @@ class ProjectController(
             tenant,
             project,
             updatedProject,
-            StandardUserInformation(username = request.user._2, authentication = request.authentication)
+            StandardUserInformation(
+              username = request.user._2,
+              authentication = request.authentication
+            )
           ).map {
             case Left(value) => value.toHttpResponse
             case Right(_)    => NoContent
@@ -251,7 +265,14 @@ class ProjectController(
       DeleteProject
     ).async { implicit request =>
       projectsDatastore
-        .deleteProject(tenant, project, StandardUserInformation(username = request.user, authentication = request.authentication))
+        .deleteProject(
+          tenant,
+          project,
+          StandardUserInformation(
+            username = request.user,
+            authentication = request.authentication
+          )
+        )
         .map {
           case Left(err)    => err.toHttpResponse
           case Right(value) => NoContent

@@ -22,8 +22,8 @@ import scala.util.Try
 
 class PersonnalAccessTokenController(
     val controllerComponents: ControllerComponents,
-    tenantRightAction: =>TenantRightsAction,
-    detailledAuthAction: =>DetailledAuthAction,
+    tenantRightAction: => TenantRightsAction,
+    detailledAuthAction: => DetailledAuthAction,
     personalAccessTokenDatastore: PersonnalAccessTokenDatastore // FIXME use a service instead
 )(implicit val ec: ExecutionContext) extends BaseController {
 
@@ -205,7 +205,9 @@ class PersonnalAccessTokenController(
           )
         )
       } else {
-        personalAccessTokenDatastore.deleteAcessToken(id, user).toResult(_ => NoContent)
+        personalAccessTokenDatastore.deleteAcessToken(id, user).toResult(_ =>
+          NoContent
+        )
       }
     }
 

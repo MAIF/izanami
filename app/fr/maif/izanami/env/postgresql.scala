@@ -169,7 +169,11 @@ class Postgresql(appConfig: AppConf)(implicit ec: ExecutionContext) {
   val pgConfiguration = appConfig.pg
   val sslConfiguration = pgConfiguration.ssl
   def pgErrorPartialFunction: PartialFunction[Throwable, IzanamiError] = {
-    case f: PgException if Set("features_allowed_values_shape", "features_allowed_values_uses").contains(f.getConstraint) =>
+    case f: PgException
+        if Set(
+          "features_allowed_values_shape",
+          "features_allowed_values_uses"
+        ).contains(f.getConstraint) =>
       PostgresErrorMapper.postgresErrorToIzanamiError(f)
     case f: PgException if f.getConstraint() != null =>
       PostgresErrorMapper.constraintNameToIzanamiError(f.getConstraint)
@@ -241,57 +245,56 @@ class Postgresql(appConfig: AppConf)(implicit ec: ExecutionContext) {
       }
     }
 
-    
-
     tenants.foldLeft(Try.apply(Done.done()))((t, tenant) => {
       t.flatMap(_ => {
         val flyway =
-            Flyway.configure
-              .dataSource(dataSource)
-              .locations(
-                "filesystem:conf/sql/tenants",
-                "filesystem:sql/tenants",
-                "sql/tenants",
-                "conf/sql/tenants"
+          Flyway.configure
+            .dataSource(dataSource)
+            .locations(
+              "filesystem:conf/sql/tenants",
+              "filesystem:sql/tenants",
+              "sql/tenants",
+              "conf/sql/tenants"
+            )
+            .baselineOnMigrate(true)
+            .schemas(tenant.name)
+            .placeholders(
+              java.util.Map.of(
+                "extensions_schema",
+                appConfig.pg.extensionsSchema,
+                "schema",
+                tenant.name
               )
-              .baselineOnMigrate(true)
-              .schemas(tenant.name)
-              .placeholders(
-                java.util.Map.of(
-                  "extensions_schema",
-                  appConfig.pg.extensionsSchema,
-                  "schema",
-                  tenant.name
-                )
+            )
+            .load()
+
+        Try {
+          flyway.migrate()
+          Done.done()
+        }.recoverWith {
+          case e: FlywayValidateException => {
+            val validationResult = flyway.validateWithResult()
+            if (
+              validationResult.invalidMigrations.asScala.map(v =>
+                v.version
+              ).contains("2")
+            ) {
+              logger.info(
+                s"""Izanami needs to repair flyway migration for tenant ${tenant.name} since extension schema is now configurable. Starting repair..."""
               )
-              .load()
-
-
-          Try {
-            flyway.migrate()
-            Done.done()
-          }.recoverWith{
-            case e: FlywayValidateException => {
-              val validationResult = flyway.validateWithResult()
-              if (
-                validationResult.invalidMigrations.asScala.map(v =>
-                  v.version
-                ).contains("2")
-              ) {
-                logger.info(
-                  s"""Izanami needs to repair flyway migration for tenant ${tenant.name} since extension schema is now configurable. Starting repair..."""
-                )
-                flyway.repair()
-                logger.info(
-                  s"""Repair worked, restarting migration for ${tenant.name}"""
-                )
-                Try{flyway.migrate()
-                Done.done()}
-              } else {
-                throw e
+              flyway.repair()
+              logger.info(
+                s"""Repair worked, restarting migration for ${tenant.name}"""
+              )
+              Try {
+                flyway.migrate()
+                Done.done()
               }
+            } else {
+              throw e
             }
           }
+        }
       })
     }).fold(_ => dataSource.close(), _ => dataSource.close())
 

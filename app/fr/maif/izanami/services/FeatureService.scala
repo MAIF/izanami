@@ -63,12 +63,12 @@ import fr.maif.izanami.models.Feature.writeFeatureInLegacyFormat
 import fr.maif.izanami.wasm.WasmRelatedStuff
 
 class FeatureService(
-  datastore: =>FeaturesDatastore,
-  featureContextDatastore: =>FeatureContextDatastore,
-  tagDatastore: =>TagsDatastore,
-  configuration: FeatureConfiguration,
-  transactionProvider: =>PostgresTransactionProvider,// TODO use super class instead, but it's a huge refactoring
-  wasmRelatedStuff: =>WasmRelatedStuff
+    datastore: => FeaturesDatastore,
+    featureContextDatastore: => FeatureContextDatastore,
+    tagDatastore: => TagsDatastore,
+    configuration: FeatureConfiguration,
+    transactionProvider: => PostgresTransactionProvider, // TODO use super class instead, but it's a huge refactoring
+    wasmRelatedStuff: => WasmRelatedStuff
 )(implicit ec: ExecutionContext) {
   private def hasProtectedOverload(
       tenant: String,
@@ -88,13 +88,14 @@ class FeatureService(
   }
 
   def findById(
-                tenant: String,
-                id: String,
-                conn: Option[SqlConnection] = None
-              ): FutureEither[Option[CompleteFeature]] = datastore.findById(tenant = tenant, id = id, conn = conn).toFEither
+      tenant: String,
+      id: String,
+      conn: Option[SqlConnection] = None
+  ): FutureEither[Option[CompleteFeature]] =
+    datastore.findById(tenant = tenant, id = id, conn = conn).toFEither
 
   def isWasmAllowed: Boolean = wasmRelatedStuff.isWasmAllowed
-  
+
   // TODO this should be split in completion to Map[String, CompleteFeature] and a Write
   def processMultipleStrategyResult(
       strategyByCtx: Map[String, LightWeightFeature],
@@ -121,7 +122,11 @@ class FeatureService(
 
     lightWeightToCompleteFeature(tenant = requestContext.tenant, strategyToUse)
       .flatMap(strategyToUse =>
-        Feature.writeFeatureForCheck(strategyToUse, requestContext, wasmRelatedStuff)
+        Feature.writeFeatureForCheck(
+          strategyToUse,
+          requestContext,
+          wasmRelatedStuff
+        )
           .map {
             case Left(err)                 => Left(err)
             case Right(json) if conditions =>
@@ -130,7 +135,6 @@ class FeatureService(
           }.toFEither
       )
   }
-
 
   def lightWeightToCompleteFeature(
       tenant: String,
@@ -141,25 +145,27 @@ class FeatureService(
       case f: LightWeightWasmFeature => {
         datastore
           .readWasmScript(tenant, f.wasmConfigName, conn)
-          .map(maybeWasm => maybeWasm.toRight(
-                InternalServerError(
-                  s"Failed to find wasm script config ${f.wasmConfigName}"
-                )
-              )).toFEither
-          .map((wasmConfig) =>
-                CompleteWasmFeature(
-                  id = f.id,
-                  name = f.name,
-                  project = f.project,
-                  enabled = f.enabled,
-                  wasmConfig = wasmConfig,
-                  tags = f.tags,
-                  metadata = f.metadata,
-                  description = f.description,
-                  resultType = f.resultType
-                )
+          .map(maybeWasm =>
+            maybeWasm.toRight(
+              InternalServerError(
+                s"Failed to find wasm script config ${f.wasmConfigName}"
               )
-          }
+            )
+          ).toFEither
+          .map((wasmConfig) =>
+            CompleteWasmFeature(
+              id = f.id,
+              name = f.name,
+              project = f.project,
+              enabled = f.enabled,
+              wasmConfig = wasmConfig,
+              tags = f.tags,
+              metadata = f.metadata,
+              description = f.description,
+              resultType = f.resultType
+            )
+          )
+      }
       case feat: CompleteFeature => FutureEither.success(feat)
     }
   }
@@ -391,9 +397,12 @@ class FeatureService(
         );
         transactionProvider.executeInTransaction(conn => {
           for (
-            oldStrategy <- lightWeightToCompleteFeature(tenant, oldFeature.strategyFor(contextPath)).map(completeFeature =>
-                completeFeature.toCompleteContextualStrategy
-              );
+            oldStrategy <- lightWeightToCompleteFeature(
+              tenant,
+              oldFeature.strategyFor(contextPath)
+            ).map(completeFeature =>
+              completeFeature.toCompleteContextualStrategy
+            );
             _ <- protectedContextToUpdate
               .foldLeft(FutureEither.success(()))((res, ctx) => {
                 res.flatMap(_ =>
@@ -560,7 +569,8 @@ class FeatureService(
         id <- datastore
           .findFeatureIds(
             tenant = request.tenant,
-            featureNameAndProjects = Set((request.project, request.featureName)),
+            featureNameAndProjects =
+              Set((request.project, request.featureName)),
             conn = Some(conn)
           ).map(_.get((request.project, request.featureName))
             .toRight(FeatureNotFound(request.featureName))).toFEither;
@@ -590,7 +600,11 @@ class FeatureService(
       conn,
       conn => {
         for (
-          _ <- datastore.lockFeature(request.tenant, request.id, conn).mapToFEither;
+          _ <- datastore.lockFeature(
+            request.tenant,
+            request.id,
+            conn
+          ).mapToFEither;
           _ <- tagDatastore
             .createTags(
               request.tags
@@ -662,7 +676,11 @@ class FeatureService(
       conn => {
         for (
           _ <- (request, oldFeature.baseFeature, request.strategy) match {
-            case (_: OverloadFeatureUpdateRequest, parent: Feature, _: CompleteWasmFeatureStrategy)
+            case (
+                  _: OverloadFeatureUpdateRequest,
+                  parent: Feature,
+                  _: CompleteWasmFeatureStrategy
+                )
                 if parent.allowedValues.nonEmpty =>
               FutureEither.failure(GenericBadRequest(
                 "WASM overloads are incompatible with the parent's allowedValues"
@@ -670,7 +688,8 @@ class FeatureService(
             case _ => FutureEither.success(())
           };
           _ <- request.strategy match {
-            case _: CompleteWasmFeatureStrategy if !wasmRelatedStuff.isWasmAllowed =>
+            case _: CompleteWasmFeatureStrategy
+                if !wasmRelatedStuff.isWasmAllowed =>
               FutureEither.failure(WasmFeatureNotAllowed)
             case _ => FutureEither.success(Done.done())
           };
@@ -717,11 +736,13 @@ class FeatureService(
             for (
               oldStrategy <- lightWeightToCompleteFeature(
                 request.tenant,
-                oldFeature.strategyFor(request.maybeContext.getOrElse(FeatureContextPath())),
+                oldFeature.strategyFor(
+                  request.maybeContext.getOrElse(FeatureContextPath())
+                ),
                 conn = Some(conn)
               )
-                              .map(completeFeature =>
-                                  completeFeature.toCompleteContextualStrategy
+                .map(completeFeature =>
+                  completeFeature.toCompleteContextualStrategy
                 );
               res <- protectedContextToUpdate
                 .foldLeft(FutureEither.success(()))((res, ctx) => {
@@ -877,8 +898,11 @@ class FeatureService(
       }
     }
   }
-  
-  def evaluateStrategy(strategy: CompleteContextualStrategy, requestContext: RequestContext): Future[Either[IzanamiError, JsValue]] = {
+
+  def evaluateStrategy(
+      strategy: CompleteContextualStrategy,
+      requestContext: RequestContext
+  ): Future[Either[IzanamiError, JsValue]] = {
     strategy
       .value(
         requestContext,
@@ -891,7 +915,9 @@ class FeatureService(
       requestContext: RequestContext
   ): Future[Either[IzanamiError, Seq[EvaluatedCompleteFeature]]] = {
     val evaluatedFeatures =
-      Future.sequence(features.map(f => f.evaluate(requestContext, wasmRelatedStuff)))
+      Future.sequence(features.map(f =>
+        f.evaluate(requestContext, wasmRelatedStuff)
+      ))
     evaluatedFeatures.map(Helpers.sequence(_))
   }
 
@@ -963,9 +989,12 @@ class FeatureService(
   ): FutureEither[Map[String, String]] = {
     datastore.findFeaturesProjects(tenant = tenant, featureIds = featureIds)
   }
-  
+
   // FIXME avoid returning JsObject to return dedicated writtable type
-  def writeFeatureForCheck(feature: CompleteFeature, context: RequestContext): FutureEither[JsObject] = {
+  def writeFeatureForCheck(
+      feature: CompleteFeature,
+      context: RequestContext
+  ): FutureEither[JsObject] = {
     feature
       .value(context, wasmRelatedStuff)
       .map(either => {
@@ -979,11 +1008,14 @@ class FeatureService(
       }).toFEither
   }
 
-  def writeFeatureForCheckInLegacyFormat(feature: CompleteFeature, context: RequestContext): FutureEither[Option[JsObject]] = {
+  def writeFeatureForCheckInLegacyFormat(
+      feature: CompleteFeature,
+      context: RequestContext
+  ): FutureEither[Option[JsObject]] = {
     feature
       .value(context, wasmRelatedStuff)
       .map {
-        case Left(error) => Left(error)
+        case Left(error)   => Left(error)
         case Right(active) =>
           Right(
             Some(

@@ -20,13 +20,13 @@ import scala.util.Try
 
 class PluginController(
     val controllerComponents: ControllerComponents,
-    authAction: =>TenantAuthActionFactory,
-    adminAuthAction: =>AdminAuthAction,
-    featuresDatastore: =>FeaturesDatastore,
-    configurationDatastore: =>ConfigurationDatastore,
-    wsClient: =>WSClient,
-    wasmIntegration: =>WasmIntegration,
-    simpleAuthAction: =>AuthenticatedAction
+    authAction: => TenantAuthActionFactory,
+    adminAuthAction: => AdminAuthAction,
+    featuresDatastore: => FeaturesDatastore,
+    configurationDatastore: => ConfigurationDatastore,
+    wsClient: => WSClient,
+    wasmIntegration: => WasmIntegration,
+    simpleAuthAction: => AuthenticatedAction
 )(implicit val ec: ExecutionContext) extends BaseController {
   private val logger = Logger("PlutinController")
 
@@ -67,62 +67,65 @@ class PluginController(
   def deleteScript(tenant: String, script: String): Action[AnyContent] =
     authAction(tenant, RightLevel.Write).async {
       implicit request =>
-        featuresDatastore.deleteLocalScript(tenant, script).toResult(_ => NoContent)
+        featuresDatastore.deleteLocalScript(tenant, script).toResult(_ =>
+          NoContent
+        )
     }
 
   def updateScript(tenant: String, script: String): Action[JsValue] =
     authAction(tenant, RightLevel.Write).async(parse.json) { implicit request =>
       request.body.asOpt[WasmConfig](WasmConfig.format) match {
         case Some(value) =>
-          featuresDatastore.updateWasmScript(tenant, script, value).map(
-            _ => NoContent
+          featuresDatastore.updateWasmScript(tenant, script, value).map(_ =>
+            NoContent
           )
         case None => BadRequest(Json.obj("message" -> "Bad body format")).future
       }
     }
 
-  def wasmFiles(): Action[AnyContent] = simpleAuthAction.async { implicit request =>
-    configurationDatastore
-      .readWasmConfiguration() match {
-      case Some(settings @ WasmoSettings(url, _, _, pluginsFilter, _, _)) =>
-        Try {
-          val userHeader =
-            io.otoroshi.wasm4s.scaladsl.ApikeyHelper.generate(settings)
-          wsClient
-            .url(s"$url/plugins")
-            .withFollowRedirects(false)
-            .withHttpHeaders(
-              "Accept" -> "application/json",
-              userHeader,
-              "kind" -> pluginsFilter.getOrElse("*")
-            )
-            .get()
-            .map(res => {
-              if (res.status == 200) {
-                Ok(res.json)
-              } else {
+  def wasmFiles(): Action[AnyContent] = simpleAuthAction.async {
+    implicit request =>
+      configurationDatastore
+        .readWasmConfiguration() match {
+        case Some(settings @ WasmoSettings(url, _, _, pluginsFilter, _, _)) =>
+          Try {
+            val userHeader =
+              io.otoroshi.wasm4s.scaladsl.ApikeyHelper.generate(settings)
+            wsClient
+              .url(s"$url/plugins")
+              .withFollowRedirects(false)
+              .withHttpHeaders(
+                "Accept" -> "application/json",
+                userHeader,
+                "kind" -> pluginsFilter.getOrElse("*")
+              )
+              .get()
+              .map(res => {
+                if (res.status == 200) {
+                  Ok(res.json)
+                } else {
+                  Ok(Json.arr())
+                }
+              })
+              .recover { case e: Throwable =>
+                logger.error(s"Failed to retrieve wasm scripts", e)
                 Ok(Json.arr())
               }
-            })
-            .recover { case e: Throwable =>
-              logger.error(s"Failed to retrieve wasm scripts", e)
-              Ok(Json.arr())
+          } match {
+            case Failure(err) => {
+              logger.error(s"Failed to retrieve wasm scripts", err)
+              Ok(Json.arr()).future
             }
-        } match {
-          case Failure(err) => {
-            logger.error(s"Failed to retrieve wasm scripts", err)
-            Ok(Json.arr()).future
+            case Success(v) => v
           }
-          case Success(v) => v
-        }
 
-      case _ =>
-        BadRequest(
-          Json.obj(
-            "message" -> "Missing config in global configuration"
-          )
-        ).future
-    }
+        case _ =>
+          BadRequest(
+            Json.obj(
+              "message" -> "Missing config in global configuration"
+            )
+          ).future
+      }
   }
 
   def clearWasmCache(): Action[AnyContent] = adminAuthAction.async {

@@ -16,10 +16,10 @@ import scala.concurrent.Future
 
 class LegacyController(
     val controllerComponents: ControllerComponents,
-    clientKeyAction: =>ClientApiKeyAction,
-    featuresDatastore: =>FeaturesDatastore, // FIXME
-    postgresql: =>Postgresql, // FIXME use a new dedicated HealthService for this
-    featureService: =>FeatureService
+    clientKeyAction: => ClientApiKeyAction,
+    featuresDatastore: => FeaturesDatastore, // FIXME
+    postgresql: => Postgresql, // FIXME use a new dedicated HealthService for this
+    featureService: => FeatureService
 )(implicit val ec: ExecutionContext) extends BaseController {
 
   def healthcheck(): Action[AnyContent] = Action.async {
@@ -90,50 +90,58 @@ class LegacyController(
       page: Int,
       pageSize: Int
   ): Action[AnyContent] = clientKeyAction.async {
-    implicit request => {
-      val ctx = if (request.hasBody) {
-        val maybeObject =
-          request.body.asJson.flatMap(js => js.asOpt[JsObject])
-        val maybeId = maybeObject.flatMap(json => (json \ "id").asOpt[String])
+    implicit request =>
+      {
+        val ctx = if (request.hasBody) {
+          val maybeObject =
+            request.body.asJson.flatMap(js => js.asOpt[JsObject])
+          val maybeId = maybeObject.flatMap(json => (json \ "id").asOpt[String])
 
-        RequestContext(
-          tenant = request.key.tenant,
-          user = maybeId.getOrElse(""),
-          data = maybeObject.getOrElse(Json.obj())
-        )
-      } else {
-        RequestContext(tenant = request.key.tenant, user = "")
-      }
-      featuresDatastore
-        .findFeatureMatching(
-          request.key.tenant,
-          pattern,
-          request.key.clientId,
-          count = pageSize,
-          page = page
-        )
-        .flatMap { case (totalCount, features) =>
-          features.foldLeft(Future.successful(Seq()): Future[Seq[JsObject]])((futureResultList, feature) => {
-            futureResultList.flatMap(resultList => {
-              featureService.writeFeatureForCheckInLegacyFormat(feature, ctx).value.map {
-                case Left(error) => Json.obj("error" -> error.message)
-                case Right(None) =>
-                  Json.obj("error" -> "This feature is not a legacy feature")
-                case Right(Some(json)) => json
-              }.map(jsObject => resultList.appended(jsObject))
-            })
-          }).map(jsons => {
-            Json.obj(
-              "results" -> jsons,
-              "metadata" -> Json.obj(
-                "count" -> totalCount,
-                "page" -> page,
-                "pageSize" -> pageSize,
-                "nbPages" -> Math.ceil(totalCount.toFloat / pageSize)
-              )
-            )
-          }).map(jsonResult => Ok(Json.toJson(jsonResult)))
+          RequestContext(
+            tenant = request.key.tenant,
+            user = maybeId.getOrElse(""),
+            data = maybeObject.getOrElse(Json.obj())
+          )
+        } else {
+          RequestContext(tenant = request.key.tenant, user = "")
         }
-    }
+        featuresDatastore
+          .findFeatureMatching(
+            request.key.tenant,
+            pattern,
+            request.key.clientId,
+            count = pageSize,
+            page = page
+          )
+          .flatMap { case (totalCount, features) =>
+            features.foldLeft(Future.successful(Seq()): Future[Seq[JsObject]])(
+              (futureResultList, feature) => {
+                futureResultList.flatMap(resultList => {
+                  featureService.writeFeatureForCheckInLegacyFormat(
+                    feature,
+                    ctx
+                  ).value.map {
+                    case Left(error) => Json.obj("error" -> error.message)
+                    case Right(None) =>
+                      Json.obj(
+                        "error" -> "This feature is not a legacy feature"
+                      )
+                    case Right(Some(json)) => json
+                  }.map(jsObject => resultList.appended(jsObject))
+                })
+              }
+            ).map(jsons => {
+              Json.obj(
+                "results" -> jsons,
+                "metadata" -> Json.obj(
+                  "count" -> totalCount,
+                  "page" -> page,
+                  "pageSize" -> pageSize,
+                  "nbPages" -> Math.ceil(totalCount.toFloat / pageSize)
+                )
+              )
+            }).map(jsonResult => Ok(Json.toJson(jsonResult)))
+          }
+      }
   }
 }

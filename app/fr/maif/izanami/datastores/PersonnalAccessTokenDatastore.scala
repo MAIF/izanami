@@ -37,7 +37,9 @@ import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.env.Postgresql
 import scala.concurrent.ExecutionContext
 
-class PersonnalAccessTokenDatastore(postgresql: =>Postgresql)(implicit val ec: ExecutionContext) extends Datastore {
+class PersonnalAccessTokenDatastore(postgresql: => Postgresql)(implicit
+    val ec: ExecutionContext
+) extends Datastore {
   def findAccessTokenByIds(ids: Set[UUID]): Future[Map[UUID, String]] = {
     postgresql
       .queryAll(
@@ -58,7 +60,10 @@ class PersonnalAccessTokenDatastore(postgresql: =>Postgresql)(implicit val ec: E
       .map(l => l.toMap)
   }
 
-  def readAccessToken(username: String, token: String): Future[Option[ReadPersonnalAccessToken]] = {
+  def readAccessToken(
+      username: String,
+      token: String
+  ): Future[Option[ReadPersonnalAccessToken]] = {
     extractTokenInformation(token).fold(Future.successful(Option.empty))(
       (id, secret) => {
         postgresql
@@ -89,10 +94,10 @@ class PersonnalAccessTokenDatastore(postgresql: =>Postgresql)(implicit val ec: E
           }
           .map {
             case Some((tokenSecret, token))
-              if (!token.isExpired) && bcryptCheck(
-                secret,
-                tokenSecret
-              ) => Some(token)
+                if (!token.isExpired) && bcryptCheck(
+                  secret,
+                  tokenSecret
+                ) => Some(token)
             case _ => None
           }
       }

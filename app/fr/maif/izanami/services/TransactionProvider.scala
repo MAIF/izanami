@@ -13,17 +13,19 @@ import scala.concurrent.ExecutionContext
 
 sealed trait TransactionProvider[Tx] {
   def executeInTransaction[Res](
-      callback: Tx => Future[Res],
+      callback: Tx => Future[Res]
   ): Future[Res];
 
   def executeInTransaction[Res](
       callback: Tx => FutureEither[Res]
-  ): FutureEither[Res] = executeInTransaction(tx => callback(tx).value).toFEither
+  ): FutureEither[Res] =
+    executeInTransaction(tx => callback(tx).value).toFEither
 
   def executeInOptionalTransaction[Res](
       maybeTransaction: Option[Tx],
       callback: Tx => Future[Res]
-  ): Future[Res] = maybeTransaction.fold(executeInTransaction(callback))(tx => callback(tx))
+  ): Future[Res] =
+    maybeTransaction.fold(executeInTransaction(callback))(tx => callback(tx))
 
   def executeInOptionalTransaction[Res](
       maybeTransaction: Option[Tx],
@@ -38,11 +40,13 @@ sealed trait TransactionProvider[Tx] {
   }
 }
 
-
-class PostgresTransactionProvider(pool: =>Pool)(implicit ec: ExecutionContext) extends TransactionProvider[SqlConnection] {
+class PostgresTransactionProvider(pool: => Pool)(implicit ec: ExecutionContext)
+    extends TransactionProvider[SqlConnection] {
   private val logger = Logger("PostgresTransactionProvider")
-  override def executeInTransaction[Res](callback: SqlConnection => Future[Res]): Future[Res] = {
-    var future: io.vertx.core.Future[Res] = io.vertx.core.Future.succeededFuture()
+  override def executeInTransaction[Res](callback: SqlConnection => Future[Res])
+      : Future[Res] = {
+    var future: io.vertx.core.Future[Res] =
+      io.vertx.core.Future.succeededFuture()
     pool
       .withTransaction(conn => {
         future = callback(conn).vertx(ec)
@@ -50,7 +54,7 @@ class PostgresTransactionProvider(pool: =>Pool)(implicit ec: ExecutionContext) e
       })
       .recover(err => {
         logger.error(s"Failed to execute queries in transaction : ${err}")
-        future  // Bubble up query error instead of TransactionRollbackException that does not carry much information
+        future // Bubble up query error instead of TransactionRollbackException that does not carry much information
       })
       .scala
   }

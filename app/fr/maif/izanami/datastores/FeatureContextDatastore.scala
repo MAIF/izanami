@@ -32,7 +32,12 @@ import org.apache.pekko.Done
 import fr.maif.izanami.events.EventService
 import scala.concurrent.ExecutionContext
 
-class FeatureContextDatastore(postgresql: =>Postgresql, extensionSchema: String, featureDatastore: =>FeaturesDatastore, eventService: =>EventService)(implicit val ec: ExecutionContext) extends Datastore {
+class FeatureContextDatastore(
+    postgresql: => Postgresql,
+    extensionSchema: String,
+    featureDatastore: => FeaturesDatastore,
+    eventService: => EventService
+)(implicit val ec: ExecutionContext) extends Datastore {
   def readProtectedContexts(
       tenant: String,
       project: String,
@@ -514,8 +519,11 @@ class FeatureContextDatastore(postgresql: =>Postgresql, extensionSchema: String,
                       conn = Some(conn)
                     ) { _ => Right(oldFeature.id) }
                     .recover {
-                      case f: PgException if f.getConstraint == "features_allowed_values_uses" =>
-                        Left(fr.maif.izanami.errors.PostgresErrorMapper.postgresErrorToIzanamiError(f))
+                      case f: PgException
+                          if f.getConstraint == "features_allowed_values_uses" =>
+                        Left(fr.maif.izanami.errors.PostgresErrorMapper.postgresErrorToIzanamiError(
+                          f
+                        ))
                       case f: PgException
                           if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
                         Left(TenantDoesNotExists(tenant))
@@ -566,8 +574,12 @@ class FeatureContextDatastore(postgresql: =>Postgresql, extensionSchema: String,
                           ),
                           conn = Some(conn)
                         ) { _ => Right(id) }
-                        .recover { case error: PgException if error.getConstraint == "features_allowed_values_uses" =>
-                          Left(fr.maif.izanami.errors.PostgresErrorMapper.postgresErrorToIzanamiError(error))
+                        .recover {
+                          case error: PgException
+                              if error.getConstraint == "features_allowed_values_uses" =>
+                            Left(fr.maif.izanami.errors.PostgresErrorMapper.postgresErrorToIzanamiError(
+                              error
+                            ))
                         }
                     }
                   }

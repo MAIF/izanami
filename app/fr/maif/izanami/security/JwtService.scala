@@ -13,7 +13,11 @@ import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import scala.util.Try
 
-class JwtService(secret: String, encryptionKey: SecretKeySpec, val expositionUrl: String) {
+class JwtService(
+    secret: String,
+    encryptionKey: SecretKeySpec,
+    val expositionUrl: String
+) {
   def generateToken(username: String, content: JsValue = null): String = {
     val secondsSinceEpoch = Instant.now().getEpochSecond
     var claim = JwtClaim(

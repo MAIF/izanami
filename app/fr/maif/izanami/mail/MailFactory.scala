@@ -1,6 +1,5 @@
 package fr.maif.izanami.mail
 
-
 class MailFactory(expositionUrl: String) {
   def invitationEmail(target: String, token: String): Mail = {
     val completeUrl = s"${expositionUrl}/invitation?token=${token}"

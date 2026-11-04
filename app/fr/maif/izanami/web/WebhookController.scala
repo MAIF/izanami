@@ -4,7 +4,15 @@ import fr.maif.izanami.models.LightWebhook
 import fr.maif.izanami.models.RightLevel
 import fr.maif.izanami.models.Webhook
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.libs.json.{JsError, JsObject, JsSuccess, JsValue, Json, Reads, Writes}
+import play.api.libs.json.{
+  JsError,
+  JsObject,
+  JsSuccess,
+  JsValue,
+  Json,
+  Reads,
+  Writes
+}
 import play.api.mvc.Action
 import play.api.mvc.AnyContent
 import play.api.mvc.BaseController
@@ -18,23 +26,30 @@ import fr.maif.izanami.services.WebhookService
 
 class WebhookController(
     val controllerComponents: ControllerComponents,
-    tenantAuthAction: =>TenantAuthActionFactory,
-    webhookAuthAction: =>WebhookAuthActionFactory,
-    webhookService: =>WebhookService,
-    authenticatedAction: =>AuthenticatedAction
+    tenantAuthAction: => TenantAuthActionFactory,
+    webhookAuthAction: => WebhookAuthActionFactory,
+    webhookService: => WebhookService,
+    authenticatedAction: => AuthenticatedAction
 )(implicit val ec: ExecutionContext)
     extends BaseController {
   implicit val lightWebhookRead: Reads[LightWebhook] =
     LightWebhook.lightWebhookRead
   implicit val webhookWrite: Writes[Webhook] = Webhook.webhookWrite
-  
+
   def createWebhook(tenant: String): Action[JsValue] =
     tenantAuthAction(tenant, RightLevel.Write).async(parse.json) {
       implicit request =>
         {
           LightWebhook.lightWebhookRead.reads(request.body) match {
             case JsSuccess(l: LightWebhook, _) =>
-              webhookService.createWebhook(tenant = tenant, webhook = l, user = StandardUserInformation(username=request.user, authentication = request.authentication)).toResult(id => Created(Json.obj("id" -> id)))
+              webhookService.createWebhook(
+                tenant = tenant,
+                webhook = l,
+                user = StandardUserInformation(
+                  username = request.user,
+                  authentication = request.authentication
+                )
+              ).toResult(id => Created(Json.obj("id" -> id)))
             case JsError(errors) => Future.successful(
                 BadRequest(Json.obj("message" -> "Bad body format"))
               )
@@ -45,8 +60,8 @@ class WebhookController(
   def listWebhooks(tenant: String): Action[AnyContent] =
     tenantAuthAction(tenant, RightLevel.Read).async {
       implicit request =>
-        webhookService.listWebhook(tenant, request.user).map(
-          ws => Ok(Json.toJson(ws))
+        webhookService.listWebhook(tenant, request.user).map(ws =>
+          Ok(Json.toJson(ws))
         )
     }
 
@@ -58,7 +73,7 @@ class WebhookController(
     )).async { implicit request =>
       webhookService
         .deleteWebhook(tenant, id)
-        .toResult(_  => NoContent)
+        .toResult(_ => NoContent)
     }
 
   def updateWebhook(tenant: String, id: String): Action[JsValue] =
@@ -73,7 +88,11 @@ class WebhookController(
             uuid <- Try { UUID.fromString(id) }.toOption;
             webhook <- LightWebhook.lightWebhookRead.reads(request.body).asOpt
           ) yield {
-            webhookService.updateWebhook(tenant = tenant, webhook=webhook, id = uuid).toResult(_ => NoContent)
+            webhookService.updateWebhook(
+              tenant = tenant,
+              webhook = webhook,
+              id = uuid
+            ).toResult(_ => NoContent)
           }).getOrElse(BadRequest(Json.obj(
             "message" -> "Bad body request and / or bad uuid provided as id"
           )).future)

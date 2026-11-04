@@ -28,12 +28,13 @@ import fr.maif.izanami.services.WebhookService
 import play.api.libs.ws.WSClient
 
 class WebhookListener(
-  datastore: =>WebhooksDatastore,
-  eventService: =>EventService,
-  webhookRetryConfig: WebhookRetry,
-  tenantDatastore: =>TenantsDatastore,
-  webhookService: =>WebhookService,
-  httpClient: WSClient)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
+    datastore: => WebhooksDatastore,
+    eventService: => EventService,
+    webhookRetryConfig: WebhookRetry,
+    tenantDatastore: => TenantsDatastore,
+    webhookService: => WebhookService,
+    httpClient: WSClient
+)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
   private val logger = Logger("izanami-webhooks")
   private val tenantToListen: TrieMap[String, Unit] = TrieMap()
   private var handleFailHookCancel: Option[Cancellable] = Option.empty
@@ -122,7 +123,7 @@ class WebhookListener(
                     }
                   })
                 })
-                
+
               }
             ).flatten.mapToFEither
         })

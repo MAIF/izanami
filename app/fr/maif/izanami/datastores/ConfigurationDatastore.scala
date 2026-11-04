@@ -42,7 +42,13 @@ import fr.maif.izanami.OpenId
 import fr.maif.izanami.events.EventService
 import scala.concurrent.ExecutionContext
 
-class ConfigurationDatastore(postgresql: =>Postgresql, tenantDatastore: =>TenantsDatastore, eventService: =>EventService, maybeOidcConfig: Option[OpenId], wasmoConf: =>Wasmo)(implicit val ec: ExecutionContext) extends Datastore {
+class ConfigurationDatastore(
+    postgresql: => Postgresql,
+    tenantDatastore: => TenantsDatastore,
+    eventService: => EventService,
+    maybeOidcConfig: Option[OpenId],
+    wasmoConf: => Wasmo
+)(implicit val ec: ExecutionContext) extends Datastore {
 
   /** Updates OIDC rights roles to keep only existing stuff. This is used if
     * existing oidc configuration references non existing project / keys /
@@ -152,17 +158,18 @@ class ConfigurationDatastore(postgresql: =>Postgresql, tenantDatastore: =>Tenant
       .getOrElse(true)
   }
 
-  def oidcConfigurationMigration(): FutureEither[Option[FutureEither[FullIzanamiConfiguration]]] = {
+  def oidcConfigurationMigration()
+      : FutureEither[Option[FutureEither[FullIzanamiConfiguration]]] = {
     readFullConfiguration()
       .map(configuration => {
         val maybeOauth =
           maybeOidcConfig.flatMap(o => o.toIzanamiOAuth2Configuration)
         maybeOauth.map(oauth => {
           updateConfiguration(
-              configuration.copy(oidcConfiguration = Some(oauth)),
-              origin = TechnicalOrigin,
-              userInformation = IzanamiApplicationUserInformation
-            )
+            configuration.copy(oidcConfiguration = Some(oauth)),
+            origin = TechnicalOrigin,
+            userInformation = IzanamiApplicationUserInformation
+          )
             .map(res => {
               logger.info(
                 "The OIDC configuration has been register in database from environments variables"
@@ -328,7 +335,9 @@ class ConfigurationDatastore(postgresql: =>Postgresql, tenantDatastore: =>Tenant
                     "Failed to read configuration update result"
                   )
                 )
-              ).recover(postgresql.pgErrorPartialFunction.andThen(err => Left(err)))
+              ).recover(postgresql.pgErrorPartialFunction.andThen(err =>
+                Left(err)
+              ))
           }.toFEither;
           _ <- if (updatedConfiguration != oldConfig) {
             (eventService.emitGlobalEvent(

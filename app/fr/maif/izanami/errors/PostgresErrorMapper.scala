@@ -98,9 +98,13 @@ object PostgresErrorMapper {
 
   def postgresErrorToIzanamiError(ex: Throwable): IzanamiError = {
     ex match {
-      case f: PgException if f.getConstraint == "features_allowed_values_shape" =>
-        GenericBadRequest("allowedValues must be a non-empty list of objects with non-blank string values and optional string labels on a classical String feature")
-      case f: PgException if f.getConstraint == "features_allowed_values_uses" =>
+      case f: PgException
+          if f.getConstraint == "features_allowed_values_shape" =>
+        GenericBadRequest(
+          "allowedValues must be a non-empty list of objects with non-blank string values and optional string labels on a classical String feature"
+        )
+      case f: PgException
+          if f.getConstraint == "features_allowed_values_uses" =>
         GenericBadRequest(f.getErrorMessage)
       case f: PgException if f.getConstraint() != null => {
         PostgresErrorMapper.constraintNameToIzanamiError(f.getConstraint)

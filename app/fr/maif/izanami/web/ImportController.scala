@@ -1,6 +1,12 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.{ApiKeyDatastore, FeaturesDatastore, ImportExportDatastore, TenantsDatastore, UsersDatastore}
+import fr.maif.izanami.datastores.{
+  ApiKeyDatastore,
+  FeaturesDatastore,
+  ImportExportDatastore,
+  TenantsDatastore,
+  UsersDatastore
+}
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.ConflictField.*
@@ -183,18 +189,18 @@ object ImportState {
 }
 
 class ImportController(
-                        val controllerComponents: ControllerComponents,
-                        wasmManagerClient: =>WasmManagerClient,
-                        maybeTokenAuthAction: =>PersonnalAccessTokenTenantAuthActionFactory,
-                        featureService: =>FeatureService,
-                        tenantsDatastore: =>TenantsDatastore,
-                        importDatastore: =>ImportExportDatastore,
-                        transactionProvider: =>PostgresTransactionProvider,
-                        apiKeyDatastore: =>ApiKeyDatastore,
-                        usersDatastore: =>UsersDatastore,
-                        featuresDatastore: =>FeaturesDatastore
+    val controllerComponents: ControllerComponents,
+    wasmManagerClient: => WasmManagerClient,
+    maybeTokenAuthAction: => PersonnalAccessTokenTenantAuthActionFactory,
+    featureService: => FeatureService,
+    tenantsDatastore: => TenantsDatastore,
+    importDatastore: => ImportExportDatastore,
+    transactionProvider: => PostgresTransactionProvider,
+    apiKeyDatastore: => ApiKeyDatastore,
+    usersDatastore: => UsersDatastore,
+    featuresDatastore: => FeaturesDatastore
 )(implicit val ec: ExecutionContext) extends BaseController {
-  
+
   def deleteImportStatus(tenant: String, id: String): Action[AnyContent] =
     maybeTokenAuthAction(tenant, RightLevel.Admin, Import).async {
       implicit request =>
@@ -309,7 +315,7 @@ class ImportController(
         (dbRow \ "allowed_values").validateOpt[Seq[StringAllowedValue]]
           .flatMap {
             case Some(values) => StringAllowedValue.validate(values)
-            case None => JsSuccess(())
+            case None         => JsSuccess(())
           }.asEither.left.map(errors =>
             fr.maif.izanami.errors.GenericBadRequest(
               errors.flatMap(_._2).map(_.message).mkString("; ")
@@ -361,7 +367,15 @@ class ImportController(
       fixedData match {
         case (messages, data) => {
           importDatastore
-            .importTenantData(tenant, data, conflictStrategy, StandardUserInformation(username=request.user, authentication = request.authentication))
+            .importTenantData(
+              tenant,
+              data,
+              conflictStrategy,
+              StandardUserInformation(
+                username = request.user,
+                authentication = request.authentication
+              )
+            )
             .map {
               case Right(_) =>
                 Ok(Json.obj("messages" -> Json.toJson(messages)))
@@ -852,7 +866,10 @@ class ImportController(
                       tenant,
                       featureWithCorrectPath,
                       conflictStrategy,
-                      user = StandardUserInformation(username=request.user, authentication = request.authentication),
+                      user = StandardUserInformation(
+                        username = request.user,
+                        authentication = request.authentication
+                      ),
                       conn = Some(conn)
                     )
                     .flatMap {
@@ -862,7 +879,10 @@ class ImportController(
                           .createApiKeys(
                             tenant,
                             keys,
-                            StandardUserInformation(username=request.user, authentication=request.authentication),
+                            StandardUserInformation(
+                              username = request.user,
+                              authentication = request.authentication
+                            ),
                             conn.some
                           )
                     }

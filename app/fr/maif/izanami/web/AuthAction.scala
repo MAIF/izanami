@@ -11,7 +11,14 @@ import fr.maif.izanami.models.IzanamiMode.Leader
 import fr.maif.izanami.models.IzanamiMode.Standalone
 import fr.maif.izanami.models.IzanamiMode.Worker
 import fr.maif.izanami.security.JwtService.decodeJWT
-import fr.maif.izanami.services.{FeatureService, ProjectIdIdentification, ProjectIdentification, ProjectNameIdentification, RightService, WebhookIdIdentification}
+import fr.maif.izanami.services.{
+  FeatureService,
+  ProjectIdIdentification,
+  ProjectIdentification,
+  ProjectNameIdentification,
+  RightService,
+  WebhookIdIdentification
+}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import pdi.jwt.JwtClaim
@@ -92,7 +99,12 @@ case class UserRequestWithCompleteRightForOneTenantTokenUser[A](
 
 case class UserNameRequest[A](request: Request[A], user: UserInformation)
     extends WrappedRequest[A](request)
-case class WorkerClientRequest[A](request: Request[A], tenant: String, clientId: String, clientSecret: String) extends WrappedRequest[A](request)
+case class WorkerClientRequest[A](
+    request: Request[A],
+    tenant: String,
+    clientId: String,
+    clientSecret: String
+) extends WrappedRequest[A](request)
 case class ProjectIdUserNameRequest[A](
     request: Request[A],
     user: UserInformation,
@@ -107,7 +119,10 @@ case class HookAndUserNameRequest[A](
 case class SessionIdRequest[A](request: Request[A], sessionId: String)
     extends WrappedRequest[A](request)
 
-class ClientApiKeyAction(apiKeyDatastore: ApiKeyDatastore, bodyParser: BodyParser[AnyContent])(implicit
+class ClientApiKeyAction(
+    apiKeyDatastore: ApiKeyDatastore,
+    bodyParser: BodyParser[AnyContent]
+)(implicit
     ec: ExecutionContext
 ) extends ActionBuilder[ClientKeyRequest, AnyContent] {
   override def parser: BodyParser[AnyContent] = bodyParser
@@ -143,38 +158,47 @@ class ClientApiKeyAction(apiKeyDatastore: ApiKeyDatastore, bodyParser: BodyParse
 }
 
 case class TestRequest[A, U](
- request: Request[A],
- authentication: EventAuthentication,
- user: U,
- token: Option[ReadPersonnalAccessToken] = None
+    request: Request[A],
+    authentication: EventAuthentication,
+    user: U,
+    token: Option[ReadPersonnalAccessToken] = None
 ) extends WrappedRequest[A](request)
 
-abstract class TokenOrCookieAuthenticatedAction[U](implicit ec: ExecutionContext) extends LeaderActionBuilder[[A] =>> TestRequest[A, U]] {
-  def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[U]]
+abstract class TokenOrCookieAuthenticatedAction[U](implicit
+    ec: ExecutionContext
+) extends LeaderActionBuilder[[A] =>> TestRequest[A, U]] {
+  def isTokenAllowed(token: ReadPersonnalAccessToken)
+      : Future[TokenValidationResult[U]]
   def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[U]]
   def authService: AuthService
   override def invokeBlockImpl[A](
-   request: Request[A],
-   block: TestRequest[A, U] => Future[Result]
-   ): Future[Result] = {
-    AuthAction.extractCookieSubject(request, authService.decryptionStuff) match {
+      request: Request[A],
+      block: TestRequest[A, U] => Future[Result]
+  ): Future[Result] = {
+    AuthAction.extractCookieSubject(
+      request,
+      authService.decryptionStuff
+    ) match {
       case InvalidCookie => {
         Future.successful(InvalidCookie.toResponse)
       }
       case CookieSubject(subject) => {
         isCookieAllowed(subject).flatMap {
           case CookieInvalid(err) => Future.successful(err.toHttpResponse)
-          case CookieValid(user) => block(
-            TestRequest(
-              request = request,
-              user = user,
-              authentication = BackOfficeAuthentication
+          case CookieValid(user)  => block(
+              TestRequest(
+                request = request,
+                user = user,
+                authentication = BackOfficeAuthentication
+              )
             )
-          )
         }
       }
       case NoCookie => {
-        AuthAction.extractToken(request = request, authService = authService).flatMap {
+        AuthAction.extractToken(
+          request = request,
+          authService = authService
+        ).flatMap {
           case NoToken => {
             Future.successful(Unauthorized)
           }
@@ -184,13 +208,13 @@ abstract class TokenOrCookieAuthenticatedAction[U](implicit ec: ExecutionContext
           case ExtractedToken(token) => {
             isTokenAllowed(token).flatMap {
               case TokenValid(user) => block(
-                TestRequest(
-                  request = request,
-                  user = user,
-                  authentication = TokenAuthentication(token.id),
-                  token = Some(token)
+                  TestRequest(
+                    request = request,
+                    user = user,
+                    authentication = TokenAuthentication(token.id),
+                    token = Some(token)
+                  )
                 )
-              )
               case TokenInvalid(err) => Future.successful(err.toHttpResponse)
             }
           }
@@ -200,25 +224,29 @@ abstract class TokenOrCookieAuthenticatedAction[U](implicit ec: ExecutionContext
   }
 }
 
-abstract class CookieAuthenticatedAction[U](implicit ec: ExecutionContext) extends LeaderActionBuilder[[A] =>> TestRequest[A, U]] {
+abstract class CookieAuthenticatedAction[U](implicit ec: ExecutionContext)
+    extends LeaderActionBuilder[[A] =>> TestRequest[A, U]] {
   def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[U]]
   def authService: AuthService
   override def invokeBlockImpl[A](
-                                   request: Request[A],
-                                   block: TestRequest[A, U] => Future[Result]
-                                 ): Future[Result] = {
-    AuthAction.extractCookieSubject(request, authService.decryptionStuff) match {
-      case InvalidCookie => Future.successful(InvalidCookie.toResponse)
+      request: Request[A],
+      block: TestRequest[A, U] => Future[Result]
+  ): Future[Result] = {
+    AuthAction.extractCookieSubject(
+      request,
+      authService.decryptionStuff
+    ) match {
+      case InvalidCookie          => Future.successful(InvalidCookie.toResponse)
       case CookieSubject(subject) => {
         isCookieAllowed(subject).flatMap {
           case CookieInvalid(err) => Future.successful(err.toHttpResponse)
-          case CookieValid(user) => block(
-            TestRequest(
-              request = request,
-              user = user,
-              authentication = BackOfficeAuthentication
+          case CookieValid(user)  => block(
+              TestRequest(
+                request = request,
+                user = user,
+                authentication = BackOfficeAuthentication
+              )
             )
-          )
         }
       }
       case NoCookie => Future.successful(Unauthorized)
@@ -232,8 +260,8 @@ case class CookieInvalid(cause: IzanamiError) extends CookieValidationResult
 
 sealed trait TokenValidationResult[+A]
 case class TokenValid[A](user: A) extends TokenValidationResult[A]
-case class TokenInvalid(cause: IzanamiError) extends TokenValidationResult[Nothing]
-
+case class TokenInvalid(cause: IzanamiError)
+    extends TokenValidationResult[Nothing]
 
 class PersonnalAccessTokenTenantRightsAction(
     bodyParser: BodyParser[AnyContent],
@@ -245,17 +273,19 @@ class PersonnalAccessTokenTenantRightsAction(
 ) extends TokenOrCookieAuthenticatedAction[UserWithTenantRights] {
   override def parser: BodyParser[AnyContent] = bodyParser
   override protected def executionContext: ExecutionContext = ec
-  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[UserWithTenantRights]] = {
+  override def isTokenAllowed(token: ReadPersonnalAccessToken)
+      : Future[TokenValidationResult[UserWithTenantRights]] = {
     authService.findUser(token.username).map {
       case Some(value) if token.hasRight(operation) => TokenValid(value)
       case Some(value) => TokenInvalid(NotEnoughRights())
-      case None => TokenInvalid(UserDoesNotExist(token.username))
+      case None        => TokenInvalid(UserDoesNotExist(token.username))
     }
   }
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[UserWithTenantRights]] = {
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[UserWithTenantRights]] = {
     authService.findSessionWithTenantRights(cookieSubject).map {
       case Some(value) => CookieValid(value)
-      case None => CookieInvalid(SessionNotFound(cookieSubject))
+      case None        => CookieInvalid(SessionNotFound(cookieSubject))
     }
   }
 }
@@ -270,11 +300,12 @@ class TenantRightsAction(
   override def parser: BodyParser[AnyContent] = bodyParser
   override protected def executionContext: ExecutionContext = ec
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[UserWithTenantRights]] = {
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[UserWithTenantRights]] = {
     authService
       .findSessionWithTenantRights(cookieSubject).map {
         case Some(user) => CookieValid(user)
-        case None => CookieInvalid(SessionNotFound(cookieSubject))
+        case None       => CookieInvalid(SessionNotFound(cookieSubject))
       }
   }
 }
@@ -289,11 +320,12 @@ class DetailledAuthAction(
   override def parser: BodyParser[AnyContent] = bodyParser
   override protected def executionContext: ExecutionContext = ec
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[UserWithRights]] = {
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[UserWithRights]] = {
     authService
       .findSessionWithCompleteRights(cookieSubject).map {
         case Some(user) => CookieValid(user)
-        case None => CookieInvalid(SessionNotFound(cookieSubject))
+        case None       => CookieInvalid(SessionNotFound(cookieSubject))
       }
   }
 }
@@ -308,10 +340,14 @@ class AdminAuthAction(
   override def parser: BodyParser[AnyContent] = bodyParser
   override protected def executionContext: ExecutionContext = ec
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
-    authService.checkAdminSession(cookieSubject).fold(err => {
-      CookieInvalid(err)
-    }, username => CookieValid(username))
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[String]] = {
+    authService.checkAdminSession(cookieSubject).fold(
+      err => {
+        CookieInvalid(err)
+      },
+      username => CookieValid(username)
+    )
   }
 }
 
@@ -325,10 +361,11 @@ class AuthenticatedAction(
   override def parser: BodyParser[AnyContent] = bodyParser
   override protected def executionContext: ExecutionContext = ec
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[String]] = {
     authService.findSession(cookieSubject).map {
       case Some(value) => CookieValid(value)
-      case None => CookieInvalid(SessionNotFound(cookieSubject))
+      case None        => CookieInvalid(SessionNotFound(cookieSubject))
     }
   }
 }
@@ -343,7 +380,8 @@ class AuthenticatedSessionAction(
   override def parser: BodyParser[AnyContent] = bodyParser
   override protected def executionContext: ExecutionContext = ec
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[String]] = {
     Future.successful(CookieValid(cookieSubject))
   }
 }
@@ -360,18 +398,19 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
 
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[UserWithCompleteRightForOneTenant]] = {
+  override def isTokenAllowed(token: ReadPersonnalAccessToken)
+      : Future[TokenValidationResult[UserWithCompleteRightForOneTenant]] = {
     val hasRights = requiredTokenRight.forall(r =>
       token.hasTenantRight(tenant = tenant, right = r)
     )
 
-    if(hasRights) {
+    if (hasRights) {
       authService.findUserWithRightForTenant(
         username = token.username,
         tenant = tenant
       ).value.map {
-        case Left(err) => TokenInvalid(err)
-        case Right(None) => TokenInvalid(NotEnoughRights())
+        case Left(err)          => TokenInvalid(err)
+        case Right(None)        => TokenInvalid(NotEnoughRights())
         case Right(Some(value)) => TokenValid(value)
       }
     } else {
@@ -379,8 +418,12 @@ class PersonnalAccessTokenDetailledRightForTenantAction(
     }
   }
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[UserWithCompleteRightForOneTenant]] = {
-    authService.findSessionWithRightForTenant(cookieSubject, tenant).fold(err => CookieInvalid(err), u => CookieValid(u))
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[UserWithCompleteRightForOneTenant]] = {
+    authService.findSessionWithRightForTenant(
+      cookieSubject,
+      tenant
+    ).fold(err => CookieInvalid(err), u => CookieValid(u))
   }
   override protected def executionContext: ExecutionContext = ec
 }
@@ -397,9 +440,13 @@ class DetailledRightForTenantAction(
   override def parser: BodyParser[AnyContent] = bodyParser
   override protected def executionContext: ExecutionContext = ec
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[UserWithCompleteRightForOneTenant]] = {
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[UserWithCompleteRightForOneTenant]] = {
     authService
-      .findSessionWithRightForTenant(cookieSubject, tenant).fold(err => CookieInvalid(err), u => CookieValid(u))
+      .findSessionWithRightForTenant(
+        cookieSubject,
+        tenant
+      ).fold(err => CookieInvalid(err), u => CookieValid(u))
   }
 }
 
@@ -411,14 +458,15 @@ class PersonnalAccessTokenProjectAuthAction(
     operation: TenantTokenRights,
     override val authService: AuthService,
     rightService: RightService, // TODO authService & rightService should be merged ?
-    override val clusteringConfig: Cluster,
+    override val clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) extends TokenOrCookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
   override protected def executionContext: ExecutionContext = ec
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[String]] = {
     rightService.hasRightForProject(
       user = SessionIdentification(cookieSubject),
       tenant = tenant,
@@ -426,24 +474,27 @@ class PersonnalAccessTokenProjectAuthAction(
       level = minimumLevel
     ).value.map {
       case Right(Some(username)) => CookieValid(username)
-      case Right(None) => CookieInvalid(NotEnoughRights())
-      case Left(err) => CookieInvalid(err)
+      case Right(None)           => CookieInvalid(NotEnoughRights())
+      case Left(err)             => CookieInvalid(err)
     }
   }
 
-  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[String]] = {
+  override def isTokenAllowed(token: ReadPersonnalAccessToken)
+      : Future[TokenValidationResult[String]] = {
     authService
       .findCompleteRightsFromTenant(
         username = token.username,
         tenants = Set(tenant)
       ).map {
-        case Some(user) if user.hasRightForProject(
-          tenant = tenant,
-          project = project,
-          rightLevel = minimumLevel
-        ) && token.hasTenantRight(tenant = tenant, right = operation) => TokenValid(user.username)
+        case Some(user)
+            if user.hasRightForProject(
+              tenant = tenant,
+              project = project,
+              rightLevel = minimumLevel
+            ) && token.hasTenantRight(tenant = tenant, right = operation) =>
+          TokenValid(user.username)
         case Some(user) => TokenInvalid(NotEnoughRights())
-        case None => TokenInvalid(UserDoesNotExist(token.username))
+        case None       => TokenInvalid(UserDoesNotExist(token.username))
       }
   }
 }
@@ -478,7 +529,8 @@ trait LeaderActionBuilder[R[X] <: Request[X]] extends IzanamiActionBuilder[R] {
 class LeaderActionBuilderImpl(
     override val parser: BodyParser[AnyContent],
     override val clusteringConfig: Cluster
-)(implicit override val executionContext: ExecutionContext) extends LeaderActionBuilder[Request] {
+)(implicit override val executionContext: ExecutionContext)
+    extends LeaderActionBuilder[Request] {
   override def disabledOn: IzanamiMode = Worker
 
   override def invokeBlockImpl[A](
@@ -578,7 +630,7 @@ class WorkerActionBuilder(
     val authTuple: Either[IzanamiError, (String, String)] =
       basicAuth.orElse(customHeaders).toRight(MissingKey)
 
-    val r:FutureEither[Future[Result]] = for (
+    val r: FutureEither[Future[Result]] = for (
       authTuple <- FutureEither.from(authTuple);
       clientId = authTuple._1;
       tenant <- ApiKey
@@ -589,13 +641,18 @@ class WorkerActionBuilder(
         ).toFEither)
     ) yield {
       if (clusterMode == Standalone) {
-        block(WorkerClientRequest(request, tenant=tenant, clientId = clientId , clientSecret = authTuple._2))
+        block(WorkerClientRequest(
+          request,
+          tenant = tenant,
+          clientId = clientId,
+          clientSecret = authTuple._2
+        ))
       } else {
         val contextPermissions = ContextPermissions(
-          contextBlocklist=clusteringConfig.contextBlocklist,
-          contextAllowlist=clusteringConfig.contextAllowlist,
-          contextBlocklistByTenant=clusteringConfig.contextBlocklistByTenant,
-          contextAllowlistByTenant=clusteringConfig.contextAllowlistByTenant
+          contextBlocklist = clusteringConfig.contextBlocklist,
+          contextAllowlist = clusteringConfig.contextAllowlist,
+          contextBlocklistByTenant = clusteringConfig.contextBlocklistByTenant,
+          contextAllowlistByTenant = clusteringConfig.contextAllowlistByTenant
         )
 
         val context = request.queryString
@@ -604,11 +661,19 @@ class WorkerActionBuilder(
           .map(ctxStr => FeatureContextPath.fromUserString(ctxStr))
           .getOrElse(FeatureContextPath())
 
-        block(WorkerClientRequest(request, tenant=tenant, clientId = clientId , clientSecret = authTuple._2))
+        block(WorkerClientRequest(
+          request,
+          tenant = tenant,
+          clientId = clientId,
+          clientSecret = authTuple._2
+        ))
           .map(r => {
             if (r.header.status < 400) {
               // Context allowance is applied after response to avoid bruteforcing of allowed / denied context with an incorrect api key
-              contextPermissions.isContextAllowedFor(context, tenant).fold(err => err, _ => r)
+              contextPermissions.isContextAllowedFor(
+                context,
+                tenant
+              ).fold(err => err, _ => r)
             } else {
               r
             }
@@ -634,16 +699,24 @@ class PersonnalAccessTokenFeatureAuthAction(
 ) extends TokenOrCookieAuthenticatedAction[UserWithCompleteRightForOneTenant] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[UserWithCompleteRightForOneTenant]] = {
-    (for(
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[UserWithCompleteRightForOneTenant]] = {
+    (for (
       user <- authService.findSessionWithRightForTenant(
         session = cookieSubject,
         tenant = tenant
       );
-      projectByfeature <- featureService.findFeaturesProjects(tenant = tenant, featureIds = Set(featureId));
-      projectName <- FutureEither.from(projectByfeature.get(featureId).toRight(FeatureDoesNotExist(featureId)))
+      projectByfeature <- featureService.findFeaturesProjects(
+        tenant = tenant,
+        featureIds = Set(featureId)
+      );
+      projectName <- FutureEither.from(
+        projectByfeature.get(featureId).toRight(FeatureDoesNotExist(featureId))
+      )
     ) yield {
-      if(user.hasRightForProject(projectName = projectName, level = minimumLevel)) {
+      if (
+        user.hasRightForProject(projectName = projectName, level = minimumLevel)
+      ) {
         CookieValid(user)
       } else {
         CookieInvalid(NotEnoughRights())
@@ -651,16 +724,30 @@ class PersonnalAccessTokenFeatureAuthAction(
     }).fold(err => CookieInvalid(err), cookieValid => cookieValid)
   }
 
-  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[UserWithCompleteRightForOneTenant]] = {
-    if(!token.hasTenantRight(tenant = tenant, right = operation)) {
+  override def isTokenAllowed(token: ReadPersonnalAccessToken)
+      : Future[TokenValidationResult[UserWithCompleteRightForOneTenant]] = {
+    if (!token.hasTenantRight(tenant = tenant, right = operation)) {
       Future.successful(TokenInvalid(NotEnoughRights()))
     } else {
       (for (
-        projectByfeature <- featureService.findFeaturesProjects(tenant = tenant, featureIds = Set(featureId));
-        projectName <- FutureEither.from(projectByfeature.get(featureId).toRight(FeatureDoesNotExist(featureId)));
-        user <- authService.findUserWithRightForTenant(username = token.username, tenant = tenant).flatMap(o => FutureEither.from(o.toRight(NotEnoughRights)))
+        projectByfeature <- featureService.findFeaturesProjects(
+          tenant = tenant,
+          featureIds = Set(featureId)
+        );
+        projectName <- FutureEither.from(projectByfeature.get(
+          featureId
+        ).toRight(FeatureDoesNotExist(featureId)));
+        user <- authService.findUserWithRightForTenant(
+          username = token.username,
+          tenant = tenant
+        ).flatMap(o => FutureEither.from(o.toRight(NotEnoughRights)))
       ) yield {
-        if(user.hasRightForProject(projectName = projectName, level = minimumLevel)) {
+        if (
+          user.hasRightForProject(
+            projectName = projectName,
+            level = minimumLevel
+          )
+        ) {
           TokenValid(user)
         } else {
           TokenInvalid(NotEnoughRights())
@@ -684,30 +771,38 @@ class PersonnalAccessTokenKeyAuthAction(
 ) extends TokenOrCookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[String]] = {
-      if(token.hasTenantRight(tenant = tenant, right = operation)) {
-          authService.findCompleteRightsFromTenant(
-            username = token.username,
-            tenants = Set(tenant)
-          ).map {
-            case Some(user) if(user.hasRightForKey(
-                tenant = tenant,
-                key = key,
-                rightLevel = minimumLevel
-              )) => TokenValid(user.username)
-            case Some(user) => TokenInvalid(NotEnoughRights())
-            case None => TokenInvalid(UserDoesNotExist(token.username))
-          }
-      } else {
-        Future.successful(TokenInvalid(NotEnoughRights()))
+  override def isTokenAllowed(token: ReadPersonnalAccessToken)
+      : Future[TokenValidationResult[String]] = {
+    if (token.hasTenantRight(tenant = tenant, right = operation)) {
+      authService.findCompleteRightsFromTenant(
+        username = token.username,
+        tenants = Set(tenant)
+      ).map {
+        case Some(user)
+            if (user.hasRightForKey(
+              tenant = tenant,
+              key = key,
+              rightLevel = minimumLevel
+            )) => TokenValid(user.username)
+        case Some(user) => TokenInvalid(NotEnoughRights())
+        case None       => TokenInvalid(UserDoesNotExist(token.username))
       }
+    } else {
+      Future.successful(TokenInvalid(NotEnoughRights()))
+    }
   }
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
-    rightService.hasRightForKey(user = SessionIdentification(cookieSubject), tenant = tenant, key = key, level = minimumLevel).value.map {
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[String]] = {
+    rightService.hasRightForKey(
+      user = SessionIdentification(cookieSubject),
+      tenant = tenant,
+      key = key,
+      level = minimumLevel
+    ).value.map {
       case Right(Some(username)) => CookieValid(username)
-      case Right(None) => CookieInvalid(NotEnoughRights())
-      case Left(err) => CookieInvalid(err)
+      case Right(None)           => CookieInvalid(NotEnoughRights())
+      case Left(err)             => CookieInvalid(err)
     }
   }
 }
@@ -725,25 +820,28 @@ class PersonnalAccessTokenTenantAuthAction(
 ) extends TokenOrCookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[String]] = {
-    if(token.hasTenantRight(tenant = tenant, right = operation)) {
+  override def isTokenAllowed(token: ReadPersonnalAccessToken)
+      : Future[TokenValidationResult[String]] = {
+    if (token.hasTenantRight(tenant = tenant, right = operation)) {
       authService.findUser(token.username).map {
-        case Some(user) if (user.admin || user.tenantRights
-          .get(tenant)
-          .exists(r =>
-            RightLevel
-              .superiorOrEqualLevels(minimumLevel)
-              .contains(r)
-          )) => TokenValid(user.username)
+        case Some(user)
+            if (user.admin || user.tenantRights
+              .get(tenant)
+              .exists(r =>
+                RightLevel
+                  .superiorOrEqualLevels(minimumLevel)
+                  .contains(r)
+              )) => TokenValid(user.username)
         case Some(user) => TokenInvalid(NotEnoughRights())
-        case None => TokenInvalid(UserDoesNotExist(token.username))
+        case None       => TokenInvalid(UserDoesNotExist(token.username))
       }
     } else {
       Future.successful(TokenInvalid(NotEnoughRights()))
     }
   }
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[String]] = {
     rightService
       .hasRightFor(
         userIdentification = SessionIdentification(cookieSubject),
@@ -751,7 +849,7 @@ class PersonnalAccessTokenTenantAuthAction(
         tenantLevel = minimumLevel
       ).map {
         case Some(value) => CookieValid(value.user.username)
-        case None => CookieInvalid(NotEnoughRights())
+        case None        => CookieInvalid(NotEnoughRights())
       }
   }
 }
@@ -761,20 +859,26 @@ class PersonnalAccessTokenAdminAuthAction(
     operation: GlobalTokenRight,
     override val authService: AuthService,
     override val clusteringConfig: Cluster
-)(implicit override val executionContext: ExecutionContext
-) extends TokenOrCookieAuthenticatedAction[String] {
+)(implicit override val executionContext: ExecutionContext)
+    extends TokenOrCookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def isTokenAllowed(token: ReadPersonnalAccessToken): Future[TokenValidationResult[String]] = {
+  override def isTokenAllowed(token: ReadPersonnalAccessToken)
+      : Future[TokenValidationResult[String]] = {
     authService.findUser(token.username).map {
-      case Some(user) if user.admin && token.hasRight(operation) => TokenValid(token.username)
+      case Some(user) if user.admin && token.hasRight(operation) =>
+        TokenValid(token.username)
       case Some(user) => TokenInvalid(NotEnoughRights())
-      case None => TokenInvalid(UserDoesNotExist(token.username))
+      case None       => TokenInvalid(UserDoesNotExist(token.username))
     }
   }
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
-    authService.checkAdminSession(cookieSubject).fold(err => CookieInvalid(err), username => CookieValid(username))
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[String]] = {
+    authService.checkAdminSession(cookieSubject).fold(
+      err => CookieInvalid(err),
+      username => CookieValid(username)
+    )
   }
 }
 
@@ -790,7 +894,8 @@ class TenantAuthAction(
 ) extends CookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[String]] = {
     rightService
       .hasRightFor(
         tenant = tenant,
@@ -798,7 +903,8 @@ class TenantAuthAction(
         tenantLevel = minimumLevel
       ).map {
         case Some(confirmation) => CookieValid(confirmation.user.username)
-        case None => CookieInvalid(NotEnoughRights()) // FIXME we can't differentiate between invalid cookie & valid cookie with not enough rights here
+        case None               =>
+          CookieInvalid(NotEnoughRights()) // FIXME we can't differentiate between invalid cookie & valid cookie with not enough rights here
       }
   }
 }
@@ -884,7 +990,8 @@ class ProjectAuthAction(
     extends CookieAuthenticatedAction[(ProjectIdentification, String)] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[(ProjectIdentification, String)]] = {
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[(ProjectIdentification, String)]] = {
     rightService
       .hasRightForProject(
         user = SessionIdentification(cookieSubject),
@@ -894,7 +1001,7 @@ class ProjectAuthAction(
       ).value
       .map {
         case Right(Some(username)) => CookieValid((project, username))
-        case _ => CookieInvalid(NotEnoughRights())
+        case _                     => CookieInvalid(NotEnoughRights())
       }
   }
 }
@@ -913,23 +1020,29 @@ class WebhookAuthAction(
 
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[(WebhookName, String)]] = {
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[(WebhookName, String)]] = {
     Try {
       UUID.fromString(webhook)
-    }.fold(_ => {
-      Future.successful(CookieInvalid(GenericBadRequest("Invalid cookie subject")))
-    },
-    webhookId => rightService
-      .hasRightForWebhook(
-        SessionIdentification(cookieSubject),
-        tenant,
-        WebhookIdIdentification(webhookId),
-        minimumLevel
-      ).value.map {
-        case Right(Some((username, webhookIdentifier))) => CookieValid(webhookIdentifier.name, username)
-        case Right(None) => CookieInvalid(NotEnoughRights())
-        case Left(err) => CookieInvalid(err)
-      }
+    }.fold(
+      _ => {
+        Future.successful(
+          CookieInvalid(GenericBadRequest("Invalid cookie subject"))
+        )
+      },
+      webhookId =>
+        rightService
+          .hasRightForWebhook(
+            SessionIdentification(cookieSubject),
+            tenant,
+            WebhookIdIdentification(webhookId),
+            minimumLevel
+          ).value.map {
+            case Right(Some((username, webhookIdentifier))) =>
+              CookieValid(webhookIdentifier.name, username)
+            case Right(None) => CookieInvalid(NotEnoughRights())
+            case Left(err)   => CookieInvalid(err)
+          }
     )
   }
 }
@@ -946,7 +1059,8 @@ class KeyAuthAction(
     extends CookieAuthenticatedAction[String] {
   override def parser: BodyParser[AnyContent] = bodyParser
 
-  override def isCookieAllowed(cookieSubject: String): Future[CookieValidationResult[String]] = {
+  override def isCookieAllowed(cookieSubject: String)
+      : Future[CookieValidationResult[String]] = {
     rightService
       .hasRightForKey(
         user = SessionIdentification(cookieSubject),
@@ -955,8 +1069,8 @@ class KeyAuthAction(
         minimumLevel
       ).value.map {
         case Right(Some(username)) => CookieValid(username)
-        case Right(None) => CookieInvalid(NotEnoughRights())
-        case Left(err) => CookieInvalid(err)
+        case Right(None)           => CookieInvalid(NotEnoughRights())
+        case Left(err)             => CookieInvalid(err)
       }
   }
 }
@@ -967,7 +1081,12 @@ class DetailledRightForTenantFactory(
     clusteringConfig: Cluster
 )(implicit ec: ExecutionContext) {
   def apply(tenant: String): DetailledRightForTenantAction =
-    new DetailledRightForTenantAction(bodyParser, tenant = tenant, authService = authService, clusteringConfig = clusteringConfig)
+    new DetailledRightForTenantAction(
+      bodyParser,
+      tenant = tenant,
+      authService = authService,
+      clusteringConfig = clusteringConfig
+    )
 }
 
 class PersonnalAccessTokenDetailledRightForTenantFactory(
@@ -1003,7 +1122,7 @@ class PersonnalAccessTokenDetailledRightForTenantFactory(
 
 class PersonnalAccessTokenTenantRightsActionFactory(
     bodyParser: BodyParser[AnyContent],
-    authService: =>AuthService,
+    authService: => AuthService,
     clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
@@ -1019,7 +1138,12 @@ class PersonnalAccessTokenTenantRightsActionFactory(
     )
 }
 
-class KeyAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: AuthService, rightService: RightService, clusteringConfig: Cluster)(
+class KeyAuthActionFactory(
+    bodyParser: BodyParser[AnyContent],
+    authService: AuthService,
+    rightService: RightService,
+    clusteringConfig: Cluster
+)(
     implicit ec: ExecutionContext
 ) {
   def apply(
@@ -1027,7 +1151,15 @@ class KeyAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: Auth
       key: String,
       minimumLevel: RightLevel
   ): KeyAuthAction =
-    new KeyAuthAction(bodyParser, tenant, key, minimumLevel, authService = authService, rightService = rightService, clusteringConfig = clusteringConfig)
+    new KeyAuthAction(
+      bodyParser,
+      tenant,
+      key,
+      minimumLevel,
+      authService = authService,
+      rightService = rightService,
+      clusteringConfig = clusteringConfig
+    )
 }
 
 class WebhookAuthActionFactory(
@@ -1054,7 +1186,12 @@ class WebhookAuthActionFactory(
     )
 }
 
-class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: =>AuthService, rightService: =>RightService, clusteringConfig: Cluster)(
+class ProjectAuthActionFactory(
+    bodyParser: BodyParser[AnyContent],
+    authService: => AuthService,
+    rightService: => RightService,
+    clusteringConfig: Cluster
+)(
     implicit ec: ExecutionContext
 ) {
   def apply(
@@ -1075,8 +1212,8 @@ class ProjectAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: 
 
 class ProjectAuthActionByIdFactory(
     bodyParser: BodyParser[AnyContent],
-    authService: =>AuthService,
-    rightService: =>RightService,
+    authService: => AuthService,
+    rightService: => RightService,
     clusteringConfig: Cluster
 )(implicit ec: ExecutionContext) {
   def apply(
@@ -1095,11 +1232,23 @@ class ProjectAuthActionByIdFactory(
     )
 }
 
-class TenantAuthActionFactory(bodyParser: BodyParser[AnyContent], authService: =>AuthService, rightService: =>RightService, clusteringConfig: Cluster)(
+class TenantAuthActionFactory(
+    bodyParser: BodyParser[AnyContent],
+    authService: => AuthService,
+    rightService: => RightService,
+    clusteringConfig: Cluster
+)(
     implicit ec: ExecutionContext
 ) {
   def apply(tenant: String, minimumLevel: RightLevel): TenantAuthAction =
-    new TenantAuthAction(bodyParser, tenant, minimumLevel, authService = authService, rightService = rightService, clusteringConfig = clusteringConfig)
+    new TenantAuthAction(
+      bodyParser,
+      tenant,
+      minimumLevel,
+      authService = authService,
+      rightService = rightService,
+      clusteringConfig = clusteringConfig
+    )
 }
 
 class PersonnalAccessTokenAdminAuthActionFactory(
@@ -1145,7 +1294,10 @@ class PersonnalAccessTokenTenantAuthActionFactory(
 }
 
 class PersonnalAccessTokenFeatureAuthActionFactory(
-    bodyParser: BodyParser[AnyContent], authService: AuthService, featureService: FeatureService, clusteringConfig: Cluster
+    bodyParser: BodyParser[AnyContent],
+    authService: AuthService,
+    featureService: FeatureService,
+    clusteringConfig: Cluster
 )(implicit
     ec: ExecutionContext
 ) {
@@ -1246,40 +1398,59 @@ object AuthAction {
     request.cookies
       .get("token")
       .map(cookie => cookie.value)
-      .map(token => decodeJWT(token, decryptionStuff.tokenSecret, decryptionStuff.encryptionKey))
+      .map(token =>
+        decodeJWT(
+          token,
+          decryptionStuff.tokenSecret,
+          decryptionStuff.encryptionKey
+        )
+      )
       .flatMap(maybeClaim => maybeClaim.toOption)
   }
 
   def extractToken[A](
-    request:Request[_],
-    authService: AuthService
+      request: Request[_],
+      authService: AuthService
   )(implicit ec: ExecutionContext): Future[TokenExtractionResult] = {
     (
-      for(
+      for (
         tokenHeader <- request.headers.get("Authorization").toRight(NoToken);
-        _ <- if(!tokenHeader.toUpperCase.startsWith("BASIC ")) Left(InvalidToken) else Right(());
+        _ <- if (!tokenHeader.toUpperCase.startsWith("BASIC "))
+          Left(InvalidToken)
+        else Right(());
         base64Header = tokenHeader.replaceFirst("(?i)Basic ", "");
-        decodedBytes <- Try { Base64.getDecoder.decode(base64Header.getBytes)}.toEither.left.map(_ => InvalidToken);
+        decodedBytes <- Try {
+          Base64.getDecoder.decode(base64Header.getBytes)
+        }.toEither.left.map(_ => InvalidToken);
         decodedString = new String(decodedBytes);
         splittedValue = decodedString.split(":", 2);
-        _ <- if(splittedValue.size != 2) Left(InvalidToken) else Right(())
+        _ <- if (splittedValue.size != 2) Left(InvalidToken) else Right(())
       ) yield {
-        authService.checkPersonalAccessToken(username = splittedValue(0), token = splittedValue(1)).map(_.fold(InvalidToken)(t => ExtractedToken(t)))
+        authService.checkPersonalAccessToken(
+          username = splittedValue(0),
+          token = splittedValue(1)
+        ).map(_.fold(InvalidToken)(t => ExtractedToken(t)))
       }
     ).fold(r => Future.successful(r), t => t)
   }
 
   def extractCookieSubject[A](
-    request:Request[_],
-    decryptionStuff: DecryptionStuff
+      request: Request[_],
+      decryptionStuff: DecryptionStuff
   ): CookieSubjectExtractionResult = {
-    (for(
-      token <- request.cookies.get("token").map(cookie => cookie.value).toRight(NoCookie);
-      claims <- decodeJWT(token, decryptionStuff.tokenSecret, decryptionStuff.encryptionKey).toOption.toRight(InvalidCookie);
+    (for (
+      token <- request.cookies.get("token").map(cookie => cookie.value).toRight(
+        NoCookie
+      );
+      claims <- decodeJWT(
+        token,
+        decryptionStuff.tokenSecret,
+        decryptionStuff.encryptionKey
+      ).toOption.toRight(InvalidCookie);
       subject <- claims.subject.toRight(InvalidCookie)
     ) yield {
       CookieSubject(subject)
-    }).fold(v => v, v=> v)
+    }).fold(v => v, v => v)
   }
 }
 
@@ -1288,7 +1459,8 @@ case object NoToken extends TokenExtractionResult
 case object InvalidToken extends TokenExtractionResult {
   def toResponse: Result = Unauthorized
 }
-case class ExtractedToken(token: ReadPersonnalAccessToken) extends TokenExtractionResult
+case class ExtractedToken(token: ReadPersonnalAccessToken)
+    extends TokenExtractionResult
 
 sealed trait CookieSubjectExtractionResult
 case object NoCookie extends CookieSubjectExtractionResult

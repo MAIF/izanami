@@ -12,7 +12,9 @@ case class FeatureStrategies(strategies: Map[String, CompleteFeature]) {
   def evaluate(
       requestContext: RequestContext,
       wasmRelatedStuff: WasmRelatedStuff
-  )(implicit ec: ExecutionContext): Future[Either[IzanamiError, EvaluatedCompleteFeature]] = {
+  )(implicit
+      ec: ExecutionContext
+  ): Future[Either[IzanamiError, EvaluatedCompleteFeature]] = {
     val context = requestContext.contextAsString
     val strategyToUse = if (context.isBlank) {
       strategies("")

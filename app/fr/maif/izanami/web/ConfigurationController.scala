@@ -2,7 +2,12 @@ package fr.maif.izanami.web
 
 import buildinfo.BuildInfo
 import fr.maif.izanami.{Cluster, ExpositionUrls, FeatureConfiguration}
-import fr.maif.izanami.datastores.{ConfigurationDatastore, StatsDatastore, TenantsDatastore, UsersDatastore}
+import fr.maif.izanami.datastores.{
+  ConfigurationDatastore,
+  StatsDatastore,
+  TenantsDatastore,
+  UsersDatastore
+}
 import fr.maif.izanami.errors.BadBodyFormat
 import fr.maif.izanami.errors.CantUpdateOIDCCOnfiguration
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
@@ -11,7 +16,11 @@ import fr.maif.izanami.mail.MailJetMailProvider
 import fr.maif.izanami.mail.SMTPMailProvider
 import fr.maif.izanami.models.FullIzanamiConfiguration
 import fr.maif.izanami.models.IzanamiConfiguration
-import fr.maif.izanami.services.{FeatureService, MaxRights, PostgresTransactionProvider}
+import fr.maif.izanami.services.{
+  FeatureService,
+  MaxRights,
+  PostgresTransactionProvider
+}
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -30,13 +39,13 @@ import scala.concurrent.Future
 
 class ConfigurationController(
     val controllerComponents: ControllerComponents,
-    adminAuthAction: =>AdminAuthAction,
-    featureService: =>FeatureService,
-    statsDatastore: =>StatsDatastore,
-    configurationDatastore: =>ConfigurationDatastore,
-    tenantsDatastore: =>TenantsDatastore,
-    transactionProvider: =>PostgresTransactionProvider,
-    usersDatastore: =>UsersDatastore,
+    adminAuthAction: => AdminAuthAction,
+    featureService: => FeatureService,
+    statsDatastore: => StatsDatastore,
+    configurationDatastore: => ConfigurationDatastore,
+    tenantsDatastore: => TenantsDatastore,
+    transactionProvider: => PostgresTransactionProvider,
+    usersDatastore: => UsersDatastore,
     cluster: Cluster,
     featureConfiguration: FeatureConfiguration,
     expossitionUrls: ExpositionUrls
@@ -113,7 +122,9 @@ class ConfigurationController(
                     .flatMap(_.maxRightsByRoles)
                 )
 
-                if (hasOidcPartChanged && !configurationDatastore.isOIDCConfigurationEditable) {
+                if (
+                  hasOidcPartChanged && !configurationDatastore.isOIDCConfigurationEditable
+                ) {
                   FutureEither.failure(CantUpdateOIDCCOnfiguration)
                 } else {
                   transactionProvider.executeInTransaction(conn => {
@@ -129,7 +140,10 @@ class ConfigurationController(
                       configurationDatastore
                         .updateConfiguration(
                           inputConfigurationWithSecret,
-                          userInformation = StandardUserInformation(username=request.user, authentication = request.authentication),
+                          userInformation = StandardUserInformation(
+                            username = request.user,
+                            authentication = request.authentication
+                          ),
                           origin = NormalOrigin,
                           conn = Some(conn)
                         )
@@ -145,7 +159,8 @@ class ConfigurationController(
 
   def readConfiguration(): Action[AnyContent] = adminAuthAction.async {
     implicit request =>
-      val preventOAuthModification = JsBoolean(!configurationDatastore.isOIDCConfigurationEditable)
+      val preventOAuthModification =
+        JsBoolean(!configurationDatastore.isOIDCConfigurationEditable)
 
       configurationDatastore
         .readFullConfiguration()
@@ -162,33 +177,43 @@ class ConfigurationController(
         })
   }
 
-  def readExpositionUrl(): Action[AnyContent] = Action.async { implicit request =>
-    val adminUrl = expossitionUrls.backendUrl
-      .getOrElse(expossitionUrls.expositionUrl)
-    val clusterConfig = cluster
+  def readExpositionUrl(): Action[AnyContent] =
+    Action.async { implicit request =>
+      val adminUrl = expossitionUrls.backendUrl
+        .getOrElse(expossitionUrls.expositionUrl)
+      val clusterConfig = cluster
 
-    val futureClientUrlByContexts = if(clusterConfig.mode == IzanamiMode.Leader) {
-      if(clusterConfig.workerUrlByContextsAndTenants.isEmpty && clusterConfig.workerUrlByContexts.nonEmpty) {
-        logger.error("worker-url-by-contexts property is deprecated, use worker-url-by-contexts-and-tenants instead")
-        val r = tenantsDatastore.readTenants().map(ts => {
-          ts.map(_.name).map(tenantName => (tenantName -> clusterConfig.workerUrlByContexts)).toMap
-        })
+      val futureClientUrlByContexts =
+        if (clusterConfig.mode == IzanamiMode.Leader) {
+          if (
+            clusterConfig.workerUrlByContextsAndTenants.isEmpty && clusterConfig.workerUrlByContexts.nonEmpty
+          ) {
+            logger.error(
+              "worker-url-by-contexts property is deprecated, use worker-url-by-contexts-and-tenants instead"
+            )
+            val r = tenantsDatastore.readTenants().map(ts => {
+              ts.map(_.name).map(tenantName =>
+                (tenantName -> clusterConfig.workerUrlByContexts)
+              ).toMap
+            })
 
-        r
-      } else {
-        Future.successful(clusterConfig.workerUrlByContextsAndTenants)
-      }
-      
-    }  else {
-      Future.successful(Map[String, Map[String, String]]())
+            r
+          } else {
+            Future.successful(clusterConfig.workerUrlByContextsAndTenants)
+          }
+
+        } else {
+          Future.successful(Map[String, Map[String, String]]())
+        }
+
+      futureClientUrlByContexts.map(urls => {
+        Ok(Json.obj(
+          "url" -> adminUrl,
+          "clientUrlByContexts" -> Json.toJson(urls)
+        ))
+      })
+
     }
-
-    futureClientUrlByContexts.map(urls => {
-      Ok(Json.obj("url" -> adminUrl, "clientUrlByContexts" -> Json.toJson(urls)))
-    })
-    
-    
-  }
 
   def availableIntegrations(): Action[AnyContent] = Action.async {
     implicit request =>

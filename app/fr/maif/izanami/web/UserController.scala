@@ -26,21 +26,21 @@ import scala.util.Try
 
 class UserController(
     val controllerComponents: ControllerComponents,
-    authAction: =>AuthenticatedAction,
-    adminAction: =>AdminAuthAction,
-    detailledAuthAction: =>DetailledAuthAction,
-    tenantRightsAction: =>TenantRightsAction,
-    tenantRightFilterAction: =>TenantAuthActionFactory,
-    projectAuthAction: =>ProjectAuthActionFactory,
-    webhookAuthAction: =>WebhookAuthActionFactory,
-    keyAuthAction: =>KeyAuthActionFactory,
-    rightService: =>RightService,
-    jwtService: =>JwtService,
-    mails: =>Mails,
-    transactionProvider: =>PostgresTransactionProvider,
+    authAction: => AuthenticatedAction,
+    adminAction: => AdminAuthAction,
+    detailledAuthAction: => DetailledAuthAction,
+    tenantRightsAction: => TenantRightsAction,
+    tenantRightFilterAction: => TenantAuthActionFactory,
+    projectAuthAction: => ProjectAuthActionFactory,
+    webhookAuthAction: => WebhookAuthActionFactory,
+    keyAuthAction: => KeyAuthActionFactory,
+    rightService: => RightService,
+    jwtService: => JwtService,
+    mails: => Mails,
+    transactionProvider: => PostgresTransactionProvider,
     // FIXME below datastore(s) should be replaced by services
-    configurationDatastore: =>ConfigurationDatastore,
-    usersDatastore: =>UsersDatastore
+    configurationDatastore: => ConfigurationDatastore,
+    usersDatastore: => UsersDatastore
 )(implicit val ec: ExecutionContext) extends BaseController {
   def sendInvitation(): Action[JsValue] = tenantRightsAction.async(parse.json) {
     implicit request =>
@@ -179,73 +179,74 @@ class UserController(
       user: String
   ): Action[JsValue] =
     webhookAuthAction(tenant, webhook, RightLevel.Admin).async(parse.json) {
-      implicit request => {
-        val hookName = request.user._1
-        request.body
-          .asOpt[JsObject]
-          .fold(BadBodyFormat().toHttpResponse.future) {
-            case obj if obj.fields.isEmpty => {
-              rightService
-                .updateUserRightsForTenant(
-                  user,
-                  tenant,
-                  UpsertTenantRights(removedWebhookRights =
-                    Set(hookName)
-                  )
-                )
-                .toResult(_ => NoContent)
-            }
-            case obj => {
-              (obj \ "level").asOpt[RightLevel] match {
-                case None        => BadBodyFormat().toHttpResponse.future
-                case Some(level) => {
-                  val baseDiff = UpsertTenantRights(
-                    removedWebhookRights = Set(hookName),
-                    addedWebhookRights = Set(
-                      UnscopedFlattenWebhookRight(
-                        name = hookName,
-                        level = level
-                      )
+      implicit request =>
+        {
+          val hookName = request.user._1
+          request.body
+            .asOpt[JsObject]
+            .fold(BadBodyFormat().toHttpResponse.future) {
+              case obj if obj.fields.isEmpty => {
+                rightService
+                  .updateUserRightsForTenant(
+                    user,
+                    tenant,
+                    UpsertTenantRights(removedWebhookRights =
+                      Set(hookName)
                     )
                   )
+                  .toResult(_ => NoContent)
+              }
+              case obj => {
+                (obj \ "level").asOpt[RightLevel] match {
+                  case None        => BadBodyFormat().toHttpResponse.future
+                  case Some(level) => {
+                    val baseDiff = UpsertTenantRights(
+                      removedWebhookRights = Set(hookName),
+                      addedWebhookRights = Set(
+                        UnscopedFlattenWebhookRight(
+                          name = hookName,
+                          level = level
+                        )
+                      )
+                    )
 
-                  usersDatastore.findUser(user).flatMap {
-                    case Some(userWithTenantRights) => {
-                      val tenantRightDiff = userWithTenantRights.tenantRights
-                        .get(tenant)
-                        .fold(
-                          baseDiff
-                            .copy(tenantWideUpdate =
-                              Some(
-                                TenantWideRightUpdate(
-                                  level = Read,
-                                  defaultProjectRight =
-                                    ProjectRightLevelIncludingNoRight.None,
-                                  defaultKeyRight =
-                                    RightLevelIncludingNoRight.None,
-                                  defaultWebhookRight =
-                                    RightLevelIncludingNoRight.None
+                    usersDatastore.findUser(user).flatMap {
+                      case Some(userWithTenantRights) => {
+                        val tenantRightDiff = userWithTenantRights.tenantRights
+                          .get(tenant)
+                          .fold(
+                            baseDiff
+                              .copy(tenantWideUpdate =
+                                Some(
+                                  TenantWideRightUpdate(
+                                    level = Read,
+                                    defaultProjectRight =
+                                      ProjectRightLevelIncludingNoRight.None,
+                                    defaultKeyRight =
+                                      RightLevelIncludingNoRight.None,
+                                    defaultWebhookRight =
+                                      RightLevelIncludingNoRight.None
+                                  )
                                 )
                               )
-                            )
-                        )(_ => baseDiff)
-                      rightService
-                        .updateUserRightsForTenant(
-                          user,
-                          tenant,
-                          tenantRightDiff
-                        )
-                        .toResult(_ => NoContent)
+                          )(_ => baseDiff)
+                        rightService
+                          .updateUserRightsForTenant(
+                            user,
+                            tenant,
+                            tenantRightDiff
+                          )
+                          .toResult(_ => NoContent)
+                      }
+                      case None =>
+                        NotFound(Json.obj("message" -> "user not found")).future
                     }
-                    case None =>
-                      NotFound(Json.obj("message" -> "user not found")).future
                   }
-                }
 
+                }
               }
             }
-          }
-      }
+        }
     }
 
   def updateUserRightsForKey(

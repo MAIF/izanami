@@ -19,7 +19,10 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import fr.maif.izanami.datastores.ConfigurationDatastore
 
-class WasmManagerClient(configurationDatastore: ConfigurationDatastore, httpClient: WSClient)(implicit ec: ExecutionContext) {
+class WasmManagerClient(
+    configurationDatastore: ConfigurationDatastore,
+    httpClient: WSClient
+)(implicit ec: ExecutionContext) {
   val logger: Logger = Logger("wasm-manager")
 
   def transferLegacyJsScript(

@@ -207,11 +207,15 @@ object ActivationRule {
   implicit val activationRuleRead: Reads[ActivationRule] = json => {
     if (json.equals(Json.obj())) {
       JsSuccess(All)
-    } else if ((json \ "groups").toOption.isDefined && (json \ "percentage").toOption.isDefined) {
+    } else if (
+      (json \ "groups").toOption.isDefined && (json \ "percentage").toOption.isDefined
+    ) {
       JsError("Groups cannot be combined with a percentage rule")
     } else if ((json \ "percentage").asOpt[Int].isDefined) {
       (json \ "percentage").validate[Int].map(UserPercentage(_))
-    } else if ((json \ "users").toOption.isDefined || (json \ "groups").toOption.isDefined) {
+    } else if (
+      (json \ "users").toOption.isDefined || (json \ "groups").toOption.isDefined
+    ) {
       val users = (json \ "users").toOption
         .map(_.validate[Set[String]])
         .getOrElse(JsSuccess(Set.empty[String]))

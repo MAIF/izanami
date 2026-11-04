@@ -10,7 +10,11 @@ import play.api.libs.json.JsObject
 import scala.concurrent.Future
 import fr.maif.izanami.env.Postgresql
 
-class SearchDatastore(postgresql: =>Postgresql, similarityThreshold: Double, extensionsSchema: String) extends Datastore {
+class SearchDatastore(
+    postgresql: => Postgresql,
+    similarityThreshold: Double,
+    extensionsSchema: String
+) extends Datastore {
   def tenantSearch(
       tenant: String,
       username: String,

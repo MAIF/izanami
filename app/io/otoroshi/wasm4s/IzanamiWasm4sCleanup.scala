@@ -2,8 +2,7 @@ package io.otoroshi.wasm4s
 
 import io.otoroshi.wasm4s.impl.WasmVmPoolImpl
 
-/**
-  * Temporary bridge for cleaning wasm4s global pools when an Izanami instance
+/** Temporary bridge for cleaning wasm4s global pools when an Izanami instance
   * stops.
   *
   * wasm4s keeps pools in a JVM-wide registry and exposes their cleanup methods

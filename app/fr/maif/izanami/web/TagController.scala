@@ -17,9 +17,9 @@ import fr.maif.izanami.services.TagService
 
 class TagController(
     val controllerComponents: ControllerComponents,
-    authAction: =>TenantAuthActionFactory,
-    personnalAccessTokenTenantAuthAction: =>PersonnalAccessTokenTenantAuthActionFactory,
-    tagService: =>TagService
+    authAction: => TenantAuthActionFactory,
+    personnalAccessTokenTenantAuthAction: => PersonnalAccessTokenTenantAuthActionFactory,
+    tagService: => TagService
 )(implicit ec: ExecutionContext) extends BaseController {
 
   def createTag(tenant: String): Action[JsValue] =

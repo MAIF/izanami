@@ -25,12 +25,12 @@ import org.apache.pekko.actor.ActorSystem
 import scala.concurrent.ExecutionContext
 
 class EventDatastore(
-  postgresql: =>Postgresql,
-  tenantDatastore: =>TenantsDatastore,
-  eventsHoursTtl: Int,
-  houseKeepingStartDelayInSeconds: Long,
-  houseKeepingIntervalInSeconds: Long,
-  actorSystem: ActorSystem
+    postgresql: => Postgresql,
+    tenantDatastore: => TenantsDatastore,
+    eventsHoursTtl: Int,
+    houseKeepingStartDelayInSeconds: Long,
+    houseKeepingIntervalInSeconds: Long,
+    actorSystem: ActorSystem
 )(implicit val ec: ExecutionContext) extends Datastore {
   var eventCleanerCancellation: Cancellable = Cancellable.alreadyCancelled
 

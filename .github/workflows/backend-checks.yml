@@ -34,6 +34,9 @@ jobs:
       - uses: docker/setup-compose-action@v1
       - uses: sbt/setup-sbt@v1
       - uses: coursier/cache-action@v6
+      - name: check-format
+        run: sbt "scalafmtCheck"
+        continue-on-error: true
       - name: test
         id: test
         run: sbt "testOnly *AllTests"

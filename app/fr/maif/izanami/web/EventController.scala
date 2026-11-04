@@ -1,6 +1,10 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.{EventDatastore, PersonnalAccessTokenDatastore, ProjectsDatastore}
+import fr.maif.izanami.datastores.{
+  EventDatastore,
+  PersonnalAccessTokenDatastore,
+  ProjectsDatastore
+}
 import fr.maif.izanami.events.*
 import fr.maif.izanami.models.*
 import fr.maif.izanami.services.FeatureService
@@ -48,16 +52,17 @@ import play.api.libs.json.JsNull
 
 class EventController(
     val controllerComponents: ControllerComponents,
-    clientKeyAction: =>ClientApiKeyAction,
-    adminAuthAction: =>AdminAuthAction,
-    tenantAuthAction: =>TenantAuthActionFactory,
-    featureService: =>FeatureService,
-    webhookListener: =>WebhookListener,
-    eventService: =>EventService,
-    eventDatastore: =>EventDatastore, // FIXME use service instead
-    projectsDatastore: =>ProjectsDatastore,
-    personalAccessTokenDatastore: =>PersonnalAccessTokenDatastore
-)(implicit val ec: ExecutionContext, val materializer: Materializer) extends BaseController {
+    clientKeyAction: => ClientApiKeyAction,
+    adminAuthAction: => AdminAuthAction,
+    tenantAuthAction: => TenantAuthActionFactory,
+    featureService: => FeatureService,
+    webhookListener: => WebhookListener,
+    eventService: => EventService,
+    eventDatastore: => EventDatastore, // FIXME use service instead
+    projectsDatastore: => ProjectsDatastore,
+    personalAccessTokenDatastore: => PersonnalAccessTokenDatastore
+)(implicit val ec: ExecutionContext, val materializer: Materializer)
+    extends BaseController {
   val logger = Logger("EventController")
   // FIXME create dedicated object instead
   private implicit val nameExtractor: EventNameExtractor[JsObject] =
@@ -217,20 +222,23 @@ class EventController(
       )
 
   def newBatchEvents(
-                 user: String,
-                 conditions: Boolean,
-                 refreshInterval: Int,
-                 keepAliveInterval: Int,
-                 context: Option[String],
-                 groups: Seq[String]
-               ): Action[JsValue] =
+      user: String,
+      conditions: Boolean,
+      refreshInterval: Int,
+      keepAliveInterval: Int,
+      context: Option[String],
+      groups: Seq[String]
+  ): Action[JsValue] =
     clientKeyAction.async(parse.json) { request =>
       implicit val nameExtractor: EventNameExtractor[JsObject] =
         EventNameExtractor[JsObject](event => Some((event \ "type").as[String]))
 
-      val parsedContext = context.map(ctx => ctx.split("/").toSeq).getOrElse(Seq())
-      val maybeParsedBody = BatchFeatureRequest.reads(request.body, parsedContext).asOpt;
-      maybeParsedBody.fold(Future.successful(BadBodyFormat().toHttpResponse))(req => {
+      val parsedContext =
+        context.map(ctx => ctx.split("/").toSeq).getOrElse(Seq())
+      val maybeParsedBody =
+        BatchFeatureRequest.reads(request.body, parsedContext).asOpt;
+      maybeParsedBody.fold(Future.successful(BadBodyFormat().toHttpResponse))(
+        req => {
           val key = request.key
           val tenant = key.tenant
           val clientRequest = req.featureRequest
@@ -244,7 +252,9 @@ class EventController(
               val resultSource = source.source
                 .filter {
                   case event: FeatureEvent => {
-                    key.admin || key.projects.exists(ap => ap.name == event.project)
+                    key.admin || key.projects.exists(ap =>
+                      ap.name == event.project
+                    )
                   }
                   case _ => false
                 }
@@ -252,7 +262,7 @@ class EventController(
                   case event: FeatureEvent => {
                     // TODO handle tag
                     allowedProjects.contains(event.project) ||
-                      clientRequest.features.contains(event.id)
+                    clientRequest.features.contains(event.id)
                   }
                   case _ => false
                 }
@@ -314,7 +324,8 @@ class EventController(
                 )
               ).as(ContentTypes.EVENT_STREAM)
             })
-        })
+        }
+      )
     }
 
   def newEvents(

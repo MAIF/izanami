@@ -135,7 +135,9 @@ sealed trait CompleteContextualStrategy extends ContextualFeatureStrategy {
   def value(
       requestContext: RequestContext,
       wasmRelatedStuff: WasmRelatedStuff
-  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]]
+  )(implicit
+      executionContext: ExecutionContext
+  ): Future[Either[IzanamiError, JsValue]]
   def toLightWeightContextualStrategy: LightweightContextualStrategy = {
     this match {
       case f: ClassicalFeatureStrategy => f
@@ -170,7 +172,9 @@ case class ClassicalFeatureStrategy(
   override def value(
       requestContext: RequestContext,
       wasmRelatedStuff: WasmRelatedStuff
-  )(implicit executionContext: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
+  )(implicit
+      executionContext: ExecutionContext
+  ): Future[Either[IzanamiError, JsValue]] = {
     Future.successful(Right((enabled, resultDescriptor) match {
       case (false, r: BooleanResultDescriptor)         => JsFalse
       case (false, _)                                  => JsNull
@@ -196,16 +200,23 @@ case class CompleteWasmFeatureStrategy(
     enabled: Boolean,
     wasmConfig: WasmConfig,
     feature: String,
-    resultType: ResultType   
-)extends CompleteContextualStrategy {
+    resultType: ResultType
+) extends CompleteContextualStrategy {
   override def value(
       requestContext: RequestContext,
       wasmRelatedStuff: WasmRelatedStuff
-  )(implicit executionContext: ExecutionContext) : Future[Either[IzanamiError, JsValue]] = {
+  )(implicit
+      executionContext: ExecutionContext
+  ): Future[Either[IzanamiError, JsValue]] = {
     if (!enabled) {
       Future { Right(null.asInstanceOf) }(executionContext)
     } else {
-      WasmUtils.handle(wasmConfig, requestContext, resultType, wasmRelatedStuff.wasmIntegration)(
+      WasmUtils.handle(
+        wasmConfig,
+        requestContext,
+        resultType,
+        wasmRelatedStuff.wasmIntegration
+      )(
         executionContext
       )
     }
@@ -225,8 +236,12 @@ object FeatureContext {
       json: JsValue,
       feature: String
   ): JsResult[CompleteContextualStrategy] = {
-    if ((json \ "allowedValues").toOption.isDefined || (json \ "allowed_values").toOption.isDefined) {
-      return JsError("allowedValues is configured on the parent feature, not on an overload")
+    if (
+      (json \ "allowedValues").toOption.isDefined || (json \ "allowed_values").toOption.isDefined
+    ) {
+      return JsError(
+        "allowedValues is configured on the parent feature, not on an overload"
+      )
     }
     val enabled = (json \ "enabled").asOpt[Boolean].getOrElse(true)
     val maybeWasmConfig =

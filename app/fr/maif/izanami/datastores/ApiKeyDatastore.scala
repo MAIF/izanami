@@ -25,7 +25,9 @@ import fr.maif.izanami.utils.Done
 import fr.maif.izanami.env.Postgresql
 import scala.concurrent.ExecutionContext
 
-class ApiKeyDatastore(postgresql: =>Postgresql)(implicit val ec: ExecutionContext) extends Datastore {
+class ApiKeyDatastore(postgresql: => Postgresql)(implicit
+    val ec: ExecutionContext
+) extends Datastore {
   def createApiKey(
       apiKey: ApiKey,
       user: UserInformation
@@ -164,8 +166,8 @@ class ApiKeyDatastore(postgresql: =>Postgresql)(implicit val ec: ExecutionContex
     if (apiKeys.isEmpty) {
       Future.successful(Right(Seq()))
     } else {
-      conn.map(c => callback(c)).getOrElse(postgresql.executeInTransaction(
-        c => callback(c)
+      conn.map(c => callback(c)).getOrElse(postgresql.executeInTransaction(c =>
+        callback(c)
       ))
     }
   }

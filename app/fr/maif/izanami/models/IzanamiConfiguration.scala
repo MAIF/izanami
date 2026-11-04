@@ -161,7 +161,9 @@ object OAuth2Configuration {
             userRightsByRoles = userRightsByRoles,
             roleClaim = (json \ "roleClaim").asOpt[String],
             roleRightMode =
-              (json \ "roleRightMode").asOpt[RoleRightMode](RoleRightMode.reads),
+              (json \ "roleRightMode").asOpt[RoleRightMode](
+                RoleRightMode.reads
+              ),
             issuer = (json \ "issuer").asOpt[String].filter(_.nonEmpty),
             audience = (json \ "audience").asOpt[String].filter(_.nonEmpty),
             jwksUrl = (json \ "jwksUrl").asOpt[String].filter(_.nonEmpty)

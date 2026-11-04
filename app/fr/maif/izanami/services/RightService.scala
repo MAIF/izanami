@@ -79,7 +79,6 @@ import fr.maif.izanami.datastores.UsersDatastore
 import fr.maif.izanami.OpenId
 import fr.maif.izanami.env.Postgresql
 
-
 case class RightCheckConfirmation(
     user: User,
     projectNameById: Map[UUID, String] = Map(),
@@ -105,11 +104,11 @@ case class RightCheckConfirmation(
 case class EntityIdentifiers(name: String, id: UUID)
 
 class RightService(
-    eventService: =>EventService,
-    usersDatastore: =>UsersDatastore,
-    configurationDatastore: =>ConfigurationDatastore,
+    eventService: => EventService,
+    usersDatastore: => UsersDatastore,
+    configurationDatastore: => ConfigurationDatastore,
     openidConfiguration: Option[OpenId],
-    postgresql: =>Postgresql // TODO this should not be in a service
+    postgresql: => Postgresql // TODO this should not be in a service
 )(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
   private val logger = Logger("izanami.right-service")
   private var sourceKillSwitch: Option[SharedKillSwitch] = Option.empty

@@ -14,11 +14,11 @@ import scala.concurrent.Future
 
 class FeatureContextController(
     val controllerComponents: ControllerComponents,
-    authAction: =>ProjectAuthActionFactory,
-    tenantAuthAction: =>TenantAuthActionFactory,
-    detailledRightForTenantFactory: =>DetailledRightForTenantFactory,
-    featureService: =>FeatureService,
-    datastore: =>FeatureContextDatastore
+    authAction: => ProjectAuthActionFactory,
+    tenantAuthAction: => TenantAuthActionFactory,
+    detailledRightForTenantFactory: => DetailledRightForTenantFactory,
+    featureService: => FeatureService,
+    datastore: => FeatureContextDatastore
 )(implicit val ec: ExecutionContext)
     extends BaseController {
 
@@ -147,7 +147,10 @@ class FeatureContextController(
           name = name,
           contextPath = context,
           user = request.user,
-          userInformation = StandardUserInformation(username = request.user.username, authentication = request.authentication), // FIXME this should be done in Request class
+          userInformation = StandardUserInformation(
+            username = request.user.username,
+            authentication = request.authentication
+          ), // FIXME this should be done in Request class
           preserveProtectedContexts = preserveProtectedContexts
         )
           .toResult(_ => NoContent)
@@ -233,30 +236,32 @@ class FeatureContextController(
   ): Action[JsValue] = {
     // TODO allow only write level users on project
     detailledRightForTenantFactory(tenant).async(parse.json) {
-      implicit request => {
-        FeatureContext.readcontextualFeatureStrategyRead(
-          request.body,
-          name
-        ) match {
-          case JsSuccess(value, path) =>
-            featureService
-              .upsertOverload(
-                OverloadFeatureUpdateRequest(
-                  tenant = tenant,
-                  project = project,
-                  context = parents,
-                  featureName = name,
-                  preserveProtectedContexts = preserveProtectedContexts,
-                  strategy = value,
-                  user = request.user,
-                  authentication = request.authentication
+      implicit request =>
+        {
+          FeatureContext.readcontextualFeatureStrategyRead(
+            request.body,
+            name
+          ) match {
+            case JsSuccess(value, path) =>
+              featureService
+                .upsertOverload(
+                  OverloadFeatureUpdateRequest(
+                    tenant = tenant,
+                    project = project,
+                    context = parents,
+                    featureName = name,
+                    preserveProtectedContexts = preserveProtectedContexts,
+                    strategy = value,
+                    user = request.user,
+                    authentication = request.authentication
+                  )
                 )
-              )
-              .toResult(_ => NoContent)
-          case JsError(errors) =>
-            BadRequest(Json.obj("message" -> "bad body format")).future
+                .toResult(_ => NoContent)
+            case JsError(errors) =>
+              BadRequest(Json.obj("message" -> "bad body format")).future
+          }
         }
-    }}
+    }
   }
 
   def createGlobalSubContext(
