@@ -31,10 +31,14 @@ jobs:
           cache: 'npm'
           cache-dependency-path: izanami-frontend/package-lock.json
       - name: format frontend
-        run: npm run fmt:check
+        run: |
+          cd izanami-frontend
+          npm run fmt:check
         continue-on-error: true
       - name: lint frontend
-        run: npm run lint
+        run: |
+          cd izanami-frontend
+          npm run lint
         continue-on-error: true
       - name: build frontend & install playwright
         run: |
