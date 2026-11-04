@@ -1,4 +1,4 @@
-name: test frontends
+name: Frontend checks
 
 on:
   push:
@@ -12,7 +12,7 @@ env:
 
 
 jobs:
-  frontend-tests:
+  frontend-checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.2.0
