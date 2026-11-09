@@ -2355,8 +2355,6 @@ class FeatureClientAPISpec extends BaseAPISpec {
         key = "my-key",
         user = "my-user"
       )
-      println(s"STATUS : ${result.status}")
-      println(s"BODY : ${result.json}")
       (result.json.get \\ "active")
         .map(v => v.as[Boolean])
         .head mustBe true
