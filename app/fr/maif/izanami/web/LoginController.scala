@@ -1,7 +1,7 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.{OpenId, Sessions}
-import fr.maif.izanami.datastores.{ConfigurationDatastore, UsersDatastore}
+import fr.maif.izanami.datastores.{UsersDatastore}
 import fr.maif.izanami.errors.MissingOIDCConfigurationError
 import fr.maif.izanami.errors.RightComplianceError
 import fr.maif.izanami.errors.{IzanamiError, OIDCIdentityConflict, UserNotFound}
@@ -11,11 +11,7 @@ import fr.maif.izanami.models.User.userRightsWrites
 import fr.maif.izanami.security.JwtService
 import fr.maif.izanami.security.OidcTokenValidator
 import fr.maif.izanami.errors.{InvalidOIDCLogin, InvalidOIDCToken}
-import fr.maif.izanami.services.{
-  MaxRightComplianceResult,
-  PostgresTransactionProvider,
-  RightService
-}
+import fr.maif.izanami.services.{ConfigurationService, MaxRightComplianceResult, PostgresTransactionProvider, RightService}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -40,7 +36,7 @@ class LoginController(
     sessionAuthAction: => AuthenticatedSessionAction,
     wsClient: => WSClient,
     jwtService: => JwtService,
-    configurationDatastore: => ConfigurationDatastore,
+    configurationService: => ConfigurationService,
     usersDatastore: => UsersDatastore,
     postgresTransactionProvider: => PostgresTransactionProvider,
     openIdConfiguration: Option[OpenId],
@@ -51,7 +47,7 @@ class LoginController(
 
   def openIdConnect: Action[AnyContent] = Action.async { implicit request =>
     {
-      configurationDatastore
+      configurationService
         .readFullConfiguration()
         .value
         .map(e => {
@@ -160,7 +156,7 @@ class LoginController(
               .flatMap(json => (json \ "code").asOpt[String].filter(_.nonEmpty))
               .asFuture;
             oauth2ConfigurationOpt <-
-              configurationDatastore
+              configurationService
                 .readFullConfiguration()
                 .value
                 .map(_.toOption.flatMap(_.oidcConfiguration))
@@ -452,7 +448,7 @@ class LoginController(
       case Left(OIDCIdentityConflict)      =>
         Future.successful(Left(OIDCIdentityConflict))
       case Left(_) if rightByRolesFromEnvIfAny.isDefined =>
-        configurationDatastore
+        configurationService
           .updateOIDCRightByRolesIfNeeded(rightByRolesFromEnvIfAny.get)
           .flatMap(_ => createOrUpdateUser()).value
       case result => Future.successful(result)

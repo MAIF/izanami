@@ -25,14 +25,12 @@ import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import fr.maif.izanami.web.IzanamiApplicationUserInformation
 import fr.maif.izanami.web.UserInformation
-import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import io.vertx.sqlclient.Row
 import io.vertx.sqlclient.SqlConnection
 import play.api.libs.json.JsNull
 import play.api.libs.json.Json
 import play.api.libs.json.Reads
 import play.api.libs.json.Writes
-import fr.maif.izanami.Wasmo
 
 import java.time.ZoneOffset
 import java.util.UUID
@@ -44,119 +42,9 @@ import scala.concurrent.ExecutionContext
 
 class ConfigurationDatastore(
     postgresql: => Postgresql,
-    tenantDatastore: => TenantsDatastore,
     eventService: => EventService,
-    maybeOidcConfig: Option[OpenId],
-    wasmoConf: => Wasmo
+    maybeOidcConfig: Option[OpenId]
 )(implicit val ec: ExecutionContext) extends Datastore {
-
-  /** Updates OIDC rights roles to keep only existing stuff. This is used if
-    * existing oidc configuration references non existing project / keys /
-    * webhooks / tenants. This methods verify existence of everything listed in
-    * oidc configuration and remove parts that references non existing stuff.
-    * @param rights
-    *   configuration to update
-    * @return
-    *   updated configuration
-    */
-  def updateOIDCRightByRolesIfNeeded(
-      rights: Map[String, CompleteRightsWithMaxRights]
-  ): FutureEither[Map[String, CompleteRightsWithMaxRights]] = {
-    case class TenantItemsToDelete(
-        projects: Set[String],
-        keys: Set[String],
-        webhooks: Set[String]
-    )
-
-    def deleteNeededItems(
-        tenants: Set[String],
-        tenantItems: Map[String, TenantItemsToDelete]
-    ): Map[String, CompleteRightsWithMaxRights] = {
-      val rightWithoutTenants =
-        rights.view.mapValues(_.removeTenantsRights(tenants)).toMap
-      tenantItems.foldLeft(rightWithoutTenants) {
-        case (r, (tenant, items)) => {
-          r.view
-            .mapValues(
-              _.removeKeyRights(tenant, items.keys)
-                .removeProjectRights(tenant, items.projects)
-                .removeWebhookRights(tenant, items.webhooks)
-            )
-            .toMap
-        }
-      }
-    }
-
-    val tenants: Set[String] = rights.values.flatMap(_.tenants.keySet).toSet
-    tenantDatastore
-      .readTenants()
-      .mapToFEither
-      .flatMap(ts => {
-        val setTenants = ts.map(_.name).toSet
-        val tenantsToDelete = tenants.diff(setTenants)
-        val tenantsToKeep = tenants.diff(tenantsToDelete)
-
-        val tenantItemsToDelete =
-          tenantsToKeep.foldLeft(FutureEither.success(Map(): Map[
-            String,
-            TenantItemsToDelete
-          ]))((acc, t) => {
-            acc.flatMap(map => {
-              require(Tenant.isTenantValid(t))
-
-              (for (
-                existingProjects <- postgresql
-                  .queryAll(
-                    s"""SELECT name from "${t}".projects"""
-                  ) { r => r.optString("name") }
-                  .map(l => l.toSet);
-                existingKeys <- postgresql
-                  .queryAll(
-                    s"""SELECT name from "${t}".apikeys"""
-                  ) { r => r.optString("name") }
-                  .map(l => l.toSet);
-                existingWebhooks <- postgresql
-                  .queryAll(
-                    s"""SELECT name from "${t}".webhooks"""
-                  ) { r => r.optString("name") }
-                  .map(l => l.toSet)
-              ) yield {
-                val completeRights = rights.values
-                val projectToDelete = completeRights
-                  .flatMap(_.tenants(t).projects.keySet.diff(existingProjects))
-                  .toSet
-                val keyToDelete = completeRights
-                  .flatMap(_.tenants(t).keys.keySet.diff(existingKeys))
-                  .toSet
-                val webhookToDelete = completeRights
-                  .flatMap(_.tenants(t).webhooks.keySet.diff(existingWebhooks))
-                  .toSet
-                map + (t -> TenantItemsToDelete(
-                  projects = projectToDelete,
-                  keys = keyToDelete,
-                  webhooks = webhookToDelete
-                ))
-              }).mapToFEither
-            })
-          })
-
-        tenantItemsToDelete.flatMap(toDelete => {
-          val newRights = deleteNeededItems(tenantsToDelete, toDelete)
-          updateOAuthRightByRole(newRights).map(_ => newRights)
-        })
-      })
-  }
-
-  def isOIDCConfigurationEditable: Boolean = {
-    (for (
-      oidcConfig <- maybeOidcConfig;
-      _ <- oidcConfig.clientId;
-      _ <- oidcConfig.clientSecret;
-      _ <- oidcConfig.authorizeUrl;
-      _ <- oidcConfig.tokenUrl
-    ) yield false)
-      .getOrElse(true)
-  }
 
   def oidcConfigurationMigration()
       : FutureEither[Option[FutureEither[FullIzanamiConfiguration]]] = {
@@ -187,14 +75,6 @@ class ConfigurationDatastore(
       }
       .map(_.get)
 
-  }
-
-  def readWasmConfiguration(): Option[WasmoSettings] = {
-    for (
-      url <- wasmoConf.url;
-      clientId <- wasmoConf.clientId;
-      clientSecret <- wasmoConf.clientSecret
-    ) yield WasmoSettings(url.toString, clientId, clientSecret = clientSecret)
   }
 
   def readFullConfiguration(): FutureEither[FullIzanamiConfiguration] = {
@@ -243,7 +123,7 @@ class ConfigurationDatastore(
     FutureEither(res)
   }
 
-  private def updateOAuthRightByRole(
+  def updateOAuthRightByRole(
       rights: Map[String, CompleteRightsWithMaxRights]
   ): FutureEither[Done] = {
     readFullConfiguration().flatMap(oldConf => {
@@ -340,7 +220,7 @@ class ConfigurationDatastore(
               ))
           }.toFEither;
           _ <- if (updatedConfiguration != oldConfig) {
-            (eventService.emitGlobalEvent(
+            eventService.emitGlobalEvent(
               SourceConfigurationUpdatedEvent(
                 user = userInformation.username,
                 origin = origin,
@@ -348,7 +228,7 @@ class ConfigurationDatastore(
                 oldConfiguration = oldConfig,
                 newConfiguration = updatedConfiguration
               )
-            )(conn)).mapToFEither
+            )(conn).mapToFEither
           } else {
             FutureEither.success(())
           }

@@ -1,8 +1,9 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.{ConfigurationDatastore, FeaturesDatastore}
+import fr.maif.izanami.datastores.{FeaturesDatastore}
 import fr.maif.izanami.models.RightLevel
 import fr.maif.izanami.models.RightLevel.Read
+import fr.maif.izanami.services.ConfigurationService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.WasmConfig
 import fr.maif.izanami.wasm.WasmConfigWithFeatures
@@ -23,7 +24,7 @@ class PluginController(
     authAction: => TenantAuthActionFactory,
     adminAuthAction: => AdminAuthAction,
     featuresDatastore: => FeaturesDatastore,
-    configurationDatastore: => ConfigurationDatastore,
+    configurationService: => ConfigurationService,
     wsClient: => WSClient,
     wasmIntegration: => WasmIntegration,
     simpleAuthAction: => AuthenticatedAction
@@ -85,7 +86,7 @@ class PluginController(
 
   def wasmFiles(): Action[AnyContent] = simpleAuthAction.async {
     implicit request =>
-      configurationDatastore
+      configurationService
         .readWasmConfiguration() match {
         case Some(settings @ WasmoSettings(url, _, _, pluginsFilter, _, _)) =>
           Try {

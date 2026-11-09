@@ -17,7 +17,7 @@ import fr.maif.izanami.models.ProjectCreationRequest
 import fr.maif.izanami.models.RightLevel
 import fr.maif.izanami.models.SimpleProject
 import fr.maif.izanami.models.Tenant
-import fr.maif.izanami.utils.Datastore
+import fr.maif.izanami.utils.{Datastore}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ImportController.Fail
 import fr.maif.izanami.web.ImportController.ImportConflictStrategy
@@ -36,6 +36,7 @@ import java.util.regex.Pattern
 import scala.concurrent.Future
 import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.events.EventService
+
 import scala.concurrent.ExecutionContext
 
 class ProjectsDatastore(
@@ -463,6 +464,16 @@ class ProjectsDatastore(
         }
       }
       .map(ps => ps.map(p => (p.id, p)).toMap)
+  }
+
+  def checkProjectExistence(tenant: String, projects: Set[String]): Future[Map[String, Boolean]] = {
+    Tenant.isTenantValid(tenant)
+    postgresql
+      .queryAll(
+        s"""SELECT name from "${tenant}".projects WHERE name=ANY($$1::TEXT[])""",
+        params = List(projects.toArray)
+      ) { r => r.optString("name") }
+      .map(existingProjects => projects.map(p => (p -> existingProjects.contains(p))).toMap)
   }
 }
 

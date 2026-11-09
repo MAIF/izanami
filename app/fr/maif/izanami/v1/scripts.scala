@@ -17,11 +17,11 @@ import play.api.libs.ws.WSClient
 import java.time.Duration
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import fr.maif.izanami.datastores.ConfigurationDatastore
+import fr.maif.izanami.services.ConfigurationService
 
 class WasmManagerClient(
-    configurationDatastore: ConfigurationDatastore,
-    httpClient: WSClient
+                         configurationService: =>ConfigurationService,
+                         httpClient: WSClient
 )(implicit ec: ExecutionContext) {
   val logger: Logger = Logger("wasm-manager")
 
@@ -45,7 +45,7 @@ class WasmManagerClient(
 
   // TODO move this in ConfigurationDatastore directly ???
   def wasmoConfiguration: Option[WasmoSettings] =
-    configurationDatastore.readWasmConfiguration()
+    configurationService.readWasmConfiguration()
 
   def createScript(
       name: String,

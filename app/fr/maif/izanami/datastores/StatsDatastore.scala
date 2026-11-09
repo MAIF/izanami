@@ -19,25 +19,27 @@ import java.time.format.DateTimeFormatter
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.services.ConfigurationService
+
 import scala.concurrent.ExecutionContext
 import org.apache.pekko.actor.ActorSystem
 import play.api.libs.ws.WSClient
 
 // TODO this should be split between service & datastore
 class StatsDatastore(
-    postgresql: => Postgresql,
-    configurationDatastore: => ConfigurationDatastore,
-    httpClient: WSClient,
-    reportingUrl: String,
-    containerized: Boolean,
-    actorSystem: ActorSystem
+                      postgresql: => Postgresql,
+                      configurationService: => ConfigurationService,
+                      httpClient: WSClient,
+                      reportingUrl: String,
+                      containerized: Boolean,
+                      actorSystem: ActorSystem
 )(implicit val ec: ExecutionContext) extends Datastore {
   var anonymousReportingCancellation: Cancellable = Cancellable.alreadyCancelled
 
   override def onStart(): Future[Unit] = {
     anonymousReportingCancellation =
       actorSystem.scheduler.scheduleAtFixedRate(0.minutes, 24.hours)(() =>
-        configurationDatastore
+        configurationService
           .readFullConfiguration()
           .foreach(conf => {
             if (conf.anonymousReporting) {
@@ -103,7 +105,7 @@ class StatsDatastore(
 
   def retrieveRunInformations(): Future[JsObject] = {
     val now = Instant.now()
-    for (izanamiId <- configurationDatastore.readId())
+    for (izanamiId <- configurationService.readId())
       yield Json.obj(
         "os" -> Json.obj(
           "name" -> System.getProperty("os.name"),
@@ -277,8 +279,8 @@ class StatsDatastore(
 
   def readIntegrationInformations(): Future[JsObject] = {
     val isWasmPresent =
-      configurationDatastore.readWasmConfiguration().isDefined
-    configurationDatastore
+      configurationService.readWasmConfiguration().isDefined
+    configurationService
       .readFullConfiguration()
       .fold(
         _ =>
@@ -297,7 +299,7 @@ class StatsDatastore(
   }
 
   def readMailerType(): Future[JsObject] = {
-    configurationDatastore
+    configurationService
       .readFullConfiguration()
       .fold(
         _ => Json.obj(),

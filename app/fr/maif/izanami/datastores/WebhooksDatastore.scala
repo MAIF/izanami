@@ -37,6 +37,16 @@ class WebhooksDatastore(postgresql: => Postgresql)(implicit
     val ec: ExecutionContext
 ) extends Datastore {
 
+  def checkWebhookExistence(tenant: String, webhooks: Set[String]): Future[Map[String, Boolean]] = {
+    Tenant.isTenantValid(tenant)
+    postgresql
+      .queryAll(
+        s"""SELECT name from "${tenant}".webhooks WHERE name=ANY($$1::TEXT[])""",
+        params = List(webhooks.toArray)
+      ) { r => r.optString("name") }
+      .map(existingWebhooks => webhooks.map(p => (p -> existingWebhooks.contains(p))).toMap)
+  }
+
   def createWebhookCall(
       tenant: String,
       webhook: UUID,

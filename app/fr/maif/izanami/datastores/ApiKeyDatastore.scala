@@ -28,6 +28,16 @@ import scala.concurrent.ExecutionContext
 class ApiKeyDatastore(postgresql: => Postgresql)(implicit
     val ec: ExecutionContext
 ) extends Datastore {
+  def checkApiKeyExistence(tenant: String, apikeys: Set[String]): Future[Map[String, Boolean]] = {
+    Tenant.isTenantValid(tenant)
+    postgresql
+      .queryAll(
+        s"""SELECT name from "${tenant}".apikeys WHERE name=ANY($$1::TEXT[])""",
+        params = List(apikeys.toArray)
+      ) { r => r.optString("name") }
+      .map(existingKeys => apikeys.map(p => (p -> existingKeys.contains(p))).toMap)
+  }
+
   def createApiKey(
       apiKey: ApiKey,
       user: UserInformation

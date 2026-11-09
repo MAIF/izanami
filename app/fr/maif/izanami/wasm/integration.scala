@@ -17,16 +17,16 @@ import java.util.concurrent.Executors
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import fr.maif.izanami.datastores.ConfigurationDatastore
 import fr.maif.izanami.datastores.FeaturesDatastore
 import fr.maif.izanami.Wasm
+import fr.maif.izanami.services.ConfigurationService
 import play.api.libs.ws.WSClient
 
 class IzanamiWasmIntegrationContext(
-    configurationDatastore: => ConfigurationDatastore,
-    featureDatastore: => FeaturesDatastore,
-    wasmConfiguration: Wasm,
-    httpClient: WSClient
+                                     configurationService: => ConfigurationService,
+                                     featureDatastore: => FeaturesDatastore,
+                                     wasmConfiguration: Wasm,
+                                     httpClient: WSClient
 )(implicit
     override val executionContext: ExecutionContext,
     override val materializer: Materializer
@@ -56,7 +56,7 @@ class IzanamiWasmIntegrationContext(
   }
 
   override def wasmoSettings: Future[Option[WasmoSettings]] =
-    configurationDatastore.readWasmConfiguration().future
+    configurationService.readWasmConfiguration().future
 
   override def wasmConfig(path: String): Future[Option[WasmConfiguration]] = {
     val parts = path.split("/")

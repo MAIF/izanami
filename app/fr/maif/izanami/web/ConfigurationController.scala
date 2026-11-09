@@ -2,25 +2,15 @@ package fr.maif.izanami.web
 
 import buildinfo.BuildInfo
 import fr.maif.izanami.{Cluster, ExpositionUrls, FeatureConfiguration}
-import fr.maif.izanami.datastores.{
-  ConfigurationDatastore,
-  StatsDatastore,
-  TenantsDatastore,
-  UsersDatastore
-}
+import fr.maif.izanami.datastores.{StatsDatastore, TenantsDatastore, UsersDatastore}
 import fr.maif.izanami.errors.BadBodyFormat
 import fr.maif.izanami.errors.CantUpdateOIDCCOnfiguration
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
 import fr.maif.izanami.mail.MailGunMailProvider
 import fr.maif.izanami.mail.MailJetMailProvider
 import fr.maif.izanami.mail.SMTPMailProvider
-import fr.maif.izanami.models.FullIzanamiConfiguration
 import fr.maif.izanami.models.IzanamiConfiguration
-import fr.maif.izanami.services.{
-  FeatureService,
-  MaxRights,
-  PostgresTransactionProvider
-}
+import fr.maif.izanami.services.{ConfigurationService, FeatureService, MaxRights, PostgresTransactionProvider}
 import fr.maif.izanami.utils.Done
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
@@ -38,17 +28,17 @@ import play.api.Logger
 import scala.concurrent.Future
 
 class ConfigurationController(
-    val controllerComponents: ControllerComponents,
-    adminAuthAction: => AdminAuthAction,
-    featureService: => FeatureService,
-    statsDatastore: => StatsDatastore,
-    configurationDatastore: => ConfigurationDatastore,
-    tenantsDatastore: => TenantsDatastore,
-    transactionProvider: => PostgresTransactionProvider,
-    usersDatastore: => UsersDatastore,
-    cluster: Cluster,
-    featureConfiguration: FeatureConfiguration,
-    expossitionUrls: ExpositionUrls
+                               val controllerComponents: ControllerComponents,
+                               adminAuthAction: => AdminAuthAction,
+                               featureService: => FeatureService,
+                               statsDatastore: => StatsDatastore,
+                               configurationService: => ConfigurationService,
+                               tenantsDatastore: => TenantsDatastore,
+                               transactionProvider: => PostgresTransactionProvider,
+                               usersDatastore: => UsersDatastore,
+                               cluster: Cluster,
+                               featureConfiguration: FeatureConfiguration,
+                               expossitionUrls: ExpositionUrls
 )(implicit val ec: ExecutionContext)
     extends BaseController {
   val logger = Logger("ConfigurationController")
@@ -69,7 +59,7 @@ class ConfigurationController(
           case JsError(_) => BadBodyFormat().toHttpResponse.future
           case JsSuccess(configurationFromBody, _path) => {
             val futureConfiguration =
-              configurationDatastore.readFullConfiguration()
+              configurationService.readFullConfiguration()
             futureConfiguration
               .flatMap(oldConfiguration => {
                 val mailerConfigurationWithSecrets = (
@@ -111,7 +101,7 @@ class ConfigurationController(
                 )
 
                 val hasOidcPartChanged =
-                  ConfigurationController.hasOIDCConfChanged(
+                  ConfigurationService.hasOIDCConfChanged(
                     oldConfiguration,
                     inputConfigurationWithSecret
                   )
@@ -123,7 +113,7 @@ class ConfigurationController(
                 )
 
                 if (
-                  hasOidcPartChanged && !configurationDatastore.isOIDCConfigurationEditable
+                  hasOidcPartChanged && !configurationService.isOIDCConfigurationEditable
                 ) {
                   FutureEither.failure(CantUpdateOIDCCOnfiguration)
                 } else {
@@ -137,7 +127,7 @@ class ConfigurationController(
                      } else {
                        FutureEither.success(Done.done())
                      }).flatMap(_ => {
-                      configurationDatastore
+                      configurationService
                         .updateConfiguration(
                           inputConfigurationWithSecret,
                           userInformation = StandardUserInformation(
@@ -160,9 +150,9 @@ class ConfigurationController(
   def readConfiguration(): Action[AnyContent] = adminAuthAction.async {
     implicit request =>
       val preventOAuthModification =
-        JsBoolean(!configurationDatastore.isOIDCConfigurationEditable)
+        JsBoolean(!configurationService.isOIDCConfigurationEditable)
 
-      configurationDatastore
+      configurationService
         .readFullConfiguration()
         .toResult(configuration => {
           val json = Json
@@ -218,8 +208,8 @@ class ConfigurationController(
   def availableIntegrations(): Action[AnyContent] = Action.async {
     implicit request =>
       val isWasmPresent =
-        configurationDatastore.readWasmConfiguration().isDefined
-      configurationDatastore
+        configurationService.readWasmConfiguration().isDefined
+      configurationService
         .readFullConfiguration()
         .toResult(c => {
           Ok(
@@ -274,12 +264,5 @@ object ConfigurationController {
         }
       }
     }
-  }
-
-  def hasOIDCConfChanged(
-      oldConfig: FullIzanamiConfiguration,
-      newConfig: FullIzanamiConfiguration
-  ): Boolean = {
-    oldConfig.oidcConfiguration != newConfig.oidcConfiguration
   }
 }

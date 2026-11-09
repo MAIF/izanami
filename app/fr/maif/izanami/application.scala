@@ -4,17 +4,7 @@ import com.softwaremill.macwire.wire
 import controllers.Assets
 import controllers.AssetsComponents
 import fr.maif.izanami.errors.IzanamiHttpErrorHandler
-import fr.maif.izanami.services.{
-  APIKeyService,
-  AuthService,
-  FeatureService,
-  FeatureUsageService,
-  PostgresTransactionProvider,
-  RightService,
-  TagService,
-  TenantService,
-  WebhookService
-}
+import fr.maif.izanami.services.{APIKeyService, AuthService, ConfigurationService, FeatureService, FeatureUsageService, PostgresTransactionProvider, RightService, TagService, TenantService, WebhookService}
 import fr.maif.izanami.v1.WasmManagerClient
 import fr.maif.izanami.web.*
 import play.api.*
@@ -181,16 +171,14 @@ class IzanamiComponentsInstances(
   lazy val configurationDatastore: ConfigurationDatastore =
     new ConfigurationDatastore(
       postgresql = postgresql,
-      tenantDatastore = tenantDatastore,
       eventService = eventService,
-      maybeOidcConfig = typedConfig.app.openid,
-      wasmoConf = typedConfig.app.wasmo
+      maybeOidcConfig = typedConfig.app.openid
     )
   lazy val webhookDatastore: WebhooksDatastore =
     new WebhooksDatastore(postgresql = postgresql)
   lazy val statDatastore: StatsDatastore = new StatsDatastore(
     postgresql = postgresql,
-    configurationDatastore = configurationDatastore,
+    configurationService = configurationService,
     httpClient = wsClient,
     reportingUrl = typedConfig.app.reporting.url.toString,
     containerized = typedConfig.app.containerized,
@@ -221,10 +209,20 @@ class IzanamiComponentsInstances(
   )
   lazy val transactionProvider: PostgresTransactionProvider =
     new PostgresTransactionProvider(pool = postgresql.pool)
+  
+  lazy val configurationService = ConfigurationService(
+    datastore = configurationDatastore,
+    maybeOidcConfig = typedConfig.app.openid,
+    wasmoConf = typedConfig.app.wasmo,
+    projectDatastore = projectDatastore,
+    apiKeyDatastore = apiKeyDatastore,
+    webhooksDatastore = webhookDatastore,
+    tenantDatastore = tenantDatastore
+  )
 
   lazy val wasmIntegration: WasmIntegration = WasmIntegration(
     new IzanamiWasmIntegrationContext(
-      configurationDatastore = configurationDatastore,
+      configurationService = configurationService,
       featureDatastore = featureDatstore,
       wasmConfiguration = typedConfig.app.wasm,
       httpClient = wsClient
@@ -357,7 +355,7 @@ class IzanamiComponentsInstances(
     sessionAuthAction = sessionAuthAction,
     wsClient = wsClient,
     jwtService = jwtService,
-    configurationDatastore = configurationDatastore,
+    configurationService = configurationService,
     usersDatastore = userDatastore,
     postgresTransactionProvider = transactionProvider,
     openIdConfiguration = typedConfig.app.openid,
