@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkizanami_documentation||=[]).push([[7472],{5513(t){t.exports=JSON.parse('{"title":"Recent posts","items":[]}')}}]);
