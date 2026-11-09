@@ -22,7 +22,7 @@
     "docusaurus-lunr-search": "^3.6.0",
     "prism-react-renderer": "^2.4.1",
     "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react-dom": "^19.3.1",
     "swagger-ui-react": "^5.34.1"
   },
   "devDependencies": {
