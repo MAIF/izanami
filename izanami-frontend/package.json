@@ -64,7 +64,7 @@
     "terser": "^5.51.2",
     "typescript": "7.0.2",
     "undici": "^8.12.2",
-    "vite": "^6.4.5",
+    "vite": "^8.3.6",
     "vitest": "^5.1.0"
   },
   "overrides": {
