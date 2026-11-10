@@ -31,7 +31,7 @@
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.2",
     "classnames": "^2.5.1",
-    "date-fns": "^2.30.0",
+    "date-fns": "^4.4.0",
     "handlebars": "^4.7.10",
     "lodash": "^4.17.21",
     "react": "19.3.1",
