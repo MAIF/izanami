@@ -1,29 +1,23 @@
 package fr.maif.izanami.security
 
-import com.github.blemale.scaffeine.Scaffeine
 import com.github.benmanes.caffeine.cache.Ticker
+import com.github.blemale.scaffeine.Scaffeine
 import fr.maif.izanami.errors.{InvalidOIDCToken, IzanamiError}
 import fr.maif.izanami.models.OAuth2Configuration
-import pdi.jwt.{JwtAlgorithm, JwtClaim, JwtJson, JwtOptions}
 import pdi.jwt.algorithms.JwtAsymmetricAlgorithm
+import pdi.jwt.{JwtAlgorithm, JwtClaim, JwtJson, JwtOptions}
 import play.api.Logger
 import play.api.libs.json.*
 import play.api.libs.ws.WSClient
 
 import java.math.BigInteger
 import java.net.URI
+import java.security.spec.*
 import java.security.{AlgorithmParameters, KeyFactory, PublicKey}
-import java.security.spec.{
-  ECGenParameterSpec,
-  ECParameterSpec,
-  ECPoint,
-  ECPublicKeySpec,
-  RSAPublicKeySpec
-}
 import java.time.Instant
 import java.util.Base64
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.*
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 import scala.util.control.NonFatal
 

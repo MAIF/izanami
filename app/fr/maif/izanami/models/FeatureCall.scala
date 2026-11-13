@@ -1,15 +1,15 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
+import fr.maif.izanami.models.features.EvaluationResultWrapper
 import fr.maif.izanami.web.FeatureContextPath
-import play.api.libs.json.JsValue
 
 import java.time.Instant
 
 case class FeatureCall(
     tenant: String,
     feature: String,
-    result: JsValue,
+    result: EvaluationResultWrapper,
     context: FeatureContextPath,
     time: Instant,
     origin: FeatureCallOrigin,

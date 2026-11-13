@@ -1,31 +1,24 @@
 package fr.maif.izanami.jobs
 
+import fr.maif.izanami.WebhookRetry
+import fr.maif.izanami.datastores.{TenantsDatastore, WebhooksDatastore}
 import fr.maif.izanami.errors.{TenantDoesNotExists, WebhookCallError}
 import fr.maif.izanami.events.*
-import fr.maif.izanami.models.LightWebhook
-import fr.maif.izanami.models.RequestContext
+import fr.maif.izanami.models.{LightWebhook, RequestContext}
+import fr.maif.izanami.services.WebhookService
+import fr.maif.izanami.utils.{Done, FutureEither}
+import fr.maif.izanami.utils.syntax.implicits.BetterFuture
 import fr.maif.izanami.web.FeatureContextPath
-import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.actor.Cancellable
+import org.apache.pekko.actor.{ActorSystem, Cancellable}
+import play.api.Logger
 import play.api.libs.json.JsValue
 import play.api.libs.ws.DefaultBodyWritables.writeableOf_String
+import play.api.libs.ws.WSClient
 
 import java.time.Instant
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.duration.*
-import play.api.Logger
-
 import scala.collection.concurrent.TrieMap
-
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.Done
-import fr.maif.izanami.utils.syntax.implicits.BetterFuture
-import fr.maif.izanami.datastores.WebhooksDatastore
-import fr.maif.izanami.WebhookRetry
-import fr.maif.izanami.datastores.TenantsDatastore
-import fr.maif.izanami.services.WebhookService
-import play.api.libs.ws.WSClient
+import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration.*
 
 class WebhookListener(
     datastore: => WebhooksDatastore,

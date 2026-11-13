@@ -1,10 +1,9 @@
 package fr.maif.izanami.v1
 
-import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.errors.NoWasmManagerConfigured
+import fr.maif.izanami.errors.{IzanamiError, NoWasmManagerConfigured}
+import fr.maif.izanami.services.ConfigurationService
 import fr.maif.izanami.v1.OldScripts.generateNewScriptContent
-import io.otoroshi.wasm4s.scaladsl.ApikeyHelper
-import io.otoroshi.wasm4s.scaladsl.WasmoSettings
+import io.otoroshi.wasm4s.scaladsl.{ApikeyHelper, WasmoSettings}
 import org.apache.pekko.util.ByteString
 import org.mozilla.javascript.Parser
 import org.mozilla.javascript.ast.*
@@ -15,13 +14,11 @@ import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue
 import play.api.libs.ws.WSClient
 
 import java.time.Duration
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import fr.maif.izanami.services.ConfigurationService
+import scala.concurrent.{ExecutionContext, Future}
 
 class WasmManagerClient(
-                         configurationService: =>ConfigurationService,
-                         httpClient: WSClient
+    configurationService: => ConfigurationService,
+    httpClient: WSClient
 )(implicit ec: ExecutionContext) {
   val logger: Logger = Logger("wasm-manager")
 

@@ -5,8 +5,7 @@ import fr.maif.izanami.mail.*
 import fr.maif.izanami.mail.MailGunRegion.mailGunRegionReads
 import fr.maif.izanami.models.InvitationMode.invitationModeReads
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2Method
-import fr.maif.izanami.services.CompleteRightsWithMaxRights
-import fr.maif.izanami.services.MaxRights
+import fr.maif.izanami.services.{CompleteRightsWithMaxRights, MaxRights}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*

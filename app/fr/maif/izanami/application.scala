@@ -1,59 +1,40 @@
 package fr.maif.izanami
 
 import com.softwaremill.macwire.wire
-import controllers.Assets
-import controllers.AssetsComponents
-import fr.maif.izanami.errors.IzanamiHttpErrorHandler
-import fr.maif.izanami.services.{APIKeyService, AuthService, ConfigurationService, FeatureService, FeatureUsageService, PostgresTransactionProvider, RightService, TagService, TenantService, WebhookService}
-import fr.maif.izanami.v1.WasmManagerClient
-import fr.maif.izanami.web.*
-import play.api.*
-import play.api.ApplicationLoader.Context
-import play.api.http.DefaultHttpFilters
-import play.api.http.HttpErrorHandler
-import play.api.libs.ws.ahc.AhcWSComponents
-import play.api.mvc.EssentialFilter
-import play.api.routing.Router
-import play.filters.HttpFiltersComponents
-import play.filters.cors.CORSConfig
-import play.filters.cors.CORSFilter
-import play.filters.csp.CSPComponents
-import play.filters.csrf.CSRFFilter
-import play.filters.gzip.GzipFilterComponents
-import play.filters.https.RedirectHttpsComponents
-
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.concurrent.duration.DurationInt
-import fr.maif.izanami.datastores.ApiKeyDatastore
-import fr.maif.izanami.datastores.WebhooksDatastore
-import fr.maif.izanami.datastores.TenantsDatastore
-import fr.maif.izanami.datastores.ProjectsDatastore
-import fr.maif.izanami.datastores.TagsDatastore
-import org.apache.pekko.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
-import fr.maif.izanami.datastores.FeaturesDatastore
+import controllers.{Assets, AssetsComponents}
+import fr.maif.izanami.datastores.*
 import fr.maif.izanami.env.Postgresql
-import fr.maif.izanami.datastores.FeatureCallsDatastore
-import fr.maif.izanami.datastores.FeatureContextDatastore
-import fr.maif.izanami.datastores.UsersDatastore
-import fr.maif.izanami.datastores.ConfigurationDatastore
-import fr.maif.izanami.datastores.StatsDatastore
-import fr.maif.izanami.datastores.ImportExportDatastore
-import fr.maif.izanami.datastores.SearchDatastore
-import fr.maif.izanami.datastores.PersonnalAccessTokenDatastore
-import fr.maif.izanami.datastores.EventDatastore
+import fr.maif.izanami.errors.IzanamiHttpErrorHandler
 import fr.maif.izanami.events.EventService
 import fr.maif.izanami.jobs.WebhookListener
 import fr.maif.izanami.mail.Mails
 import fr.maif.izanami.security.JwtService
-
-import javax.crypto.spec.SecretKeySpec
+import fr.maif.izanami.services.*
+import fr.maif.izanami.v1.WasmManagerClient
 import fr.maif.izanami.wasm.{IzanamiWasmIntegrationContext, WasmRelatedStuff}
-import io.otoroshi.wasm4s.scaladsl.WasmIntegration
+import fr.maif.izanami.web.*
 import io.otoroshi.wasm4s.IzanamiWasm4sCleanup
+import io.otoroshi.wasm4s.scaladsl.WasmIntegration
+import org.apache.pekko.actor.ActorSystem
+import play.api.*
+import play.api.ApplicationLoader.Context
+import play.api.http.{DefaultHttpFilters, HttpErrorHandler}
+import play.api.libs.ws.ahc.AhcWSComponents
+import play.api.mvc.EssentialFilter
+import play.api.routing.Router
+import play.filters.HttpFiltersComponents
+import play.filters.cors.{CORSConfig, CORSFilter}
+import play.filters.csp.CSPComponents
+import play.filters.csrf.CSRFFilter
+import play.filters.gzip.GzipFilterComponents
+import play.filters.https.RedirectHttpsComponents
 import router.Routes
 
 import java.time.Duration
+import javax.crypto.spec.SecretKeySpec
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 case class ExpositionUrls(expositionUrl: String, backendUrl: Option[String])
 
@@ -209,7 +190,7 @@ class IzanamiComponentsInstances(
   )
   lazy val transactionProvider: PostgresTransactionProvider =
     new PostgresTransactionProvider(pool = postgresql.pool)
-  
+
   lazy val configurationService = ConfigurationService(
     datastore = configurationDatastore,
     maybeOidcConfig = typedConfig.app.openid,
@@ -321,13 +302,15 @@ class IzanamiComponentsInstances(
 
   lazy val tagService: TagService = wire[TagService]
   lazy val tenantService: TenantService = wire[TenantService]
+  lazy val evaluationService: EvaluationService = wire[EvaluationService]
   lazy val featureService: FeatureService = new FeatureService(
     datastore = featureDatstore,
     featureContextDatastore = featureContextDatastore,
     tagDatastore = tagDatastore,
     configuration = featureConfiguration,
     transactionProvider = transactionProvider,
-    wasmRelatedStuff = wasmRelatedStuff
+    wasmRelatedStuff = wasmRelatedStuff,
+    evaluationService = evaluationService
   )
   lazy val apiKeyService: APIKeyService = wire[APIKeyService]
   lazy val webhookService: WebhookService = wire[WebhookService]

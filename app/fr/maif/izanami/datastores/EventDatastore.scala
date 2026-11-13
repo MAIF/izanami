@@ -1,28 +1,27 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.EventDatastore.AscOrder
+import fr.maif.izanami.datastores.EventDatastore.{
+  AscOrder,
+  FeatureEventRequest,
+  TenantEventRequest
+}
 import fr.maif.izanami.datastores.TenantsDatastore
-import fr.maif.izanami.datastores.EventDatastore.FeatureEventRequest
-import fr.maif.izanami.datastores.EventDatastore.TenantEventRequest
+import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.EventNotFound
-import fr.maif.izanami.errors.FailedToReadEvent
-import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.events.EventService.FeatureEventType
-import fr.maif.izanami.events.EventService.IZANAMI_CHANNEL
-import fr.maif.izanami.events.EventService.eventFormat
+import fr.maif.izanami.errors.{EventNotFound, FailedToReadEvent, IzanamiError}
+import fr.maif.izanami.events.EventService.{
+  FeatureEventType,
+  IZANAMI_CHANNEL,
+  eventFormat
+}
 import fr.maif.izanami.events.IzanamiEvent
 import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.utils.Datastore
-import org.apache.pekko.actor.Cancellable
+import org.apache.pekko.actor.{ActorSystem, Cancellable}
 
-import java.time.Instant
-import java.time.ZoneOffset
-import scala.concurrent.Future
+import java.time.{Instant, ZoneOffset}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationLong
-import fr.maif.izanami.env.Postgresql
-import org.apache.pekko.actor.ActorSystem
-import scala.concurrent.ExecutionContext
 
 class EventDatastore(
     postgresql: => Postgresql,

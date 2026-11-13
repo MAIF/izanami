@@ -1,60 +1,40 @@
 package fr.maif.izanami.events
 
-import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.env.pgimplicits.VertxFutureEnhancer
+import fr.maif.izanami.datastores.{EventDatastore, ProjectsDatastore}
+import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.env.pgimplicits.{EnhancedRow, VertxFutureEnhancer}
 import fr.maif.izanami.events.EventAuthentication.eventAuthenticationReads
-import fr.maif.izanami.events.EventOrigin.ORIGIN_NAME_MAP
-import fr.maif.izanami.events.EventOrigin.eventOriginReads
-import fr.maif.izanami.events.EventService.IZANAMI_CHANNEL
-import fr.maif.izanami.events.EventService.sourceEventWrites
-import fr.maif.izanami.models.ConfigurationForExposition
-import fr.maif.izanami.models.Feature.lightweightFeatureRead
-import fr.maif.izanami.models.Feature.lightweightFeatureWrite
-import fr.maif.izanami.models.Feature.writeStrategiesForEvent
-import fr.maif.izanami.models.FeatureWithOverloads
+import fr.maif.izanami.events.EventOrigin.{ORIGIN_NAME_MAP, eventOriginReads}
+import fr.maif.izanami.events.EventService.{
+  IZANAMI_CHANNEL,
+  lightSourceEventWrites,
+  sourceEventWrites
+}
+import fr.maif.izanami.models.Feature.{
+  lightweightFeatureRead,
+  lightweightFeatureWrite,
+  writeStrategiesForEvent
+}
 import fr.maif.izanami.models.FeatureWithOverloads.featureWithOverloadWrite
-import fr.maif.izanami.models.FullIzanamiConfiguration
-import fr.maif.izanami.models.IzanamiConfiguration
-import fr.maif.izanami.models.LightWeightFeature
-import fr.maif.izanami.models.RequestContext
-import fr.maif.izanami.models.Tenant
-import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.v1.V2FeatureEvents.createEventV2
-import fr.maif.izanami.v1.V2FeatureEvents.deleteEventV2
-import fr.maif.izanami.v1.V2FeatureEvents.updateEventV2
+import fr.maif.izanami.models.*
+import fr.maif.izanami.services.FeatureService
+import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
+import fr.maif.izanami.v1.V2FeatureEvents.{
+  createEventV2,
+  deleteEventV2,
+  updateEventV2
+}
 import io.vertx.pgclient.pubsub.PgSubscriber
 import io.vertx.sqlclient.SqlConnection
 import org.apache.pekko.NotUsed
-import org.apache.pekko.stream.KillSwitches
-import org.apache.pekko.stream.Materializer
-import org.apache.pekko.stream.SharedKillSwitch
-import org.apache.pekko.stream.scaladsl.BroadcastHub
-import org.apache.pekko.stream.scaladsl.Keep
-import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.stream.{KillSwitches, Materializer, SharedKillSwitch}
+import org.apache.pekko.stream.scaladsl.{BroadcastHub, Keep, Source}
 import play.api.Logger
-import play.api.libs.json.Format
-import play.api.libs.json.JsError
-import play.api.libs.json.JsNumber
-import play.api.libs.json.JsObject
-import play.api.libs.json.JsResult
-import play.api.libs.json.JsString
-import play.api.libs.json.JsSuccess
-import play.api.libs.json.JsValue
-import play.api.libs.json.Json
-import play.api.libs.json.Reads
-import play.api.libs.json.Writes
+import play.api.libs.json.*
 
-import java.time.Instant
-import java.time.OffsetDateTime
+import java.time.{Instant, OffsetDateTime}
 import java.util.UUID
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import fr.maif.izanami.events.EventService.lightSourceEventWrites
-import fr.maif.izanami.services.FeatureService
-import fr.maif.izanami.datastores.ProjectsDatastore
-import fr.maif.izanami.env.Postgresql
-import fr.maif.izanami.datastores.EventDatastore
+import scala.concurrent.{ExecutionContext, Future}
 
 sealed trait EventOrigin
 

@@ -1,23 +1,19 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.{FeaturesDatastore}
+import fr.maif.izanami.datastores.FeaturesDatastore
 import fr.maif.izanami.models.RightLevel
 import fr.maif.izanami.models.RightLevel.Read
 import fr.maif.izanami.services.ConfigurationService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.wasm.WasmConfig
-import fr.maif.izanami.wasm.WasmConfigWithFeatures
+import fr.maif.izanami.wasm.{WasmConfig, WasmConfigWithFeatures}
 import io.otoroshi.wasm4s.scaladsl.{WasmIntegration, WasmoSettings}
 import play.api.Logger
-import play.api.libs.json.JsValue
-import play.api.libs.json.Json
+import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws.WSClient
 import play.api.mvc.*
 
 import scala.concurrent.ExecutionContext
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class PluginController(
     val controllerComponents: ControllerComponents,

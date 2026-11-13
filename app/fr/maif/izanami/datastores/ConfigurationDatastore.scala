@@ -1,44 +1,46 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.ConfigurationDatastore.parseDbMailer
-import fr.maif.izanami.datastores.ConfigurationDatastore.parseInvitationMode
+import fr.maif.izanami.OpenId
+import fr.maif.izanami.datastores.ConfigurationDatastore.{
+  parseDbMailer,
+  parseInvitationMode
+}
 import fr.maif.izanami.datastores.configurationImplicits.MailerConfigurationRow
+import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.ConfigurationReadError
-import fr.maif.izanami.errors.InternalServerError
-import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.events.EventOrigin
+import fr.maif.izanami.errors.{
+  ConfigurationReadError,
+  InternalServerError,
+  IzanamiError
+}
 import fr.maif.izanami.events.EventOrigin.TechnicalOrigin
-import fr.maif.izanami.events.SourceConfigurationUpdatedEvent
+import fr.maif.izanami.events.{
+  EventOrigin,
+  EventService,
+  SourceConfigurationUpdatedEvent
+}
 import fr.maif.izanami.mail.*
 import fr.maif.izanami.models.*
-import fr.maif.izanami.models.IzanamiConfiguration.SMTPConfigurationReads
-import fr.maif.izanami.models.IzanamiConfiguration.SMTPConfigurationWrites
-import fr.maif.izanami.models.IzanamiConfiguration.mailGunConfigurationReads
-import fr.maif.izanami.models.IzanamiConfiguration.mailJetConfigurationReads
+import fr.maif.izanami.models.IzanamiConfiguration.{
+  SMTPConfigurationReads,
+  SMTPConfigurationWrites,
+  mailGunConfigurationReads,
+  mailJetConfigurationReads
+}
 import fr.maif.izanami.services.CompleteRightsWithMaxRights
-import fr.maif.izanami.utils.Datastore
-import fr.maif.izanami.utils.Done
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterFuture
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.web.IzanamiApplicationUserInformation
-import fr.maif.izanami.web.UserInformation
-import io.vertx.sqlclient.Row
-import io.vertx.sqlclient.SqlConnection
-import play.api.libs.json.JsNull
-import play.api.libs.json.Json
-import play.api.libs.json.Reads
-import play.api.libs.json.Writes
+import fr.maif.izanami.utils.{Datastore, Done, FutureEither}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterFuture,
+  BetterFutureEither,
+  BetterJsValue
+}
+import fr.maif.izanami.web.{IzanamiApplicationUserInformation, UserInformation}
+import io.vertx.sqlclient.{Row, SqlConnection}
+import play.api.libs.json.{JsNull, Json, Reads, Writes}
 
 import java.time.ZoneOffset
 import java.util.UUID
-import scala.concurrent.Future
-import fr.maif.izanami.env.Postgresql
-import fr.maif.izanami.OpenId
-import fr.maif.izanami.events.EventService
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 class ConfigurationDatastore(
     postgresql: => Postgresql,

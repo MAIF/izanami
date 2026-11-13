@@ -12,8 +12,7 @@ import play.api.libs.json.*
 
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 object implicits {
   implicit class BetterSyntax[A](private val obj: A) extends AnyVal {

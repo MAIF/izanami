@@ -1,28 +1,14 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.models.LightWebhook
-import fr.maif.izanami.models.RightLevel
-import fr.maif.izanami.models.Webhook
+import fr.maif.izanami.models.{LightWebhook, RightLevel, Webhook}
+import fr.maif.izanami.services.WebhookService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.libs.json.{
-  JsError,
-  JsObject,
-  JsSuccess,
-  JsValue,
-  Json,
-  Reads,
-  Writes
-}
-import play.api.mvc.Action
-import play.api.mvc.AnyContent
-import play.api.mvc.BaseController
-import play.api.mvc.ControllerComponents
+import play.api.libs.json.*
+import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
 import java.util.UUID
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
-import fr.maif.izanami.services.WebhookService
 
 class WebhookController(
     val controllerComponents: ControllerComponents,

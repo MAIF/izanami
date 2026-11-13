@@ -4,15 +4,10 @@ import fr.maif.izanami.datastores.FeaturesDatastore
 import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.models.RequestContext
 import fr.maif.izanami.services.FeatureService
-import play.api.libs.json.JsObject
-import play.api.libs.json.Json
-import play.api.mvc.Action
-import play.api.mvc.AnyContent
-import play.api.mvc.BaseController
-import play.api.mvc.ControllerComponents
+import play.api.libs.json.{JsObject, Json}
+import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class LegacyController(
     val controllerComponents: ControllerComponents,

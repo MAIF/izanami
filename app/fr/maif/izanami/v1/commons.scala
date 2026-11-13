@@ -1,13 +1,13 @@
 package fr.maif.izanami.v1
 
-import fr.maif.izanami.models.ProjectAtomicRight
-import fr.maif.izanami.models.ProjectRightLevel
-import fr.maif.izanami.models.RightLevel
-import fr.maif.izanami.models.TenantRight
+import fr.maif.izanami.models.{
+  ProjectAtomicRight,
+  ProjectRightLevel,
+  RightLevel,
+  TenantRight
+}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.libs.json.JsError
-import play.api.libs.json.JsSuccess
-import play.api.libs.json.Reads
+import play.api.libs.json.{JsError, JsSuccess, Reads}
 
 sealed trait Right
 case object Read extends Right

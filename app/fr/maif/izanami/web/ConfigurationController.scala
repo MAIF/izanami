@@ -1,44 +1,47 @@
 package fr.maif.izanami.web
 
 import buildinfo.BuildInfo
-import fr.maif.izanami.{Cluster, ExpositionUrls, FeatureConfiguration}
-import fr.maif.izanami.datastores.{StatsDatastore, TenantsDatastore, UsersDatastore}
-import fr.maif.izanami.errors.BadBodyFormat
-import fr.maif.izanami.errors.CantUpdateOIDCCOnfiguration
+import fr.maif.izanami.datastores.{
+  StatsDatastore,
+  TenantsDatastore,
+  UsersDatastore
+}
+import fr.maif.izanami.errors.{BadBodyFormat, CantUpdateOIDCCOnfiguration}
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
-import fr.maif.izanami.mail.MailGunMailProvider
-import fr.maif.izanami.mail.MailJetMailProvider
-import fr.maif.izanami.mail.SMTPMailProvider
-import fr.maif.izanami.models.IzanamiConfiguration
-import fr.maif.izanami.services.{ConfigurationService, FeatureService, MaxRights, PostgresTransactionProvider}
-import fr.maif.izanami.utils.Done
-import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.mail.{
+  MailGunMailProvider,
+  MailJetMailProvider,
+  SMTPMailProvider
+}
+import fr.maif.izanami.models.{IzanamiConfiguration, IzanamiMode}
+import fr.maif.izanami.services.{
+  ConfigurationService,
+  FeatureService,
+  MaxRights,
+  PostgresTransactionProvider
+}
+import fr.maif.izanami.utils.{Done, FutureEither}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ConfigurationController.extractRoleWithLoweredRights
-import play.api.libs.json.*
-import play.api.mvc.Action
-import play.api.mvc.AnyContent
-import play.api.mvc.BaseController
-import play.api.mvc.ControllerComponents
-
-import scala.concurrent.ExecutionContext
-import fr.maif.izanami.models.IzanamiMode
+import fr.maif.izanami.{Cluster, ExpositionUrls, FeatureConfiguration}
 import play.api.Logger
+import play.api.libs.json.*
+import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class ConfigurationController(
-                               val controllerComponents: ControllerComponents,
-                               adminAuthAction: => AdminAuthAction,
-                               featureService: => FeatureService,
-                               statsDatastore: => StatsDatastore,
-                               configurationService: => ConfigurationService,
-                               tenantsDatastore: => TenantsDatastore,
-                               transactionProvider: => PostgresTransactionProvider,
-                               usersDatastore: => UsersDatastore,
-                               cluster: Cluster,
-                               featureConfiguration: FeatureConfiguration,
-                               expossitionUrls: ExpositionUrls
+    val controllerComponents: ControllerComponents,
+    adminAuthAction: => AdminAuthAction,
+    featureService: => FeatureService,
+    statsDatastore: => StatsDatastore,
+    configurationService: => ConfigurationService,
+    tenantsDatastore: => TenantsDatastore,
+    transactionProvider: => PostgresTransactionProvider,
+    usersDatastore: => UsersDatastore,
+    cluster: Cluster,
+    featureConfiguration: FeatureConfiguration,
+    expossitionUrls: ExpositionUrls
 )(implicit val ec: ExecutionContext)
     extends BaseController {
   val logger = Logger("ConfigurationController")

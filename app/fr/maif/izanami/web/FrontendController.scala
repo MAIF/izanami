@@ -1,10 +1,7 @@
 package fr.maif.izanami.web
 
 import controllers.Assets
-import play.api.mvc.Action
-import play.api.mvc.AnyContent
-import play.api.mvc.BaseController
-import play.api.mvc.ControllerComponents
+import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
 class FrontendController(
     val assets: Assets,

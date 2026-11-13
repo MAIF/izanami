@@ -1,54 +1,48 @@
 package fr.maif.izanami.web
 
+import fr.maif.izanami.datastores.EventDatastore.{
+  AscOrder,
+  TenantEventRequest,
+  parseSortOrder
+}
 import fr.maif.izanami.datastores.{
   EventDatastore,
   PersonnalAccessTokenDatastore,
   ProjectsDatastore
 }
+import fr.maif.izanami.errors.BadBodyFormat
 import fr.maif.izanami.events.*
+import fr.maif.izanami.jobs.WebhookListener
 import fr.maif.izanami.models.*
 import fr.maif.izanami.services.FeatureService
-import fr.maif.izanami.v1.V1FeatureEvents.createEvent
-import fr.maif.izanami.v1.V1FeatureEvents.deleteEvent
-import fr.maif.izanami.v1.V1FeatureEvents.keepAliveEvent
-import fr.maif.izanami.v1.V1FeatureEvents.updateEvent
+import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.v1.V1FeatureEvents.{
+  createEvent,
+  deleteEvent,
+  keepAliveEvent,
+  updateEvent
+}
 import fr.maif.izanami.v1.V2FeatureEvents.*
+import fr.maif.izanami.web.ProjectController.parseStringSet
+import fr.maif.izanami.web.formats.FeatureFormats
 import org.apache.pekko.NotUsed
 import org.apache.pekko.stream.Materializer
-import org.apache.pekko.stream.scaladsl.Flow
-import org.apache.pekko.stream.scaladsl.Merge
-import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.stream.scaladsl.{Flow, Merge, Source}
+import play.api.Logger
 import play.api.http.ContentTypes
 import play.api.libs.EventSource
-import play.api.libs.EventSource.EventDataExtractor
-import play.api.libs.EventSource.EventIdExtractor
-import play.api.libs.EventSource.EventNameExtractor
-import play.api.libs.json.JsObject
-import play.api.libs.json.JsValue
-import play.api.libs.json.Json
-import play.api.mvc.Action
-import play.api.mvc.AnyContent
-import play.api.mvc.BaseController
-import play.api.mvc.ControllerComponents
+import play.api.libs.EventSource.{
+  EventDataExtractor,
+  EventIdExtractor,
+  EventNameExtractor
+}
+import play.api.libs.json.*
+import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
 import java.time.Instant
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
-import scala.util.Failure
-import scala.util.Success
-import fr.maif.izanami.web.ProjectController.parseStringSet
-import fr.maif.izanami.datastores.EventDatastore.TenantEventRequest
-import fr.maif.izanami.datastores.EventDatastore.parseSortOrder
-
-import scala.util.Try
-import fr.maif.izanami.datastores.EventDatastore.AscOrder
-import fr.maif.izanami.errors.BadBodyFormat
-import fr.maif.izanami.jobs.WebhookListener
-import play.api.Logger
-import play.api.libs.json.JsNumber
-import play.api.libs.json.JsNull
+import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.util.{Failure, Success, Try}
 
 class EventController(
     val controllerComponents: ControllerComponents,
@@ -192,7 +186,7 @@ class EventController(
       case FeatureCreated(_, _, _, _, _, Some(strategiesByContext), _, _, _) =>
         createEvent(
           event.id,
-          Feature.writeFeatureInLegacyFormat(strategiesByContext.get("").get)
+          FeatureFormats.writeFeatureInLegacyFormat(strategiesByContext(""))
         )
       case FeatureUpdated(
             _,
@@ -208,7 +202,7 @@ class EventController(
           ) =>
         updateEvent(
           event.id,
-          Feature.writeFeatureInLegacyFormat(strategiesByContext.get("").get)
+          FeatureFormats.writeFeatureInLegacyFormat(strategiesByContext(""))
         )
       case _ => deleteEvent(event.id)
     }
@@ -292,7 +286,10 @@ class EventController(
                   FeatureRequest.processInputSeqString(groups)
                 )
 
-                res
+                res.value.map {
+                  case Left(err)    => errorEvent(err.message)
+                  case Right(value) => value
+                }
               }
               val refreshSource = if (refreshInterval > 0) {
                 Source
@@ -390,7 +387,10 @@ class EventController(
               FeatureRequest.processInputSeqString(groups)
             )
 
-            res
+            res.value.map {
+              case Left(err)    => errorEvent(err.message)
+              case Right(value) => value
+            }
           }
           val refreshSource = if (refreshInterval > 0) {
             Source
@@ -439,7 +439,7 @@ class EventController(
       request: ClientKeyRequest[?],
       maybeBody: Option[JsObject],
       groups: Set[String]
-  ): Future[JsObject] = {
+  ): FutureEither[JsObject] = {
     val requestContext = RequestContext(
       tenant = tenant,
       user = user,
@@ -456,15 +456,8 @@ class EventController(
         request.key.clientId,
         request.key.clientSecret
       )
-      .map(either =>
-        either
-          .fold(
-            err => errorEvent(err.message),
-            features =>
-              initialEvent(
-                FeatureService.formatFeatureResponse(features, conditions)
-              )
-          )
+      .map(result =>
+        initialEvent(FeatureService.formatFeatureResponse(result, conditions))
       )
   }
 

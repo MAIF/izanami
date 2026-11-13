@@ -1,50 +1,44 @@
 package fr.maif.izanami.datastores
 
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import fr.maif.izanami.datastores.tenantImplicits.TenantRow
+import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.FailedToCreateTenantSchema
-import fr.maif.izanami.errors.InternalServerError
-import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.errors.TenantAlreadyExists
-import fr.maif.izanami.errors.TenantDoesNotExists
+import fr.maif.izanami.errors.*
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
-import fr.maif.izanami.events.SourceTenantCreated
-import fr.maif.izanami.events.SourceTenantDeleted
-import fr.maif.izanami.models.RightLevel
-import fr.maif.izanami.models.SimpleTenant
-import fr.maif.izanami.models.Tenant
-import fr.maif.izanami.models.TenantCreationRequest
-import fr.maif.izanami.utils.Datastore
-import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
-import fr.maif.izanami.web.ImportFailure
-import fr.maif.izanami.web.ImportPending
-import fr.maif.izanami.web.ImportState
-import fr.maif.izanami.web.ImportState.importFailureWrites
-import fr.maif.izanami.web.ImportState.importResultReads
-import fr.maif.izanami.web.ImportState.importSuccessWrites
-import fr.maif.izanami.web.ImportSuccess
-import fr.maif.izanami.web.UserInformation
+import fr.maif.izanami.events.{
+  EventService,
+  SourceTenantCreated,
+  SourceTenantDeleted
+}
+import fr.maif.izanami.models.{
+  RightLevel,
+  SimpleTenant,
+  Tenant,
+  TenantCreationRequest
+}
+import fr.maif.izanami.utils.{Datastore, Done, FutureEither}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterFutureEither,
+  BetterJsValue,
+  BetterSyntax
+}
+import fr.maif.izanami.web.ImportState.{
+  importFailureWrites,
+  importResultReads,
+  importSuccessWrites
+}
+import fr.maif.izanami.web.*
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
 import org.flywaydb.core.Flyway
+import play.api.Logger
 import play.api.libs.json.Json
 
 import java.util.UUID
-import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-import fr.maif.izanami.utils.Done
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.env.Postgresql
-import fr.maif.izanami.events.EventService
-import scala.concurrent.ExecutionContext
-import play.api.Logger
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 class TenantsDatastore(
     postgresql: => Postgresql,

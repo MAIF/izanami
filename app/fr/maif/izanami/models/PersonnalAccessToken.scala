@@ -1,18 +1,9 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.models.PersonnalAccessToken.TokenRights
-import play.api.libs.json.JsError
-import play.api.libs.json.JsFalse
-import play.api.libs.json.JsObject
-import play.api.libs.json.JsSuccess
-import play.api.libs.json.JsTrue
-import play.api.libs.json.Json
-import play.api.libs.json.Reads
-import play.api.libs.json.Writes
+import play.api.libs.json.*
 
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
+import java.time.{Instant, LocalDateTime, ZoneId}
 import java.util.UUID
 
 sealed trait TenantTokenRights {

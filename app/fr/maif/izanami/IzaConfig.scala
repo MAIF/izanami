@@ -2,20 +2,14 @@ package fr.maif.izanami
 
 import com.typesafe.config.Config
 import fr.maif.izanami.models.*
-import fr.maif.izanami.models.IzanamiMode.Leader
-import fr.maif.izanami.models.IzanamiMode.Standalone
-import fr.maif.izanami.models.IzanamiMode.Worker
+import fr.maif.izanami.models.IzanamiMode.{Leader, Standalone, Worker}
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2RawMethodConvert
 import fr.maif.izanami.services.CompleteRightsWithMaxRights
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.*
-import pureconfig.ConfigReader
-import pureconfig.ConfigSource
-import pureconfig.error.CannotParse
-import pureconfig.error.ConfigReaderFailures
-import pureconfig.error.UnknownKey
-import pureconfig.generic.semiauto.deriveEnumerationReader
-import pureconfig.generic.semiauto.deriveReader
+import pureconfig.{ConfigReader, ConfigSource}
+import pureconfig.error.{CannotParse, ConfigReaderFailures, UnknownKey}
+import pureconfig.generic.semiauto.{deriveEnumerationReader, deriveReader}
 
 case class IzanamiTypedConfiguration(app: AppConf, play: PlayRoot)
 case object IzanamiTypedConfiguration {

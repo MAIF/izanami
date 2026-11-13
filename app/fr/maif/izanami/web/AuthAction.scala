@@ -1,46 +1,30 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.SessionIdentification
+import fr.maif.izanami.Cluster
+import fr.maif.izanami.datastores.{ApiKeyDatastore, SessionIdentification}
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.events.EventAuthentication
-import fr.maif.izanami.events.EventAuthentication.BackOfficeAuthentication
-import fr.maif.izanami.events.EventAuthentication.RootAuthentication
-import fr.maif.izanami.events.EventAuthentication.TokenAuthentication
-import fr.maif.izanami.models.*
-import fr.maif.izanami.models.IzanamiMode.Leader
-import fr.maif.izanami.models.IzanamiMode.Standalone
-import fr.maif.izanami.models.IzanamiMode.Worker
-import fr.maif.izanami.security.JwtService.decodeJWT
-import fr.maif.izanami.services.{
-  FeatureService,
-  ProjectIdIdentification,
-  ProjectIdentification,
-  ProjectNameIdentification,
-  RightService,
-  WebhookIdIdentification
+import fr.maif.izanami.events.EventAuthentication.{
+  BackOfficeAuthentication,
+  RootAuthentication,
+  TokenAuthentication
 }
-import fr.maif.izanami.utils.FutureEither
+import fr.maif.izanami.models.*
+import fr.maif.izanami.models.IzanamiMode.{Leader, Standalone, Worker}
+import fr.maif.izanami.security.JwtService.decodeJWT
+import fr.maif.izanami.services.*
+import fr.maif.izanami.utils.{Done, FutureEither}
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import pdi.jwt.JwtClaim
 import play.api.libs.json.*
 import play.api.mvc.*
-import play.api.mvc.Results.BadRequest
-import play.api.mvc.Results.Unauthorized
-import fr.maif.izanami.services.{AuthService, DecryptionStuff}
-import fr.maif.izanami.Cluster
+import play.api.mvc.Results.{BadRequest, Unauthorized}
 
 import java.time.Duration
-import java.util.Base64
-import java.util.UUID
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.Promise
+import java.util.{Base64, UUID}
+import java.util.concurrent.{Executors, TimeUnit}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Try
-import fr.maif.izanami.utils.Done
-import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.datastores.ApiKeyDatastore
 
 sealed trait UserInformation {
   def username: String

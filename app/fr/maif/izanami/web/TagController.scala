@@ -1,19 +1,13 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.models.ReadTenant
-import fr.maif.izanami.models.RightLevel
 import fr.maif.izanami.models.RightLevel.Read
-import fr.maif.izanami.models.Tag
+import fr.maif.izanami.models.{ReadTenant, RightLevel, Tag}
+import fr.maif.izanami.services.TagService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.libs.json.JsError
-import play.api.libs.json.JsSuccess
-import play.api.libs.json.JsValue
-import play.api.libs.json.Json
+import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc.*
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import fr.maif.izanami.services.TagService
+import scala.concurrent.{ExecutionContext, Future}
 
 class TagController(
     val controllerComponents: ControllerComponents,

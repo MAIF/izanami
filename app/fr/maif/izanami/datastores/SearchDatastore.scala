@@ -1,14 +1,16 @@
 package fr.maif.izanami.datastores
 
+import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.utils.Datastore
-import fr.maif.izanami.web.SearchController.SearchEntityObject
-import fr.maif.izanami.web.SearchController.SearchEntityType
+import fr.maif.izanami.web.SearchController.{
+  SearchEntityObject,
+  SearchEntityType
+}
 import play.api.libs.json.JsObject
 
 import scala.concurrent.Future
-import fr.maif.izanami.env.Postgresql
 
 class SearchDatastore(
     postgresql: => Postgresql,

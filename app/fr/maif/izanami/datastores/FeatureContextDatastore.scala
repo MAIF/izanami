@@ -2,35 +2,32 @@ package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.FeatureContextDatastore.FeatureContextRow
 import fr.maif.izanami.env.Postgresql
-import fr.maif.izanami.env.PostgresqlErrors.FOREIGN_KEY_VIOLATION
-import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
+import fr.maif.izanami.env.PostgresqlErrors.{
+  FOREIGN_KEY_VIOLATION,
+  RELATION_DOES_NOT_EXISTS
+}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
-import fr.maif.izanami.events.SourceFeatureUpdated
+import fr.maif.izanami.events.{EventService, SourceFeatureUpdated}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.features.*
-import fr.maif.izanami.utils.Datastore
-import fr.maif.izanami.utils.syntax.implicits.BetterBoolean
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.utils.{Datastore, FutureEither}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterBoolean,
+  BetterFutureEither,
+  BetterSyntax
+}
 import fr.maif.izanami.wasm.WasmConfig
-import fr.maif.izanami.web.FeatureContextPath
-import fr.maif.izanami.web.UserInformation
+import fr.maif.izanami.web.{FeatureContextPath, UserInformation}
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import io.vertx.core.json.JsonArray
 import io.vertx.pgclient.PgException
-import io.vertx.sqlclient.Row
-import io.vertx.sqlclient.SqlConnection
-import play.api.libs.json.JsArray
-import play.api.libs.json.Json
-import play.api.libs.json.Writes
-
-import scala.concurrent.Future
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
+import io.vertx.sqlclient.{Row, SqlConnection}
 import org.apache.pekko.Done
-import fr.maif.izanami.events.EventService
-import scala.concurrent.ExecutionContext
+import play.api.libs.json.{JsArray, Json, Writes}
+
+import scala.concurrent.{ExecutionContext, Future}
 
 class FeatureContextDatastore(
     postgresql: => Postgresql,
