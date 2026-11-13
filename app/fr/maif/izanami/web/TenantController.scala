@@ -2,12 +2,12 @@ package fr.maif.izanami.web
 
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.RightLevel.Read
+import fr.maif.izanami.services.TenantService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.*
 import play.api.mvc.*
 
 import scala.concurrent.ExecutionContext
-import fr.maif.izanami.services.TenantService
 
 sealed trait ProjectChoiceStrategy
 case class DeduceProject(fieldCount: Int = 1) extends ProjectChoiceStrategy

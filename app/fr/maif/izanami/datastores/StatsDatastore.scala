@@ -1,38 +1,31 @@
 package fr.maif.izanami.datastores
 
 import buildinfo.BuildInfo
+import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.models.Tenant
 import fr.maif.izanami.security.IdGenerator
-import fr.maif.izanami.utils.Datastore
-import io.vertx.sqlclient.Row
-import io.vertx.sqlclient.SqlConnection
-import org.apache.pekko.actor.Cancellable
-import play.api.libs.json.JsObject
-import play.api.libs.json.JsValue
-import play.api.libs.json.Json
-import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue
-
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
-import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.services.ConfigurationService
-
-import scala.concurrent.ExecutionContext
-import org.apache.pekko.actor.ActorSystem
+import fr.maif.izanami.utils.Datastore
+import io.vertx.sqlclient.{Row, SqlConnection}
+import org.apache.pekko.actor.{ActorSystem, Cancellable}
+import play.api.libs.json.{JsObject, JsValue, Json}
+import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue
 import play.api.libs.ws.WSClient
+
+import java.time.{Instant, ZoneId}
+import java.time.format.DateTimeFormatter
+import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration.DurationInt
 
 // TODO this should be split between service & datastore
 class StatsDatastore(
-                      postgresql: => Postgresql,
-                      configurationService: => ConfigurationService,
-                      httpClient: WSClient,
-                      reportingUrl: String,
-                      containerized: Boolean,
-                      actorSystem: ActorSystem
+    postgresql: => Postgresql,
+    configurationService: => ConfigurationService,
+    httpClient: WSClient,
+    reportingUrl: String,
+    containerized: Boolean,
+    actorSystem: ActorSystem
 )(implicit val ec: ExecutionContext) extends Datastore {
   var anonymousReportingCancellation: Cancellable = Cancellable.alreadyCancelled
 

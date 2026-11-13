@@ -1,32 +1,31 @@
 package fr.maif.izanami.wasm
 
+import fr.maif.izanami.Wasm
+import fr.maif.izanami.datastores.FeaturesDatastore
+import fr.maif.izanami.services.ConfigurationService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.wasm.host.scala.{HFunction, HostFunctions, HttpCall}
-import io.otoroshi.wasm4s.scaladsl.CacheableWasmScript
-import io.otoroshi.wasm4s.scaladsl.WasmConfiguration
-import io.otoroshi.wasm4s.scaladsl.WasmIntegrationContext
-import io.otoroshi.wasm4s.scaladsl.WasmoSettings
+import io.otoroshi.wasm4s.scaladsl.{
+  CacheableWasmScript,
+  WasmConfiguration,
+  WasmIntegrationContext,
+  WasmoSettings
+}
 import io.otoroshi.wasm4s.scaladsl.security.TlsConfig
 import org.apache.pekko.stream.Materializer
-import org.extism.sdk.HostFunction
-import org.extism.sdk.HostUserData
+import org.extism.sdk.{HostFunction, HostUserData}
 import play.api.Logger
-import play.api.libs.ws.WSRequest
+import play.api.libs.ws.{WSClient, WSRequest}
 
 import java.util.concurrent.Executors
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import fr.maif.izanami.datastores.FeaturesDatastore
-import fr.maif.izanami.Wasm
-import fr.maif.izanami.services.ConfigurationService
-import play.api.libs.ws.WSClient
+import scala.concurrent.{ExecutionContext, Future}
 
 class IzanamiWasmIntegrationContext(
-                                     configurationService: => ConfigurationService,
-                                     featureDatastore: => FeaturesDatastore,
-                                     wasmConfiguration: Wasm,
-                                     httpClient: WSClient
+    configurationService: => ConfigurationService,
+    featureDatastore: => FeaturesDatastore,
+    wasmConfiguration: Wasm,
+    httpClient: WSClient
 )(implicit
     override val executionContext: ExecutionContext,
     override val materializer: Materializer

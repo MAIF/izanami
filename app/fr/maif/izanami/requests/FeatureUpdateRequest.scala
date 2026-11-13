@@ -1,12 +1,16 @@
 package fr.maif.izanami.requests
 
 import fr.maif.izanami.events.EventAuthentication
-import fr.maif.izanami.models.CompleteContextualStrategy
-import fr.maif.izanami.models.CompleteFeature
-import fr.maif.izanami.models.UserWithCompleteRightForOneTenant
-import fr.maif.izanami.web.FeatureContextPath
-import fr.maif.izanami.web.StandardUserInformation
-import fr.maif.izanami.web.UserInformation
+import fr.maif.izanami.models.{
+  CompleteContextualStrategy,
+  CompleteFeature,
+  UserWithCompleteRightForOneTenant
+}
+import fr.maif.izanami.web.{
+  FeatureContextPath,
+  StandardUserInformation,
+  UserInformation
+}
 
 sealed trait FeatureUpdateRequest {
   def tenant: String

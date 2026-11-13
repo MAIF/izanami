@@ -1,35 +1,26 @@
 package fr.maif.izanami.wasm.host.scala
 
 import fr.maif.izanami.utils.RegexPool
-import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.wasm.WasmConfig
-import io.otoroshi.wasm4s.scaladsl.EnvUserData
-import io.otoroshi.wasm4s.scaladsl.HostFunctionWithAuthorization
+import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
+import fr.maif.izanami.wasm.{IzanamiWasmIntegrationContext, WasmConfig}
+import io.otoroshi.wasm4s.scaladsl.{EnvUserData, HostFunctionWithAuthorization}
 import org.apache.pekko.http.scaladsl.model.Uri
 import org.apache.pekko.stream.Materializer
 import org.apache.pekko.util.ByteString
-import org.extism.sdk.ExtismCurrentPlugin
-import org.extism.sdk.ExtismFunction
-import org.extism.sdk.HostFunction
-import org.extism.sdk.HostUserData
-import org.extism.sdk.LibExtism
+import org.extism.sdk.*
 import play.api.Logger
-import play.api.libs.json.JsValue
-import play.api.libs.json.Json
+import play.api.libs.json.{JsValue, Json}
 import play.api.libs.typedmap.TypedMap
 import play.api.libs.ws.DefaultBodyWritables.writeableOf_Bytes
+import play.api.libs.ws.WSClient
 
 import java.nio.charset.StandardCharsets
 import java.util.Optional
 import java.util.concurrent.TimeUnit
-import scala.collection.Seq
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.Duration
 import scala.annotation.nowarn
-import play.api.libs.ws.WSClient
-import fr.maif.izanami.wasm.IzanamiWasmIntegrationContext
+import scala.collection.Seq
+import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.duration.Duration
 
 class HFunction(wasmIntegrationContext: IzanamiWasmIntegrationContext) {
   def defineContextualFunction(

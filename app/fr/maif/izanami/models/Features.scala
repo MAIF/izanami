@@ -1,31 +1,22 @@
 package fr.maif.izanami.models
 
-import fr.maif.izanami.errors.InternalServerError
-import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.datastores.FeaturesDatastore
+import fr.maif.izanami.errors.{InternalServerError, IzanamiError}
 import fr.maif.izanami.models.Feature.lightweightFeatureWrite
 import fr.maif.izanami.models.StaleStatus.staleStatusWrites
 import fr.maif.izanami.models.features.*
-import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.v1.OldFeature
+import fr.maif.izanami.utils.syntax.implicits.{BetterJsValue, BetterSyntax}
 import fr.maif.izanami.v1.OldFeature.oldFeatureReads
-import fr.maif.izanami.v1.OldGlobalScriptFeature
-import fr.maif.izanami.wasm.{WasmConfig, WasmRelatedStuff, WasmUtils}
+import fr.maif.izanami.wasm.WasmConfig
 import fr.maif.izanami.web.FeatureContextPath
-import play.api.Logger
 import play.api.libs.json.*
 import play.api.mvc.QueryStringBindable
-import fr.maif.izanami.datastores.FeaturesDatastore
 
 import java.time.*
 import java.time.format.DateTimeFormatter
-import java.util.Objects
-import java.util.UUID
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import java.util.{Objects, UUID}
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 import scala.util.hashing.MurmurHash3
 import scala.util.matching.Regex
 
@@ -105,13 +96,6 @@ case class RequestContext(
 }
 
 sealed trait CompleteFeature extends AbstractFeature {
-  def value(
-      requestContext: RequestContext,
-      wasmRelatedStuff: WasmRelatedStuff
-  )(implicit
-      executionContext: ExecutionContext
-  ): Future[Either[IzanamiError, JsValue]]
-
   override def withProject(project: String): CompleteFeature
 
   override def withId(id: String): CompleteFeature
@@ -399,16 +383,6 @@ case class SingleConditionFeature(
     )
   }
 
-  override def value(
-      requestContext: RequestContext,
-      wasmRelatedStuff: WasmRelatedStuff
-  )(implicit
-      executionContext: ExecutionContext
-  ): Future[Either[IzanamiError, JsValue]] = {
-    val res = if (enabled) condition.active(requestContext, id) else false
-    Future.successful(Right(JsBoolean(res)))
-  }
-
   override def withProject(project: String): SingleConditionFeature =
     copy(project = project)
 
@@ -458,30 +432,6 @@ case class Feature(
 ) extends LightWeightFeature
     with CompleteFeature {
   override def withEnabled(enabled: Boolean): Feature = copy(enabled = enabled)
-
-  override def value(
-      requestContext: RequestContext,
-      wasmRelatedStuff: WasmRelatedStuff
-  )(implicit
-      executionContext: ExecutionContext
-  ): Future[Either[IzanamiError, JsValue]] = {
-    Future.successful(Right((enabled, resultDescriptor) match {
-      case (false, r: BooleanResultDescriptor)         => JsFalse
-      case (false, _)                                  => JsNull
-      case (true, BooleanResultDescriptor(conditions)) =>
-        JsBoolean(
-          conditions.isEmpty || conditions.exists(c =>
-            c.active(requestContext, name)
-          )
-        )
-      case (true, v: ValuedResultDescriptor) => {
-        v.conditions
-          .find(condition => condition.active(requestContext, name))
-          .map(condition => condition.jsonValue)
-          .getOrElse(v.jsonValue)
-      }
-    }))
-  }
 
   override def withProject(project: String): Feature = copy(project = project)
 
@@ -560,39 +510,8 @@ case class CompleteWasmFeature(
     override val description: String,
     override val resultType: ResultType
 ) extends CompleteFeature {
-  private val logger = Logger("feature-evaluation")
   override def withEnabled(enabled: Boolean): CompleteWasmFeature =
     copy(enabled = enabled)
-
-  override def value(
-      requestContext: RequestContext,
-      wasmRelatedStuff: WasmRelatedStuff
-  )(implicit ec: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
-
-    (wasmRelatedStuff.isWasmAllowed, enabled, resultType) match {
-      case (false, true, BooleanResult) => {
-        logger.warn(
-          s"Evaluation result of wasm feature ${name} (id ${id}, context ${requestContext.context.toUserPath}) was changed to false, since this izanami instance doesn't allow wasm features"
-        )
-        Future.successful(Right(JsFalse))
-      }
-      case (false, true, _) => {
-        logger.warn(
-          s"Evaluation result of wasm feature ${name} (id ${id}, context ${requestContext.context.toUserPath}) was changed to null, since this izanami instance doesn't allow wasm features"
-        )
-        Future.successful(Right(JsNull))
-      }
-      case (_, false, BooleanResult) => Future.successful(Right(JsFalse))
-      case (_, false, _)             => Future.successful(Right(JsNull))
-      case (_, true, _)              =>
-        WasmUtils.handle(
-          wasmConfig,
-          requestContext,
-          resultType,
-          wasmRelatedStuff.wasmIntegration
-        )(ec)
-    }
-  }
 
   override def withProject(project: String): CompleteWasmFeature =
     copy(project = project)
@@ -851,9 +770,13 @@ object FeatureRequest {
 
 object Feature {
 
-  def isPercentageFeatureActive(source: String, percentage: Int): Boolean = {
+  def isPercentageFeatureActive(
+      source: String,
+      percentage: Int,
+      intervalStart: Int
+  ): Boolean = {
     val hash = (Math.abs(MurmurHash3.bytesHash(source.getBytes, 42)) % 100) + 1
-    hash <= percentage
+    hash > intervalStart && hash <= percentage + intervalStart
   }
 
   def writeStrategiesForEvent(
@@ -877,78 +800,6 @@ object Feature {
         }
       })
       .as[JsObject]
-  }
-
-  def writeFeatureForCheck(
-      feature: CompleteFeature,
-      context: RequestContext,
-      wasmRelatedStuff: WasmRelatedStuff
-  )(implicit ec: ExecutionContext): Future[Either[IzanamiError, JsObject]] = {
-    feature
-      .value(context, wasmRelatedStuff)
-      .map(either => {
-        either.map(active => {
-          Json.obj(
-            "name" -> feature.name,
-            "active" -> active,
-            "project" -> feature.project
-          )
-        })
-      })(ec)
-  }
-
-  def writeFeatureForCheckInLegacyFormat(
-      feature: CompleteFeature,
-      context: RequestContext,
-      wasmRelatedStuff: WasmRelatedStuff
-  )(implicit
-      ec: ExecutionContext
-  ): Future[Either[IzanamiError, Option[JsObject]]] = {
-    feature
-      .value(context, wasmRelatedStuff)
-      .map {
-        case Left(error)   => Left(error)
-        case Right(active) =>
-          Right(
-            Some(
-              writeFeatureInLegacyFormat(feature) ++ Json
-                .obj("active" -> active)
-            )
-          )
-      }(ec)
-  }
-
-  def writeFeatureInLegacyFormat(feature: AbstractFeature): JsObject = {
-    feature match {
-      case s: SingleConditionFeature =>
-        Json
-          .toJson(OldFeature.fromModernFeature(s))(OldFeature.oldFeatureWrites)
-          .as[JsObject]
-      // Transforming modern feature to script feature is a little hacky, however it's a format that legacy client
-      // can understand, moreover due to the script nature of the feature, there won't be cache client side, which
-      // is what we want since legacy client can't evaluate modern feeature locally
-      case f: Feature =>
-        Json
-          .toJson(
-            OldGlobalScriptFeature(
-              id = f.id,
-              name = f.name,
-              enabled = f.enabled,
-              description = Option(f.description),
-              tags = f.tags,
-              ref = "fake-script-feature"
-            )
-          )(OldFeature.oldGlobalScriptWrites)
-          .as[JsObject]
-      case w: LightWeightWasmFeature =>
-        Json
-          .toJson(OldFeature.fromScriptFeature(w))(OldFeature.oldFeatureWrites)
-          .as[JsObject]
-      case w: CompleteWasmFeature =>
-        Json
-          .toJson(OldFeature.fromScriptFeature(w))(OldFeature.oldFeatureWrites)
-          .as[JsObject]
-    }
   }
 
   def lightweightFeatureRead: Reads[LightWeightFeature] = json => {

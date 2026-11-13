@@ -1,19 +1,18 @@
 package fr.maif.izanami.services
 
-import fr.maif.izanami.datastores.ApiKeyDatastore
-import fr.maif.izanami.models.ApiKey
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.web.UserInformation
-import scala.concurrent.Future
-import fr.maif.izanami.utils.Done
-import fr.maif.izanami.datastores.UsernameIdentification
-import fr.maif.izanami.models.ProjectRightUnit
-import fr.maif.izanami.models.ProjectRightLevel
-import fr.maif.izanami.models.RightLevel
-import fr.maif.izanami.errors.NotEnoughRights
+import fr.maif.izanami.datastores.{ApiKeyDatastore, UsernameIdentification}
+import fr.maif.izanami.errors.{ApiKeyDoesNotExist, NotEnoughRights}
+import fr.maif.izanami.models.{
+  ApiKey,
+  ProjectRightLevel,
+  ProjectRightUnit,
+  RightLevel
+}
+import fr.maif.izanami.utils.{Done, FutureEither}
 import fr.maif.izanami.utils.syntax.implicits.BetterFuture
-import scala.concurrent.ExecutionContext
-import fr.maif.izanami.errors.ApiKeyDoesNotExist
+import fr.maif.izanami.web.UserInformation
+
+import scala.concurrent.{ExecutionContext, Future}
 
 class APIKeyService(
     datastore: => ApiKeyDatastore,

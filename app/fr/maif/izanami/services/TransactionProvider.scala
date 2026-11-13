@@ -1,15 +1,15 @@
 package fr.maif.izanami.services
 
-import scala.concurrent.Future
+import fr.maif.izanami.env.pgimplicits.{
+  ScalaFutureEnhancer,
+  VertxFutureEnhancer
+}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
-import io.vertx.sqlclient.SqlConnection
-import io.vertx.sqlclient.Pool
-import fr.maif.izanami.env.pgimplicits.ScalaFutureEnhancer
-import fr.maif.izanami.env.pgimplicits.VertxFutureEnhancer
+import io.vertx.sqlclient.{Pool, SqlConnection}
 import play.api.Logger
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 sealed trait TransactionProvider[Tx] {
   def executeInTransaction[Res](

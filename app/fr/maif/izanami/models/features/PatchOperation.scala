@@ -1,11 +1,8 @@
 package fr.maif.izanami.models.features
 
 import fr.maif.izanami.models.ProjectRightLevel
-import fr.maif.izanami.models.ProjectRightLevel.Update
-import fr.maif.izanami.models.ProjectRightLevel.Write
-import play.api.libs.json.JsError
-import play.api.libs.json.JsSuccess
-import play.api.libs.json.Reads
+import fr.maif.izanami.models.ProjectRightLevel.{Update, Write}
+import play.api.libs.json.{JsError, JsSuccess, Reads}
 
 import scala.util.matching.Regex
 

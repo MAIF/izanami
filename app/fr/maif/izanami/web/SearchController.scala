@@ -1,22 +1,19 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.datastores.{FeatureContextDatastore, SearchDatastore}
-import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.errors.SearchFilterError
-import fr.maif.izanami.errors.SearchQueryError
-import fr.maif.izanami.models.Context
-import fr.maif.izanami.models.GlobalContext
-import fr.maif.izanami.models.LocalContext
+import fr.maif.izanami.errors.{
+  IzanamiError,
+  SearchFilterError,
+  SearchQueryError
+}
+import fr.maif.izanami.models.{Context, GlobalContext, LocalContext}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.PathElement.pathElementWrite
 import fr.maif.izanami.web.SearchController.SearchEntityObject
-import play.api.libs.json.JsObject
-import play.api.libs.json.Json
-import play.api.libs.json.Writes
+import play.api.libs.json.{JsObject, Json, Writes}
 import play.api.mvc.*
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class SearchController(
     val controllerComponents: ControllerComponents,

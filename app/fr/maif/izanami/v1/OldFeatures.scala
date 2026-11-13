@@ -1,9 +1,11 @@
 package fr.maif.izanami.v1
 
-import fr.maif.izanami.models.CompleteFeature
-import fr.maif.izanami.models.CompleteWasmFeature
-import fr.maif.izanami.models.LightWeightWasmFeature
-import fr.maif.izanami.models.SingleConditionFeature
+import fr.maif.izanami.models.{
+  CompleteFeature,
+  CompleteWasmFeature,
+  LightWeightWasmFeature,
+  SingleConditionFeature
+}
 import fr.maif.izanami.models.features.*
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.v1.OldFeatureType.*
@@ -12,17 +14,14 @@ import fr.maif.izanami.web.ImportController.scriptIdToNodeCompatibleName
 import io.otoroshi.wasm4s.scaladsl.WasmSource
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.Wasmo
 import play.api.libs.functional.FunctionalBuilder
-import play.api.libs.functional.syntax.toApplicativeOps
-import play.api.libs.functional.syntax.toFunctionalBuilderOps
+import play.api.libs.functional.syntax.{
+  toApplicativeOps,
+  toFunctionalBuilderOps
+}
 import play.api.libs.json.*
-import play.api.libs.json.Reads.localDateTimeReads
-import play.api.libs.json.Reads.localTimeReads
-import play.api.libs.json.Reads.max
-import play.api.libs.json.Reads.min
+import play.api.libs.json.Reads.{localDateTimeReads, localTimeReads, max, min}
 
-import java.time.LocalDateTime
-import java.time.LocalTime
-import java.time.ZoneId
+import java.time.{LocalDateTime, LocalTime, ZoneId}
 import java.time.format.DateTimeFormatter
 
 sealed trait OldFeature {

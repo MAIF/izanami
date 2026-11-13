@@ -1,55 +1,39 @@
 package fr.maif.izanami.datastores
 
-import fr.maif.izanami.datastores.ImportExportDatastore.DBImportResult
-import fr.maif.izanami.datastores.ImportExportDatastore.TableMetadata
-import fr.maif.izanami.datastores.ImportExportDatastore.UnitDBImportResult
+import fr.maif.izanami.datastores.ImportExportDatastore.{
+  DBImportResult,
+  TableMetadata,
+  UnitDBImportResult
+}
+import fr.maif.izanami.env.Postgresql
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.InternalServerError
-import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.errors.{
+  ImportFailureError,
+  InternalServerError,
+  IzanamiError,
+  PostgresErrorMapper
+}
 import fr.maif.izanami.events.EventOrigin.ImportOrigin
-import fr.maif.izanami.events.PreviousProject
-import fr.maif.izanami.events.SourceFeatureCreated
-import fr.maif.izanami.events.SourceFeatureUpdated
-import fr.maif.izanami.events.SourceProjectCreated
-import fr.maif.izanami.events.SourceProjectUpdated
-import fr.maif.izanami.models.ConflictField
-import fr.maif.izanami.models.ConflictStrategy
-import fr.maif.izanami.models.ExportedType
-import fr.maif.izanami.models.FeatureTagType
-import fr.maif.izanami.models.FeatureType
-import fr.maif.izanami.models.FeatureWithOverloads
-import fr.maif.izanami.models.KeyRightType
-import fr.maif.izanami.models.OverloadType
-import fr.maif.izanami.models.ProjectRightType
-import fr.maif.izanami.models.ProjectType
-import fr.maif.izanami.models.Tenant
-import fr.maif.izanami.models.WebhookRightType
-import fr.maif.izanami.utils.Datastore
-import fr.maif.izanami.utils.Done
+import fr.maif.izanami.events.*
+import fr.maif.izanami.models.*
+import fr.maif.izanami.utils.{Datastore, Done}
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.web.ExportController
 import fr.maif.izanami.web.ExportController.TenantExportRequest
-import fr.maif.izanami.web.ImportController
-import fr.maif.izanami.web.ImportController.Fail
-import fr.maif.izanami.web.ImportController.ImportConflictStrategy
-import fr.maif.izanami.web.ImportController.MergeOverwrite
-import fr.maif.izanami.web.ImportController.Replace
-import fr.maif.izanami.web.ImportController.Skip
-import fr.maif.izanami.web.ProjectId
-import fr.maif.izanami.web.UserInformation
+import fr.maif.izanami.web.ImportController.*
+import fr.maif.izanami.web.{
+  ExportController,
+  ImportController,
+  ProjectId,
+  UserInformation
+}
 import io.vertx.core.json.JsonArray
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.SqlConnection
-import play.api.libs.json.JsObject
-import play.api.libs.json.Json
-import java.util.concurrent.atomic.AtomicInteger
-import scala.concurrent.Future
-import fr.maif.izanami.errors.ImportFailureError
-import fr.maif.izanami.errors.PostgresErrorMapper
 import play.api.Logger
-import fr.maif.izanami.env.Postgresql
-import fr.maif.izanami.events.EventService
-import scala.concurrent.ExecutionContext
+import play.api.libs.json.{JsObject, Json}
+
+import java.util.concurrent.atomic.AtomicInteger
+import scala.concurrent.{ExecutionContext, Future}
 
 class ImportExportDatastore(
     postgresql: => Postgresql,

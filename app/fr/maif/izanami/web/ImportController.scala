@@ -1,68 +1,39 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.datastores.{
-  ApiKeyDatastore,
-  FeaturesDatastore,
-  ImportExportDatastore,
-  TenantsDatastore,
-  UsersDatastore
-}
-import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.datastores.*
+import fr.maif.izanami.errors.*
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.ConflictField.*
 import fr.maif.izanami.models.ExportedType.parseExportedType
-import fr.maif.izanami.models.features.BooleanResult
-import fr.maif.izanami.models.features.BooleanResultDescriptor
+import fr.maif.izanami.models.features.{BooleanResult, BooleanResultDescriptor}
 import fr.maif.izanami.services.{FeatureService, PostgresTransactionProvider}
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.v1.JavaScript
-import fr.maif.izanami.v1.OldFeature
-import fr.maif.izanami.v1.OldGlobalScript
-import fr.maif.izanami.v1.OldKey.oldKeyReads
-import fr.maif.izanami.v1.OldKey.toNewKey
+import fr.maif.izanami.v1.OldKey.{oldKeyReads, toNewKey}
 import fr.maif.izanami.v1.OldScripts.doesUseHttp
-import fr.maif.izanami.v1.OldUsers.oldUserReads
-import fr.maif.izanami.v1.OldUsers.toNewUser
-import fr.maif.izanami.v1.WasmManagerClient
+import fr.maif.izanami.v1.OldUsers.{oldUserReads, toNewUser}
+import fr.maif.izanami.v1.{
+  JavaScript,
+  OldFeature,
+  OldGlobalScript,
+  WasmManagerClient
+}
 import fr.maif.izanami.wasm.WasmConfig
 import fr.maif.izanami.web.ImportController.*
 import fr.maif.izanami.web.ImportState.importResultWrites
-import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.Base64
-import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.Wasmo
+import io.otoroshi.wasm4s.scaladsl.WasmSourceKind.{Base64, Wasmo}
 import org.apache.pekko.util.ByteString
 import play.api.libs.Files
+import play.api.libs.json.*
+import play.api.mvc.*
 
 import java.net.URI
-import java.time.Instant
-import java.time.ZoneId
+import java.time.{Instant, ZoneId}
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Source
-import scala.util.Right
-import scala.util.Try
-import fr.maif.izanami.errors.ImportRowIsNotJsonObject
-import fr.maif.izanami.errors.MissingImportRow
-import fr.maif.izanami.errors.MissingImportType
-import fr.maif.izanami.errors.UnknownImportType
-import fr.maif.izanami.errors.ImportFailureError
-import fr.maif.izanami.errors.MissingImportFile
-import fr.maif.izanami.errors.FailedToReadImportFile
-import play.api.libs.json.Reads
-import play.api.libs.json.Writes
-import play.api.libs.json.Json
-import play.api.libs.json.JsSuccess
-import play.api.libs.json.JsError
-import play.api.mvc.ControllerComponents
-import play.api.mvc.BaseController
-import play.api.mvc.Action
-import play.api.mvc.AnyContent
-import play.api.mvc.MultipartFormData
-import play.api.libs.json.JsObject
-import play.api.mvc.Result
-import play.api.libs.json.JsString
+import scala.util.{Right, Try}
 
 sealed trait ImportStatus
 case object ImportPending extends ImportStatus {

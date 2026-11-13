@@ -1,17 +1,14 @@
 package fr.maif.izanami.web
 
 import fr.maif.izanami.datastores.ImportExportDatastore
-import fr.maif.izanami.models.Export
 import fr.maif.izanami.models.Feature.lightweightFeatureWrite
-import fr.maif.izanami.models.LightWeightFeature
-import fr.maif.izanami.models.RightLevel
+import fr.maif.izanami.models.{Export, LightWeightFeature, RightLevel}
 import org.apache.pekko.util.ByteString
 import play.api.http.HttpEntity
 import play.api.libs.json.*
 import play.api.mvc.*
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class ExportController(
     val controllerComponents: ControllerComponents,

@@ -1,83 +1,44 @@
 package fr.maif.izanami.services
 
-import fr.maif.izanami.RoleRightMode
-import fr.maif.izanami.RoleRightMode.Initial
-import fr.maif.izanami.RoleRightMode.Supervised
-import fr.maif.izanami.datastores.UserIdentification
-import fr.maif.izanami.datastores.ConfigurationDatastore
-import fr.maif.izanami.errors.CantUpdateOIDCUser
-import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.errors.RightComplianceError
-import fr.maif.izanami.errors.UserDoesNotExist
-import fr.maif.izanami.errors.UserNotFound
-import fr.maif.izanami.events.ConfigurationUpdated
-import fr.maif.izanami.events.EventService
-import fr.maif.izanami.models.GeneralAtomicRight
-import fr.maif.izanami.models.KeyRightUnit
-import fr.maif.izanami.models.OAuth2Configuration
-import fr.maif.izanami.models.OIDC
-import fr.maif.izanami.models.ProjectAtomicRight
-import fr.maif.izanami.models.ProjectRightLevel
+import fr.maif.izanami.{OpenId, RoleRightMode}
+import fr.maif.izanami.RoleRightMode.{Initial, Supervised}
+import fr.maif.izanami.datastores.{
+  ConfigurationDatastore,
+  UserIdentification,
+  UsersDatastore
+}
+import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.errors.*
+import fr.maif.izanami.events.{ConfigurationUpdated, EventService}
 import fr.maif.izanami.models.ProjectRightLevel.ProjectRightOrdering
-import fr.maif.izanami.models.ProjectRightLevelIncludingNoRight
 import fr.maif.izanami.models.ProjectRightLevelIncludingNoRight.ProjectRightLevelIncludingNoRightOrdering
-import fr.maif.izanami.models.ProjectRightUnit
-import fr.maif.izanami.models.ProjectScopedUser
-import fr.maif.izanami.models.RightLevel
-import fr.maif.izanami.models.RightLevel.Admin
-import fr.maif.izanami.models.RightLevel.RightOrdering
-import fr.maif.izanami.models.RightLevelIncludingNoRight
+import fr.maif.izanami.models.RightLevel.{Admin, RightOrdering}
 import fr.maif.izanami.models.RightLevelIncludingNoRight.RightLevelIncludingNoRightOrdering
-import fr.maif.izanami.models.RightUnit
-import fr.maif.izanami.models.Rights
-import fr.maif.izanami.models.Rights.DeleteTenantRights
-import fr.maif.izanami.models.Rights.RightDiff
-import fr.maif.izanami.models.Rights.TenantRightDiff
-import fr.maif.izanami.models.Rights.TenantWideRightUpdate
-import fr.maif.izanami.models.Rights.UnscopedFlattenKeyRight
-import fr.maif.izanami.models.Rights.UnscopedFlattenProjectRight
-import fr.maif.izanami.models.Rights.UnscopedFlattenWebhookRight
-import fr.maif.izanami.models.Rights.UpsertTenantRights
-import fr.maif.izanami.models.SingleItemScopedUser
-import fr.maif.izanami.models.TenantRight
-import fr.maif.izanami.models.TenantRightWithMaxRights
-import fr.maif.izanami.models.User
-import fr.maif.izanami.models.UserRightsUpdateRequest
-import fr.maif.izanami.models.UserTrait
-import fr.maif.izanami.models.UserWithCompleteRightForOneTenant
-import fr.maif.izanami.models.UserWithRights
-import fr.maif.izanami.models.UserWithSingleLevelRight
-import fr.maif.izanami.models.UserWithTenantRights
-import fr.maif.izanami.models.WebhookRightUnit
-import fr.maif.izanami.services.RightService.DEFAULT_ROLE
-import fr.maif.izanami.services.RightService.RightsByRole
-import fr.maif.izanami.services.RightService.keepHigher
-import fr.maif.izanami.utils.Done
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterFuture
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.ImportController.ImportConflictStrategy
-import fr.maif.izanami.web.ImportController.Replace
+import fr.maif.izanami.models.Rights.*
+import fr.maif.izanami.models.*
+import fr.maif.izanami.services.RightService.{
+  DEFAULT_ROLE,
+  RightsByRole,
+  keepHigher
+}
+import fr.maif.izanami.utils.{Done, FutureEither}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterFuture,
+  BetterFutureEither,
+  BetterSyntax
+}
+import fr.maif.izanami.web.ImportController.{ImportConflictStrategy, Replace}
 import io.vertx.sqlclient.SqlConnection
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.Materializer.matFromSystem
 import org.apache.pekko.stream.SharedKillSwitch
 import play.api.Logger
-import play.api.libs.json.JsError
-import play.api.libs.json.JsSuccess
-import play.api.libs.json.Json
-import play.api.libs.json.Reads
-import play.api.libs.json.Writes
+import play.api.libs.json.*
 
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import fr.maif.izanami.datastores.UsersDatastore
-import fr.maif.izanami.OpenId
-import fr.maif.izanami.env.Postgresql
+import scala.concurrent.{ExecutionContext, Future}
 
 case class RightCheckConfirmation(
     user: User,

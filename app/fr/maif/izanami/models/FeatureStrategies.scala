@@ -1,45 +1,12 @@
 package fr.maif.izanami.models
 
-import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.wasm.WasmRelatedStuff
-import play.api.libs.json.JsValue
+import fr.maif.izanami.models.features.EvaluationResultWrapper
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
-
-case class FeatureStrategies(strategies: Map[String, CompleteFeature]) {
-
-  def evaluate(
-      requestContext: RequestContext,
-      wasmRelatedStuff: WasmRelatedStuff
-  )(implicit
-      ec: ExecutionContext
-  ): Future[Either[IzanamiError, EvaluatedCompleteFeature]] = {
-    val context = requestContext.contextAsString
-    val strategyToUse = if (context.isBlank) {
-      strategies("")
-    } else {
-      strategies
-        .filter { case (ctx, f) => context.startsWith(ctx) }
-        .toSeq
-        .sortWith {
-          case ((c1, _), (c2, _)) if c1.length < c2.length => false
-          case _                                           => true
-        }
-        .headOption
-        .map(_._2)
-        .getOrElse(strategies(""))
-    }
-    strategyToUse.value(requestContext, wasmRelatedStuff).map(either =>
-      either.map(v => EvaluatedCompleteFeature(this, v))
-    )(ec)
-  }
-
-}
+case class FeatureStrategies(strategies: Map[String, CompleteFeature])
 
 case class EvaluatedCompleteFeature(
     featureStrategies: FeatureStrategies,
-    result: JsValue
+    result: EvaluationResultWrapper
 ) {
   def baseFeature: CompleteFeature = {
     featureStrategies.strategies("")

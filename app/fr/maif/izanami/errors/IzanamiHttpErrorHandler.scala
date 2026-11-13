@@ -1,10 +1,9 @@
 package fr.maif.izanami.errors
 
-import play.api.Logger
 import play.api.http.HttpErrorHandler
 import play.api.http.Status.INTERNAL_SERVER_ERROR
 import play.api.libs.json.Json
-import play.api.mvc
+import play.api.{Logger, mvc}
 import play.api.mvc.Result
 import play.api.mvc.Results.Status
 

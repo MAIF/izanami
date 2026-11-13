@@ -1,41 +1,45 @@
 package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.apiKeyImplicites.ApiKeyRow
-import fr.maif.izanami.env.PostgresqlErrors.FOREIGN_KEY_VIOLATION
-import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
+import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.env.PostgresqlErrors.{
+  FOREIGN_KEY_VIOLATION,
+  RELATION_DOES_NOT_EXISTS
+}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.*
-import fr.maif.izanami.models.ApiKey
-import fr.maif.izanami.models.ApiKeyProject
-import fr.maif.izanami.models.ApiKeyWithCompleteRights
-import fr.maif.izanami.models.Tenant
-import fr.maif.izanami.utils.Datastore
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
+import fr.maif.izanami.models.{
+  ApiKey,
+  ApiKeyProject,
+  ApiKeyWithCompleteRights,
+  Tenant
+}
+import fr.maif.izanami.utils.{Datastore, Done, FutureEither}
+import fr.maif.izanami.utils.syntax.implicits.{BetterFutureEither, BetterSyntax}
 import fr.maif.izanami.web.UserInformation
 import io.vertx.pgclient.PgException
-import io.vertx.sqlclient.Row
-import io.vertx.sqlclient.SqlConnection
+import io.vertx.sqlclient.{Row, SqlConnection}
 
 import java.util.UUID
 import scala.List
-import scala.concurrent.Future
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.Done
-import fr.maif.izanami.env.Postgresql
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 class ApiKeyDatastore(postgresql: => Postgresql)(implicit
     val ec: ExecutionContext
 ) extends Datastore {
-  def checkApiKeyExistence(tenant: String, apikeys: Set[String]): Future[Map[String, Boolean]] = {
+  def checkApiKeyExistence(
+      tenant: String,
+      apikeys: Set[String]
+  ): Future[Map[String, Boolean]] = {
     Tenant.isTenantValid(tenant)
     postgresql
       .queryAll(
         s"""SELECT name from "${tenant}".apikeys WHERE name=ANY($$1::TEXT[])""",
         params = List(apikeys.toArray)
       ) { r => r.optString("name") }
-      .map(existingKeys => apikeys.map(p => (p -> existingKeys.contains(p))).toMap)
+      .map(existingKeys =>
+        apikeys.map(p => (p -> existingKeys.contains(p))).toMap
+      )
   }
 
   def createApiKey(

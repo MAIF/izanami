@@ -1,66 +1,46 @@
 package fr.maif.izanami.services
 
-import fr.maif.izanami.errors.BadOPAReturnType
-import fr.maif.izanami.errors.FeatureContextDoesNotExist
-import fr.maif.izanami.errors.FeatureDoesNotExist
-import fr.maif.izanami.errors.FeatureNotFound
-import fr.maif.izanami.errors.GenericBadRequest
-import fr.maif.izanami.errors.IncorrectKey
-import fr.maif.izanami.errors.InternalServerError
-import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.errors.ModernFeatureNotAllowed
-import fr.maif.izanami.errors.ModernFeaturesForbiddenByConfig
-import fr.maif.izanami.errors.NoProtectedContextAccess
-import fr.maif.izanami.errors.NotEnoughRights
-import fr.maif.izanami.errors.OPAResultMustBeBoolean
-import fr.maif.izanami.errors.WasmFeatureNotAllowed
+import fr.maif.izanami.FeatureConfiguration
+import fr.maif.izanami.datastores.{
+  FeatureContextDatastore,
+  FeaturesDatastore,
+  TagsDatastore
+}
+import fr.maif.izanami.errors.*
 import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.models.*
-import fr.maif.izanami.models.ProjectRightLevel.Admin
-import fr.maif.izanami.models.ProjectRightLevel.Read
-import fr.maif.izanami.models.ProjectRightLevel.Update
-import fr.maif.izanami.models.ProjectRightLevel.Write
-import fr.maif.izanami.models.features.ActivationCondition
-import fr.maif.izanami.models.features.BooleanResult
-import fr.maif.izanami.models.features.EnabledFeaturePatch
-import fr.maif.izanami.models.features.FeaturePatch
-import fr.maif.izanami.models.features.ProjectFeaturePatch
-import fr.maif.izanami.models.features.RemoveFeaturePatch
-import fr.maif.izanami.models.features.ResultType
-import fr.maif.izanami.models.features.TagsFeaturePatch
-import fr.maif.izanami.models.features.ValuedResultDescriptor
-import fr.maif.izanami.requests.BaseFeatureUpdateRequest
-import fr.maif.izanami.requests.FeatureUpdateRequest
-import fr.maif.izanami.requests.OverloadFeatureUpdateRequest
-import fr.maif.izanami.services.FeatureService.canCreateOrDeleteFeature
-import fr.maif.izanami.services.FeatureService.computeRootContexts
-import fr.maif.izanami.services.FeatureService.impactedProtectedContextsByUpdate
-import fr.maif.izanami.services.FeatureService.validateFeature
-import fr.maif.izanami.utils.Done
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.Helpers
-import fr.maif.izanami.utils.syntax.implicits.BetterEither
-import fr.maif.izanami.utils.syntax.implicits.BetterFuture
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.FeatureContextPath
-import fr.maif.izanami.web.StandardUserInformation
-import fr.maif.izanami.web.UserInformation
-import io.vertx.sqlclient.SqlConnection
-import play.api.libs.json.JsObject
-import play.api.libs.json.JsValue
-import play.api.libs.json.Json
-import play.api.libs.json.Json.JsValueWrapper
-import play.api.libs.json.Writes
-
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import fr.maif.izanami.datastores.FeaturesDatastore
-import fr.maif.izanami.FeatureConfiguration
-import fr.maif.izanami.datastores.FeatureContextDatastore
-import fr.maif.izanami.datastores.TagsDatastore
-import fr.maif.izanami.models.Feature.writeFeatureInLegacyFormat
+import fr.maif.izanami.models.ProjectRightLevel.{Admin, Read, Update, Write}
+import fr.maif.izanami.models.features.*
+import fr.maif.izanami.requests.{
+  BaseFeatureUpdateRequest,
+  FeatureUpdateRequest,
+  OverloadFeatureUpdateRequest
+}
+import fr.maif.izanami.services.FeatureService.{
+  canCreateOrDeleteFeature,
+  computeRootContexts,
+  impactedProtectedContextsByUpdate,
+  validateFeature
+}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterEither,
+  BetterFuture,
+  BetterFutureEither,
+  BetterSyntax
+}
+import fr.maif.izanami.utils.{Done, FutureEither}
 import fr.maif.izanami.wasm.WasmRelatedStuff
+import fr.maif.izanami.web.formats.FeatureFormats
+import fr.maif.izanami.web.{
+  FeatureContextPath,
+  StandardUserInformation,
+  UserInformation
+}
+import io.vertx.sqlclient.SqlConnection
+import play.api.libs.json.Json.JsValueWrapper
+import play.api.libs.json.{JsObject, JsValue, Json, Writes}
+
+import scala.concurrent.{ExecutionContext, Future}
 
 class FeatureService(
     datastore: => FeaturesDatastore,
@@ -68,6 +48,7 @@ class FeatureService(
     tagDatastore: => TagsDatastore,
     configuration: FeatureConfiguration,
     transactionProvider: => PostgresTransactionProvider, // TODO use super class instead, but it's a huge refactoring
+    evaluationService: => EvaluationService,
     wasmRelatedStuff: => WasmRelatedStuff
 )(implicit ec: ExecutionContext) {
   private def hasProtectedOverload(
@@ -96,78 +77,28 @@ class FeatureService(
 
   def isWasmAllowed: Boolean = wasmRelatedStuff.isWasmAllowed
 
-  // TODO this should be split in completion to Map[String, CompleteFeature] and a Write
   def processMultipleStrategyResult(
       strategyByCtx: Map[String, LightWeightFeature],
       requestContext: RequestContext,
       conditions: Boolean
   ): FutureEither[JsObject] = {
-    val context = requestContext.context.elements.mkString("_")
-    val strategyToUse = if (context.isBlank) {
-      strategyByCtx("")
-    } else {
-      strategyByCtx
-        .filter { case (ctx, f) => context.startsWith(ctx) }
-        .toSeq
-        .sortWith {
-          case ((c1, _), (c2, _)) if c1.length < c2.length => false
-          case _                                           => true
-        }
-        .headOption
-        .map(_._2)
-        .getOrElse(strategyByCtx(""))
-    }
-
     val jsonStrategies = Feature.writeStrategiesForEvent(strategyByCtx)
-
-    lightWeightToCompleteFeature(tenant = requestContext.tenant, strategyToUse)
-      .flatMap(strategyToUse =>
-        Feature.writeFeatureForCheck(
-          strategyToUse,
-          requestContext,
-          wasmRelatedStuff
-        )
-          .map {
-            case Left(err)                 => Left(err)
-            case Right(json) if conditions =>
-              Right(json ++ Json.obj("conditions" -> jsonStrategies))
-            case Right(json) => Right(json)
-          }.toFEither
+    val baseFeature = strategyByCtx("")
+    evaluationService.evaluate(
+      strategies = strategyByCtx,
+      ctx = requestContext
+    ).map(result => {
+      val json = FeatureFormats.writeFeatureForCheck(
+        name = baseFeature.name,
+        project = baseFeature.project,
+        value = result
       )
-  }
-
-  def lightWeightToCompleteFeature(
-      tenant: String,
-      f: LightWeightFeature,
-      conn: Option[SqlConnection] = None
-  ): FutureEither[CompleteFeature] = {
-    f match {
-      case f: LightWeightWasmFeature => {
-        datastore
-          .readWasmScript(tenant, f.wasmConfigName, conn)
-          .map(maybeWasm =>
-            maybeWasm.toRight(
-              InternalServerError(
-                s"Failed to find wasm script config ${f.wasmConfigName}"
-              )
-            )
-          ).toFEither
-          .map((wasmConfig) =>
-            CompleteWasmFeature(
-              id = f.id,
-              name = f.name,
-              project = f.project,
-              enabled = f.enabled,
-              wasmConfig = wasmConfig,
-              tags = f.tags,
-              metadata = f.metadata,
-              description = f.description,
-              resultType = f.resultType
-            )
-          )
+      if (conditions) {
+        json ++ Json.obj("conditions" -> jsonStrategies)
+      } else {
+        json
       }
-      case feat: CompleteFeature => FutureEither.success(feat)
-    }
+    })
   }
 
   def createFeature(
@@ -397,7 +328,7 @@ class FeatureService(
         );
         transactionProvider.executeInTransaction(conn => {
           for (
-            oldStrategy <- lightWeightToCompleteFeature(
+            oldStrategy <- datastore.readCompleteFeature(
               tenant,
               oldFeature.strategyFor(contextPath)
             ).map(completeFeature =>
@@ -734,7 +665,7 @@ class FeatureService(
             request.preserveProtectedContexts && protectedContextToUpdate.nonEmpty
           ) {
             for (
-              oldStrategy <- lightWeightToCompleteFeature(
+              oldStrategy <- datastore.readCompleteFeature(
                 request.tenant,
                 oldFeature.strategyFor(
                   request.maybeContext.getOrElse(FeatureContextPath())
@@ -819,7 +750,7 @@ class FeatureService(
       featureRequest: FeatureRequest,
       clientId: String,
       clientSecret: String
-  ): Future[Either[IzanamiError, Seq[EvaluatedCompleteFeature]]] = {
+  ): FutureEither[Seq[EvaluatedCompleteFeature]] = {
 
     val features = retrieveFeatureFromQuery(
       conditions,
@@ -828,11 +759,9 @@ class FeatureService(
       clientId,
       clientSecret
     )
-    features.flatMap {
-      case Left(error) => Left(error).future
-      case Right(f)    => evaluate(f, requestContext)
-    }
-
+    features.toFEither.flatMap(f =>
+      evaluationService.evaluate(f, requestContext)
+    )
   }
 
   private def retrieveFeatureFromQuery(
@@ -902,23 +831,12 @@ class FeatureService(
   def evaluateStrategy(
       strategy: CompleteContextualStrategy,
       requestContext: RequestContext
-  ): Future[Either[IzanamiError, JsValue]] = {
+  ): Future[Either[IzanamiError, EvaluationResultWrapper]] = {
     strategy
       .value(
         requestContext,
         wasmRelatedStuff
       )
-  }
-
-  private def evaluate(
-      features: Seq[FeatureStrategies],
-      requestContext: RequestContext
-  ): Future[Either[IzanamiError, Seq[EvaluatedCompleteFeature]]] = {
-    val evaluatedFeatures =
-      Future.sequence(features.map(f =>
-        f.evaluate(requestContext, wasmRelatedStuff)
-      ))
-    evaluatedFeatures.map(Helpers.sequence(_))
   }
 
   private def hasRightToUpdate(
@@ -995,35 +913,29 @@ class FeatureService(
       feature: CompleteFeature,
       context: RequestContext
   ): FutureEither[JsObject] = {
-    feature
-      .value(context, wasmRelatedStuff)
-      .map(either => {
-        either.map(active => {
-          Json.obj(
-            "name" -> feature.name,
-            "active" -> active,
-            "project" -> feature.project
-          )
-        })
-      }).toFEither
+    evaluationService.evaluate(feature, context)
+      .map(active =>
+        Json.obj(
+          "name" -> feature.name,
+          "active" -> Json.toJson(active)(EvaluationResultWrapper.writes),
+          "project" -> feature.project
+        )
+      )
   }
 
   def writeFeatureForCheckInLegacyFormat(
       feature: CompleteFeature,
       context: RequestContext
   ): FutureEither[Option[JsObject]] = {
-    feature
-      .value(context, wasmRelatedStuff)
-      .map {
-        case Left(error)   => Left(error)
-        case Right(active) =>
-          Right(
-            Some(
-              writeFeatureInLegacyFormat(feature) ++ Json
-                .obj("active" -> active)
+    evaluationService.evaluate(feature, context)
+      .map(active =>
+        Some(
+          FeatureFormats.writeFeatureInLegacyFormat(feature) ++ Json
+            .obj(
+              "active" -> Json.toJson(active)(EvaluationResultWrapper.writes)
             )
-          )
-      }.toFEither
+        )
+      )
   }
 }
 
@@ -1034,7 +946,8 @@ object FeatureService {
   ): JsValue = {
     val fields = evaluatedCompleteFeatures
       .map(evaluated => {
-        val active: JsValueWrapper = evaluated.result
+        val active: JsValueWrapper =
+          Json.toJson(evaluated.result)(EvaluationResultWrapper.writes)
         var baseJson = Json.obj(
           "name" -> evaluated.baseFeature.name,
           "active" -> active,

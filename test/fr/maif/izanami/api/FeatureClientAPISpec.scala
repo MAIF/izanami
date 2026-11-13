@@ -207,6 +207,50 @@ class FeatureClientAPISpec extends BaseAPISpec {
     }
   }
 
+  "Feature test endpoint" should {
+    "return false when the selected WASM overload is disabled" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant").withProjects(
+            TestProject("project")
+              .withFeatures(TestFeature(
+                "flag",
+                enabled = false,
+                wasmConfig = TestWasmConfig(
+                  name = "baseWasmScript",
+                  source = Json.obj(
+                    "kind" -> "Base64",
+                    "path" -> "dGVzdA=="
+                  )
+                )
+              ))
+              .withContexts(
+                TestFeatureContext("staging").withFeatureOverload(
+                  TestFeature(
+                    "flag",
+                    enabled = false,
+                    wasmConfig = TestWasmConfig(
+                      name = "wasmScript",
+                      source = Json.obj(
+                        "kind" -> "Base64",
+                        "path" -> "dGVzdA=="
+                      )
+                    )
+                  )
+                )
+              )
+          )
+        )
+        .build()
+      val id = situation.findFeatureId("tenant", "project", "flag").get
+      val response = situation.testExistingFeature("tenant", id, context = "staging")
+
+      response.status mustBe OK
+      (response.json.get \ "active").as[Boolean] mustBe false
+    }
+  }
+
   "Feature check GET endpoint" should {
     "prevent evaluating wasm feature if wasm feature is disabled" in {
       var situation = TestSituationBuilder()

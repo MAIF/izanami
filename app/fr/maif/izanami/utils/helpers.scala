@@ -3,8 +3,7 @@ package fr.maif.izanami.utils
 import pureconfig.ConfigFieldMapping
 import pureconfig.generic.derivation.*
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 object Helpers {
   def sequence[A, B](seq: Seq[Either[A, B]]): Either[A, Seq[B]] =

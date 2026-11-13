@@ -1,50 +1,50 @@
 package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.webhookImplicits.WebhookRow
+import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.WebhookCreationFailed
-import fr.maif.izanami.errors.WebhookDoesNotExists
-import fr.maif.izanami.events.EventService
-import fr.maif.izanami.events.IzanamiEvent
-import fr.maif.izanami.models.LightWebhook
-import fr.maif.izanami.models.Tenant
-import fr.maif.izanami.models.Webhook
-import fr.maif.izanami.models.WebhookFeature
-import fr.maif.izanami.models.WebhookProject
-import fr.maif.izanami.utils.Datastore
-import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
+import fr.maif.izanami.errors.{
+  InternalServerError,
+  TenantDoesNotExists,
+  WebhookCreationFailed,
+  WebhookDoesNotExists
+}
+import fr.maif.izanami.events.{EventService, IzanamiEvent}
+import fr.maif.izanami.models.*
+import fr.maif.izanami.utils.{Datastore, Done, FutureEither}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterFuture,
+  BetterFutureEither,
+  BetterJsValue
+}
 import fr.maif.izanami.web.UserInformation
 import io.vertx.pgclient.PgException
 import io.vertx.sqlclient.Row
 import play.api.libs.json.Json
 
 import java.net.URI
-import java.time.Instant
-import java.time.ZoneOffset
+import java.time.{Instant, ZoneOffset}
 import java.util.UUID
-import scala.concurrent.Future
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.errors.InternalServerError
-import fr.maif.izanami.errors.TenantDoesNotExists
-import fr.maif.izanami.utils.syntax.implicits.BetterFuture
-import fr.maif.izanami.utils.Done
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
-import fr.maif.izanami.env.Postgresql
-import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 class WebhooksDatastore(postgresql: => Postgresql)(implicit
     val ec: ExecutionContext
 ) extends Datastore {
 
-  def checkWebhookExistence(tenant: String, webhooks: Set[String]): Future[Map[String, Boolean]] = {
+  def checkWebhookExistence(
+      tenant: String,
+      webhooks: Set[String]
+  ): Future[Map[String, Boolean]] = {
     Tenant.isTenantValid(tenant)
     postgresql
       .queryAll(
         s"""SELECT name from "${tenant}".webhooks WHERE name=ANY($$1::TEXT[])""",
         params = List(webhooks.toArray)
       ) { r => r.optString("name") }
-      .map(existingWebhooks => webhooks.map(p => (p -> existingWebhooks.contains(p))).toMap)
+      .map(existingWebhooks =>
+        webhooks.map(p => (p -> existingWebhooks.contains(p))).toMap
+      )
   }
 
   def createWebhookCall(

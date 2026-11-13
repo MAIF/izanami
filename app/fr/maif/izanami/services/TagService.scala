@@ -1,10 +1,9 @@
 package fr.maif.izanami.services
 
 import fr.maif.izanami.datastores.TagsDatastore
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.models.Tag
-import fr.maif.izanami.models.TagCreationRequest
-import fr.maif.izanami.utils.Done
+import fr.maif.izanami.models.{Tag, TagCreationRequest}
+import fr.maif.izanami.utils.{Done, FutureEither}
+
 import scala.concurrent.Future
 
 class TagService(datastore: => TagsDatastore) {

@@ -1,41 +1,29 @@
 package fr.maif.izanami.mail
 
-import com.mailjet.client.ClientOptions
-import com.mailjet.client.MailjetClient
-import com.mailjet.client.MailjetRequest
+import com.mailjet.client.{ClientOptions, MailjetClient, MailjetRequest}
 import com.mailjet.client.resource.Emailv31
 import com.sun.mail.smtp.SMTPTransport
-import fr.maif.izanami.errors.MailSendingError
-import fr.maif.izanami.errors.MissingMailProviderConfigurationError
+import fr.maif.izanami.datastores.ConfigurationDatastore
+import fr.maif.izanami.errors.{
+  MailSendingError,
+  MissingMailProviderConfigurationError
+}
 import fr.maif.izanami.mail.MailGunRegion.Europe
-import fr.maif.izanami.mail.MailerType.MailGun
-import fr.maif.izanami.mail.MailerType.MailJet
-import fr.maif.izanami.mail.MailerType.SMTP
+import fr.maif.izanami.mail.MailerType.{MailGun, MailJet, SMTP}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
-import org.json.JSONArray
-import org.json.JSONObject
+import org.json.{JSONArray, JSONObject}
 import play.api.Logger
-import play.api.libs.json.JsError
-import play.api.libs.json.JsString
-import play.api.libs.json.JsSuccess
-import play.api.libs.json.Reads
-import play.api.libs.json.Writes
+import play.api.libs.json.*
 import play.api.libs.ws.DefaultBodyWritables.writeableOf_urlEncodedSimpleForm
-import play.api.libs.ws.WSAuthScheme
-import play.api.libs.ws.WSClient
+import play.api.libs.ws.{WSAuthScheme, WSClient}
 
-import java.util.Objects
-import java.util.Properties
-import javax.mail.Message
-import javax.mail.Session
-import javax.mail.internet.InternetAddress
-import javax.mail.internet.MimeMessage
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import java.util.{Objects, Properties}
+import javax.mail.{Message, Session}
+import javax.mail.internet.{InternetAddress, MimeMessage}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.FutureConverters.CompletionStageOps
 import scala.util.Using
-import fr.maif.izanami.datastores.ConfigurationDatastore
 
 case class Mail(
     subject: String,

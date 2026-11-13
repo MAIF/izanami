@@ -7,27 +7,17 @@ import com.github.jknack.handlebars.helper.{
   UnlessHelper
 }
 import com.github.jknack.handlebars.jackson.JsonNodeValueResolver
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.models.LightWebhook
-import fr.maif.izanami.errors.{
-  FailedToApplyTemplate,
-  GenericBadRequest,
-  InvalidHandlebarTemplate,
-  InvalidJson,
-  IzanamiError
-}
-
-import scala.util.Try
-import fr.maif.izanami.datastores.WebhooksDatastore
-import fr.maif.izanami.web.UserInformation
 import com.github.jknack.handlebars.{Context, Handlebars}
-import fr.maif.izanami.models.Webhook
-
-import scala.concurrent.Future
-import fr.maif.izanami.utils.Done
+import fr.maif.izanami.datastores.WebhooksDatastore
+import fr.maif.izanami.errors.*
+import fr.maif.izanami.models.{LightWebhook, Webhook}
+import fr.maif.izanami.services.WebhookService.checkWebhook
+import fr.maif.izanami.utils.{Done, FutureEither}
+import fr.maif.izanami.web.UserInformation
 
 import java.util.UUID
-import fr.maif.izanami.services.WebhookService.checkWebhook
+import scala.concurrent.Future
+import scala.util.Try
 
 class WebhookService(datastore: WebhooksDatastore) {
   private val handlebars = new Handlebars()
