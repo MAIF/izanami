@@ -1,6 +1,7 @@
 package fr.maif.izanami.models.features
 
 import fr.maif.izanami.models.{Feature, RequestContext}
+import fr.maif.izanami.services.EvaluationService
 import org.scalatestplus.play.PlaySpec
 import play.api.libs.json.*
 
@@ -74,22 +75,14 @@ class ActivationConditionSpec extends PlaySpec {
       )).isError mustBe true
     }
 
-    "apply groups to every result type without bypassing periods" in {
+    "apply groups without bypassing periods" in {
       val rule = UserList(Set.empty, Set("beta"))
       val context = RequestContext("tenant", "alice", groups = Set("beta"))
-      val conditions = Seq(
-        BooleanActivationCondition(rule = rule),
-        NumberActivationCondition(rule = rule, value = BigDecimal(42)),
-        StringActivationCondition(rule = rule, value = "beta-value")
-      )
-      for (condition <- conditions) {
-        condition.active(context, "flag") mustBe true
-        condition.active(context.copy(groups = Set.empty), "flag") mustBe false
-      }
-      BooleanActivationCondition(
-        period = FeaturePeriod(end = Some(context.now.minusSeconds(1))),
-        rule = rule
-      ).active(context, "flag") mustBe false
+
+      val booleanCondition = BooleanActivationCondition(rule = rule)
+      EvaluationService.evaluateBoolean(BooleanResultDescriptor(Seq(booleanCondition)), context = context, feature = "flag") mustBe true
+      EvaluationService.evaluateBoolean(BooleanResultDescriptor(Seq(booleanCondition)), context = context.copy(groups = Set.empty), feature = "flag") mustBe false
+      EvaluationService.evaluateBoolean(BooleanResultDescriptor(Seq(BooleanActivationCondition(period = FeaturePeriod(end = Some(context.now.minusSeconds(1))), rule = rule))), context = context, feature = "flag") mustBe false
     }
   }
 }

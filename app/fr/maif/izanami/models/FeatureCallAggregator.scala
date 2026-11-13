@@ -2,8 +2,8 @@ package fr.maif.izanami.models
 
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
 import fr.maif.izanami.models.FeatureCallAggregator.FeatureCallRange
+import fr.maif.izanami.models.features.EvaluationResultWrapper
 import fr.maif.izanami.web.FeatureContextPath
-import play.api.libs.json.JsValue
 
 import java.time.Instant
 import java.time.ZoneId
@@ -25,13 +25,13 @@ case class FeatureCallAggregator(calls: TrieMap[FeatureCallRange, AtomicLong] =
 
 case object FeatureCallAggregator {
   case class FeatureCallRange(
-      tenant: String,
-      feature: String,
-      key: String,
-      result: JsValue,
-      context: FeatureContextPath,
-      rangeStart: Instant,
-      origin: FeatureCallOrigin
+                               tenant: String,
+                               feature: String,
+                               key: String,
+                               result: EvaluationResultWrapper,
+                               context: FeatureContextPath,
+                               rangeStart: Instant,
+                               origin: FeatureCallOrigin
   ) {}
 
   case object FeatureCallRange {

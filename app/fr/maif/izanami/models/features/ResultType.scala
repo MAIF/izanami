@@ -17,27 +17,20 @@ import play.api.libs.json.Writes
   * Numbers.
   */
 sealed trait ResultType {
+  // TODO this should not be here
   def toDatabaseName: String
-  def parse(value: JsValue): Option[JsValue]
 }
 
-sealed trait ValuedResultType extends ResultType {
-  def toJson(v: String): JsValue
-}
+sealed trait ValuedResultType extends ResultType
 
 case object StringResult extends ValuedResultType {
-  override def toJson(v: String): JsValue = JsString(v)
   override def toDatabaseName: String = "string"
-  override def parse(value: JsValue): Option[JsValue] = value.asOpt[JsString]
 }
 case object NumberResult extends ValuedResultType {
-  override def toJson(v: String): JsValue = JsNumber(BigDecimal(v))
   override def toDatabaseName: String = "number"
-  override def parse(value: JsValue): Option[JsValue] = value.asOpt[JsNumber]
 }
 case object BooleanResult extends ResultType {
   override def toDatabaseName: String = "boolean"
-  override def parse(value: JsValue): Option[JsValue] = value.asOpt[JsBoolean]
 }
 
 object ResultType {

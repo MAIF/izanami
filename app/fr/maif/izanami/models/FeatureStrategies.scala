@@ -1,8 +1,8 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.models.features.EvaluationResultWrapper
 import fr.maif.izanami.wasm.WasmRelatedStuff
-import play.api.libs.json.JsValue
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
@@ -39,7 +39,7 @@ case class FeatureStrategies(strategies: Map[String, CompleteFeature]) {
 
 case class EvaluatedCompleteFeature(
     featureStrategies: FeatureStrategies,
-    result: JsValue
+    result: EvaluationResultWrapper
 ) {
   def baseFeature: CompleteFeature = {
     featureStrategies.strategies("")

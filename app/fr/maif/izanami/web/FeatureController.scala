@@ -157,7 +157,7 @@ class FeatureController(
                     case Right(active) =>
                       Ok(
                         Json.obj(
-                          "active" -> active,
+                          "active" -> Json.toJson(active)(EvaluationResultWrapper.writes),
                           "project" -> f.project,
                           "name" -> f.name
                         )

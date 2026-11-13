@@ -4,7 +4,7 @@ import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.errors.WasmError
 import fr.maif.izanami.errors.WasmResultParsingError
 import fr.maif.izanami.models.RequestContext
-import fr.maif.izanami.models.features.ResultType
+import fr.maif.izanami.models.features.{BooleanResult, BooleanResultWrapper, EvaluationResultWrapper, NumberResult, NumberResultWrapper, ResultType, StringResult, StringResultWrapper}
 import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
 import io.otoroshi.wasm4s.scaladsl.*
 import play.api.libs.json.*
@@ -245,7 +245,7 @@ object WasmUtils {
       wasmIntegration: WasmIntegration
   )(implicit
       ec: ExecutionContext
-  ): Future[Either[IzanamiError, JsValue]] = {
+  ): Future[Either[IzanamiError, EvaluationResultWrapper]] = {
     val context = (requestContext.wasmJson.as[JsObject] ++ Json.obj(
       "id" -> requestContext.user,
       "context" -> requestContext.data,
@@ -261,7 +261,7 @@ object WasmUtils {
           case Right((rawResult, _)) => {
             val response = Json.parse(rawResult)
             val result = response.asOpt[JsArray].getOrElse(Json.arr())
-            (result.value.head \ "result").asOpt[JsValue].toRight {
+            (result.value.head \ "result").asOpt[Boolean].map(b => BooleanResultWrapper(b)).toRight {
               logger.error(
                 s"Failed to parse wasm result (OPA), result is $result"
               )
@@ -288,12 +288,10 @@ object WasmUtils {
                   WasmError()
                 }
                 .flatMap(json => {
-                  expectedType
-                    .parse(json)
-                    .toRight(WasmResultParsingError(
-                      expected = expectedType.toDatabaseName,
-                      found = json
-                    ))
+                  parseWasmResult(json, expectedType).toRight(WasmResultParsingError(
+                    expected = expectedType.toDatabaseName,
+                    found = json
+                  ))
                 })
             } else {
               Try { Json.parse(rawResult) }.toEither.left
@@ -304,8 +302,7 @@ object WasmUtils {
                   WasmError()
                 })
                 .flatMap(json => {
-                  expectedType
-                    .parse(json)
+                  parseWasmResult(json, expectedType)
                     .toRight(WasmResultParsingError(
                       expected = expectedType.toDatabaseName,
                       found = json
@@ -315,6 +312,14 @@ object WasmUtils {
           }
         }
       }
+    }
+  }
+
+  private def parseWasmResult(json: JsValue, expected: ResultType): Option[EvaluationResultWrapper] = {
+    expected match {
+      case StringResult => json.asOpt[String].map(s => StringResultWrapper(s))
+      case NumberResult => json.asOpt[JsNumber].map(n => NumberResultWrapper(n.value))
+      case BooleanResult => json.asOpt[Boolean].map(b => BooleanResultWrapper(b))
     }
   }
 }

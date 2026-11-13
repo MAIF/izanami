@@ -17,7 +17,9 @@ import java.time.ZoneOffset
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationLong
 import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.models.features.EvaluationResultWrapper
 import org.apache.pekko.actor.ActorSystem
+
 import scala.concurrent.ExecutionContext
 
 class FeatureCallsDatastore(
@@ -95,7 +97,7 @@ class FeatureCallsDatastore(
         callSeq.map(_._1.key).toArray,
         callSeq.map(_._1.context.toDBPath).toArray,
         callSeq.map(_._1.result).map(v => {
-          Json.obj("value" -> v).vertxJsValue
+          Json.obj("value" -> Json.toJson(v)(EvaluationResultWrapper.writes)).vertxJsValue
         }).toArray,
         callSeq.map(_._1.rangeStart).map(s =>
           s.atOffset(ZoneOffset.UTC)

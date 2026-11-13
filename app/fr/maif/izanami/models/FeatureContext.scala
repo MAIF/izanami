@@ -1,14 +1,8 @@
 package fr.maif.izanami.models
 
 import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.models.features.ActivationCondition
-import fr.maif.izanami.models.features.BooleanActivationCondition
-import fr.maif.izanami.models.features.BooleanResult
-import fr.maif.izanami.models.features.BooleanResultDescriptor
-import fr.maif.izanami.models.features.ResultDescriptor
-import fr.maif.izanami.models.features.ResultType
-import fr.maif.izanami.models.features.ValuedResultDescriptor
-import fr.maif.izanami.models.features.ValuedResultType
+import fr.maif.izanami.models.features.{ActivationCondition, BooleanActivationCondition, BooleanResult, BooleanResultDescriptor, BooleanResultWrapper, EvaluationResultWrapper, NullResultWrapper, ResultDescriptor, ResultType, ValuedResultDescriptor, ValuedResultType}
+import fr.maif.izanami.services.EvaluationService
 import fr.maif.izanami.wasm.{WasmConfig, WasmRelatedStuff, WasmUtils}
 import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.*
@@ -137,7 +131,7 @@ sealed trait CompleteContextualStrategy extends ContextualFeatureStrategy {
       wasmRelatedStuff: WasmRelatedStuff
   )(implicit
       executionContext: ExecutionContext
-  ): Future[Either[IzanamiError, JsValue]]
+  ): Future[Either[IzanamiError, EvaluationResultWrapper]]
   def toLightWeightContextualStrategy: LightweightContextualStrategy = {
     this match {
       case f: ClassicalFeatureStrategy => f
@@ -174,22 +168,11 @@ case class ClassicalFeatureStrategy(
       wasmRelatedStuff: WasmRelatedStuff
   )(implicit
       executionContext: ExecutionContext
-  ): Future[Either[IzanamiError, JsValue]] = {
+  ): Future[Either[IzanamiError, EvaluationResultWrapper]] = {
     Future.successful(Right((enabled, resultDescriptor) match {
-      case (false, r: BooleanResultDescriptor)         => JsFalse
-      case (false, _)                                  => JsNull
-      case (true, BooleanResultDescriptor(conditions)) =>
-        JsBoolean(
-          conditions.isEmpty || conditions.exists(c =>
-            c.active(requestContext, feature)
-          )
-        )
-      case (true, v: ValuedResultDescriptor) => {
-        v.conditions
-          .find(condition => condition.active(requestContext, feature))
-          .map(condition => condition.jsonValue)
-          .getOrElse(v.jsonValue)
-      }
+      case (false, r: BooleanResultDescriptor)         => BooleanResultWrapper(false)
+      case (false, _)                                  => NullResultWrapper
+      case (true, rd) => EvaluationService.evaluate(rd, context = requestContext, feature = feature)
     }))
   }
 
@@ -207,7 +190,7 @@ case class CompleteWasmFeatureStrategy(
       wasmRelatedStuff: WasmRelatedStuff
   )(implicit
       executionContext: ExecutionContext
-  ): Future[Either[IzanamiError, JsValue]] = {
+  ): Future[Either[IzanamiError, EvaluationResultWrapper]] = {
     if (!enabled) {
       Future { Right(null.asInstanceOf) }(executionContext)
     } else {

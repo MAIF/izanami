@@ -16,6 +16,7 @@ import play.api.Logger
 import play.api.libs.json.*
 import play.api.mvc.QueryStringBindable
 import fr.maif.izanami.datastores.FeaturesDatastore
+import fr.maif.izanami.services.EvaluationService
 
 import java.time.*
 import java.time.format.DateTimeFormatter
@@ -110,7 +111,7 @@ sealed trait CompleteFeature extends AbstractFeature {
       wasmRelatedStuff: WasmRelatedStuff
   )(implicit
       executionContext: ExecutionContext
-  ): Future[Either[IzanamiError, JsValue]]
+  ): Future[Either[IzanamiError, EvaluationResultWrapper]]
 
   override def withProject(project: String): CompleteFeature
 
@@ -404,9 +405,9 @@ case class SingleConditionFeature(
       wasmRelatedStuff: WasmRelatedStuff
   )(implicit
       executionContext: ExecutionContext
-  ): Future[Either[IzanamiError, JsValue]] = {
+  ): Future[Either[IzanamiError, EvaluationResultWrapper]] = {
     val res = if (enabled) condition.active(requestContext, id) else false
-    Future.successful(Right(JsBoolean(res)))
+    Future.successful(Right(BooleanResultWrapper(res)))
   }
 
   override def withProject(project: String): SingleConditionFeature =
@@ -464,22 +465,11 @@ case class Feature(
       wasmRelatedStuff: WasmRelatedStuff
   )(implicit
       executionContext: ExecutionContext
-  ): Future[Either[IzanamiError, JsValue]] = {
+  ): Future[Either[IzanamiError, EvaluationResultWrapper]] = {
     Future.successful(Right((enabled, resultDescriptor) match {
-      case (false, r: BooleanResultDescriptor)         => JsFalse
-      case (false, _)                                  => JsNull
-      case (true, BooleanResultDescriptor(conditions)) =>
-        JsBoolean(
-          conditions.isEmpty || conditions.exists(c =>
-            c.active(requestContext, name)
-          )
-        )
-      case (true, v: ValuedResultDescriptor) => {
-        v.conditions
-          .find(condition => condition.active(requestContext, name))
-          .map(condition => condition.jsonValue)
-          .getOrElse(v.jsonValue)
-      }
+      case (false, r: BooleanResultDescriptor)         => BooleanResultWrapper(false)
+      case (false, _)                                  => NullResultWrapper
+      case (true, rd) => EvaluationService.evaluate(rd, context = requestContext, feature = name)
     }))
   }
 
@@ -567,23 +557,23 @@ case class CompleteWasmFeature(
   override def value(
       requestContext: RequestContext,
       wasmRelatedStuff: WasmRelatedStuff
-  )(implicit ec: ExecutionContext): Future[Either[IzanamiError, JsValue]] = {
+  )(implicit ec: ExecutionContext): Future[Either[IzanamiError, EvaluationResultWrapper]] = {
 
     (wasmRelatedStuff.isWasmAllowed, enabled, resultType) match {
       case (false, true, BooleanResult) => {
         logger.warn(
           s"Evaluation result of wasm feature ${name} (id ${id}, context ${requestContext.context.toUserPath}) was changed to false, since this izanami instance doesn't allow wasm features"
         )
-        Future.successful(Right(JsFalse))
+        Future.successful(Right(BooleanResultWrapper(false)))
       }
       case (false, true, _) => {
         logger.warn(
           s"Evaluation result of wasm feature ${name} (id ${id}, context ${requestContext.context.toUserPath}) was changed to null, since this izanami instance doesn't allow wasm features"
         )
-        Future.successful(Right(JsNull))
+        Future.successful(Right(NullResultWrapper))
       }
-      case (_, false, BooleanResult) => Future.successful(Right(JsFalse))
-      case (_, false, _)             => Future.successful(Right(JsNull))
+      case (_, false, BooleanResult) => Future.successful(Right(BooleanResultWrapper(false)))
+      case (_, false, _)             => Future.successful(Right(NullResultWrapper))
       case (_, true, _)              =>
         WasmUtils.handle(
           wasmConfig,
@@ -851,9 +841,9 @@ object FeatureRequest {
 
 object Feature {
 
-  def isPercentageFeatureActive(source: String, percentage: Int): Boolean = {
+  def isPercentageFeatureActive(source: String, percentage: Int, intervalStart: Int): Boolean = {
     val hash = (Math.abs(MurmurHash3.bytesHash(source.getBytes, 42)) % 100) + 1
-    hash <= percentage
+    hash > intervalStart && hash <= percentage
   }
 
   def writeStrategiesForEvent(
@@ -890,7 +880,7 @@ object Feature {
         either.map(active => {
           Json.obj(
             "name" -> feature.name,
-            "active" -> active,
+            "active" -> Json.toJson(active)(EvaluationResultWrapper.writes),
             "project" -> feature.project
           )
         })
@@ -912,7 +902,7 @@ object Feature {
           Right(
             Some(
               writeFeatureInLegacyFormat(feature) ++ Json
-                .obj("active" -> active)
+                .obj("active" -> Json.toJson(active)(EvaluationResultWrapper.writes))
             )
           )
       }(ec)

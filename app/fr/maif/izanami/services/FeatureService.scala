@@ -20,15 +20,7 @@ import fr.maif.izanami.models.ProjectRightLevel.Admin
 import fr.maif.izanami.models.ProjectRightLevel.Read
 import fr.maif.izanami.models.ProjectRightLevel.Update
 import fr.maif.izanami.models.ProjectRightLevel.Write
-import fr.maif.izanami.models.features.ActivationCondition
-import fr.maif.izanami.models.features.BooleanResult
-import fr.maif.izanami.models.features.EnabledFeaturePatch
-import fr.maif.izanami.models.features.FeaturePatch
-import fr.maif.izanami.models.features.ProjectFeaturePatch
-import fr.maif.izanami.models.features.RemoveFeaturePatch
-import fr.maif.izanami.models.features.ResultType
-import fr.maif.izanami.models.features.TagsFeaturePatch
-import fr.maif.izanami.models.features.ValuedResultDescriptor
+import fr.maif.izanami.models.features.{ActivationCondition, BooleanResult, EnabledFeaturePatch, EvaluationResultWrapper, FeaturePatch, ProjectFeaturePatch, RemoveFeaturePatch, ResultType, TagsFeaturePatch, ValuedResultDescriptor}
 import fr.maif.izanami.requests.BaseFeatureUpdateRequest
 import fr.maif.izanami.requests.FeatureUpdateRequest
 import fr.maif.izanami.requests.OverloadFeatureUpdateRequest
@@ -902,7 +894,7 @@ class FeatureService(
   def evaluateStrategy(
       strategy: CompleteContextualStrategy,
       requestContext: RequestContext
-  ): Future[Either[IzanamiError, JsValue]] = {
+  ): Future[Either[IzanamiError, EvaluationResultWrapper]] = {
     strategy
       .value(
         requestContext,
@@ -1001,7 +993,7 @@ class FeatureService(
         either.map(active => {
           Json.obj(
             "name" -> feature.name,
-            "active" -> active,
+            "active" -> Json.toJson(active)(EvaluationResultWrapper.writes),
             "project" -> feature.project
           )
         })
@@ -1020,7 +1012,7 @@ class FeatureService(
           Right(
             Some(
               writeFeatureInLegacyFormat(feature) ++ Json
-                .obj("active" -> active)
+                .obj("active" -> Json.toJson(active)(EvaluationResultWrapper.writes))
             )
           )
       }.toFEither
@@ -1034,7 +1026,7 @@ object FeatureService {
   ): JsValue = {
     val fields = evaluatedCompleteFeatures
       .map(evaluated => {
-        val active: JsValueWrapper = evaluated.result
+        val active: JsValueWrapper = Json.toJson(evaluated.result)(EvaluationResultWrapper.writes)
         var baseJson = Json.obj(
           "name" -> evaluated.baseFeature.name,
           "active" -> active,

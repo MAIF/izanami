@@ -14,12 +14,11 @@ import java.time.format.DateTimeParseException
 sealed trait ActivationCondition {
   def period: FeaturePeriod
   def rule: ActivationRule
-  def active(requestContext: RequestContext, featureId: String): Boolean =
-    period.active(requestContext) && rule.active(requestContext, featureId)
 }
 
 sealed trait ValuedActivationCondition extends ActivationCondition {
   def jsonValue: JsValue
+  def withRule(rule: ActivationRule): ValuedActivationCondition
 }
 
 case class NumberActivationCondition(
@@ -28,6 +27,7 @@ case class NumberActivationCondition(
     value: BigDecimal
 ) extends ValuedActivationCondition {
   override def jsonValue: JsValue = JsNumber(value)
+  override def withRule(rule: ActivationRule): ValuedActivationCondition = copy(rule=rule)
 }
 
 case class StringActivationCondition(
@@ -36,6 +36,7 @@ case class StringActivationCondition(
     value: String
 ) extends ValuedActivationCondition {
   override def jsonValue: JsValue = JsString(value)
+  override def withRule(rule: ActivationRule): ValuedActivationCondition = copy(rule=rule)
 }
 
 case class BooleanActivationCondition(
@@ -62,27 +63,29 @@ case class FeaturePeriod(
   }
 }
 
-sealed trait ActivationRule extends LegacyCompatibleCondition {
-  override def active(context: RequestContext, featureId: String): Boolean
-}
-object All extends ActivationRule {
+sealed trait ActivationRule
+
+sealed trait EvaluableActivationRule
+object All extends ActivationRule with EvaluableActivationRule with LegacyCompatibleCondition{
   override def active(context: RequestContext, featureId: String): Boolean =
     true
 }
 case class UserList(
     users: Set[String],
     groups: Set[String] = Set.empty
-) extends ActivationRule {
+) extends ActivationRule with EvaluableActivationRule with LegacyCompatibleCondition {
   override def active(context: RequestContext, featureId: String): Boolean =
     users.contains(context.user) || groups.exists(context.groups.contains)
 }
-case class UserPercentage(percentage: Int) extends ActivationRule {
+case class UserPercentage(percentage: Int) extends ActivationRule with LegacyCompatibleCondition {
   override def active(context: RequestContext, featureId: String): Boolean =
     Feature.isPercentageFeatureActive(
       s"${featureId}-${context.user}",
-      percentage
+      percentage,
+      intervalStart = 0
     )
 }
+case class RangeBasedUserPercentage(percentage: Int, intervalStart: Int) extends EvaluableActivationRule
 
 sealed trait LegacyCompatibleCondition {
   def active(requestContext: RequestContext, featureId: String): Boolean
@@ -189,7 +192,7 @@ object FeaturePeriod {
 
   implicit val featurePeriodeWrite: Writes[FeaturePeriod] =
     Writes[FeaturePeriod] { period =>
-      if (period.empty) {
+      if (period.begin.isEmpty && period.end.isEmpty && period.hourPeriods.isEmpty && period.days.isEmpty) {
         JsNull
       } else {
         Json.obj(
