@@ -13,7 +13,7 @@ processes:
       period_seconds: 1
       timeout_seconds: 5
       success_threshold: 1
-      failure_threshold: 20
+      failure_threshold: 100
     shutdown:
       command: "mise run clean"
   Backend:
@@ -32,7 +32,7 @@ processes:
       period_seconds: 1
       timeout_seconds: 5
       success_threshold: 1
-      failure_threshold: 20
+      failure_threshold: 10000
   Frontend:
     command: "mise run dev:front"
     depends_on:
