@@ -40,7 +40,7 @@
     "react-hot-toast": "^2.6.1",
     "react-router-dom": "7.18.5",
     "react-select": "^5.10.2",
-    "react-tooltip": "^5.28.0",
+    "react-tooltip": "^6.0.12",
     "swagger-ui": "^5.35.0",
     "uuid": "^11.1.0"
   },
