@@ -203,7 +203,7 @@ class ProjectsDatastore(
              |""".stripMargin,
           List(newProject.name, newProject.description, oldName),
           conn = Some(conn)
-        ) { r => r.optUUID("id") }
+        ) { r => r.optString("id") }
         .map(o => o.toRight(InternalServerError()))
         .recover(postgresql.pgErrorPartialFunction.andThen(err =>
           Left(err)

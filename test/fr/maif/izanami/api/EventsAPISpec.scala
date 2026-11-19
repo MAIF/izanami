@@ -111,6 +111,7 @@ class EventsAPISpec extends BaseAPISpec {
       val maybeF1 = (Json.parse(evt.get.data) \ "payload" \ f1Id).as[JsObject]
       (maybeF1 \ "name").as[String] mustEqual "f1"
       (maybeF1 \ "active").as[Boolean] mustEqual true
+      (maybeF1 \ "projectId").as[String] mustEqual situation.findProjectId(tenant, "project").get
       (maybeF1 \ "conditions" \ "" \ "enabled").as[Boolean] mustEqual true
     }
 
@@ -150,6 +151,7 @@ class EventsAPISpec extends BaseAPISpec {
       val maybeF1 = (Json.parse(evt.get.data) \ "payload" \ f1Id).as[JsObject]
       (maybeF1 \ "name").as[String] mustEqual "f1"
       (maybeF1 \ "active").as[Boolean] mustEqual true
+      (maybeF1 \ "projectId").as[String] mustEqual situation.findProjectId(tenant, "project").get
       (maybeF1 \ "conditions").asOpt[JsObject] mustBe None
     }
 
@@ -679,6 +681,7 @@ class EventsAPISpec extends BaseAPISpec {
       val maybeF1 = (Json.parse(evt.get.data) \ "payload" \ f1Id).as[JsObject]
       (maybeF1 \ "name").as[String] mustEqual "f1"
       (maybeF1 \ "active").as[Boolean] mustEqual true
+      (maybeF1 \ "projectId").as[String] mustEqual situation.findProjectId(tenant, "project").get
       (maybeF1 \ "conditions" \ "" \ "enabled").as[Boolean] mustEqual true
     }
 
@@ -718,6 +721,7 @@ class EventsAPISpec extends BaseAPISpec {
       val maybeF1 = (Json.parse(evt.get.data) \ "payload" \ f1Id).as[JsObject]
       (maybeF1 \ "name").as[String] mustEqual "f1"
       (maybeF1 \ "active").as[Boolean] mustEqual true
+      (maybeF1 \ "projectId").as[String] mustEqual situation.findProjectId(tenant, "project").get
       (maybeF1 \ "conditions").asOpt[JsObject] mustBe None
     }
 

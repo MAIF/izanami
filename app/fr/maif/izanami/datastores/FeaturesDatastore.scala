@@ -868,7 +868,7 @@ class FeaturesDatastore(
       clientId: String,
       clientSecret: String,
       conditions: Boolean
-  ): Future[Either[IzanamiError, Map[UUID, Map[String, Iterable[
+  ): Future[Either[IzanamiError, Map[ProjectId, Map[String, Iterable[
     (Option[String], CompleteFeature)
   ]]]]] = {
     if (!Tenant.isTenantValid(tenant)) {
@@ -896,8 +896,36 @@ class FeaturesDatastore(
       }
 
       postgresql
-        .queryAll(
+        .queryAll[Either[IzanamiError, (ProjectId, (String, Iterable[
+          (Option[String], CompleteFeature)
+        ]))]](
           s"""
+             |WITH valid_key AS (
+             |  SELECT name, admin
+             |  FROM "${tenant}".apikeys
+             |  WHERE clientid=$$1 AND clientsecret=$$2 AND enabled=TRUE
+             |), authorized_projects AS (
+             |  SELECT p.id, p.name
+             |  FROM "${tenant}".projects p
+             |  CROSS JOIN valid_key k
+             |  WHERE k.admin=TRUE OR EXISTS (
+             |    SELECT 1 FROM "${tenant}".apikeys_projects kp
+             |    WHERE kp.apikey=k.name AND kp.project=p.name
+             |  )
+             |), request_access AS (
+             |  SELECT
+             |    EXISTS (SELECT 1 FROM valid_key) AS valid_key,
+             |    NOT EXISTS (
+             |      SELECT 1 FROM unnest($$3::text[]) requested(id)
+             |      LEFT JOIN authorized_projects p ON p.id=requested.id
+             |      WHERE p.id IS NULL
+             |    ) AND NOT EXISTS (
+             |      SELECT 1 FROM unnest($$4::text[]) requested(id)
+             |      LEFT JOIN "${tenant}".features f ON f.id=requested.id
+             |      LEFT JOIN authorized_projects p ON p.name=f.project
+             |      WHERE p.id IS NULL
+             |    ) AS valid_targets
+             |), selected_features AS (
              |SELECT
              |    f.id,
              |    p.id as pid,
@@ -912,7 +940,7 @@ class FeaturesDatastore(
              |    f.value,
              |    w.config as wasm
              |    ${
-              if (needContexts)
+              if (needContexts) {
                 """,
              |    COALESCE(json_object_agg(fcs.context, json_build_object(
              |      'id', f.id,
@@ -927,44 +955,59 @@ class FeaturesDatastore(
              |      'wasmConfig', ow.config,
              |      'context', fcs.context)) FILTER(WHERE fcs.enabled IS NOT NULL), '{}'::json) AS overloads
              |    """
-              else ""
+              } else {
+                ""
+              }
             }
              |    ${
-              if (needTags)
+              if (needTags) {
                 ",COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]') as tags"
-              else ""
+              } else {
+                ""
+              }
             }
-             |  FROM "${tenant}".projects p
+             |  FROM authorized_projects p
              |  LEFT JOIN "${tenant}".features f on f.project = p.name
              |  ${
-              if (needTags)
+              if (needTags) {
                 s"""
                  |    LEFT JOIN "${tenant}".features_tags ft ON f.id=ft.feature
                  |    LEFT JOIN "${tenant}".tags t ON t.name=ft.tag"""
-              else ""
+              } else {
+                ""
+              }
             }
              |   ${
-              if (needContexts)
+              if (needContexts) {
                 s"""
                  |    LEFT JOIN "${tenant}".feature_contexts_strategies fcs ON fcs.feature=f.name ${
-                    if (!conditions)
+                    if (!conditions) {
                       s"""AND fcs.context OPERATOR("${extensionSchema}".@>) "${extensionSchema}".text2ltree($$5)"""
-                    else ""
+                    } else {
+                      ""
+                    }
                   }
                  |    LEFT JOIN "${tenant}".wasm_script_configurations ow ON fcs.script_config=ow.id""".stripMargin
-              else ""
+              } else {
+                ""
+              }
             }
              |  LEFT JOIN "${tenant}".wasm_script_configurations w ON w.id=f.script_config
-             |  INNER JOIN "${tenant}".apikeys k ON (k.clientid=$$1 AND k.clientsecret=$$2 AND k.enabled=true)
-             |  LEFT JOIN "${tenant}".apikeys_projects kp ON (kp.apikey=k.name AND kp.project=p.name)
              |  WHERE (f.project = p.name OR f.name IS NULL)
-             |  AND (kp.apikey IS NOT NULL OR k.admin=TRUE)
              |  AND (p.id=ANY($$3) OR f.id=ANY($$4))
              |  GROUP BY f.id, pid, w.config
+             |)
+             |SELECT a.valid_key, a.valid_targets, f.*
+             |FROM request_access a
+             |LEFT JOIN selected_features f ON a.valid_key AND a.valid_targets
              |""".stripMargin,
           params
         ) { r =>
-          {
+          if (!r.getBoolean("valid_key")) {
+            Some(Left(IncorrectKey))
+          } else if (!r.getBoolean("valid_targets")) {
+            Some(Left(InaccessibleEvaluationTargets))
+          } else {
             r.optCompleteFeature()
               .filter(f => {
                 if (needTags) {
@@ -1004,22 +1047,25 @@ class FeaturesDatastore(
                           }
 
                       (
-                        r.optUUID("pid").get,
+                        r.getString("pid"),
                         (f.id, overloadByPath + (None -> f))
                       )
                     })
                 } else {
-                  Some((r.optUUID("pid").get, (f.id, Map(None -> f))))
+                  Some((r.getString("pid"), (f.id, Map(None -> f))))
                 }
               })
+              .map(Right(_))
           }
         }
-        .map(l => {
-          val featureByProjects = l.groupBy(t => t._1).map { case (k, v) =>
-            (k, v.map(t => t._2).toMap)
+        .map(results =>
+          results.collectFirst { case Left(error) => error }.toLeft {
+            val features = results.collect { case Right(feature) => feature }
+            features.groupBy(t => t._1).map { case (k, v) =>
+              (k, v.map(t => t._2).toMap)
+            }
           }
-          Right(featureByProjects)
-        })
+        )
         .recover {
           case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
             Left(InvalidApiKey)
@@ -1033,7 +1079,7 @@ class FeaturesDatastore(
       request: FeatureRequest,
       clientId: String,
       clientSecret: String
-  ): Future[Either[IzanamiError, Map[UUID, Seq[CompleteFeature]]]] = {
+  ): Future[Either[IzanamiError, Map[ProjectId, Seq[CompleteFeature]]]] = {
     doFindByRequestForKey(
       tenant,
       request,

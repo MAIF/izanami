@@ -3,6 +3,7 @@ package fr.maif.izanami.api
 import com.typesafe.config.ConfigValueFactory
 import fr.maif.izanami.api.BaseAPISpec.*
 import play.api.http.Status.FORBIDDEN
+import play.api.http.Status.NO_CONTENT
 import play.api.http.Status.OK
 import play.api.http.Status.UNAUTHORIZED
 import play.api.libs.json.JsObject
@@ -17,6 +18,235 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 
 class FeatureClientAPISpec extends BaseAPISpec {
+  "Evaluation project membership" should {
+    "return stable project identifiers in individual and grouped results" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withAllRightsKey("key")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(TestFeature("flag", enabled = false))
+                .withContexts(
+                  TestFeatureContext("test")
+                    .withFeatureOverload(TestFeature("flag"))
+                ),
+              TestProject("other").withFeatureNames("other-flag")
+            )
+        ).build()
+      val projectId = situation.findProjectId("tenant", "project").get
+      val otherProjectId = situation.findProjectId("tenant", "other").get
+      val id = situation.findFeatureId("tenant", "project", "flag").get
+      val otherId = situation.findFeatureId("tenant", "other", "other-flag").get
+      val endpoints = Seq(
+        ("GET", s"/features/$id"),
+        ("POST", s"/features/$id"),
+        ("GET", "/features"),
+        ("POST", "/features"),
+        ("POST", "/_features")
+      )
+
+      for {
+        conditions <- Seq(false, true)
+        context <- Seq("", "test")
+        (method, path) <- endpoints
+      } {
+        withClue(s"$method $path, conditions=$conditions, context=$context: ") {
+          val request = ws.url(s"$BASE_URL/v2$path")
+            .withHttpHeaders(situation.keyHeaders("key").toSeq: _*)
+            .addQueryStringParameters(
+              "projects" -> s"$projectId,$otherProjectId",
+              "conditions" -> conditions.toString,
+              "context" -> context
+            )
+          val response = await {
+            if (method == "GET") {
+              request.get()
+            } else {
+              request.post(Json.obj(
+                "request" -> Json.obj("projects" -> Json.arr(projectId, otherProjectId))
+              ))
+            }
+          }
+          response.status mustBe OK
+          val flag = if (path.endsWith(id)) {
+            response.json
+          } else {
+            (response.json \ id).get
+          }
+          (flag \ "projectId").as[String] mustBe projectId
+          (flag \ "project").as[String] mustBe "project"
+          (flag \ "active").as[Boolean] mustBe context.nonEmpty
+          if (!path.endsWith(id)) {
+            (response.json \ otherId \ "projectId").as[String] mustBe otherProjectId
+          }
+        }
+      }
+
+      situation.updateProject("tenant", "other", name = "renamed").status mustBe NO_CONTENT
+      val renamed = situation.checkFeatures("key", projects = Seq(otherProjectId))
+      renamed.status mustBe OK
+      (renamed.json.get \ otherId \ "projectId").as[String] mustBe otherProjectId
+      (renamed.json.get \ otherId \ "project").as[String] mustBe "renamed"
+
+      situation.updateFeatureByName(
+        "tenant",
+        "project",
+        "flag",
+        json => json ++ Json.obj("project" -> "renamed"),
+        id = Some(id)
+      ).status mustBe OK
+      val moved = situation.checkFeature(id, "key")
+      moved.status mustBe OK
+      (moved.json.get \ "projectId").as[String] mustBe otherProjectId
+    }
+
+    "return empty results for accessible projects after their last flag disappears" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(TestApiKey("key", projects = Seq("project", "empty")))
+            .withTagNames("unused")
+            .withProjects(
+              TestProject("project").withFeatureNames("flag"),
+              TestProject("empty")
+            )
+        ).build()
+      val projectId = situation.findProjectId("tenant", "project").get
+      val emptyId = situation.findProjectId("tenant", "empty").get
+      val id = situation.findFeatureId("tenant", "project", "flag").get
+      val tagId = situation.findTagId("tenant", "unused").get
+
+      for (conditions <- Seq(false, true)) {
+        val mixed = situation.checkFeatures(
+          "key", projects = Seq(projectId, emptyId), conditions = conditions
+        )
+        mixed.status mustBe OK
+        mixed.json.get.as[JsObject].keys mustBe Set(id)
+        val filtered = situation.checkFeatures(
+          "key", projects = Seq(projectId), oneTagIn = Seq(tagId), conditions = conditions
+        )
+        filtered.status mustBe OK
+        filtered.json.get mustBe Json.obj()
+      }
+
+      situation.deleteFeature("tenant", id).status mustBe NO_CONTENT
+      for {
+        conditions <- Seq(false, true)
+        context <- Seq("", "test")
+        projects <- Seq(Seq(projectId), Seq(emptyId), Seq(projectId, emptyId))
+      } {
+        val response = situation.checkFeatures(
+          "key", projects = projects, contextPath = context, conditions = conditions
+        )
+        response.status mustBe OK
+        response.json.get mustBe Json.obj()
+        val bodyResponse = situation.checkFeaturesWithBody(
+          "key", projects = projects, contextPath = context, conditions = conditions
+        )
+        bodyResponse.status mustBe OK
+        bodyResponse.json.get mustBe Json.obj()
+      }
+    }
+
+    "reject every explicit inaccessible or nonexistent target instead of returning partial results" in {
+      val situation = TestSituationBuilder()
+        .loggedInWithAdminRights()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("allowed", "revoked")),
+              TestApiKey("admin", admin = true)
+            )
+            .withProjects(
+              TestProject("allowed").withFeatureNames("allowed-flag"),
+              TestProject("revoked").withFeatureNames("revoked-flag")
+            )
+        ).build()
+      val allowed = situation.findProjectId("tenant", "allowed").get
+      val revoked = situation.findProjectId("tenant", "revoked").get
+      val allowedFlag = situation.findFeatureId("tenant", "allowed", "allowed-flag").get
+      val revokedFlag = situation.findFeatureId("tenant", "revoked", "revoked-flag").get
+      situation.checkFeatures("key", projects = Seq(allowed, revoked)).status mustBe OK
+      situation.updateAPIKey(
+        "tenant", "key", description = "", projects = Seq("allowed"),
+        enabled = true, admin = false
+      ).status mustBe NO_CONTENT
+      val expected = Json.obj(
+        "message" -> "One or more requested targets do not exist or are inaccessible"
+      )
+      val selections = Seq(
+        (Seq(revoked), Seq.empty[String]),
+        (Seq(allowed, revoked), Seq.empty[String]),
+        (Seq(allowed, "missing-project"), Seq.empty[String]),
+        (Seq.empty[String], Seq(revokedFlag)),
+        (Seq.empty[String], Seq(allowedFlag, revokedFlag)),
+        (Seq.empty[String], Seq(allowedFlag, "missing-flag")),
+        (Seq(allowed), Seq(revokedFlag)),
+        (Seq(revoked), Seq(allowedFlag))
+      )
+      for {
+        conditions <- Seq(false, true)
+        (projects, features) <- selections
+      } {
+        val response = situation.checkFeatures(
+          "key", projects = projects, features = features, conditions = conditions
+        )
+        response.status mustBe FORBIDDEN
+        response.json.get mustBe expected
+        val bodyResponse = situation.checkFeaturesWithBody(
+          "key", projects = projects, features = features, conditions = conditions
+        )
+        bodyResponse.status mustBe FORBIDDEN
+        bodyResponse.json.get mustBe expected
+      }
+      for (id <- Seq(revokedFlag, "missing-flag")) {
+        val response = situation.checkFeature(id, "key")
+        response.status mustBe FORBIDDEN
+        response.json.get mustBe expected
+      }
+      situation.checkFeatures("admin", projects = Seq(allowed, revoked)).status mustBe OK
+      val missing = situation.checkFeatures("admin", projects = Seq("missing-project"))
+      missing.status mustBe FORBIDDEN
+      missing.json.get mustBe expected
+    }
+
+    "reject invalid and disabled keys even when the requested project is empty" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(
+              TestApiKey("key", projects = Seq("empty")),
+              TestApiKey("disabled", projects = Seq("empty"), enabled = false)
+            )
+            .withProjects(TestProject("empty"))
+        ).build()
+      val projectId = situation.findProjectId("tenant", "empty").get
+      val validHeaders = situation.keyHeaders("key")
+      val headers = Seq(
+        validHeaders + ("Izanami-Client-Secret" -> "incorrect"),
+        situation.keyHeaders("disabled")
+      )
+      for {
+        conditions <- Seq(false, true)
+        key <- headers
+      } {
+        val response = checkFeatures(
+          projects = Seq(projectId), headers = key, conditions = conditions
+        )
+        response.status mustBe FORBIDDEN
+        response.json.get mustBe Json.obj("message" -> "Incorrect key provided")
+        val bodyResponse = checkFeaturesWithBody(
+          projects = Seq(projectId), headers = key, conditions = conditions
+        )
+        bodyResponse.status mustBe FORBIDDEN
+        bodyResponse.json.get mustBe Json.obj("message" -> "Incorrect key provided")
+      }
+    }
+  }
+
   "Group targeting endpoints" should {
     "reject invalid groups instead of activating a time-based rule for everyone" in {
       val situation = TestSituationBuilder().loggedInWithAdminRights()

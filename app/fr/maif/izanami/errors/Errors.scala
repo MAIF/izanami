@@ -437,6 +437,11 @@ case class WasmResultParsingError(expected: String, found: JsValue)
     )
 case object IncorrectKey
     extends IzanamiError(message = "Incorrect key provided", status = FORBIDDEN)
+case object InaccessibleEvaluationTargets
+    extends IzanamiError(
+      message = "One or more requested targets do not exist or are inaccessible",
+      status = FORBIDDEN
+    )
 case object MissingKey
     extends IzanamiError(message = "Missing api key", status = UNAUTHORIZED)
 case class BadEventFormat(override val message: String = "Bad event format")

@@ -783,11 +783,9 @@ class FeatureService(
         )
       futureFeaturesByProject.map {
         case Left(error) => Left(error)
-        case Right(featuresByProjects) if featuresByProjects.isEmpty =>
-          Left(IncorrectKey)
         case Right(featuresByProjects) => {
           val strategies = featuresByProjects.toSeq.flatMap {
-            case (_, features) => {
+            case (projectId, features) => {
               features.map {
                 case (_, featureAndContexts) => {
                   // TODO turn featureAndContext into instance of FeatureStrategies
@@ -796,7 +794,7 @@ class FeatureService(
                     case (None, feat)      => ("", feat)
                   }.toMap
 
-                  FeatureStrategies(strategyByCtx)
+                  FeatureStrategies(projectId, strategyByCtx)
                 }
               }
             }
@@ -814,14 +812,13 @@ class FeatureService(
 
       futureFeaturesByProject.map {
         case Left(error) => Left(error)
-        case Right(featuresByProjects) if featuresByProjects.isEmpty =>
-          Left(IncorrectKey)
         case Right(featuresByProjects) => {
           // TODO turn return type of findByRequestForKey to FeatureStrategies so that we don't have to use
           //  an empty context here
-          val strategies = featuresByProjects.values.flatten
-            .map(v => FeatureStrategies(v))
-            .toSeq
+          val strategies = featuresByProjects.toSeq
+            .flatMap { case (projectId, features) =>
+              features.map(feature => FeatureStrategies(projectId, feature))
+            }
           Right(strategies)
         }
       }
@@ -951,7 +948,8 @@ object FeatureService {
         var baseJson = Json.obj(
           "name" -> evaluated.baseFeature.name,
           "active" -> active,
-          "project" -> evaluated.baseFeature.project
+          "project" -> evaluated.baseFeature.project,
+          "projectId" -> evaluated.featureStrategies.projectId
         )
 
         if (conditions) {
