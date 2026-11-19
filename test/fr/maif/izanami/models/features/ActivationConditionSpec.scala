@@ -60,7 +60,8 @@ class ActivationConditionSpec extends PlaySpec {
         ("user-83", 21, "B"),
         ("user-199", 30, "B"),
         ("user-85", 31, "base"),
-        ("user-49", 100, "base")
+        ("user-49", 100, "base"),
+        ("\uD83D\uDE80", 27, "B")
       )
 
       for ((user, bucket, expected) <- users) {

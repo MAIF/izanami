@@ -12,6 +12,7 @@ import fr.maif.izanami.web.FeatureContextPath
 import play.api.libs.json.*
 import play.api.mvc.QueryStringBindable
 
+import java.nio.charset.StandardCharsets
 import java.time.*
 import java.time.format.DateTimeFormatter
 import java.util.{Objects, UUID}
@@ -775,7 +776,7 @@ object Feature {
       percentage: Int,
       intervalStart: Int
   ): Boolean = {
-    val hash = (Math.abs(MurmurHash3.bytesHash(source.getBytes, 42)) % 100) + 1
+    val hash = (Math.abs(MurmurHash3.bytesHash(source.getBytes(StandardCharsets.UTF_8), 42)) % 100) + 1
     hash > intervalStart && hash <= percentage + intervalStart
   }
 
