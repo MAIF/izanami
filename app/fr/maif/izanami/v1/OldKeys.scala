@@ -1,11 +1,9 @@
 package fr.maif.izanami.v1
 
 import fr.maif.izanami.models.ApiKey
-import fr.maif.izanami.v1.OldCommons.authorizedPatternReads
-import fr.maif.izanami.v1.OldCommons.filterProjects
+import fr.maif.izanami.v1.OldCommons.{authorizedPatternReads, filterProjects}
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
-import play.api.libs.json.Reads
-import play.api.libs.json.__
+import play.api.libs.json.{Reads, __}
 
 case class OldKey(
     clientId: String,

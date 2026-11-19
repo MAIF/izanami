@@ -1,10 +1,7 @@
 package fr.maif.izanami.security
 
-import fr.maif.izanami.security.JwtService.decodeJWT
-import fr.maif.izanami.security.JwtService.encrypt
-import pdi.jwt.JwtAlgorithm
-import pdi.jwt.JwtClaim
-import pdi.jwt.JwtJson
+import fr.maif.izanami.security.JwtService.{decodeJWT, encrypt}
+import pdi.jwt.{JwtAlgorithm, JwtClaim, JwtJson}
 import play.api.libs.json.JsValue
 
 import java.time.Instant

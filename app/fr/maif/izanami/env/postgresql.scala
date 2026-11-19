@@ -1,50 +1,34 @@
 package fr.maif.izanami.env
 
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
+import fr.maif.izanami.AppConf
 import fr.maif.izanami.datastores.HashUtils
 import fr.maif.izanami.errors.*
+import fr.maif.izanami.models.SimpleTenant
 import fr.maif.izanami.security.IdGenerator
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.utils.{Done, FutureEither}
+import fr.maif.izanami.utils.syntax.implicits.{BetterFutureEither, BetterSyntax}
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
-import io.vertx.core.net.PemKeyCertOptions
-import io.vertx.core.net.PemTrustOptions
-import io.vertx.pgclient.PgBuilder
-import io.vertx.pgclient.PgConnectOptions
-import io.vertx.pgclient.PgException
-import io.vertx.pgclient.SslMode
-import io.vertx.sqlclient.PoolOptions
-import io.vertx.sqlclient.Row
-import io.vertx.sqlclient.SqlConnection
+import io.vertx.core.net.{
+  ClientSSLOptions,
+  NetClientOptions,
+  PemKeyCertOptions,
+  PemTrustOptions
+}
+import io.vertx.pgclient.{PgBuilder, PgConnectOptions, PgException, SslMode}
+import io.vertx.sqlclient.{PoolOptions, Row, SqlConnection}
 import org.apache.pekko.http.scaladsl.util.FastFuture
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.exception.FlywayValidateException
 import play.api.Logger
-import play.api.libs.json.JsArray
-import play.api.libs.json.JsObject
-import play.api.libs.json.Json
+import play.api.libs.json.{JsArray, JsObject, Json}
 
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.OffsetDateTime
-import java.time.ZoneId
-import java.util.Objects
-import java.util.UUID
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-import fr.maif.izanami.utils.Done
+import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
+import java.util.{Objects, UUID}
 import java.util.concurrent.atomic.AtomicBoolean
-import io.vertx.core.net.NetClientOptions
-import io.vertx.core.net.ClientSSLOptions
-import fr.maif.izanami.AppConf
-import fr.maif.izanami.models.SimpleTenant
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.{Failure, Success, Try}
 
 class Postgresql(appConfig: AppConf)(implicit ec: ExecutionContext) {
 

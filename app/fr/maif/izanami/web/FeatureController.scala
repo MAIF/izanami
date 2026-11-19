@@ -7,7 +7,7 @@ import fr.maif.izanami.errors.{
   FeatureNotFound,
   IzanamiError
 }
-import fr.maif.izanami.events.EventAuthentication.{TokenAuthentication}
+import fr.maif.izanami.events.EventAuthentication.TokenAuthentication
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.Feature.*
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
@@ -15,9 +15,8 @@ import fr.maif.izanami.models.LightWeightFeatureWithUsageInformation.writeLightW
 import fr.maif.izanami.models.ProjectRightLevel.{Read, Write}
 import fr.maif.izanami.models.features.*
 import fr.maif.izanami.requests.BaseFeatureUpdateRequest
-import fr.maif.izanami.services.FeatureService
-import fr.maif.izanami.services.FeatureUsageService
-import fr.maif.izanami.utils.{FutureEither}
+import fr.maif.izanami.services.{FeatureService, FeatureUsageService}
+import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
 import play.api.libs.json.*
@@ -25,8 +24,7 @@ import play.api.libs.json.Format.GenericFormat
 import play.api.mvc.*
 
 import java.time.Instant
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class FeatureController(
     val controllerComponents: ControllerComponents,
@@ -157,7 +155,9 @@ class FeatureController(
                     case Right(active) =>
                       Ok(
                         Json.obj(
-                          "active" -> active,
+                          "active" -> Json.toJson(active)(
+                            EvaluationResultWrapper.writes
+                          ),
                           "project" -> f.project,
                           "name" -> f.name
                         )
@@ -210,14 +210,12 @@ class FeatureController(
         request.clientId,
         request.clientSecret,
         origin = FeatureCall.Sse // FIXME context is passed twice
-      ).map {
-        case Left(err)   => err.toHttpResponse
-        case Right(json) =>
-          (json \ id)
-            .asOpt[JsValue]
-            .map(json => Ok(json))
-            .getOrElse(NotFound)
-      }
+      ).toResult(json =>
+        (json \ id)
+          .asOpt[JsValue]
+          .map(json => Ok(json))
+          .getOrElse(NotFound)
+      )
     }
   }
 
@@ -228,7 +226,7 @@ class FeatureController(
       clientId: String,
       clientSecret: String,
       origin: FeatureCallOrigin
-  ): Future[Either[IzanamiError, JsValue]] = {
+  ): FutureEither[JsValue] = {
 
     val evaluatedFeatures =
       featureService.evaluateFeatures(
@@ -238,24 +236,22 @@ class FeatureController(
         clientId,
         clientSecret
       )
-    evaluatedFeatures.map {
-      case Left(error)                      => Left(error)
-      case Right(evaluatedCompleteFeatures) =>
-        val response =
-          FeatureService.formatFeatureResponse(
-            evaluatedCompleteFeatures,
-            conditions
-          )
-        featureUsageService.registerCalls(
-          requestContext.tenant,
-          clientId,
+    evaluatedFeatures.map(evaluatedCompleteFeatures => {
+      val response =
+        FeatureService.formatFeatureResponse(
           evaluatedCompleteFeatures,
-          requestContext.context,
-          origin
+          conditions
         )
-        // TODO handle error
-        Right(response)
-    }
+      featureUsageService.registerCalls(
+        requestContext.tenant,
+        clientId,
+        evaluatedCompleteFeatures,
+        requestContext.context,
+        origin
+      )
+      // TODO handle error
+      response
+    })
   }
 
   def processInputSeqString(input: Seq[String]): Set[String] = {
@@ -306,10 +302,7 @@ class FeatureController(
         request.clientId,
         request.clientSecret,
         FeatureCall.Http
-      ).map {
-        case Left(err)    => err.toHttpResponse
-        case Right(value) => Ok(value)
-      }
+      ).toResult(value => Ok(value))
     }
   }
 
@@ -342,10 +335,7 @@ class FeatureController(
             request.clientId,
             request.clientSecret,
             FeatureCall.Http
-          ).map {
-            case Left(err)    => err.toHttpResponse
-            case Right(value) => Ok(value)
-          }
+          ).toResult((value) => Ok(value))
         }
       )
     }

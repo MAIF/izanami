@@ -1,25 +1,21 @@
 package fr.maif.izanami.models.features
 
-import fr.maif.izanami.models.Feature
-import fr.maif.izanami.models.RequestContext
 import fr.maif.izanami.models.features.ActivationCondition.hourFormatter
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import play.api.libs.json.*
 import play.api.libs.json.Reads.instantReads
 
 import java.time.*
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
+import java.time.format.{DateTimeFormatter, DateTimeParseException}
 
 sealed trait ActivationCondition {
   def period: FeaturePeriod
   def rule: ActivationRule
-  def active(requestContext: RequestContext, featureId: String): Boolean =
-    period.active(requestContext) && rule.active(requestContext, featureId)
 }
 
 sealed trait ValuedActivationCondition extends ActivationCondition {
   def jsonValue: JsValue
+  def withRule(rule: ActivationRule): ValuedActivationCondition
 }
 
 case class NumberActivationCondition(
@@ -28,6 +24,8 @@ case class NumberActivationCondition(
     value: BigDecimal
 ) extends ValuedActivationCondition {
   override def jsonValue: JsValue = JsNumber(value)
+  override def withRule(rule: ActivationRule): ValuedActivationCondition =
+    copy(rule = rule)
 }
 
 case class StringActivationCondition(
@@ -36,6 +34,8 @@ case class StringActivationCondition(
     value: String
 ) extends ValuedActivationCondition {
   override def jsonValue: JsValue = JsString(value)
+  override def withRule(rule: ActivationRule): ValuedActivationCondition =
+    copy(rule = rule)
 }
 
 case class BooleanActivationCondition(
@@ -50,42 +50,27 @@ case class FeaturePeriod(
     days: Option[ActivationDayOfWeeks] = None,
     timezone: ZoneId = ZoneId.systemDefault()
 ) {
-  def active(context: RequestContext): Boolean = {
-    val now = context.now
-    begin.forall(i => i.isBefore(now)) &&
-    end.forall(i => i.isAfter(now)) &&
-    (hourPeriods.isEmpty || hourPeriods.exists(_.active(context, timezone))) &&
-    days.forall(_.active(context, timezone))
-  }
   def empty: Boolean = {
     begin.isEmpty && end.isEmpty && hourPeriods.isEmpty && days.isEmpty
   }
 }
 
-sealed trait ActivationRule extends LegacyCompatibleCondition {
-  override def active(context: RequestContext, featureId: String): Boolean
-}
-object All extends ActivationRule {
-  override def active(context: RequestContext, featureId: String): Boolean =
-    true
-}
+sealed trait ActivationRule
+
+sealed trait EvaluableActivationRule
+object All extends ActivationRule with EvaluableActivationRule
+    with LegacyCompatibleCondition
 case class UserList(
     users: Set[String],
     groups: Set[String] = Set.empty
-) extends ActivationRule {
-  override def active(context: RequestContext, featureId: String): Boolean =
-    users.contains(context.user) || groups.exists(context.groups.contains)
-}
-case class UserPercentage(percentage: Int) extends ActivationRule {
-  override def active(context: RequestContext, featureId: String): Boolean =
-    Feature.isPercentageFeatureActive(
-      s"${featureId}-${context.user}",
-      percentage
-    )
-}
+) extends ActivationRule with EvaluableActivationRule
+    with LegacyCompatibleCondition
+case class UserPercentage(percentage: Int) extends ActivationRule
+    with LegacyCompatibleCondition
+case class RangeBasedUserPercentage(percentage: Int, intervalStart: Int)
+    extends EvaluableActivationRule
 
 sealed trait LegacyCompatibleCondition {
-  def active(requestContext: RequestContext, featureId: String): Boolean
   def toBooleanActivationCondition: BooleanActivationCondition = {
     this match {
       case All                => BooleanActivationCondition()
@@ -107,53 +92,14 @@ case class DateRangeActivationCondition(
     begin: Option[Instant] = None,
     end: Option[Instant] = None,
     timezone: ZoneId
-) extends LegacyCompatibleCondition {
-  def active(context: RequestContext, featureId: String): Boolean = {
-    val now = context.now
-    begin.forall(i => i.atZone(timezone).toInstant.isBefore(now)) && end.forall(
-      i =>
-        i.atZone(timezone).toInstant.isAfter(now)
-    )
-  }
-}
+) extends LegacyCompatibleCondition
 
 case class ZonedHourPeriod(hourPeriod: HourPeriod, timezone: ZoneId)
-    extends LegacyCompatibleCondition {
-  def active(context: RequestContext, featureId: String): Boolean = {
-    val zonedStart = LocalDateTime
-      .of(LocalDate.now(), hourPeriod.startTime)
-      .atZone(timezone)
-      .toInstant
+    extends LegacyCompatibleCondition
 
-    val zonedEnd = LocalDateTime
-      .of(LocalDate.now(), hourPeriod.endTime)
-      .atZone(timezone)
-      .toInstant
+case class HourPeriod(startTime: LocalTime, endTime: LocalTime)
 
-    zonedStart.isBefore(context.now) && zonedEnd.isAfter(context.now)
-  }
-}
-
-case class HourPeriod(startTime: LocalTime, endTime: LocalTime) {
-  def active(context: RequestContext, timezone: ZoneId): Boolean = {
-    val zonedStart = LocalDateTime
-      .of(LocalDate.now(), startTime)
-      .atZone(timezone)
-      .toInstant
-
-    val zonedEnd = LocalDateTime
-      .of(LocalDate.now(), endTime)
-      .atZone(timezone)
-      .toInstant
-
-    zonedStart.isBefore(context.now) && zonedEnd.isAfter(context.now)
-  }
-}
-
-case class ActivationDayOfWeeks(days: Set[DayOfWeek]) {
-  def active(context: RequestContext, timezone: ZoneId): Boolean =
-    days.contains(context.now.atZone(timezone).getDayOfWeek)
-}
+case class ActivationDayOfWeeks(days: Set[DayOfWeek])
 
 object FeaturePeriod {
   implicit val activationPeriodRead: Reads[FeaturePeriod] = json => {
@@ -189,7 +135,9 @@ object FeaturePeriod {
 
   implicit val featurePeriodeWrite: Writes[FeaturePeriod] =
     Writes[FeaturePeriod] { period =>
-      if (period.empty) {
+      if (
+        period.begin.isEmpty && period.end.isEmpty && period.hourPeriods.isEmpty && period.days.isEmpty
+      ) {
         JsNull
       } else {
         Json.obj(

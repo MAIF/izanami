@@ -1,7 +1,6 @@
 package fr.maif.izanami.web
 
-import play.api.mvc.PathBindable
-import play.api.mvc.QueryStringBindable
+import play.api.mvc.{PathBindable, QueryStringBindable}
 
 case class FeatureContextPath(elements: Seq[String] = Seq()) {
   def toUserPath: String = elements.mkString("/")

@@ -1,22 +1,18 @@
 package fr.maif.izanami.services
 
-import fr.maif.izanami.datastores.TenantsDatastore
-import fr.maif.izanami.models.TenantCreationRequest
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.Done
+import fr.maif.izanami.datastores.{
+  ProjectsDatastore,
+  TagsDatastore,
+  TenantsDatastore
+}
 import fr.maif.izanami.errors.GenericBadRequest
-import fr.maif.izanami.web.UserInformation
-import fr.maif.izanami.models.Tenant
-import fr.maif.izanami.models.SimpleTenant
-import scala.concurrent.Future
-import fr.maif.izanami.models.UserWithTenantRights
-import fr.maif.izanami.models.RightLevel
 import fr.maif.izanami.models.RightLevel.superiorOrEqualLevels
-import fr.maif.izanami.models.SimpleTenantWithProjectAndTags
-import fr.maif.izanami.datastores.ProjectsDatastore
-import fr.maif.izanami.datastores.TagsDatastore
+import fr.maif.izanami.models.*
+import fr.maif.izanami.utils.{Done, FutureEither}
 import fr.maif.izanami.utils.syntax.implicits.BetterFuture
-import scala.concurrent.ExecutionContext
+import fr.maif.izanami.web.UserInformation
+
+import scala.concurrent.{ExecutionContext, Future}
 
 class TenantService(
     datastore: => TenantsDatastore,

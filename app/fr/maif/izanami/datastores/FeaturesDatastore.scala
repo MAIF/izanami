@@ -1,54 +1,59 @@
 package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.featureImplicits.FeatureRow
-import fr.maif.izanami.env.PostgresqlErrors.FOREIGN_KEY_VIOLATION
-import fr.maif.izanami.env.PostgresqlErrors.NOT_NULL_VIOLATION
-import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
+import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.env.PostgresqlErrors.{
+  FOREIGN_KEY_VIOLATION,
+  NOT_NULL_VIOLATION,
+  RELATION_DOES_NOT_EXISTS
+}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.*
-import fr.maif.izanami.events.EventOrigin.ImportOrigin
-import fr.maif.izanami.events.EventOrigin.NormalOrigin
-import fr.maif.izanami.events.SourceFeatureCreated
-import fr.maif.izanami.events.SourceFeatureDeleted
-import fr.maif.izanami.events.SourceFeatureUpdated
+import fr.maif.izanami.events.EventOrigin.{ImportOrigin, NormalOrigin}
+import fr.maif.izanami.events.{
+  EventService,
+  SourceFeatureCreated,
+  SourceFeatureDeleted,
+  SourceFeatureUpdated
+}
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.features.*
-import fr.maif.izanami.utils.Datastore
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterFuture
-import fr.maif.izanami.utils.syntax.implicits.BetterJsValue
-import fr.maif.izanami.utils.syntax.implicits.BetterListEither
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.wasm.WasmConfig
-import fr.maif.izanami.wasm.WasmConfigWithFeatures
-import fr.maif.izanami.wasm.WasmScriptAssociatedFeatures
-import fr.maif.izanami.web.FeatureContextPath
-import fr.maif.izanami.web.ImportController
-import fr.maif.izanami.web.ImportController.Fail
-import fr.maif.izanami.web.ImportController.ImportConflictStrategy
-import fr.maif.izanami.web.ImportController.MergeOverwrite
-import fr.maif.izanami.web.ImportController.Skip
-import fr.maif.izanami.web.ProjectId
-import fr.maif.izanami.web.UserInformation
-import io.otoroshi.wasm4s.scaladsl.WasmSourceKind
-import io.vertx.core.json.JsonArray
-import io.vertx.core.json.JsonObject
+import fr.maif.izanami.utils.{Datastore, Done, FutureEither}
+import fr.maif.izanami.utils.syntax.implicits.{
+  BetterFuture,
+  BetterFutureEither,
+  BetterJsValue,
+  BetterListEither,
+  BetterSyntax
+}
+import fr.maif.izanami.wasm.{
+  WasmConfig,
+  WasmConfigWithFeatures,
+  WasmScriptAssociatedFeatures
+}
+import fr.maif.izanami.web.ImportController.{
+  Fail,
+  ImportConflictStrategy,
+  MergeOverwrite,
+  Skip
+}
+import fr.maif.izanami.web.{
+  FeatureContextPath,
+  ImportController,
+  ProjectId,
+  UserInformation
+}
+import io.otoroshi.wasm4s.scaladsl.{WasmIntegration, WasmSourceKind}
+import io.vertx.core.json.{JsonArray, JsonObject}
 import io.vertx.core.shareddata.ClusterSerializable
 import io.vertx.pgclient.PgException
-import io.vertx.sqlclient.Row
-import io.vertx.sqlclient.SqlConnection
+import io.vertx.sqlclient.{Row, SqlConnection}
 import play.api.libs.json.*
 
 import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
-import fr.maif.izanami.utils.Done
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
-import fr.maif.izanami.env.Postgresql
-import fr.maif.izanami.events.EventService
-import io.otoroshi.wasm4s.scaladsl.WasmIntegration
-import scala.concurrent.ExecutionContext
 
 class FeaturesDatastore(
     postgresql: => Postgresql,
@@ -62,6 +67,39 @@ class FeaturesDatastore(
   private type ProjectName = String
   private type FeatureName = String
   private type FeatureId = String
+  def readCompleteFeature(
+      tenant: String,
+      f: LightWeightFeature,
+      conn: Option[SqlConnection] = None
+  ) = {
+    f match {
+      case f: LightWeightWasmFeature => {
+        readWasmScript(tenant, f.wasmConfigName, conn)
+          .map(maybeWasm =>
+            maybeWasm.toRight(
+              InternalServerError(
+                s"Failed to find wasm script config ${f.wasmConfigName}"
+              )
+            )
+          ).toFEither
+          .map((wasmConfig) =>
+            CompleteWasmFeature(
+              id = f.id,
+              name = f.name,
+              project = f.project,
+              enabled = f.enabled,
+              wasmConfig = wasmConfig,
+              tags = f.tags,
+              metadata = f.metadata,
+              description = f.description,
+              resultType = f.resultType
+            )
+          )
+      }
+      case feat: CompleteFeature => FutureEither.success(feat)
+    }
+  }
+
   def findFeatureIds(
       tenant: String,
       featureNameAndProjects: Set[(ProjectName, FeatureName)],

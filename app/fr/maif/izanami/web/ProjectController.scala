@@ -1,36 +1,24 @@
 package fr.maif.izanami.web
 
+import fr.maif.izanami.datastores.EventDatastore.{
+  AscOrder,
+  FeatureEventRequest,
+  parseSortOrder
+}
 import fr.maif.izanami.datastores.{
   EventDatastore,
   PersonnalAccessTokenDatastore,
   ProjectsDatastore
 }
-import fr.maif.izanami.datastores.EventDatastore.AscOrder
-import fr.maif.izanami.datastores.EventDatastore.FeatureEventRequest
-import fr.maif.izanami.datastores.EventDatastore.parseSortOrder
 import fr.maif.izanami.errors.ProjectDoesNotExists
-import fr.maif.izanami.events.EventAuthentication
 import fr.maif.izanami.events.EventAuthentication.RootAuthentication
-import fr.maif.izanami.events.EventService
-import fr.maif.izanami.models.DeleteProject
-import fr.maif.izanami.models.Project
-import fr.maif.izanami.models.ProjectRightLevel
-import fr.maif.izanami.models.ProjectWithUsageInformation
+import fr.maif.izanami.events.{EventAuthentication, EventService}
 import fr.maif.izanami.models.ProjectWithUsageInformation.projectWithUsageInformationWrites
-import fr.maif.izanami.models.ReadProject
-import fr.maif.izanami.models.ReadTenant
-import fr.maif.izanami.models.RightLevel
+import fr.maif.izanami.models.*
 import fr.maif.izanami.services.FeatureUsageService
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
 import fr.maif.izanami.web.ProjectController.parseStringSet
-import play.api.libs.json.JsError
-import play.api.libs.json.JsNull
-import play.api.libs.json.JsNumber
-import play.api.libs.json.JsObject
-import play.api.libs.json.JsSuccess
-import play.api.libs.json.JsValue
-import play.api.libs.json.Json
-import play.api.libs.json.Writes
+import play.api.libs.json.*
 import play.api.mvc.*
 
 import java.time.Instant

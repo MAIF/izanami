@@ -1,23 +1,19 @@
 package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.tagImplicits.TagRow
-import fr.maif.izanami.env.pgimplicits.EnhancedRow
-import fr.maif.izanami.errors.InternalServerError
-import fr.maif.izanami.errors.IzanamiError
-import fr.maif.izanami.errors.TagDoesNotExists
-import fr.maif.izanami.models.Tag
-import fr.maif.izanami.models.TagCreationRequest
-import fr.maif.izanami.models.Tenant
-import fr.maif.izanami.utils.Datastore
-import io.vertx.sqlclient.Row
-import io.vertx.sqlclient.SqlConnection
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
-
-import scala.concurrent.Future
-import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.Done
 import fr.maif.izanami.env.Postgresql
-import scala.concurrent.ExecutionContext
+import fr.maif.izanami.env.pgimplicits.EnhancedRow
+import fr.maif.izanami.errors.{
+  InternalServerError,
+  IzanamiError,
+  TagDoesNotExists
+}
+import fr.maif.izanami.models.{Tag, TagCreationRequest, Tenant}
+import fr.maif.izanami.utils.{Datastore, Done, FutureEither}
+import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
+import io.vertx.sqlclient.{Row, SqlConnection}
+
+import scala.concurrent.{ExecutionContext, Future}
 
 class TagsDatastore(postgresql: => Postgresql)(implicit
     val ec: ExecutionContext

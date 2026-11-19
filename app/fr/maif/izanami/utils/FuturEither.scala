@@ -1,12 +1,10 @@
 package fr.maif.izanami.utils
 
 import fr.maif.izanami.errors.IzanamiError
+import fr.maif.izanami.utils.syntax.implicits.{BetterFuture, BetterFutureEither}
 import play.api.mvc.Result
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterFuture
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 case class FutureEither[+A](value: Future[Either[IzanamiError, A]]) {

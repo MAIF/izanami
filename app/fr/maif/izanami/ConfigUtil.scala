@@ -1,8 +1,6 @@
 package fr.maif.izanami
 
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigValueFactory
-import com.typesafe.config.ConfigValueType
+import com.typesafe.config.{Config, ConfigValueFactory, ConfigValueType}
 import play.api.libs.json.Json
 
 import java.util.Collections

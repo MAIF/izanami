@@ -2,11 +2,10 @@ package fr.maif.izanami.models
 
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
 import fr.maif.izanami.models.FeatureCallAggregator.FeatureCallRange
+import fr.maif.izanami.models.features.EvaluationResultWrapper
 import fr.maif.izanami.web.FeatureContextPath
-import play.api.libs.json.JsValue
 
-import java.time.Instant
-import java.time.ZoneId
+import java.time.{Instant, ZoneId}
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.concurrent.TrieMap
 
@@ -28,7 +27,7 @@ case object FeatureCallAggregator {
       tenant: String,
       feature: String,
       key: String,
-      result: JsValue,
+      result: EvaluationResultWrapper,
       context: FeatureContextPath,
       rangeStart: Instant,
       origin: FeatureCallOrigin

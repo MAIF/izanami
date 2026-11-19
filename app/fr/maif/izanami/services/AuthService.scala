@@ -1,23 +1,15 @@
 package fr.maif.izanami.services
 
-import fr.maif.izanami.models.{
-  ReadPersonnalAccessToken,
-  User,
-  UserWithCompleteRightForOneTenant,
-  UserWithRights,
-  UserWithTenantRights
-}
 import fr.maif.izanami.datastores.{
   PersonnalAccessTokenDatastore,
   UsersDatastore
 }
-
-import scala.concurrent.Future
+import fr.maif.izanami.models.*
 import fr.maif.izanami.utils.FutureEither
-
-import scala.concurrent.ExecutionContext
-import javax.crypto.spec.SecretKeySpec
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
+
+import javax.crypto.spec.SecretKeySpec
+import scala.concurrent.{ExecutionContext, Future}
 
 class AuthService(
     personalAccessTokenDatastore: => PersonnalAccessTokenDatastore,

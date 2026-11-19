@@ -1,43 +1,30 @@
 package fr.maif.izanami.models.features
 
-import fr.maif.izanami.models.features.ActivationCondition.maxNumberValue
-import fr.maif.izanami.models.features.ActivationCondition.minNumberValue
-import play.api.libs.json.JsArray
-import play.api.libs.json.JsBoolean
-import play.api.libs.json.JsError
-import play.api.libs.json.JsNumber
-import play.api.libs.json.JsString
-import play.api.libs.json.JsSuccess
-import play.api.libs.json.JsValue
-import play.api.libs.json.Reads
-import play.api.libs.json.Writes
+import fr.maif.izanami.models.features.ActivationCondition.{
+  maxNumberValue,
+  minNumberValue
+}
+import play.api.libs.json.*
 
 /** Represents result type of flag evaluation. Boolean flags are well known,
   * however flags can also returns multiple other values, such as String or
   * Numbers.
   */
 sealed trait ResultType {
+  // TODO this should not be here
   def toDatabaseName: String
-  def parse(value: JsValue): Option[JsValue]
 }
 
-sealed trait ValuedResultType extends ResultType {
-  def toJson(v: String): JsValue
-}
+sealed trait ValuedResultType extends ResultType
 
 case object StringResult extends ValuedResultType {
-  override def toJson(v: String): JsValue = JsString(v)
   override def toDatabaseName: String = "string"
-  override def parse(value: JsValue): Option[JsValue] = value.asOpt[JsString]
 }
 case object NumberResult extends ValuedResultType {
-  override def toJson(v: String): JsValue = JsNumber(BigDecimal(v))
   override def toDatabaseName: String = "number"
-  override def parse(value: JsValue): Option[JsValue] = value.asOpt[JsNumber]
 }
 case object BooleanResult extends ResultType {
   override def toDatabaseName: String = "boolean"
-  override def parse(value: JsValue): Option[JsValue] = value.asOpt[JsBoolean]
 }
 
 object ResultType {

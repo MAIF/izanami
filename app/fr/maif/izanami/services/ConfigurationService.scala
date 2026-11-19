@@ -1,12 +1,12 @@
 package fr.maif.izanami.services
 
-import fr.maif.izanami.{OpenId, Wasmo}
-import fr.maif.izanami.datastores.{ApiKeyDatastore, ConfigurationDatastore, ProjectsDatastore, TenantsDatastore, WebhooksDatastore}
+import fr.maif.izanami.datastores.*
 import fr.maif.izanami.events.EventOrigin
 import fr.maif.izanami.models.{FullIzanamiConfiguration, Tenant}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFuture
 import fr.maif.izanami.web.UserInformation
+import fr.maif.izanami.{OpenId, Wasmo}
 import io.otoroshi.wasm4s.scaladsl.WasmoSettings
 import io.vertx.sqlclient.SqlConnection
 
@@ -14,39 +14,41 @@ import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future}
 
 class ConfigurationService(
-                            datastore: ConfigurationDatastore,
-                            tenantDatastore: TenantsDatastore,
-                            projectDatastore: ProjectsDatastore,
-                            apiKeyDatastore: ApiKeyDatastore,
-                            webhooksDatastore: WebhooksDatastore,
-                            maybeOidcConfig: Option[OpenId],
-                            wasmoConf: Wasmo)(implicit ec: ExecutionContext) {
-  def readFullConfiguration(): FutureEither[FullIzanamiConfiguration] = datastore.readFullConfiguration()
+    datastore: ConfigurationDatastore,
+    tenantDatastore: TenantsDatastore,
+    projectDatastore: ProjectsDatastore,
+    apiKeyDatastore: ApiKeyDatastore,
+    webhooksDatastore: WebhooksDatastore,
+    maybeOidcConfig: Option[OpenId],
+    wasmoConf: Wasmo
+)(implicit ec: ExecutionContext) {
+  def readFullConfiguration(): FutureEither[FullIzanamiConfiguration] =
+    datastore.readFullConfiguration()
 
   /** Updates OIDC rights roles to keep only existing stuff. This is used if
-   * existing oidc configuration references non existing project / keys /
-   * webhooks / tenants. This methods verify existence of everything listed in
-   * oidc configuration and remove parts that references non existing stuff.
-   *
-   * @param rights
-   * configuration to update
-   * @return
-   * updated configuration
-   */
+    * existing oidc configuration references non existing project / keys /
+    * webhooks / tenants. This methods verify existence of everything listed in
+    * oidc configuration and remove parts that references non existing stuff.
+    *
+    * @param rights
+    *   configuration to update
+    * @return
+    *   updated configuration
+    */
   def updateOIDCRightByRolesIfNeeded(
-                                      rights: Map[String, CompleteRightsWithMaxRights]
-                                    ): FutureEither[Map[String, CompleteRightsWithMaxRights]] = {
+      rights: Map[String, CompleteRightsWithMaxRights]
+  ): FutureEither[Map[String, CompleteRightsWithMaxRights]] = {
     case class TenantItemsToDelete(
-                                    projects: Set[String],
-                                    keys: Set[String],
-                                    webhooks: Set[String]
-                                  )
+        projects: Set[String],
+        keys: Set[String],
+        webhooks: Set[String]
+    )
 
     def deleteNeededItems(
-                           rights: Map[String, CompleteRightsWithMaxRights],
-                           tenants: Set[String],
-                           tenantItems: Map[String, TenantItemsToDelete]
-                         ): Map[String, CompleteRightsWithMaxRights] = {
+        rights: Map[String, CompleteRightsWithMaxRights],
+        tenants: Set[String],
+        tenantItems: Map[String, TenantItemsToDelete]
+    ): Map[String, CompleteRightsWithMaxRights] = {
       val rightWithoutTenants =
         rights.view.mapValues(_.removeTenantsRights(tenants)).toMap
       tenantItems.foldLeft(rightWithoutTenants) {
@@ -80,19 +82,35 @@ class ConfigurationService(
               require(Tenant.isTenantValid(t))
               val tenantRights = rights.values.map(_.tenants(t))
               (for (
-                existingProjects <- projectDatastore.checkProjectExistence(t, tenantRights.flatMap(t => t.projects.keySet).toSet)
-                  .map(projectExistenceMap => projectExistenceMap.filter((_, exist) => exist).keys.toSet);
-                existingKeys <- apiKeyDatastore.checkApiKeyExistence(t, tenantRights.flatMap(t => t.keys.keySet).toSet)
-                  .map(keyExistenceMap => keyExistenceMap.filter((_, exist) => exist).keys.toSet);
-                existingWebhooks <- webhooksDatastore.checkWebhookExistence(t, tenantRights.flatMap(t => t.webhooks.keySet).toSet)
-                  .map(webhookExistenceMap => webhookExistenceMap.filter((_, exist) => exist).keys.toSet)
+                existingProjects <- projectDatastore.checkProjectExistence(
+                  t,
+                  tenantRights.flatMap(t => t.projects.keySet).toSet
+                )
+                  .map(projectExistenceMap =>
+                    projectExistenceMap.filter((_, exist) => exist).keys.toSet
+                  );
+                existingKeys <- apiKeyDatastore.checkApiKeyExistence(
+                  t,
+                  tenantRights.flatMap(t => t.keys.keySet).toSet
+                )
+                  .map(keyExistenceMap =>
+                    keyExistenceMap.filter((_, exist) => exist).keys.toSet
+                  );
+                existingWebhooks <- webhooksDatastore.checkWebhookExistence(
+                  t,
+                  tenantRights.flatMap(t => t.webhooks.keySet).toSet
+                )
+                  .map(webhookExistenceMap =>
+                    webhookExistenceMap.filter((_, exist) => exist).keys.toSet
+                  )
               ) yield {
                 val completeRights = rights.values
                 val projectToDelete = completeRights
                   .flatMap(_.tenants(t).projects.keySet.diff(existingProjects))
                   .toSet
-                val keyToDelete = tenantRights.flatMap(t => t.keys.keySet.diff(existingKeys))
-                  .toSet
+                val keyToDelete =
+                  tenantRights.flatMap(t => t.keys.keySet.diff(existingKeys))
+                    .toSet
                 val webhookToDelete = completeRights
                   .flatMap(_.tenants(t).webhooks.keySet.diff(existingWebhooks))
                   .toSet
@@ -134,18 +152,19 @@ class ConfigurationService(
   def readId(): Future[UUID] = datastore.readId()
 
   def updateConfiguration(
-                           newConfig: FullIzanamiConfiguration,
-                           userInformation: UserInformation,
-                           origin: EventOrigin,
-                           conn: Option[SqlConnection] = None
-                         ): FutureEither[FullIzanamiConfiguration] = datastore.updateConfiguration(newConfig, userInformation, origin, conn)
+      newConfig: FullIzanamiConfiguration,
+      userInformation: UserInformation,
+      origin: EventOrigin,
+      conn: Option[SqlConnection] = None
+  ): FutureEither[FullIzanamiConfiguration] =
+    datastore.updateConfiguration(newConfig, userInformation, origin, conn)
 }
 
 object ConfigurationService {
   def hasOIDCConfChanged(
-                          oldConfig: FullIzanamiConfiguration,
-                          newConfig: FullIzanamiConfiguration
-                        ): Boolean = {
+      oldConfig: FullIzanamiConfiguration,
+      newConfig: FullIzanamiConfiguration
+  ): Boolean = {
     oldConfig.oidcConfiguration != newConfig.oidcConfiguration
   }
 }

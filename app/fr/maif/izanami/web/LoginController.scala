@@ -1,21 +1,21 @@
 package fr.maif.izanami.web
 
-import fr.maif.izanami.{OpenId, Sessions}
-import fr.maif.izanami.datastores.{UsersDatastore}
-import fr.maif.izanami.errors.MissingOIDCConfigurationError
-import fr.maif.izanami.errors.RightComplianceError
-import fr.maif.izanami.errors.{IzanamiError, OIDCIdentityConflict, UserNotFound}
+import fr.maif.izanami.datastores.UsersDatastore
+import fr.maif.izanami.errors.*
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.OAuth2Configuration.OAuth2BASICMethod
 import fr.maif.izanami.models.User.userRightsWrites
-import fr.maif.izanami.security.JwtService
-import fr.maif.izanami.security.OidcTokenValidator
-import fr.maif.izanami.errors.{InvalidOIDCLogin, InvalidOIDCToken}
-import fr.maif.izanami.services.{ConfigurationService, MaxRightComplianceResult, PostgresTransactionProvider, RightService}
+import fr.maif.izanami.security.{JwtService, OidcTokenValidator}
+import fr.maif.izanami.services.{
+  ConfigurationService,
+  MaxRightComplianceResult,
+  PostgresTransactionProvider,
+  RightService
+}
 import fr.maif.izanami.utils.FutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
-import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
+import fr.maif.izanami.utils.syntax.implicits.{BetterFutureEither, BetterSyntax}
 import fr.maif.izanami.web.AuthAction.delayResponse
+import fr.maif.izanami.{OpenId, Sessions}
 import play.api.Logger
 import play.api.libs.json.*
 import play.api.libs.ws.DefaultBodyWritables.writeableOf_urlEncodedSimpleForm
@@ -23,11 +23,9 @@ import play.api.libs.ws.{WSAuthScheme, WSClient}
 import play.api.mvc.*
 import play.api.mvc.Cookie.SameSite
 
-import java.security.MessageDigest
-import java.security.SecureRandom
+import java.security.{MessageDigest, SecureRandom}
 import java.util.Base64
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
 
 class LoginController(

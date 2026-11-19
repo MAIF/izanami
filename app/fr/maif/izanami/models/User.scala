@@ -3,20 +3,15 @@ package fr.maif.izanami.models
 import fr.maif.izanami.models.ProjectRightLevel.superiorOrEqualLevels
 import fr.maif.izanami.models.ProjectRightLevelIncludingNoRight.ProjectRightLevelIncludingNoRightOrdering
 import fr.maif.izanami.models.RightLevelIncludingNoRight.RightLevelIncludingNoRightOrdering
-import fr.maif.izanami.models.Rights.RightDiff
-import fr.maif.izanami.models.Rights.TenantRightDiff
-import fr.maif.izanami.models.Rights.UpsertTenantRights
-import fr.maif.izanami.models.User.projectRightReads
-import fr.maif.izanami.models.User.rightReads
-import fr.maif.izanami.services.CompleteRights
-import fr.maif.izanami.services.MaxTenantRoleRights
-import fr.maif.izanami.services.ProjectIdentification
-import fr.maif.izanami.services.RightComplianceChange
-import fr.maif.izanami.services.TenantRightComplianceResult
-import fr.maif.izanami.services.WebhookIdentification
+import fr.maif.izanami.models.Rights.{
+  RightDiff,
+  TenantRightDiff,
+  UpsertTenantRights
+}
+import fr.maif.izanami.models.User.{projectRightReads, rightReads}
+import fr.maif.izanami.services.*
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import play.api.data.validation.Constraints
-import play.api.data.validation.Valid
+import play.api.data.validation.{Constraints, Valid}
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*
 import play.api.libs.json.Writes.OptionWrites

@@ -1,18 +1,15 @@
 package fr.maif.izanami.services
 
+import fr.maif.izanami.datastores.FeatureCallsDatastore
 import fr.maif.izanami.errors.IzanamiError
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.FeatureCall.FeatureCallOrigin
 import fr.maif.izanami.web.FeatureContextPath
-import org.apache.pekko.actor.Cancellable
+import org.apache.pekko.actor.{ActorSystem, Cancellable}
 
-import java.time.Duration
-import java.time.Instant
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import java.time.{Duration, Instant}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationLong
-import fr.maif.izanami.datastores.FeatureCallsDatastore
-import org.apache.pekko.actor.ActorSystem
 
 class FeatureUsageService(
     featureCalls: => FeatureCallsDatastore,

@@ -1,43 +1,27 @@
 package fr.maif.izanami.datastores
 
 import fr.maif.izanami.datastores.projectImplicits.ProjectRow
-import fr.maif.izanami.env.PostgresqlErrors.RELATION_DOES_NOT_EXISTS
-import fr.maif.izanami.env.PostgresqlErrors.UNIQUE_VIOLATION
+import fr.maif.izanami.env.Postgresql
+import fr.maif.izanami.env.PostgresqlErrors.{
+  RELATION_DOES_NOT_EXISTS,
+  UNIQUE_VIOLATION
+}
 import fr.maif.izanami.env.pgimplicits.EnhancedRow
 import fr.maif.izanami.errors.*
 import fr.maif.izanami.events.EventOrigin.NormalOrigin
-import fr.maif.izanami.events.PreviousProject
-import fr.maif.izanami.events.SourceFeatureDeleted
-import fr.maif.izanami.events.SourceProjectCreated
-import fr.maif.izanami.events.SourceProjectDeleted
-import fr.maif.izanami.events.SourceProjectUpdated
-import fr.maif.izanami.models.Feature
-import fr.maif.izanami.models.Project
-import fr.maif.izanami.models.ProjectCreationRequest
-import fr.maif.izanami.models.RightLevel
-import fr.maif.izanami.models.SimpleProject
-import fr.maif.izanami.models.Tenant
-import fr.maif.izanami.utils.{Datastore}
+import fr.maif.izanami.events.*
+import fr.maif.izanami.models.*
+import fr.maif.izanami.utils.Datastore
 import fr.maif.izanami.utils.syntax.implicits.BetterSyntax
-import fr.maif.izanami.web.ImportController.Fail
-import fr.maif.izanami.web.ImportController.ImportConflictStrategy
-import fr.maif.izanami.web.ImportController.MergeOverwrite
-import fr.maif.izanami.web.ImportController.Replace
-import fr.maif.izanami.web.ImportController.Skip
-import fr.maif.izanami.web.ProjectId
-import fr.maif.izanami.web.UserInformation
+import fr.maif.izanami.web.ImportController.*
+import fr.maif.izanami.web.{ProjectId, UserInformation}
 import io.vertx.pgclient.PgException
-import io.vertx.sqlclient.Row
-import io.vertx.sqlclient.SqlConnection
+import io.vertx.sqlclient.{Row, SqlConnection}
 import play.api.libs.json.JsObject
 
 import java.util.UUID
 import java.util.regex.Pattern
-import scala.concurrent.Future
-import fr.maif.izanami.env.Postgresql
-import fr.maif.izanami.events.EventService
-
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 class ProjectsDatastore(
     postgresql: => Postgresql,
@@ -466,14 +450,19 @@ class ProjectsDatastore(
       .map(ps => ps.map(p => (p.id, p)).toMap)
   }
 
-  def checkProjectExistence(tenant: String, projects: Set[String]): Future[Map[String, Boolean]] = {
+  def checkProjectExistence(
+      tenant: String,
+      projects: Set[String]
+  ): Future[Map[String, Boolean]] = {
     Tenant.isTenantValid(tenant)
     postgresql
       .queryAll(
         s"""SELECT name from "${tenant}".projects WHERE name=ANY($$1::TEXT[])""",
         params = List(projects.toArray)
       ) { r => r.optString("name") }
-      .map(existingProjects => projects.map(p => (p -> existingProjects.contains(p))).toMap)
+      .map(existingProjects =>
+        projects.map(p => (p -> existingProjects.contains(p))).toMap
+      )
   }
 }
 
