@@ -8,3 +8,4 @@ Ask before adding any test helper, prefer using helpers present in BaseAPISpec r
 To launch all backend tests, use command sbt 'testOnly *AllTests'.
 In scala code avoid use of implicit as much as possible, except for ExecutionContext, ActorSystem or Materializer.
 Always use curly braces around if / else or other blocks.
+Do not edit manual folder or any other documentation source (except inline documentation in code), instead signal the user to do it.

@@ -776,7 +776,11 @@ object Feature {
       percentage: Int,
       intervalStart: Int
   ): Boolean = {
-    val hash = (Math.abs(MurmurHash3.bytesHash(source.getBytes(StandardCharsets.UTF_8), 42)) % 100) + 1
+    val hash =
+      (Math.abs(MurmurHash3.bytesHash(
+        source.getBytes(StandardCharsets.UTF_8),
+        42
+      )) % 100) + 1
     hash > intervalStart && hash <= percentage + intervalStart
   }
 
