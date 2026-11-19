@@ -5,9 +5,44 @@ import fr.maif.izanami.services.EvaluationService
 import org.scalatestplus.play.PlaySpec
 import play.api.libs.json.*
 
-import java.time.Instant
+import java.time.{Instant, LocalTime, ZoneId}
 
 class ActivationConditionSpec extends PlaySpec {
+  "Hourly conditions" should {
+    "use the date in their timezone and preserve strict boundaries" in {
+      val now = Instant.parse("2026-01-02T00:30:00Z")
+      val scenarios = Seq(
+        (ZoneId.of("America/Los_Angeles"), LocalTime.of(16, 0), LocalTime.of(17, 0)),
+        (ZoneId.of("Pacific/Kiritimati"), LocalTime.of(14, 0), LocalTime.of(15, 0))
+      )
+      for ((timezone, start, end) <- scenarios) {
+        val hours = HourPeriod(start, end)
+        val period = FeaturePeriod(hourPeriods = Set(hours), timezone = timezone)
+        val descriptor = StringResultDescriptor(
+          value = "base",
+          conditions = Seq(StringActivationCondition(period = period, value = "sample"))
+        )
+        val legacy = ZonedHourPeriod(hours, timezone)
+        val instants = Seq(
+          (now.minusSeconds(1800), false),
+          (now, true),
+          (now.plusSeconds(1800), false)
+        )
+        for ((instant, expected) <- instants) {
+          val context = RequestContext("tenant", "user", now = instant)
+          withClue(s"timezone $timezone, instant $instant: ") {
+            EvaluationService.evaluate(
+              descriptor,
+              context,
+              "flag"
+            ) mustBe StringResultWrapper(if (expected) { "sample" } else { "base" })
+            EvaluationService.isLegacyConditionActive(legacy, context, "flag") mustBe expected
+          }
+        }
+      }
+    }
+  }
+
   "Percentage alternatives" should {
     "allocate disjoint user ranges according to each alternative's percentage" in {
       val descriptor = StringResultDescriptor(

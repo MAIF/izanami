@@ -9,7 +9,7 @@ import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.wasm.{WasmRelatedStuff, WasmUtils}
 import play.api.Logger
 
-import java.time.{LocalDate, LocalDateTime}
+import java.time.ZoneId
 import scala.concurrent.ExecutionContext
 
 class EvaluationService(
@@ -261,17 +261,7 @@ object EvaluationService {
         )
       }
       case ZonedHourPeriod(hourPeriod, timezone) => {
-        val zonedStart = LocalDateTime
-          .of(LocalDate.now(), hourPeriod.startTime)
-          .atZone(timezone)
-          .toInstant
-
-        val zonedEnd = LocalDateTime
-          .of(LocalDate.now(), hourPeriod.endTime)
-          .atZone(timezone)
-          .toInstant
-
-        zonedStart.isBefore(context.now) && zonedEnd.isAfter(context.now)
+        isHourPeriodActive(hourPeriod, context, timezone)
       }
     }
   }
@@ -323,10 +313,22 @@ object EvaluationService {
     val now = context.now
     period.begin.forall(i => i.isBefore(now)) &&
     period.end.forall(i => i.isAfter(now)) &&
-    (period.hourPeriods.isEmpty || period.hourPeriods.exists(_.active(
-      context,
-      period.timezone
-    ))) &&
-    period.days.forall(_.active(context, period.timezone))
+    (period.hourPeriods.isEmpty || period.hourPeriods.exists(hours =>
+      isHourPeriodActive(hours, context, period.timezone)
+    )) &&
+    period.days.forall(_.days.contains(now.atZone(period.timezone).getDayOfWeek))
+  }
+
+  private def isHourPeriodActive(
+      period: HourPeriod,
+      context: RequestContext,
+      timezone: ZoneId
+  ): Boolean = {
+    val now = context.now
+    val date = now.atZone(timezone).toLocalDate
+    val zonedStart = date.atTime(period.startTime).atZone(timezone).toInstant
+    val zonedEnd = date.atTime(period.endTime).atZone(timezone).toInstant
+
+    zonedStart.isBefore(now) && zonedEnd.isAfter(now)
   }
 }
