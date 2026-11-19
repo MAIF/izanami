@@ -3,7 +3,11 @@ package fr.maif.izanami.services
 import fr.maif.izanami.datastores.FeaturesDatastore
 import fr.maif.izanami.models.*
 import fr.maif.izanami.models.features.*
-import fr.maif.izanami.services.EvaluationService.{isFeatureRuleActive, isLegacyConditionActive, logger}
+import fr.maif.izanami.services.EvaluationService.{
+  isFeatureRuleActive,
+  isLegacyConditionActive,
+  logger
+}
 import fr.maif.izanami.utils.FutureEither
 import fr.maif.izanami.utils.syntax.implicits.BetterFutureEither
 import fr.maif.izanami.wasm.{WasmRelatedStuff, WasmUtils}
@@ -72,7 +76,11 @@ class EvaluationService(
             description
           ) => {
         val res = if (enabled) {
-          isLegacyConditionActive(condition = condition, context = requestContext, feature = name)
+          isLegacyConditionActive(
+            condition = condition,
+            context = requestContext,
+            feature = name
+          )
         } else {
           false
         }
@@ -248,16 +256,26 @@ object EvaluationService {
     )
   }
 
-  def isLegacyConditionActive(condition: LegacyCompatibleCondition, context: RequestContext, feature: String): Boolean = {
+  def isLegacyConditionActive(
+      condition: LegacyCompatibleCondition,
+      context: RequestContext,
+      feature: String
+  ): Boolean = {
     condition match {
-      case All => true
-      case r@UserList(users, groups) => isFeatureRuleActive(r, context, feature)
-      case UserPercentage(percentage) => isFeatureRuleActive(RangeBasedUserPercentage(percentage = percentage, intervalStart = 0), context, feature)
+      case All                         => true
+      case r @ UserList(users, groups) =>
+        isFeatureRuleActive(r, context, feature)
+      case UserPercentage(percentage) => isFeatureRuleActive(
+          RangeBasedUserPercentage(percentage = percentage, intervalStart = 0),
+          context,
+          feature
+        )
       case DateRangeActivationCondition(begin, end, timezone) => {
         val now = context.now
-        begin.forall(i => i.atZone(timezone).toInstant.isBefore(now)) && end.forall(
-          i =>
-            i.atZone(timezone).toInstant.isAfter(now)
+        begin.forall(i =>
+          i.atZone(timezone).toInstant.isBefore(now)
+        ) && end.forall(i =>
+          i.atZone(timezone).toInstant.isAfter(now)
         )
       }
       case ZonedHourPeriod(hourPeriod, timezone) => {
@@ -316,7 +334,9 @@ object EvaluationService {
     (period.hourPeriods.isEmpty || period.hourPeriods.exists(hours =>
       isHourPeriodActive(hours, context, period.timezone)
     )) &&
-    period.days.forall(_.days.contains(now.atZone(period.timezone).getDayOfWeek))
+    period.days.forall(
+      _.days.contains(now.atZone(period.timezone).getDayOfWeek)
+    )
   }
 
   private def isHourPeriodActive(
