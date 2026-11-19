@@ -2,7 +2,10 @@ package fr.maif.izanami.models
 
 import fr.maif.izanami.models.features.EvaluationResultWrapper
 
-case class FeatureStrategies(strategies: Map[String, CompleteFeature])
+case class FeatureStrategies(
+    projectId: String,
+    strategies: Map[String, CompleteFeature]
+)
 
 case class EvaluatedCompleteFeature(
     featureStrategies: FeatureStrategies,
@@ -14,7 +17,7 @@ case class EvaluatedCompleteFeature(
 }
 
 case object FeatureStrategies {
-  def apply(f: CompleteFeature): FeatureStrategies = {
-    FeatureStrategies(Map("" -> f))
+  def apply(projectId: String, f: CompleteFeature): FeatureStrategies = {
+    FeatureStrategies(projectId, Map("" -> f))
   }
 }
