@@ -6,6 +6,7 @@ import play.api.http.Status.FORBIDDEN
 import play.api.http.Status.NO_CONTENT
 import play.api.http.Status.OK
 import play.api.http.Status.UNAUTHORIZED
+import play.api.libs.json.JsNull
 import play.api.libs.json.JsObject
 import play.api.libs.json.JsValue
 import play.api.libs.json.Json
@@ -157,19 +158,23 @@ class FeatureClientAPISpec extends BaseAPISpec {
         .withTenants(
           TestTenant("tenant")
             .withApiKeys(
-              TestApiKey("key", projects = Seq("allowed", "revoked")),
+              TestApiKey("key", projects = Seq("allowed", "revoked", "empty-revoked")),
               TestApiKey("admin", admin = true)
             )
+            .withTagNames("unused")
             .withProjects(
               TestProject("allowed").withFeatureNames("allowed-flag"),
-              TestProject("revoked").withFeatureNames("revoked-flag")
+              TestProject("revoked").withFeatureNames("revoked-flag"),
+              TestProject("empty-revoked")
             )
         ).build()
       val allowed = situation.findProjectId("tenant", "allowed").get
       val revoked = situation.findProjectId("tenant", "revoked").get
+      val emptyRevoked = situation.findProjectId("tenant", "empty-revoked").get
+      val unusedTag = situation.findTagId("tenant", "unused").get
       val allowedFlag = situation.findFeatureId("tenant", "allowed", "allowed-flag").get
       val revokedFlag = situation.findFeatureId("tenant", "revoked", "revoked-flag").get
-      situation.checkFeatures("key", projects = Seq(allowed, revoked)).status mustBe OK
+      situation.checkFeatures("key", projects = Seq(allowed, revoked, emptyRevoked)).status mustBe OK
       situation.updateAPIKey(
         "tenant", "key", description = "", projects = Seq("allowed"),
         enabled = true, admin = false
@@ -179,7 +184,9 @@ class FeatureClientAPISpec extends BaseAPISpec {
       )
       val selections = Seq(
         (Seq(revoked), Seq.empty[String]),
+        (Seq(emptyRevoked), Seq.empty[String]),
         (Seq(allowed, revoked), Seq.empty[String]),
+        (Seq(allowed, emptyRevoked), Seq.empty[String]),
         (Seq(allowed, "missing-project"), Seq.empty[String]),
         (Seq.empty[String], Seq(revokedFlag)),
         (Seq.empty[String], Seq(allowedFlag, revokedFlag)),
@@ -189,15 +196,18 @@ class FeatureClientAPISpec extends BaseAPISpec {
       )
       for {
         conditions <- Seq(false, true)
+        filterTags <- Seq(Seq.empty[String], Seq(unusedTag))
         (projects, features) <- selections
       } {
         val response = situation.checkFeatures(
-          "key", projects = projects, features = features, conditions = conditions
+          "key", projects = projects, features = features,
+          oneTagIn = filterTags, conditions = conditions
         )
         response.status mustBe FORBIDDEN
         response.json.get mustBe expected
         val bodyResponse = situation.checkFeaturesWithBody(
-          "key", projects = projects, features = features, conditions = conditions
+          "key", projects = projects, features = features,
+          oneTagIn = filterTags, conditions = conditions
         )
         bodyResponse.status mustBe FORBIDDEN
         bodyResponse.json.get mustBe expected
@@ -243,6 +253,307 @@ class FeatureClientAPISpec extends BaseAPISpec {
         )
         bodyResponse.status mustBe FORBIDDEN
         bodyResponse.json.get mustBe Json.obj("message" -> "Incorrect key provided")
+      }
+    }
+  }
+
+  "Feature evaluation query compatibility" should {
+    "preserve mixed project and feature selections when tag filters are combined" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withAllRightsKey("key")
+            .withTagNames("required-a", "required-b", "candidate-a", "candidate-b", "excluded")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature("selected", enabled = false,
+                    tags = Seq("required-a", "required-b", "candidate-a")),
+                  TestFeature("missing-all", tags = Seq("required-a", "candidate-a")),
+                  TestFeature("missing-one", tags = Seq("required-a", "required-b")),
+                  TestFeature("excluded", tags = Seq("required-a", "required-b", "candidate-a", "excluded")),
+                  TestFeature("forced", enabled = false, tags = Seq("excluded"))
+                )
+                .withContexts(
+                  TestFeatureContext("test").withFeatureOverload(TestFeature("selected"))
+                ),
+              TestProject("other").withFeatures(
+                TestFeature("outside", tags = Seq("excluded")),
+                TestFeature("unrequested", tags = Seq("required-a", "required-b", "candidate-b"))
+              )
+            )
+        ).build()
+      val projectId = situation.findProjectId("tenant", "project").get
+      val otherProjectId = situation.findProjectId("tenant", "other").get
+      val selectedId = situation.findFeatureId("tenant", "project", "selected").get
+      val forcedId = situation.findFeatureId("tenant", "project", "forced").get
+      val outsideId = situation.findFeatureId("tenant", "other", "outside").get
+      val allTags = Seq("required-a", "required-b").map(situation.findTagId("tenant", _).get)
+      val oneTag = Seq("candidate-a", "candidate-b").map(situation.findTagId("tenant", _).get)
+      val noTags = Seq(situation.findTagId("tenant", "excluded").get)
+
+      for {
+        conditions <- Seq(false, true)
+        context <- Seq("", "test")
+      } {
+        val responses = Seq(
+          "GET" -> situation.checkFeatures(
+            "key", projects = Seq(projectId), features = Seq(forcedId, outsideId),
+            allTagsIn = allTags, oneTagIn = oneTag, noTagIn = noTags,
+            contextPath = context, conditions = conditions
+          ),
+          "POST" -> situation.checkFeaturesWithBody(
+            "key", projects = Seq(projectId), features = Seq(forcedId, outsideId),
+            allTagsIn = allTags, oneTagIn = oneTag, noTagIn = noTags,
+            contextPath = context, conditions = conditions
+          )
+        )
+        for ((method, response) <- responses) {
+          withClue(s"$method, conditions=$conditions, context=$context: ") {
+            response.status mustBe OK
+            val json = response.json.get.as[JsObject]
+            json.keys mustBe Set(selectedId, forcedId, outsideId)
+            (json \ selectedId \ "active").as[Boolean] mustBe context.nonEmpty
+            (json \ forcedId \ "active").as[Boolean] mustBe false
+            (json \ outsideId \ "active").as[Boolean] mustBe true
+            (json \ selectedId \ "projectId").as[String] mustBe projectId
+            (json \ outsideId \ "projectId").as[String] mustBe otherProjectId
+          }
+        }
+      }
+    }
+
+    "preserve typed values and every condition while selecting the applicable context" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withAllRightsKey("key")
+            .withTagNames("first", "second")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature("number", tags = Seq("first", "second"),
+                    resultType = "number", value = "-1.25"),
+                  TestFeature("string", tags = Seq("first", "second"),
+                    resultType = "string", value = "base"),
+                  TestFeature("disabled", enabled = false, tags = Seq("first", "second"),
+                    resultType = "string", value = "disabled")
+                )
+                .withContexts(
+                  TestFeatureContext("env")
+                    .withFeatureOverload(TestFeature("number", resultType = "number", value = "2.5"))
+                    .withFeatureOverload(TestFeature("string", resultType = "string", value = "parent"))
+                    .withSubContexts(
+                      TestFeatureContext("blue")
+                        .withFeatureOverload(TestFeature("number", resultType = "number", value = "3.75"))
+                        .withFeatureOverload(TestFeature("string", resultType = "string", value = "deep")),
+                      TestFeatureContext("green")
+                        .withFeatureOverload(TestFeature("number", resultType = "number", value = "4.25"))
+                        .withFeatureOverload(TestFeature("string", resultType = "string", value = "sibling"))
+                    )
+                )
+            )
+        ).build()
+      val projectId = situation.findProjectId("tenant", "project").get
+      val numberId = situation.findFeatureId("tenant", "project", "number").get
+      val stringId = situation.findFeatureId("tenant", "project", "string").get
+      val disabledId = situation.findFeatureId("tenant", "project", "disabled").get
+      val tagIds = Seq("first", "second").map(tag => situation.findTagId("tenant", tag).get)
+      val numberConditions = Json.obj(
+        "" -> Json.obj("enabled" -> true, "resultType" -> "number",
+          "value" -> BigDecimal("-1.25"), "conditions" -> Json.arr()),
+        "env" -> Json.obj("enabled" -> true, "resultType" -> "number",
+          "value" -> BigDecimal("2.5"), "conditions" -> Json.arr()),
+        "env/blue" -> Json.obj("enabled" -> true, "resultType" -> "number",
+          "value" -> BigDecimal("3.75"), "conditions" -> Json.arr()),
+        "env/green" -> Json.obj("enabled" -> true, "resultType" -> "number",
+          "value" -> BigDecimal("4.25"), "conditions" -> Json.arr())
+      )
+      val stringConditions = Json.obj(
+        "" -> Json.obj("enabled" -> true, "resultType" -> "string",
+          "value" -> "base", "conditions" -> Json.arr()),
+        "env" -> Json.obj("enabled" -> true, "resultType" -> "string",
+          "value" -> "parent", "conditions" -> Json.arr()),
+        "env/blue" -> Json.obj("enabled" -> true, "resultType" -> "string",
+          "value" -> "deep", "conditions" -> Json.arr()),
+        "env/green" -> Json.obj("enabled" -> true, "resultType" -> "string",
+          "value" -> "sibling", "conditions" -> Json.arr())
+      )
+      val scenarios = Seq(
+        ("", BigDecimal("-1.25"), "base"),
+        ("env", BigDecimal("2.5"), "parent"),
+        ("env/blue", BigDecimal("3.75"), "deep"),
+        ("env/blue/missing", BigDecimal("3.75"), "deep"),
+        ("env/missing", BigDecimal("2.5"), "parent"),
+        ("env/green", BigDecimal("4.25"), "sibling"),
+        ("unknown", BigDecimal("-1.25"), "base")
+      )
+
+      for {
+        conditions <- Seq(false, true)
+        (context, numberValue, stringValue) <- scenarios
+      } {
+        val responses = Seq(
+          "GET" -> situation.checkFeatures(
+            "key", projects = Seq(projectId), allTagsIn = tagIds,
+            contextPath = context, conditions = conditions
+          ),
+          "POST" -> situation.checkFeaturesWithBody(
+            "key", projects = Seq(projectId), allTagsIn = tagIds,
+            contextPath = context, conditions = conditions
+          )
+        )
+        for ((method, response) <- responses) {
+          withClue(s"$method, conditions=$conditions, context=$context: ") {
+            response.status mustBe OK
+            val json = response.json.get.as[JsObject]
+            json.keys mustBe Set(numberId, stringId, disabledId)
+            (json \ numberId \ "active").as[BigDecimal] mustBe numberValue
+            (json \ stringId \ "active").as[String] mustBe stringValue
+            (json \ disabledId \ "active").get mustBe JsNull
+            if (conditions) {
+              (json \ numberId \ "conditions").get mustBe numberConditions
+              (json \ stringId \ "conditions").get mustBe stringConditions
+              (json \ disabledId \ "conditions").get mustBe Json.obj(
+                "" -> Json.obj("enabled" -> false, "resultType" -> "string",
+                  "value" -> "disabled", "conditions" -> Json.arr())
+              )
+            } else {
+              for (id <- Seq(numberId, stringId, disabledId)) {
+                (json \ id \ "conditions").asOpt[JsValue] mustBe None
+              }
+            }
+          }
+        }
+      }
+    }
+
+    "preserve WASM and classical condition payloads when strategies change across contexts" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withAllRightsKey("key")
+            .withTagNames("first", "second")
+            .withProjects(
+              TestProject("project")
+                .withFeatures(
+                  TestFeature("classic", enabled = false, tags = Seq("first", "second")),
+                  TestFeature("wasm", enabled = false, tags = Seq("first", "second"),
+                    wasmConfig = TestWasmConfig("base-wasm",
+                      Json.obj("kind" -> "Base64", "path" -> disabledFeatureBase64)))
+                )
+                .withContexts(
+                  TestFeatureContext("test")
+                    .withFeatureOverload(TestFeature("classic", enabled = false,
+                      wasmConfig = TestWasmConfig("context-wasm",
+                        Json.obj("kind" -> "Base64", "path" -> disabledFeatureBase64))))
+                    .withFeatureOverload(TestFeature("wasm", enabled = false))
+                )
+            )
+        ).build()
+      val projectId = situation.findProjectId("tenant", "project").get
+      val classicId = situation.findFeatureId("tenant", "project", "classic").get
+      val wasmId = situation.findFeatureId("tenant", "project", "wasm").get
+      val tagIds = Seq("first", "second").map(tag => situation.findTagId("tenant", tag).get)
+      val classicConditions = Json.obj(
+        "" -> Json.obj("enabled" -> false, "resultType" -> "boolean", "conditions" -> Json.arr()),
+        "test" -> Json.obj("enabled" -> false, "resultType" -> "boolean",
+          "wasmConfig" -> Json.obj("name" -> "context-wasm"))
+      )
+      val wasmConditions = Json.obj(
+        "" -> Json.obj("enabled" -> false, "resultType" -> "boolean",
+          "wasmConfig" -> Json.obj("name" -> "base-wasm")),
+        "test" -> Json.obj("enabled" -> false, "resultType" -> "boolean", "conditions" -> Json.arr())
+      )
+
+      for {
+        conditions <- Seq(false, true)
+        context <- Seq("", "test", "unknown")
+      } {
+        val responses = Seq(
+          "GET" -> situation.checkFeatures(
+            "key", projects = Seq(projectId), allTagsIn = tagIds,
+            contextPath = context, conditions = conditions
+          ),
+          "POST" -> situation.checkFeaturesWithBody(
+            "key", projects = Seq(projectId), allTagsIn = tagIds,
+            contextPath = context, conditions = conditions
+          )
+        )
+        for ((method, response) <- responses) {
+          withClue(s"$method, conditions=$conditions, context=$context: ") {
+            response.status mustBe OK
+            val json = response.json.get.as[JsObject]
+            json.keys mustBe Set(classicId, wasmId)
+            (json \ classicId \ "active").as[Boolean] mustBe false
+            (json \ wasmId \ "active").as[Boolean] mustBe false
+            if (conditions) {
+              (json \ classicId \ "conditions").get mustBe classicConditions
+              (json \ wasmId \ "conditions").get mustBe wasmConditions
+            } else {
+              (json \ classicId \ "conditions").asOpt[JsValue] mustBe None
+              (json \ wasmId \ "conditions").asOpt[JsValue] mustBe None
+            }
+          }
+        }
+      }
+    }
+
+    "isolate context strategies of homonymous features by project" in {
+      val situation = TestSituationBuilder()
+        .withTenants(
+          TestTenant("tenant")
+            .withApiKeys(TestApiKey("key", projects = Seq("allowed")))
+            .withProjects(
+              TestProject("allowed")
+                .withFeatures(TestFeature("same", enabled = false))
+                .withContexts(
+                  TestFeatureContext("env").withFeatureOverload(TestFeature("same"))
+                ),
+              TestProject("other")
+                .withFeatures(TestFeature("same", enabled = false))
+                .withContexts(
+                  TestFeatureContext("foreign").withFeatureOverload(TestFeature("same"))
+                )
+            )
+        ).build()
+      val projectId = situation.findProjectId("tenant", "allowed").get
+      val featureId = situation.findFeatureId("tenant", "allowed", "same").get
+      val expectedConditions = Json.obj(
+        "" -> Json.obj("enabled" -> false, "resultType" -> "boolean", "conditions" -> Json.arr()),
+        "env" -> Json.obj("enabled" -> true, "resultType" -> "boolean", "conditions" -> Json.arr())
+      )
+      val selections = Seq(
+        (Seq(projectId), Seq.empty[String]),
+        (Seq.empty[String], Seq(featureId))
+      )
+
+      for {
+        (projects, features) <- selections
+        conditions <- Seq(false, true)
+        (context, active) <- Seq("" -> false, "env" -> true, "foreign" -> false)
+      } {
+        val responses = Seq(
+          "GET" -> situation.checkFeatures(
+            "key", projects = projects, features = features,
+            contextPath = context, conditions = conditions
+          ),
+          "POST" -> situation.checkFeaturesWithBody(
+            "key", projects = projects, features = features,
+            contextPath = context, conditions = conditions
+          )
+        )
+        for ((method, response) <- responses) {
+          withClue(s"$method, projects=$projects, conditions=$conditions, context=$context: ") {
+            response.status mustBe OK
+            val json = response.json.get.as[JsObject]
+            json.keys mustBe Set(featureId)
+            (json \ featureId \ "active").as[Boolean] mustBe active
+            if (conditions) {
+              (json \ featureId \ "conditions").get mustBe expectedConditions
+            }
+          }
+        }
       }
     }
   }
