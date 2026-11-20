@@ -874,11 +874,9 @@ class FeaturesDatastore(
     if (!Tenant.isTenantValid(tenant)) {
       Future.successful(Left(InvalidApiKey))
     } else {
-      val needTags =
-        request.allTagsIn.nonEmpty || request.noTagIn.nonEmpty || request.oneTagIn.nonEmpty;
       val needContexts = request.context.nonEmpty || conditions
 
-      val params = if (needContexts && !conditions) {
+      val selectionParams = if (needContexts && !conditions) {
         List(
           clientId,
           clientSecret,
@@ -894,19 +892,98 @@ class FeaturesDatastore(
           request.features.toArray
         )
       }
+      val tagFilters = Seq(
+        request.allTagsIn -> ((param: String) =>
+          s"""
+          |(SELECT count(*) FROM "${tenant}".tags t
+          | JOIN "${tenant}".features_tags ft ON ft.tag=t.name
+          | WHERE ft.feature=f.id AND t.id=ANY($param::text[])) = cardinality($param::text[])"""
+        ),
+        request.oneTagIn -> ((param: String) => s"""
+          |EXISTS (SELECT 1 FROM "${tenant}".tags t
+          | JOIN "${tenant}".features_tags ft ON ft.tag=t.name
+          | WHERE ft.feature=f.id AND t.id=ANY($param::text[]))"""),
+        request.noTagIn -> ((param: String) => s"""
+          |NOT EXISTS (SELECT 1 FROM "${tenant}".tags t
+          | JOIN "${tenant}".features_tags ft ON ft.tag=t.name
+          | WHERE ft.feature=f.id AND t.id=ANY($param::text[]))""")
+      ).filter(_._1.nonEmpty)
+      val params =
+        selectionParams ++ tagFilters.map(_._1.map(_.toString).toArray)
+      val tagPredicate = if (tagFilters.nonEmpty) {
+        val predicates = tagFilters.zipWithIndex.map {
+          case ((_, predicate), index) =>
+            predicate(s"$$${selectionParams.size + index + 1}")
+        }.mkString(" AND ")
+        s"(f.id=ANY($$4::text[]) OR ($predicates))"
+      } else {
+        "TRUE"
+      }
+      val contextJoin = if (conditions) {
+        s"""
+           |LEFT JOIN LATERAL (
+           |  SELECT json_object_agg(c.context, json_build_object(
+           |    'value', c.value,
+           |    'resultType', c.result_type,
+           |    'enabled', c.enabled,
+           |    'conditions', c.conditions,
+           |    'wasmConfig', ow.config)) AS overloads
+           |  FROM "${tenant}".feature_contexts_strategies c
+           |  LEFT JOIN "${tenant}".wasm_script_configurations ow ON ow.id=c.script_config
+           |  WHERE c.project=f.project AND c.feature=f.name
+           |) o ON TRUE"""
+      } else if (needContexts) {
+        s"""
+           |LEFT JOIN LATERAL (
+           |  SELECT c.*
+           |  FROM "${tenant}".feature_contexts_strategies c
+           |  WHERE c.project=f.project AND c.feature=f.name
+           |    AND c.context OPERATOR("${extensionSchema}".@>) "${extensionSchema}".text2ltree($$5)
+           |  ORDER BY "${extensionSchema}".nlevel(c.context) DESC
+           |  LIMIT 1
+           |) o ON TRUE
+           |LEFT JOIN "${tenant}".wasm_script_configurations ow ON ow.id=o.script_config"""
+      } else {
+        ""
+      }
+      // Null strategy fields are intentional; only a missing context falls back to the base.
+      val strategyColumns = if (needContexts && !conditions) {
+        """CASE WHEN o.context IS NOT NULL THEN o.enabled ELSE f.enabled END AS enabled,
+          |CASE WHEN o.context IS NOT NULL THEN o.conditions ELSE f.conditions END AS conditions,
+          |CASE WHEN o.context IS NOT NULL THEN o.result_type ELSE f.result_type END AS result_type,
+          |CASE WHEN o.context IS NOT NULL THEN o.value ELSE f.value END AS value,
+          |CASE WHEN o.context IS NOT NULL THEN ow.config ELSE w.config END AS wasm"""
+      } else {
+        "f.enabled, f.conditions, f.result_type, f.value, w.config AS wasm"
+      }
 
       postgresql
-        .queryAll[Either[IzanamiError, (ProjectId, (String, Iterable[
-          (Option[String], CompleteFeature)
-        ]))]](
+        .queryAll[Either[
+          IzanamiError,
+          (
+              ProjectId,
+              (
+                  String,
+                  Iterable[
+                    (Option[String], CompleteFeature)
+                  ]
+              )
+          )
+        ]](
           s"""
              |WITH valid_key AS (
              |  SELECT name, admin
              |  FROM "${tenant}".apikeys
              |  WHERE clientid=$$1 AND clientsecret=$$2 AND enabled=TRUE
+             |), requested_projects AS (
+             |  SELECT p.id, p.name FROM "${tenant}".projects p WHERE p.id=ANY($$3::text[])
+             |  UNION
+             |  SELECT p.id, p.name FROM "${tenant}".projects p
+             |  JOIN "${tenant}".features f ON f.project=p.name
+             |  WHERE f.id=ANY($$4::text[])
              |), authorized_projects AS (
              |  SELECT p.id, p.name
-             |  FROM "${tenant}".projects p
+             |  FROM requested_projects p
              |  CROSS JOIN valid_key k
              |  WHERE k.admin=TRUE OR EXISTS (
              |    SELECT 1 FROM "${tenant}".apikeys_projects kp
@@ -925,77 +1002,32 @@ class FeaturesDatastore(
              |      LEFT JOIN authorized_projects p ON p.name=f.project
              |      WHERE p.id IS NULL
              |    ) AS valid_targets
+             |), selected_ids AS (
+             |  SELECT f.id FROM "${tenant}".features f
+             |  JOIN authorized_projects p ON p.name=f.project
+             |  WHERE p.id=ANY($$3::text[])
+             |  UNION
+             |  SELECT f.id FROM "${tenant}".features f
+             |  JOIN authorized_projects p ON p.name=f.project
+             |  WHERE f.id=ANY($$4::text[])
+             |), filtered_features AS (
+             |  SELECT f.*, p.id AS pid
+             |  FROM selected_ids selected
+             |  JOIN "${tenant}".features f ON f.id=selected.id
+             |  JOIN authorized_projects p ON p.name=f.project
+             |  CROSS JOIN request_access a
+             |  WHERE a.valid_key AND a.valid_targets AND $tagPredicate
              |), selected_features AS (
-             |SELECT
-             |    f.id,
-             |    p.id as pid,
-             |    f.enabled,
-             |    f.name,
-             |    f.project,
-             |    f.conditions,
-             |    f.description,
-             |    f.script_config,
-             |    f.metadata,
-             |    f.result_type,
-             |    f.value,
-             |    w.config as wasm
+             |  SELECT f.id, f.pid, f.name, f.project, f.description, f.metadata,
+             |    $strategyColumns
              |    ${
-              if (needContexts) {
-                """,
-             |    COALESCE(json_object_agg(fcs.context, json_build_object(
-             |      'id', f.id,
-             |      'name', f.name,
-             |      'project', f.project,
-             |      'description', f.description,
-             |      'value', fcs.value,
-             |      'resultType', fcs.result_type,
-             |      'enabled', fcs.enabled,
-             |      'conditions', fcs.conditions,
-             |      'context', fcs.context,
-             |      'wasmConfig', ow.config,
-             |      'context', fcs.context)) FILTER(WHERE fcs.enabled IS NOT NULL), '{}'::json) AS overloads
-             |    """
-              } else {
-                ""
-              }
+              if (conditions) {
+                ", COALESCE(o.overloads, '{}'::json) AS overloads"
+              } else { "" }
             }
-             |    ${
-              if (needTags) {
-                ",COALESCE(json_agg(t.id) FILTER(WHERE t.id IS NOT NULL), '[]') as tags"
-              } else {
-                ""
-              }
-            }
-             |  FROM authorized_projects p
-             |  LEFT JOIN "${tenant}".features f on f.project = p.name
-             |  ${
-              if (needTags) {
-                s"""
-                 |    LEFT JOIN "${tenant}".features_tags ft ON f.id=ft.feature
-                 |    LEFT JOIN "${tenant}".tags t ON t.name=ft.tag"""
-              } else {
-                ""
-              }
-            }
-             |   ${
-              if (needContexts) {
-                s"""
-                 |    LEFT JOIN "${tenant}".feature_contexts_strategies fcs ON fcs.feature=f.name ${
-                    if (!conditions) {
-                      s"""AND fcs.context OPERATOR("${extensionSchema}".@>) "${extensionSchema}".text2ltree($$5)"""
-                    } else {
-                      ""
-                    }
-                  }
-                 |    LEFT JOIN "${tenant}".wasm_script_configurations ow ON fcs.script_config=ow.id""".stripMargin
-              } else {
-                ""
-              }
-            }
+             |  FROM filtered_features f
              |  LEFT JOIN "${tenant}".wasm_script_configurations w ON w.id=f.script_config
-             |  WHERE (f.project = p.name OR f.name IS NULL)
-             |  AND (p.id=ANY($$3) OR f.id=ANY($$4))
-             |  GROUP BY f.id, pid, w.config
+             |  $contextJoin
              |)
              |SELECT a.valid_key, a.valid_targets, f.*
              |FROM request_access a
@@ -1008,54 +1040,35 @@ class FeaturesDatastore(
           } else if (!r.getBoolean("valid_targets")) {
             Some(Left(InaccessibleEvaluationTargets))
           } else {
-            r.optCompleteFeature()
-              .filter(f => {
-                if (needTags) {
-                  val tags = f.tags.map(t => UUID.fromString(t))
-                  val specificFeatureRequest = request.features.contains(f.id)
-                  val allTagsInOk = request.allTagsIn.subsetOf(tags)
-                  val oneTagInOk = request.oneTagIn.isEmpty || request.oneTagIn
-                    .exists(u => tags.contains(u))
-                  val noTagsInOk =
-                    !request.noTagIn.exists(u => tags.contains(u))
-
-                  specificFeatureRequest || (allTagsInOk && oneTagInOk && noTagsInOk)
+            r.optString("id").map { id =>
+              val f = r.optCompleteFeature().getOrElse {
+                throw new IllegalStateException(
+                  s"Failed to decode evaluated feature $id"
+                )
+              }
+              val overloadByPath: Map[Option[String], CompleteFeature] =
+                if (conditions) {
+                  val identity = Json.obj(
+                    "id" -> f.id,
+                    "name" -> f.name,
+                    "project" -> f.project,
+                    "description" -> f.description
+                  )
+                  r.optJsObject("overloads").getOrElse {
+                    throw new IllegalStateException(
+                      s"Missing context strategies for feature $id"
+                    )
+                  }.as[Map[String, JsObject]].map { case (context, strategy) =>
+                    (
+                      Some(context.replace(".", "/")),
+                      Feature.readCompleteFeature(identity ++ strategy).get
+                    )
+                  }
                 } else {
-                  true
+                  Map.empty
                 }
-              })
-              .flatMap(f => {
-                if (needContexts) {
-                  r.optJsObject("overloads")
-                    .map(jsObject => {
-                      val objByContext = jsObject
-                        .as[Map[String, JsObject]]
-                        .map(entry =>
-                          (entry._1.replaceAll("\\.", "/"), entry._2)
-                        )
-                      val overloadByPath: Map[Option[String], CompleteFeature] =
-                        objByContext
-                          .map { case (ctx, jsObject) =>
-                            (ctx, Feature.readCompleteFeature(jsObject).asOpt)
-                          }
-                          .filter {
-                            case (_, None) => false
-                            case _         => true
-                          }
-                          .map { case (ctx, optionF) =>
-                            (Some(ctx), optionF.get)
-                          }
-
-                      (
-                        r.getString("pid"),
-                        (f.id, overloadByPath + (None -> f))
-                      )
-                    })
-                } else {
-                  Some((r.getString("pid"), (f.id, Map(None -> f))))
-                }
-              })
-              .map(Right(_))
+              Right((r.getString("pid"), (f.id, overloadByPath + (None -> f))))
+            }
           }
         }
         .map(results =>
@@ -1069,7 +1082,9 @@ class FeaturesDatastore(
         .recover {
           case f: PgException if f.getSqlState == RELATION_DOES_NOT_EXISTS =>
             Left(InvalidApiKey)
-          case _ => Left(InternalServerError())
+          case ex =>
+            logger.error("Failed to load features for evaluation", ex)
+            Left(InternalServerError())
         }
     }
   }
