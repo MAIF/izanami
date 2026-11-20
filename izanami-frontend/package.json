@@ -14,8 +14,7 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",
-    "fmt:check": "oxfmt --check",
-    "prepare": "husky"
+    "fmt:check": "oxfmt --check"
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",
@@ -52,8 +51,6 @@
     "@types/swagger-ui": "^5.32.1",
     "@vitejs/plugin-react": "^6.3.0",
     "buffer": "^6.0.3",
-    "husky": "^9.1.7",
-    "lint-staged": "^17.6.0",
     "oxfmt": "^0.78.0",
     "oxlint": "^1.93.0",
     "pg": "^8.23.1",
@@ -69,11 +66,5 @@
   },
   "overrides": {
     "@codemirror/state": "6.4.1"
-  },
-  "lint-staged": {
-    "src/**/*.{js,jsx,ts,tsx,json,css}": [
-      "oxformat --write",
-      "git add"
-    ]
   }
 }

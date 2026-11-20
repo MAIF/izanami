@@ -1,0 +1,29 @@
+amends "package://github.com/jdx/hk/releases/download/v2.13.0/hk@2.13.0#/Config.pkl"
+
+exclude = List("docs/**", "manual/**", "public/**", "**/target/**")
+
+hooks {
+  ["pre-commit"] {
+    fix = true
+    stage = true
+    stash = "git"
+    steps {
+      ["scalafmt"] {
+        glob = List("app/**/*.scala", "test/**/*.scala", "project/**/*.scala", "**/*.sbt")
+        exclude = List("project/project/**")
+        fix = new Command {
+          // sbt parses a single command string and requires double-quoted filenames.
+          argv = List("sbt", #"scalafmtOnly{% for file in files_list %} "{{ file | replace(from="\\", to="\\\\") | replace(from='"', to='\\"') }}"{% endfor %}"#)
+        }
+      }
+      ["oxfmt"] {
+        dir = "izanami-frontend"
+        glob = List("**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx,json,jsonc,json5,html,htm,css,scss,less,vue,yaml,yml,toml,graphql,gql,handlebars,hbs}")
+        exclude = List("package-lock.json", "node_modules/**", "dist/**", "playwright/.auth/**", "playwright-report/**", "test-results/**", "stats.html")
+        fix = new Command {
+          argv = List("./node_modules/.bin/oxfmt", "--write", "{{files}}")
+        }
+      }
+    }
+  }
+}

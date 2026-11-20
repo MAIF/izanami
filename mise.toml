@@ -2,7 +2,17 @@
 java = "temurin-21"
 sbt = "1.12"
 node = "24"
+hk = "2.13.0"
 "github:F1bonacc1/process-compose" = "1"
+
+[hooks]
+enter = { task = "install:hooks" }
+
+[tasks."install:hooks"]
+run = "hk install --mise"
+
+[tasks.pre-commit]
+run = "hk run pre-commit"
 
 [tasks."install:front"]
 dir = "izanami-frontend"
@@ -12,7 +22,7 @@ run = "npm install --force && npx playwright install chromium"
 run = "docker-compose pull && sbt compile"
 
 [tasks.install]
-run = [{task = "install:front"}, {task = "install:back"}]
+run = [{task = "install:front"}, {task = "install:back"}, {task = "install:hooks"}]
 
 [tasks."dev:containers"]
 run = "docker-compose rm -f && docker-compose --ansi=always up"
