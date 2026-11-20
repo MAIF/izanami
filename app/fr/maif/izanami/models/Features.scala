@@ -162,8 +162,7 @@ sealed trait CompleteFeature extends AbstractFeature {
             tags,
             metadata,
             description,
-            resultDescriptor,
-            _
+            resultDescriptor
           ) =>
         ClassicalFeatureStrategy(
           enabled = enabled,
@@ -428,8 +427,7 @@ case class Feature(
     override val tags: Set[String] = Set(),
     override val metadata: JsObject = JsObject.empty,
     override val description: String,
-    resultDescriptor: ResultDescriptor,
-    allowedValues: Option[Seq[StringAllowedValue]] = None
+    resultDescriptor: ResultDescriptor
 ) extends LightWeightFeature
     with CompleteFeature {
   override def withEnabled(enabled: Boolean): Feature = copy(enabled = enabled)
@@ -830,8 +828,7 @@ object Feature {
           tags,
           metadata,
           description,
-          resultDescriptor,
-          allowedValues
+          resultDescriptor
         ) => {
       val base = Json.obj(
         "name" -> name,
@@ -846,9 +843,11 @@ object Feature {
           ResultType.resultTypeWrites
         )
       )
-      val configuredBase = if (resultDescriptor.resultType == StringResult) {
-        base ++ Json.obj("allowedValues" -> allowedValues)
-      } else base
+      val configuredBase = resultDescriptor match {
+        case stringDescriptor: StringResultDescriptor =>
+          base ++ Json.obj("allowedValues" -> stringDescriptor.allowedValues)
+        case _ => base
+      }
       resultDescriptor match {
         case v: ValuedResultDescriptor =>
           configuredBase + ("value" -> v.jsonValue)
@@ -1082,8 +1081,13 @@ object Feature {
                           metadata = metadata,
                           project = jsonProject,
                           description = description,
-                          resultDescriptor = rd,
-                          allowedValues = allowedValues.get
+                          resultDescriptor = rd match {
+                            case stringDescriptor: StringResultDescriptor =>
+                              stringDescriptor.copy(
+                                allowedValues = allowedValues.get
+                              )
+                            case descriptor => descriptor
+                          }
                         )
                       )
                     )

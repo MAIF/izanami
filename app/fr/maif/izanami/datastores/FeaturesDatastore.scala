@@ -67,6 +67,18 @@ class FeaturesDatastore(
   private type ProjectName = String
   private type FeatureName = String
   private type FeatureId = String
+
+  private def allowedValuesJsonArray(
+      resultDescriptor: ResultDescriptor
+  ): Option[JsonArray] =
+    resultDescriptor match {
+      case stringDescriptor: StringResultDescriptor =>
+        stringDescriptor.allowedValues.map(v =>
+          new JsonArray(Json.toJson(v).toString())
+        )
+      case _ => None
+    }
+
   def readCompleteFeature(
       tenant: String,
       f: LightWeightFeature,
@@ -1584,8 +1596,7 @@ class FeaturesDatastore(
               tags,
               metadata,
               description,
-              resultDescriptor,
-              _
+              resultDescriptor
             ) =>
           (
             Option(id).getOrElse(UUID.randomUUID().toString),
@@ -1639,11 +1650,9 @@ class FeaturesDatastore(
               List(
                 insertFeatures(
                   modernFeatureParams,
-                  modernFeatures.map(f =>
-                    f.allowedValues.map(v =>
-                      new JsonArray(Json.toJson(v).toString())
-                    ).orNull
-                  ).toArray
+                  modernFeatures
+                    .map(f => allowedValuesJsonArray(f.resultDescriptor).orNull)
+                    .toArray
                 ),
                 insertLegacyFeatures(legacyFeatureParams),
                 postgresql
@@ -2010,8 +2019,7 @@ class FeaturesDatastore(
             _,
             metadata,
             description,
-            resultDescriptor,
-            allowedValues
+            resultDescriptor
           ) =>
         (
           s"""INSERT INTO "${tenant}".features (id, name, project, enabled, conditions, metadata, description, result_type, value, allowed_values)
@@ -2030,9 +2038,7 @@ class FeaturesDatastore(
               case descriptor: ValuedResultDescriptor  => descriptor.stringValue
               case BooleanResultDescriptor(conditions) => null
             },
-            allowedValues.map(v =>
-              new JsonArray(Json.toJson(v).toString())
-            ).orNull
+            allowedValuesJsonArray(resultDescriptor).orNull
           )
         )
       case CompleteWasmFeature(
@@ -2155,8 +2161,7 @@ class FeaturesDatastore(
                 _,
                 _,
                 description,
-                resultDescriptor,
-                allowedValues
+                resultDescriptor
               ) =>
             (
               s"""update "${tenant}".features
@@ -2176,9 +2181,7 @@ class FeaturesDatastore(
                     descriptor.stringValue
                   case BooleanResultDescriptor(conditions) => null
                 },
-                allowedValues.map(v =>
-                  new JsonArray(Json.toJson(v).toString())
-                ).orNull
+                allowedValuesJsonArray(resultDescriptor).orNull
               )
             )
           case CompleteWasmFeature(
@@ -2283,7 +2286,14 @@ class FeaturesDatastore(
                       feature
                     ) match {
                       case (old: Feature, updated: Feature) =>
-                        old.allowedValues != updated.allowedValues
+                        (old.resultDescriptor, updated.resultDescriptor) match {
+                          case (
+                                oldDescriptor: StringResultDescriptor,
+                                updatedDescriptor: StringResultDescriptor
+                              ) =>
+                            oldDescriptor.allowedValues != updatedDescriptor.allowedValues
+                          case _ => false
+                        }
                       case _ => false
                     }) =>
                   eventService
@@ -2488,11 +2498,10 @@ object featureImplicits {
                     description = description,
                     resultDescriptor = StringResultDescriptor(
                       value = row.optString("value").get,
-                      conditions = conds
-                    ),
-                    allowedValues = row.optJsArray(
-                      "allowed_values"
-                    ).map(_.as[Seq[StringAllowedValue]])
+                      conditions = conds,
+                      allowedValues = row.optJsArray("allowed_values")
+                        .map(_.as[Seq[StringAllowedValue]])
+                    )
                   )
                 }
                 case BooleanResult => {
@@ -2624,11 +2633,10 @@ object featureImplicits {
                     description = description,
                     resultDescriptor = StringResultDescriptor(
                       value = row.optString("value").get,
-                      conditions = conds
-                    ),
-                    allowedValues = row.optJsArray(
-                      "allowed_values"
-                    ).map(_.as[Seq[StringAllowedValue]])
+                      conditions = conds,
+                      allowedValues = row.optJsArray("allowed_values")
+                        .map(_.as[Seq[StringAllowedValue]])
+                    )
                   )
                 }
                 case BooleanResult => {

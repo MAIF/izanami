@@ -612,7 +612,11 @@ class FeatureService(
                   parent: Feature,
                   _: CompleteWasmFeatureStrategy
                 )
-                if parent.allowedValues.nonEmpty =>
+                if (parent.resultDescriptor match {
+                  case stringDescriptor: StringResultDescriptor =>
+                    stringDescriptor.allowedValues.nonEmpty
+                  case _ => false
+                }) =>
               FutureEither.failure(GenericBadRequest(
                 "WASM overloads are incompatible with the parent's allowedValues"
               ))
@@ -782,7 +786,7 @@ class FeatureService(
           conditions = true
         )
       futureFeaturesByProject.map {
-        case Left(error) => Left(error)
+        case Left(error)               => Left(error)
         case Right(featuresByProjects) => {
           val strategies = featuresByProjects.toSeq.flatMap {
             case (projectId, features) => {
@@ -811,7 +815,7 @@ class FeatureService(
       )
 
       futureFeaturesByProject.map {
-        case Left(error) => Left(error)
+        case Left(error)               => Left(error)
         case Right(featuresByProjects) => {
           // TODO turn return type of findByRequestForKey to FeatureStrategies so that we don't have to use
           //  an empty context here

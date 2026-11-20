@@ -1,5 +1,6 @@
 package fr.maif.izanami.models.features
 
+import fr.maif.izanami.models.StringAllowedValue
 import fr.maif.izanami.models.features.ActivationCondition.{
   maxNumberValue,
   minNumberValue
@@ -151,7 +152,8 @@ case class NumberResultDescriptor(
 
 case class StringResultDescriptor(
     value: String,
-    conditions: Seq[StringActivationCondition]
+    conditions: Seq[StringActivationCondition],
+    allowedValues: Option[Seq[StringAllowedValue]] = None
 ) extends ValuedResultDescriptor {
   override def resultType: ValuedResultType = StringResult
   override def jsonValue: JsValue = JsString(value)
