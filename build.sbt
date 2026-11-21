@@ -102,7 +102,7 @@ libraryDependencies += "com.github.tomakehurst" % "wiremock-jre8" % "2.34.0" % T
 libraryDependencies += "com.fasterxml.jackson.core" % "jackson-databind" % "2.13.4.2" % Test
 libraryDependencies += "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.4" % Test
 libraryDependencies += jdbc % "test"
-libraryDependencies += "org.testcontainers" % "testcontainers" % "1.21.4" % Test
+libraryDependencies += "org.testcontainers" % "testcontainers" % "2.0.5" % Test
 libraryDependencies += ("fr.maif" %% "izanami-client" % "1.11.5" % Test)
   .exclude("org.scala-lang.modules", "scala-java8-compat_2.13")
   .exclude("org.scala-lang.modules", "scala-parser-combinators_2.13")
