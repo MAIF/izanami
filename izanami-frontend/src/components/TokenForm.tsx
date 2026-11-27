@@ -12,14 +12,18 @@ import Select from "react-select";
 import {
   POSSIBLE_GLOBAL_TOKEN_RIGHTS,
   POSSIBLE_TOKEN_RIGHTS,
+  TLevel,
   TokenGlobalRightsArray,
   TokenTenantRight,
   TokenTenantRightsArray,
+  TProjectLevel,
+  TUser,
 } from "../utils/types";
 import { customStyles } from "../styles/reactSelect";
 import { hasRightForTenant, IzanamiContext } from "../securityContext";
 import { Tooltip } from "./Tooltip";
 import { DEFAULT_TIMEZONE } from "../utils/datetimeUtils";
+import { useContext } from "react";
 
 export type PesonnalTokenFormType =
   | LimitedRightsPesonnalTokenFormType
@@ -64,6 +68,8 @@ export function TokenForm(props: {
     setValue,
     unregister,
   } = methods;
+
+  const { user } = useContext(IzanamiContext);
 
   const allRights = watch("allRights");
   watch("rights");
@@ -135,27 +141,29 @@ export function TokenForm(props: {
                 }}
               />
             </div>
-            <div className="mt-3 d-flex w-100">
-              <label className="w-100">
-                Global rights
-                <Controller
-                  name="globalRights"
-                  control={control}
-                  render={({ field: { onChange, value } }) => (
-                    <Select
-                      value={value?.map((v) => ({ label: v, value: v })) ?? []}
-                      options={POSSIBLE_GLOBAL_TOKEN_RIGHTS.map((r) => ({
-                        label: r,
-                        value: r,
-                      }))}
-                      styles={customStyles}
-                      isMulti
-                      onChange={(selected) => onChange(selected?.map(({ value }) => value))}
-                    />
-                  )}
-                />
-              </label>
-            </div>
+            {user?.admin && (
+              <div className="mt-3 d-flex w-100">
+                <label className="w-100">
+                  Global rights
+                  <Controller
+                    name="globalRights"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <Select
+                        value={value?.map((v) => ({ label: v, value: v })) ?? []}
+                        options={POSSIBLE_GLOBAL_TOKEN_RIGHTS.map((r) => ({
+                          label: r,
+                          value: r,
+                        }))}
+                        styles={customStyles}
+                        isMulti
+                        onChange={(selected) => onChange(selected?.map(({ value }) => value))}
+                      />
+                    )}
+                  />
+                </label>
+              </div>
+            )}
           </>
         )}
         <label className="mt-3">
@@ -239,9 +247,7 @@ function TenantRightSelector(props: {
                   key={`rights-${tenant}`}
                   options={tenantQuery.data
                     .map((t) => t.name)
-                    .filter(
-                      (t) => hasRightForTenant(user!, t, "Admin") && !value.find(([v]) => t == v),
-                    )}
+                    .filter((t) => !value.find(([v]) => t == v))}
                   tenant={tenant}
                   rights={rs}
                   onChange={(tenant, rights) => {
@@ -292,6 +298,7 @@ function UnitTenantRightSelector(props: {
   onChange: (tenant: string | null, rights: TokenTenantRight[]) => void;
 }) {
   const { tenant, rights } = props;
+  const { user } = useContext(IzanamiContext);
   return (
     <div className="row">
       <label className="col-6 col-md-3">
@@ -307,11 +314,18 @@ function UnitTenantRightSelector(props: {
         Rights
         <Select
           styles={customStyles}
+          isDisabled={!tenant}
           value={rights?.map((r) => ({ value: r, label: r })) ?? []}
-          options={POSSIBLE_TOKEN_RIGHTS.filter((v) => !props.rights?.includes(v)).map((v) => ({
-            label: v,
-            value: v,
-          }))}
+          options={
+            !tenant
+              ? []
+              : possiblePATRightsForUser(tenant, user!)
+                  .filter((v) => !props.rights?.includes(v))
+                  .map((v) => ({
+                    label: v,
+                    value: v,
+                  }))
+          }
           onChange={(v) => {
             props?.onChange(
               props.tenant,
@@ -323,4 +337,40 @@ function UnitTenantRightSelector(props: {
       </label>
     </div>
   );
+}
+
+function possiblePATRightsForUser(tenant: string, user: TUser): TokenTenantRight[] {
+  const isTenantAdmin = hasRightForTenant(user, tenant, TLevel.Admin) ?? false;
+  const tenantRight = user.rights.tenants?.[tenant];
+  const isAdminOfAProject =
+    tenantRight?.defaultProjectRight === TProjectLevel.Admin ||
+    Object.values(tenantRight?.projects || {}).some((r) => r.level === TProjectLevel.Admin);
+  const isAdminOfAKey =
+    tenantRight?.defaultKeyRight === TLevel.Admin ||
+    Object.values(tenantRight?.keys || {}).some((r) => r.level === TLevel.Admin);
+  const hasWriteRightOnAProject =
+    tenantRight?.defaultProjectRight === TProjectLevel.Write ||
+    Object.values(tenantRight?.projects || {}).some((r) => r.level === TProjectLevel.Write);
+  return POSSIBLE_TOKEN_RIGHTS.filter((r) => {
+    switch (r) {
+      case "EXPORT":
+        return isTenantAdmin;
+      case "IMPORT":
+        return isTenantAdmin;
+      case "DELETE FEATURE":
+        return hasWriteRightOnAProject;
+      case "READ PROJECT":
+        return true;
+      case "DELETE PROJECT":
+        return isAdminOfAProject;
+      case "DELETE KEY":
+        return isAdminOfAKey;
+      case "READ TENANT":
+        return true;
+      case "READ KEYS":
+        return true;
+      case "UPDATE FEATURE":
+        return hasWriteRightOnAProject;
+    }
+  });
 }

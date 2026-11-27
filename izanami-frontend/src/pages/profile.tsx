@@ -132,7 +132,7 @@ export function Profile() {
       <h2 className="mt-4">Rights</h2>
       <Rights />
 
-      {user.admin && <Tokens />}
+      <Tokens />
     </div>
   );
 }
